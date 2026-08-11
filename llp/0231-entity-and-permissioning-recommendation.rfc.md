@@ -580,14 +580,19 @@ encryption dismissal.
 
 ## Open questions
 
-1. **The visibility grammar.** The plan-class model sets the floor — row
-   predicates (class R) plus reveal-style disjunctive field masking (class M
-   with its safety envelope), with pointing-room as the sibling spec's worked
-   case — but the exact contents are unpinned. What may a class-M condition
-   reference: same-row fields, declared related rows, app singletons? The
-   design should start from the shipped visibility union and evaluate the
-   existing compiled-fragment approaches (OPA's data-filtering fragment, CEL
-   partial evaluation) rather than inventing from zero.
+1. **The visibility grammar — partially resolved 2026-08-11.** Class R now
+   includes one bounded top-level `anyOf` of 2–8 distinct owner/membership
+   leaves. Arms preserve authored order; nesting and `public-read` arms are
+   refused. The exact schema predicate is plan data, storage evaluates grouped
+   OR before ANDed query refinements, membership leaves contribute live
+   dependencies and force conservative replacement, and every restricted
+   policy is RQS-ineligible. This resolves the Clique Following-feed shape:
+   a dedicated Following membership projection plus the owner arm includes
+   self-authored posts without a self-follow edge. The shipped scope is only
+   generated direct query/live-query plans. `ctx.db`, search, relational,
+   class-M masking, writes, and egress remain open; in particular the original
+   question about what a class-M condition may reference is not answered by
+   this class-R connective.
 2. **Unify the vocabularies.** The proposed table-level grammar and the
    *shipped* `visibility` union (search/relational/bounded-children/kits) use
    the same keyword and overlapping shapes; `authScopeField` overlaps both.
@@ -700,3 +705,8 @@ document. Diary citations are quoted exactly.
   qualifier, Related-header hygiene, LLP 0070 authority modes in OQ6). Status
   Review → Accepted per author ruling. The dual-READY verdicts bind to
   `sha256 09c2a342…`, which precedes these edits.
+- 2026-08-11 — OQ1 partially resolved by the bounded class-R disjunction:
+  top-level 2–8 owner/membership arms, exact plan composition, grouped storage
+  lowering, conservative membership live replacement, RQS demotion, and the
+  real-session Following projection witness. Class M and the other explicitly
+  named read/write/egress surfaces remain open.

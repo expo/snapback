@@ -2936,6 +2936,7 @@ fn todo_functions() -> FunctionManifest {
                 "listTodos",
                 FunctionKind::LiveQuery,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "todos".to_owned(),
                     filters: vec![FilterExpr {
                         field: "userId".to_owned(),
@@ -4088,6 +4089,7 @@ fn e5_unknown_index_fails_closed() {
         "goodIndex",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -4106,6 +4108,7 @@ fn e5_unknown_index_fails_closed() {
         "badIndex",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -4138,6 +4141,7 @@ fn whole_manifest_rejects_cumulative_in_budget_before_atomic_install() {
         "tooManyBindings",
         FunctionKind::Query,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![filter("title"), filter("userId")],
             order: Vec::new(),
@@ -4184,6 +4188,7 @@ fn whole_manifest_rejects_invalid_query_expressions_before_atomic_install() {
             &name,
             FunctionKind::Query,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "todos".to_owned(),
                 filters: vec![FilterExpr {
                     field: "title".to_owned(),
@@ -4323,6 +4328,7 @@ fn query_filter_bind_budget_counts_every_filter_operand() {
         .expect("schema");
 
     let plan = |in_value: ValueExpr| QueryPlan {
+        table_visibility: None,
         table: "todos".to_owned(),
         filters: vec![
             FilterExpr {
@@ -4386,6 +4392,7 @@ fn query_filter_values_match_declared_and_system_field_types() {
     db.schema_seed().apply_schema(schema).expect("schema");
 
     let plan = |field: &str, op: FilterOp, value: Value| QueryPlan {
+        table_visibility: None,
         table: "todos".to_owned(),
         filters: vec![FilterExpr {
             field: field.to_owned(),
@@ -4502,6 +4509,7 @@ fn query_without_take_uses_the_portable_default_result_cap() {
         .query_reads_read()
         .query(
             &QueryPlan {
+                table_visibility: None,
                 table: "todos".to_owned(),
                 filters: Vec::new(),
                 order: Vec::new(),
@@ -5196,6 +5204,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         version: Some(captured_notes_version),
         predicate: Some(
             serde_json::to_value(QueryPlan {
+                table_visibility: None,
                 table: "notes".to_owned(),
                 filters: vec![FilterExpr {
                     field: "body".to_owned(),
@@ -5249,6 +5258,7 @@ fn e4_query_validation_is_predicate_granular() {
         version: None, // filled per-case with the captured table version
         predicate: Some(
             serde_json::to_value(QueryPlan {
+                table_visibility: None,
                 table: "todos".to_owned(),
                 filters: vec![FilterExpr {
                     field: "completed".to_owned(),

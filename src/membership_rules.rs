@@ -167,6 +167,7 @@ pub(crate) fn membership_probe_plan(
         });
     }
     QueryPlan {
+        table_visibility: None,
         table: table_name.to_owned(),
         filters,
         membership_filters: Vec::new(),
@@ -590,6 +591,7 @@ mod tests {
     /// primary-table capture.
     fn primary_events_query_dependency() -> CapturedReadDependency {
         let plan = QueryPlan {
+            table_visibility: None,
             table: "events".to_owned(),
             filters: Vec::new(),
             membership_filters: Vec::new(),

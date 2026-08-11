@@ -65,6 +65,7 @@ export function createCodegenSummary({
       publicRead: declaredTableVisibility.filter(({ kind }) => kind === 'public-read').length,
       owner: declaredTableVisibility.filter(({ kind }) => kind === 'owner').length,
       membership: declaredTableVisibility.filter(({ kind }) => kind === 'membership').length,
+      anyOf: declaredTableVisibility.filter(({ kind }) => kind === 'any-of').length,
     },
   };
   const degradedByOperation = new Map();

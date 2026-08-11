@@ -749,6 +749,7 @@ fn functions() -> FunctionManifest {
         "listMine",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "userId".to_owned(),
@@ -769,6 +770,7 @@ fn functions() -> FunctionManifest {
         "listAllOrdered",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: Vec::new(),
             order: vec![snapback::manifest::OrderExpr {

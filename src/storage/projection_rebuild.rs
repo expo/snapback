@@ -289,6 +289,7 @@ pub(super) fn materialize_projection_in(
     let mut desired: BTreeMap<String, (Vec<Value>, Map<String, Value>)> = BTreeMap::new();
     let mut references: BTreeMap<String, u32> = BTreeMap::new();
     let scan = QueryPlan {
+        table_visibility: None,
         table: plan.root.clone(),
         filters: Vec::new(),
         membership_filters: Vec::new(),
@@ -355,6 +356,7 @@ pub(super) fn materialize_projection_in(
             .and_then(Value::as_str)
             .ok_or_else(|| projection_invariant("root row without _id".to_owned()))?;
         let filter_plan = QueryPlan {
+            table_visibility: None,
             table: plan.root.clone(),
             filters: plan.root_filters.clone(),
             membership_filters: Vec::new(),
@@ -382,6 +384,7 @@ pub(super) fn materialize_projection_in(
     // --- Converge the output table; stream the content digest. --------
     let existing = {
         let scan = QueryPlan {
+            table_visibility: None,
             table: plan.output_table.clone(),
             filters: Vec::new(),
             membership_filters: Vec::new(),
@@ -653,6 +656,7 @@ fn projection_logical_row(
                 })
                 .collect();
             let lookup = QueryPlan {
+                table_visibility: None,
                 table: plan.joined.clone(),
                 filters,
                 membership_filters: Vec::new(),
@@ -886,6 +890,7 @@ pub(super) fn maintain_projections_in_tx(
                 })
                 .collect();
             let scan = QueryPlan {
+                table_visibility: None,
                 table: plan.root.clone(),
                 filters,
                 membership_filters: Vec::new(),
@@ -955,6 +960,7 @@ pub(super) fn maintain_projections_in_tx(
                         })
                         .collect();
                     let lookup = QueryPlan {
+                        table_visibility: None,
                         table: plan.root.clone(),
                         filters,
                         membership_filters: Vec::new(),
@@ -995,6 +1001,7 @@ pub(super) fn maintain_projections_in_tx(
             // not maintenance selection).
             let admitted_root = root_row.as_ref().filter(|row| {
                 let filter_plan = QueryPlan {
+                    table_visibility: None,
                     table: plan.root.clone(),
                     filters: plan.root_filters.clone(),
                     membership_filters: Vec::new(),

@@ -95,6 +95,7 @@ fn bundle_functions() -> FunctionManifest {
         "listPosts",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "posts".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -122,6 +123,7 @@ fn bundle_functions() -> FunctionManifest {
                 "listTodos",
                 FunctionKind::LiveQuery,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "todos".to_owned(),
                     filters: vec![FilterExpr {
                         field: "userId".to_owned(),

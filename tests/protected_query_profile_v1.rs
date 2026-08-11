@@ -14,6 +14,7 @@ fn host_live_with(value: ValueExpr) -> FunctionDefinition {
         "protectedHost",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "ownerId".to_owned(),

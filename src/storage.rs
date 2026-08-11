@@ -3407,6 +3407,7 @@ impl LocalDatabase {
                     // Reuse the query WHERE builder so DeleteWhere filters share
                     // matcher/SQL semantics with reads (empty filter = clear).
                     let scan_plan = QueryPlan {
+                        table_visibility: None,
                         table: table.name.clone(),
                         filters: filter.clone(),
                         membership_filters: Vec::new(),
@@ -5256,6 +5257,7 @@ pub(crate) fn query_relational_on_observed(
         let mut filters = plan.root_visibility.clone();
         filters.extend(plan.root_filters.iter().cloned());
         let root_plan = QueryPlan {
+            table_visibility: None,
             table: plan.root.clone(),
             filters,
             order: plan.order.clone(),
@@ -5342,6 +5344,7 @@ pub(crate) fn query_relational_on_observed(
                 .collect();
             filters.extend(plan.joined_visibility.iter().cloned());
             let lookup = QueryPlan {
+                table_visibility: None,
                 table: plan.joined.clone(),
                 filters,
                 order: Vec::new(),
@@ -5553,6 +5556,15 @@ fn query_on_with_storage_limit_visibility_keyset(
                 crate::membership_rules::find_declaration(schema, &predicate.declaration)
                     .expect("validated membership predicate resolves its declaration");
             validate_managed_row_versions(conn, membership_table, snapshot_version)?;
+        }
+        if let Some(visibility) = &plan.table_visibility {
+            for predicate in visibility.membership_predicates() {
+                crate::membership_rules::validate_membership_predicate(schema, table, &predicate)?;
+                let (membership_table, _) =
+                    crate::membership_rules::find_declaration(schema, &predicate.declaration)
+                        .expect("validated table-visibility predicate resolves its declaration");
+                validate_managed_row_versions(conn, membership_table, snapshot_version)?;
+            }
         }
         if storage_limit > QUERY_INTERNAL_OVERFETCH_MAX {
             return Err(SnapbackError::error(
@@ -9460,6 +9472,22 @@ fn build_query_sql(
         }
     }
 
+    if let Some(visibility) = &plan.table_visibility {
+        let (clause, extra) = build_table_visibility_sql(
+            schema,
+            table,
+            visibility,
+            input,
+            bindings,
+            now_ms,
+            runtime_id,
+            &format!("{runtime_id_site}/table-visibility"),
+            &mut filter_bindings,
+        )?;
+        where_parts.push(clause);
+        values.extend(extra);
+    }
+
     // LLP 0056 M3: lower each declaration-bound membership semi-join to a
     // correlated `EXISTS` over the membership table. Non-recursive by design —
     // SQL applies no row-visibility rules, so a locked-down roster cannot break
@@ -9524,6 +9552,113 @@ fn build_query_sql(
     }
 
     Ok((sql, values))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_table_visibility_sql(
+    schema: &SchemaManifest,
+    outer: &TableManifest,
+    visibility: &crate::manifest::TableVisibilityV1,
+    input: &HandlerInput,
+    bindings: &BTreeMap<String, Value>,
+    now_ms: u64,
+    runtime_id: Option<&crate::value_expr::RuntimeIdGenerator<'_>>,
+    runtime_id_site: &str,
+    filter_bindings: &mut usize,
+) -> SnapbackResult<(String, Vec<SqlValue>)> {
+    use crate::manifest::{MembershipPredicate, MembershipResourceRef, TableVisibilityArmV1};
+
+    let owner_clause =
+        |field: &str, filter_bindings: &mut usize| -> SnapbackResult<(String, Vec<SqlValue>)> {
+            ensure_field_or_system(outer, field)?;
+            let Some(user_id) = input.auth.user_id.as_deref() else {
+                return Ok(("(0 = 1)".to_owned(), Vec::new()));
+            };
+            add_query_filter_bindings(filter_bindings, 1, field)?;
+            Ok((
+                format!(
+                    "{}.{} = ?",
+                    quote_ident("__snapback_outer")?,
+                    quote_ident(field)?
+                ),
+                vec![json_to_sql_value(
+                    &Value::String(user_id.to_owned()),
+                    field_type(outer, field),
+                )?],
+            ))
+        };
+    let membership_clause = |declaration: &str,
+                             resource_field: &str,
+                             roles: &Option<Vec<String>>,
+                             filter_bindings: &mut usize,
+                             site: &str|
+     -> SnapbackResult<(String, Vec<SqlValue>)> {
+        let predicate = MembershipPredicate {
+            declaration: declaration.to_owned(),
+            resource: MembershipResourceRef::RowField(resource_field.to_owned()),
+            roles: roles.clone(),
+        };
+        build_membership_exists_sql(
+            schema,
+            outer,
+            &predicate,
+            input,
+            bindings,
+            now_ms,
+            runtime_id,
+            site,
+            filter_bindings,
+        )
+    };
+
+    match visibility {
+        crate::manifest::TableVisibilityV1::PublicRead => Err(SnapbackError::error(
+            "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
+            "auth",
+            "a public-read table policy must be omitted from an executable query plan",
+        )),
+        crate::manifest::TableVisibilityV1::Owner { field } => {
+            let (clause, values) = owner_clause(field, filter_bindings)?;
+            Ok((format!("({clause})"), values))
+        }
+        crate::manifest::TableVisibilityV1::Membership {
+            declaration,
+            resource_field,
+            roles,
+        } => {
+            let (clause, values) = membership_clause(
+                declaration,
+                resource_field,
+                roles,
+                filter_bindings,
+                &format!("{runtime_id_site}/membership"),
+            )?;
+            Ok((format!("({clause})"), values))
+        }
+        crate::manifest::TableVisibilityV1::AnyOf { arms } => {
+            let mut clauses = Vec::with_capacity(arms.len());
+            let mut values = Vec::new();
+            for (index, arm) in arms.iter().enumerate() {
+                let (clause, extra) = match arm {
+                    TableVisibilityArmV1::Owner { field } => owner_clause(field, filter_bindings)?,
+                    TableVisibilityArmV1::Membership {
+                        declaration,
+                        resource_field,
+                        roles,
+                    } => membership_clause(
+                        declaration,
+                        resource_field,
+                        roles,
+                        filter_bindings,
+                        &format!("{runtime_id_site}/membership/{index}"),
+                    )?,
+                };
+                clauses.push(format!("({clause})"));
+                values.extend(extra);
+            }
+            Ok((format!("({})", clauses.join(" OR ")), values))
+        }
+    }
 }
 
 /// Lower one declaration-bound membership semi-join to a correlated `EXISTS`

@@ -11,7 +11,7 @@ use super::{
     MaintenanceOperation, PendingLiveFanout, PendingLiveLane, PendingLiveScheduler,
     PendingLiveWork, PublicInspect, RetryEpisodeKey, RetryReservationKind, SEARCH_ANALYZER,
     SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1,
-    SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1, SnapbackError, SnapbackResult,
+    SearchQueryPlanV1, SearchTextFieldV1, SnapbackError, SnapbackResult,
     StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
     bounded_projection_result_contract, enforce_snapshot_batch_cursor_budget,
     next_secret_read_reset_generation, now_millis, order_field_bounds_from_functions,
@@ -51,6 +51,7 @@ use crate::manifest::{
     TableManifest, ValueExpr, ctx_ledger_version,
 };
 use crate::runtime::ExecutedIbexMutation;
+use crate::search::SearchVisibilityV1;
 use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
 use crate::storage::{BufferedWrite, DbRead};
 use crate::vector::{
@@ -576,6 +577,7 @@ fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
         ..SchemaManifest::default()
     };
     let plan = QueryPlan {
+        table_visibility: None,
         table: "todos".to_owned(),
         filters: Vec::new(),
         order: Vec::new(),
@@ -749,7 +751,7 @@ fn table_visibility_activation_validates_owner_field() {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
-            visibility: Some(SearchVisibilityV1::Owner {
+            visibility: Some(crate::manifest::TableVisibilityV1::Owner {
                 field: "ownerId".to_owned(),
             }),
             history: None,
@@ -759,7 +761,7 @@ fn table_visibility_activation_validates_owner_field() {
     validate_function_schema_references(&FunctionManifest::default(), &schema)
         .expect("declared owner field resolves at activation");
 
-    schema.tables[0].visibility = Some(SearchVisibilityV1::Owner {
+    schema.tables[0].visibility = Some(crate::manifest::TableVisibilityV1::Owner {
         field: "missingOwner".to_owned(),
     });
     let error = validate_function_schema_references(&FunctionManifest::default(), &schema)
@@ -767,6 +769,109 @@ fn table_visibility_activation_validates_owner_field() {
     assert_eq!(
         error.diagnostic.code,
         "SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN"
+    );
+}
+
+#[test]
+fn restricted_table_plan_requires_exact_policy_and_authorization_dependence() {
+    let visibility = crate::manifest::TableVisibilityV1::Owner {
+        field: "ownerId".to_owned(),
+    };
+    let schema = SchemaManifest {
+        tables: vec![TableManifest {
+            name: "notes".to_owned(),
+            fields: vec![FieldManifest {
+                name: "ownerId".to_owned(),
+                field_type: FieldType::Principal,
+                optional: false,
+            }],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            asset_sharing: None,
+            visibility: Some(visibility.clone()),
+            history: None,
+        }],
+        ..SchemaManifest::default()
+    };
+    let make = |policy| {
+        let mut function = FunctionDefinition::new(
+            "notes",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: policy,
+                table: "notes".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                membership_filters: Vec::new(),
+                indexed_by: None,
+            })),
+        );
+        function.authorization_dependence =
+            vec![crate::manifest::AuthorizationInputDimension::UserId];
+        function
+    };
+
+    let exact = make(Some(visibility.clone()));
+    validate_function_schema_references(
+        &FunctionManifest {
+            functions: vec![exact.clone()],
+            ..FunctionManifest::default()
+        },
+        &schema,
+    )
+    .expect("exact schema-derived plan and dependence activate");
+
+    for (label, function, code) in [
+        (
+            "omitted policy",
+            make(None),
+            "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
+        ),
+        (
+            "mismatched policy",
+            make(Some(crate::manifest::TableVisibilityV1::Owner {
+                field: "_id".to_owned(),
+            })),
+            "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
+        ),
+        (
+            "omitted dependence",
+            {
+                let mut function = exact.clone();
+                function.authorization_dependence.clear();
+                function
+            },
+            "SNAPBACK_TABLE_VISIBILITY_AUTHORIZATION_DEPENDENCE_MISMATCH",
+        ),
+    ] {
+        let error = validate_function_schema_references(
+            &FunctionManifest {
+                functions: vec![function],
+                ..FunctionManifest::default()
+            },
+            &schema,
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, code, "{label}");
+    }
+
+    let mut doctored_rqs = exact;
+    doctored_rqs.authority_independent = true;
+    doctored_rqs.auth_requirement = Some(AuthRequirement::Public);
+    doctored_rqs.authorization_dependence.clear();
+    doctored_rqs.read_set_summary.mode = Some("singleTable".to_owned());
+    doctored_rqs.read_set_summary.primary_table = Some("notes".to_owned());
+    doctored_rqs.read_set_summary.tables = vec!["notes".to_owned()];
+    assert_eq!(
+        crate::manifest::rqs_eligible_digest_kind(&doctored_rqs),
+        None
     );
 }
 
@@ -826,6 +931,7 @@ fn direct_live_and_retainable_membership_readers_fail_closed_at_load() {
             format!("reader-{kind:?}-{retainable}"),
             kind,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "app_roles".to_owned(),
                 filters: Vec::new(),
                 order: Vec::new(),
@@ -919,6 +1025,7 @@ fn hand_written_membership_arg_with_wrong_nominal_table_fails_at_load() {
         "events-for-project-id",
         FunctionKind::Query,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "events".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -9110,6 +9217,7 @@ fn sessions_activation_pair(
         "listItems",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: hide_rows
                 .then(|| FilterExpr {
@@ -9160,6 +9268,7 @@ fn successor_only_publication_gates_stale_replay_baselines() {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "authors".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),
@@ -9211,6 +9320,7 @@ fn successor_only_publication_gates_stale_replay_baselines() {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "authors".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),
@@ -9387,6 +9497,7 @@ fn successor_only_publication_gates_blind_mutation_artifact_generation() {
         .query_reads_read()
         .query(
             &QueryPlan {
+                table_visibility: None,
                 table: "authors".to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),
@@ -9529,6 +9640,7 @@ fn quarantined_offline_mutation_settles_through_resync_before_replay() {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "authors".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),
@@ -9754,6 +9866,7 @@ fn publication_refuses_a_function_set_that_does_not_bind_the_successor() {
             "listByExtra",
             FunctionKind::Query,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "notes".to_owned(),
                 filters: vec![FilterExpr {
                     field: "extra".to_owned(),
@@ -9871,6 +9984,7 @@ fn publication_refuses_a_function_set_that_does_not_bind_the_successor() {
             "listNotes",
             FunctionKind::Query,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "notes".to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),
@@ -10015,6 +10129,7 @@ fn compatibility_posture_ordering_is_proven_not_declared() {
             name,
             FunctionKind::Query,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "notes".to_owned(),
                 filters: filter_extra
                     .then(|| FilterExpr {
@@ -11478,6 +11593,7 @@ fn activation_terminally_resyncs_unscoped_live_queries_changed_or_removed() {
             name,
             FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "items".to_owned(),
                 filters: Vec::new(),
                 order: Vec::new(),
@@ -11576,6 +11692,7 @@ fn activation_terminally_resyncs_unscoped_live_queries_changed_or_removed() {
         "independentChanged",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -11680,6 +11797,7 @@ fn data_only_same_mode_seed_refreshes_auth_scoped_live_before_reopening() {
         .first_mut()
         .expect("activation live function");
     function.runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+        table_visibility: None,
         table: "freshItems".to_owned(),
         filters: Vec::new(),
         order: Vec::new(),
@@ -12066,6 +12184,7 @@ fn result_handoff_snapback() -> LocalSnapback {
                 "listItems",
                 FunctionKind::Query,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     order: Vec::new(),
@@ -16925,6 +17044,7 @@ fn maintained_projection_engine_end_to_end() {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "bookSummaries".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),
@@ -16977,6 +17097,7 @@ fn maintained_projection_engine_end_to_end() {
         .query_reads_read()
         .query(
             &QueryPlan {
+                table_visibility: None,
                 table: "authors".to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),
@@ -17031,6 +17152,7 @@ fn maintained_projection_engine_end_to_end() {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "books".to_owned(),
                     filters: vec![FilterExpr {
                         field: "slug".to_owned(),
@@ -17113,6 +17235,7 @@ fn book_id_missing(snapback: &LocalSnapback, slug: &str) -> bool {
         .query_reads_read()
         .query(
             &QueryPlan {
+                table_visibility: None,
                 table: "books".to_owned(),
                 filters: vec![FilterExpr {
                     field: "slug".to_owned(),
@@ -17182,6 +17305,7 @@ fn projection_activation_rebuild_materializes_and_republishes() {
         .query_reads_read()
         .query(
             &QueryPlan {
+                table_visibility: None,
                 table: "bookSummaries".to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),
@@ -17243,6 +17367,7 @@ fn projection_activation_rebuild_materializes_and_republishes() {
         .query_reads_read()
         .query(
             &QueryPlan {
+                table_visibility: None,
                 table: "bookSummaries".to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),
@@ -17380,6 +17505,7 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
         .query_reads_read()
         .query(
             &QueryPlan {
+                table_visibility: None,
                 table: "books".to_owned(),
                 filters: vec![FilterExpr {
                     field: "title".to_owned(),
@@ -17453,6 +17579,7 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
         .query_reads_read()
         .query(
             &QueryPlan {
+                table_visibility: None,
                 table: "bookSummaries".to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),
@@ -17555,6 +17682,7 @@ fn generation_activation_reopen_uses_durable_record_and_matching_materialization
         .query_reads_read()
         .query(
             &QueryPlan {
+                table_visibility: None,
                 table: "bookSummaries".to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),
@@ -17829,6 +17957,7 @@ fn maintained_projection_activation_refusals() {
             "readSummaries",
             FunctionKind::Query,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "bookSummaries".to_owned(),
                 filters,
                 membership_filters: Vec::new(),
@@ -18101,6 +18230,7 @@ fn membership_keyset_artifacts() -> (SchemaManifest, FunctionManifest) {
             name,
             FunctionKind::Query,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "messages".to_owned(),
                 filters,
                 membership_filters: vec![MembershipPredicate {
@@ -18740,6 +18870,7 @@ fn membership_keyset_binding_components_change_and_owned_digest_is_stable() {
     }
 
     let owned_plan = QueryPlan {
+        table_visibility: None,
         table: "pages".to_owned(),
         filters: vec![
             FilterExpr {
@@ -18955,6 +19086,7 @@ fn standard_pattern_live_is_conservative_and_recorded() {
         ..SchemaManifest::default()
     };
     let lookup_plan = QueryPlan {
+        table_visibility: None,
         table: "todos".to_owned(),
         filters: vec![
             FilterExpr {
@@ -19104,6 +19236,7 @@ fn cursor_negatives_hold_under_sessions_authorities() {
         value: ValueExpr::AuthUserId,
     };
     let page_plan = |with_cursor: bool| QueryPlan {
+        table_visibility: None,
         table: "books".to_owned(),
         filters: if with_cursor {
             vec![
@@ -19349,6 +19482,7 @@ fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
     };
     let keyset_pair = |table: &str, index: &str, first: &str, next: &str| {
         let base_plan = |with_cursor: bool| QueryPlan {
+            table_visibility: None,
             table: table.to_owned(),
             filters: if with_cursor {
                 vec![
@@ -22291,6 +22425,7 @@ fn live_limit_snapback() -> LocalSnapback {
         "listItems",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -22303,6 +22438,7 @@ fn live_limit_snapback() -> LocalSnapback {
         "listItemsByValue",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: vec![FilterExpr {
                 field: "value".to_owned(),
@@ -22875,6 +23011,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
         .query_reads_read()
         .query(
             &QueryPlan {
+                table_visibility: None,
                 table: "books".to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),
@@ -24126,6 +24263,7 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         "listOwned",
         FunctionKind::Query,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: vec![FilterExpr {
                 field: "owner".to_owned(),
@@ -24945,6 +25083,7 @@ fn reset_commit_failure_preserves_runtime_generation_and_live_subscription() {
         "listItems",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -27025,6 +27164,7 @@ fn rqs_public_live_query(name: &str, ordered: bool) -> FunctionDefinition {
         name,
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: Vec::new(),
             order: if ordered {
@@ -27078,6 +27218,7 @@ fn rqs_functions() -> FunctionManifest {
         "listMineOnly",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "title".to_owned(),
@@ -28180,6 +28321,7 @@ fn rqs_interim_eligibility_fails_closed_on_opaque_and_ambient_plans() {
             "undeclared",
             FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "todos".to_owned(),
                 filters: Vec::new(),
                 order: Vec::new(),

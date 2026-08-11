@@ -2227,19 +2227,156 @@
         "visibility": {
           "anyOf": [
             {
-              "$ref": "#/$defs/SearchVisibilityV1"
+              "$ref": "#/$defs/TableVisibilityV1"
             },
             {
               "type": "null"
             }
           ],
-          "description": "The table-wide default row-visibility declaration. This foundation\nslice records and validates the existing closed search-visibility\nunion without yet composing it into query plans or `ctx.db` reads.\n\n@ref LLP 0231#d1--the-table-is-the-policy-locus-queries-refine — the\n  table is the mandatory policy locus; query composition lands later."
+          "description": "The table-wide default row-visibility declaration. Restricted leaves\nand bounded owner-or-membership groups are compiled into ordinary\ndeclarative query plans; public/implicit tables preserve legacy plan\nbytes by carrying no executable predicate.\n\n@ref LLP 0231#d1--the-table-is-the-policy-locus-queries-refine — the\n  table policy is compiled into ordinary declarative query plans;\n  arbitrary handler reads remain outside this bounded slice."
         }
       },
       "required": [
         "name"
       ],
       "type": "object"
+    },
+    "TableVisibilityArmV1": {
+      "description": "A disjunction arm deliberately excludes public-read and recursive groups.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declaration": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "membership",
+              "type": "string"
+            },
+            "resourceField": {
+              "type": "string"
+            },
+            "roles": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "declaration",
+            "resourceField"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TableVisibilityV1": {
+      "description": "The closed table-policy language. This is intentionally separate from\nsearch and asset-sharing visibility: extending this enum does not widen\neither of those independently enforced surfaces.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "public-read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declaration": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "membership",
+              "type": "string"
+            },
+            "resourceField": {
+              "type": "string"
+            },
+            "roles": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "declaration",
+            "resourceField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "arms": {
+              "items": {
+                "$ref": "#/$defs/TableVisibilityArmV1"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "any-of",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "arms"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "VectorFieldClassV1": {
       "enum": [

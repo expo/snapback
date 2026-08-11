@@ -90,6 +90,7 @@ fn assert_rows_match(case: &str, table: &str, expected: &[Map<String, Value>], a
 fn scan_all_rows(db: &LocalDatabase, table: &str) -> Vec<Value> {
     use snapback::manifest::QueryPlan;
     let plan = QueryPlan {
+        table_visibility: None,
         table: table.to_owned(),
         filters: Vec::new(),
         order: Vec::new(),

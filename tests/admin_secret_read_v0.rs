@@ -480,6 +480,7 @@ fn seeded_snapback() -> LocalSnapback {
                 "listItems",
                 FunctionKind::Query,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     order: Vec::new(),
@@ -492,6 +493,7 @@ fn seeded_snapback() -> LocalSnapback {
                 "failingItems",
                 FunctionKind::Query,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: vec![FilterExpr {
                         field: "title".to_owned(),

@@ -2424,6 +2424,17 @@
         },
         "table": {
           "type": "string"
+        },
+        "tableVisibility": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TableVisibilityV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Exact schema-derived table policy for ordinary declarative reads.\nPublic/implicit tables omit it so historical plan bytes are stable."
         }
       },
       "required": [
@@ -3219,6 +3230,143 @@
         "roles"
       ],
       "type": "object"
+    },
+    "TableVisibilityArmV1": {
+      "description": "A disjunction arm deliberately excludes public-read and recursive groups.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declaration": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "membership",
+              "type": "string"
+            },
+            "resourceField": {
+              "type": "string"
+            },
+            "roles": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "declaration",
+            "resourceField"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "TableVisibilityV1": {
+      "description": "The closed table-policy language. This is intentionally separate from\nsearch and asset-sharing visibility: extending this enum does not widen\neither of those independently enforced surfaces.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "public-read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "owner",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "field"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declaration": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "membership",
+              "type": "string"
+            },
+            "resourceField": {
+              "type": "string"
+            },
+            "roles": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "declaration",
+            "resourceField"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "arms": {
+              "items": {
+                "$ref": "#/$defs/TableVisibilityArmV1"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "any-of",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "arms"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "UnaryOp": {
       "enum": [

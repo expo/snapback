@@ -2990,6 +2990,7 @@ fn todo_functions() -> FunctionManifest {
                 "listTodos",
                 FunctionKind::LiveQuery,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "todos".to_owned(),
                     filters: vec![],
                     order: vec![OrderExpr {

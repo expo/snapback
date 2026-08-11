@@ -11,6 +11,7 @@ use snapback::manifest::{
 
 fn query_plan(filters: Vec<FilterExpr>) -> QueryPlan {
     QueryPlan {
+        table_visibility: None,
         table: "todos".to_owned(),
         filters,
         order: Vec::new(),

@@ -480,6 +480,7 @@ mod tests {
             "rows",
             FunctionKind::Query,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "items".to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),

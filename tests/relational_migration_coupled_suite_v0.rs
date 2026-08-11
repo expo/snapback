@@ -212,6 +212,7 @@ fn functions() -> FunctionManifest {
                 "readSummariesByLabel",
                 FunctionKind::Query,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "itemSummaries".to_owned(),
                     filters: vec![
                         FilterExpr {
@@ -235,6 +236,7 @@ fn functions() -> FunctionManifest {
                 "readSummariesByTitle",
                 FunctionKind::Query,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "itemSummaries".to_owned(),
                     filters: vec![
                         FilterExpr {
@@ -258,6 +260,7 @@ fn functions() -> FunctionManifest {
                 "readItemsByGroup",
                 FunctionKind::Query,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: vec![FilterExpr {
                         field: "groupKey".to_owned(),
@@ -274,6 +277,7 @@ fn functions() -> FunctionManifest {
                 "readItemsByTitle",
                 FunctionKind::Query,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: vec![FilterExpr {
                         field: "title".to_owned(),

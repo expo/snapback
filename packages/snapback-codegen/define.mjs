@@ -202,6 +202,7 @@ const ASSET_VARIANT_FIELDS = new Set(['key', 'width', 'required']);
 // @ref LLP 0007#dated-amendment-asset-references-sharing-declarations-and-admission-2026-07-31
 //   — the sharing declaration reuses the shipped closed visibility union.
 const ASSET_SHARING_KINDS = new Set(['public-read', 'owner', 'membership']);
+const TABLE_VISIBILITY_KINDS = new Set(['public-read', 'owner', 'membership', 'any-of']);
 
 const MEMBERSHIP_FIELDS = new Set([
   'id', 'principal', 'resource', 'role', 'roles', 'pendingRoles',
@@ -787,6 +788,59 @@ function normalizeMembership(spec) {
   };
 }
 
+function normalizeTableVisibilityLeaf(
+  spec,
+  where,
+  shapeCode = 'SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID',
+) {
+  if (spec.kind === 'owner') {
+    exactObject(
+      spec,
+      where,
+      new Set(['kind', 'field']),
+      shapeCode,
+    );
+    assert(
+      typeof spec.field === 'string' && spec.field.length > 0,
+      `${where} owner requires a non-empty field`,
+      'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_INVALID',
+    );
+    return { kind: 'owner', field: spec.field };
+  }
+  exactObject(
+    spec,
+    where,
+    new Set(['kind', 'declaration', 'resourceField', 'roles']),
+    shapeCode,
+  );
+  const declaration = typeof spec.declaration === 'string'
+    ? spec.declaration
+    : spec.declaration?.__table === true
+      ? spec.declaration.membershipDeclaration?.id ?? spec.declaration.__tableName
+      : null;
+  assert(
+    typeof declaration === 'string' && declaration.length > 0,
+    `${where} membership declaration must be a non-empty membership declaration id or a membership() object carrying an id`,
+    'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_INVALID',
+  );
+  assert(
+    typeof spec.resourceField === 'string' && spec.resourceField.length > 0,
+    `${where} membership requires a non-empty resourceField`,
+    'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_INVALID',
+  );
+  const roles = spec.roles === undefined
+    ? undefined
+    : stringArray(spec.roles, `${where} membership roles`, {
+        code: 'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLES_INVALID',
+      });
+  return {
+    kind: 'membership',
+    declaration,
+    resourceField: spec.resourceField,
+    ...(roles ? { roles } : {}),
+  };
+}
+
 class TableBuilder {
   constructor(fields) {
     this[TABLE] = true;
@@ -1238,11 +1292,60 @@ class TableBuilder {
       'SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID',
     );
     assert(
-      ASSET_SHARING_KINDS.has(spec.kind),
-      "visibility() kind must be 'public-read', 'owner', or 'membership'",
+      TABLE_VISIBILITY_KINDS.has(spec.kind),
+      "visibility() kind must be 'public-read', 'owner', 'membership', or 'any-of'",
       'SNAPBACK_TABLE_VISIBILITY_KIND_INVALID',
     );
-    if (spec.kind === 'public-read') {
+    if (spec.kind === 'any-of') {
+      exactObject(
+        spec,
+        'visibility()',
+        new Set(['kind', 'arms']),
+        'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARM_INVALID',
+      );
+      assert(
+        Array.isArray(spec.arms) && spec.arms.length >= 2 && spec.arms.length <= 8,
+        'visibility() any-of requires 2..8 arms',
+        'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID',
+      );
+      const seen = new Set();
+      const arms = spec.arms.map((arm, index) => {
+        assert(
+          arm && typeof arm === 'object' && !Array.isArray(arm),
+          `visibility() any-of arm ${index} must be an owner or membership object`,
+          'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARM_INVALID',
+        );
+        assert(
+          arm.kind !== 'any-of',
+          `visibility() any-of arm ${index} cannot be nested`,
+          'SNAPBACK_TABLE_VISIBILITY_ANY_OF_NESTED',
+        );
+        assert(
+          arm.kind !== 'public-read',
+          `visibility() any-of arm ${index} cannot be public-read; declare public-read at the table locus instead`,
+          'SNAPBACK_TABLE_VISIBILITY_ANY_OF_PUBLIC_READ_ARM',
+        );
+        assert(
+          arm.kind === 'owner' || arm.kind === 'membership',
+          `visibility() any-of arm ${index} must be owner or membership`,
+          'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARM_INVALID',
+        );
+        const normalized = normalizeTableVisibilityLeaf(
+          arm,
+          `visibility() any-of arm ${index}`,
+          'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARM_INVALID',
+        );
+        const identity = JSON.stringify(normalized);
+        assert(
+          !seen.has(identity),
+          `visibility() any-of repeats arm ${index}`,
+          'SNAPBACK_TABLE_VISIBILITY_ANY_OF_DUPLICATE_ARM',
+        );
+        seen.add(identity);
+        return normalized;
+      });
+      this.visibilityDeclaration = { kind: 'any-of', arms };
+    } else if (spec.kind === 'public-read') {
       exactObject(
         spec,
         'visibility()',
@@ -1251,51 +1354,9 @@ class TableBuilder {
       );
       this.visibilityDeclaration = { kind: 'public-read' };
     } else if (spec.kind === 'owner') {
-      exactObject(
-        spec,
-        'visibility()',
-        new Set(['kind', 'field']),
-        'SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID',
-      );
-      assert(
-        typeof spec.field === 'string' && spec.field.length > 0,
-        'visibility() owner requires a non-empty field',
-        'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_INVALID',
-      );
-      this.visibilityDeclaration = { kind: 'owner', field: spec.field };
+      this.visibilityDeclaration = normalizeTableVisibilityLeaf(spec, 'visibility()');
     } else {
-      exactObject(
-        spec,
-        'visibility()',
-        new Set(['kind', 'declaration', 'resourceField', 'roles']),
-        'SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID',
-      );
-      const declaration = typeof spec.declaration === 'string'
-        ? spec.declaration
-        : spec.declaration?.__table === true
-          ? spec.declaration.membershipDeclaration?.id ?? spec.declaration.__tableName
-          : null;
-      assert(
-        typeof declaration === 'string' && declaration.length > 0,
-        'visibility() membership declaration must be a non-empty membership declaration id or a membership() object carrying an id',
-        'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_INVALID',
-      );
-      assert(
-        typeof spec.resourceField === 'string' && spec.resourceField.length > 0,
-        'visibility() membership requires a non-empty resourceField',
-        'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_INVALID',
-      );
-      const roles = spec.roles === undefined
-        ? undefined
-        : stringArray(spec.roles, 'visibility() membership roles', {
-            code: 'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLES_INVALID',
-          });
-      this.visibilityDeclaration = {
-        kind: 'membership',
-        declaration,
-        resourceField: spec.resourceField,
-        ...(roles ? { roles } : {}),
-      };
+      this.visibilityDeclaration = normalizeTableVisibilityLeaf(spec, 'visibility()');
     }
     return this;
   }
@@ -1687,34 +1748,52 @@ export function defineSchema(tables, options = {}) {
   }
   for (const [name, table] of Object.entries(tables)) {
     const visibility = table.visibilityDeclaration;
-    if (visibility?.kind === 'owner') {
-      assert(
-        Object.hasOwn(table.fields, visibility.field),
-        `table ${name} visibility owner field ${visibility.field} does not exist`,
-        'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN',
-      );
-    } else if (visibility?.kind === 'membership') {
-      assert(
-        Object.hasOwn(table.fields, visibility.resourceField),
-        `table ${name} visibility membership resource field ${visibility.resourceField} does not exist`,
-        'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN',
-      );
-      const declaredMembership = Object.entries(tables).find(([membershipTableName, candidate]) => (
-        candidate.membershipDeclaration
-        && (candidate.membershipDeclaration.id ?? membershipTableName) === visibility.declaration
-      ));
-      assert(
-        declaredMembership !== undefined,
-        `table ${name} visibility names unknown membership declaration ${visibility.declaration}`,
-        'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN',
-      );
-      const declaredRoles = new Set(declaredMembership?.[1].membershipDeclaration?.roles ?? []);
-      for (const role of visibility.roles ?? []) {
+    const leaves = visibility?.kind === 'any-of' ? visibility.arms : visibility ? [visibility] : [];
+    for (const leaf of leaves) {
+      if (leaf.kind === 'owner') {
         assert(
-          declaredRoles.has(role),
-          `table ${name} visibility names undeclared membership role ${role}`,
-          'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN',
+          Object.hasOwn(table.fields, leaf.field),
+          `table ${name} visibility owner field ${leaf.field} does not exist`,
+          'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN',
         );
+      } else if (leaf.kind === 'membership') {
+        const resource = table.fields[leaf.resourceField];
+        assert(
+          resource !== undefined,
+          `table ${name} visibility membership resource field ${leaf.resourceField} does not exist`,
+          'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN',
+        );
+        const declaredMembership = Object.entries(tables).find(([membershipTableName, candidate]) => (
+          candidate.membershipDeclaration
+          && (candidate.membershipDeclaration.id ?? membershipTableName) === leaf.declaration
+        ));
+        assert(
+          declaredMembership !== undefined,
+          `table ${name} visibility names unknown membership declaration ${leaf.declaration}`,
+          'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN',
+        );
+        const membershipTable = declaredMembership?.[1];
+        const membershipDeclaration = membershipTable?.membershipDeclaration;
+        const membershipResource = membershipDeclaration?.scope === 'resource'
+          ? membershipTable.fields[membershipDeclaration.resource]
+          : undefined;
+        const expectedResourceTable = membershipResource?.fieldType?.Id?.table;
+        const actualResourceTable = resource?.fieldType?.Id?.table;
+        assert(
+          resource?.optional === false
+            && typeof expectedResourceTable === 'string'
+            && actualResourceTable === expectedResourceTable,
+          `table ${name} visibility membership resource field ${leaf.resourceField} must be a required Id<${expectedResourceTable ?? 'resourceTable'}>`,
+          'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_TYPE_MISMATCH',
+        );
+        const declaredRoles = new Set(membershipDeclaration?.roles ?? []);
+        for (const role of leaf.roles ?? []) {
+          assert(
+            declaredRoles.has(role),
+            `table ${name} visibility names undeclared or pending membership role ${role}`,
+            'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN',
+          );
+        }
       }
     }
   }
@@ -2522,6 +2601,14 @@ export function definePushLedgerQuery(spec = {}) {
 export const owner = (field) => {
   assert(typeof field === 'string' && field.length > 0, 'owner() expects a field');
   return Object.freeze({ kind: 'owner', field });
+};
+export const anyOf = (arms) => {
+  assert(
+    Array.isArray(arms) && arms.length >= 2 && arms.length <= 8,
+    'anyOf() expects 2..8 owner or membership arms',
+    'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID',
+  );
+  return Object.freeze({ kind: 'any-of', arms: Object.freeze([...arms]) });
 };
 export const throughParent = () => Object.freeze({ kind: 'through-parent.v1' });
 export const throughScope = ({ scopeField, scopeIncarnationField } = {}) => {

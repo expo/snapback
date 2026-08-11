@@ -621,6 +621,7 @@ fn measure_current_reads(
     )?;
 
     let plan = QueryPlan {
+        table_visibility: None,
         table: "todos".to_owned(),
         filters: Vec::new(),
         membership_filters: Vec::new(),
@@ -958,6 +959,7 @@ fn measure_fanout_delta_projection(config: &BenchConfig) -> f64 {
 
     // The analyzable predicate a syncable-live subscription captures.
     let plan = QueryPlan {
+        table_visibility: None,
         table: "todos".to_owned(),
         filters: vec![FilterExpr {
             field: "userId".to_owned(),
@@ -1148,6 +1150,7 @@ fn measure_spurious_conflict(config: &BenchConfig) -> crate::diagnostic::Snapbac
     // drops to 0.0.
     let filtered_query = || {
         serde_json::to_value(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "done".to_owned(),

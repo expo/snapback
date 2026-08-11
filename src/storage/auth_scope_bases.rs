@@ -359,6 +359,7 @@ mod tests {
             id,
             kind,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "items".to_owned(),
                 filters: Vec::new(),
                 order: Vec::new(),

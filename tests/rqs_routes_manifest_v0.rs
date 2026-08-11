@@ -84,6 +84,7 @@ fn list_cells() -> FunctionDefinition {
         "listCells",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "cells".to_owned(),
             filters: vec![FilterExpr {
                 field: "boardId".to_owned(),
@@ -114,6 +115,7 @@ fn list_ranked() -> FunctionDefinition {
         "listRanked",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "cells".to_owned(),
             filters: vec![FilterExpr {
                 field: "rank".to_owned(),
@@ -213,6 +215,7 @@ fn structured_context_query() -> FunctionDefinition {
         "structuredContext",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "cells".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -232,6 +235,7 @@ fn legacy_structured_context_query() -> FunctionDefinition {
         "legacyStructuredContext",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "cells".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),

@@ -1105,6 +1105,7 @@ fn game_functions() -> FunctionManifest {
         "currentMembership",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "gameMembers".to_owned(),
             filters: vec![
                 FilterExpr {

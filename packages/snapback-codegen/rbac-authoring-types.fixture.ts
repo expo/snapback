@@ -3,6 +3,7 @@ import {
   type AppMembershipSpec,
   type InferValidator,
   defineTable,
+  anyOf,
   owner,
   v,
 } from '@expo/snapback-codegen/define';
@@ -66,6 +67,26 @@ defineTable({ eventId: v.id('events'), title: v.string() }).visibility({
   resourceField: 'eventId',
   roles: ['host'],
 });
+defineTable({ ownerId: v.principal(), eventId: v.id('events'), title: v.string() })
+  .visibility(anyOf([
+    owner('ownerId'),
+    {
+      kind: 'membership',
+      declaration: resourceMembers,
+      resourceField: 'eventId',
+      roles: ['guest'],
+    },
+  ]));
+// @ts-expect-error anyOf membership resourceField must name a declared field.
+defineTable({ ownerId: v.principal(), eventId: v.id('events') }).visibility(anyOf([
+  owner('ownerId'),
+  {
+    kind: 'membership',
+    declaration: resourceMembers,
+    resourceField: 'missingEvent',
+    roles: ['guest'],
+  },
+]));
 defineTable({ ownerId: v.principal() }).visibility({
   kind: 'owner',
   // @ts-expect-error owner visibility must name a declared table field.

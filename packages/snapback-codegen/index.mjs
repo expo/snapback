@@ -636,6 +636,7 @@ function singleTableRqsDigestKind(fn) {
     || (fn.uses?.length ?? 0) !== 0
     || (fn.authorizationDependence?.length ?? 0) !== 0
     || !plan
+    || plan.tableVisibility !== undefined
     || (plan.membershipFilters?.length ?? 0) !== 0
     || (plan.filters ?? []).some((filter) => serializedValueUsesAuthorityOrAmbientInput(filter.value))
     || summary?.mode !== 'singleTable'
@@ -2858,6 +2859,12 @@ async function generateInProcessLocked({
       err('FUNCTION_RESERVED_EXPORT', 'function', `${name}: function export collides with a generated API namespace`, { function: name });
       continue;
     }
+    if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.plan && !def.js) {
+      const tableVisibility = tables[def.plan.table]?.visibility;
+      def.plan.tableVisibility = tableVisibility && tableVisibility.kind !== 'public-read'
+        ? structuredClone(tableVisibility)
+        : undefined;
+    }
     validateFunctionAuthDefinition(name, def, err);
     // @ref LLP 0178#v4--function-auth-omission — omission remains valid only
     // through the sessions compatibility phase, so report it as an advisory
@@ -3687,6 +3694,12 @@ async function generateInProcessLocked({
         }
         if (def.plan.index && !tables[t].indexes.some((i) => i.name === def.plan.index)) {
           err('QUERY_UNKNOWN_INDEX', 'function', `${name}: unknown index ${t}.${def.plan.index}`, { function: name, table: t, index: def.plan.index });
+        }
+        for (const leaf of tableVisibilityMembershipLeaves(def.plan.tableVisibility)) {
+          const found = membershipDeclarations.get(leaf.declaration);
+          if (found && !membershipReads.includes(found.table.name)) {
+            membershipReads.push(found.table.name);
+          }
         }
         for (const predicate of def.plan.membershipFilters ?? []) {
           if (!predicate || predicate.__membershipPredicate !== true) {
@@ -5913,6 +5926,9 @@ export function serializeExpr(expr) {
 function serializeQueryPlan(plan, membershipDeclarations) {
   return {
     table: plan.table,
+    ...(plan.tableVisibility !== undefined
+      ? { tableVisibility: structuredClone(plan.tableVisibility) }
+      : {}),
     filters: plan.filters.map((f) => ({ field: f.field, op: f.op, value: serializeExpr(f.value) })),
     membershipFilters: (plan.membershipFilters ?? []).map((predicate) => {
       const membership = membershipDeclarations.get(predicate.declaration)?.membership;
@@ -5933,6 +5949,15 @@ function serializeQueryPlan(plan, membershipDeclarations) {
     limit: plan.limit,
     indexed_by: plan.index,
   };
+}
+
+function tableVisibilityMembershipLeaves(visibility) {
+  if (!visibility) return [];
+  if (visibility.kind === 'membership') return [visibility];
+  if (visibility.kind === 'any-of') {
+    return visibility.arms.filter((arm) => arm.kind === 'membership');
+  }
+  return [];
 }
 
 // @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — retain
@@ -7714,6 +7739,7 @@ function hostPlanAuthorizationDependence(def) {
     collectAuthoredAuthorizationDimensions(filter.value, dimensions);
   }
   if ((def.plan?.membershipFilters?.length ?? 0) > 0) dimensions.add('userId');
+  if (def.plan?.tableVisibility !== undefined) dimensions.add('userId');
   if (def.authScopeField != null) dimensions.add('userId');
   return [...dimensions].sort();
 }
@@ -12881,6 +12907,11 @@ const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   'SNAPBACK_DELETE_WHERE_FILTER_REQUIRED',
   'SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED',
   'SNAPBACK_TABLE_VISIBILITY_ALREADY_DECLARED',
+  'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID',
+  'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARM_INVALID',
+  'SNAPBACK_TABLE_VISIBILITY_ANY_OF_DUPLICATE_ARM',
+  'SNAPBACK_TABLE_VISIBILITY_ANY_OF_NESTED',
+  'SNAPBACK_TABLE_VISIBILITY_ANY_OF_PUBLIC_READ_ARM',
   'SNAPBACK_TABLE_VISIBILITY_KIND_INVALID',
   'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_INVALID',
   'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN',
@@ -12889,6 +12920,7 @@ const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_INVALID',
   'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN',
   'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_INVALID',
+  'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_TYPE_MISMATCH',
   'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN',
   'SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID',
   'SNAPBACK_VECTOR_INDEX_VISIBILITY_REQUIRED',

@@ -1896,6 +1896,7 @@ fn auth_projection_http_fixture(
         "listItems",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -3234,6 +3235,7 @@ fn activation_functions(bundle_marker: char, hide_rows: bool) -> FunctionManifes
             name,
             kind,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "items".to_owned(),
                 filters: hide_rows
                     .then(|| FilterExpr {
@@ -8987,6 +8989,7 @@ fn legacy_v0_activation_bypass_manifest() -> FunctionManifest {
             "listItems",
             FunctionKind::Query,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "items".to_owned(),
                 filters: Vec::new(),
                 order: Vec::new(),
@@ -9745,6 +9748,7 @@ async fn item5_live_gate_preserves_only_manifest_proved_independent_exception() 
         "publicFeed",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -9759,6 +9763,7 @@ async fn item5_live_gate_preserves_only_manifest_proved_independent_exception() 
         "privateFeed",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -11106,6 +11111,7 @@ fn hosted_function_route_state() -> AppState {
             .expect("apply hosted function fixture schema");
         let notes_query = || {
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "notes".to_owned(),
                 filters: Vec::new(),
                 order: Vec::new(),
@@ -13012,6 +13018,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
             name,
             FunctionKind::Query,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "items".to_owned(),
                 filters: Vec::new(),
                 order: Vec::new(),
@@ -19959,11 +19966,17 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH",
     "SNAPBACK_FUNCTION_NOT_LIVE",
     "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+    "SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID",
+    "SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARM_INVALID",
+    "SNAPBACK_TABLE_VISIBILITY_ANY_OF_DUPLICATE_ARM",
+    "SNAPBACK_TABLE_VISIBILITY_AUTHORIZATION_DEPENDENCE_MISMATCH",
     "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN",
     "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLES_INVALID",
     "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN",
     "SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN",
+    "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
     "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN",
+    "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_TYPE_MISMATCH",
     "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED",
     "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH",
     "SNAPBACK_APP_REFUSAL",

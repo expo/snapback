@@ -502,8 +502,7 @@ export type AssetSharingSpec<Fields extends Record<string, Validator> = Record<s
   | { kind: 'owner'; field: keyof Fields & string }
   | { kind: 'membership'; membership: string; roles?: readonly string[] };
 
-export type TableVisibilitySpec<Fields extends Record<string, Validator> = Record<string, Validator>> =
-  | { kind: 'public-read' }
+export type TableVisibilityArmSpec<Fields extends Record<string, Validator> = Record<string, Validator>> =
   | { kind: 'owner'; field: keyof Fields & string }
   | {
     kind: 'membership';
@@ -511,6 +510,11 @@ export type TableVisibilitySpec<Fields extends Record<string, Validator> = Recor
     resourceField: keyof Fields & string;
     roles?: readonly string[];
   };
+
+export type TableVisibilitySpec<Fields extends Record<string, Validator> = Record<string, Validator>> =
+  | { kind: 'public-read' }
+  | TableVisibilityArmSpec<Fields>
+  | { kind: 'any-of'; arms: readonly [TableVisibilityArmSpec<Fields>, TableVisibilityArmSpec<Fields>, ...TableVisibilityArmSpec<Fields>[]] };
 
 /** Finite schema authority for retained record history. Runtime validation
  * enforces retainMs in 1..2,592,000,000 and maxVersionsPerRecord in 1..1,000. */
@@ -739,6 +743,9 @@ export interface RelationalQuerySpec {
 }
 export declare function defineRelationalQuery(spec: RelationalQuerySpec): unknown;
 export declare function owner<const Field extends string>(field: Field): { kind: 'owner'; field: Field };
+export declare function anyOf<const Arms extends readonly [TableVisibilityArmSpec, TableVisibilityArmSpec, ...TableVisibilityArmSpec[]]>(
+  arms: Arms,
+): { kind: 'any-of'; arms: Arms };
 export declare function throughParent(): { kind: 'through-parent.v1' };
 export declare function throughScope(spec: {
   scopeField: string;

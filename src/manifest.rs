@@ -118,6 +118,7 @@ mod single_table_v1_tests {
 
     fn eligible_function() -> FunctionDefinition {
         let plan = QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "title".to_owned(),
@@ -1214,14 +1215,16 @@ pub struct TableManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub asset_sharing: Option<AssetSharingManifest>,
-    /// The table-wide default row-visibility declaration. This foundation
-    /// slice records and validates the existing closed search-visibility
-    /// union without yet composing it into query plans or `ctx.db` reads.
+    /// The table-wide default row-visibility declaration. Restricted leaves
+    /// and bounded owner-or-membership groups are compiled into ordinary
+    /// declarative query plans; public/implicit tables preserve legacy plan
+    /// bytes by carrying no executable predicate.
     ///
     /// @ref LLP 0231#d1--the-table-is-the-policy-locus-queries-refine — the
-    ///   table is the mandatory policy locus; query composition lands later.
+    ///   table policy is compiled into ordinary declarative query plans;
+    ///   arbitrary handler reads remain outside this bounded slice.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub visibility: Option<SearchVisibilityV1>,
+    pub visibility: Option<TableVisibilityV1>,
     /// Optional bounded record-history policy. Absence disables product
     /// history for this table; v1 deliberately has no unbounded spelling.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1250,13 +1253,98 @@ pub enum AssetSharingManifest {
     },
 }
 
+/// The closed table-policy language. This is intentionally separate from
+/// search and asset-sharing visibility: extending this enum does not widen
+/// either of those independently enforced surfaces.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum TableVisibilityV1 {
+    PublicRead,
+    Owner {
+        field: String,
+    },
+    Membership {
+        declaration: String,
+        #[serde(rename = "resourceField", alias = "resource_field")]
+        resource_field: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        roles: Option<Vec<String>>,
+    },
+    AnyOf {
+        arms: Vec<TableVisibilityArmV1>,
+    },
+}
+
+/// A disjunction arm deliberately excludes public-read and recursive groups.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum TableVisibilityArmV1 {
+    Owner {
+        field: String,
+    },
+    Membership {
+        declaration: String,
+        #[serde(rename = "resourceField", alias = "resource_field")]
+        resource_field: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        roles: Option<Vec<String>>,
+    },
+}
+
+impl TableVisibilityV1 {
+    pub fn is_restricted(&self) -> bool {
+        !matches!(self, Self::PublicRead)
+    }
+
+    pub fn contains_membership(&self) -> bool {
+        matches!(self, Self::Membership { .. })
+            || matches!(self, Self::AnyOf { arms } if arms.iter().any(TableVisibilityArmV1::is_membership))
+    }
+
+    pub fn membership_predicates(&self) -> Vec<MembershipPredicate> {
+        let predicate =
+            |declaration: &String, resource_field: &String, roles: &Option<Vec<String>>| {
+                MembershipPredicate {
+                    declaration: declaration.clone(),
+                    resource: MembershipResourceRef::RowField(resource_field.clone()),
+                    roles: roles.clone(),
+                }
+            };
+        match self {
+            Self::Membership {
+                declaration,
+                resource_field,
+                roles,
+            } => vec![predicate(declaration, resource_field, roles)],
+            Self::AnyOf { arms } => arms
+                .iter()
+                .filter_map(|arm| match arm {
+                    TableVisibilityArmV1::Membership {
+                        declaration,
+                        resource_field,
+                        roles,
+                    } => Some(predicate(declaration, resource_field, roles)),
+                    TableVisibilityArmV1::Owner { .. } => None,
+                })
+                .collect(),
+            Self::PublicRead | Self::Owner { .. } => Vec::new(),
+        }
+    }
+}
+
+impl TableVisibilityArmV1 {
+    pub fn is_membership(&self) -> bool {
+        matches!(self, Self::Membership { .. })
+    }
+}
+
 #[cfg(test)]
 mod table_visibility_manifest_tests {
     use super::*;
     use serde_json::json;
 
     #[test]
-    fn table_visibility_round_trips_the_existing_closed_union() {
+    fn table_visibility_round_trips_the_closed_union() {
         for visibility in [
             json!({ "kind": "public-read" }),
             json!({ "kind": "owner", "field": "ownerId" }),
@@ -1266,6 +1354,18 @@ mod table_visibility_manifest_tests {
                 "resourceField": "roomId",
                 "roles": ["member"],
             }),
+            json!({
+                "kind": "any-of",
+                "arms": [
+                    { "kind": "owner", "field": "ownerId" },
+                    {
+                        "kind": "membership",
+                        "declaration": "room-members",
+                        "resourceField": "roomId",
+                        "roles": ["member"],
+                    },
+                ],
+            }),
         ] {
             let authored = json!({ "name": "messages", "visibility": visibility });
             let parsed: TableManifest =
@@ -1273,6 +1373,66 @@ mod table_visibility_manifest_tests {
             let emitted = serde_json::to_value(parsed).expect("table manifest serializes");
             assert_eq!(emitted["visibility"], authored["visibility"]);
         }
+    }
+
+    #[test]
+    fn table_visibility_effect_ceiling_observes_user_and_membership_inputs() {
+        let check = |visibility: TableVisibilityV1, inputs: Vec<&str>| {
+            let mut function = FunctionDefinition::new(
+                "visibleNotes",
+                FunctionKind::Query,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: Some(visibility),
+                    table: "notes".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                })),
+            );
+            function.effect_ceiling = Some(EffectCeiling {
+                version: "EffectCeilingV1".to_owned(),
+                basis: "static".to_owned(),
+                reads: vec![EffectCeilingRead {
+                    table: "notes".to_owned(),
+                    access: "query".to_owned(),
+                    index: None,
+                }],
+                writes: Vec::new(),
+                host_operations: Vec::new(),
+                authorization_inputs: inputs.into_iter().map(str::to_owned).collect(),
+            });
+            validate_effect_ceiling(&function)
+        };
+
+        check(
+            TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            },
+            vec!["authUserId"],
+        )
+        .expect("owner policy observes the effective user only");
+        let any_of = TableVisibilityV1::AnyOf {
+            arms: vec![
+                TableVisibilityArmV1::Owner {
+                    field: "ownerId".to_owned(),
+                },
+                TableVisibilityArmV1::Membership {
+                    declaration: "note-followers".to_owned(),
+                    resource_field: "_id".to_owned(),
+                    roles: Some(vec!["follower".to_owned()]),
+                },
+            ],
+        };
+        check(any_of.clone(), vec!["authUserId", "membershipPredicate"])
+            .expect("membership arm observes both closed authorization inputs");
+        let error = check(any_of, vec!["authUserId"])
+            .expect_err("a doctored ceiling cannot omit membershipPredicate");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_FUNCTION_EFFECT_CEILING_EXCEEDED"
+        );
     }
 }
 
@@ -3313,10 +3473,13 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
         && function.read_set_summary.auth_scope_field.is_none()
         && function.authorization_dependence.is_empty();
     let eligible_runtime = match &function.runtime {
-        FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => !plan
-            .filters
-            .iter()
-            .any(|filter| value_expr_uses_authority_or_ambient_input(&filter.value)),
+        FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
+            plan.table_visibility.is_none()
+                && !plan
+                    .filters
+                    .iter()
+                    .any(|filter| value_expr_uses_authority_or_ambient_input(&filter.value))
+        }
         // @ref LLP 0136#admission-path-decision — structural admission is
         // only half the proof. `validate_function_schema_references` binds
         // this declaration to an exact public-read search index before the
@@ -3623,6 +3786,9 @@ pub fn rqs_eligible_digest_kind(function: &FunctionDefinition) -> Option<crate::
         return None;
     }
     if !plan.membership_filters.is_empty() {
+        return None;
+    }
+    if plan.table_visibility.is_some() {
         return None;
     }
     // Closed-inputs proof (the `validate_retainable_query` obligations for the
@@ -4042,6 +4208,12 @@ impl ObservedEffects {
                 if !plan.membership_filters.is_empty() {
                     self.authorization_inputs.insert("membershipPredicate");
                 }
+                if let Some(visibility) = &plan.table_visibility {
+                    self.authorization_inputs.insert("authUserId");
+                    if visibility.contains_membership() {
+                        self.authorization_inputs.insert("membershipPredicate");
+                    }
+                }
             }
             HandlerPlan::SearchQuery(plan) => {
                 self.read(&plan.table, "search", Some(&plan.index));
@@ -4335,7 +4507,7 @@ fn collect(value: &ValueExpr, dimensions: &mut BTreeSet<AuthorizationInputDimens
     }
 }
 
-fn host_plan_authorization_dimensions(
+pub(crate) fn host_plan_authorization_dimensions(
     function: &FunctionDefinition,
     plan: &QueryPlan,
 ) -> BTreeSet<AuthorizationInputDimension> {
@@ -4345,6 +4517,9 @@ fn host_plan_authorization_dimensions(
     }
     // Every membership predicate authorizes on the effective principal.
     if !plan.membership_filters.is_empty() {
+        dimensions.insert(AuthorizationInputDimension::UserId);
+    }
+    if plan.table_visibility.is_some() {
         dimensions.insert(AuthorizationInputDimension::UserId);
     }
     if function.read_set_summary.auth_scope_field.is_some() {
@@ -5103,6 +5278,7 @@ mod stored_enum_result_contract_tests {
             },
         };
         let plan = QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: Vec::new(),
             membership_filters: Vec::new(),
@@ -8310,6 +8486,15 @@ pub enum CronTargetWakeupKind {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct QueryPlan {
     pub table: String,
+    /// Exact schema-derived table policy for ordinary declarative reads.
+    /// Public/implicit tables omit it so historical plan bytes are stable.
+    #[serde(
+        default,
+        rename = "tableVisibility",
+        alias = "table_visibility",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub table_visibility: Option<TableVisibilityV1>,
     #[serde(default)]
     pub filters: Vec<FilterExpr>,
     /// Declaration-bound membership semi-joins ANDed onto the field filters —
@@ -17654,6 +17839,7 @@ mod asset_upload_intent_manifest_tests {
     fn host_plan_authorizer_is_refused() {
         let mut bad = intent("avatarUpload");
         bad.runtime = FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "notes".to_owned(),
             filters: Vec::new(),
             membership_filters: Vec::new(),

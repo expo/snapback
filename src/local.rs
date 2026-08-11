@@ -56,7 +56,7 @@ use crate::manifest::{
     FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionRuntime,
     HandlerInput, HandlerPlan, MutationOutput, MutationSettlement, MutationStep,
     PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan,
-    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SearchVisibilityV1, SeedData, SettlementLane,
+    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane,
     SettlementMintObservation, SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
     ValueExpr, auth_fingerprint, ctx_ledger_version, legacy_auth_fingerprint,
 };
@@ -24325,6 +24325,10 @@ impl LocalSnapback {
                     if !changes.is_empty()
                         && !force_replace.contains(&subscription.id)
                         && plan.membership_filters.is_empty()
+                        && !plan
+                            .table_visibility
+                            .as_ref()
+                            .is_some_and(crate::manifest::TableVisibilityV1::contains_membership)
                         && function.standard_pattern.is_none()
                         // The incremental lane publishes committed storage rows
                         // without reconstructing the complete handler result.
@@ -27075,10 +27079,15 @@ fn sequence_declarations_from_functions(
 }
 
 fn validate_table_visibility_schema_references(schema: &SchemaManifest) -> SnapbackResult<()> {
-    for table in &schema.tables {
-        match &table.visibility {
-            None | Some(SearchVisibilityV1::PublicRead) => {}
-            Some(SearchVisibilityV1::Owner { field }) => {
+    use crate::manifest::{TableVisibilityArmV1, TableVisibilityV1};
+
+    fn validate_arm(
+        schema: &SchemaManifest,
+        table: &crate::manifest::TableManifest,
+        arm: &TableVisibilityArmV1,
+    ) -> SnapbackResult<()> {
+        match arm {
+            TableVisibilityArmV1::Owner { field } => {
                 if table.field(field).is_none() {
                     return Err(SnapbackError::error(
                         "SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN",
@@ -27090,12 +27099,12 @@ fn validate_table_visibility_schema_references(schema: &SchemaManifest) -> Snapb
                     ));
                 }
             }
-            Some(SearchVisibilityV1::Membership {
+            TableVisibilityArmV1::Membership {
                 declaration,
                 resource_field,
                 roles,
-            }) => {
-                if table.field(resource_field).is_none() {
+            } => {
+                let Some(resource) = table.field(resource_field) else {
                     return Err(SnapbackError::error(
                         "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN",
                         "auth",
@@ -27104,7 +27113,7 @@ fn validate_table_visibility_schema_references(schema: &SchemaManifest) -> Snapb
                             table.name, resource_field
                         ),
                     ));
-                }
+                };
                 let Some((_membership_table, membership)) =
                     crate::manifest::find_membership_declaration(schema, declaration)
                 else {
@@ -27117,6 +27126,27 @@ fn validate_table_visibility_schema_references(schema: &SchemaManifest) -> Snapb
                         ),
                     ));
                 };
+                let expected_resource_table = membership.resource_table.as_deref();
+                let actual_resource_table = match &resource.field_type {
+                    crate::manifest::FieldType::Id { table } if !resource.optional => {
+                        Some(table.as_str())
+                    }
+                    _ => None,
+                };
+                if expected_resource_table.is_none()
+                    || actual_resource_table != expected_resource_table
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_TYPE_MISMATCH",
+                        "auth",
+                        format!(
+                            "table {} visibility membership resource field {} must be a required Id<{}>",
+                            table.name,
+                            resource_field,
+                            expected_resource_table.unwrap_or("resourceTable")
+                        ),
+                    ));
+                }
                 if let Some(roles) = roles {
                     let distinct = roles.iter().collect::<BTreeSet<_>>();
                     if roles.is_empty() || distinct.len() != roles.len() {
@@ -27142,6 +27172,60 @@ fn validate_table_visibility_schema_references(schema: &SchemaManifest) -> Snapb
                             ),
                         ));
                     }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    for table in &schema.tables {
+        match &table.visibility {
+            None | Some(TableVisibilityV1::PublicRead) => {}
+            Some(TableVisibilityV1::Owner { field }) => validate_arm(
+                schema,
+                table,
+                &TableVisibilityArmV1::Owner {
+                    field: field.clone(),
+                },
+            )?,
+            Some(TableVisibilityV1::Membership {
+                declaration,
+                resource_field,
+                roles,
+            }) => validate_arm(
+                schema,
+                table,
+                &TableVisibilityArmV1::Membership {
+                    declaration: declaration.clone(),
+                    resource_field: resource_field.clone(),
+                    roles: roles.clone(),
+                },
+            )?,
+            Some(TableVisibilityV1::AnyOf { arms }) => {
+                if !(2..=8).contains(&arms.len()) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID",
+                        "auth",
+                        format!("table {} visibility any-of requires 2..=8 arms", table.name),
+                    ));
+                }
+                let mut seen = BTreeSet::new();
+                for arm in arms {
+                    let identity = serde_json::to_string(arm).map_err(|error| {
+                        SnapbackError::error(
+                            "SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARM_INVALID",
+                            "auth",
+                            format!("table {} visibility arm is invalid: {error}", table.name),
+                        )
+                    })?;
+                    if !seen.insert(identity) {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TABLE_VISIBILITY_ANY_OF_DUPLICATE_ARM",
+                            "auth",
+                            format!("table {} visibility repeats an any-of arm", table.name),
+                        ));
+                    }
+                    validate_arm(schema, table, arm)?;
                 }
             }
         }
@@ -27206,6 +27290,25 @@ fn validate_function_schema_references(
     let query = |plan: &QueryPlan| -> SnapbackResult<()> {
         crate::manifest::validate_query_plan_shape(plan)?;
         let table_manifest = table(&plan.table)?;
+        let expected_visibility = table_manifest
+            .visibility
+            .as_ref()
+            .filter(|visibility| visibility.is_restricted());
+        if plan.table_visibility.as_ref() != expected_visibility {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
+                "auth",
+                format!(
+                    "query over {} must carry the exact schema-derived restricted table visibility predicate",
+                    plan.table
+                ),
+            )
+            .with_details(json!({
+                "table": plan.table,
+                "expected": expected_visibility,
+                "actual": plan.table_visibility,
+            })));
+        }
         // A membership table is authorization data first and application data
         // second. Until an explicit, closed row-visibility preset is carried by
         // the declaration, generated/direct HostPlan readers (including live
@@ -27353,6 +27456,27 @@ fn validate_function_schema_references(
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
                 query(plan)?;
+                if plan.table_visibility.is_some() {
+                    let declared = function
+                        .authorization_dependence
+                        .iter()
+                        .copied()
+                        .collect::<BTreeSet<_>>();
+                    let observed =
+                        crate::manifest::host_plan_authorization_dimensions(function, plan);
+                    if declared.len() != function.authorization_dependence.len()
+                        || declared != observed
+                    {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TABLE_VISIBILITY_AUTHORIZATION_DEPENDENCE_MISMATCH",
+                            "auth",
+                            format!(
+                                "query {} must declare the exact authorization dependence of its table visibility policy",
+                                function.name
+                            ),
+                        ));
+                    }
+                }
                 validate_membership_keyset_pattern(function, plan, schema)?;
             }
             // The job-status plan reads no application schema table: nothing
@@ -27545,6 +27669,7 @@ fn validate_function_schema_references(
                 let mut root_filters = plan.root_visibility.clone();
                 root_filters.extend(plan.root_filters.iter().cloned());
                 query(&QueryPlan {
+                    table_visibility: None,
                     table: plan.root.clone(),
                     filters: root_filters,
                     order: plan.order.clone(),
@@ -27566,6 +27691,7 @@ fn validate_function_schema_references(
                     .collect();
                 joined_filters.extend(plan.joined_visibility.iter().cloned());
                 query(&QueryPlan {
+                    table_visibility: None,
                     table: plan.joined.clone(),
                     filters: joined_filters,
                     order: Vec::new(),
@@ -28097,6 +28223,7 @@ fn validate_function_schema_references(
                             let mut root_filters = node.root_visibility.clone();
                             root_filters.extend(node.root_filters.iter().cloned());
                             query(&QueryPlan {
+                                table_visibility: None,
                                 table: node.root.clone(),
                                 filters: root_filters,
                                 order: node.order.clone(),
@@ -28118,6 +28245,7 @@ fn validate_function_schema_references(
                                 .collect();
                             joined_filters.extend(node.joined_visibility.iter().cloned());
                             query(&QueryPlan {
+                                table_visibility: None,
                                 table: node.joined.clone(),
                                 filters: joined_filters,
                                 order: Vec::new(),
@@ -29518,6 +29646,7 @@ fn execute_snapshot_batch_v2(
                     continue;
                 }
                 let child_query = QueryPlan {
+                    table_visibility: None,
                     table: node.child_table.clone(),
                     filters: vec![
                         crate::manifest::FilterExpr {
@@ -30720,6 +30849,7 @@ fn execute_query_invocation(
                     continue;
                 }
                 let child_query = QueryPlan {
+                    table_visibility: None,
                     table: node.child_table.clone(),
                     filters: vec![
                         crate::manifest::FilterExpr {
@@ -30955,6 +31085,7 @@ fn execute_query_invocation(
                 Some(_) => return Err(bounded_children_cursor_invalid()),
             };
             let child_query = QueryPlan {
+                table_visibility: None,
                 table: plan.child_table.clone(),
                 filters: vec![
                     crate::manifest::FilterExpr {

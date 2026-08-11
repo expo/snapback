@@ -3505,6 +3505,7 @@ impl LocalDatabase {
                 .transaction_with_behavior(TransactionBehavior::Immediate)?;
             let table = schema_table(&schema, table_name)?;
             let page_plan = QueryPlan {
+                table_visibility: None,
                 table: table_name.to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),
@@ -4684,6 +4685,7 @@ fn read_id_page(
 ) -> SnapbackResult<Vec<Value>> {
     let table = schema_table(schema, table_name)?;
     let page_plan = QueryPlan {
+        table_visibility: None,
         table: table_name.to_owned(),
         filters: Vec::new(),
         membership_filters: Vec::new(),
@@ -6093,6 +6095,7 @@ mod tests {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),
@@ -6197,6 +6200,7 @@ mod tests {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),
@@ -7913,6 +7917,7 @@ mod tests {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),
@@ -7967,6 +7972,7 @@ mod tests {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),
@@ -8342,6 +8348,7 @@ mod tests {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),
@@ -8404,6 +8411,7 @@ mod tests {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),
@@ -8477,6 +8485,7 @@ mod tests {
                 .query_reads_read()
                 .query(
                     &QueryPlan {
+                        table_visibility: None,
                         table: "items".to_owned(),
                         filters: Vec::new(),
                         membership_filters: Vec::new(),

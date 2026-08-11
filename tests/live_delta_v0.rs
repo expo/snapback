@@ -521,6 +521,7 @@ fn functions() -> FunctionManifest {
             name,
             FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
                 table: "todos".to_owned(),
                 filters: vec![FilterExpr {
                     field: "userId".to_owned(),
@@ -580,6 +581,7 @@ fn functions() -> FunctionManifest {
         "listAll",
         FunctionKind::Query,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -595,6 +597,7 @@ fn functions() -> FunctionManifest {
         "listUrgent",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "priority".to_owned(),
@@ -612,6 +615,7 @@ fn functions() -> FunctionManifest {
         "listVersionOne",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "_version".to_owned(),

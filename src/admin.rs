@@ -6960,6 +6960,7 @@ mod tests {
                 "preflightExecutionSentinel",
                 FunctionKind::Query,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "sentinelRows".to_owned(),
                     filters: Vec::new(),
                     order: Vec::new(),

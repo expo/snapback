@@ -515,6 +515,7 @@ fn configured() -> LocalSnapback {
                 "listTodos",
                 FunctionKind::LiveQuery,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "todos".to_owned(),
                     filters: Vec::new(),
                     order: vec![OrderExpr {

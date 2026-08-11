@@ -45,7 +45,7 @@ export interface ImplicitAuthRequirementEntry {
 export interface TableVisibilitySummary {
   readonly declared: ReadonlyArray<Readonly<{
     table: string;
-    kind: 'public-read' | 'owner' | 'membership';
+    kind: 'public-read' | 'owner' | 'membership' | 'any-of';
   }>>;
   readonly implicit: readonly string[];
   readonly counts: Readonly<{
@@ -55,6 +55,7 @@ export interface TableVisibilitySummary {
     publicRead: number;
     owner: number;
     membership: number;
+    anyOf: number;
   }>;
 }
 

@@ -111,6 +111,17 @@ pub(crate) fn query_dependencies_from_plan(
             output.version,
         )?);
     }
+    if let Some(visibility) = &plan.table_visibility {
+        for predicate in visibility.membership_predicates() {
+            dependencies.extend(crate::membership_rules::query_membership_dependencies(
+                db.schema(),
+                input,
+                &predicate,
+                db,
+                output.version,
+            )?);
+        }
+    }
 
     Ok(dependencies)
 }
@@ -343,6 +354,13 @@ fn query_plan_change_outcome(
     if change.table != plan.table {
         return LiveMatchOutcome::Skip;
     }
+    if plan
+        .table_visibility
+        .as_ref()
+        .is_some_and(crate::manifest::TableVisibilityV1::contains_membership)
+    {
+        return LiveMatchOutcome::ConservativeFallback;
+    }
     let Some(row) = change.row.as_ref() else {
         return LiveMatchOutcome::ConservativeFallback;
     };
@@ -417,12 +435,48 @@ pub(crate) fn row_matches_query_filters(
     input: &HandlerInput,
     row: &Value,
 ) -> Option<bool> {
+    if let Some(visibility) = &plan.table_visibility
+        && !row_matches_table_visibility(visibility, input, row)?
+    {
+        return Some(false);
+    }
     for filter in &plan.filters {
         if !filter_matches_row(filter, input, row)? {
             return Some(false);
         }
     }
     Some(true)
+}
+
+fn row_matches_table_visibility(
+    visibility: &crate::manifest::TableVisibilityV1,
+    input: &HandlerInput,
+    row: &Value,
+) -> Option<bool> {
+    use crate::manifest::{TableVisibilityArmV1, TableVisibilityV1};
+    let owner_matches = |field: &str| {
+        let user_id = input.auth.user_id.as_deref()?;
+        Some(row.get(field)?.as_str()? == user_id)
+    };
+    match visibility {
+        TableVisibilityV1::PublicRead => Some(true),
+        TableVisibilityV1::Owner { field } => owner_matches(field),
+        TableVisibilityV1::Membership { .. } => None,
+        TableVisibilityV1::AnyOf { arms } => {
+            let mut unknown = false;
+            for arm in arms {
+                match arm {
+                    TableVisibilityArmV1::Owner { field } => match owner_matches(field) {
+                        Some(true) => return Some(true),
+                        Some(false) => {}
+                        None => unknown = true,
+                    },
+                    TableVisibilityArmV1::Membership { .. } => unknown = true,
+                }
+            }
+            if unknown { None } else { Some(false) }
+        }
+    }
 }
 
 fn filter_matches_row(filter: &FilterExpr, input: &HandlerInput, row: &Value) -> Option<bool> {
@@ -776,7 +830,12 @@ pub(crate) fn compute_live_delta(
     // in `notify_live_subscriptions`.
     // @ref LLP 0056#what-exists-what-this-adds — semi-join queries ride the
     // conservative re-query/`live_replace` lane (LLP 0067 §F2a).
-    if !plan.membership_filters.is_empty() {
+    if !plan.membership_filters.is_empty()
+        || plan
+            .table_visibility
+            .as_ref()
+            .is_some_and(crate::manifest::TableVisibilityV1::contains_membership)
+    {
         return LiveDeltaOutcome::Replace;
     }
 
@@ -921,6 +980,7 @@ mod dependency_gate_tests {
     /// A captured query on `todos` filtered to `completed = true`.
     fn completed_todos_query_dependency() -> CapturedReadDependency {
         let plan = QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "completed".to_owned(),
@@ -1097,6 +1157,7 @@ mod delta_tests {
 
     fn unfiltered_plan() -> QueryPlan {
         QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -1109,6 +1170,7 @@ mod delta_tests {
     #[test]
     fn numeric_equality_keeps_large_integers_exact() {
         let plan = QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "seq".to_owned(),
@@ -1143,6 +1205,7 @@ mod delta_tests {
     #[test]
     fn arg_filters_follow_the_same_dotted_paths_as_storage() {
         let plan = QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "userId".to_owned(),
@@ -1184,6 +1247,7 @@ mod delta_tests {
             ..HandlerInput::default()
         };
         let plan = QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "title".to_owned(),
@@ -1224,6 +1288,7 @@ mod delta_tests {
     fn sort_keys_keep_null_last_independent_of_direction() {
         for direction in [OrderDirection::Asc, OrderDirection::Desc] {
             let plan = QueryPlan {
+                table_visibility: None,
                 table: "todos".to_owned(),
                 filters: Vec::new(),
                 order: vec![OrderExpr {
@@ -1261,6 +1326,7 @@ mod delta_tests {
     #[test]
     fn limited_query_boundaries_include_id_and_use_it_for_membership() {
         let plan = QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: Vec::new(),
             order: vec![OrderExpr {
@@ -1339,6 +1405,7 @@ mod delta_tests {
     #[test]
     fn extended_pure_filter_values_are_analyzable_and_match_sql_semantics() {
         let clamped = QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "rank".to_owned(),
@@ -1372,6 +1439,7 @@ mod delta_tests {
         );
 
         let binding_dependent = QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "rank".to_owned(),
@@ -1392,6 +1460,7 @@ mod delta_tests {
 
     fn user_filtered_plan() -> QueryPlan {
         QueryPlan {
+            table_visibility: None,
             table: "todos".to_owned(),
             filters: vec![FilterExpr {
                 field: "userId".to_owned(),
@@ -1666,6 +1735,42 @@ mod delta_tests {
             ),
             LiveDeltaOutcome::Replace
         );
+    }
+
+    #[test]
+    fn table_visibility_membership_changes_replace_on_insert_and_delete() {
+        let input = input(json!({}));
+        let mut gated = unfiltered_plan();
+        gated.table_visibility = Some(crate::manifest::TableVisibilityV1::AnyOf {
+            arms: vec![
+                crate::manifest::TableVisibilityArmV1::Owner {
+                    field: "userId".to_owned(),
+                },
+                crate::manifest::TableVisibilityArmV1::Membership {
+                    declaration: "todo_followers".to_owned(),
+                    resource_field: "projectId".to_owned(),
+                    roles: Some(vec!["follower".to_owned()]),
+                },
+            ],
+        });
+
+        for op in [ChangeOp::Insert, ChangeOp::Delete] {
+            assert_eq!(
+                compute_live_delta(
+                    &gated,
+                    &input,
+                    &ids(&["existing"]),
+                    &[ChangedRow {
+                        table: "todo_followers".to_owned(),
+                        id: "follow-1".to_owned(),
+                        op,
+                        row: None,
+                        changed_fields: Vec::new(),
+                    }],
+                ),
+                LiveDeltaOutcome::Replace
+            );
+        }
     }
 
     #[test]

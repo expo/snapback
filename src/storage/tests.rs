@@ -5954,6 +5954,7 @@ mod guarded_commit_tests {
         let db = relational_database();
         let input = relational_input("user-a");
         let plan = QueryPlan {
+            table_visibility: None,
             table: "books".to_owned(),
             filters: Vec::new(),
             membership_filters: Vec::new(),
@@ -6213,6 +6214,7 @@ mod guarded_commit_tests {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     order: vec![crate::manifest::OrderExpr {
@@ -6299,6 +6301,7 @@ mod guarded_commit_tests {
             .expect("seed actor-aware query rows");
 
         let actor_aware_query = QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: vec![crate::manifest::FilterExpr {
                 field: "title".to_owned(),
@@ -6334,6 +6337,7 @@ mod guarded_commit_tests {
         );
 
         let disjunctive_query = QueryPlan {
+            table_visibility: None,
             filters: vec![crate::manifest::FilterExpr {
                 field: "title".to_owned(),
                 op: FilterOp::In,
@@ -6377,6 +6381,7 @@ mod guarded_commit_tests {
         );
 
         let actor_only_query = QueryPlan {
+            table_visibility: None,
             filters: vec![crate::manifest::FilterExpr {
                 field: "title".to_owned(),
                 op: FilterOp::Eq,
@@ -6536,6 +6541,7 @@ mod guarded_commit_tests {
                         .query_reads_read()
                         .query(
                             &QueryPlan {
+                                table_visibility: None,
                                 table: "items".to_owned(),
                                 filters: Vec::new(),
                                 membership_filters: Vec::new(),
@@ -6844,6 +6850,7 @@ mod guarded_commit_tests {
             .expect("seed hot table");
 
         let query = QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: Vec::new(),
             membership_filters: Vec::new(),
@@ -9937,6 +9944,7 @@ mod guarded_commit_tests {
             ),
         ];
         let plan = QueryPlan {
+            table_visibility: None,
             table: "typed_items".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -10430,6 +10438,7 @@ mod guarded_commit_tests {
 
         let plans = [
             QueryPlan {
+                table_visibility: None,
                 table: "items".to_owned(),
                 filters: vec![crate::manifest::FilterExpr {
                     field: "_version".to_owned(),
@@ -10442,6 +10451,7 @@ mod guarded_commit_tests {
                 indexed_by: None,
             },
             QueryPlan {
+                table_visibility: None,
                 table: "items".to_owned(),
                 filters: Vec::new(),
                 order: vec![crate::manifest::OrderExpr {
@@ -10513,6 +10523,7 @@ mod guarded_commit_tests {
             .seed(seed_data("baseline", "disjoint"))
             .expect("seed query baseline");
         let query = QueryPlan {
+            table_visibility: None,
             table: "items".to_owned(),
             filters: vec![crate::manifest::FilterExpr {
                 field: "title".to_owned(),
@@ -10610,6 +10621,7 @@ mod guarded_commit_tests {
                 .seed(seed_data("baseline", "baseline"))
                 .expect("seed query baseline");
             let query = QueryPlan {
+                table_visibility: None,
                 table: "items".to_owned(),
                 filters: vec![crate::manifest::FilterExpr {
                     field: "_version".to_owned(),
@@ -12718,6 +12730,7 @@ mod guarded_commit_tests {
             db.query_reads_read()
                 .query(
                     &QueryPlan {
+                        table_visibility: None,
                         table: "items".to_owned(),
                         filters: Vec::new(),
                         order: vec![crate::manifest::OrderExpr {
@@ -12758,6 +12771,7 @@ mod guarded_commit_tests {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     order: vec![crate::manifest::OrderExpr {
@@ -14981,6 +14995,7 @@ mod membership_write_tests {
             .query_reads_read()
             .query(
                 &QueryPlan {
+                    table_visibility: None,
                     table: "app_roles".to_owned(),
                     filters: Vec::new(),
                     order: Vec::new(),
@@ -16450,6 +16465,7 @@ mod membership_write_tests {
         let (event_two, _) = create_event(&mut db, "u3");
 
         let plan = QueryPlan {
+            table_visibility: None,
             table: "event_members".to_owned(),
             filters: Vec::new(),
             order: Vec::new(),
@@ -16512,6 +16528,158 @@ mod membership_write_tests {
     }
 
     #[test]
+    fn table_visibility_any_of_is_grouped_before_authored_refinements_and_denies_anonymous() {
+        let mut db = ready_db();
+        let (owned, _) = create_event(&mut db, "alice");
+        let (shared, _) = create_event(&mut db, "bob");
+        let (blocked, _) = create_event(&mut db, "carol");
+        db.conn
+            .execute(
+                "UPDATE events SET title = 'viewer' WHERE _id = ?1",
+                [&owned],
+            )
+            .unwrap();
+        db.conn
+            .execute("UPDATE events SET title = 'keep' WHERE _id = ?1", [&shared])
+            .unwrap();
+        db.conn
+            .execute(
+                "UPDATE events SET title = 'blocked' WHERE _id = ?1",
+                [&blocked],
+            )
+            .unwrap();
+        invite(&mut db, "bob", &shared, "viewer");
+        let viewer_member = member_id(&db, &shared, "viewer");
+        set_role(&mut db, "viewer", &viewer_member, "guest").unwrap();
+
+        let plan = QueryPlan {
+            table_visibility: Some(crate::manifest::TableVisibilityV1::AnyOf {
+                arms: vec![
+                    crate::manifest::TableVisibilityArmV1::Owner {
+                        field: "title".to_owned(),
+                    },
+                    crate::manifest::TableVisibilityArmV1::Membership {
+                        declaration: "event_members".to_owned(),
+                        resource_field: "_id".to_owned(),
+                        roles: Some(vec!["host".to_owned(), "guest".to_owned()]),
+                    },
+                ],
+            }),
+            table: "events".to_owned(),
+            filters: vec![crate::manifest::FilterExpr {
+                field: "title".to_owned(),
+                op: crate::manifest::FilterOp::In,
+                value: crate::manifest::ValueExpr::Literal(json!(["viewer", "keep"])),
+            }],
+            order: Vec::new(),
+            limit: None,
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        };
+        let authorized = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("viewer".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let output = db.query_reads_read().query(&plan, &authorized).unwrap();
+        let dependencies = db
+            .query_reads_read()
+            .with_pinned_read_view(|view| {
+                crate::live_matcher::query_dependencies_from_plan(
+                    &plan,
+                    &authorized,
+                    &output,
+                    &view,
+                )
+            })
+            .unwrap();
+        assert!(dependencies.iter().any(|dependency| {
+            dependency.table.as_deref() == Some("event_members")
+                && dependency.kind == CapturedReadKind::Query
+        }));
+        let rows = output.rows;
+        let ids = rows
+            .iter()
+            .map(|row| row["_id"].as_str().unwrap())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(ids, BTreeSet::from([owned.as_str(), shared.as_str()]));
+        assert!(
+            !ids.contains(blocked.as_str()),
+            "the refinement must AND with the grouped disjunction"
+        );
+
+        let anonymous = db
+            .query_reads_read()
+            .query(&plan, &HandlerInput::default())
+            .unwrap();
+        assert!(anonymous.rows.is_empty());
+    }
+
+    #[test]
+    fn table_visibility_membership_preflights_versions_and_counts_bindings() {
+        let mut db = ready_db();
+        let (event_id, host_id) = create_event(&mut db, "alice");
+        let visibility = crate::manifest::TableVisibilityV1::Membership {
+            declaration: "event_members".to_owned(),
+            resource_field: "_id".to_owned(),
+            roles: Some(vec!["host".to_owned()]),
+        };
+        let input = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("alice".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let plan = QueryPlan {
+            table_visibility: Some(visibility.clone()),
+            table: "events".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        };
+        assert_eq!(
+            db.query_reads_read().query(&plan, &input).unwrap().rows[0]["_id"],
+            event_id
+        );
+        db.conn
+            .execute(
+                "UPDATE event_members SET _version = 0 WHERE _id = ?1",
+                [&host_id],
+            )
+            .unwrap();
+        let error = db.query_reads_read().query(&plan, &input).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+
+        db.conn
+            .execute(
+                "UPDATE event_members SET _version = 1 WHERE _id = ?1",
+                [&host_id],
+            )
+            .unwrap();
+        let mut binding_plan = plan;
+        binding_plan.filters = (0..crate::manifest::QUERY_MAX_FILTER_BINDINGS)
+            .map(|_| crate::manifest::FilterExpr {
+                field: "title".to_owned(),
+                op: crate::manifest::FilterOp::Eq,
+                value: crate::manifest::ValueExpr::Literal(json!("party")),
+            })
+            .collect();
+        let error = db
+            .query_reads_read()
+            .query(&binding_plan, &input)
+            .expect_err("visibility bindings share the portable query budget");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED"
+        );
+    }
+
+    #[test]
     fn membership_semijoin_refuses_corrupt_authorization_rows_before_selection() {
         for (name, version) in [
             ("zero", SqlValue::Integer(0)),
@@ -16521,6 +16689,7 @@ mod membership_write_tests {
             let mut db = ready_db();
             let (event_id, host_id) = create_event(&mut db, "alice");
             let plan = QueryPlan {
+                table_visibility: None,
                 table: "events".to_owned(),
                 filters: Vec::new(),
                 order: Vec::new(),

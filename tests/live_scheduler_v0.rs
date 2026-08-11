@@ -422,6 +422,7 @@ fn functions() -> FunctionManifest {
                 "listTodos",
                 FunctionKind::Query,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "todos".to_owned(),
                     filters: Vec::new(),
                     membership_filters: Vec::new(),

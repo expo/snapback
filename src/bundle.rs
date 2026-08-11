@@ -1358,6 +1358,7 @@ mod tests {
             kind,
             crate::manifest::FunctionRuntime::HostPlan(crate::manifest::HandlerPlan::Query(
                 crate::manifest::QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     order: Vec::new(),

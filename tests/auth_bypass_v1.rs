@@ -378,6 +378,7 @@ fn seeded_snapback() -> LocalSnapback {
                 "queryByValue",
                 FunctionKind::Query,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: vec![FilterExpr {
                         field: "value".to_owned(),
@@ -394,6 +395,7 @@ fn seeded_snapback() -> LocalSnapback {
                 "scopeItems",
                 FunctionKind::LiveQuery,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "items".to_owned(),
                     filters: Vec::new(),
                     order: Vec::new(),

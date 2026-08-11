@@ -2697,6 +2697,7 @@ mod tests {
             FunctionKind::Query,
             crate::manifest::FunctionRuntime::HostPlan(crate::manifest::HandlerPlan::Query(
                 crate::manifest::QueryPlan {
+                    table_visibility: None,
                     table: "missing".to_owned(),
                     filters: Vec::new(),
                     order: Vec::new(),
@@ -2737,6 +2738,7 @@ mod tests {
             FunctionKind::Query,
             crate::manifest::FunctionRuntime::HostPlan(crate::manifest::HandlerPlan::Query(
                 crate::manifest::QueryPlan {
+                    table_visibility: None,
                     table: "missing".to_owned(),
                     filters: Vec::new(),
                     order: Vec::new(),

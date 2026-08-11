@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { defineTable, owner, v } from './define.mjs';
+import { anyOf, defineTable, owner, v } from './define.mjs';
 import { formatCodegenSummary } from './codegen-summary.mjs';
 import { generate } from './index.mjs';
 
@@ -37,6 +37,31 @@ assert.throws(
   () => defineTable({ ownerId: v.string() }).visibility({ kind: 'private' }),
   ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_KIND_INVALID',
 );
+assert.throws(
+  () => anyOf([owner('ownerId')]),
+  ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID',
+);
+assert.throws(
+  () => defineTable({ ownerId: v.principal() }).visibility(anyOf([
+    owner('ownerId'),
+    owner('ownerId'),
+  ])),
+  ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_ANY_OF_DUPLICATE_ARM',
+);
+assert.throws(
+  () => defineTable({ ownerId: v.principal() }).visibility(anyOf([
+    owner('ownerId'),
+    { kind: 'public-read' },
+  ])),
+  ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_ANY_OF_PUBLIC_READ_ARM',
+);
+assert.throws(
+  () => defineTable({ ownerId: v.principal() }).visibility(anyOf([
+    owner('ownerId'),
+    anyOf([owner('ownerId'), owner('otherOwnerId')]),
+  ])),
+  ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_ANY_OF_NESTED',
+);
 assert.deepEqual(
   defineTable({ ownerId: v.string() }).visibility(owner('ownerId')).visibilityDeclaration,
   { kind: 'owner', field: 'ownerId' },
@@ -65,7 +90,7 @@ assert.throws(
 
 try {
   const validSchema = `
-import { defineSchema, defineTable, owner, v } from '${defineUrl}';
+import { anyOf, defineSchema, defineTable, owner, v } from '${defineUrl}';
 const roomMembers = defineTable({
   userId: v.principal(),
   roomId: v.id('rooms'),
@@ -95,9 +120,33 @@ export default defineSchema({
       resourceField: 'roomId',
       roles: ['member'],
     }),
+  followingFeedEntries: defineTable({
+    authorPrincipalId: v.principal(),
+    authorProfileId: v.id('rooms'),
+    body: v.string(),
+  }).visibility(anyOf([
+    owner('authorPrincipalId'),
+    {
+      kind: 'membership',
+      declaration: roomMembers,
+      resourceField: 'authorProfileId',
+      roles: ['member'],
+    },
+  ])),
 });
 `;
-  const valid = await generate(fixture(validSchema));
+  const validFunctions = `
+import { defineLiveQuery } from '${defineUrl}';
+export const followingFeed = defineLiveQuery({
+  table: 'followingFeedEntries',
+  auth: 'optional-user',
+});
+export const privateNotes = defineLiveQuery({
+  table: 'privateNotes',
+  auth: 'optional-user',
+});
+`;
+  const valid = await generate(fixture(validSchema, validFunctions));
   assert.equal(valid.ok, true, JSON.stringify(valid.diagnostics));
   const manifest = JSON.parse(
     readFileSync(join(valid.outDir, 'schema.manifest.json'), 'utf8'),
@@ -112,6 +161,38 @@ export default defineSchema({
     resourceField: 'roomId',
     roles: ['member'],
   });
+  assert.deepEqual(tables.followingFeedEntries.visibility, {
+    kind: 'any-of',
+    arms: [
+      { kind: 'owner', field: 'authorPrincipalId' },
+      {
+        kind: 'membership',
+        declaration: 'roomMembers',
+        resourceField: 'authorProfileId',
+        roles: ['member'],
+      },
+    ],
+  });
+  const functionsManifest = JSON.parse(
+    readFileSync(join(valid.outDir, 'functions.manifest.json'), 'utf8'),
+  );
+  const followingFeed = functionsManifest.functions.find(({ name }) => name === 'followingFeed');
+  assert.deepEqual(
+    followingFeed.runtime.HostPlan.Query.tableVisibility,
+    tables.followingFeedEntries.visibility,
+    'the exact schema policy is executable plan data',
+  );
+  assert.deepEqual(followingFeed.readSetSummary.tables, ['followingFeedEntries', 'roomMembers']);
+  assert.deepEqual(followingFeed.authorizationDependence, ['userId']);
+  assert.deepEqual(followingFeed.effectCeiling.authorizationInputs, [
+    'authUserId',
+    'membershipPredicate',
+  ]);
+  const privateNotes = functionsManifest.functions.find(({ name }) => name === 'privateNotes');
+  assert.deepEqual(privateNotes.effectCeiling.authorizationInputs, ['authUserId']);
+  assert.deepEqual(privateNotes.authorizationDependence, ['userId']);
+  assert.equal(privateNotes.requiredCapabilities.includes('single_table_v1'), false);
+  assert.equal(followingFeed.requiredCapabilities.includes('single_table_v1'), false);
   assert.equal(
     valid.diagnostics.some(({ code }) => code === 'SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT'),
     false,
@@ -119,6 +200,7 @@ export default defineSchema({
   assert.deepEqual(valid.summary.tableVisibility, {
     declared: [
       { table: 'announcements', kind: 'public-read' },
+      { table: 'followingFeedEntries', kind: 'any-of' },
       { table: 'messages', kind: 'membership' },
       { table: 'privateNotes', kind: 'owner' },
       { table: 'roomMembers', kind: 'public-read' },
@@ -126,12 +208,13 @@ export default defineSchema({
     ],
     implicit: [],
     counts: {
-      total: 5,
-      declared: 5,
+      total: 6,
+      declared: 6,
       implicit: 0,
       publicRead: 3,
       owner: 1,
       membership: 1,
+      anyOf: 1,
     },
   });
 
@@ -180,6 +263,7 @@ export default defineSchema({
       publicRead: 1,
       owner: 0,
       membership: 0,
+      anyOf: 0,
     },
   });
   const artifacts = JSON.parse(readFileSync(join(omitted.outDir, 'artifacts.json'), 'utf8'));
@@ -235,6 +319,20 @@ export default defineSchema({
   }),
 });
 `, 'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN');
+
+  await refusal(`
+import { anyOf, defineSchema, defineTable, owner, v } from '${defineUrl}';
+const members = defineTable({ userId: v.principal(), roomId: v.id('rooms'), role: v.string() })
+  .membership({ id: 'roomMembers', principal: 'userId', resource: 'roomId', role: 'role', roles: ['member'] });
+export default defineSchema({
+  rooms: defineTable({ title: v.string() }),
+  members,
+  messages: defineTable({ ownerId: v.principal(), wrongResource: v.string() }).visibility(anyOf([
+    owner('ownerId'),
+    { kind: 'membership', declaration: members, resourceField: 'wrongResource', roles: ['member'] },
+  ])),
+});
+`, 'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_TYPE_MISMATCH');
 } finally {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
 }

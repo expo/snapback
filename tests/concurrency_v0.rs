@@ -972,6 +972,7 @@ fn concurrency_functions() -> FunctionManifest {
                 "listTodos",
                 FunctionKind::LiveQuery,
                 FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table_visibility: None,
                     table: "todos".to_owned(),
                     filters: vec![FilterExpr {
                         field: "userId".to_owned(),
