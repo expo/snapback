@@ -56,6 +56,13 @@ assert.equal(typeof packageEntry.useSnapbackMutation, 'function');
 assert.equal(typeof packageEntry.useSnapbackSettledMutation, 'function');
 assert.equal(packageEntry.APP_BINDING_FORMAT, 'snapback.app-binding.v1');
 
+const providerSource = readFileSync(new URL('./provider.mjs', import.meta.url), 'utf8');
+assert.match(
+  providerSource,
+  /React\.createElement\(SnapbackProvider, \{[\s\S]*?provider: active\.reactProvider,[\s\S]*?outboxDrain,[\s\S]*?outboxDrainOptions,/u,
+  'Expo provider forwards the React owner\'s drain mode and options',
+);
+
 const productionSources = [
   'index.mjs',
   'provider.mjs',

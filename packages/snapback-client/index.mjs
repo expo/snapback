@@ -2015,6 +2015,9 @@ export class SnapbackClient {
     // captured descriptor, principal scope, and durable authority lineage.
     // `false` disables queueing; `true` requires an outbox-capable store.
     offlineQueue = 'auto',
+    // Internal LLP 0218 P4 attachment seam. LLP 0219 owns the eventual
+    // channel; until then an injected object may observe payload-safe events.
+    devDiagnosticsChannel = null,
     // LLP 0094 §0B.6 strict mode: refuse a suspected pre-B1 legacy server
     // instead of downgrading to an offerless (legacy) open. Conformance
     // claims made against a strict configuration are claims about v1-bound
@@ -2170,6 +2173,8 @@ export class SnapbackClient {
     this.__outboxDiagnostics = [];
     this.__outboxListeners = new Set();
     this.__optimisticMutationViews = new Set();
+    this.__devDiagnosticsChannel = devDiagnosticsChannel;
+    this.__queuedRelinquishmentCount = 0;
     if (typeof strictWireVersion != 'boolean') {
       throw new TypeError('strictWireVersion must be boolean');
     }
@@ -6273,6 +6278,61 @@ export class SnapbackClient {
     this.#notifyOutboxListeners();
   }
 
+  #emitDevDiagnosticsEvent(event) {
+    try {
+      this.__devDiagnosticsChannel?.emit?.(event);
+    } catch { /* diagnostics are observational and cannot own dispatch */ }
+  }
+
+  // P3 React presentation bookkeeping uses this optional internal bridge too;
+  // the canonical queued event itself is emitted only by the relinquishment
+  // helper below, so adapters do not duplicate it.
+  __emitDevDiagnosticsEvent(event) {
+    this.#emitDevDiagnosticsEvent(event);
+  }
+
+  #currentOutboxDrainMode() {
+    let status = null;
+    try { status = this.__outboxDrainController?.status?.() ?? null; } catch { /* no owner */ }
+    if (status?.running !== true) return 'none';
+    return status.automatic === false ? 'manual' : 'auto';
+  }
+
+  #connectivityQueueReasonClass(error) {
+    const code = error?.diagnostic?.code ?? error?.code ?? null;
+    return globalThis.navigator?.onLine === false
+      || (typeof code === 'string' && code.includes('OFFLINE'))
+      ? 'offline'
+      : 'connectivity';
+  }
+
+  #emitQueuedRelinquishmentDiagnostic({
+    mutation,
+    clientMutationId,
+    sequence,
+    queueReasonClass,
+  }) {
+    const firstInSession = this.__queuedRelinquishmentCount === 0;
+    this.__queuedRelinquishmentCount += 1;
+    const facts = Object.freeze({
+      queueReasonClass,
+      drainMode: this.#currentOutboxDrainMode(),
+      firstInSession,
+    });
+    const event = Object.freeze({
+      code: 'SNAPBACK_OFFLINE_MUTATION_QUEUED',
+      mutation,
+      clientMutationId,
+      sequence,
+      ...facts,
+    });
+    // @ref LLP 0218#44-dev-diagnostic — every foreground relinquishment emits
+    // the stable payload; durable insertion without relinquishment emits none.
+    // LLP 0218 §4.4 emission point; delivery surface is LLP 0219's (stub until that program attaches).
+    this.#emitDevDiagnosticsEvent(event);
+    return facts;
+  }
+
   get outboxDiagnostics() {
     return [...this.__outboxDiagnostics];
   }
@@ -6907,7 +6967,11 @@ export class SnapbackClient {
   /// Returns the queued marker, or null when the store refused (the caller
   /// then surfaces the ORIGINAL connectivity error — an enqueue failure must
   /// never masquerade as queued success).
-  async #enqueueOfflineMutation(store, record, { alreadyCommitted = false } = {}) {
+  async #enqueueOfflineMutation(
+    store,
+    record,
+    { alreadyCommitted = false, queueReasonClass = 'connectivity' } = {},
+  ) {
     try {
       let authority = null;
       if (this.authorityFence && !alreadyCommitted) {
@@ -6931,11 +6995,18 @@ export class SnapbackClient {
         !alreadyCommitted
         && !await this.#compensateStaleQueueWrite(store, stored.id, authority)
       ) return null;
+      const queuedDiagnostic = this.#emitQueuedRelinquishmentDiagnostic({
+        mutation: record.function,
+        clientMutationId: stored.id,
+        sequence: stored.sequence,
+        queueReasonClass,
+      });
       this.#recordOutboxDiagnostic({
         code: 'SNAPBACK_OFFLINE_MUTATION_QUEUED',
         mutation: record.function,
         clientMutationId: stored.id,
         sequence: stored.sequence,
+        ...queuedDiagnostic,
       });
       // @ref LLP 0218#41-the-dispatch-union-headless-contract — connectivity
       //   relinquishment, not durable insertion, is the queued dispatch cut.
@@ -8358,6 +8429,14 @@ export class SnapbackClient {
               );
             } catch (error) {
               if (isConnectivityFailureError(error) || isOperationRangeCapacityError(error)) {
+                const queuedDiagnostic = this.#emitQueuedRelinquishmentDiagnostic({
+                  mutation: name,
+                  clientMutationId: stored.id,
+                  sequence: stored.sequence,
+                  queueReasonClass: isOperationRangeCapacityError(error)
+                    ? 'no-attempt-policy'
+                    : this.#connectivityQueueReasonClass(error),
+                });
                 this.#recordOutboxDiagnostic({
                   code: 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
                   mutation: name,
@@ -8366,6 +8445,7 @@ export class SnapbackClient {
                   reason: isOperationRangeCapacityError(error)
                     ? 'authenticated-epoch-capacity'
                     : 'connectivity',
+                  ...queuedDiagnostic,
                 });
                 // @ref LLP 0218#41-the-dispatch-union-headless-contract — an
                 //   uncovered range relinquishes foreground dispatch as queued.
@@ -8621,7 +8701,10 @@ export class SnapbackClient {
                 optimisticOperation,
                 capturedNow: Date.now(),
               },
-              { alreadyCommitted: durableOnlineRecord },
+              {
+                alreadyCommitted: durableOnlineRecord,
+                queueReasonClass: this.#connectivityQueueReasonClass(error),
+              },
             );
             if (queued) {
               return generatedMutation === null

@@ -711,9 +711,9 @@ function createOfflineFakeClient({ outbox = null } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// 8. A queued hook dispatch is loud in development. A later pending-count
-//    warning is honest when bounded diagnostics cannot prove that the named
-//    mutation itself is still pending or blocking the queue.
+// 8. The first queued hook dispatch is loud in development with the mutation,
+//    reason class, and drain mode. Later queued dispatches do not repeat that
+//    promotion; the existing per-dispatch wedge timer remains intact.
 // ---------------------------------------------------------------------------
 {
   const priorNodeEnv = process.env.NODE_ENV;
@@ -728,14 +728,19 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       records: [{ id: 'different-pending-record', status: 'pending' }],
     };
     const fake = createOfflineFakeClient({ outbox });
-    fake.mutate = async () => ({
-      queued: true,
-      clientMutationId: 'queued-record-1',
-      sequence: 1,
-    });
+    let queuedDispatches = 0;
+    fake.mutate = async () => {
+      queuedDispatches += 1;
+      return {
+        queued: true,
+        clientMutationId: `queued-record-${queuedDispatches}`,
+        sequence: queuedDispatches,
+      };
+    };
     const binding = await prepareReactBindingForClient(fake, { generatedManifest });
     provider = createSnapbackReactProvider(binding, {
       connectionId: 'offline-queued-warning',
+      outboxDrain: 'manual',
       __queuedMutationWedgeWarningMs: 5,
     });
 
@@ -750,6 +755,8 @@ function createOfflineFakeClient({ outbox = null } = {}) {
     assert.equal(warnings.length, 1, 'durable queueing warns at the call site');
     assert.match(warnings[0], /SNAPBACK_REACT_MUTATION_QUEUED/);
     assert.match(warnings[0], /mutation "record"/);
+    assert.match(warnings[0], /queue reason class: connectivity/);
+    assert.match(warnings[0], /drain mode: manual/);
 
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(warnings.length, 2, 'remaining durable work warns after the threshold');
@@ -759,6 +766,15 @@ function createOfflineFakeClient({ outbox = null } = {}) {
     assert.match(warnings[1], /does not prove whether that specific mutation remains pending/);
     assert.doesNotMatch(warnings[1], /queue head blocking mutation/);
     assert.doesNotMatch(warnings[1], /later mutations remain queued behind it/);
+
+    const secondQueued = await invokeSnapbackMutation(provider, record, { value: 'offline-again' });
+    assert.equal(secondQueued.status, 'queued');
+    assert.equal(secondQueued.clientMutationId, 'queued-record-2');
+    assert.equal(
+      warnings.length,
+      2,
+      'a later queued dispatch does not repeat the first-in-session loud promotion',
+    );
   } finally {
     if (provider !== null) await provider.dispose();
     console.warn = originalWarn;

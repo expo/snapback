@@ -145,6 +145,7 @@ import {
 } from './authorized-lease.mjs';
 import { createKeyedSnapbackContractProvider } from './keyed-provider.mjs';
 import { createSnapbackProviderDiagnostic } from './diagnostics.mjs';
+import { normalizeContractMutationOutput } from './mutation-output.mjs';
 import { validateSnapbackContractArtifacts } from './artifact-validation.mjs';
 
 // A physical format-6 store is one durable barrier participant even when an
@@ -2136,9 +2137,10 @@ export async function createSnapbackContractSurface({
         mutationDeliveryStarted = true;
         // TODO(Exact LLP 0231/0278): thread actionInvocationId/optimisticWaveId
         // into this correlation when the runtime supplies them.
-        const output = await client.mutate(name, {
+        const rawOutput = await client.mutate(name, {
           args,
           userId: activeUserId,
+          queue: false,
           correlation: surfaceCorrelation,
           clientMutationId: queued?.id ?? null,
           acknowledgedClientMutationIds: sentAcknowledgements,
@@ -2146,7 +2148,8 @@ export async function createSnapbackContractSurface({
           authorityDescriptor: queued?.authorityDescriptor ?? null,
           authorityCapture: capture,
         });
-        const resultCapture = captureForTransportValue(client, capture, output);
+        const resultCapture = captureForTransportValue(client, capture, rawOutput);
+        const output = normalizeContractMutationOutput(rawOutput);
         await commitCurrent(resultCapture, () => {
           mutationCommitted = true;
           mutationOutput = output;
@@ -2224,7 +2227,11 @@ export async function createSnapbackContractSurface({
           ));
           return { queued: true, clientMutationId: queued.id };
         }
-        if (queued && (isConnectivityFailure(error) || !error?.receipt)) {
+        if (
+          queued
+          && error?.code !== 'SNAPBACK_CONTRACT_INNER_MUTATION_QUEUED'
+          && (isConnectivityFailure(error) || !error?.receipt)
+        ) {
           retainedOffline = true;
           publishDiagnostic(
             'SNAPBACK_OFFLINE_MUTATION_QUEUED',
@@ -2960,9 +2967,10 @@ export async function createSnapbackContractSurface({
             authorityExpectation(resyncCapture),
           );
           if (coordinator) await preflightDurable(resyncCapture);
-          const output = await client.mutate(record.function, {
+          const rawOutput = await client.mutate(record.function, {
             args: record.args,
             userId: activeUserId,
+            queue: false,
             readSet: rebaselineReadSet(record),
             correlation: surfaceCorrelation,
             clientMutationId: record.id,
@@ -2971,7 +2979,8 @@ export async function createSnapbackContractSurface({
             authorityDescriptor: record.authorityDescriptor ?? null,
             authorityCapture: resyncCapture,
           });
-          const resultCapture = captureForTransportValue(client, resyncCapture, output);
+          const resultCapture = captureForTransportValue(client, resyncCapture, rawOutput);
+          const output = normalizeContractMutationOutput(rawOutput);
           await commitCurrent(resultCapture, () => {
             markOptimisticMutationSettled(record.id, output);
           });
@@ -3019,7 +3028,10 @@ export async function createSnapbackContractSurface({
           // carry status + diagnostic while never reaching Snapback; deleting
           // local ACK proofs or marking the current mutation failed would then
           // strand settlements and lose an ambiguously delivered write.
-          if (isConnectivityFailure(error) || !error?.receipt) {
+          if (
+            error?.code !== 'SNAPBACK_CONTRACT_INNER_MUTATION_QUEUED'
+            && (isConnectivityFailure(error) || !error?.receipt)
+          ) {
             retainedOffline = true;
             throw error;
           }
@@ -4651,13 +4663,15 @@ async function createMultiLiveContractSurface({
       // single-query mutations before the transport sees predecessor args.
       await preflightDurable(capture);
       try {
-        const output = await client.mutate(name, {
+        const rawOutput = await client.mutate(name, {
           args,
           userId: activeUserId,
+          queue: false,
           correlation: { rootId, bindingIds: [...liveQueryNames] },
           authorityCapture: capture,
         });
-        const resultCapture = captureForTransportValue(client, capture, output);
+        const resultCapture = captureForTransportValue(client, capture, rawOutput);
+        normalizeContractMutationOutput(rawOutput);
         await commitCurrent(resultCapture, () => undefined);
       } catch (error) {
         const errorCapture = captureForTransportValue(client, capture, error);

@@ -97,6 +97,7 @@ assert.equal(runtime.rotations.length, 1);
 const mutation = await surface.links.rsvp({ eventId: 'event-b', status: 'going' });
 assert.equal(mutation.ok, true);
 assert.equal(mutation.value.options.userId, 'user-b');
+assert.equal(mutation.value.options.queue, false);
 assert.deepEqual(mutation.value.options.authorityCapture, { epoch: 2 });
 assert.equal(mutation.value.options.correlation.actionInvocationId, 'action-1');
 assert.equal(mutation.value.options.correlation.rootId, 'root-test');

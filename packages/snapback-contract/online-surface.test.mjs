@@ -131,6 +131,7 @@ assert.deepEqual(cells.at(-1), forced, 'the Exact provider keeps force-state dri
 const mutation = await surface.links.rsvp({ eventId: 'event-a', status: 'going' });
 assert.deepEqual(mutation, { settled: true });
 assert.equal(mutations[0].name, 'rsvp');
+assert.equal(mutations[0].options.queue, false);
 assert.equal(mutations[0].options.correlation.rootId, 'online-root');
 
 subscription.dispose();

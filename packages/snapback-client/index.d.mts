@@ -871,6 +871,10 @@ export interface SnapbackClientOptions {
    * instead of a settlement; it settles by ordered replay after reconnect.
    */
   readonly offlineQueue?: 'auto' | boolean;
+  /** @internal LLP 0218 P4 emission stub; LLP 0219 owns the public channel. */
+  readonly devDiagnosticsChannel?: Readonly<{
+    emit?(event: Readonly<Record<string, unknown>>): void;
+  }> | null;
   readonly strictWireVersion?: boolean;
   readonly onWireVersionDiagnostic?: ((diagnostic: unknown) => void) | null;
 }

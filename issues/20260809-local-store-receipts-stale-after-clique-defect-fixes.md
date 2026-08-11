@@ -24,3 +24,19 @@ same blocked class. Same posture as precedents #1–#3: guide/ref-check/
 inventory checks green manually; module-ownership's one live red is
 tracked (`issues/20260810-main-module-ownership-red-rehearsal-edges.md`);
 pushed with the documented loud bypass; the backstop dedupes here.
+
+## Precedent #5 — 2026-08-10 (LLP 0218 P4 propagation + diagnostic landing)
+
+The LLP 0218 P4 landing changes `packages/snapback-client/index.mjs` (the
+§4.4 relinquishment diagnostic emission stub — the LLP 0219 attachment
+seam), staling the retained local-persistent-store receipts in exactly
+this ticket's blocked class; the remint remains blocked on the same
+signed-activation ceremony. Same posture as precedents #1–#4: every other
+gate obligation ran green in the landing worktree first (client-bundle
+metrology with a frozen P4 rollover ledger, guide manifest +
+check-guide, check-inventories, ref-check, full react/expo/contract
+suites and the client outbox suites); pushed with the documented loud
+bypass; the scheduled backstop continues to dedupe against this open
+ticket. (Earlier same-day LLP 0218 landings — 9f62b14e2, e6d0fe270,
+5b3122704 — passed this gate baseline-proven; P4 is the first the gate
+attributes.)

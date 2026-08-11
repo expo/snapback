@@ -47,6 +47,7 @@
     "index.mjs",
     "keyed-provider.d.mts",
     "keyed-provider.mjs",
+    "mutation-output.mjs",
     "online-surface.d.mts",
     "online-surface.mjs",
     "package-export-path.mjs",

@@ -17,6 +17,7 @@ import {
   createSnapbackProviderDiagnosticError,
 } from './diagnostics.mjs';
 import { validateSnapbackContractArtifacts } from './artifact-validation.mjs';
+import { normalizeContractMutationOutput } from './mutation-output.mjs';
 
 function randomOpaqueId() {
   const value = globalThis.crypto?.randomUUID?.()
@@ -484,10 +485,11 @@ export function createKeyedSnapbackContractProvider({
         const value = await client.mutate(mutationName, {
           args: args ?? {},
           userId: activeUserId,
+          queue: false,
           authorityCapture,
           correlation: { rootId, ...(correlation ?? {}) },
         });
-        return { ok: true, value };
+        return { ok: true, value: normalizeContractMutationOutput(value) };
       } catch (error) {
         recordDiagnostic(error, {
           instanceId: `${rootId}:mutation:${mutationName}`,

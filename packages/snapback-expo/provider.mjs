@@ -419,6 +419,8 @@ export function SnapbackExpoProvider({
   environment = defaultSnapbackExpoEnvironment,
   fallback = null,
   children = null,
+  outboxDrain = 'auto',
+  outboxDrainOptions = undefined,
 }) {
   const store = useMemo(() => {
     const listeners = new Set();
@@ -460,7 +462,11 @@ export function SnapbackExpoProvider({
   }, [app, binding, environment, store]);
   const state = active.state;
   const content = state.status === 'ready'
-    ? React.createElement(SnapbackProvider, { provider: active.reactProvider }, children)
+    ? React.createElement(SnapbackProvider, {
+        provider: active.reactProvider,
+        outboxDrain,
+        outboxDrainOptions,
+      }, children)
     : (typeof fallback === 'function' ? fallback(state) : fallback);
   return React.createElement(bootContext.Provider, { value: state }, content);
 }

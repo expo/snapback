@@ -1,4 +1,5 @@
 import type {
+  OutboxDrainOptions,
   PreparedReactBinding,
   SnapbackClient,
 } from '@expo/snapback-client';
@@ -274,6 +275,8 @@ export function SnapbackExpoProvider(props: Readonly<{
   environment?: SnapbackExpoEnvironmentV1;
   fallback?: any | ((state: ExpoBootState) => any);
   children?: any;
+  outboxDrain?: 'auto' | 'manual';
+  outboxDrainOptions?: Omit<OutboxDrainOptions, 'automatic'>;
 }>): any;
 
 export function useSnapbackExpoBootState(): ExpoBootState;

@@ -1953,6 +1953,60 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/outbox-drain.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.outbox-dev-diagnostic-propagation.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'llp-0218-p4-propagation.2026-08-10.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-ir-evaluator',
+      'public-subpath-optimistic-rebase',
+      'react-core-application',
+      'react-core-capabilities-negative',
+      'react-core-query',
+      'react-external',
+      'react-full-capabilities-positive',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.outbox-settlement-react-contract.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-core-application',
+          'react-core-capabilities-negative',
+          'react-core-query',
+          'react-external',
+          'react-full-capabilities-positive',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.single-row-delete-admission.v1.json',
+        profileIds: Object.freeze(['public-subpath-ir-evaluator']),
+      }),
+      Object.freeze({
+        filename: 'baseline.llp-0200-settlement-isolation.v1.json',
+        profileIds: Object.freeze(['public-subpath-optimistic-rebase']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0218#44-dev-diagnostic',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      summary: 'Advance the eight closures grown by LLP 0218 P4: the client '
+        + 'relinquishment diagnostic emission point (the LLP 0219 attachment '
+        + 'seam) with reason-class/drain-mode facts, the React first-in-'
+        + 'session loud promotion, and the Expo drain-prop pass-through; '
+        + 'LLP 0218 SS4.4 is the accepted authority for these bytes.',
+    }),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/outbox-store.test.mjs']],
+      ['node', ['packages/snapback-react/offline.test.mjs']],
+      ['node', ['packages/snapback-contract/online-surface.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

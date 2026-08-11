@@ -720,7 +720,13 @@ test('closeAuth releases an owned default store for the next sequential client',
 test('mutate queues on connectivity failure and replays exactly-once', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  const devDiagnosticsEvents = [];
+  const client = new SnapbackClient('http://127.0.0.1:9', {
+    rqsStore: store,
+    devDiagnosticsChannel: {
+      emit(event) { devDiagnosticsEvents.push(event); },
+    },
+  });
 
   // Offline: fetch refuses at the transport (TypeError, like undici).
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
@@ -733,6 +739,27 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   const queuedUpdate = await client.mutate('updateThing', { args: { title: 'later' } });
   assert.equal(queuedUpdate.sequence, 2);
   assert.equal((await store.outboxPending()).length, 2);
+  assert.deepEqual(devDiagnosticsEvents, [
+    {
+      code: 'SNAPBACK_OFFLINE_MUTATION_QUEUED',
+      mutation: 'createThing',
+      clientMutationId: queued.clientMutationId,
+      sequence: 1,
+      queueReasonClass: 'connectivity',
+      drainMode: 'none',
+      firstInSession: true,
+    },
+    {
+      code: 'SNAPBACK_OFFLINE_MUTATION_QUEUED',
+      mutation: 'updateThing',
+      clientMutationId: queuedUpdate.clientMutationId,
+      sequence: 2,
+      queueReasonClass: 'connectivity',
+      drainMode: 'none',
+      firstInSession: false,
+    },
+  ], 'the injected stub receives every relinquishment transition');
+  assert(devDiagnosticsEvents.every(Object.isFrozen));
 
   // A server refusal is NOT queued: it throws with its diagnostic.
   globalThis.fetch = async () => Response.json(
@@ -1095,6 +1122,7 @@ test('uncovered offline intent obtains and durably assigns a range before reconn
 test('server epoch-capacity refusal keeps uncovered intent queued for fresh authority', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  const devDiagnosticsEvents = [];
   globalThis.fetch = async (url) => {
     assert.match(String(url), /\/client-mutations\/identity-range$/u);
     return Response.json({
@@ -1107,6 +1135,9 @@ test('server epoch-capacity refusal keeps uncovered intent queued for fresh auth
   const client = new SnapbackClient('https://operation-capacity.example', {
     rqsStore: store,
     operationIdentityProtocol: 1,
+    devDiagnosticsChannel: {
+      emit(event) { devDiagnosticsEvents.push(event); },
+    },
   });
   const queued = await client.mutate('createThing', {
     args: { title: 'wait-for-fresh-epoch' },
@@ -1114,6 +1145,15 @@ test('server epoch-capacity refusal keeps uncovered intent queued for fresh auth
   });
   assert.equal(queued.queued, true);
   assert.equal(queued.operationCoverageDisposition, 'uncovered-range-exhausted');
+  assert.deepEqual(devDiagnosticsEvents, [{
+    code: 'SNAPBACK_OFFLINE_MUTATION_QUEUED',
+    mutation: 'createThing',
+    clientMutationId: queued.clientMutationId,
+    sequence: queued.sequence,
+    queueReasonClass: 'no-attempt-policy',
+    drainMode: 'none',
+    firstInSession: true,
+  }], 'the no-attempt relinquishment site emits the same canonical event');
   let [retained] = await store.outboxRecords();
   assert.equal(retained.status, 'pending');
   assert.equal(retained.operationIssuance, null);
@@ -1705,7 +1745,13 @@ test('queued generated mutation retains its call-time artifact generation throug
 test('explicit-id online publication is durable before delivery and retires only after ACK', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  const devDiagnosticsEvents = [];
+  const client = new SnapbackClient('http://127.0.0.1:9', {
+    rqsStore: store,
+    devDiagnosticsChannel: {
+      emit(event) { devDiagnosticsEvents.push(event); },
+    },
+  });
   let releaseResponse;
   globalThis.fetch = async () => new Promise((resolve) => { releaseResponse = resolve; });
 
@@ -1718,6 +1764,11 @@ test('explicit-id online publication is durable before delivery and retires only
     (record) => record.id === 'cm-online-durable',
   );
   assert.equal(beforeResponse.status, 'pending', 'intent commits before network publication');
+  assert.deepEqual(
+    devDiagnosticsEvents,
+    [],
+    'durable insertion is not the queued diagnostic cadence',
+  );
 
   releaseResponse(Response.json({
     result: { id: 'thing_1' },
@@ -1728,6 +1779,11 @@ test('explicit-id online publication is durable before delivery and retires only
   assert.equal(result.status, 'settled');
   assert.deepEqual(result.result, { id: 'thing_1' });
   assert.equal(result.version, 4);
+  assert.deepEqual(
+    devDiagnosticsEvents,
+    [],
+    'an online foreground settlement never crosses the relinquishment cut',
+  );
   const retained = (await store.outboxRecords()).find(
     (record) => record.id === 'cm-online-durable',
   );

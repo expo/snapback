@@ -13,6 +13,7 @@
 
 import { validateSnapbackContractArtifacts } from './artifact-validation.mjs';
 import { createSnapbackProviderDiagnostic } from './diagnostics.mjs';
+import { normalizeContractMutationOutput } from './mutation-output.mjs';
 
 function randomRootId() {
   const value = globalThis.crypto?.randomUUID?.()
@@ -308,10 +309,11 @@ export async function createOnlineSnapbackContractSurface({
       const output = await client.mutate(name, {
         args: args ?? {},
         userId,
+        queue: false,
         correlation: { rootId, bindingIds: entries.map((entry) => entry.name) },
       });
       if (!wantLivePush) await reconcile();
-      return output;
+      return normalizeContractMutationOutput(output);
     } catch (error) {
       publishDiagnostic(diagnostic(
         'SNAPBACK_CONTRACT_MUTATION_FAILED',

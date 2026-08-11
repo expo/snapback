@@ -322,6 +322,13 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     ? options.__queuedMutationWedgeWarningMs
     : QUEUED_MUTATION_WEDGE_WARNING_MS;
   const queuedMutationWarningTimers = new Set();
+  let queuedMutationPromotionEmitted = false;
+  const queuedMutationDrainMode = () => {
+    const mode = typeof options.__outboxDrainMode === 'function'
+      ? options.__outboxDrainMode()
+      : options.outboxDrain ?? 'none';
+    return mode === 'auto' || mode === 'manual' ? mode : 'none';
+  };
   let preparedGroup = options.preparedGroup ?? null;
   if (preparedGroup !== null && !isPreparedReactQueryGroup(preparedGroup)) {
     throw diagnosticError(
@@ -1272,18 +1279,33 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     );
   };
 
-  // @ref LLP 0218#41-the-dispatch-union-headless-contract — durable enqueue
-  // followed by foreground relinquishment resolves a pending branch. React
-  // re-stamps presentation because this registry owns the install decision;
-  // the deprecated queued error remains export-only with no throw site.
+  // @ref LLP 0218#44-dev-diagnostic — the first queued dispatch in this
+  // provider session is promoted in positive dev mode with the mutation,
+  // relinquishment reason class, and provider-owned drain mode.
   const promoteQueuedMutationDiagnostic = (mutationReference, outcome) => {
     if (!positiveDevelopmentEnvironment()) return;
-    console.warn(
-      `SNAPBACK_REACT_MUTATION_QUEUED: mutation "${mutationReference.name}" was durably queued as `
-      + `${outcome.clientMutationId} (sequence ${outcome.sequence}); keep pending UI until `
-      + 'replay settles it, and roll back only for a declared server refusal carrying appCode.',
-    );
+    const queuedDiagnostic = [...(client.outboxDiagnostics ?? [])].reverse().find((entry) => (
+      entry?.clientMutationId === outcome.clientMutationId
+      && typeof entry?.queueReasonClass === 'string'
+    )) ?? null;
+    const queueReasonClass = outcome.queueReasonClass
+      ?? queuedDiagnostic?.queueReasonClass
+      ?? 'connectivity';
+    const drainMode = queuedMutationDrainMode();
+    if (!queuedMutationPromotionEmitted) {
+      queuedMutationPromotionEmitted = true;
+      console.warn(
+        `SNAPBACK_REACT_MUTATION_QUEUED: mutation "${mutationReference.name}" queued instead of `
+        + `settling (queue reason class: ${queueReasonClass}; drain mode: ${drainMode}; `
+        + `clientMutationId: ${outcome.clientMutationId}; sequence: ${outcome.sequence}). `
+        + 'Keep pending UI until replay settles it, and roll back only for a declared server '
+        + 'refusal carrying appCode.',
+      );
+    }
 
+    // The first-in-session promotion is separately deduplicated above. Every
+    // queued dispatch keeps the existing wedge timer so a later stuck queue
+    // remains observable even after the loud promotion has already fired.
     const timer = setTimeout(async () => {
       queuedMutationWarningTimers.delete(timer);
       if (terminal) return;
@@ -3344,6 +3366,7 @@ export function createSnapbackReactFullProvider(binding, options = {}) {
     try {
       registry = createRegistry(prepared, providerInstanceId, {
         ...options,
+        __outboxDrainMode: () => drainState.mode,
         ...(preparedGroup === null ? {} : { preparedGroup }),
       });
     } catch (error) {

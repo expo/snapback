@@ -405,6 +405,7 @@ for (const { label, value, expected } of [
     },
     mutate(_name, request) {
       requests.push(request);
+      assert.equal(request.queue, false, 'Contract owns queueing; inner client is fail-loud');
       return new Promise((resolve) => { settleMutation = resolve; });
     },
   };
@@ -454,8 +455,23 @@ for (const { label, value, expected } of [
   assert.deepEqual(queued[0].ctxLedger.ids, request.ctxLedger.ids, 'durable queue reuses the same ledger');
   assert.equal(queued[0].args.payload.score, null, 'durable queue reuses the canonical args');
 
-  settleMutation({ version: 1, changed_count: 1, result: null });
-  await task;
+  const stampedInnerResolution = {
+    status: 'settled',
+    version: 1,
+    changed_count: 1,
+    result: null,
+  };
+  settleMutation(stampedInnerResolution);
+  assert.deepEqual(
+    await task,
+    { version: 1, changed_count: 1, result: null },
+    'the additive headless status is normalized away at the Contract boundary',
+  );
+  assert.deepEqual(
+    surface.provider.boundary.query('todos'),
+    [],
+    'the Exact-owned optimistic projection retires normally despite the raw outcome key',
+  );
 
   let getterCalls = 0;
   const accessor = Object.defineProperty({}, 'score', {

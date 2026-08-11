@@ -422,7 +422,21 @@ provider owns the P2 controller, and the outbox hook mirrors its status
 and custody affordances. The scoped caller sweep and package/static
 proofs land with this phase; the browser witness source now records the
 React queued branch and automatic drain, with its qualified receipt to be
-re-minted by the witness runner. P4 propagation + diagnostic and P5 docs:
+re-minted by the witness runner. P4 propagation + diagnostic: implemented
+(2026-08-10) — Expo passes `outboxDrain`/`outboxDrainOptions` through its
+provider and re-exports the settled-only hook; Contract forces
+`queue:false` at every inner transport call and strips the additive
+settled discriminant before its Exact-owned projection
+(`normalizeContractMutationOutput`, fail-loud
+`SNAPBACK_CONTRACT_INNER_MUTATION_QUEUED` guard); the §4.4 relinquishment
+diagnostic emits a stable payload-safe event
+({code, mutation, clientMutationId, sequence, queueReasonClass,
+drainMode, firstInSession}) at every relinquishment-to-queued transition
+through an internal injected-channel stub — the LLP 0219 attachment seam
+(constructor option `devDiagnosticsChannel`); delivery/formatting/
+coalescing remain LLP 0219's, per this program's carve-out — and the
+React arm promotes the first queued dispatch per provider session to the
+loud dev warning naming mutation, reason class, and drain mode. P5 docs:
 see the dated notes below as they land. P6 deprecation closure is
 window-gated: it runs after the
 deprecation window of the release carrying the union, tracked by a
