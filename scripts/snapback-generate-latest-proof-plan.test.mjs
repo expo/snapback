@@ -30,8 +30,10 @@ import {
 } from './snapback-publish-core.mjs';
 import {
   buildLatestProofPlan,
+  resolveCurrentBranch,
   writeLatestProofPlan,
 } from './snapback-generate-latest-proof-plan.mjs';
+import { execFileSync } from 'node:child_process';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const historicalLedgerFile = resolve(
@@ -293,6 +295,37 @@ test('latest proof plan refuses a stale lease before writing', () => {
       /authorized lease is not current/u,
     );
     assert.equal(existsSync(out), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the dispatch ref defaults to the ceremony checkout branch, never a hard-coded main', () => {
+  // A ceremony running from a release branch that dispatched on 'main' could
+  // never correlate: the plan pins expectedHeadSha to this checkout's HEAD
+  // and release branches diverge from main permanently
+  // (release-0.1.18-20260811-r7).
+  const root = mkdtempSync(join(tmpdir(), 'snapback-latest-plan-ref-test-'));
+  try {
+    const git = (...args) => execFileSync('git', args, {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: 'test',
+        GIT_AUTHOR_EMAIL: 'test@example.invalid',
+        GIT_COMMITTER_NAME: 'test',
+        GIT_COMMITTER_EMAIL: 'test@example.invalid',
+      },
+    });
+    git('init', '--quiet', '--initial-branch', 'release/qualified-testing');
+    git('commit', '--allow-empty', '--quiet', '-m', 'seed');
+    assert.equal(resolveCurrentBranch(root), 'release/qualified-testing');
+    git('checkout', '--quiet', '--detach');
+    assert.throws(
+      () => resolveCurrentBranch(root),
+      /checkout is detached; pass --ref/u,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

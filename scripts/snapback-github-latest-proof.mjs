@@ -314,8 +314,12 @@ function readLedgerIdentity(options) {
   };
 }
 
-function expectedWorkflowPath(ref) {
-  return `.github/workflows/${LATEST_PROOF_WORKFLOW}@refs/heads/${ref}`;
+// The runs API reports `path` as the bare workflow file path; the
+// @refs/heads-suffixed form exists only in GITHUB_WORKFLOW_REF inside
+// hosted receipts (githubProof.workflowRef). Binding run.path to the
+// suffixed form refused every real run (release-0.1.18-20260811-r7).
+function workflowFilePath() {
+  return `.github/workflows/${LATEST_PROOF_WORKFLOW}`;
 }
 
 // The dispatched run is correlated by its unique operation-id run name plus
@@ -453,7 +457,7 @@ function readRun(options, runId, dispatchStartedAt) {
     run.id !== Number(runId)
     || run.event !== 'workflow_dispatch'
     || run.head_branch !== options.ref
-    || run.path !== expectedWorkflowPath(options.ref)
+    || run.path !== workflowFilePath()
     || run.workflow_id !== workflow.id
     || workflow.path !== `.github/workflows/${options.workflow}`
     || workflow.state !== 'active'
@@ -580,7 +584,7 @@ export function validateGithubLatestProofCollection({
     || collection.ledgerRevision !== ledgerIdentity.revision
     || collection.candidateLedgerSha256 !== ledgerIdentity.candidateLedgerSha256
     || collection.candidateRootVersion !== ledgerIdentity.version
-    || collection.workflowPath !== expectedWorkflowPath(options.ref)
+    || collection.workflowPath !== workflowFilePath()
     || !Number.isSafeInteger(collection.workflowId)
     || collection.workflowId < 1
     || !Number.isSafeInteger(collection.runId)

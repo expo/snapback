@@ -47,6 +47,7 @@ const usage = `usage: node scripts/snapback-generate-latest-proof-plan.mjs
   --ledger <candidate-ledger.json>
   --out <latest-proof-plan.json>
   [--ref <git-ref>] [--repository <owner/repo>] [--workflow <file.yml>]
+  (--ref defaults to the checkout's current branch; detached HEAD requires it)
   [--dispatch-timeout-ms <n>] [--verify-timeout-ms <n>]
   [--darwin-receipt <relative-path>] [--linux-receipt <relative-path>]
   [--collection <relative-path>]
@@ -76,7 +77,13 @@ function parseArgs(argv) {
     darwinReceipt: 'proof/darwin.json',
     dispatchTimeoutMs: DEFAULT_DISPATCH_TIMEOUT_MS,
     linuxReceipt: 'proof/linux.json',
-    ref: 'main',
+    // The dispatch ref defaults to the checkout's own branch at plan time
+    // (resolved in main()), never to a hard-coded 'main': the plan pins
+    // expectedHeadSha to this checkout's HEAD, and the helper requires the
+    // dispatched run head to contain it. A ceremony running from a release
+    // branch that dispatched on 'main' could therefore never correlate —
+    // the branches diverge permanently (release-0.1.18-20260811-r7).
+    ref: null,
     repository: 'expo/snapback',
     verifyTimeoutMs: 30_000,
     workflow: 'public-package-proof.yml',
@@ -293,6 +300,20 @@ export function writeLatestProofPlan({ out, ...inputs }) {
   return plan;
 }
 
+export function resolveCurrentBranch(root) {
+  const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 10_000,
+  }).trim();
+  if (branch === '' || branch === 'HEAD') {
+    throw new Error(
+      'checkout is detached; pass --ref naming the branch this ceremony runs from',
+    );
+  }
+  return branch;
+}
+
 function resolveCleanHeadSha(root) {
   const head = execFileSync('git', ['rev-parse', 'HEAD'], {
     cwd: root,
@@ -320,6 +341,7 @@ export function main(argv = process.argv.slice(2)) {
   const ledger = readBoundedJsonFile(options.ledger, 'candidate publication ledger');
   const plan = writeLatestProofPlan({
     ...options,
+    ref: options.ref ?? resolveCurrentBranch(repositoryRoot),
     lease,
     ledger,
     ledgerFile: options.ledger,
