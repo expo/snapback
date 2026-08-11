@@ -2002,7 +2002,9 @@ export function validateFinalLatestReceipts({
     || !/^[0-9a-f]{64}$/u.test(githubCollection.authorizedLeaseSha256 ?? '')
     || !Number.isSafeInteger(githubCollection.publicationEpoch)
     || githubCollection.publicationEpoch < 1
-    || githubCollection.runHeadSha !== githubCollection.expectedHeadSha
+    // Run-head/plan-head ancestry is enforced live by the hash-pinned dispatch helper at collection time and again at reopen; this validator binds every receipt to the one observed run head.
+    || !/^[0-9a-f]{40}$/u.test(githubCollection.runHeadSha ?? '')
+    || !/^[0-9a-f]{40}$/u.test(githubCollection.expectedHeadSha ?? '')
     || !Number.isSafeInteger(githubCollection.runId)
     || githubCollection.runId < 1
     || !Number.isSafeInteger(githubCollection.runAttempt)
@@ -2025,7 +2027,7 @@ export function validateFinalLatestReceipts({
       expectedRevision: ledger.revision,
       expectedWorkflow: 'public-package-proof.yml',
       expectedOperationId: githubCollection.operationId,
-      expectedWorkflowHead: githubCollection.expectedHeadSha,
+      expectedWorkflowHead: githubCollection.runHeadSha,
       expectedRepository: generation.repository,
     });
     if (
@@ -2049,7 +2051,7 @@ export function validateFinalLatestReceipts({
         && receipt.checks?.packedCreateSnapbackAppScaffoldFromCleanDirectory !== true)
       || receipt.githubProof.runId !== String(githubCollection.runId)
       || receipt.githubProof.runAttempt !== String(githubCollection.runAttempt)
-      || receipt.githubProof.runHeadSha !== githubCollection.expectedHeadSha
+      || receipt.githubProof.runHeadSha !== githubCollection.runHeadSha
       || receipt.githubProof.ref !== `refs/heads/${githubCollection.ref}`
     ) {
       throw new TypeError(`invalid final latest-root receipt: ${platform}`);
@@ -2136,7 +2138,7 @@ export function validateFinalLatestReceipts({
       || Array.isArray(proofHarnessCheckout)
       || Object.keys(proofHarnessCheckout).sort().join(',') !== 'dirty,headSha'
       || proofHarnessCheckout.dirty !== false
-      || proofHarnessCheckout.headSha !== githubCollection.expectedHeadSha
+      || proofHarnessCheckout.headSha !== githubCollection.runHeadSha
       || proofHarnessCheckout.headSha !== receipt.githubProof.runHeadSha
     ) {
       throw new TypeError(`final latest-root proof harness drifted: ${platform}`);

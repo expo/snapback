@@ -2362,11 +2362,13 @@ test('latest-root propagation witness closes policy, authority, caches, and time
   }
 });
 
-test('final latest-root receipts are candidate- and platform-closed', () => {
+function finalLatestReceiptsFixture({
+  expectedHeadSha = 'f'.repeat(40),
+  runHeadSha = expectedHeadSha,
+} = {}) {
   const candidate = closedCandidateFixture();
   const operationId = 'release-final-proof-test';
   const runId = 123456789;
-  const runHeadSha = 'f'.repeat(40);
   const record = (platform, architecture, receiptSha256) => {
     const hostRuntime = platform === 'darwin'
       ? '@expo/snapback-runtime-darwin-arm64'
@@ -2496,7 +2498,7 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     workflowId: 42,
     workflowPath: '.github/workflows/public-package-proof.yml@refs/heads/main',
     ref: 'main',
-    expectedHeadSha: runHeadSha,
+    expectedHeadSha,
     runHeadSha,
     operationId,
     ledgerRevision: candidate.revision,
@@ -2519,6 +2521,23 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     expectedAuthorizedLeaseSha256: 'a'.repeat(64),
     expectedPublicationEpoch: 17,
   });
+  return {
+    candidate,
+    finalValidation,
+    githubCollection,
+    operationId,
+    records,
+  };
+}
+
+test('final latest-root receipts are candidate- and platform-closed', () => {
+  const {
+    candidate,
+    finalValidation,
+    githubCollection,
+    operationId,
+    records,
+  } = finalLatestReceiptsFixture();
   const final = finalValidation(records);
   assert.equal(
     validatePostPromotionLatestRootReceipts(final, operationId),
@@ -2588,6 +2607,20 @@ test('final latest-root receipts are candidate- and platform-closed', () => {
     () => finalValidation(harnessDrift),
     /proof harness/u,
   );
+});
+
+test('final latest-root receipts bind an advanced run head independently of the plan head', () => {
+  const expectedHeadSha = 'f'.repeat(40);
+  const runHeadSha = 'e'.repeat(40);
+  const { finalValidation, records } = finalLatestReceiptsFixture({
+    expectedHeadSha,
+    runHeadSha,
+  });
+  assert.equal(finalValidation(records).length, 2);
+
+  const driftedRecords = structuredClone(records);
+  driftedRecords[0].receipt.githubProof.runHeadSha = expectedHeadSha;
+  assert.throws(() => finalValidation(driftedRecords));
 });
 
 test('aggregate proof requires one public clean receipt for every runtime tuple', () => {
