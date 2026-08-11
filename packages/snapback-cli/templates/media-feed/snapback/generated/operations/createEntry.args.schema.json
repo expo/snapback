@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/media-feed/createEntry.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorName": {
+      "type": "string"
+    },
+    "caption": {
+      "type": "string"
+    },
+    "photo": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "authorName",
+    "caption",
+    "photo"
+  ],
+  "title": "media-feed:createEntry arguments",
+  "type": "object"
+}

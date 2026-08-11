@@ -38,3 +38,14 @@ primary checkout's working state; neither is caused by the LLP 0224 work):
 Both were worked around locally (regenerating todo-v2 in-tree for a
 self-consistent proof without committing the fleet-owned carriers; kanban
 generated state mirrored from the primary checkout).
+
+## Update 2026-08-10 (LLP 0224 Phase 1 second landing)
+
+Item 2 is **resolved upstream**: after the v2 activation ceremony
+(`30af2240c`, `c85555499`, `24ba36941`) `demos/latency-kanban` regenerates
+cleanly. Item 1 **persists**: `scripts/check-generated-artifacts` on
+current `main` still rewrites the committed
+`demos/todo-v2/snapback/generated-remote-service/{schema.manifest.json,
+functions.manifest.json, artifacts.json}` (verified again today). The
+ticket stays open for item 1 only; the owning demo-truth lane should
+regenerate and commit the complete set.

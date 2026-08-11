@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/expo-chat/membershipsForUser.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "userId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "userId"
+  ],
+  "title": "expo-chat:membershipsForUser arguments",
+  "type": "object"
+}

@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-10 (LLP 0204 commissioned the sealed
+**Revised:** 2026-08-10 (LLP 0224 Phase 1 companion: the operational-readiness
+predicate binds read-only to the settled mode-state invariant and the
+positive `sessionActivationReady` derivation; no new authority, no
+override; see §Dated amendment: operational-readiness predicate binding).
+2026-08-10 (LLP 0204 commissioned the sealed
 `CapabilityLinkPossessor` resolved-authority addition for granted-operation
 capability links; design only, with no implementation or capability claim —
 see the dated amendment.) 2026-08-09 (managed-development cold-successor amendment: an
@@ -2290,6 +2294,26 @@ an expired/revoked/used link, a dead parent grant, a rotated token carrier with
 a still-live parent grant, a terminally re-credentialed parent, a foreign
 effective principal, and every hosted target either resolve exactly as LLP 0055
 requires or fail before a handler marker is reached.
+
+## Dated amendment: operational-readiness predicate binding (2026-08-10, LLP 0224 Phase 1)
+
+LLP 0224's operational predicate binds to this Spec's existing settlement
+facts as a read-only consumer. The application-level readiness fact
+(`OperationalReadinessV1`, `src/operational_readiness.rs`) is `ready` only
+when the exact mode-state record is settled — `active == desired`,
+`modeState == settled`, `appDataAvailability == available`,
+`requestedDeployment == null`, `quarantine == null` — and, when the active
+mode is `sessions`, the complete positive `sessionActivationReady`
+derivation of §Activation-readiness and later-item fences holds. **The
+predicate adds no authority and no override**: each conjunct is read from
+the same server-owned registries this Spec names, never re-derived, and no
+readiness input can move a mode-state key or bypass an activation fence.
+This Spec already forces sessions activation, coordinators, and workers
+before listener bind; the operational predicate additionally covers the
+later package-level provisioning (`loadGenerated`) that produced the LLP
+0224 pilot race — post-bind obligations settle before the
+application-ready receipt may publish, while the host ready file's
+pre-bind semantics are untouched.
 
 ## Status
 

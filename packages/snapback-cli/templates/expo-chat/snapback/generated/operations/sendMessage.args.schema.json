@@ -1,0 +1,28 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/expo-chat/sendMessage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    },
+    "conversationId": {
+      "type": "string"
+    },
+    "image": {
+      "type": "string"
+    },
+    "replyToId": {
+      "type": "string"
+    },
+    "senderId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId",
+    "senderId"
+  ],
+  "title": "expo-chat:sendMessage arguments",
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/expo-chat/removeReaction.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "reactionId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "reactionId"
+  ],
+  "title": "expo-chat:removeReaction arguments",
+  "type": "object"
+}

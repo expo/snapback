@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/react/createTodo.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "title": "react:createTodo arguments",
+  "type": "object"
+}

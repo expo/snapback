@@ -27,9 +27,13 @@ assert.match(carrierSource, /'web-browser'/);
 assert(!app.includes(' as '), 'starter must not need result casts');
 assert.match(
   runtimeAcceptance,
-  /event\.state === 'generated-and-loaded' && event\.managed === true/,
-  'runtime acceptance must wait for the managed CLI load lifecycle, not only the ready file',
+  /'wait', '--ready-file', readyFile/,
+  'runtime acceptance must wait through the package CLI on the application-readiness receipt',
 );
+assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
+assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
+assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
+assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
 assert.doesNotMatch(
   runtimeAcceptance,
   /ensureApp|\.seed\(/,

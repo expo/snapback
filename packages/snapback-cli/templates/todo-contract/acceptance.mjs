@@ -38,8 +38,6 @@ const child = spawn(executable, [
 
 let stdout = '';
 let stderr = '';
-let stdoutRemainder = '';
-const lifecycleEvents = [];
 const checks = [];
 const cleanup = {
   attempted: false,
@@ -55,39 +53,36 @@ let childSpawnError = null;
 const appendBounded = (current, chunk) =>
   `${current}${chunk.toString('utf8')}`.slice(-MAX_CHILD_OUTPUT_BYTES);
 
-child.stdout.on('data', (chunk) => {
-  const text = chunk.toString('utf8');
-  stdout = appendBounded(stdout, chunk);
-  stdoutRemainder = `${stdoutRemainder}${text}`.slice(-MAX_CHILD_OUTPUT_BYTES);
-  for (;;) {
-    const newline = stdoutRemainder.indexOf('\n');
-    if (newline === -1) break;
-    const line = stdoutRemainder.slice(0, newline).trim();
-    stdoutRemainder = stdoutRemainder.slice(newline + 1);
-    if (!line) continue;
-    try {
-      const event = JSON.parse(line);
-      if (event?.schemaVersion === 'snapback.dev.v1') lifecycleEvents.push(event);
-    } catch {
-      // Non-event output is retained only in the bounded failure diagnostic.
-    }
-  }
-});
+child.stdout.on('data', (chunk) => { stdout = appendBounded(stdout, chunk); });
 child.stderr.on('data', (chunk) => { stderr = appendBounded(stderr, chunk); });
 child.on('error', (error) => { childSpawnError = error; });
 
-const until = async (predicate, label, timeoutMs = 30_000) => {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (childSpawnError) throw childSpawnError;
-    const value = await predicate();
-    if (value) return value;
-    if (child.exitCode !== null) {
-      throw new Error(`${label}: dev exited ${child.exitCode}\n${stdout}\n${stderr}`);
-    }
-    await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+const waitForApplicationReady = async () => {
+  // @ref LLP 0224#phases — Phase 1 proof: the harness waits on the application-readiness receipt; the first authority-bearing call runs un-retried.
+  const waiter = spawn(executable, [
+    'wait', '--ready-file', readyFile,
+    '--level', 'application', '--timeout-ms', '60000',
+  ], {
+    cwd: root,
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let waitStdout = '';
+  let waitStderr = '';
+  waiter.stdout.on('data', (chunk) => { waitStdout = appendBounded(waitStdout, chunk); });
+  waiter.stderr.on('data', (chunk) => { waitStderr = appendBounded(waitStderr, chunk); });
+  const exit = await new Promise((resolveExit, reject) => {
+    waiter.once('error', reject);
+    waiter.once('close', (code, signal) => resolveExit({ code, signal }));
+  });
+  let envelope = null;
+  try { envelope = JSON.parse(waitStdout); } catch {}
+  if (exit.code !== 0) {
+    throw new Error(
+      `application readiness wait failed (${exit.code ?? exit.signal}): ${JSON.stringify(envelope?.diagnostics ?? waitStdout.trim())}${waitStderr ? `\n${waitStderr}` : ''}`,
+    );
   }
-  throw new Error(`${label}: timed out\n${stdout}\n${stderr}`);
+  assert.equal(envelope?.ok, true, `application readiness wait returned an invalid envelope: ${waitStdout}`);
 };
 
 const pass = (id, details = null) => {
@@ -104,23 +99,15 @@ const waitForExit = async (timeoutMs) => {
 };
 
 try {
-  const ready = await until(() => {
-    if (!existsSync(readyFile)) return null;
-    try { return JSON.parse(readFileSync(readyFile, 'utf8')); } catch { return null; }
-  }, 'managed Snapback ready descriptor');
-  const loaded = await until(
-    () => lifecycleEvents.find(
-      (event) => event.state === 'generated-and-loaded' && event.managed === true,
-    ) ?? null,
-    'managed Snapback generated-and-loaded lifecycle',
-  );
-  assert.equal(loaded.readyFile, readyFile);
-  assert.equal(loaded.serverUrl, ready.serverUrl);
+  await waitForApplicationReady();
+  if (childSpawnError) throw childSpawnError;
+  const ready = JSON.parse(readFileSync(readyFile, 'utf8'));
   assert.equal(ready.ready, true);
   pass('managed-lifecycle', {
     owned: true,
-    readyDescriptorObserved: ready.ready === true,
-    generatedAndLoadedObserved: true,
+    applicationReadyObserved: true,
+    waitLevel: 'application',
+    firstQueryRetries: 0,
   });
 
   const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
@@ -129,6 +116,9 @@ try {
     rqsStore: null,
     offlineQueue: false,
   });
+  const userId = 'generated_acceptance_user';
+  const before = await client.query(api.listTodos, { userId });
+  assert(Array.isArray(before.rows));
   const inspected = await client.inspect();
   assert.equal(inspected.functions?.appId, artifacts.appId);
   assert.equal(inspected.functions?.bundleHash, artifacts.bundleHash);
@@ -137,9 +127,6 @@ try {
     bundleHash: artifacts.bundleHash,
   });
 
-  const userId = 'generated_acceptance_user';
-  const before = await client.query(api.listTodos, { userId });
-  assert(Array.isArray(before.rows));
   pass('query', { functionId: api.listTodos.id, rowCount: before.rows.length });
 
   const title = `Generated acceptance ${process.pid}`;
@@ -216,8 +203,9 @@ const receipt = {
   },
   lifecycle: checks.find(({ id }) => id === 'managed-lifecycle')?.details ?? {
     owned: true,
-    readyDescriptorObserved: false,
-    generatedAndLoadedObserved: false,
+    applicationReadyObserved: false,
+    waitLevel: 'application',
+    firstQueryRetries: 0,
   },
   operations: {
     queryFunctionId: api.listTodos.id,

@@ -147,8 +147,9 @@ let cases = 0;
   },
   lifecycle: {
     owned: true,
-    readyDescriptorObserved: true,
-    generatedAndLoadedObserved: true,
+    applicationReadyObserved: true,
+    waitLevel: 'application',
+    firstQueryRetries: 0,
   },
   operations: { queryFunctionId: 'app:list', mutationFunctionId: 'app:create' },
   cleanup: {

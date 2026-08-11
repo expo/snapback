@@ -1,0 +1,310 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [
+      {
+        "argumentsType": "{ \"conversationId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "name": "typing",
+        "resultType": "ReadonlyArray<{ \"expiresAt\"?: number; \"key\": string; \"self\": boolean; \"sourceClientId\": string; \"updatedAt\": number; \"value\": { \"displayName\": string } }>"
+      }
+    ],
+    "mutations": [
+      {
+        "argumentsType": "{ \"conversationId\": string; \"emoji\": string; \"messageId\": string; \"userId\": string }",
+        "effects": {
+          "invalidates": [
+            "reactions"
+          ],
+          "writes": [
+            "reactions"
+          ]
+        },
+        "name": "addReaction",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"reactionId\": string }"
+      },
+      {
+        "argumentsType": "{ \"reactionId\": string }",
+        "effects": {
+          "invalidates": [
+            "reactions"
+          ],
+          "writes": [
+            "reactions"
+          ]
+        },
+        "name": "removeReaction",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"removed\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"body\"?: string; \"conversationId\": string; \"image\"?: string; \"replyToId\"?: string; \"senderId\": string }",
+        "effects": {
+          "invalidates": [
+            "messages",
+            "conversations"
+          ],
+          "writes": [
+            "messages",
+            "conversations"
+          ]
+        },
+        "name": "sendMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      },
+      {
+        "argumentsType": "{ \"conversationId\": string; \"replyToId\": string; \"senderId\": string; \"text\": string }",
+        "effects": {
+          "invalidates": [
+            "messages",
+            "conversations"
+          ],
+          "writes": [
+            "messages",
+            "conversations"
+          ]
+        },
+        "name": "sendReply",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"messageId\": string }"
+      },
+      {
+        "argumentsType": "{ \"conversationId\": string; \"senderId\": string; \"text\": string }",
+        "effects": {
+          "invalidates": [
+            "messages",
+            "conversations"
+          ],
+          "writes": [
+            "messages",
+            "conversations"
+          ]
+        },
+        "name": "sendText",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"messageId\": string }"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"conversationId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "conversations"
+          ]
+        },
+        "name": "conversationDetails",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"kind\": string; \"lastPreview\": string; \"title\": string; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "conversations"
+          ]
+        },
+        "name": "conversations",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"kind\": string; \"lastPreview\": string; \"title\": string; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "{ \"conversationId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "memberships"
+          ]
+        },
+        "name": "membershipsForConversation",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"conversationId\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"userId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "memberships"
+          ]
+        },
+        "name": "membershipsForUser",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"conversationId\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"conversationId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messages"
+          ]
+        },
+        "name": "messagesForConversation",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"conversationId\": string; \"image\": null | string; \"kind\": string; \"replyToId\": null | string; \"senderId\": string; \"sentAt\": number; \"text\": null | string }>"
+      },
+      {
+        "argumentsType": "{ \"conversationId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "reactions"
+          ]
+        },
+        "name": "reactionsForConversation",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"conversationId\": string; \"emoji\": string; \"messageId\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "users"
+          ]
+        },
+        "name": "users",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"color\": string; \"handle\": string; \"name\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:d6551e1d102e42d81dc53f14d2c9285681629b3d567fad723f7d827fc7d2ec10",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

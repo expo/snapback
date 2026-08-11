@@ -54,7 +54,11 @@ assert.equal(packageManifest.scripts['carry:native-simulator'], 'node carrier.mj
 assert.match(instructions, /carry:native-simulator/);
 assert.match(carrierSource, /bundleId:\s*'host\.exp\.Exponent'/);
 assert.match(carrierSource, /driveUrl:\s*'exp:/);
-assert.match(runtimeAcceptance, /event\.state === 'generated-and-loaded' && event\.managed === true/);
+assert.match(runtimeAcceptance, /'wait', '--ready-file', readyFile/);
+assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
+assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
+assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
+assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
 assert.match(runtimeAcceptance, /createAssetClient\(client\)/);
 assert.match(runtimeAcceptance, /loaded: loadedIdentity/);
 console.log('media-feed static coherence: typed upload custody, renditions, delivery choice, unique retained live paging with displaced-head rollover, image rendering, and proof command are coherent');

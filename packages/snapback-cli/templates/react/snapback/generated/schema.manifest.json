@@ -1,0 +1,39 @@
+{
+  "appId": "react",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "authoredSourceHash": "sha256:27f524b64df9fcb3cb612f40875bf19339d414ef05004ebd590afc61f78896ea",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "1030a81b1fccb497819a5df5b5c88ae0810cd4e0432f0a1b6ce704fc5f161c96",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:935b8d0c96cfa05e",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "completed",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "title"
+          ],
+          "name": "by_title"
+        }
+      ],
+      "name": "todos",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

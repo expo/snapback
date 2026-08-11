@@ -1,0 +1,63 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "name": "createTodo",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "unknown"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "todos"
+          ]
+        },
+        "name": "listTodos",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"completed\": boolean; \"title\": string; \"userId\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "fe60ccdd52d88dd754d63041b160cd1ab2672d56258be9d9fc49b7675c73e996",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

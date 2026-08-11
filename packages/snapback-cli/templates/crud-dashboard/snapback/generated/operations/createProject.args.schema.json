@@ -1,0 +1,31 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/crud-dashboard/createProject.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "budget": {
+      "type": "integer"
+    },
+    "status": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "teamSlug": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "teamSlug",
+    "title",
+    "summary",
+    "status",
+    "budget"
+  ],
+  "title": "crud-dashboard:createProject arguments",
+  "type": "object"
+}

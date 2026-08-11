@@ -364,7 +364,7 @@ console.log(JSON.stringify({
   assertCarrierSelfCheck(reactProject, ['headless', 'web-browser']);
   const reactAcceptanceSource = readFileSync(join(reactProject, 'acceptance.mjs'), 'utf8');
   assert.match(reactAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
-  assert.match(reactAcceptanceSource, /observeSnapbackQueries/u);
+  assert.match(reactAcceptanceSource, /client\.query\(api\.listTodos/u);
   assert.match(reactAcceptanceSource, /invokeSnapbackMutation/u);
 
   const crudProject = join(root, 'crud-dashboard');

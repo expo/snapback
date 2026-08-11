@@ -1,0 +1,12 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/crud-dashboard/projectDirectory.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cursor": {
+      "type": "string"
+    }
+  },
+  "title": "crud-dashboard:projectDirectory arguments",
+  "type": "object"
+}

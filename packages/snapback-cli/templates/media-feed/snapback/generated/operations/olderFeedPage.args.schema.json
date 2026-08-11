@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/media-feed/olderFeedPage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "before": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "before"
+  ],
+  "title": "media-feed:olderFeedPage arguments",
+  "type": "object"
+}

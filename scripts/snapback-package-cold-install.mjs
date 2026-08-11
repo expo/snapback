@@ -357,8 +357,9 @@ function assertStarterAcceptanceReceipt(output, label) {
     || receipt.identity?.loaded?.appId !== receipt.identity.artifact.appId
     || receipt.identity?.loaded?.bundleHash !== receipt.identity.artifact.bundleHash
     || receipt.lifecycle?.owned !== true
-    || receipt.lifecycle?.readyDescriptorObserved !== true
-    || receipt.lifecycle?.generatedAndLoadedObserved !== true
+    || receipt.lifecycle?.applicationReadyObserved !== true
+    || receipt.lifecycle?.waitLevel !== 'application'
+    || receipt.lifecycle?.firstQueryRetries !== 0
     || typeof receipt.operations?.queryFunctionId !== 'string'
     || typeof receipt.operations?.mutationFunctionId !== 'string'
     || receipt.cleanup?.attempted !== true

@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/crud-dashboard/projectDetail.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "projectKey": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "projectKey"
+  ],
+  "title": "crud-dashboard:projectDetail arguments",
+  "type": "object"
+}

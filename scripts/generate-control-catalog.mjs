@@ -125,6 +125,7 @@ const CLI_PROJECTIONS = {
   'host.start': 'snapback start',
   'host.stop': 'snapback stop',
   'host.restart': 'snapback restart --ready-file <path>',
+  'host.wait': 'snapback wait --ready-file <path> --level <host|application>',
   'app.inspect': 'snapback inspect',
   'app.reset': 'snapback reset',
   'schema.load': 'snapback load --schema <path>',

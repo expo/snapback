@@ -1,0 +1,1 @@
+{"appId":"react","formatVersion":"snapback.seed.v1","seedDigest":"sha256:e8dc99b12ea9f23cfd609a92dd12fe6ab1277f7bb4bc38f63b8445a519ca3157","seedVersion":"2026-07-28.1","tables":{"todos":[{"_id":"todo_welcome","completed":false,"title":"Build with Snapback"}]}}

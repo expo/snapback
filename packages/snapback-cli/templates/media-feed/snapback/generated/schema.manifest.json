@@ -1,0 +1,73 @@
+{
+  "appId": "media-feed",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "authoredSourceHash": "sha256:7a16352b22f1648f0fc670befa2a92e8fda8e338a66aedf442cd5b8bd1d1d1ce",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:81b3355aaf42ba3b0c0a10492e8909ece5aeeab2ce1ee8923a6fc1f7f01046e7",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:bf4bd4050f9b75054beacdaa880b74f0c9c425e69f2139c9f4e2b8f2923c1f04",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "assetSharing": {
+        "kind": "public-read"
+      },
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "authorName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "caption",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "feedPhotoUpload"
+            }
+          },
+          "name": "photo",
+          "optional": true
+        },
+        {
+          "field_type": "String",
+          "name": "pageKey",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "pageKey"
+          ],
+          "name": "by_page_key",
+          "unique": true
+        }
+      ],
+      "name": "entries",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

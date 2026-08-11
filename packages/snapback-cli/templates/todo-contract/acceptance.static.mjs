@@ -6,6 +6,7 @@ const functions = JSON.parse(readFileSync(new URL('./snapback/generated/function
 const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const agentInstructions = readFileSync(new URL('./AGENTS.md', import.meta.url), 'utf8');
 const carrierSource = readFileSync(new URL('./carrier.mjs', import.meta.url), 'utf8');
+const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.url), 'utf8');
 assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.deepEqual(functions.functions.map((fn) => fn.name).sort(), ['createTodo', 'listTodos']);
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
@@ -13,4 +14,9 @@ assert.match(agentInstructions, /the acceptance command/);
 assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
 assert.match(agentInstructions, /carry:headless/);
 assert.match(carrierSource, /headless:\s*\{\}/);
+assert.match(runtimeAcceptance, /'wait', '--ready-file', readyFile/);
+assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
+assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
+assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
+assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
 console.log('todo-contract static coherence: generated package surface is coherent');

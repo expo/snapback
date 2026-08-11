@@ -1,0 +1,35 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/crud-dashboard/updateProject.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "budget": {
+      "type": "integer"
+    },
+    "projectKey": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "teamSlug": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "projectKey",
+    "teamSlug",
+    "title",
+    "summary",
+    "status",
+    "budget"
+  ],
+  "title": "crud-dashboard:updateProject arguments",
+  "type": "object"
+}

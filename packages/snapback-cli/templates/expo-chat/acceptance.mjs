@@ -55,8 +55,6 @@ const executable = join(
 
 let stdout = '';
 let stderr = '';
-let stdoutRemainder = '';
-const lifecycleEvents = [];
 const checks = [];
 const cleanup = {
   attempted: false,
@@ -139,6 +137,34 @@ const mintOrdinarySession = async (adminToken) => {
     throw new Error('ordinary session mint returned an invalid hostOpsResult envelope');
   }
   return Object.freeze({ token: envelope.data.token });
+};
+
+const waitForApplicationReady = async () => {
+  // @ref LLP 0224#phases — Phase 1 proof: the harness waits on the application-readiness receipt; the first authority-bearing call runs un-retried.
+  const waiter = spawn(executable, [
+    'wait', '--ready-file', readyFile,
+    '--level', 'application', '--timeout-ms', '60000',
+  ], {
+    cwd: root,
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let waitStdout = '';
+  let waitStderr = '';
+  waiter.stdout.on('data', (chunk) => { waitStdout = appendBounded(waitStdout, chunk); });
+  waiter.stderr.on('data', (chunk) => { waitStderr = appendBounded(waitStderr, chunk); });
+  const exit = await new Promise((resolveExit, reject) => {
+    waiter.once('error', reject);
+    waiter.once('close', (code, signal) => resolveExit({ code, signal }));
+  });
+  let envelope = null;
+  try { envelope = JSON.parse(waitStdout); } catch {}
+  if (exit.code !== 0) {
+    throw new Error(
+      `application readiness wait failed (${exit.code ?? exit.signal}): ${JSON.stringify(envelope?.diagnostics ?? waitStdout.trim())}${waitStderr ? `\n${waitStderr}` : ''}`,
+    );
+  }
+  assert.equal(envelope?.ok, true, `application readiness wait returned an invalid envelope: ${waitStdout}`);
 };
 
 const until = async (predicate, label, timeoutMs = 30_000) => {
@@ -303,23 +329,15 @@ process.once('SIGINT', stop);
 try {
   pass('zero-config-supervised-connect', await runZeroConfigSupervisedConnect());
   startManagedChild();
-  const ready = await until(() => {
-    if (!existsSync(readyFile)) return null;
-    try { return JSON.parse(readFileSync(readyFile, 'utf8')); } catch { return null; }
-  }, 'managed Snapback ready descriptor');
-  const loaded = await until(
-    () => lifecycleEvents.find(
-      (event) => event.state === 'generated-and-loaded' && event.managed === true,
-    ) ?? null,
-    'managed Snapback generated-and-loaded lifecycle',
-  );
-  assert.equal(loaded.readyFile, readyFile);
-  assert.equal(loaded.serverUrl, ready.serverUrl);
+  await waitForApplicationReady();
+  if (childSpawnError) throw childSpawnError;
+  const ready = JSON.parse(readFileSync(readyFile, 'utf8'));
   assert.equal(ready.ready, true);
   pass('managed-lifecycle', {
     owned: true,
-    readyDescriptorObserved: ready.ready === true,
-    generatedAndLoadedObserved: true,
+    applicationReadyObserved: true,
+    waitLevel: 'application',
+    firstQueryRetries: 0,
   });
 
   const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
@@ -329,6 +347,7 @@ try {
     rqsStore: null,
     offlineQueue: false,
   });
+  const conversationRows = (await client.query(api.conversations, { args: {} })).rows;
   const inspected = await client.inspect();
   assert.equal(inspected.functions?.appId, artifacts.appId);
   assert.equal(inspected.functions?.bundleHash, artifacts.bundleHash);
@@ -337,7 +356,6 @@ try {
     bundleHash: artifacts.bundleHash,
   });
 
-  const conversationRows = (await client.query(api.conversations, { args: {} })).rows;
   const adaMemberships = (await client.query(api.membershipsForUser, {
     args: { userId: 'user_ada' },
   })).rows;
@@ -538,8 +556,9 @@ const receipt = {
   },
   lifecycle: checks.find(({ id }) => id === 'managed-lifecycle')?.details ?? {
     owned: true,
-    readyDescriptorObserved: false,
-    generatedAndLoadedObserved: false,
+    applicationReadyObserved: false,
+    waitLevel: 'application',
+    firstQueryRetries: 0,
   },
   operations: {
     surface: 'conversation',

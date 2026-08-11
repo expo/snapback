@@ -1,0 +1,150 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"budget\": number; \"status\": string; \"summary\": string; \"teamSlug\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "projects"
+          ],
+          "writes": [
+            "projects"
+          ]
+        },
+        "name": "createProject",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      },
+      {
+        "argumentsType": "{ \"projectKey\": string }",
+        "effects": {
+          "invalidates": [
+            "projects"
+          ],
+          "writes": [
+            "projects"
+          ]
+        },
+        "name": "deleteProject",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"budget\": number; \"projectKey\": string; \"status\": string; \"summary\": string; \"teamSlug\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "projects"
+          ],
+          "writes": [
+            "projects"
+          ]
+        },
+        "name": "updateProject",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"projectKey\": string; \"teamSlug\": string; \"title\": string; \"summary\": string; \"status\": string; \"budget\": number; \"updatedAt\": number }"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "teams"
+          ]
+        },
+        "name": "listTeams",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"color\": string; \"name\": string; \"slug\": string }>"
+      },
+      {
+        "argumentsType": "{ \"projectKey\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "projects"
+          ]
+        },
+        "name": "projectDetail",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"budget\": number; \"projectKey\": string; \"status\": string; \"summary\": string; \"teamSlug\": string; \"title\": string; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "{ \"cursor\"?: string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "projects",
+            "teams"
+          ]
+        },
+        "name": "projectDirectory",
+        "resultType": "ReadonlyArray<{ \"budget\": number; \"projectKey\": string; \"status\": string; \"summary\": string; \"teamColor\": null | string; \"teamName\": null | string; \"teamSlug\": string; \"title\": string; \"updatedAt\": number }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:362943c6311f361c7f1fd4c9a748fec2e137a9de5e8d72987df2d6e4a6226a47",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

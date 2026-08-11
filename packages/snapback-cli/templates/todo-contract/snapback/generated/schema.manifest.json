@@ -1,0 +1,44 @@
+{
+  "appId": "todo-contract",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "authoredSourceHash": "sha256:771cb71e8f1c2ff724f8b8c29163904c7d1c45a3b9a5ec3f8da3bae842e9202a",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "fe60ccdd52d88dd754d63041b160cd1ab2672d56258be9d9fc49b7675c73e996",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:ed1c13f9de99e071",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "completed",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "userId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user"
+        }
+      ],
+      "name": "todos",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

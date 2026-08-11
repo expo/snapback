@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:cd09f93b101bb01eb4d4fd9a1881279ad29f38f8a4720206e3801950159ebe93",
+  "catalogDigest": "sha256:47abff5d9167671a8b952b6d653bc50328f3b5eee1e290b8be5bb4743cdd5c68",
   "buildIdentity": {
-    "sourceCommit": "56e5f9aa5c98566631cfcc806daf94328425773b",
+    "sourceCommit": "a0e437065b97f0ea09640399abaec502dc8e1772",
     "dirty": true
   },
-  "generatedAtCommit": "56e5f9aa5c98566631cfcc806daf94328425773b",
+  "generatedAtCommit": "a0e437065b97f0ea09640399abaec502dc8e1772",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -7530,7 +7530,7 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": null,
+        "cli": "snapback wait --ready-file <path> --level <host|application>",
         "mcp": null,
         "hostOps": "host.wait",
         "http": "POST /_snapback/api/host-ops",

@@ -5,7 +5,12 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-08-10 (ruled remediation apply amendment: a read-only
+**Revised:** 2026-08-10 (operational readiness core fact amendment: server-owned
+`OperationalReadinessV1` evaluated against a launcher-declared closed
+activation target, served as `app.readiness.v1` plus the authenticated
+`app.inspect` splice, projected by the application-ready receipt and the
+native CLI-only `host.wait`; see §Dated amendment: operational readiness
+core fact). 2026-08-10 (ruled remediation apply amendment: a read-only
 generation-fenced host operation plus CLI/MCP projections consumes one exact
 LLP 0146 carrier item and returns a repaired identifier). 2026-08-08 (native machine-mode amendment: the native CLI adopts
 the frozen app-data exit taxonomy, makes requested JSON failure-safe through
@@ -166,12 +171,14 @@ through their own reviewed table amendments.
 | `host.start` | Start or attach to the canonical local Snapback server. | `runtimeState`, `capabilityManifest`, bound URL, process id, readiness. |
 | `host.stop` | Stop a local server owned by this app/root. | stopped process id, previous bound URL, final diagnostics. |
 | `host.restart` | Stop then start using one request id. | previous and new `runtimeState`, restart reason. |
+| `host.wait` | Block until the local server reaches host or application readiness (CLI-only; LLP 0224). | `level`, waited time, bound URL, `startupNonce`; at application level the receipt path and the live `operationalReadiness` fact. |
 | `app.reset` | Deterministically clear local app state and optionally apply a seed. | reset scope, seed id/path/hash, resulting database version. |
 | `schema.load` | Load a schema manifest/source into the local server. | schema hash, load time, schema diagnostics. |
 | `schema.reload` | Re-run schema discovery/codegen and load the resulting schema. | previous/new schema hashes, stale-artifact diagnostics. |
 | `functions.load` | Load generated function bundle/manifest into the local server. | bundle hash, function count, unsupported dependency diagnostics. |
 | `functions.reload` | Re-run function discovery/bundling and load the result. | previous/new bundle hashes, stale-artifact diagnostics. |
-| `app.inspect` | Inspect loaded schema, functions, capabilities, runtime state, subscriptions, clients, and recent diagnostics. | `runtimeState`, `schemaManifest`, `functionManifest`, `capabilityManifest`, diagnostics. |
+| `app.inspect` | Inspect loaded schema, functions, capabilities, runtime state, subscriptions, clients, and recent diagnostics. | `runtimeState`, `schemaManifest`, `functionManifest`, `capabilityManifest`, diagnostics; on the authenticated host-ops projection additionally `operationalReadiness` (LLP 0224). |
+| `app.readiness.v1` | Declare the closed expected activation target and evaluate the server-owned operational-readiness fact (read-only without input). | `operationalReadiness` (the `snapback.operational-readiness.v1` fact: `ready`, unsatisfied conditions, observed LLP 0058 settlement facts, artifact and capability digests, recorded network profile). |
 | `cron.list` | List declared cron jobs and current operator-safe scheduler posture without running work. | `cron` with declared identity/schedule, activation, next nominal/due, in-flight boolean, last-run/outcome, and consecutive failures; never run ids, handler diagnostics/results, jitter seeds, or recent-run payloads. |
 | `function.run` | Run one generated query or mutation by function id. | return value or mutation commit facts, read/write summaries when available, diagnostics. |
 | `function.explain` | Explain query plans, permission decisions, capability gaps, or mutation denial/dry-run facts without committing. | explanation kind, decision, read/write predictions where available, diagnostics. |
@@ -794,6 +801,51 @@ deployment state. A caller explicitly retries its original operation with the
 returned value. The prior 2026-08-08 sentence saying OQ6 remained open is a
 historical statement superseded by this amendment and LLP 0094's 2026-08-10
 ruling record.
+
+## Dated amendment: operational readiness core fact (2026-08-10)
+
+Per LLP 0224 Phase 1 (accepted 2026-08-10), the surface gains one core fact
+and thin projections of it.
+
+**The core.** `OperationalReadinessV1` (`src/operational_readiness.rs`;
+committed schema `schemas/operational-readiness.schema.json`; LLP 0037
+ownership — the Rust types are the source of truth and
+`tests/artifact_schemas_v0.rs` is the drift gate) is the server-owned
+evaluation of the launch-settlement predicate against a closed,
+launcher-declared `ExpectedActivationTargetV1`
+(`schemas/expected-activation-target.schema.json`). It reports `ready`,
+the complete unsatisfied-condition set, the observed LLP 0058 settlement
+facts, the capability-manifest digest, artifact identities, and the
+recorded (never gating, LLP 0167) network-profile name. A fresh process is
+undeclared and fails closed with the `expected-target-undeclared`
+condition.
+
+**Operation `app.readiness.v1`** joins the served table on the
+authenticated admin tier — `AdminWrite` because declaring the target
+mutates process-local state, with `ResponseSensitivity::OperatorMetadata`
+and no sessions secret-read overlay (like `cron.list`, the fact carries
+identities, digests, and condition names — no application rows and no
+credentials, so the ordinary sessions admin carrier suffices): with
+`input.expectedTarget` it validates and stores the declared target —
+refusing an `obligationsDigest` mismatch
+(`SNAPBACK_APP_READINESS_OBLIGATIONS_DIGEST_MISMATCH`), a non-idempotent
+seed declaration (`SNAPBACK_APP_READINESS_SEED_NOT_IDEMPOTENT`), and an
+unresolved-migration declaration
+(`SNAPBACK_APP_READINESS_MIGRATION_UNRESOLVED`) without moving target
+authority — then evaluates and returns `data.operationalReadiness`;
+without input it is a read-only evaluation. `app.inspect` splices the same
+fresh fact into `data.operationalReadiness` on the host-ops path only; the
+public `GET /inspect` projection is unchanged (the fact is not public
+surface — LLP 0224's conservative authenticated fail-closed posture,
+author-reviewed and retained 2026-08-10).
+
+**Projections.** The `snapback.application-ready.v1` receipt file
+(`schemas/application-ready.schema.json`, published at the deterministic
+`<ready-file>.application-ready` sibling) and the native CLI-only
+`host.wait` (`snapback wait --level host|application`) are projections of
+the core fact and carry no independent authority; at application level
+`wait` requires the live evaluation to be positive for the receipt's
+bound target, never trusting file digests alone.
 
 ## Status
 

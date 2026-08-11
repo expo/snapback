@@ -5,6 +5,12 @@
 **Systems:** Server lifecycle, Host operations, Packaged dev loop, CLI, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-10 (Phase 1 landed; dated OQ5 and OQ2 resolutions
+recorded, author-confirmed in-session — native-binary `wait`; receipt
+gating variant (a). Projection tier author-reviewed: conservative
+authenticated fail-closed posture retained for Phase 1, revisit after
+harness experience. See §Dated amendment: Phase 1 landing and OQ
+resolutions)
 **Revised:** 2026-08-10 (Review → Accepted — accepted to begin Phase 1 implementation only (author direction in-session, 2026-08-10); verdicts bind revision (c), the (d) tail is unreviewed and disclosed; the projection-tier OQ and OQ2/OQ5 remain open author questions — Phase 1 builds the conservative authenticated fail-closed posture)
 **Revised:** 2026-08-10 (d — UNREVIEWED delta-convergence revision: both
 round-2 reviews found pre-existing text clean with in-delta-only
@@ -311,7 +317,8 @@ the landed commit; no phase gates on a quiet `main`.
 2. Do complete start plans surface hard post-bind obligations (versioned
    seed installation, migrations)? If so, are they readiness-gating
    obligations or separate operator steps? Readiness must not quietly
-   redefine LLP 0109 migration policy.
+   redefine LLP 0109 migration policy. *Resolved 2026-08-10 — variant
+   (a); see §Dated amendment: Phase 1 landing and OQ resolutions.*
 3. Release-build latency for local scale runs: is a cached
    content-addressed build enough, or does the standalone path need an
    incremental fast lane before harnesses adopt it as their default?
@@ -323,3 +330,55 @@ the landed commit; no phase gates on a quiet `main`.
    environments have no JS toolchain; it is a thin read/validate over
    server-owned facts), the package CLI, or native with package
    delegation? Phase 1 needs the answer before landing the command.
+   *Resolved 2026-08-10 — the native binary; see §Dated amendment:
+   Phase 1 landing and OQ resolutions.*
+
+## Dated amendment: Phase 1 landing and OQ resolutions (2026-08-10)
+
+**OQ5 resolution (author-confirmed 2026-08-10, in-session).** `snapback
+wait` lives in the **native binary**. Both super-refine review families
+independently recommended native — standalone environments have no JS
+toolchain, and the command is a thin read/validate over server-owned
+facts — and the author approved adopting the convergent recommendation.
+Implemented as the CLI-only operation `host.wait` in `src/cli.rs`; the
+package CLI reaches it through its existing native-delegation
+fallthrough, with no package delegation layer.
+
+**OQ2 resolution (author-confirmed 2026-08-10, in-session): variant
+(a).** A *declared idempotent seed* gates the receipt: a seed obligation
+in the expected activation target must declare `idempotent: true`
+(`SNAPBACK_APP_READINESS_SEED_NOT_IDEMPOTENT` refuses otherwise), and
+readiness requires the installed versioned-seed identity to match the
+declared `seedVersion`/`seedDigest`. A target declaring an *unresolved
+migration requirement* is refused at declaration time
+(`SNAPBACK_APP_READINESS_MIGRATION_UNRESOLVED`) rather than surfacing as
+a not-ready state: readiness never quietly redefines LLP 0109 migration
+policy — the migration must be resolved through its own operator flow
+before the target may be declared.
+
+**Projection tier (author-reviewed 2026-08-10).** The conservative
+authenticated fail-closed posture is **retained** for Phase 1 — the fact
+stays on `app.inspect`/host-ops' admin tier and `wait` uses the
+ready-file-located admin handoff, failing closed without it. Revisit
+after harness experience.
+
+**Phase 1 checkpoint (2026-08-10).** Landed: the Rust-owned carriers
+`ExpectedActivationTargetV1` / `OperationalReadinessV1` /
+`ApplicationReadyReceiptV1` (`src/operational_readiness.rs`; committed
+schemas
+`schemas/{expected-activation-target,operational-readiness,application-ready}.schema.json`);
+the served authenticated op `app.readiness.v1` (declare-and-evaluate
+under `input`, read-only without) with the `app.inspect`
+`data.operationalReadiness` splice; process-local declared-target
+authority on `AppState` (fresh processes start undeclared and fail
+closed); `snapback wait --ready-file <p> --level host|application` with
+the deterministic `<ready-file>.application-ready` sibling and
+`--application-ready-file` override; the `runDev` projection with
+removal-before-work at spawn/reload/restart/dev-fresh/close and
+publication only from the returned fact; and the five scaffolded
+acceptance harnesses converted to `wait --level application` with their
+readiness retry loops deleted and first-query success asserted
+un-retried. Narrow companion amendments landed in LLPs 0030 (receipt
+sibling), 0024 (core fact + operations), and 0058 (predicate binding).
+The Clique scale-launcher rerun remains an external demonstration
+artifact, not a repo-gated check (LLP 0189).

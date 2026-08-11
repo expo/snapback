@@ -15,9 +15,7 @@ const readyFile = join(stateRoot, 'dev.ready.json');
 const executable = join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'snapback.cmd' : 'snapback');
 const child = spawn(executable, ['dev', 'snapback', '--db', join(stateRoot, 'dev.sqlite3'), '--ready-file', readyFile], { cwd: root, stdio: ['pipe', 'pipe', 'pipe'] });
 let output = '';
-let remainder = '';
 let spawnError = null;
-const events = [];
 const checks = [];
 const cleanup = { attempted: false, clientResourcesReleased: false, devExited: false, temporaryStateRemoved: false, ok: false };
 let failure = null;
@@ -27,30 +25,30 @@ let loadedIdentity = null;
 const append = (chunk) => { output = `${output}${chunk}`.slice(-65536); };
 child.stdout.on('data', (chunk) => {
   append(chunk);
-  remainder += chunk.toString('utf8');
-  for (;;) {
-    const newline = remainder.indexOf('\n');
-    if (newline < 0) break;
-    const line = remainder.slice(0, newline).trim();
-    remainder = remainder.slice(newline + 1);
-    try { const event = JSON.parse(line); if (event?.schemaVersion === 'snapback.dev.v1') events.push(event); } catch {}
-  }
 });
 child.stderr.on('data', append);
 child.on('error', (error) => { spawnError = error; });
-const until = async (predicate, label, timeoutMs = 30000) => {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (spawnError) throw spawnError;
-    const value = await predicate();
-    if (value) return value;
-    if (child.exitCode !== null) throw new Error(`${label}: dev exited ${child.exitCode}\n${output}`);
-    await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+const waitForApplicationReady = async () => {
+  // @ref LLP 0224#phases — Phase 1 proof: the harness waits on the application-readiness receipt; the first authority-bearing call runs un-retried.
+  const waiter = spawn(executable, ['wait', '--ready-file', readyFile, '--level', 'application', '--timeout-ms', '60000'], { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+  let waitStdout = '';
+  let waitStderr = '';
+  waiter.stdout.on('data', (chunk) => { waitStdout = `${waitStdout}${chunk}`.slice(-65536); });
+  waiter.stderr.on('data', (chunk) => { waitStderr = `${waitStderr}${chunk}`.slice(-65536); });
+  const exit = await new Promise((resolveExit, reject) => { waiter.once('error', reject); waiter.once('close', (code, signal) => resolveExit({ code, signal })); });
+  let envelope = null;
+  try { envelope = JSON.parse(waitStdout); } catch {}
+  if (exit.code !== 0) {
+    throw new Error(`application readiness wait failed (${exit.code ?? exit.signal}): ${JSON.stringify(envelope?.diagnostics ?? waitStdout.trim())}${waitStderr ? `\n${waitStderr}` : ''}`);
   }
-  throw new Error(`${label}: timed out\n${output}`);
+  assert.equal(envelope?.ok, true, `application readiness wait returned an invalid envelope: ${waitStdout}`);
 };
 const pass = (id, details = null) => { assert.equal(EXPECTED_CHECKS[checks.length], id); checks.push({ id, status: 'passed', details }); };
-const waitForExit = async (timeoutMs) => until(() => child.exitCode !== null || child.signalCode !== null, 'dev exit', timeoutMs).catch(() => false);
+const waitForExit = async (timeoutMs) => {
+  const deadline = Date.now() + timeoutMs;
+  while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+  return child.exitCode !== null || child.signalCode !== null;
+};
 const mintSession = async (adminToken) => {
   const mint = spawn(executable, ['session', 'mint', '--email', 'acceptance@media-feed.test', '--ready-file', readyFile], { cwd: root, env: { ...process.env, SNAPBACK_ADMIN_TOKEN: adminToken }, stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '';
@@ -66,19 +64,20 @@ const mintSession = async (adminToken) => {
 };
 
 try {
-  const ready = await until(() => { try { return existsSync(readyFile) ? JSON.parse(readFileSync(readyFile, 'utf8')) : null; } catch { return null; } }, 'ready descriptor');
-  const loaded = await until(() => events.find((event) => event.state === 'generated-and-loaded' && event.managed === true), 'managed generated-and-loaded lifecycle');
-  assert.equal(loaded.serverUrl, ready.serverUrl);
-  pass('managed-lifecycle', { owned: true, readyDescriptorObserved: true, generatedAndLoadedObserved: true });
+  await waitForApplicationReady();
+  if (spawnError) throw spawnError;
+  const ready = JSON.parse(readFileSync(readyFile, 'utf8'));
+  assert.equal(ready.ready, true);
+  pass('managed-lifecycle', { owned: true, applicationReadyObserved: true, waitLevel: 'application', firstQueryRetries: 0 });
   const token = await mintSession(readFileSync(ready.adminTokenFile, 'utf8').trim());
   client = createExternalSessionClient(ready.serverUrl, { bearerToken: token, rqsStore: null, offlineQueue: false });
+  const first = await client.query(api.liveFeed, { args: {} });
+  assert.equal(first.rows.length, 6);
+  assert.deepEqual(first.rows.map((row) => row.pageKey), [...first.rows.map((row) => row.pageKey)].sort().reverse());
   const inspected = await client.inspect();
   assert.equal(inspected.functions?.bundleHash, artifacts.bundleHash);
   loadedIdentity = { appId: artifacts.appId, bundleHash: artifacts.bundleHash };
   pass('artifact-identity', loadedIdentity);
-  const first = await client.query(api.liveFeed, { args: {} });
-  assert.equal(first.rows.length, 6);
-  assert.deepEqual(first.rows.map((row) => row.pageKey), [...first.rows.map((row) => row.pageKey)].sort().reverse());
   const boundary = first.rows.at(-1).pageKey;
   const older = await client.query(api.olderFeedPage, { args: { before: boundary } });
   assert.equal(older.rows.length, 6);
@@ -100,7 +99,8 @@ try {
     equalTimestampBoundary: true,
     newerInsertStable: true,
   });
-  const observed = await until(async () => (await feed.poll()).find((row) => row._id === created.result), 'uploaded feed entry live observation');
+  const observed = (await feed.poll()).find((row) => row._id === created.result);
+  assert.ok(observed, 'uploaded feed entry must be visible on the first live-feed poll');
   assert.equal(observed.photo, finished.assetId);
   pass('session-upload-and-attach', { assetId: finished.assetId, entryId: created.result });
   const statuses = {};

@@ -1,0 +1,8 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/react/listTodos.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {},
+  "title": "react:listTodos arguments",
+  "type": "object"
+}

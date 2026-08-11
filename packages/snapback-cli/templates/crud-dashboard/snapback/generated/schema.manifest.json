@@ -1,0 +1,114 @@
+{
+  "appId": "crud-dashboard",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "authoredSourceHash": "sha256:971d060b780496530b4bc4b085936f8871249a04e89f446a43d58a7dd6a45f30",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:362943c6311f361c7f1fd4c9a748fec2e137a9de5e8d72987df2d6e4a6226a47",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:a280d5d0411cc7fd3b4b2ebc525d271060b5e0b60f758aea23037780c74cbdfe",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "slug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "color",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "slug"
+          ],
+          "name": "by_slug",
+          "unique": true
+        }
+      ],
+      "name": "teams",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "projectKey",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "teamSlug",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "summary",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "budget",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "updatedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "updatedAt"
+          ],
+          "name": "by_updated"
+        },
+        {
+          "fields": [
+            "projectKey"
+          ],
+          "name": "by_key",
+          "unique": true
+        },
+        {
+          "fields": [
+            "teamSlug",
+            "updatedAt"
+          ],
+          "name": "by_team_updated"
+        }
+      ],
+      "name": "projects",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}
