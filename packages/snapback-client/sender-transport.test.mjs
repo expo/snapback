@@ -455,8 +455,8 @@ try {
   assert.equal(JSON.stringify(postResetCustody).includes(SUCCESSOR_BEARER), false);
   assert.equal(
     requests.length,
-    17,
-    'expiry preserves custody, same-stream refusal probes without deletion, and reset adds protected refusal plus each registered transport resume confirmation',
+    18,
+    'carrier expiry and same-stream refusal each probe without deletion, while reset adds protected refusal plus each registered transport resume confirmation',
   );
 } finally {
   globalThis.fetch = originalFetch;

@@ -155,6 +155,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'search.test.mjs',
       'store-policy.test.mjs',
       'store-runtime-wiring.test.mjs',
+      'unrecognized-authority-recovery.test.mjs',
       'webcrypto-fallback.test.mjs',
       'wire-version.test.mjs',
     ],
@@ -466,7 +467,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 255,
+  expectedTotal = 256,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -806,6 +807,9 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-client gains anonymous-issuance adoption, same-authority
 // password rotation, strict recovery-code projection, and secret-redaction
 // coverage.
+// 255 -> 256 (2026-08-12, unrecognized session custody recovery):
+// @expo/snapback-client gains cold/warm reset recovery and the negative
+// different-incarnation witness suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

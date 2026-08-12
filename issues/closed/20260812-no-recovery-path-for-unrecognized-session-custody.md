@@ -1,6 +1,6 @@
 # No paved recovery when the server no longer recognizes stored session custody
 
-**Status:** Open
+**Status:** Resolved (2026-08-12)
 **Severity:** P2
 **Systems:** snapback-contract auth coordinator, auth invalidation, browser custody, dev loop
 **Author:** Charlie Cheever / Claude
@@ -45,3 +45,25 @@ database name.
   whose stored bearer the server rejects, without app-side custody surgery.
 - The dev-loop story is explicit: resetting the local store must not strand
   every previously signed-in browser profile.
+
+## Resolution
+
+Resolved 2026-08-12. `AuthCoordinator.recoverUnrecognizedAuthority(...)` now
+admits only publication-paused failed resume/adoption or stuck-clearing custody,
+requires a server-witnessed anonymous authority at a different authorization-
+stream incarnation, exact-compares durable custody, and runs the standard
+transition barrier. Healthy settled custody remains capture-scoped, and a peer
+fresh sign-in wins without being blanked.
+
+`SnapbackClient` now performs at most one bearerless session probe for a
+terminal `carrier` refusal. Cold boot and warm handshake regressions prove that
+`authRequestCode`, `authLogout`, and `health` recover to settled anonymous
+custody at the new incarnation; refusal-only and same-incarnation probes retain
+the original bearer custody. Sender-constrained v3 custody continues to recover
+through the same fence and settles as anonymous v2.
+
+The browser-auth guide now documents the dev loop: a supported local store
+reset or declared restore rotates the incarnation, so stale browser profiles
+self-recover without `indexedDB.deleteDatabase(...)`. Unsupported partial
+session deletion that preserves the stream incarnation intentionally does not
+trigger this escape.

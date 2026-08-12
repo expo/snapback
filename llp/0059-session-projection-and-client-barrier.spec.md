@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-06 (transition ownership split: the clearing CAS now
+**Revised:** 2026-08-12 (first-party unrecognized-authority recovery: a
+server-witnessed anonymous handshake at a different authorization-stream
+incarnation may enter the standard barrier without an app-visible capture only
+after resume/adoption has failed closed or custody is stuck clearing; healthy
+settled custody remains capture-scoped). 2026-08-06 (transition ownership split: the clearing CAS now
 releases cross-context custody before any awaited participant phase; local
 quiesce/blank/clear/commit settlement is fenced by the durable transition id,
 epoch, and revision, then an exact owned reacquisition alone may settle the
@@ -1581,6 +1585,14 @@ capture, and requires a fresh handshake to learn current authority. Only the
 closed server field `authorityDisposition: "durableDelete"` may authorize the
 destructive durable barrier. Finite Agent HTTP failures carry the same axis and
 await the accepted barrier's settlement before returning the terminal error.
+For browser bearer custody, that fresh handshake is one bearerless
+`GET /auth/session`. A valid settled anonymous response may replace custody
+only when its `authorizationStreamIncarnation` differs from the stored
+authority. The carrier refusal alone, a failed bearerless probe, a non-anonymous
+response, or a same-incarnation anonymous response never clears custody. The
+different-incarnation server witness is the downgrade-resistance predicate: an
+intermediary that strips the bearer can induce the refusal but cannot fabricate
+the origin's valid successor-incarnation handshake.
 
 ## Reset, restore, and stream publication
 
@@ -1875,6 +1887,11 @@ interface AuthCoordinator {
     reason: AuthClearReason,
   ): Promise<{ cleared: boolean }>
 
+  recoverUnrecognizedAuthority(
+    observedAnonymousAuthority: AnonymousAuthority,
+    reason: AuthorityTransitionReason,
+  ): Promise<AuthorityCaptureV1>
+
   transition(
     expected: AuthorityCaptureV1,
     successor: AuthorityInput,
@@ -1912,6 +1929,31 @@ socket/request that observed it.
 different current authority. If the durable record is already settled at the
 exact requested successor, it returns that capture idempotently; no other
 mismatch is silently adopted.
+
+### Unrecognized authority recovery
+
+`recoverUnrecognizedAuthority` is the coordinator-owned, app-scoped escape for
+a context that cannot obtain the capture required by ordinary recovery. Its
+input is a server-witnessed anonymous authority from a bearerless
+`GET /auth/session`, never an app assertion and never a capture substitute. It
+is admissible only while the local publication gate is paused after a failed
+resume/adoption, or while the exact locally observed durable record remains in
+`clearing`. A healthy settled coordinator refuses it; `transition` and
+`compareAndClear` remain the only sanctioned capture-scoped tools there.
+
+Under custody ownership, recovery reloads and exact-compares the local phase,
+revision, authority epoch/key, and transition id against durable custody. It
+then requires the observed authority to be anonymous and its authorization-
+stream incarnation to differ from the current durable settled or pending
+authority. Any peer change wins and returns
+`SNAPBACK_CLIENT_AUTHORITY_STALE` before participant work. An admitted recovery
+writes the ordinary `clearing` successor by exact-revision CAS and runs the
+same quiesce → blank → clear-memory → durable-participant commit →
+clearing-to-settled CAS → reverse resume → final exact durable confirmation and
+exposure barrier as `transition`. It targets the observed incarnation directly,
+including removal of a format-3 sender-custody shell when the successor is
+anonymous format 2; it never routes through `establishAnonymous` and never
+deletes the shared IndexedDB database.
 
 ### Cross-context ownership
 
@@ -2853,6 +2895,12 @@ wall-clock sleeps are not proof of ordering.
     capture remains clearing, staged cache work is discarded, and only a later
     clean `synchronize()` may fetch/cache the durable successor; the following
     ordinary `authSession` performs no additional handshake.
+12. Pause tab A after failed resume and after a durable `clearing` write. A
+    different-incarnation anonymous handshake recovers through every standard
+    barrier phase, while non-anonymous and same-incarnation witnesses refuse.
+    Race a fresh tab-B sign-in ahead of A's recovery CAS: A returns stale
+    without invoking blank or replacing B. Repeat from a format-3 sender shell
+    and require settled anonymous format 2 with no bearer or sender key.
 
 The landed coordinator suites now prove ordered participant phases,
 clearing-state recovery, delayed/missed wakeups, stale-owner rejection, and two
@@ -3090,3 +3138,24 @@ receipt; a differing stream refuses `SNAPBACK_SEED_OPERATION_HISTORICAL`, a
 reused id with different bytes refuses
 `SNAPBACK_SEED_OPERATION_ID_REUSED`, and effects are never rerun. A
 `matched` ensure is a pure observation and journals nothing.
+
+## Dated amendment: unrecognized session custody recovery (2026-08-12)
+
+A browser that retains bearer custody across a local database wipe no longer
+requires app-owned `indexedDB.deleteDatabase(...)` surgery. A terminal
+`carrier` refusal triggers at most one bearerless session probe. When that
+probe returns a valid settled anonymous authority at a different stream
+incarnation, a healthy coordinator uses its ordinary captured transition and a
+failed-closed/stuck-clearing coordinator uses
+`recoverUnrecognizedAuthority`; both paths run the standard barrier and target
+the observed incarnation directly. Cold boot, warm forced handshake,
+request-code, logout, health, same-incarnation refusal, peer-wins CAS, and v3
+shell downgrade are executable regressions.
+
+The predicate deliberately does not recover unsupported partial destruction
+that removes session rows while preserving `auth_stream_incarnation_v1`, nor an
+undeclared external database copy whose continuity is unspecified. Proper app
+reset, logical import, and non-idempotent `snapback auth restore` rotate the
+incarnation; ordinary restart and an idempotent replay of the same declared
+restore preserve it. A preserving session-loss path must use its typed terminal
+disposition or operator repair rather than weakening the incarnation witness.

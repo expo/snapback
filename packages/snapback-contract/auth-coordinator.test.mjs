@@ -10,6 +10,7 @@ import {
   canonicalAuthorityKey,
   createMemoryAuthCustodyStorage,
   SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+  SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
   validateAuthCustody,
 } from './auth-coordinator.mjs';
 
@@ -3129,5 +3130,308 @@ await coordinator.close();
     refreshAfterMs: 50_000,
   });
   await phase8.close();
+}
+
+// A server-witnessed anonymous authority can replace custody without a
+// capture only after ordinary publication has failed closed. Healthy settled
+// custody must continue to require capture-scoped transition/compareAndClear.
+{
+  const newIncarnation = '018f0d90-7c11-7a22-8c33-445566778899';
+  const observed = {
+    kind: 'anonymous',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: newIncarnation,
+  };
+  const healthy = new AuthCoordinator({
+    appId: `${APP}/unrecognized-recovery-healthy`,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await healthy.establishAnonymous(anonymous());
+  assert.equal(
+    await errorCode(() => healthy.recoverUnrecognizedAuthority(observed)),
+    'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  assert.equal(healthy.authority.authorizationStreamIncarnation, INCARNATION);
+  await healthy.close();
+
+  const appId = `${APP}/unrecognized-recovery-paused`;
+  const storage = createMemoryAuthCustodyStorage();
+  const paused = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await paused.establishAnonymous(anonymous());
+  const recoveryPhases = [];
+  let failResume = true;
+  paused.registerParticipant({
+    name: 'fail-resume-once-before-unrecognized-recovery',
+    async quiesce() { recoveryPhases.push('quiesce'); },
+    blank() { recoveryPhases.push('blank'); },
+    clearMemory() { recoveryPhases.push('clearMemory'); },
+    async commitDurable() { recoveryPhases.push('commitDurable'); },
+    async resume() {
+      recoveryPhases.push('resume');
+      if (failResume) {
+        failResume = false;
+        throw Object.assign(new Error('resume failed'), { code: 'TEST_RESUME_FAILED' });
+      }
+    },
+  });
+  await assert.rejects(
+    paused.transition(
+      anonymousCapture,
+      successor(session(), 'unrecognized-paused-bearer', 10_000),
+      'install_paused_session',
+    ),
+    (error) => error.code === 'SNAPBACK_AUTH_TRANSITION_FAILED',
+  );
+  assert.throws(() => paused.capture(), { code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING' });
+  await assert.rejects(
+    paused.recoverUnrecognizedAuthority(session(SESSION_B, USER_B)),
+    (error) => error.code === 'SNAPBACK_AUTH_CUSTODY_BOOTSTRAP_INVALID',
+  );
+  await assert.rejects(
+    paused.recoverUnrecognizedAuthority(anonymous()),
+    (error) => error.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  recoveryPhases.length = 0;
+  const recovered = await paused.recoverUnrecognizedAuthority(
+    observed,
+    'server_unrecognized_authority',
+  );
+  assert.equal(paused.isCurrent(recovered), true);
+  assert.deepEqual(recoveryPhases, [
+    'quiesce',
+    'blank',
+    'clearMemory',
+    'commitDurable',
+    'resume',
+  ]);
+  assert.deepEqual(paused.authority, {
+    ...observed,
+    isAuthenticated: false,
+  });
+  assert.equal(storage.snapshot(appId).bearer, null);
+  await paused.close();
+}
+
+// A failed commit leaves durable clearing custody. Recovery retargets that
+// record directly to the witnessed anonymous incarnation and still runs the
+// complete standard barrier before reopening publication.
+{
+  const appId = `${APP}/unrecognized-recovery-clearing`;
+  const storage = createMemoryAuthCustodyStorage();
+  const subject = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const capture = await subject.establishAnonymous(anonymous());
+  let failCommit = true;
+  const phases = [];
+  subject.registerParticipant({
+    name: 'fail-commit-once-before-unrecognized-recovery',
+    async quiesce() { phases.push('quiesce'); },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+    async commitDurable() {
+      phases.push('commitDurable');
+      if (failCommit) {
+        failCommit = false;
+        throw Object.assign(new Error('commit failed'), { code: 'TEST_COMMIT_FAILED' });
+      }
+    },
+    async resume() { phases.push('resume'); },
+  });
+  await assert.rejects(
+    subject.transition(
+      capture,
+      successor(session(), 'unrecognized-clearing-bearer', 10_000),
+      'strand_clearing',
+    ),
+    (error) => error.code === 'SNAPBACK_AUTH_TRANSITION_FAILED',
+  );
+  assert.equal(storage.snapshot(appId).phase, 'clearing');
+  phases.length = 0;
+  await subject.recoverUnrecognizedAuthority({
+    kind: 'anonymous',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: '018f0d90-7c12-7a22-8c33-445566778899',
+  });
+  assert.deepEqual(phases, [
+    'quiesce',
+    'blank',
+    'clearMemory',
+    'commitDurable',
+    'resume',
+  ]);
+  assert.equal(storage.snapshot(appId).phase, 'settled');
+  assert.equal(storage.snapshot(appId).authority.kind, 'anonymous');
+  await subject.close();
+}
+
+// The capture-free lane snapshots the paused local comparison identity before
+// ownership. A peer that signs in first wins; recovery performs no barrier
+// callbacks and cannot blank or replace that fresh session.
+{
+  const appId = `${APP}/unrecognized-recovery-peer-wins`;
+  const baseStorage = createMemoryAuthCustodyStorage();
+  let delayNextOwnership = false;
+  let enteredResolve;
+  let releaseResolve;
+  const entered = new Promise((resolve) => { enteredResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  const delayedStorage = {
+    ...baseStorage,
+    withOwnership(requestedAppId, operation) {
+      if (delayNextOwnership) {
+        delayNextOwnership = false;
+        enteredResolve();
+        return release.then(() => baseStorage.withOwnership(requestedAppId, operation));
+      }
+      return baseStorage.withOwnership(requestedAppId, operation);
+    },
+  };
+  const staleTab = new AuthCoordinator({
+    appId,
+    storage: delayedStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const freshTab = new AuthCoordinator({
+    appId,
+    storage: baseStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await staleTab.establishAnonymous(anonymous());
+  let failResume = true;
+  let recoveryBlankCount = 0;
+  staleTab.registerParticipant({
+    blank() { recoveryBlankCount += 1; },
+    async resume() {
+      if (failResume) {
+        failResume = false;
+        throw Object.assign(new Error('pause stale tab'), { code: 'TEST_RESUME_FAILED' });
+      }
+    },
+  });
+  await assert.rejects(
+    staleTab.transition(
+      anonymousCapture,
+      successor(session(), 'peer-race-stale-bearer', 10_000),
+      'pause_stale_tab',
+    ),
+    (error) => error.code === 'SNAPBACK_AUTH_TRANSITION_FAILED',
+  );
+  const freshCapture = await freshTab.synchronize();
+  recoveryBlankCount = 0;
+  delayNextOwnership = true;
+  const recovery = staleTab.recoverUnrecognizedAuthority({
+    kind: 'anonymous',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: '018f0d90-7c13-7a22-8c33-445566778899',
+  });
+  await entered;
+  const freshAuthority = {
+    kind: 'session',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: '018f0d90-7c13-7a22-8c33-445566778899',
+    sessionId: SESSION_B,
+    userId: USER_B,
+  };
+  const signedIn = await freshTab.transition(
+    freshCapture,
+    successor(freshAuthority, 'peer-race-fresh-bearer', 20_000),
+    'peer_fresh_sign_in',
+  );
+  releaseResolve();
+  assert.equal(
+    await errorCode(() => recovery),
+    'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  assert.equal(recoveryBlankCount, 0);
+  assert.equal(freshTab.isCurrent(signedIn), true);
+  assert.deepEqual(baseStorage.snapshot(appId).authority, freshAuthority);
+  assert.equal(baseStorage.snapshot(appId).bearer, 'peer-race-fresh-bearer');
+  await freshTab.close();
+  await staleTab.close();
+}
+
+// A paused v3 sender-custody shell may recover only to anonymous v2. The
+// standard barrier deletes the bearer and sender key instead of retaining a
+// format-3 anonymous shell.
+{
+  const appId = `${APP}/unrecognized-recovery-v3`;
+  const storage = createMemoryAuthCustodyStorage();
+  const subject = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const capture = await subject.establishAnonymous(anonymous());
+  const keyPair = await crypto.subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign', 'verify'],
+  );
+  const exported = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+  const publicJwk = { crv: 'P-256', kty: 'EC', x: exported.x, y: exported.y };
+  const thumbprint = Buffer.from(await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(JSON.stringify(publicJwk)),
+  )).toString('base64url');
+  const senderConstraint = {
+    formatVersion: 1,
+    protocol: 'snapback.sender-constrained.v2',
+    custodyGeneration: 1,
+    privateKey: keyPair.privateKey,
+    publicJwk,
+    thumbprint,
+    nonce: {
+      value: Buffer.alloc(32, 7).toString('base64url'),
+      generation: 1,
+      expiresAtMs: 60_000,
+    },
+  };
+  let failResume = true;
+  subject.registerParticipant({
+    async resume() {
+      if (failResume) {
+        failResume = false;
+        throw Object.assign(new Error('pause v3 custody'), { code: 'TEST_RESUME_FAILED' });
+      }
+    },
+  });
+  await assert.rejects(
+    subject.transition(capture, {
+      authority: session(),
+      bearer: 'unrecognized-v3-bearer',
+      refreshAfterMs: 10_000,
+      senderConstraint,
+    }, 'install_v3_session'),
+    (error) => error.code === 'SNAPBACK_AUTH_TRANSITION_FAILED',
+  );
+  assert.equal(
+    storage.snapshot(appId).formatVersion,
+    SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
+  );
+  await subject.recoverUnrecognizedAuthority({
+    kind: 'anonymous',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: '018f0d90-7c14-7a22-8c33-445566778899',
+  });
+  const recovered = storage.snapshot(appId);
+  assert.equal(recovered.formatVersion, SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION);
+  assert.equal(recovered.authority.kind, 'anonymous');
+  assert.equal(Object.hasOwn(recovered, 'senderConstraint'), false);
+  assert.equal(JSON.stringify(recovered).includes('unrecognized-v3-bearer'), false);
+  await subject.close();
 }
 console.log('auth coordinator conformance: ok');

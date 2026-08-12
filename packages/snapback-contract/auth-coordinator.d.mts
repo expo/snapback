@@ -327,6 +327,16 @@ export class AuthCoordinator {
     reason?: string,
   ): Promise<{ cleared: boolean }>;
 
+  /**
+   * Replace failed-closed or stuck-clearing custody from a server-witnessed
+   * anonymous authority on a different authorization-stream incarnation.
+   * Healthy settled custody must use capture-scoped transition/compare-clear.
+   */
+  recoverUnrecognizedAuthority(
+    observedAnonymousAuthority: SnapbackClientAuthority | Readonly<Record<string, unknown>>,
+    reason?: string,
+  ): Promise<SnapbackAuthorityCapture>;
+
   transition(
     expected: SnapbackAuthorityCapture,
     successor:
