@@ -1,12 +1,15 @@
 # LLP 0248: Bounded batch reads
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Application data API, Runtime, Storage, Authorization, Code
 generation, Handler authoring, Diagnostics, Performance, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-2 revision: separated request/response overflow;
+**Revised:** 2026-08-12 (author acceptance: Charlie Cheever accepted this RFC at
+the exact revision bound by the final GPT-5.6 Sol round-3 READY artifacts,
+SHA-256 `80bfed8960746cc53f99dd8246ea659f8a3f183a322cc3543a1f7bbcc9367022`; see
+`llp/reviews/0245-0249-single-family-super-refine.md`). 2026-08-12 (round-2 revision: separated request/response overflow;
 removed public logical-key digests). 2026-08-12 (round-1
 revision: moved dynamic unique-key validation
 to the runtime boundary, canonicalized keys by manifest order, excluded
@@ -195,5 +198,7 @@ automatic rewriting out of scope.
 
 ## Status
 
-Review. This RFC proposes two bounded host operations, not a fifth LLP 0242
-projection node or a general join facility.
+Accepted. This RFC defines two bounded host operations, not a fifth LLP 0242
+projection node or a general join facility. Accepted by the author on
+2026-08-12 at the revision bound by the final single-family GPT-5.6 Sol READY
+review.

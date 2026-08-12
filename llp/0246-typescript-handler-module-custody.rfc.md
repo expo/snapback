@@ -1,12 +1,15 @@
 # LLP 0246: TypeScript handler-module custody
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Authoring, TypeScript, Code generation, Runtime, Artifacts,
 Diagnostics, Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-1 sibling-coherence revision: bounded type-only
+**Revised:** 2026-08-12 (author acceptance: Charlie Cheever accepted this RFC at
+the exact revision bound by the final GPT-5.6 Sol round-3 READY artifacts,
+SHA-256 `2b920d48abf970e813754c51451bc7d578daac9f70fc6d344a0cb98934e9625f`; see
+`llp/reviews/0245-0249-single-family-super-refine.md`). 2026-08-12 (round-1 sibling-coherence revision: bounded type-only
 checker nodes, added an exact generated editor project and `.mts` mapping
 golden, and kept the package-aware LLP 0249 profile separate). 2026-08-12
 (entered an author-invoked, single-family GPT-5.6 Sol
@@ -194,5 +197,7 @@ not reuse this package-free profile unchanged.
 
 ## Status
 
-Review. This RFC extends source custody only. It does not widen runtime
-capabilities or make TypeScript inference authoritative.
+Accepted. This RFC extends source custody only. It does not widen runtime
+capabilities or make TypeScript inference authoritative. Accepted by the author
+on 2026-08-12 at the revision bound by the final single-family GPT-5.6 Sol
+READY review.

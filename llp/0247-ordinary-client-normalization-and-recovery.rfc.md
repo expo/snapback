@@ -1,12 +1,15 @@
 # LLP 0247: Ordinary client normalization and recovery
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Client integration, JS headless client, React, Expo, Auth, Live
 Queries, Ephemeral state, Diagnostics, Code generation, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-2 revision: fenced same-authority withdrawal by
+**Revised:** 2026-08-12 (author acceptance: Charlie Cheever accepted this RFC at
+the exact revision bound by the final GPT-5.6 Sol round-3 READY artifacts,
+SHA-256 `9afb001a67438dfed3fe7ba94ec861c9e9b30ed9720d4b7d48aa15ea08e35ef9`; see
+`llp/reviews/0245-0249-single-family-super-refine.md`). 2026-08-12 (round-2 revision: fenced same-authority withdrawal by
 acknowledged room/entry generation; added delayed/ambiguous republish vectors).
 2026-08-12 (round-1 revision: replaced impossible Proxy detection
 with observable descriptor admission, separated one-shot auth refusal from
@@ -234,6 +237,8 @@ guard. Package versions remain lockstep.
 
 ## Status
 
-Review. The authority-poisoning correction may land as a defect fix before this
-RFC is accepted; optional omission, presence withdrawal, and public failure-
-carrier changes remain under review.
+Accepted. Accepted by the author on 2026-08-12 at the revision bound by the
+final single-family GPT-5.6 Sol READY review. The authority-poisoning
+correction is a defect fix against LLP 0059/0238 semantics and may land first;
+optional omission, presence withdrawal, and the public failure-carrier
+migration follow this RFC's compatibility staging.

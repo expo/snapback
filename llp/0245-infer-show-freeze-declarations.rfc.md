@@ -1,12 +1,15 @@
 # LLP 0245: Infer, show, and freeze declarations
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Authoring, TypeScript, Code generation, Application data API,
 Diagnostics, Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-1 revision: gave single-suggestion application a
+**Revised:** 2026-08-12 (author acceptance: Charlie Cheever accepted this RFC at
+the exact revision bound by the final GPT-5.6 Sol round-3 READY artifacts,
+SHA-256 `06aee0324c71e22e9de1a863e0af16a6f65e891c1c1824c528450155cda3cec4`; see
+`llp/reviews/0245-0249-single-family-super-refine.md`). 2026-08-12 (round-1 revision: gave single-suggestion application a
 Snapback-owned analysis-input CAS, scoped manual-paste guarantees, and added
 stable refusal reasons and evidence-class review metrics). 2026-08-12 (entered
 an author-invoked, single-family GPT-5.6 Sol
@@ -231,5 +234,7 @@ contract; it composes through this RFC when proposing one.
 
 ## Status
 
-Review. This RFC proposes an authoring assistant, not TypeScript-as-contract
-authority. It remains under review against LLP 0108 and LLP 0146.
+Accepted. This RFC defines an authoring assistant, not TypeScript-as-contract
+authority; LLP 0108 and LLP 0146 remain the governing declaration and
+conformance owners. Accepted by the author on 2026-08-12 at the revision bound
+by the final single-family GPT-5.6 Sol READY review.

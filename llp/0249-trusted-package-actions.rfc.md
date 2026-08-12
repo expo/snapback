@@ -1,12 +1,15 @@
 # LLP 0249: Trusted package-capable actions
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Actions, Runtime, Security, Packaging, Deployment, Secrets,
 Developer experience, Diagnostics, Operations, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-2 revision: made isolation attestation
+**Revised:** 2026-08-12 (author acceptance: Charlie Cheever accepted this RFC at
+the exact revision bound by the final GPT-5.6 Sol round-3 READY artifacts,
+SHA-256 `e9acd77bb2b7b2ef6636fb5e491a456e63b53fb52c168c727ea0ec3155315ab8`; see
+`llp/reviews/0245-0249-single-family-super-refine.md`). 2026-08-12 (round-2 revision: made isolation attestation
 authoritative/non-replayable; replaced egress denylisting with positive
 versioned admission). 2026-08-12 (round-1 revision: froze a separate external-entry
 TypeScript/package profile, made qualified OS isolation and a closed Node power
@@ -251,6 +254,8 @@ boundary without its qualification.
 
 ## Status
 
-Review. This RFC deliberately forces a product/security decision. It does not
-authorize Node or packages until accepted, and it never changes the portable
-handler profile.
+Accepted. This RFC records the explicit product/security decision to admit an
+isolated, package-capable, action-only runtime profile under the custody rules
+above; it never changes the portable handler profile. Accepted by the author on
+2026-08-12 at the revision bound by the final single-family GPT-5.6 Sol READY
+review.
