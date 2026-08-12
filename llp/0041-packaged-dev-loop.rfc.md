@@ -6,6 +6,12 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (non-destructive runtime assembly):** 2026-08-12 (both platform
+runtime preparers now validate a complete loader-relative staging tree,
+including the build-matched admin snapshot and reopened package seal, before
+swapping any shipped artifact; package and source-checkout refusals name
+custody-correct recovery.)
+
 **Revised (qualified 0.1.19 promotion):** 2026-08-11 (candidate
 `74eeaead1410` completed exact two-platform staged qualification and leased
 promotion operation `release-0.1.19-20260811-r3`, publication epoch 18;
@@ -432,6 +438,35 @@ intermediate-artifact seam; final package assembly cannot.
 
 Unsupported host platforms are a declared capability fact, not a broken
 install.
+
+#### Validate-then-swap runtime assembly (2026-08-12)
+
+Runtime package preparation is a manufacturing operation, never an adopter
+install operation. A consumer package manager must only copy/link already
+assembled package bytes; it must not invoke runtime assembly or otherwise
+touch the package shell.
+
+Both platform preparers assemble `bin/`, the platform Hermes directory,
+`include/`, `admin/`, and `runtime-readiness.json` beneath a private staging
+root inside the package. All fallible work happens there: native/header copy,
+the source-revision-matched admin snapshot install, optional packaged-store
+receipt install, CV-2 qualification against the final loader-relative shape,
+seal issuance, and read-only seal reopening. Only a staging tree whose seal
+reopens may replace the shipped entries. Entry renames retain rollback copies
+for ordinary failures and land `runtime-readiness.json` last, so interruption
+cannot leave a mixed layout carrying an apparently valid seal. A precondition,
+copy, admin, receipt, portability, qualification, or seal failure leaves the
+previous assembly untouched. `--source-test-staging` bypasses only the clean
+public-package identity assertion; only `--native-artifact-staging` may omit
+`admin/` for transport to a final assembler.
+
+Recovery follows custody. An installed-package seal refusal names the exact
+platform runtime package to reinstall from the consumer's lockfile; package
+bytes are not requalified or rebuilt in place. A contributor/source-checkout
+refusal names `scripts/assemble-runtime-package`, which refuses a dirty tree
+up front and performs bootstrap, clean release build, locked admin install and
+build, then staged host-package assembly. This keeps the binary, console
+manifest, and package seal bound to one source revision.
 
 ### Package boundaries
 

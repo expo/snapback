@@ -402,7 +402,11 @@ function installedRuntimeRecovery(runtime, {
   actualStamp = null,
   diagnostic = null,
   reason = null,
+  packageName = null,
 } = {}) {
+  const installedPackage = runtime?.source === 'override'
+    ? null
+    : runtime?.source ?? packageName;
   return createRuntimeRecoveryRecord({
     selectedBinary: runtime?.binary ?? null,
     selectionRung: !runtime
@@ -421,7 +425,9 @@ function installedRuntimeRecovery(runtime, {
       : null,
     repairCommand: runtime?.source === 'override'
       ? 'unset SNAPBACK_RUNTIME_BINARY && reinstall @expo/snapback-cli'
-      : 'reinstall @expo/snapback-cli and its platform runtime package',
+      : installedPackage
+        ? `reinstall ${installedPackage} from the consumer project's lockfile`
+        : 'reinstall @expo/snapback-cli and its platform runtime package',
     overrideCommand: runtime?.binary
       ? `SNAPBACK_RUNTIME_BINARY=${JSON.stringify(runtime.binary)}`
       : null,
@@ -444,6 +450,7 @@ export async function doctor(options = {}) {
         runnable: false,
         diagnostic: { code: error.diagnostic?.code ?? 'SNAPBACK_RUNTIME_BINARY_MISSING' },
         reason: error.message,
+        packageName: error.diagnostic?.details?.package ?? null,
       }),
     };
   }
