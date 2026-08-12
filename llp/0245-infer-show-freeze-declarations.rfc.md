@@ -1,13 +1,14 @@
 # LLP 0245: Infer, show, and freeze declarations
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Authoring, TypeScript, Code generation, Application data API,
 Diagnostics, Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (initial Draft; takes up LLP 0117 option C and LLP
-0236 OQ3 without changing the authority of explicit contracts)
+**Revised:** 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
+xhigh refinement loop; initial Draft took up LLP 0117 option C and LLP 0236
+OQ3 without changing the authority of explicit contracts)
 **Related:** LLP 0004, LLP 0009, LLP 0037, LLP 0061, LLP 0108, LLP 0115,
 LLP 0117, LLP 0127, LLP 0146, LLP 0178, LLP 0198, LLP 0203, LLP 0236,
 LLP 0237, LLP 0241, LLP 0246

@@ -1,12 +1,13 @@
 # LLP 0246: TypeScript handler-module custody
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Authoring, TypeScript, Code generation, Runtime, Artifacts,
 Diagnostics, Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (initial Draft; owns the direct `.ts` custody boundary
+**Revised:** 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
+xhigh refinement loop; initial Draft owned the direct `.ts` custody boundary
 explicitly deferred by LLP 0237)
 **Related:** LLP 0009, LLP 0010, LLP 0037, LLP 0061, LLP 0093, LLP 0108,
 LLP 0117, LLP 0123, LLP 0127, LLP 0140, LLP 0198, LLP 0203, LLP 0237,

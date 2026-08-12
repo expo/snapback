@@ -1,13 +1,15 @@
 # LLP 0247: Ordinary client normalization and recovery
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Client integration, JS headless client, React, Expo, Auth, Live
 Queries, Ephemeral state, Diagnostics, Code generation, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (initial Draft from later Sonnet/Kimi Clique evidence;
-composes with accepted LLP 0238 without changing its ownership model)
+**Revised:** 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
+xhigh refinement loop; initial Draft came from later Sonnet/Kimi Clique
+evidence and composed with accepted LLP 0238 without changing its ownership
+model)
 **Related:** LLP 0043, LLP 0059, LLP 0061, LLP 0101, LLP 0107, LLP 0114,
 LLP 0144, LLP 0178, LLP 0198, LLP 0218, LLP 0219, LLP 0236, LLP 0238,
 LLP 0241

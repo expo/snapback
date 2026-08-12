@@ -1,13 +1,14 @@
 # LLP 0248: Bounded batch reads
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Application data API, Runtime, Storage, Authorization, Code
 generation, Handler authoring, Diagnostics, Performance, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (initial Draft from Clique handler-side N+1 evidence;
-defines the imperative fallback beside LLP 0242)
+**Revised:** 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
+xhigh refinement loop; initial Draft came from Clique handler-side N+1
+evidence and defined the imperative fallback beside LLP 0242)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0053, LLP 0080,
 LLP 0108, LLP 0110, LLP 0120, LLP 0146, LLP 0198, LLP 0231, LLP 0237,
 LLP 0240, LLP 0242
