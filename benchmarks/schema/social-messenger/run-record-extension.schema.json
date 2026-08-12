@@ -747,7 +747,7 @@
     },
     "milestoneRecord": {
       "type": "object",
-      "description": "One milestone's execution record. Status semantics per the brief's Statuses paragraph; the prerequisite DAG is M2<-M1, M3<-M1, M4<-M3, M5<-M3, M6<-M2+M3+M4+M5, M7<-M6.",
+      "description": "One milestone's execution record. Status semantics per the brief's Statuses paragraph. Scoring DAG: M2<-M1, M3<-M1 (M3 does not require M2), M4<-M3, M5<-M3, M6<-M2+M3+M4+M5, M7<-M6, M8<-M6. Reduced-run protocol still executes M1 then M2 then M3; skipping M2 is non-conforming.",
       "required": [
         "status",
         "authoring",
@@ -763,7 +763,22 @@
             "blocked",
             "not-run"
           ],
-          "description": "Execution-time status. green: harness-recorded passing suite run (coverage-validated) plus passing choreography segment. capability-failure: cap exhausted; the lane proceeds to the next non-blocked milestone. aborted: abandoned mid-attempt before cap exhaustion - treated as a capability failure for proceed/completeness purposes, distinct in the record. blocked: a prerequisite failed (the brief's blocked-by-M{n}; blockedBy carries the set, lowest member is the headline n). not-run: the lane terminated before reaching it."
+          "description": "Execution-time status. green: harness-recorded passing suite run (coverage-validated) plus passing choreography segment. capability-failure: cap exhausted; the lane proceeds to the next non-blocked milestone. aborted: abandoned mid-attempt before cap exhaustion - treated as a capability failure for proceed/completeness purposes, distinct in the record. blocked: a prerequisite failed (the brief's blocked-by-M{n}; blockedBy carries the set, lowest member is the headline n). not-run: the lane terminated before reaching it. Do not invent a second green label such as 'functionally green'; copy nonGreenCause from the choreography segment-summary instead."
+        },
+        "nonGreenCause": {
+          "description": "Copy of the choreography segment-summary nonGreenCause. Optional; default null when omitted or when status is green. Lanes MUST copy this field rather than inventing 'functionally green'. Closed values: suite-failed, choreography-failed, required-unimplemented, instrument.",
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "suite-failed",
+                "choreography-failed",
+                "required-unimplemented",
+                "instrument"
+              ]
+            }
+          ]
         },
         "blockedBy": {
           "type": "array",
