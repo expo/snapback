@@ -156,6 +156,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@expo/snapback-cli": "workspace:*",
+        "ws": "^8.18.0",
       },
       "devDependencies": {
         "@expo/snapback-client": "workspace:*",
