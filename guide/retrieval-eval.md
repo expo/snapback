@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-12
+reviewed-commit: HEAD
 ---
 
 # Retrieval eval protocol
@@ -522,6 +522,20 @@ Case 47 absorbs the npm-only generated-typecheck gap recorded in
     `clients/contract-adapter.md`.
     Route terms: "@exact/contract unavailable", "npm-only typecheck",
     "contractMetadata", "contract-meta".
+
+Case 48 absorbs the replicated 2026-08-12 sweep miss
+(`issues/closed/20260812-guide-gap-auth-client-surface-and-whoami.md`):
+three lanes reverse-engineered `coordinator.settledView()` /
+`session.authority.userId` because no page named the blessed whoami.
+
+48. **Signed-in principal whoami:** "After boot, am I signed in, and as
+    whom? Use `settledView` / `currentAuthorizationScope` / who am I."
+    The run fails if it enumerates coordinator prototypes, treats
+    `authSession()` as the identity read, or tells a TypeScript app to
+    cast the client for these methods.
+    Expected pages: `auth/sessions-and-principals.md`.
+    Route terms: "who am I", "am I signed in", "settledView",
+    "currentAuthorizationScope", "whoami".
 
 ## Static routing check
 

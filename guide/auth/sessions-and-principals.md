@@ -4,12 +4,12 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
-examples: [demos/browser-auth, demos/card-game, demos/party-wall]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapback-client/auth-identity-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-10
+reviewed: 2026-08-12
 reviewed-commit: HEAD
 ---
 
@@ -448,6 +448,74 @@ a cold boot only until the signed lease's exact deadline; see the
 [protecting data](./protecting-data.md) for connection grants, invalidation,
 retry, and lease mechanics.
 
+## Ask who I am (am I signed in)
+
+<!-- since: 0.1.20 -->
+
+After boot or restore, the blessed whoami / **am I signed in** read is
+`currentAuthorizationScope()`. Do not walk `AuthCoordinator` prototypes or
+treat `authSession()` as identity.
+
+```ts source=packages/snapback-client/auth-identity-types.fixture.ts
+async function askWhoIAm(client: SnapbackClient) {
+  const scope = await client.currentAuthorizationScope();
+  const signedIn = scope.principalScope.userId !== null;
+  const userId = scope.principalScope.userId;
+  const authMode = scope.principalScope.authMode;
+  const descriptor = await client.currentAuthorityDescriptor();
+  const session = await client.authSession();
+  const mode = session.activeMode;
+  const handshakeAuthenticated = session.authority.isAuthenticated;
+  return { signedIn, userId, authMode, descriptor, mode, handshakeAuthenticated };
+}
+```
+
+`principalScope.userId` is the server-issued principal when a sessions
+caller is authenticated, and `null` when the client is anonymous or signed
+out. `principalScope.authMode` is `'sessions'` or `'dev'`. In dev mode the
+optional `{ devUserId }` argument is the trusted-local impersonation the
+scope reports; sessions mode ignores it and uses the server-resolved
+principal. `signedIn` is `principalScope.userId !== null`.
+
+`currentAuthorityDescriptor()` is the same call's authority-instance half
+(generation + instance id) without the principal scope. Use it for the
+queue/instance axis, not the user id.
+
+`authSession()` is the mode/authority handshake projection (`activeMode`,
+`modeState`, `authority.kind` / `isAuthenticated`). It is how the client
+learns the server's settled mode — not the app-level whoami. Reading
+`session.authority.userId` is that same handshake projection; prefer
+`currentAuthorizationScope().principalScope.userId`.
+
+`AuthCoordinator.settledView()` is the coordinator's lower-level custody
+capture (epoch, authority key, and the coordinator's own `anonymous` |
+`session` authority). Apps should not enumerate it. The client methods
+above wait for coordinator settle internally.
+
+**Restored / settled semantics**, witnessed by
+`packages/snapback-client/unrecognized-authority-recovery.test.mjs` and
+`demos/card-game/tests/acceptance/authority-scope.mjs`:
+
+- After `authExchange` (or the test `asUser` mint),
+  `currentAuthorizationScope().principalScope.userId` is the
+  server-issued principal and matches `credential.session.userId`.
+- The same methods work after a new process reconstructs the client with
+  the same coordinator storage: the first `authSession()` /
+  `currentAuthorizationScope()` waits for coordinator settle and returns
+  the restored principal when the bearer is still recognized.
+- After a store reset the server witnesses as a different-incarnation
+  anonymous handshake, `authSession({ force: true })` recovers custody to
+  anonymous and `currentAuthorizationScope().principalScope.userId` is
+  `null`.
+- `authRefresh` keeps the same `authorityDescriptor`; a newly minted
+  session for the same user keeps `principalScope.userId` and rotates
+  `authorityDescriptor.authorityInstanceId`.
+
+These methods exist on the published 0.1.20+ runtime. Precise TypeScript
+declarations for the identity accessors land with this change; a consumer
+of the 0.1.20 `.d.mts` may still not see them on `SnapbackClient` until
+the next published closure.
+
 ## Ask the server what auth is actually on
 
 Don't guess from docs — the capability manifest's runtime facts carry
@@ -478,3 +546,8 @@ witnesses. For the shipped local role-per-resource surface, continue to
   route's existence means its behavior is on.
 - **Do not treat retained offline data as unconditionally readable** — the
   lease deadline is exact and enforced client-side too.
+- **Do not treat `authSession()` as whoami.** It is the mode/authority
+  handshake projection. Ask `currentAuthorizationScope()`.
+- **Do not enumerate `coordinator.settledView()` or
+  `session.authority.userId` as the app identity read.** `settledView`
+  stays the coordinator's internal projection.
