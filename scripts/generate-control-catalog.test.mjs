@@ -34,6 +34,7 @@ function scratchRepo() {
     'cloudflare/src/gateway.js',
     'guide',
     'packages/snapback-cli',
+    'packages/snapback-client',
     'node_modules/ajv',
   ]) {
     const source = join(ROOT, relative);
