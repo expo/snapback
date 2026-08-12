@@ -23,4 +23,9 @@ records LLP 0246's per-target verdict after receipt.
 
 **Target hash:** `2b920d48abf970e813754c51451bc7d578daac9f70fc6d344a0cb98934e9625f`
 **Review body:** preserved verbatim in the LLP 0245 Sol artifact.
-**State before launch:** awaiting per-target verdict
+**Round 3 verdict:** READY
+
+**Close-out:** READY binds to target SHA-256
+`2b920d48abf970e813754c51451bc7d578daac9f70fc6d344a0cb98934e9625f` and
+the Round 3 hash vector. No later target revision exists. This is a
+single-family Sol recommendation, not dual-family convergence.

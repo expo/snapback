@@ -135,7 +135,125 @@ VERDICT SET: NOT READY
 `0245-0249-single-family-super-refine.md#round-3--final-delta--implementer-lens`
 **Capsule SHA-256:** `da12b8ed0542fb011172a6d2f9b0c71adf8930a10df63e555d0aa5582adc07fa`
 **Instruction SHA-256:** `536eb812b77d615f4276419ca5b3d8078815dca9f3e620b7f10fb3733871876f`
-**State before launch:** awaiting verbatim review body
+**State:** complete
+
+## Verbatim review body
+
+# Round 3 final delta + implementer-lens review
+
+## Scope and binding
+
+I maintained capsule blindness throughout: I inspected only `/tmp/llp-super-refine-0245-0249-r3`, did not inspect the live repository, Git state, run journal, prior review artifacts, or any path outside the capsule, and made no file edits.
+
+All five target files matched the authorized SHA-256 vector. This review is bound to capsule SHA-256 `da12b8ed0542fb011172a6d2f9b0c71adf8930a10df63e555d0aa5582adc07fa`.
+
+No unresolved MATERIAL correctness, coherence, feasibility, safety, decision-quality, or implementer-divergence concern remains. I found no MATERIAL concern in pre-existing text.
+
+## LLP 0245
+
+### MATERIAL concerns
+
+None, whether `IN-DELTA` or `PRE-EXISTING`.
+
+### Non-material suggestions
+
+- `PRE-EXISTING`: Freeze the exact `DeclarationSuggestionV1`, hole, evidence-class, and reason-code schemas before implementation. The RFC already assigns their ownership and required behavior; the remaining work is schema detail.
+- `PRE-EXISTING`: Include a golden showing that manual paste and Snapback-owned apply produce identical frozen declaration identity while only the latter receives the stale-CAS guarantee.
+
+### Implementer decision log
+
+Closed with no material fork. The RFC decides that inference is proposal-only; frozen committed source is sole authority; Snapback-owned apply recomputes the complete analysis closure and exact before-state; manual paste carries no stale guarantee; result inference must hole or refuse unsupported refinements; dependency suggestions only add reads/writes; and receipts never acquire runtime authority. Analyzer encoding and presentation details cannot alter those decisions.
+
+## LLP 0246
+
+### MATERIAL concerns
+
+None, whether `IN-DELTA` or `PRE-EXISTING`.
+
+### Non-material suggestions
+
+- `PRE-EXISTING`: Enumerate the editor-only `tsconfig` allowlist in the frozen profile artifact and golden-test representative ignored and refused options.
+- `PRE-EXISTING`: Make the `.mts` source-to-emitted-specifier mapping a named conformance table in addition to the required local/hosted golden.
+
+### Implementer decision log
+
+Closed with no material fork. The RFC fixes a package-free, explicit-extension TypeScript profile; bounds type-only nodes inside the checker closure; distinguishes erased type edges from executable value edges; pins compiler, options, resolver, transform, emitted bytes, and source maps; refuses emit-producing TypeScript forms; and preserves frozen declarations as authority. The precise option table is delegated to the versioned profile, not left as ambient project behavior.
+
+## LLP 0247
+
+### MATERIAL concerns
+
+None, whether `IN-DELTA` or `PRE-EXISTING`.
+
+### Non-material suggestions
+
+- `IN-DELTA`: Name the conditional-withdrawal wire outcomes and retry-state transitions explicitly—such as `deleted` and `superseded`—and include the already-required lost-response/retry-after-success vector.
+- `IN-DELTA`: State in the generated lifecycle table that the acknowledged pair belongs to the exact room, entry key, connection, and authority generation, even though D3 already binds those facts semantically.
+
+### Implementer decision log
+
+Closed with no material fork. Optional omission is limited to exact optional properties and proceeds only from a captured closed data snapshot. Protected continuing reads block and rebuild across the authority barrier, while one-shot reads reject locally. The Round 2 withdrawal rule now gives the server an exact `(scopeEpoch, entryVersion)` compare under the room lock, additionally fenced by connection/authority generation. Every republish receives a successor version, so an older delayed or ambiguous withdrawal can only settle `superseded`, never delete that successor. Authority-loss cleanup remains exclusively server-barrier-owned. The common typed exception does not collapse queued or ambiguous lifecycle outcomes.
+
+## LLP 0248
+
+### MATERIAL concerns
+
+None, whether `IN-DELTA` or `PRE-EXISTING`.
+
+### Non-material suggestions
+
+- `IN-DELTA`: Assign distinct stable diagnostics to request-item overflow, request-byte overflow, and response-byte overflow.
+- `IN-DELTA`: State in the wire schema that the response bound measures the complete duplicate-expanded positional response, although “complete host-response bytes” already determines that outcome.
+- `IN-DELTA`: Golden-test that physical chunk/statement facts remain identical when only hidden-versus-absent storage facts vary.
+
+### Implementer decision log
+
+Closed with no material fork. Item and canonical-input bounds are checked before storage; authorized snapshot reads and canonical serialization precede response-bound enforcement; neither phase releases a partial array. Deduplication affects physical work but not positional output. Unique-where-present keys must contain every non-null component. Internal OCC/invalidation evidence may retain logical keys, while public diagnostics expose only bounded count/byte/chunk facts and no key, digest, or commitment. These decisions prevent incompatible implementations from moving request admission after storage or leaking match-dependent public facts.
+
+## LLP 0249
+
+### MATERIAL concerns
+
+None, whether `IN-DELTA` or `PRE-EXISTING`.
+
+### Non-material suggestions
+
+- `IN-DELTA`: Publish the canonical address-classifier corpus, deny-fact schema, challenge-consumption state machine, and receipt encoding alongside `IsolationProfileV1`.
+- `IN-DELTA`: Include explicit mixed-answer DNS vectors proving that one non-global, noncanonical, scoped, or target-denied answer refuses the whole resolution.
+- `PRE-EXISTING`: State directly that `runtime.secrets` is this profile’s projection of LLP 0036’s per-action `uses` grant into the same secret custody and inspection owner. The normative example and D3 already fix the effective grant behavior; this would consolidate vocabulary.
+- `IN-DELTA`: Record the broker’s deterministic admitted-address selection rule for reproducible diagnostics, without weakening the requirement that every answer pass classification.
+
+### Implementer decision log
+
+Closed with no material fork. Static qualification cannot authorize a worker: readiness requires a live, privileged-launcher-signed, server-challenged, atomically consumed, session-bound attestation. Receipt mismatch, replay, expiry, or revocation stops admission and tears down the worker. Network access is positive admission over exact HTTPS tuples; every resolution and connection passes the registry-pinned versioned global-unicast classifier and target deny facts; the broker pins an admitted address and rechecks bounded redirects and TLS identity. The worker receives only the closed, capability-gated Node facade table. Package, runtime, secret, effect, and generation custody remain explicit and action-only.
+
+## Cross-document consistency
+
+The five documents compose coherently:
+
+- LLP 0245 may propose declarations, while LLP 0246’s checker only checks them; neither makes TypeScript inference authoritative.
+- LLP 0246’s package-free portable profile and LLP 0249’s separately named package-capable action profile do not overlap.
+- Both source profiles feed LLP 0241’s semantic, executable, evidence, bundle, and generation identity split without making evidence-only changes executable.
+- LLP 0247’s withdrawal predicate uses the existing room-local epoch/version ordering while preserving LLP 0059/0107 authority-barrier cleanup ownership.
+- LLP 0247’s typed refusal carrier composes with LLP 0249 only after acceptance and does not change LLP 0218’s queued-dispatch or task-state truthfulness.
+- LLP 0248 preserves existing visibility and unique-where-present semantics while adding only bounded exact-read host operations.
+- LLP 0249 retains LLP 0036 secret handles, redaction snapshot, explicit exposure escape hatch, and no value/hash observability.
+
+No cross-document seam remains materially underdetermined at RFC altitude.
+
+PRE-EXISTING MATERIAL CONCERN: NO
+VERDICT LLP 0245: READY
+VERDICT LLP 0246: READY
+VERDICT LLP 0247: READY
+VERDICT LLP 0248: READY
+VERDICT LLP 0249: READY
+VERDICT SET: READY
+
+## Close-out
+
+The final READY verdicts bind to the Round 3 target hash vector and capsule
+recorded above. No later target revision exists. This is a single-family
+GPT-5.6 Sol recommendation, not dual-family convergence.
 
 # Round 2 — delta + implementer lens
 
