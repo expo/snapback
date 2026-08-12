@@ -7,7 +7,8 @@
     "assemble": "node scripts/assemble-docs.mjs",
     "check:docs": "node scripts/assemble-docs.mjs --check",
     "export": "expo export -p web",
-    "deploy": "npm run check:docs && npm run assemble && npm run export && eas deploy --prod"
+    "deploy": "npm run check:docs && npm run assemble && npm run cap && npm run export && eas deploy --prod",
+    "cap": "node ../brand/cap/build.mjs"
   },
   "dependencies": {
     "expo": "~54.0.0",

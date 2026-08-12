@@ -1,0 +1,1573 @@
+<title>Snapback Cap Reveal</title>
+
+<style>
+  /* ---- Light is the base: the cap is photographed on a white seamless and the
+       Snapback mark stays ink at every frame. The dark palette is the brand's
+       photo-negative (see brand/README.md) and is opt-in from the host. ---- */
+  :root {
+    --ground:   #FBFBFA;
+    --stage3d:  #FBFBFA;   /* the seamless the cap sits on, fed to WebGL */
+    --ink3d:    #111111;   /* brand ink, on white, throughout */
+    --panel:    rgba(255,255,255,.82);
+    --panel-2:  rgba(20,22,26,.045);
+    --line:     rgba(20,22,26,.14);
+    --line-2:   rgba(20,22,26,.07);
+    --text:     #17191C;
+    --muted:    #6A6E76;
+    --faint:    #9A9EA6;
+    --accent:   #B4700F;
+    --accent-2: rgba(180,112,15,.14);
+    --shadow:   0 1px 2px rgba(16,18,22,.05), 0 14px 38px rgba(16,18,22,.09);
+    --exposure: 1.0;
+  }
+
+  /* Only the tokens change; nothing below is defined inside a theme block. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #0C0D0F;
+      --stage3d:  #0C0D0F;   /* must equal --ground or the embed seams */
+      --ink3d:    #FFFFFF;
+      --panel:    rgba(22,23,27,.80);
+      --panel-2:  rgba(255,255,255,.05);
+      --line:     rgba(255,255,255,.12);
+      --line-2:   rgba(255,255,255,.06);
+      --text:     #E9E9EC;
+      --muted:    #8C9099;
+      --faint:    #6A6E76;
+      --accent:   #E9A63C;
+      --accent-2: rgba(233,166,60,.18);
+      --shadow:   0 1px 2px rgba(0,0,0,.5), 0 18px 44px rgba(0,0,0,.55);
+      --exposure: 1.18;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:   #0C0D0F;
+    --stage3d:  #0C0D0F;   /* must equal --ground or the embed seams */
+    --ink3d:    #FFFFFF;
+    --panel:    rgba(22,23,27,.80);
+    --panel-2:  rgba(255,255,255,.05);
+    --line:     rgba(255,255,255,.12);
+    --line-2:   rgba(255,255,255,.06);
+    --text:     #E9E9EC;
+    --muted:    #8C9099;
+    --faint:    #6A6E76;
+    --accent:   #E9A63C;
+    --accent-2: rgba(233,166,60,.18);
+    --shadow:   0 1px 2px rgba(0,0,0,.5), 0 18px 44px rgba(0,0,0,.55);
+    --exposure: 1.18;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  .mono {
+    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+
+  /* ---- stage ---- */
+  #stage { position: fixed; inset: 0; }
+  #view  { display: block; width: 100%; height: 100%; }
+
+  /* ---- masthead ---- */
+  #masthead {
+    position: fixed; top: 26px; left: 28px;
+    display: flex; flex-direction: column; gap: 7px;
+    pointer-events: none;
+    max-width: 30ch;
+  }
+  #masthead h1 {
+    margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -.01em;
+    text-wrap: balance;
+  }
+  #masthead p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+  #eyebrow { color: var(--accent); }
+
+  /* ---- bottom rail ---- */
+  #rail {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+    display: flex; flex-direction: column; gap: 10px;
+    width: min(680px, calc(100vw - 40px));
+    padding: 13px 16px 11px;
+    background: var(--panel);
+    -webkit-backdrop-filter: blur(18px) saturate(1.3);
+    backdrop-filter: blur(18px) saturate(1.3);
+    border: 1px solid var(--line);
+    border-radius: 15px;
+    box-shadow: var(--shadow);
+  }
+  #transport { display: flex; align-items: center; gap: 10px; }
+
+  button, .seg {
+    font-family: inherit; color: var(--text);
+    background: transparent; border: 1px solid var(--line);
+    border-radius: 8px; cursor: pointer;
+  }
+  button:focus-visible, input:focus-visible, .seg:focus-within {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .btn {
+    height: 30px; padding: 0 12px; font-size: 12.5px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  }
+  .btn:hover { background: var(--panel-2); }
+  .btn[aria-pressed="true"] { background: var(--accent-2); border-color: var(--accent); color: var(--accent); }
+  .btn.primary { width: 34px; padding: 0; justify-content: center; }
+
+  .spacer { flex: 1; }
+
+  .seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 9px; }
+  .seg button { border: 0; height: 24px; padding: 0 9px; border-radius: 7px; }
+  .seg button[aria-pressed="true"] { background: var(--accent-2); color: var(--accent); }
+
+  /* ---- scrubber ---- */
+  #track { position: relative; height: 26px; }
+  #scrub {
+    -webkit-appearance: none; appearance: none;
+    position: absolute; inset: 0 0 auto; top: 3px;
+    width: 100%; height: 12px; margin: 0; background: transparent; cursor: pointer;
+  }
+  #scrub::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--line); }
+  #scrub::-moz-range-track { height: 3px; border-radius: 2px; background: var(--line); }
+  #scrub::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 13px; height: 13px; margin-top: -5px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--ground);
+  }
+  #scrub::-moz-range-thumb {
+    width: 13px; height: 13px; border: 2px solid var(--ground); border-radius: 50%;
+    background: var(--accent);
+  }
+  #fill {
+    position: absolute; top: 8px; left: 0; height: 3px; border-radius: 2px;
+    background: var(--accent); pointer-events: none;
+  }
+  #beats {
+    position: absolute; inset: auto 0 0; display: flex; pointer-events: none;
+    color: var(--faint);
+  }
+  #beats span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+  #beats span[data-on="1"] { color: var(--accent); }
+
+  /* ---- adjust drawer ---- */
+  #drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 306px;
+    padding: 24px 20px 28px;
+    background: var(--panel);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+    backdrop-filter: blur(20px) saturate(1.3);
+    border-left: 1px solid var(--line);
+    overflow-y: auto; overscroll-behavior: contain;
+    transform: translateX(100%);
+    transition: transform .34s cubic-bezier(.32,.72,0,1);
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  #drawer[data-open="1"] { transform: none; }
+  @media (prefers-reduced-motion: reduce) { #drawer { transition: none; } }
+
+  .group { display: flex; flex-direction: column; gap: 9px; }
+  .group > h2 {
+    margin: 0 0 2px; padding-bottom: 7px; border-bottom: 1px solid var(--line-2);
+    color: var(--faint);
+    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px; font-weight: 500; letter-spacing: .13em; text-transform: uppercase;
+  }
+  .row { display: grid; grid-template-columns: 1fr 46px; align-items: center; gap: 4px 10px; }
+  .row label { grid-column: 1; font-size: 12.5px; color: var(--muted); }
+  .row output {
+    grid-column: 2; text-align: right; color: var(--text);
+    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+    font-size: 11px; font-variant-numeric: tabular-nums;
+  }
+  .row input { grid-column: 1 / -1; }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 14px; margin: 0; background: transparent; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track { height: 2px; border-radius: 1px; background: var(--line); }
+  input[type="range"]::-moz-range-track { height: 2px; border-radius: 1px; background: var(--line); }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 11px; height: 11px; margin-top: -4.5px; border-radius: 50%; background: var(--text);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 11px; height: 11px; border: 0; border-radius: 50%; background: var(--text);
+  }
+
+  .stack { display: flex; flex-wrap: wrap; gap: 6px; }
+  .stack .btn { height: 28px; font-size: 12px; }
+
+  #note { margin: 0; font-size: 11.5px; line-height: 1.55; color: var(--faint); }
+  #status {
+    position: fixed; left: 50%; bottom: 132px; transform: translateX(-50%);
+    padding: 7px 13px; border-radius: 9px; font-size: 12px;
+    background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow);
+    opacity: 0; transition: opacity .25s; pointer-events: none;
+  }
+  #status[data-on="1"] { opacity: 1; }
+
+  #hint {
+    position: fixed; right: 22px; top: 26px; color: var(--faint);
+    transition: opacity .3s;
+  }
+  #drawer[data-open="1"] ~ #hint { opacity: 0; }
+
+  /* Hero mode (#hero): the page is embedded as a homepage banner, so the
+     studio chrome comes off and the reveal plays once and holds. */
+  html.hero #masthead, html.hero #rail, html.hero #hint, html.hero #drawer,
+  html.hero #status { display: none; }
+  html.hero, html.hero body { background: var(--ground); }
+  #replay {
+    position: fixed; right: 18px; bottom: 16px; display: none;
+    height: 30px; padding: 0 13px; align-items: center; gap: 7px;
+    font-size: 12.5px; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    opacity: 0; transition: opacity .4s;
+  }
+  html.hero #replay { display: inline-flex; }
+  html.embedded #replay { display: none; }
+  #replay[data-on="1"] { opacity: 1; }
+  #replay:hover { color: var(--text); }
+
+  @media (max-width: 760px) {
+    #masthead { top: 18px; left: 18px; }
+    #masthead p { display: none; }
+    #hint { display: none; }
+    #drawer { width: 100%; }
+    #rail { bottom: 14px; padding: 11px 12px 9px; }
+    .btn span.label { display: none; }
+  }
+</style>
+
+<script>
+  // Runs before the markup below is parsed, so an embedded hero never flashes
+  // the studio chrome on load or reload.
+  (function () {
+    var h = location.hash || "";
+    if (/(^|[#&])hero(\b|$)/.test(h)) {
+      document.documentElement.classList.add("hero");
+      if (window.top !== window) document.documentElement.classList.add("embedded");
+    }
+    var m = /theme=(light|dark)/.exec(h);
+    if (m) document.documentElement.dataset.theme = m[1];
+  })();
+</script>
+
+<div id="stage"><canvas id="view"></canvas></div>
+
+<header id="masthead">
+  <div class="mono" id="eyebrow">Brand transition · 3D</div>
+  <h1>Expo cap, Snapback reveal</h1>
+  <p>Six-panel cap spins to its adjuster strap; the snaps close into the Snapback mark.</p>
+</header>
+
+<div class="mono" id="hint">Drag to orbit · scroll to zoom</div>
+
+<div id="rail">
+  <div id="transport">
+    <button class="btn primary" id="play" aria-label="Pause">❚❚</button>
+    <button class="btn" id="restart" aria-label="Restart">↺<span class="label">&nbsp;Restart</span></button>
+    <div class="seg" role="group" aria-label="Playback speed">
+      <button class="mono" data-speed="0.5">0.5×</button>
+      <button class="mono" data-speed="1" aria-pressed="true">1×</button>
+      <button class="mono" data-speed="2">2×</button>
+    </div>
+    <button class="btn" id="loop" aria-pressed="true">Loop</button>
+    <div class="spacer"></div>
+    <button class="btn" id="resetView">Reset view</button>
+    <button class="btn" id="toggleDrawer" aria-pressed="false">Adjust</button>
+  </div>
+  <div id="track">
+    <div id="fill"></div>
+    <input type="range" id="scrub" min="0" max="1" step="0.0005" value="0" aria-label="Timeline position">
+    <div class="mono" id="beats"></div>
+  </div>
+</div>
+
+<aside id="drawer" data-open="0" aria-label="Adjust the model">
+  <div class="group" id="g-cap"><h2>Cap</h2></div>
+  <div class="group" id="g-logo"><h2>Expo logo</h2></div>
+  <div class="group" id="g-strap"><h2>Strap &amp; mark</h2></div>
+  <div class="group" id="g-stage"><h2>Stage</h2></div>
+  <div class="group">
+    <h2>Export</h2>
+    <div class="stack">
+      <button class="btn" id="exGlb">Download .glb</button>
+      <button class="btn" id="exPng">Save frame</button>
+      <button class="btn" id="exWebm">Record loop</button>
+    </div>
+    <p id="note">The .glb carries the cap, strap and mark as real meshes — open it in Blender, Spline or Xcode to keep shaping it.</p>
+  </div>
+</aside>
+
+<div id="status" role="status" aria-live="polite"></div>
+<button id="replay" aria-label="Replay the reveal">↺ Replay</button>
+
+<script>/*__THREE__*/</script>
+<script>
+(function () {
+  "use strict";
+  const T = THREE;
+  const RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const HERO = /(^|[#&])hero(\b|$)/.test(location.hash);
+
+  /* =====================================================================
+     Brand artwork, embedded so nothing depends on the viewer's fonts.
+     ===================================================================== */
+  const SNAPBACK_WORDMARK = "data:image/png;base64,__WORDMARK_B64__"; // white, 833x175
+  const EXPO_WORD = "data:image/png;base64,__EXPOWORD_B64__";         // white, 846x349
+  // 512px of the real cap's twill, made seamless — see clothFromPhoto below
+  const CLOTH_TILE = "data:image/png;base64,__CLOTH_B64__";
+  const EXPO_WORD_W = 846, EXPO_WORD_H = 349, EXPO_CAP_H = 281;       // cap top at y=0
+  // Expo symbol, verbatim from the Expo icon asset (652 x 606 viewBox).
+  const EXPO_SYMBOL = "M353.554 0H298.446C273.006 0 249.684 14.6347 237.962 37.9539L4.37994 502.646C-1.04325 513.435 -1.45067 526.178 3.2716 537.313L22.6123 582.918C34.6475 611.297 72.5404 614.156 88.4414 587.885L309.863 222.063C313.34 216.317 319.439 212.826 326 212.826C332.561 212.826 338.659 216.317 342.137 222.063L563.559 587.885C579.46 614.156 617.352 611.297 629.388 582.918L648.728 537.313C653.451 526.178 653.043 513.435 647.62 502.646L414.038 37.9539C402.316 14.6347 378.994 0 353.554 0Z";
+
+  /* Snapback mark geometry, in the master SVG's units (y grows downward).
+     Straight out of brand/snapback-mark.svg — the pills are ink, the two ring
+     "eyes" and the knob are knockouts. */
+  const MK = {
+    yc: 714,
+    left:  { x0: 212, x1: 746, halfH: 122 },          // stadium
+    right: { xR: 1041, capCx: 919, capR: 122,         // rounded right cap
+             notchCx: 624, notchR: 152 },             // concave edge hugging the left pill
+    eyes:  [{ x: 354, r: 51.5 }, { x: 546, r: 51.5 }],// knockout outer radius
+    pupil: 24,                                        // ink dot inside each eye
+    knob:  { x: 901, r: 46 },
+    cx: 626.5                                         // (212 + 1041) / 2
+  };
+  // Lockup proportions measured off brand/snapback-logo.png: the wordmark is
+  // exactly as wide as the mark, 0.709x its height, sitting 0.113x above it.
+  const LOCK = { wordW: 829, wordH: 174.1, gap: 28 };
+
+  /* =====================================================================
+     Parameters — every one of these is a slider.
+     ===================================================================== */
+  const P = {
+    crownH: 0.95, crownW: 0.86, crownD: 0.98, flute: 0.020,
+    notchW: 0.56, notchD: 0.48, notchRound: 0.34,
+    brimLen: 0.95, brimDroop: 0.29, brimCurl: 0.55, brimSweep: 0.42, brimThick: 0.032,
+    logoW: 0.95, logoPhi: 1.02,
+    strapH: 75, strapHoles: 7, plateThick: 0.026,
+    keyAngle: 0.78, keyPower: 1.0, fov: 32, aperture: 0.85, grain: 0.028, weave: 0.22
+  };
+  const R = 1;                 // crown radius
+  const STRAP_Y = 0.14;        // height the adjuster sits at
+  const S0 = 0.001067;          // mark units -> world, on the cap
+  const S1 = 0.00374;          // mark units -> world, as the finished lockup
+
+  /* =====================================================================
+     Renderer, stage, lights
+     ===================================================================== */
+  const canvas = document.getElementById("view");
+  const renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.toneMapping = T.NoToneMapping;   // the lens pass tone-maps instead
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
+
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera(P.fov, 1, 0.1, 100);
+  const TARGET = new T.Vector3(0, 0.32, 0);
+
+  const key = new T.SpotLight(0xfff2e2, 0, 24, 0.60, 0.88, 2);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.bias = -0.0009; key.shadow.normalBias = 0.02;
+  key.shadow.camera.near = 1; key.shadow.camera.far = 24;
+  scene.add(key, key.target);
+  const fill = new T.DirectionalLight(0xeceff5, 0.0); scene.add(fill);
+  const rim  = new T.DirectionalLight(0xffffff, 0.0); scene.add(rim);
+  const amb  = new T.HemisphereLight(0xffffff, 0x2a2c33, 0.0); scene.add(amb);
+  const markLight = new T.DirectionalLight(0xffffff, 0);
+  markLight.position.set(0.7, 1.1, 3.6); scene.add(markLight);
+
+  /* Image-based lighting from a small procedural studio: a broad key softbox,
+     a fill card, and a back strip. Black twill has almost no diffuse response,
+     so nearly everything you read on it is reflected environment. */
+  const pmrem = new T.PMREMGenerator(renderer);
+  function buildEnv(dark) {
+    const sc = new T.Scene();
+    const dome = new T.Mesh(
+      new T.SphereGeometry(14, 32, 20),
+      new T.ShaderMaterial({
+        side: T.BackSide,
+        uniforms: { top: { value: new T.Color(dark ? 0x23262c : 0xe8e8e6) },
+                    bot: { value: new T.Color(dark ? 0x08090b : 0x6e6e6c) } },
+        vertexShader: "varying float h; void main(){ h = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }",
+        fragmentShader: "uniform vec3 top; uniform vec3 bot; varying float h; void main(){ gl_FragColor = vec4(mix(bot, top, smoothstep(-.5,.85,h)), 1.); }"
+      })
+    );
+    sc.add(dome);
+    const box = (x, y, z, w, h, i) => {
+      const m = new T.Mesh(new T.PlaneGeometry(w, h),
+        new T.MeshBasicMaterial({ color: 0xffffff, side: T.DoubleSide }));
+      m.material.color.multiplyScalar(i);
+      m.position.set(x, y, z); m.lookAt(0, 0, 0); sc.add(m);
+    };
+    box(3.4, 4.4, 3.2, 9, 9, dark ? 2.3 : 3.6);       // key softbox, big and close
+    box(-5.2, 1.4, 2.6, 7, 9, dark ? 0.42 : 1.5);     // fill card
+    box(-0.4, 2.2, -6.0, 13, 7, dark ? 2.6 : 3.2);    // back strip for the rim
+    const rt = pmrem.fromScene(sc, 0.02);
+    dome.geometry.dispose(); dome.material.dispose();
+    return rt.texture;
+  }
+
+  /* The backdrop is drawn, not cleared: a real seamless has a pool of light
+     behind the subject that falls off into the corners. It is written in linear
+     light and tone-mapped with everything else in the lens pass. */
+  const backdropMat = new T.ShaderMaterial({
+    depthTest: false, depthWrite: false,
+    uniforms: {
+      uInner: { value: new T.Color(0, 0, 0) }, uOuter: { value: new T.Color(0, 0, 0) },
+      uAspect: { value: 1 }, uSpread: { value: 1.05 }, uCenter: { value: new T.Vector2(0, 0.05) }
+    },
+    vertexShader: "varying vec2 vP; void main(){ vP = position.xy; gl_Position = vec4(position.xy, 1.0, 1.0); }",
+    fragmentShader: [
+      "uniform vec3 uInner; uniform vec3 uOuter; uniform float uAspect, uSpread;",
+      "uniform vec2 uCenter; varying vec2 vP;",
+      "void main(){",
+      "  float d = length((vP - uCenter) * vec2(uAspect, 1.0)) / uSpread;",
+      "  gl_FragColor = vec4(mix(uInner, uOuter, smoothstep(0.0, 1.0, d)), 1.0);",
+      "}"
+    ].join("\n")
+  });
+  const shadowMat = new T.ShadowMaterial({ opacity: 0.26, transparent: true });
+  let shadowMax = 0.26;
+  const floor = new T.Mesh(new T.PlaneGeometry(14, 14), shadowMat);
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -0.55; floor.receiveShadow = true;
+  scene.add(floor);
+
+  const backdrop = new T.Mesh(new T.PlaneGeometry(2, 2), backdropMat);
+  backdrop.frustumCulled = false; backdrop.renderOrder = -1;
+  scene.add(backdrop);
+
+  /* Solve for the linear value that lands on a wanted sRGB value after the
+     lens pass tone-maps it, so the finished lockup sits on the exact brand
+     ground rather than a tone-mapped approximation of it. */
+  function inverseTone(target, exposure) {
+    const rrt = v => { const a = v * (v + 0.0245786) - 0.000090537;
+                       const b = v * (0.983729 * v + 0.4329510) + 0.238081; return a / b; };
+    const enc = v => v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+    const fwd = L => enc(Math.min(1, Math.max(0, rrt(L * exposure / 0.6))));
+    let lo = 0, hi = 12;
+    for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (fwd(m) < target) lo = m; else hi = m; }
+    return (lo + hi) / 2;
+  }
+
+  /* ---------------------------------------------------------------------
+     The lens. The scene renders into a half-float target, then one pass does
+     depth of field, exposure and the ACES curve, vignetting and grain — in
+     that order, because they happen in that order in a real camera. Blurring
+     in linear light is what keeps out-of-focus highlights from going grey.
+     --------------------------------------------------------------------- */
+  const rt = new T.WebGLRenderTarget(2, 2, {
+    type: T.HalfFloatType, samples: 4,
+    minFilter: T.LinearFilter, magFilter: T.LinearFilter
+  });
+  rt.depthTexture = new T.DepthTexture(2, 2, T.UnsignedIntType);
+
+  const lensMat = new T.ShaderMaterial({
+    depthTest: false, depthWrite: false,
+    uniforms: {
+      tColor: { value: rt.texture }, tDepth: { value: rt.depthTexture },
+      uRes: { value: new T.Vector2(2, 2) },
+      uNear: { value: 0.1 }, uFar: { value: 100 },
+      uFocus: { value: 5 }, uAperture: { value: 0.9 }, uMaxCoc: { value: 14 },
+      uExposure: { value: 1 }, uGrain: { value: 0.028 }, uVignette: { value: 0.16 },
+      uSeed: { value: 0 }
+    },
+    vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    fragmentShader: [
+      "precision highp float;",
+      "varying vec2 vUv;",
+      "uniform sampler2D tColor; uniform highp sampler2D tDepth;",
+      "uniform vec2 uRes; uniform float uNear, uFar, uFocus, uAperture, uMaxCoc;",
+      "uniform float uExposure, uGrain, uVignette, uSeed;",
+      "float dist(vec2 uv){",
+      "  float d = texture2D(tDepth, uv).x;",
+      "  return (uNear * uFar) / (uFar - d * (uFar - uNear));",
+      "}",
+      "float coc(float z){ return clamp((z - uFocus) / max(z, 0.001) * uAperture, -1.0, 1.0); }",
+      "vec3 rrt(vec3 v){ vec3 a = v * (v + 0.0245786) - 0.000090537;",
+      "  vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081; return a / b; }",
+      "vec3 aces(vec3 c){",
+      "  const mat3 IN = mat3(0.59719,0.07600,0.02840, 0.35458,0.90834,0.13383, 0.04823,0.01566,0.83777);",
+      "  const mat3 OUT = mat3(1.60475,-0.10208,-0.00327, -0.53108,1.10813,-0.07276, -0.07367,-0.00605,1.07602);",
+      "  return clamp(OUT * rrt(IN * c), 0.0, 1.0);",
+      "}",
+      "vec3 srgb(vec3 c){",
+      "  return mix(1.055 * pow(max(c, vec3(0.0)), vec3(0.41666)) - 0.055, c * 12.92, step(c, vec3(0.0031308)));",
+      "}",
+      "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
+      "void main(){",
+      "  vec2 texel = 1.0 / uRes;",
+      "  float raw = texture2D(tDepth, vUv).x;",
+      "  float centreCoc = raw > 0.99995 ? 0.0 : coc(dist(vUv));",
+      "  float r = abs(centreCoc) * uMaxCoc;",
+      "  vec3 sum = texture2D(tColor, vUv).rgb; float wsum = 1.0;",
+      "  if (r > 0.75) {",
+      "    for (int i = 0; i < 24; i++) {",
+      "      float fi = float(i);",
+      "      float ang = fi * 2.39996323;",
+      "      float rad = sqrt((fi + 0.5) / 24.0) * r;",
+      "      vec2 uv2 = vUv + vec2(cos(ang), sin(ang)) * rad * texel;",
+      "      float sc = abs(coc(dist(uv2))) * uMaxCoc;",
+      "      float w = clamp(sc - rad + 1.0, 0.0, 1.0);",   // a sharp foreground must not smear over the background
+      "      sum += texture2D(tColor, uv2).rgb * w; wsum += w;",
+      "    }",
+      "  }",
+      "  vec3 col = sum / wsum;",
+      "  vec2 q = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0);",
+      "  col *= mix(1.0, smoothstep(1.45, 0.42, length(q)), uVignette);",
+      "  col = srgb(aces(col * uExposure / 0.6));",   // 0.6 is the ACES reference pre-gain
+      "  float g = hash(gl_FragCoord.xy + uSeed) - 0.5;",
+      "  float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));",
+      "  col += g * uGrain * mix(1.0, 0.22, luma);",
+      "  gl_FragColor = vec4(col, 1.0);",
+      "}"
+    ].join("\n")
+  });
+  const lensScene = new T.Scene();
+  lensScene.add(new T.Mesh(new T.PlaneGeometry(2, 2), lensMat));
+  const lensCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+  function renderFrame() {
+    renderer.setRenderTarget(rt);
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(null);
+    renderer.render(lensScene, lensCam);
+  }
+
+  /* =====================================================================
+     Procedural textures
+     ===================================================================== */
+  /* The cloth is the cap in the photograph. A 512px patch of the bill's twill
+     was divided by its own lighting gradient, notched to drop the topstitch
+     rows, and wrap-blended into a tile; the normal and roughness are derived
+     from its luminance here so only one image has to ship. The lint is real. */
+  function clothFromPhoto(img) {
+    const N = img.width;
+    const cv = document.createElement("canvas"); cv.width = cv.height = N;
+    const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0);
+    const src = cx.getImageData(0, 0, N, N).data;
+
+    const L = new Float32Array(N * N);
+    let mean = 0;
+    for (let i = 0; i < N * N; i++) {
+      L[i] = 0.299 * src[i * 4] + 0.587 * src[i * 4 + 1] + 0.114 * src[i * 4 + 2];
+      mean += L[i];
+    }
+    mean /= N * N;
+    let sd = 0;
+    for (let i = 0; i < N * N; i++) sd += (L[i] - mean) * (L[i] - mean);
+    sd = Math.sqrt(sd / (N * N)) || 1;
+
+    const nc = document.createElement("canvas"); nc.width = nc.height = N;
+    const rc = document.createElement("canvas"); rc.width = rc.height = N;
+    const nctx = nc.getContext("2d"), rctx = rc.getContext("2d");
+    const nd = nctx.createImageData(N, N), rd = rctx.createImageData(N, N);
+    const at = (x, y) => (L[((y + N) % N) * N + ((x + N) % N)] - mean) / sd;
+    const S = 1.5;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (y * N + x) * 4;
+      const gx = (at(x + 1, y) - at(x - 1, y)) * S, gy = (at(x, y + 1) - at(x, y - 1)) * S;
+      const l = Math.sqrt(gx * gx + gy * gy + 1);
+      nd.data[i] = (-gx / l * 0.5 + 0.5) * 255;
+      nd.data[i + 1] = (-gy / l * 0.5 + 0.5) * 255;
+      nd.data[i + 2] = (1 / l * 0.5 + 0.5) * 255;
+      nd.data[i + 3] = 255;
+      const r = Math.max(150, Math.min(255, 238 - at(x, y) * 20));
+      rd.data[i] = rd.data[i + 1] = rd.data[i + 2] = r; rd.data[i + 3] = 255;
+    }
+    nctx.putImageData(nd, 0, 0); rctx.putImageData(rd, 0, 0);
+
+    const tex = (c, srgb) => {
+      const t = new T.CanvasTexture(c);
+      t.wrapS = t.wrapT = T.RepeatWrapping;
+      t.colorSpace = srgb ? T.SRGBColorSpace : T.NoColorSpace;
+      t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      return t;
+    };
+    return { albedo: tex(cv, true), normal: tex(nc, false), rough: tex(rc, false) };
+  }
+
+  /* The Expo lockup, drawn to a canvas: symbol from the real path data, the
+     wordmark from embedded artwork so it can't fall back to a wrong face. */
+  function expoLockup(wordImg) {
+    const capH = 300, symH = capH * 1.12, symW = symH * (652 / 606);
+    const wordScale = capH / EXPO_CAP_H;
+    const wordW = EXPO_WORD_W * wordScale, wordH = EXPO_WORD_H * wordScale;
+    const gap = symW * 0.30, pad = 26;
+    const W = Math.ceil(symW + gap + wordW + pad * 2);
+    const H = Math.ceil(Math.max(symH, wordH) + pad * 2);
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const x = c.getContext("2d");
+    const baseline = pad + capH;                    // symbol sits on the cap line
+
+    x.save();
+    x.translate(pad, baseline - symH);
+    x.scale(symW / 652, symH / 606);
+    x.fillStyle = "#fff"; x.fill(new Path2D(EXPO_SYMBOL));
+    x.restore();
+    x.drawImage(wordImg, pad + symW + gap, pad, wordW, wordH);
+
+    // satin-stitch direction, kept only where there is ink
+    x.globalCompositeOperation = "source-atop";
+    x.globalAlpha = 0.30; x.lineWidth = 2.2;
+    for (let i = -H; i < W; i += 7) {
+      x.strokeStyle = i % 14 === 0 ? "#8e8e8e" : "#ffffff";
+      x.beginPath(); x.moveTo(i, 0); x.lineTo(i + H, H); x.stroke();
+    }
+    x.globalAlpha = 1; x.globalCompositeOperation = "source-over";
+
+    const tex = new T.CanvasTexture(c);
+    tex.colorSpace = T.SRGBColorSpace;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    // a black-backed copy drives the embroidery relief
+    const b = document.createElement("canvas"); b.width = W; b.height = H;
+    const bx = b.getContext("2d");
+    bx.fillStyle = "#000"; bx.fillRect(0, 0, W, H); bx.drawImage(c, 0, 0);
+    const bump = new T.CanvasTexture(b);
+    return { map: tex, bump, aspect: W / H };
+  }
+
+  /* =====================================================================
+     Materials
+     ===================================================================== */
+  let CLOTH = null;                    // filled in once the cloth image loads
+  const matFabric = new T.MeshPhysicalMaterial({
+    color: 0xffffff, roughness: 1.0, metalness: 0, side: T.FrontSide,
+    normalScale: new T.Vector2(0.85, 0.85),
+    specularIntensity: 0.28,                       // cloth barely specular-reflects
+    sheen: 0.30, sheenRoughness: 0.5, sheenColor: new T.Color(0x60636b),
+    transparent: true
+  });
+  const matBrim = new T.MeshPhysicalMaterial({
+    color: 0xdedede, roughness: 0.98, metalness: 0,
+    normalScale: new T.Vector2(0.6, 0.6), specularIntensity: 0.3,
+    sheen: 0.22, sheenRoughness: 0.45, sheenColor: new T.Color(0x585c66),
+    transparent: true
+  });
+  const matHem = new T.MeshPhysicalMaterial({
+    color: 0xd6d6d6, roughness: 1.0, metalness: 0,
+    specularIntensity: 0.14, sheen: 0, transparent: true
+  });
+  const matInside = new T.MeshStandardMaterial({
+    color: 0x030304, roughness: 1, metalness: 0, side: T.DoubleSide, transparent: true
+  });
+  const matLining = new T.MeshStandardMaterial({
+    color: 0x0b0b0d, roughness: 1, metalness: 0, side: T.BackSide, transparent: true
+  });
+  const matThread = new T.MeshPhysicalMaterial({ color: 0x2b2c31, roughness: 0.58, metalness: 0,
+    specularIntensity: 0.35, sheen: 0.25, sheenRoughness: 0.4,
+    sheenColor: new T.Color(0x565b68), transparent: true });
+  const matMetal  = new T.MeshStandardMaterial({ color: 0x2a2b31, roughness: 0.28, metalness: 0.85, transparent: true });
+  const matBacker = new T.MeshStandardMaterial({
+    color: 0x08080a, roughness: 0.95, metalness: 0, transparent: true
+  });
+  const matPlate  = new T.MeshPhysicalMaterial({ color: 0x232328, roughness: 0.52, metalness: 0, clearcoat: 0.12, clearcoatRoughness: 0.42,
+    specularIntensity: 0.55, transparent: true });
+  const matDecal  = new T.MeshStandardMaterial({
+    transparent: true, alphaTest: 0.04, roughness: 0.42, metalness: 0, side: T.DoubleSide,
+    polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, bumpScale: 0.9
+  });
+  const matWord = new T.MeshStandardMaterial({ transparent: true, opacity: 0, depthWrite: false, roughness: 0.5, metalness: 0 });
+
+  const FADEABLE = [matFabric, matBrim, matHem, matLining, matInside, matThread, matMetal, matDecal];
+  // matBacker fades on the morph clock, not the cap's
+
+  /* =====================================================================
+     Crown surface
+     ===================================================================== */
+  function angDist(a, b) { let d = Math.abs(a - b) % (Math.PI * 2); return d > Math.PI ? Math.PI * 2 - d : d; }
+
+  /* A snapback's back is a squared-off notch cut out of the crown: a flat top,
+     rounded upper corners, then vertical sides straight down to the hem. The
+     strap crosses the base of that notch. Measured off the reference photo —
+     half-width 0.52 rad, depth 0.48 rad, corner 39% of the depth. */
+  function phiMax(theta) {
+    const d = angDist(theta, Math.PI), W = P.notchW;
+    if (d >= W) return Math.PI / 2;
+    const D = P.notchD, k = P.notchRound, c = 1 - k, u = d / W;
+    let cut = D;
+    if (u > c) {
+      const t = (u - c) / (1 - c);
+      cut = D - D * k * (1 - Math.sqrt(Math.max(0, 1 - t * t)));
+    }
+    return Math.PI / 2 - cut;      // drops vertically to the hem at d = W
+  }
+  const CQ = 0.58;                      // < 1 fills the crown out toward the hem
+  function crownPt(theta, phi, swell) {
+    const s = Math.pow(Math.sin(phi), CQ);
+    const r = R * s * (1 - P.flute * Math.cos(6 * theta)) * (swell || 1);
+    return new T.Vector3(r * Math.sin(theta) * P.crownW, P.crownH * Math.cos(phi), r * Math.cos(theta) * P.crownD);
+  }
+
+  function buildCrown() {
+    const NC = 320, NR = 46, pos = [], uv = [], idx = [];   // dense enough for a crisp notch edge
+    for (let j = 0; j <= NR; j++) for (let i = 0; i <= NC; i++) {
+      const th = (i / NC) * Math.PI * 2, p = (j / NR) * phiMax(th);
+      const v = crownPt(th, p);
+      pos.push(v.x, v.y, v.z); uv.push(i / NC, 1 - j / NR);
+    }
+    for (let j = 0; j < NR; j++) for (let i = 0; i < NC; i++) {
+      const a = j * (NC + 1) + i, b = a + NC + 1;
+      idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    // the apex ring is degenerate, so its normals come out zero — pin them up
+    const n = g.attributes.normal;
+    for (let i = 0; i <= NC; i++) n.setXYZ(i, 0, 1, 0);
+    n.needsUpdate = true;
+    return g;
+  }
+
+  function ringCurve(fn, n, closed) {
+    const pts = [], last = closed ? n - 1 : n;
+    for (let i = 0; i <= last; i++) pts.push(fn(i / n));
+    return new T.CatmullRomCurve3(pts, !!closed, "centripetal");
+  }
+
+  function buildHem() {
+    const c = ringCurve(u => crownPt(u * Math.PI * 2, phiMax(u * Math.PI * 2), 1.004), 400, true);
+    return new T.TubeGeometry(c, 520, 0.0105, 8, true);
+  }
+
+  function buildSeams() {
+    const parts = [];
+    for (let k = 0; k < 6; k++) {
+      const th = k * Math.PI / 3, pm = phiMax(th);
+      const c = ringCurve(u => crownPt(th, 0.02 + u * (pm - 0.02), 1.004), 40, false);
+      parts.push(new T.TubeGeometry(c, 44, 0.0062, 6, false));
+    }
+    return mergeGeoms(parts);
+  }
+
+  function buildInside() {
+    const N = 96, pos = [0, STRAP_Y * 0.15, 0], idx = [], uv = [0.5, 0.5];
+    for (let i = 0; i <= N; i++) {
+      const th = (i / N) * Math.PI * 2, p = crownPt(th, Math.PI / 2, 0.985);
+      pos.push(p.x, STRAP_Y * 0.15, p.z); uv.push(0.5 + 0.5 * Math.cos(th), 0.5 + 0.5 * Math.sin(th));
+    }
+    for (let i = 1; i <= N; i++) idx.push(0, i, i + 1);
+    const g = new T.BufferGeometry();
+    g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
+
+  function buildEyelets() {
+    const parts = [];
+    for (let k = 0; k < 6; k++) {
+      const th = k * Math.PI / 3 + Math.PI / 6, ph = Math.min(1.2, phiMax(th) - 0.26);
+      const p = crownPt(th, ph, 1.0), out = crownPt(th, ph, 1.06).sub(p).normalize();
+      const g = new T.TorusGeometry(0.017, 0.0055, 8, 16);
+      const m = new T.Object3D();
+      m.position.copy(p).addScaledVector(out, 0.0);
+      m.lookAt(p.clone().add(out)); m.updateMatrix();
+      g.applyMatrix4(m.matrix); parts.push(g);
+    }
+    return mergeGeoms(parts);
+  }
+
+  /* =====================================================================
+     Brim — a parametric shell with real thickness
+     ===================================================================== */
+  const uMax = () => Math.PI * P.brimSweep;
+  function brimSurf(u, v) {                       // u in [-uMax,uMax], v in [0,1]
+    const um = uMax(), a = (u / um) * Math.PI / 2;
+    const base = crownPt(u, Math.max(0.05, phiMax(u) - 0.04), 1.0);
+    const dir = new T.Vector3(Math.sin(u) * P.crownW, 0, Math.cos(u) * P.crownD).normalize();
+    /* Where the bill has no extent it can have no drop either — otherwise the
+       side edge of the surface hangs down as a flat vertical wall. So both terms
+       vanish with the taper: the pitch follows it exactly, and the curl decays
+       more slowly (tap^0.35) so the arch has room to build before the tip. */
+    const tap = Math.pow(Math.max(0, Math.cos(a)), 1.5);
+    const soft = Math.pow(tap, 0.35);
+    const L = P.brimLen * tap;
+    const drop = (P.brimDroop * tap + P.brimCurl * Math.pow(Math.sin(a), 2) * soft)
+               * Math.pow(v, 1.55);
+    return base.addScaledVector(dir, L * v).setY(base.y - drop);
+  }
+  function brimNormal(u, v) {
+    const e = 0.004, du = brimSurf(u + e, v).sub(brimSurf(u - e, v));
+    const dv = brimSurf(u, Math.min(1, v + e)).sub(brimSurf(u, Math.max(0, v - e)));
+    const n = new T.Vector3().crossVectors(dv, du).normalize();
+    if (n.y < 0) n.negate();
+    return n;
+  }
+  function buildBrim() {
+    const NU = 84, NV = 16, um = uMax(), pos = [], idx = [], uvs = [];
+    const half = (u, v) => P.brimThick * 0.5 * (1 - 0.5 * v * v);
+    const push = (u, v, side) => {
+      const p = brimSurf(u, v), n = brimNormal(u, v);
+      p.addScaledVector(n, side * half(u, v));
+      pos.push(p.x, p.y, p.z); uvs.push((u / um + 1) / 2, v);
+    };
+    for (const side of [1, -1]) for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++)
+      push(-um + (i / NU) * 2 * um, j / NV, side);
+    const stride = (NU + 1) * (NV + 1);
+    const at = (s, i, j) => s * stride + j * (NU + 1) + i;
+    for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) {
+      idx.push(at(0, i, j), at(0, i, j + 1), at(0, i + 1, j), at(0, i, j + 1), at(0, i + 1, j + 1), at(0, i + 1, j));
+      idx.push(at(1, i, j), at(1, i + 1, j), at(1, i, j + 1), at(1, i, j + 1), at(1, i + 1, j), at(1, i + 1, j + 1));
+    }
+    for (let i = 0; i < NU; i++) {                                  // outer rim
+      idx.push(at(0, i, NV), at(1, i, NV), at(0, i + 1, NV), at(1, i, NV), at(1, i + 1, NV), at(0, i + 1, NV));
+      idx.push(at(0, i, 0), at(0, i + 1, 0), at(1, i, 0), at(1, i, 0), at(0, i + 1, 0), at(1, i + 1, 0));
+    }
+    for (let j = 0; j < NV; j++) {                                  // side edges
+      idx.push(at(0, 0, j), at(1, 0, j), at(0, 0, j + 1), at(1, 0, j), at(1, 0, j + 1), at(0, 0, j + 1));
+      idx.push(at(0, NU, j), at(0, NU, j + 1), at(1, NU, j), at(1, NU, j), at(0, NU, j + 1), at(1, NU, j + 1));
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new T.Float32BufferAttribute(uvs, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
+  function buildBrimStitch() {
+    const parts = [], um = uMax();
+    for (const v of [0.07, 0.16, 0.25, 0.34, 0.43, 0.52, 0.61, 0.70]) {
+      const c = ringCurve(t => {
+        const u = -um * 0.86 + t * 1.72 * um * 0.86;
+        return brimSurf(u, v).addScaledVector(brimNormal(u, v), P.brimThick * 0.5 * (1 - 0.5 * v * v) + 0.0015);
+      }, 70, false);
+      parts.push(new T.TubeGeometry(c, 96, 0.0038, 5, false));
+    }
+    return mergeGeoms(parts);
+  }
+
+  function mergeGeoms(list) {
+    let base = 0; const pos = [], nrm = [], uv = [], idx = [];
+    for (const g of list) {
+      const p = g.attributes.position, n = g.attributes.normal, u = g.attributes.uv;
+      for (let i = 0; i < p.count; i++) {
+        pos.push(p.getX(i), p.getY(i), p.getZ(i));
+        nrm.push(n ? n.getX(i) : 0, n ? n.getY(i) : 1, n ? n.getZ(i) : 0);
+        uv.push(u ? u.getX(i) : 0, u ? u.getY(i) : 0);
+      }
+      const ix = g.index;                          // ExtrudeGeometry comes back unindexed
+      if (ix) for (let i = 0; i < ix.count; i++) idx.push(ix.getX(i) + base);
+      else for (let i = 0; i < p.count; i++) idx.push(i + base);
+      base += p.count; g.dispose();
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute("normal", new T.Float32BufferAttribute(nrm, 3));
+    g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    return g;
+  }
+
+  /* Front decal patch: a slice of the crown surface, floated just proud of it. */
+  function buildDecal(aspect) {
+    const phiC = P.logoPhi, arcH = P.logoW / aspect, phiSpan = arcH / R;
+    const rAt = R * Math.pow(Math.sin(phiC), CQ);
+    const thHalf = (P.logoW / 2) / Math.max(0.2, rAt * P.crownD);
+    const NU = 30, NV = 14, pos = [], uv = [], idx = [];
+    for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++) {
+      const th = -thHalf + (i / NU) * 2 * thHalf;
+      const ph = phiC - phiSpan / 2 + (j / NV) * phiSpan;
+      const v = crownPt(th, ph, 1.006);
+      pos.push(v.x, v.y, v.z); uv.push(i / NU, 1 - j / NV);
+    }
+    for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) {
+      const a = j * (NU + 1) + i, b = a + NU + 1;
+      idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
+
+  /* =====================================================================
+     Strap -> mark. Both states are closed outlines sampled by arc length
+     from the same anchor, so morphing is a straight point-for-point lerp.
+     ===================================================================== */
+  function stadium(x0, x1, yc, h, n) {
+    const pts = [], cxR = x1 - h, cxL = x0 + h;
+    const arc = (cx, a0, a1) => { for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; pts.push([cx + h * Math.cos(a), yc + h * Math.sin(a)]); } };
+    arc(cxR, 0, Math.PI / 2);
+    for (let i = 1; i < n; i++) pts.push([cxR - (cxR - cxL) * i / n, yc + h]);
+    arc(cxL, Math.PI / 2, Math.PI * 1.5);
+    for (let i = 1; i < n; i++) pts.push([cxL + (cxR - cxL) * i / n, yc - h]);
+    arc(cxR, Math.PI * 1.5, Math.PI * 2);
+    return pts;
+  }
+  function markRightOutline(n) {
+    const { yc } = MK, { capCx, capR, notchCx, notchR } = MK.right;   // xR = capCx + capR
+    const halfH = MK.left.halfH;
+    const beta = Math.asin(halfH / notchR), jx = notchCx + notchR * Math.cos(beta);
+    const pts = [], arc = (cx, r, a0, a1) => { for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; pts.push([cx + r * Math.cos(a), yc + r * Math.sin(a)]); } };
+    arc(capCx, capR, 0, Math.PI / 2);                    // (xR,yc) -> (capCx, yc+halfH)
+    for (let i = 1; i < n; i++) pts.push([capCx - (capCx - jx) * i / n, yc + halfH]);
+    arc(notchCx, notchR, beta, -beta);                   // concave edge
+    for (let i = 1; i < n; i++) pts.push([jx + (capCx - jx) * i / n, yc - halfH]);
+    arc(capCx, capR, -Math.PI / 2, 0);
+    return pts;
+  }
+  function resample(pts, N) {
+    let s = 0;                                            // anchor: rightmost point
+    for (let i = 1; i < pts.length; i++) if (pts[i][0] > pts[s][0]) s = i;
+    const p = pts.slice(s).concat(pts.slice(0, s));
+    const cum = [0];
+    for (let i = 1; i <= p.length; i++) {
+      const a = p[i - 1], b = p[i % p.length];
+      cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1]));
+    }
+    const total = cum[p.length], out = [];
+    let k = 0;
+    for (let i = 0; i < N; i++) {
+      const d = (i / N) * total;
+      while (k < p.length - 1 && cum[k + 1] < d) k++;
+      const seg = cum[k + 1] - cum[k], f = seg > 1e-9 ? (d - cum[k]) / seg : 0;
+      const a = p[k], b = p[(k + 1) % p.length];
+      out.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+    }
+    return out;
+  }
+  const NPTS = 190;
+  let OUT_L0, OUT_L1, OUT_R0, OUT_R1;
+  /* Snap lattice. The eyes are 192 apart, so a pitch of 192/3 puts a socket on
+     both of them and still spaces the row like a real adjuster (0.43 of the
+     strip's height, measured off the reference). Sockets 0 and 3 become eyes. */
+  const EYE_PITCH = MK.eyes[1].x - MK.eyes[0].x;      // 192
+  const SNAP_PITCH = EYE_PITCH / 3;                   // 64
+  let XL0 = MK.left.x0, PCX = MK.cx;                  // strip's left end, and its running centre
+  function snapCount() { return Math.max(4, Math.min(10, P.strapHoles | 0)); }
+
+  /* The left half of the strip laps OVER the right, and its rounded end is
+     already the left pill's cap — so the right piece reads as cut around it,
+     which is exactly the mark's notch. The snaps sit on the mark's own lattice,
+     so the two nearest the joint plus the one just past it are already the two
+     eyes and the knob. Nothing has to travel; they only open up. */
+  function rebuildOutlines() {
+    const leftMost = MK.eyes[1].x - (snapCount() - 1) * SNAP_PITCH;
+    XL0 = Math.min(MK.left.x0 - 40, leftMost - 115);
+    OUT_L0 = resample(stadium(XL0, 700, MK.yc, P.strapH, 26), NPTS);
+    OUT_L1 = resample(stadium(MK.left.x0, MK.left.x1, MK.yc, MK.left.halfH, 26), NPTS);
+    OUT_R0 = resample(stadium(620, MK.right.xR, MK.yc, P.strapH, 26), NPTS);
+    OUT_R1 = resample(markRightOutline(26), NPTS);
+  }
+  rebuildOutlines();
+
+  // Sockets on the lattice; the two by the joint open into the eyes, the rest close.
+  function holePlan(t) {
+    const n = snapCount(), r0 = 26, out = [];
+    for (let i = 0; i < n; i++) {
+      const x = MK.eyes[1].x - i * SNAP_PITCH;
+      const eye = i === 0 ? MK.eyes[1] : i === 3 ? MK.eyes[0] : null;
+      const r = eye ? r0 + (eye.r - r0) * t
+                    : r0 * Math.max(0, 1 - Math.pow(Math.min(1, t / 0.28), 0.7));
+      if (r > 1.8) out.push({ x, r });
+    }
+    return { holes: out };
+  }
+
+  const MY = y => (MK.yc - y);       // mark space is y-down; the model is y-up
+  function circlePath(cx, cy, r) {
+    const p = new T.Path(); p.absarc(cx - PCX, MY(cy), r, 0, Math.PI * 2, true); return p;
+  }
+  function shapeFrom(pts, holes) {
+    const s = new T.Shape();
+    s.moveTo(pts[0][0] - PCX, MY(pts[0][1]));
+    for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0] - PCX, MY(pts[i][1]));
+    s.closePath();
+    if (holes) for (const h of holes) s.holes.push(h);
+    return s;
+  }
+  function lerpPts(a, b, t) {
+    const o = []; for (let i = 0; i < a.length; i++)
+      o.push([a[i][0] + (b[i][0] - a[i][0]) * t, a[i][1] + (b[i][1] - a[i][1]) * t]);
+    return o;
+  }
+  /* The strap has to hug the crown, and a head is an oval, not a circle — so
+     the wrap target is the crown's own ellipse at the adjuster's height. The
+     table converts arc length along that ellipse into a point and a frame. */
+  function crownEllipse() {
+    const phi = Math.acos(Math.min(0.999, STRAP_Y / P.crownH));
+    const rr = R * Math.pow(Math.sin(phi), CQ);
+    return { a: P.crownW * rr + 0.012, b: P.crownD * rr + 0.012 };
+  }
+  function wrapTable(a, b) {
+    const N = 480, lim = 2.2, dphi = (2 * lim) / N, phis = [-lim], s = [0];
+    for (let i = 1; i <= N; i++) {
+      const p0 = -lim + (i - 1) * dphi, p1 = -lim + i * dphi, pm = (p0 + p1) / 2;
+      s.push(s[i - 1] + dphi * Math.hypot(a * Math.cos(pm), b * Math.sin(pm)));
+      phis.push(p1);
+    }
+    const s0 = s[Math.round(N / 2)];                    // zero arc length at the back centre
+    for (let i = 0; i <= N; i++) s[i] -= s0;
+    return function (arc) {
+      let lo = 0, hi = N;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (s[m] <= arc) lo = m; else hi = m; }
+      const d = s[hi] - s[lo], f = d > 1e-9 ? (arc - s[lo]) / d : 0;
+      const phi = phis[lo] + (phis[hi] - phis[lo]) * f;
+      const psi = Math.atan2(Math.sin(phi) / a, Math.cos(phi) / b);
+      return { x: a * Math.sin(phi), z: b * Math.cos(phi) - b, cs: Math.cos(psi), sn: Math.sin(psi) };
+    };
+  }
+
+  // w = 1 wraps the plate onto the crown, w = 0 leaves it flat facing camera.
+  function wrap(geo, w, scale, tbl, half) {
+    if (w <= 1e-4) return geo;
+    const p = geo.attributes.position, n = geo.attributes.normal;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const e = tbl(x * scale);
+      // the last bit of each end sinks under the crown, the way it is sewn in
+      const q = half ? Math.min(1, Math.abs(x) / half) : 0;
+      const zt = z + (q > 0.82 ? -((q - 0.82) / 0.18) * 3.2 * P.plateThick / scale : 0);
+      const wx = (e.x + zt * scale * e.sn) / scale;
+      const wz = (e.z + zt * scale * e.cs) / scale;
+      p.setXYZ(i, x + (wx - x) * w, y, z + (wz - z) * w);
+      if (n) {
+        const nx = n.getX(i), ny = n.getY(i), nz = n.getZ(i);
+        const rx = nx * e.cs + nz * e.sn, rz = -nx * e.sn + nz * e.cs;
+        const ox = nx + (rx - nx) * w, oz = nz + (rz - nz) * w;
+        const l = Math.hypot(ox, ny, oz) || 1;
+        n.setXYZ(i, ox / l, ny / l, oz / l);
+      }
+    }
+    p.needsUpdate = true; if (n) n.needsUpdate = true;
+    return geo;
+  }
+
+  let plateMesh = null, inkMesh = null, backerMesh = null, lastPlateKey = "", wrapFn = null;
+  function buildPlate(t, w, scale) {
+    const key = [t.toFixed(4), w.toFixed(4), scale.toFixed(6), P.strapH, P.strapHoles,
+                 P.plateThick, P.crownW, P.crownD, P.crownH,
+                 matBacker.opacity > 0.002].join("|");
+    if (key === lastPlateKey) return;
+    lastPlateKey = key;
+    if (!wrapFn) { const e = crownEllipse(); wrapFn = wrapTable(e.a, e.b); }
+
+    PCX = (XL0 + (MK.left.x0 - XL0) * t + MK.right.xR) / 2;   // keep the strip centred on the notch
+    const HALF = MK.right.xR - PCX;
+    const plan = holePlan(t);
+    const depth = P.plateThick / scale;
+    const LIFT = w * (P.plateThick * 1.1) / scale;
+    const bev = { bevelEnabled: true, bevelSize: 3, bevelThickness: 3, bevelSegments: 2, curveSegments: 36, depth };
+
+    const holesL = plan.holes.map(h => circlePath(h.x, MK.yc, h.r));
+    const knobR = 26 + (MK.knob.r - 26) * t;
+    const left = shapeFrom(lerpPts(OUT_L0, OUT_L1, t), holesL);
+    const right = shapeFrom(lerpPts(OUT_R0, OUT_R1, t), [circlePath(MK.knob.x, MK.yc, knobR)]);
+
+    if (matBacker.opacity > 0.002) {
+      const bL = new T.ExtrudeGeometry(shapeFrom(lerpPts(OUT_L0, OUT_L1, t)), { bevelEnabled: false, depth: depth * 0.5 });
+      const bR = new T.ExtrudeGeometry(shapeFrom(lerpPts(OUT_R0, OUT_R1, t)), { bevelEnabled: false, depth: depth * 0.5 });
+      bL.translate(0, 0, LIFT);
+      const gB = mergeGeoms([bL, bR]);
+      gB.translate(0, 0, -depth * 0.42);
+      wrap(gB, w, scale, wrapFn, HALF);
+      if (backerMesh) { backerMesh.geometry.dispose(); backerMesh.geometry = gB; }
+      else { backerMesh = new T.Mesh(gB, matBacker); plateGroup.add(backerMesh); }
+    }
+    if (backerMesh) backerMesh.visible = matBacker.opacity > 0.002;
+
+    const gL = new T.ExtrudeGeometry(left, bev);
+    gL.translate(0, 0, LIFT);                                     // the left half laps over the right
+    const gR = new T.ExtrudeGeometry(right, bev);
+    const merged = mergeGeoms([gL, gR]);
+    wrap(merged, w, scale, wrapFn, HALF);
+
+    /* Every socket carries a pip at the mark's own pupil-to-eye ratio, so a
+       snap and an eye are the same object at two moments — nothing to special-case. */
+    const PIP = MK.pupil / MK.eyes[0].r;
+    const parts = [];
+    for (const h of plan.holes) {
+      const r = h.r * PIP;
+      if (r < 2) continue;
+      const sh = new T.Shape(); sh.absarc(h.x - PCX, 0, r, 0, Math.PI * 2, false);
+      const gp = new T.ExtrudeGeometry(sh, {
+        bevelEnabled: true, bevelSize: 1.2, bevelThickness: 1.6, bevelSegments: 2,
+        curveSegments: 32, depth: depth * (0.42 + 0.58 * t)
+      });
+      gp.translate(0, 0, LIFT);
+      parts.push(gp);
+    }
+    const gInk = mergeGeoms(parts);
+    wrap(gInk, w, scale, wrapFn, HALF);
+
+    if (plateMesh) { plateMesh.geometry.dispose(); plateMesh.geometry = merged; }
+    else { plateMesh = new T.Mesh(merged, matPlate); plateMesh.castShadow = true; plateGroup.add(plateMesh); }
+    if (inkMesh) { inkMesh.geometry.dispose(); inkMesh.geometry = gInk; }
+    else { inkMesh = new T.Mesh(gInk, matPlate); inkMesh.castShadow = true; plateGroup.add(inkMesh); }
+  }
+
+  /* =====================================================================
+     Assembly
+     ===================================================================== */
+  const capGroup = new T.Group(); scene.add(capGroup);
+  const capBody = new T.Group(); capGroup.add(capBody);
+  const plateGroup = new T.Group(); plateGroup.rotation.y = Math.PI; capGroup.add(plateGroup);
+
+  let expoArt = null, wordPlane = null;
+  const meshes = {};
+  function addMesh(name, geo, mat, shadow) {
+    if (meshes[name]) { capBody.remove(meshes[name]); meshes[name].geometry.dispose(); }
+    const m = new T.Mesh(geo, mat);
+    m.castShadow = !!shadow; m.receiveShadow = !!shadow; m.name = name;
+    capBody.add(m); meshes[name] = m; return m;
+  }
+  function dressCap(img) {
+    CLOTH = clothFromPhoto(img);
+    for (const m of [matFabric, matBrim, matHem]) {
+      m.map = CLOTH.albedo; m.normalMap = CLOTH.normal; m.roughnessMap = CLOTH.rough;
+      m.needsUpdate = true;
+    }
+    matPlate.normalMap = CLOTH.normal;
+    matPlate.normalScale.set(0.14, 0.14);
+    matPlate.needsUpdate = true;
+    setWeave(); setTiling();
+  }
+  function setWeave() {
+    matFabric.normalScale.set(P.weave, P.weave);
+    matBrim.normalScale.set(P.weave * 0.7, P.weave * 0.7);
+  }
+  function setTiling() {
+    if (!CLOTH) return;
+    for (const t of [CLOTH.albedo, CLOTH.normal, CLOTH.rough]) { t.repeat.set(20, 5.0); t.needsUpdate = true; }
+  }
+  function rebuildCap() {
+    setTiling();
+    addMesh("crown", buildCrown(), matFabric, true);
+    addMesh("lining", buildCrown().scale(0.986, 0.978, 0.986), matLining, false);
+    addMesh("inside", buildInside(), matInside, false);
+    addMesh("hem", buildHem(), matHem, true);
+    addMesh("seams", buildSeams(), matThread, false);
+    addMesh("eyelets", buildEyelets(), matMetal, false);
+    addMesh("brim", buildBrim(), matBrim, true);
+    addMesh("brimStitch", buildBrimStitch(), matThread, false);
+    const btn = addMesh("button", new T.SphereGeometry(0.055, 24, 16), matFabric, true);
+    btn.position.y = P.crownH * 0.995;
+    if (expoArt) addMesh("decal", buildDecal(expoArt.aspect), matDecal, false);
+    rebuildOutlines();
+    wrapFn = null; lastPlateKey = "";
+  }
+
+  /* =====================================================================
+     Timeline
+     ===================================================================== */
+  const BEATS = [
+    { at: 0.00, label: "Front" },
+    { at: 1.70, label: "Spin" },
+    { at: 3.60, label: "Back" },
+    { at: 4.60, label: "Snap" },
+    { at: 6.40, label: "Lockup" }
+  ];
+  const DUR = 8.60;
+  const seg = (t, a, b) => Math.min(1, Math.max(0, (t - a) / (b - a)));
+  const eio = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const eo  = t => 1 - Math.pow(1 - t, 3);
+  const ei  = t => t * t * t;
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  const START_YAW = -0.22;
+  let time = 0, playing = !RM, speed = 1, looping = true;
+  const orbit = { az: 0, el: 0, dist: 0, drag: false, x: 0, y: 0 };
+
+  function fitDist(w, h) {                    // distance that frames w x h world units
+    const v = camera.fov * Math.PI / 180, k = Math.tan(v / 2);
+    return Math.max((h / 2) / k, (w / 2) / (k * Math.max(0.35, camera.aspect)));
+  }
+
+  function applyTime(t) {
+    /* --- cap rotation --- */
+    let yaw;
+    if (t < 1.40) yaw = START_YAW;
+    else if (t < 1.70) yaw = lerp(START_YAW, START_YAW - 0.13, eo(seg(t, 1.40, 1.70)));
+    else if (t < 3.60) yaw = lerp(START_YAW - 0.13, Math.PI + 0.10, eio(seg(t, 1.70, 3.60)));
+    else yaw = lerp(Math.PI + 0.10, Math.PI, eo(seg(t, 3.60, 4.10)));
+    capGroup.rotation.y = yaw;
+
+    const morph = seg(t, 4.60, 6.40);
+    capGroup.rotation.x = lerp(0.13, 0, eio(Math.min(1, morph / 0.6)));
+
+    /* --- the strap opening into the mark --- */
+    const shape = eio(seg(morph, 0.14, 0.92));                     // outline + snaps
+    const flat  = 1 - eio(seg(morph, 0.02, 0.58));                 // 1 = still on the cap
+    const lift  = eio(seg(morph, 0.06, 0.96));                     // out to the framed lockup
+    const tone  = eio(seg(morph, 0.22, 0.92));                     // plastic -> ink
+
+    const ell = crownEllipse();
+    const scale = lerp(S0, S1, lift);
+    plateGroup.scale.setScalar(scale);
+    plateGroup.position.set(0, lerp(STRAP_Y, TARGET.y - 101 * S1, lift),
+                               lerp(-ell.b, -(ell.b + 0.20), lift));
+    buildPlate(shape, flat, scale);
+
+    matBacker.opacity = 1 - eio(seg(morph, 0.05, 0.40));
+    markLight.intensity = tone * (DARKMODE ? 2.4 : 0.18);
+    matPlate.color.copy(PLASTIC).lerp(INK, tone);
+    matPlate.roughness = lerp(0.52, DARKMODE ? 0.46 : 0.86, tone);
+    matPlate.clearcoat = lerp(0.12, 0.04, tone);
+    matPlate.envMapIntensity = lerp(DARKMODE ? 1.1 : 0.8, DARKMODE ? 1.25 : 0.10, tone);
+    matWord.color.copy(matPlate.color);
+    matWord.roughness = matPlate.roughness;
+    matWord.envMapIntensity = matPlate.envMapIntensity;
+
+    /* --- the cap steps back out of frame --- */
+    const gone = eio(seg(t, 4.88, 5.62));
+    capBody.visible = gone < 0.999;
+    shadowMat.opacity = shadowMax * (1 - gone);
+    capBody.position.z = 2.6 * gone;
+    capBody.position.y = -0.22 * gone;
+    capBody.scale.setScalar(1 - 0.14 * gone);
+    for (const m of FADEABLE) m.opacity = 1 - gone;
+
+    const outro = looping ? eo(seg(t, DUR - 0.55, DUR)) : 0;
+    matPlate.opacity = 1 - outro;
+
+    /* --- wordmark --- */
+    const w = eo(seg(t, 6.35, 7.20));
+    if (wordPlane) {
+      matWord.opacity = w * (1 - outro);
+      wordPlane.visible = w > 0.001;
+      wordPlane.position.y = (MK.left.halfH + LOCK.gap + LOCK.wordH / 2) + (1 - w) * 40;
+    }
+
+    /* --- camera --- */
+    const capD = fitDist(3.5, 3.75);
+    const lockD = fitDist(5.15, 3.05) - plateGroup.position.z;
+    const dist = lerp(lerp(capD, capD * 0.84, eio(seg(t, 3.60, 4.60))), lockD, eio(morph)) + orbit.dist;
+    const calm = 1 - eio(Math.min(1, morph / 0.5));
+    const az = orbit.az + calm * 0.030 * Math.sin(t * 0.62);
+    const el = lerp(0.30, 0.02, eio(morph)) + orbit.el + calm * 0.018 * Math.sin(t * 0.44 + 1);
+    camera.position.set(
+      TARGET.x + dist * Math.cos(el) * Math.sin(az),
+      TARGET.y + dist * Math.sin(el),
+      TARGET.z + dist * Math.cos(el) * Math.cos(az)
+    );
+    const sz = renderer.getSize(new T.Vector2());
+    camera.setViewOffset(sz.x, sz.y, 0, sz.y * (HERO ? 0.03 : lerp(0.115, 0.025, eio(morph))), sz.x, sz.y);
+    camera.lookAt(TARGET);
+
+    /* focus rides the subject: the cap while it turns, the mark once it forms */
+    const subject = new T.Vector3(0, TARGET.y, 0);
+    plateGroup.getWorldPosition(subject).lerp(new T.Vector3(0, TARGET.y, 0), 1 - eio(morph));
+    const u = lensMat.uniforms;
+    u.uFocus.value = camera.position.distanceTo(subject);
+    u.uAperture.value = P.aperture;
+    u.uGrain.value = P.grain;
+    u.uSeed.value = (t * 977) % 4096;
+    setBackdrop(eio(seg(t, 4.9, 6.3)));
+
+    const ka = P.keyAngle;
+    key.position.set(3.2 * Math.sin(ka), 5.6, 3.2 * Math.cos(ka));
+    key.target.position.copy(TARGET);
+    fill.position.set(-3.0, 0.9, 4.0);
+    rim.position.set(0.6, 2.2, -4.4);
+  }
+
+  const PLASTIC = new T.Color(0x232328);
+  const INK = new T.Color(0xffffff);
+
+  /* =====================================================================
+     Theme
+     ===================================================================== */
+  let envRT = null;
+  let DARKMODE = true, EXPOSURE = 1;
+  const GROUND = new T.Color(0x16171b);
+
+  /* flat = 0 keeps the studio pool of light; flat = 1 flattens the backdrop to
+     the exact brand ground, so the finished lockup sits on brand colour. */
+  function setBackdrop(flat) {
+    const srgb = { r: 0, g: 0, b: 0 };
+    GROUND.getRGB(srgb, T.SRGBColorSpace);
+    const outer = new T.Color(inverseTone(srgb.r, EXPOSURE),
+                              inverseTone(srgb.g, EXPOSURE),
+                              inverseTone(srgb.b, EXPOSURE));
+    const pool = DARKMODE ? 3.1 : 1.10;
+    const inner = outer.clone().multiplyScalar(1 + (pool - 1) * (1 - flat));
+    backdropMat.uniforms.uInner.value.copy(inner);
+    backdropMat.uniforms.uOuter.value.copy(outer);
+    backdropMat.uniforms.uSpread.value = 1.05;
+  }
+  function applyTheme() {
+    const cs = getComputedStyle(document.documentElement);
+    const stage = new T.Color(cs.getPropertyValue("--stage3d").trim() || "#16171b");
+    const ink = new T.Color(cs.getPropertyValue("--ink3d").trim() || "#ffffff");
+    const dark = stage.getHSL({ h: 0, s: 0, l: 0 }).l < 0.5;
+    INK.copy(ink);
+    GROUND.copy(stage);
+    EXPOSURE = parseFloat(cs.getPropertyValue("--exposure")) || 1;
+    lensMat.uniforms.uExposure.value = EXPOSURE;
+    DARKMODE = dark;
+    setBackdrop(0);
+    key.intensity = (dark ? 128 : 108) * P.keyPower;
+    fill.intensity = dark ? 1.5 : 2.4;
+    rim.intensity = dark ? 1.7 : 1.1;
+    amb.intensity = dark ? 0.3 : 0.9;
+    if (envRT) envRT.dispose();
+    envRT = buildEnv(dark);
+    scene.environment = envRT;
+    const ei2 = dark ? 0.85 : 0.62;
+    matFabric.envMapIntensity = matBrim.envMapIntensity = ei2;
+    matMetal.envMapIntensity = dark ? 1.1 : 0.8;
+    matInside.envMapIntensity = 0.06;      // the cap's inside is shadow, not a lit panel
+    shadowMax = dark ? 0.11 : 0.26;   // a cast shadow reads as a smudge on a dark ground
+    lastPlateKey = "";
+  }
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  /* =====================================================================
+     Boot
+     ===================================================================== */
+  function loadImg(src) {
+    return new Promise(res => { const i = new Image(); i.onload = () => res(i); i.src = src; });
+  }
+  Promise.all([loadImg(EXPO_WORD), loadImg(SNAPBACK_WORDMARK), loadImg(CLOTH_TILE)]).then(([ew, sw, cloth]) => {
+    dressCap(cloth);
+    expoArt = expoLockup(ew);
+    matDecal.map = expoArt.map;
+    matDecal.bumpMap = expoArt.bump;
+    matDecal.needsUpdate = true;
+
+    const wt = new T.CanvasTexture(document.createElement("canvas"));
+    const wc = wt.image; wc.width = sw.width; wc.height = sw.height;
+    wc.getContext("2d").drawImage(sw, 0, 0);
+    wt.colorSpace = T.SRGBColorSpace;
+    wt.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    wt.needsUpdate = true;
+    matWord.map = wt;
+
+    wordPlane = new T.Mesh(new T.PlaneGeometry(LOCK.wordW, LOCK.wordH), matWord);
+    wordPlane.visible = false;
+    plateGroup.add(wordPlane);
+
+    rebuildCap();
+    applyTheme();
+    buildUI();
+    resize();
+    // #t=4.2 jumps straight to a beat and holds it — handy for grabbing stills.
+    const jump = /t=([\d.]+)/.exec(location.hash);
+    if (jump) { time = parseFloat(jump[1]); setPlaying(false); syncScrub(); }
+    const th = /theme=(light|dark)/.exec(location.hash);
+    if (th) document.documentElement.dataset.theme = th[1];
+    if (HERO) {
+      looping = false;
+      $("#replay").onclick = () => { time = 0; setPlaying(true); syncScrub(); };
+      addEventListener("message", (e) => {
+        const d = e.data;
+        if (!d || typeof d !== "object") return;
+        if (d.snapback === "replay") { time = 0; setPlaying(true); syncScrub(); }
+        if (d.snapback === "theme") {
+          if (d.value === "light" || d.value === "dark") document.documentElement.dataset.theme = d.value;
+          else delete document.documentElement.dataset.theme;   // follow the system
+        }
+      });
+      if (window.top !== window) parent.postMessage({ snapback: "ready" }, "*");
+      if (RM) { time = DUR; setPlaying(false); syncScrub(); }
+    }
+    // Live handle for tinkering from the browser console.
+    window.snapback = {
+      P, scene, camera, renderer, capGroup, capBody, plateGroup,
+      lights: { key, fill, rim, amb, markLight }, floor,
+      orbit,
+      mats: { matFabric, matBrim, matHem, matLining, matInside, matThread, matMetal, matPlate, matDecal, matWord },
+      rebuildCap, applyTheme, renderFrame, lens: lensMat, backdrop: backdropMat,
+      seek(s) { time = s; setPlaying(false); syncScrub(); }
+    };
+    requestAnimationFrame(tick);
+  });
+
+  function resize() {
+    const w = innerWidth, h = innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.fov = P.fov; camera.updateProjectionMatrix();
+    const dpr = renderer.getPixelRatio(), pw = Math.round(w * dpr), ph = Math.round(h * dpr);
+    rt.setSize(pw, ph);
+    const u = lensMat.uniforms;
+    u.uRes.value.set(pw, ph);
+    u.uNear.value = camera.near; u.uFar.value = camera.far;
+    u.uMaxCoc.value = ph * 0.016;
+    backdropMat.uniforms.uAspect.value = w / h;
+  }
+  addEventListener("resize", resize);
+
+  let prev = performance.now();
+  function tick(now) {
+    const dt = Math.min(0.05, (now - prev) / 1000); prev = now;
+    if (playing) {
+      time += dt * speed;
+      if (time >= DUR) { if (looping) time = 0; else { time = DUR; setPlaying(false); } }
+      syncScrub();
+    }
+    applyTime(time);
+    renderFrame();
+    requestAnimationFrame(tick);
+  }
+
+  /* =====================================================================
+     Interaction
+     ===================================================================== */
+  canvas.addEventListener("pointerdown", e => {
+    orbit.drag = true; orbit.x = e.clientX; orbit.y = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener("pointermove", e => {
+    if (!orbit.drag) return;
+    orbit.az -= (e.clientX - orbit.x) * 0.006;
+    orbit.el = Math.max(-0.9, Math.min(1.25, orbit.el + (e.clientY - orbit.y) * 0.005));
+    orbit.x = e.clientX; orbit.y = e.clientY;
+  });
+  const endDrag = () => { orbit.drag = false; };
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+  canvas.addEventListener("wheel", e => {
+    e.preventDefault();
+    orbit.dist = Math.max(-2.4, Math.min(6, orbit.dist + e.deltaY * 0.0035));
+  }, { passive: false });
+
+  const $ = s => document.querySelector(s);
+  const playBtn = $("#play"), scrub = $("#scrub"), fillBar = $("#fill"), beatsEl = $("#beats");
+
+  function setPlaying(v) {
+    playing = v;
+    const rp = document.getElementById("replay");
+    if (rp) rp.dataset.on = (!v && time >= DUR - 0.01) ? "1" : "0";
+    playBtn.textContent = v ? "❚❚" : "▶";
+    playBtn.setAttribute("aria-label", v ? "Pause" : "Play");
+  }
+  function syncScrub() {
+    const f = time / DUR;
+    scrub.value = f; fillBar.style.width = (f * 100) + "%";
+    for (let i = 0; i < BEATS.length; i++) {
+      const on = time >= BEATS[i].at && (i === BEATS.length - 1 || time < BEATS[i + 1].at);
+      beatsEl.children[i].dataset.on = on ? "1" : "0";
+    }
+  }
+  BEATS.forEach(b => {
+    const s = document.createElement("span");
+    s.textContent = b.label;
+    s.style.left = Math.min(96, Math.max(4, (b.at / DUR) * 100)) + "%";
+    beatsEl.appendChild(s);
+  });
+
+  playBtn.onclick = () => setPlaying(!playing);
+  $("#restart").onclick = () => { time = 0; setPlaying(true); syncScrub(); };
+  $("#loop").onclick = e => { looping = !looping; e.currentTarget.setAttribute("aria-pressed", String(looping)); };
+  $("#resetView").onclick = () => { orbit.az = orbit.el = orbit.dist = 0; };
+  document.querySelectorAll("[data-speed]").forEach(b => b.onclick = () => {
+    speed = parseFloat(b.dataset.speed);
+    document.querySelectorAll("[data-speed]").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+  });
+  scrub.addEventListener("input", () => { time = parseFloat(scrub.value) * DUR; setPlaying(false); syncScrub(); });
+  $("#toggleDrawer").onclick = e => {
+    const d = $("#drawer"), open = d.dataset.open !== "1";
+    d.dataset.open = open ? "1" : "0";
+    e.currentTarget.setAttribute("aria-pressed", String(open));
+  };
+  addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT") return;
+    if (e.code === "Space") { e.preventDefault(); setPlaying(!playing); }
+    if (e.code === "KeyR") { time = 0; setPlaying(true); syncScrub(); }
+  });
+  setPlaying(playing);
+
+  /* ---- sliders ---- */
+  const SPEC = [
+    ["g-cap", "crownH", "Crown height", 0.6, 1.45, 0.005, 2, true],
+    ["g-cap", "crownW", "Crown width", 0.8, 1.15, 0.005, 2, true],
+    ["g-cap", "crownD", "Crown depth", 0.85, 1.25, 0.005, 2, true],
+    ["g-cap", "flute", "Panel bulge", 0, 0.05, 0.001, 3, true],
+    ["g-cap", "notchW", "Notch width", 0.28, 0.80, 0.005, 2, true],
+    ["g-cap", "notchD", "Notch depth", 0.20, 0.80, 0.005, 2, true],
+    ["g-cap", "brimLen", "Brim length", 0.4, 1.4, 0.01, 2, true],
+    ["g-cap", "brimDroop", "Brim pitch", 0, 0.7, 0.005, 2, true],
+    ["g-cap", "brimCurl", "Brim curl", 0, 1.2, 0.01, 2, true],
+    ["g-cap", "brimSweep", "Brim sweep", 0.26, 0.50, 0.005, 2, true],
+    ["g-logo", "logoW", "Logo width", 0.4, 1.7, 0.01, 2, true],
+    ["g-logo", "logoPhi", "Logo height on crown", 0.55, 1.35, 0.005, 2, true],
+    ["g-strap", "strapH", "Strap height", 34, 110, 1, 0, true],
+    ["g-strap", "strapHoles", "Snap count", 4, 10, 1, 0, true],
+    ["g-strap", "plateThick", "Strap thickness", 0.01, 0.07, 0.002, 3, true],
+    ["g-stage", "keyAngle", "Key light angle", -1.6, 1.6, 0.02, 2, false],
+    ["g-stage", "keyPower", "Key light power", 0.3, 2.2, 0.05, 2, false],
+    ["g-stage", "fov", "Lens", 18, 55, 1, 0, false],
+    ["g-stage", "aperture", "Depth of field", 0, 2.4, 0.05, 2, false],
+    ["g-stage", "grain", "Film grain", 0, 0.16, 0.005, 3, false],
+    ["g-cap", "weave", "Weave depth", 0, 2.0, 0.05, 2, false]
+  ];
+  function buildUI() {
+    for (const [group, kkey, label, min, max, step, dp, rebuild] of SPEC) {
+      const row = document.createElement("div"); row.className = "row";
+      const l = document.createElement("label"); l.textContent = label;
+      const o = document.createElement("output"); o.textContent = P[kkey].toFixed(dp);
+      const inp = document.createElement("input");
+      inp.type = "range"; inp.min = min; inp.max = max; inp.step = step; inp.value = P[kkey];
+      const id = "p-" + kkey; inp.id = id; l.htmlFor = id;
+      inp.addEventListener("input", () => {
+        P[kkey] = parseFloat(inp.value);
+        o.textContent = P[kkey].toFixed(dp);
+        if (kkey === "keyPower") applyTheme();
+        if (kkey === "fov") resize();
+        if (kkey === "weave") setWeave();
+        if (rebuild) rebuildCap();
+      });
+      row.append(l, o, inp);
+      document.getElementById(group).appendChild(row);
+    }
+  }
+
+  /* ---- export ---- */
+  let statusTimer = 0;
+  function say(msg) {
+    const el = $("#status"); el.textContent = msg; el.dataset.on = "1";
+    clearTimeout(statusTimer); statusTimer = setTimeout(() => el.dataset.on = "0", 2600);
+  }
+  function download(blob, name) {
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      say("Saved " + name);
+    } catch (err) { say("This viewer blocked the download."); }
+  }
+  $("#exGlb").onclick = () => {
+    try {
+      new T.GLTFExporter().parse(capGroup, r => {
+        download(new Blob([r], { type: "model/gltf-binary" }), "snapback-cap.glb");
+      }, () => say("Export failed."), { binary: true, onlyVisible: false });
+    } catch (e) { say("Export failed."); }
+  };
+  $("#exPng").onclick = () => {
+    renderFrame();
+    canvas.toBlob(b => b && download(b, "snapback-cap.png"), "image/png");
+  };
+  $("#exWebm").onclick = () => {
+    if (!window.MediaRecorder || !canvas.captureStream) return say("Recording is not supported here.");
+    let mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(m => MediaRecorder.isTypeSupported(m));
+    if (!mime) return say("Recording is not supported here.");
+    const rec = new MediaRecorder(canvas.captureStream(60), { mimeType: mime, videoBitsPerSecond: 12e6 });
+    const chunks = [];
+    rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+    rec.onstop = () => download(new Blob(chunks, { type: "video/webm" }), "snapback-cap.webm");
+    time = 0; speed = 1; looping = false; setPlaying(true); syncScrub();
+    rec.start(); say("Recording one pass…");
+    setTimeout(() => { rec.stop(); looping = true; }, (DUR + 0.25) * 1000);
+  };
+})();
+</script>
