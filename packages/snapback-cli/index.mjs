@@ -4803,6 +4803,7 @@ export async function runCli(argv, options = {}) {
         '--expo-dir, --expo-platform, --email, --expo-command, --android-serial, and --ios-udid require --expo',
       );
     }
+    let expoSelectedPlatform = expoPlatform ?? 'ios';
     if (expo) {
       if (noWatch || clientDirectory !== null || clientCommand !== null) {
         throw diagnosticError(
@@ -4810,27 +4811,38 @@ export async function runCli(argv, options = {}) {
           'snapback dev --expo is a long-running supervisor and cannot be combined with --no-watch, --client, or --client-command',
         );
       }
-      const platform = expoPlatform ?? 'ios';
-      if (!['ios', 'android', 'web'].includes(platform)) {
+      if (!['ios', 'android', 'web'].includes(expoSelectedPlatform)) {
         throw diagnosticError(
           'SNAPBACK_CLI_ARGUMENT_INVALID',
           '--expo-platform must be ios, android, or web',
-          { expoPlatform: platform },
+          { expoPlatform: expoSelectedPlatform },
         );
       }
-      if (androidSerial !== null && platform !== 'android') {
+      if (androidSerial !== null && expoSelectedPlatform !== 'android') {
         throw diagnosticError(
           'SNAPBACK_CLI_ARGUMENT_INVALID',
           '--android-serial requires --expo-platform android',
         );
       }
-      if (iosUdid !== null && platform !== 'ios') {
+      if (iosUdid !== null && expoSelectedPlatform !== 'ios') {
         throw diagnosticError(
           'SNAPBACK_CLI_ARGUMENT_INVALID',
           '--ios-udid requires --expo-platform ios',
         );
       }
-      const { runExpoDev } = await import('./expo-dev.mjs');
+    }
+    // Advisory only — Metro started outside the supervisor still inherits a
+    // truthy CI and serves a stale bundle. Warn before either spawn path.
+    const expoDevModule = await import('./expo-dev.mjs');
+    expoDevModule.emitCliMetroWatchInertAdvisory({
+      env: options.env ?? process.env,
+      clientCommand,
+      json,
+    });
+    if (expo) {
+      const runExpoDev = typeof options.runExpoDev === 'function'
+        ? options.runExpoDev
+        : expoDevModule.runExpoDev;
       let criticalExit = null;
       let rejectCritical = null;
       const result = await runExpoDev({
@@ -4844,7 +4856,7 @@ export async function runCli(argv, options = {}) {
         ...(expoCommand ? { metroCommand: expoCommand } : {}),
         ...(androidSerial ? { androidSerial } : {}),
         ...(iosUdid ? { iosUdid } : {}),
-        platform,
+        platform: expoSelectedPlatform,
         onEvent(event) { console.log(JSON.stringify(event)); },
         onCriticalExit(error) {
           criticalExit = error;
@@ -4893,7 +4905,8 @@ export async function runCli(argv, options = {}) {
     // through runDev's onServerExit callback instead of a listener pinned to
     // the first child process.
     let onUnexpectedServerExit = null;
-    const result = await runDev({
+    const startDev = typeof options.runDev === 'function' ? options.runDev : runDev;
+    const result = await startDev({
       backendDirectory,
       attach,
       watch: !noWatch,

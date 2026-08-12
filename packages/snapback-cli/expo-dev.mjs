@@ -114,6 +114,61 @@ export function assessMetroWatchInertness({ env = process.env, directory = null 
   // (issues/20260808-supervisor-warn-metro-watch-blind.md).
   return Object.freeze(advisories);
 }
+
+// Unsupervised Metro (`CI=1 npx expo start`, or `snapback dev --client-command`
+// inheriting that environment) never reaches the supervised readiness stream.
+// Reuse the same CI normalization and emit the same diagnostic code as an
+// advisory before spawn (issues/closed/20260812-guide-gap-unsupervised-metro-ci-advisory.md).
+export function cliMetroWatchInertAdvisory({
+  env = process.env,
+  clientCommand = null,
+} = {}) {
+  const ciAdvisory = assessMetroWatchInertness({ env })
+    .find((advisory) => advisory.condition === 'ci-environment');
+  if (!ciAdvisory) return null;
+  const inheritedClientCommand = typeof clientCommand === 'string' && clientCommand.length > 0
+    ? clientCommand
+    : null;
+  const unsupervised = ' If you launch Metro/Expo yourself, do not inherit CI=1; unset CI or pass CI=0.';
+  const clientArm = inheritedClientCommand === null
+    ? ''
+    : ` --client-command ${JSON.stringify(inheritedClientCommand)} inherits this environment.`;
+  return Object.freeze({
+    code: ciAdvisory.code,
+    severity: 'warning',
+    subsystem: 'cli',
+    condition: ciAdvisory.condition,
+    message: `${ciAdvisory.message}${clientArm}${unsupervised}`,
+    remediation: 'Edits will not rebuild the served bundle. Prefer snapback dev --expo, or unset CI (or pass CI=0) before launching Metro/Expo yourself.',
+    details: Object.freeze({
+      ...ciAdvisory.details,
+      unsupervised: true,
+      clientCommand: inheritedClientCommand,
+    }),
+  });
+}
+
+export function emitCliMetroWatchInertAdvisory({
+  env = process.env,
+  clientCommand = null,
+  json = false,
+  write = (line) => console.error(line),
+} = {}) {
+  const advisory = cliMetroWatchInertAdvisory({ env, clientCommand });
+  if (advisory === null) return null;
+  if (json) {
+    write(JSON.stringify({
+      ok: true,
+      schemaVersion: 'snapback.client-diagnostic.v1',
+      code: advisory.code,
+      diagnostic: advisory,
+    }));
+  } else {
+    write(`[warning] ${advisory.code} (${advisory.subsystem}) ${advisory.message} ${advisory.remediation}`);
+  }
+  return advisory;
+}
+
 export const SUPERVISED_CONTROL_PATH = '/_snapback/expo/v1/control';
 
 const LOOPBACK_HOST = '127.0.0.1';
