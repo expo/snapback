@@ -135,4 +135,190 @@ VERDICT SET: NOT READY
 `0245-0249-single-family-super-refine.md#round-2--delta--implementer-lens`
 **Capsule SHA-256:** `b742700e72b23dd5ac97792caa5b58337b442902f884a5b2d4b88caea4f6004c`
 **Instruction SHA-256:** `f1572d713159587381ee2e56dc8de1ad559086f00756e8853cde73ada8e94752`
-**State before launch:** awaiting verbatim review body
+**State:** complete
+
+## Verbatim review body
+
+# Round 2 delta + implementer-lens review
+
+Capsule blindness was maintained: I inspected only `/tmp/llp-super-refine-0245-0249-r2`, made no edits, and did not inspect the live repository, external review artifacts, or git state. The five target hashes match the required vector. This review is bound to capsule SHA-256 `b742700e72b23dd5ac97792caa5b58337b442902f884a5b2d4b88caea4f6004c`.
+
+Classification rule: `IN-DELTA` means the concern lies in the Round 1 revision summarized by the capsule; `PRE-EXISTING` means it lies in target text not identified as part of that revision.
+
+## LLP 0245 — Infer, show, and freeze declarations
+
+### MATERIAL concerns
+
+None.
+
+### Non-material suggestions
+
+- D4 calls the suggestion receipt optional, while D6 says every acceptance is recorded in one. Clarify whether receipt persistence is best-effort, required for command success, or transactionally coupled to the source write. This does not affect runtime authority because D5 correctly makes the receipt dispensable.
+- The eventual `DeclarationSuggestionV1` schema should name the canonical encoding and domain separator for `analysisInputId`, but D1 already assigns ownership and completeness adequately for RFC altitude.
+
+### Implementer decision-log result
+
+The implementation contract is derivable:
+
+| Decision surface | Required behavior |
+| --- | --- |
+| `suggest` | Stable-snapshot, deterministic, versioned, read-only patch or JSON output |
+| `suggestion apply` | Exactly one suggestion for one operation; recompute the complete analysis input; exact before/target comparison; atomic source write |
+| Staleness | Any definition/helper/type-source, module-format, schema/generated-type, effective-config, compiler/analyzer, or used-evidence-receipt change refuses with `SNAPBACK_DECLARATION_SUGGESTION_STALE` |
+| Result candidate | Exact contract vocabulary produces a candidate; missing refinements produce explicit holes; wider/unsupported types refuse |
+| Dependency candidate | Static resolved site or runtime witness may add a declaration; incomplete closure is reported; removal is forbidden |
+| Authority-sensitive fields | Auth, effects, secrets, capabilities, exposure, retention, and portability remain author-written |
+| Freeze | Accepted source follows ordinary generation; suggestion evidence has no runtime authority |
+
+No materially incompatible implementer choice remains. The Round 1 CAS, manual-paste limitation, stable refusal table, and evidence-class metrics close the stated delta.
+
+## LLP 0246 — TypeScript handler-module custody
+
+### MATERIAL concerns
+
+None.
+
+### Non-material suggestions
+
+- State explicitly that profile-owned TypeScript library files and generated context declarations are not application checker-graph nodes for LLP 0237’s source-file/source-byte accounting, while every authored relative type-only node is. The current distinction is inferable, but an accounting note would prevent misleading diagnostics.
+- Freeze the admitted editor-only strictness option list beside the profile artifact. Open question 2 appropriately leaves the exact list to implementation/spec work, because D2 already fixes ownership and forbids output/module-resolution changes.
+
+### Implementer decision-log result
+
+The implementation contract is derivable:
+
+| Decision surface | Required behavior |
+| --- | --- |
+| Source profile | `.ts`/`.mts` plus existing `.js`/`.mjs`, explicit relative extensions, mixed bounded graph |
+| Refusals | `.tsx`, `.cts`, authored declarations, packages/bare imports, Node, aliases, CommonJS, dynamic import, extension inference, output-bearing TS syntax |
+| Bounds | LLP 0237 bounds cover authored runtime and type-only checker nodes |
+| Compiler | Snapback-pinned TypeScript integrity and closed syntax-erasing ESM configuration |
+| Editor | Generated exact `.snapback/typescript/tsconfig.json`; first-party integrations select it |
+| Type authority | Frozen declarations type args/context/result checking; inferred TS types never mint declarations |
+| Edge classification | Explicit type-only edges affect checker/evidence identity but not executable graph; value edges satisfy LLP 0237 |
+| Identity | Runtime-relevant AST/graph/profile in semantic identity; compiler/options/transform/final JS in executable identity |
+| Mapping | Integrity-checked source maps to authored TypeScript, with no absolute runtime paths |
+
+The `.mts` golden, type-only-node bounds, and separation from LLP 0249 make the Round 1 delta implementable without widening the portable runtime.
+
+## LLP 0247 — Ordinary client normalization and recovery
+
+### MATERIAL concerns
+
+1. **PRE-EXISTING — Same-authority withdraw/re-publish ordering is not closed.** D3 fences withdrawal only by connection/authority generation. It does not decide what happens when one owner transitions `published → skip → published` under the same authority while the delete is delayed, retried, or has an ambiguous outcome. Two competent implementations can:
+
+   - serialize the successor publish behind withdrawal settlement;
+   - publish immediately and cancel only local retries; or
+   - use a server-checked owner-intent generation/expected entry version.
+
+   The second choice permits a late predecessor delete to remove the newly published value, and client-side cancellation alone cannot recall an already admitted request. The existing ephemeral delete is idempotent but not described here as conditional on the entry version it intended to withdraw. D3 must select a stale-delete prevention rule and add delayed/ambiguous `published → skip → published` acceptance vectors. This concern is outside the summarized Round 1 authority-loss correction; that correction itself correctly assigns authority-loss cleanup to the server barrier.
+
+### Non-material suggestions
+
+- Freeze exact public codes for `loading`/`refreshing` one-shot refusal in the generated lifecycle table.
+- Name the deprecated primary raw-envelope method in the compatibility section so package migration tests have one unambiguous subject.
+
+### Implementer decision-log result
+
+The normalization and auth tables are otherwise derivable:
+
+| State/input | Required behavior |
+| --- | --- |
+| Optional closed-object property with own `undefined` | Omit before canonicalization; then apply declared defaults |
+| Required property, array/tuple slot, open JSON, unknown/symbol/accessor/non-plain shape | Refuse before resource/network work |
+| Live `loading`/`refreshing` | Stable pending/refreshing resource, no wrong-authority app request |
+| Live `anonymous` | Stable blocked `authentication-required` snapshot |
+| Live custody/protocol `blocked` | Preserve typed diagnostic/remediation |
+| One-shot protected read in any non-authenticated state | Local `SnapbackDiagnosticError`; caller retries |
+| Transition to authenticated | Cross LLP 0059 barrier and construct a fresh query instance |
+| Authority-loss presence cleanup | Stop/blank locally; server barrier owns remote removal |
+| One-shot primary API refusal | Common typed exception; queued dispatch and continuing task state remain truthful unions |
+
+Because the same-authority presence transition is underdetermined, the full D3 state machine is not implementable safely from the document alone.
+
+## LLP 0248 — Bounded batch reads
+
+### MATERIAL concerns
+
+1. **IN-DELTA — Input-bound and response-bound refusal phases remain textually conflated.** D3 says “bound overflow” refuses before storage work, while D4 adds a complete host-response byte bound whose overflow ordinarily cannot be known until authorized rows have been read and serialized. An implementation that treats all bounds as pre-storage either needs an unstated authoritative preflight or cannot meet the claim; one that checks response bytes after reads violates a literal reading of D3. State that item-count/canonical-input-byte overflow refuses before storage, while response-byte overflow is detected after snapshot-bound authorized reads but before any partial result is released.
+
+2. **PRE-EXISTING — A raw digest is not a confidentiality boundary for requested logical keys.** D4 places a digest of requested keys in public diagnostics while `uniqueMany` explicitly admits low-entropy application keys such as handles. An unkeyed stable digest permits dictionary recovery and cross-receipt correlation even though raw keys are omitted. Separate internal OCC/invalidation identity from the public projection: publish only non-sensitive count/byte facts, or select an explicitly scoped keyed commitment with a stated disclosure model.
+
+### Non-material suggestions
+
+- Say directly that `uniqueMany` shares the portable `0..256` item bound with `getMany`; this is strongly implied by D2’s “match `getMany` semantics” and the single runtime-profile maximum.
+- Name request-input overflow separately in D3 to make the intended phase correction obvious.
+
+### Implementer decision-log result
+
+The remaining contract is derivable:
+
+| Decision surface | Required behavior |
+| --- | --- |
+| `getMany` | `0..256` exact ids; same order/length; duplicate lookup/authorization dedupe; hidden/missing both `null`; empty means no host transition |
+| `uniqueMany` | Manifest-owned unique index only; exact closed keys; construction order ignored; canonical index order used |
+| `whereApplicable` | Every component present, non-null, and type-valid before storage |
+| Batch execution | One JS↔host request, one pinned invocation snapshot, no partial result |
+| Failure/data split | Malformed request/index/policy-plan failures reject the batch; ordinary hidden/not-found entries are `null` |
+| Dependencies | No weaker than equivalent individual reads for OCC/live invalidation |
+| Physical implementation | SQL, values relation, or bounded chunks allowed; public chunk facts independent of hidden matches |
+| Product boundary | Imperative positional hydration only; no projection callback, join, live/local/retention eligibility |
+
+The two material evidence/phase issues prevent READY.
+
+## LLP 0249 — Trusted package-capable actions
+
+### MATERIAL concerns
+
+1. **IN-DELTA — `IsolationProfileV1` has no authoritative issuance and binding contract.** D3 requires a “signed” receipt and D4 calls it live, but the RFC does not decide:
+
+   - who may issue it or which trust root verifies it;
+   - whether it is a static target qualification or a per-worker construction attestation;
+   - which target/profile, worker/runtime build, OS/container policy, probe-corpus digest, launch nonce, and expiry/revocation facts it binds; or
+   - how readiness prevents replaying a valid receipt beside a differently constructed worker.
+
+   LLP 0224 establishes that supported-capability authority belongs to the executing runtime’s server-owned target registry, but it does not define this new isolation attestation. A self-signed or replayable local receipt would satisfy the prose without proving the authority boundary. The RFC must select the issuer/verifier and static-qualification-versus-live-attestation model, then bind readiness and negative probes to that model.
+
+2. **IN-DELTA — The SSRF address rule is a non-closed denylist.** D3 names loopback, private, link-local, multicast, unspecified, metadata/control-plane, and local-socket targets, but does not freeze a canonical address classifier or treatment of all non-global/special-use, mapped, translated, and target-reserved forms. Competent brokers can therefore disagree about addresses outside the named categories, with one admitting non-public infrastructure. Define admission positively—canonical globally routable unicast under a versioned classifier, plus target-owned deny facts—and add normalization/equivalence vectors across IPv4/IPv6 forms.
+
+### Non-material suggestions
+
+- Freeze package-subpath, optional/peer dependency, conditional-export, and archive/symlink handling in the source-profile artifact.
+- State explicitly that package content digests participate in LLP 0241’s behavior-relevant semantic graph as well as executable/bundle identity where required by that RFC.
+
+### Implementer decision-log result
+
+Most of the package-action contract is otherwise derivable:
+
+| Decision surface | Required behavior |
+| --- | --- |
+| Selection | Explicit action-only `isolatedNode`; never inferred; never available to portable handlers |
+| Source | External default async entry; inline contracts/capabilities; closed explicit-extension ESM app graph |
+| Dependencies | One verified lockfile, declared direct packages plus locked ESM closure, no scripts/addons/CommonJS/dynamic or non-registry edges |
+| Powers | Closed facade/grant table; process/env/fs/raw network/subprocess/VM/Wasm absent |
+| Network | Brokered HTTPS only, exact host/port grant, pinned resolution, TLS identity, at most five separately authorized redirects |
+| Secrets | LLP 0036 handles or deliberate `expose()`; attempt-snapshot redaction; no read-back/hash |
+| Isolation | Read-only bundle, bounded resources/scratch, no repository/database/admin access, OS-enforced process separation |
+| Lifecycle | Snapback owns build/start/health/reload/teardown; unqualified targets refuse activation |
+| Effects | Pinned attempt/idempotency/deadline/receipt; post-admission loss remains ambiguous absent provider proof |
+
+The unsigned trust model hidden behind the word “signed” and the incomplete address-admission rule are security-boundary decisions, not implementation details.
+
+## Cross-document consistency
+
+- LLP 0245 correctly keeps inference subordinate to LLP 0108 declarations and composes with LLP 0246 only as evidence.
+- LLP 0246 preserves LLP 0237’s package-free runtime; LLP 0249 uses a separately named action source/runtime profile and does not widen the portable graph.
+- LLP 0247’s Round 1 authority-loss rule aligns with LLP 0059/0107 by assigning remote removal to the server barrier. Its unresolved same-authority delete race is a separate owner-intent sequencing problem.
+- LLP 0248 remains the imperative exact-lookup fallback described by LLP 0242 and makes no declarative/live/local/retention claim.
+- LLP 0249’s conditional use of LLP 0247’s public diagnostic type is coherent because it is explicitly gated on LLP 0247 acceptance.
+- No additional material contradiction among the five targets or their capsule-local governing documents was found.
+
+Material concern exists in pre-existing text: LLP 0247’s same-authority withdrawal sequencing and LLP 0248’s public logical-key digest. The Round 1 deltas for LLP 0248 and LLP 0249 also retain material concerns.
+
+PRE-EXISTING MATERIAL CONCERN: YES
+VERDICT LLP 0245: READY
+VERDICT LLP 0246: READY
+VERDICT LLP 0247: NOT READY
+VERDICT LLP 0248: NOT READY
+VERDICT LLP 0249: NOT READY
+VERDICT SET: NOT READY

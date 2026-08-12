@@ -17,4 +17,4 @@ records LLP 0247's per-target verdict after receipt.
 
 **Target hash:** `8e3e494c7517eb13e2939da1617c3704705fa6893bcc52126f94e14b59ca1b3a`
 **Review body:** preserved verbatim in the LLP 0245 Sol artifact.
-**State before launch:** awaiting per-target verdict
+**Round 2 verdict:** NOT READY

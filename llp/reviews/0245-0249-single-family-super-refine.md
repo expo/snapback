@@ -60,7 +60,8 @@ revisions remained within budget: LLP 0245 16.9%, LLP 0246 11.5%, LLP 0247
 
 ## Round 2 — delta + implementer lens
 
-**State:** launched
+**State:** complete — LLP 0245 and LLP 0246 READY; LLP 0247, LLP 0248, LLP
+0249, and the set NOT READY; pre-existing MATERIAL concerns present
 **Recorded before launch:** 2026-08-12
 **Target hash vector (SHA-256):**
 
