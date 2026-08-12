@@ -39,6 +39,11 @@ The positional segment argument is optional and defaults to `all`. It accepts
 subset such as `m1,m3,m8`. `all` runs M1–M6 followed by M8; M7 remains the
 brief's separate fresh-session milestone and has no web choreography segment.
 
+Scoring DAG: M3 requires M1 only; M3 does not require M2. Reduced-run
+protocol: execute M1, then M2, then M3 in that order. Do not start M3 to
+avoid an unfinished M2. A reduced run that skips M2 is non-conforming even
+though M3's scoring prerequisite is only M1.
+
 Every implemented CLI flag is:
 
 - `--browser <chromium|firefox|webkit>` — browser engine; default `chromium`.
@@ -101,10 +106,13 @@ when the lane does not satisfy them:
 
 - M1: display-name/bio edits appear on the other client live; session survives
   reload; logout remains signed out across reload.
-- M2: live text-post delivery, live like/unlike count, repost attribution and
-  removal, and reply count/thread projection. Live checks run all three trials.
-- M3: typing visibility within 2 seconds and expiry within 5 seconds, plus quoted
-  excerpt and jump behavior. Both run best-of-three.
+- M2: live text-post delivery, follow/unfollow Following projection, author
+  display name on `sm-feed-item`, live like/unlike count, repost attribution
+  and removal, follow-edge vs viewer-repost disambiguation on Following, and
+  reply count/thread projection. Live checks run all three trials.
+- M3: live DM text on `sm-convo-bubble`, typing visibility within 2 seconds
+  and expiry within 5 seconds, plus quoted excerpt and jump behavior. Live
+  checks run best-of-three.
 - M4: photo render, video playback, reaction set/replace/remove, edit visibility,
   and delete-for-everyone tombstones across the isolated Alice/Bob contexts.
 - M5: group color/background synchronization to Carol, view-once first/second
@@ -121,14 +129,13 @@ Remaining unsupported assertions are emitted as `status:"skipped"`, with
 `pass:null`, a reason, and whether they are required. Required skips keep the
 segment non-green; optional skips are visible but do not masquerade as failures:
 
-- M2 image/video composition and deterministic profile navigation for follow.
-- M2 author avatar/display-name observation.
-- M2 followed-user repost surfacing, which depends on that missing profile
-  navigation.
-- M3 semantic sent/delivered/read tokens (the ID exists, but glyph/color
-  inference is not an honest state-machine proof).
-- M3 DM sender-avatar, group aggregate-receipt, and member-removal/history
-  choreography that the ticket did not extend.
+- M2 image/video composition (no compose media-picker test ID).
+- M2 feed-author avatar (no feed-avatar test ID; display name is required).
+- M3 sender-avatar (no sender-avatar test ID; live DM text is required).
+- M3 semantic sent/delivered/read tokens (`sm-convo-receipt` exists, but
+  glyph/color inference is not an honest state-machine proof).
+- M3 group aggregate-receipt and member-removal/history (no group-member
+  lifecycle controls in the frozen contract).
 
 The hardening extends the coordination contract for semantic controls and adds
 a frozen route/fixture adapter for the four places where navigation cannot be
@@ -147,6 +154,13 @@ machine schema. Milestone green is fail-closed:
 ```text
 green = suite.pass === true && choreography.pass === true
 ```
+
+Segment summaries also emit `nonGreenCause` (`null` when green; otherwise
+`suite-failed` | `choreography-failed` | `required-unimplemented` |
+`instrument`). The field is optional on the `0.3.0-m8` schema (default
+`null`) so older receipts still validate; the emitter always writes it.
+Lanes MUST copy that field into the run record. Do not invent a second
+green label such as "functionally green".
 
 M6 and M8 web green are intentionally distinct from their simulator artifacts.
 `simulator.md` remains the native proof contract; each matching status is

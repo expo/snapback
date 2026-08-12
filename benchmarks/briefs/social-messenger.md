@@ -369,7 +369,11 @@ requires M1; M3 requires M1; M4, M5 require M3; **M6 requires M2,
 M3, M4, and M5** (its checklist re-verifies likes, media,
 view-once, and search behavior offline); **M8 requires M6** (it
 extends M6's offline and push obligations and reads M2's social
-graph); M7 requires M6. Two
+graph); M7 requires M6. Scoring DAG: M3 requires M1 only; M3 does
+not require M2. Reduced-run protocol: execute M1, then M2, then M3
+in that order — do not start M3 to avoid an unfinished M2; a
+reduced run that skips M2 is non-conforming even though M3's
+scoring prerequisite is only M1. Two
 consecutive `capability-failure`/`aborted` results (blocks do not
 count) end the lane; the record carries an orthogonal termination
 reason. All full-run milestones stay in the completeness
@@ -461,7 +465,10 @@ Acceptance:
 5. Like from client B; count updates live on client A. Unlike works.
 6. Repost from client B; feeds show the attributed repost; reposting
    again removes it. A repost by a followed user surfaces the original
-   author's post in the Following feed.
+   author's post in the Following feed. A viewer's own repost of an
+   unfollowed author is labeled as a repost and is not a direct
+   follow-projection hit; the author's original must appear via the
+   follow edge.
 7. Reply to a post; reply count increments live; thread screen shows
    parent + direct replies in order; the reply is absent from both
    feeds.

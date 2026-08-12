@@ -7,7 +7,11 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
-import { aggregateChoreography } from "./choreography.mjs";
+import {
+  aggregateChoreography,
+  classifyNonGreenCause,
+  UNIMPLEMENTED_ASSERTIONS,
+} from "./choreography.mjs";
 
 // @ref LLP 0201#d2--quantitative-instrument — calibrate the fail-closed
 // suite-plus-choreography green contract with two isolated browser contexts.
@@ -46,6 +50,39 @@ if (
 }
 if (aggregateChoreography([passed, implementedFailure]).browserPass) {
   throw new Error("implemented failed assertion incorrectly allowed choreography green");
+}
+if (
+  UNIMPLEMENTED_ASSERTIONS.some((item) => item.required) ||
+  UNIMPLEMENTED_ASSERTIONS.some((item) => !["m2", "m3"].includes(item.segment))
+) {
+  throw new Error("unimplemented catalog must stay optional and confined to m2/m3");
+}
+const causeCases = [
+  [{ green: true, suitePass: true, browserPass: true, requiredUnimplemented: 0 }, null],
+  [
+    { green: false, suitePass: true, browserPass: false, requiredUnimplemented: 1 },
+    "required-unimplemented",
+  ],
+  [
+    { green: false, suitePass: true, browserPass: false, requiredUnimplemented: 0 },
+    "choreography-failed",
+  ],
+  [
+    { green: false, suitePass: false, browserPass: true, requiredUnimplemented: 0 },
+    "suite-failed",
+  ],
+  [
+    { green: false, suitePass: null, browserPass: true, requiredUnimplemented: 0 },
+    "instrument",
+  ],
+];
+for (const [input, expected] of causeCases) {
+  const actual = classifyNonGreenCause(input);
+  if (actual !== expected) {
+    throw new Error(
+      `classifyNonGreenCause(${JSON.stringify(input)}) === ${JSON.stringify(actual)}, expected ${JSON.stringify(expected)}`,
+    );
+  }
 }
 
 function json(response, status, value) {
@@ -469,6 +506,23 @@ try {
     strict: false,
     formats: { "date-time": true, uuid: true },
   }).compile(schema);
+  const choreographySource = await readFile(
+    new URL("./choreography.mjs", import.meta.url),
+    "utf8",
+  );
+  const implementedFalseCount = [...choreographySource.matchAll(/implemented:\s*false/g)].length;
+  if (implementedFalseCount !== 1) {
+    throw new Error(
+      `expected a single implemented:false assignment (emitUnimplemented), found ${implementedFalseCount}`,
+    );
+  }
+  for (const spec of UNIMPLEMENTED_ASSERTIONS) {
+    const call = `emitUnimplemented(ctx, "${spec.segment}", "${spec.assertion}")`;
+    if (!choreographySource.includes(call)) {
+      throw new Error(`unimplemented ${spec.segment}/${spec.assertion} is not emitted`);
+    }
+  }
+
   const skippedSample = {
     version: "0.3.0-m8",
     runId: "00000000-0000-4000-8000-000000000000",
@@ -488,10 +542,95 @@ try {
       reason: "calibration sample for explicit unsupported-state receipts",
     },
   };
-  for (const record of [...records, skippedSample]) {
+  const legacySummaryWithoutCause = {
+    version: "0.3.0-m8",
+    runId: "00000000-0000-4000-8000-000000000001",
+    recordedAt: "2026-08-10T00:00:00.000Z",
+    type: "segment-summary",
+    segment: "m1",
+    assertion: "__segment__",
+    implemented: true,
+    required: true,
+    status: "passed",
+    pass: true,
+    timings: [
+      {
+        attempt: 1,
+        pass: true,
+        startedAt: null,
+        durationMs: 1,
+        metrics: {},
+      },
+    ],
+    bestOf: 1,
+    details: {
+      selection: "segment aggregate",
+      selectedAttempt: 1,
+      reason: null,
+    },
+    assertions: {
+      total: 1,
+      required: 1,
+      implemented: 1,
+      passed: 1,
+      failed: 0,
+      skipped: 0,
+      notImplemented: 0,
+      requiredUnimplemented: 0,
+    },
+    suite: { pass: true, receipt: "acceptance/m1.json" },
+    choreography: {
+      browserPass: true,
+      requiredExternal: [],
+      externalPass: true,
+      supplementalExternal: [],
+      pass: true,
+    },
+    green: true,
+  };
+  const inventedLabel = {
+    ...legacySummaryWithoutCause,
+    runId: "00000000-0000-4000-8000-000000000002",
+    status: "failed",
+    pass: false,
+    green: false,
+    timings: [
+      {
+        attempt: 1,
+        pass: false,
+        startedAt: null,
+        durationMs: 1,
+        metrics: {},
+      },
+    ],
+    details: {
+      selection: "segment aggregate",
+      selectedAttempt: null,
+      reason: "required unimplemented",
+    },
+    assertions: {
+      ...legacySummaryWithoutCause.assertions,
+      implemented: 0,
+      passed: 0,
+      skipped: 1,
+      notImplemented: 1,
+      requiredUnimplemented: 1,
+    },
+    choreography: {
+      ...legacySummaryWithoutCause.choreography,
+      browserPass: false,
+      pass: false,
+    },
+    suite: { pass: true, receipt: "acceptance/m1.json" },
+    nonGreenCause: "functionally-green",
+  };
+  for (const record of [...records, skippedSample, legacySummaryWithoutCause]) {
     if (!validate(record)) {
       throw new Error(`receipt schema failure: ${JSON.stringify(validate.errors)}`);
     }
+  }
+  if (validate(inventedLabel)) {
+    throw new Error("schema accepted an invented nonGreenCause label");
   }
   const m1Summary = records.find(
     (record) => record.type === "segment-summary" && record.segment === "m1",
@@ -504,11 +643,13 @@ try {
     m1Summary.status !== "passed" ||
     m1Summary.assertions.failed !== 0 ||
     m1Summary.assertions.requiredUnimplemented !== 0 ||
+    m1Summary.nonGreenCause !== null ||
     !m8Summary?.green ||
     m8Summary.status !== "passed" ||
     m8Summary.assertions.total !== 5 ||
     m8Summary.assertions.failed !== 0 ||
-    m8Summary.assertions.requiredUnimplemented !== 0
+    m8Summary.assertions.requiredUnimplemented !== 0 ||
+    m8Summary.nonGreenCause !== null
   ) {
     throw new Error(
       `self-test did not produce honest M1/M8 green: ${JSON.stringify({ m1Summary, m8Summary })}`,
@@ -576,7 +717,8 @@ try {
     failedInsights?.status !== "failed" ||
     failingSummary?.green !== false ||
     failingSummary?.choreography.browserPass !== false ||
-    failingSummary?.assertions.failed < 1
+    failingSummary?.assertions.failed < 1 ||
+    failingSummary?.nonGreenCause !== "choreography-failed"
   ) {
     throw new Error(
       `deliberate M8 failure was not represented fail-closed: ${JSON.stringify({ failedInsights, failingSummary })}`,

@@ -100,6 +100,79 @@ const CONTRACT_TEST_IDS = new Set([
   "sm-poll-tally",
 ]);
 
+// Checks the frozen contract cannot drive honestly. Every entry is optional;
+// a required unimplemented assertion is a structural green ceiling.
+export const UNIMPLEMENTED_ASSERTIONS = Object.freeze([
+  {
+    segment: "m2",
+    assertion: "feed-image-post-live-update",
+    required: false,
+    bestOf: 3,
+    reason:
+      "The frozen contract exposes no compose media-picker test ID; sm-compose-input is text-only, so image-post live delivery cannot be driven honestly.",
+  },
+  {
+    segment: "m2",
+    assertion: "feed-video-post-live-update",
+    required: false,
+    bestOf: 3,
+    reason:
+      "The frozen contract exposes no compose media-picker test ID; sm-compose-input is text-only, so video-post live delivery cannot be driven honestly.",
+  },
+  {
+    segment: "m3",
+    assertion: "dm-live-messages-and-sender-avatar",
+    required: false,
+    bestOf: 3,
+    reason:
+      "The frozen contract exposes no sender-avatar test ID. Live DM text is asserted separately by dm-live-messages via sm-convo-bubble; glyph or <img> inference is forbidden.",
+  },
+  {
+    segment: "m3",
+    assertion: "receipt-sent-delivered-read-transitions",
+    required: false,
+    bestOf: 3,
+    reason:
+      "sm-convo-receipt identifies the element, but the contract does not pin an accessible sent/delivered/read state token; glyph/color inference is forbidden.",
+  },
+  {
+    segment: "m3",
+    assertion: "group-receipt-waits-for-slowest-member",
+    required: false,
+    bestOf: 3,
+    reason:
+      "The frozen contract exposes no group-member lifecycle controls or a semantic aggregate-receipt state token.",
+  },
+  {
+    segment: "m3",
+    assertion: "removed-member-live-cutoff-and-retained-history",
+    required: false,
+    bestOf: 3,
+    reason:
+      "The frozen contract exposes no group-member add/remove controls; cutoff and retained-history cannot be driven honestly.",
+  },
+]);
+
+function unimplementedSpec(segment, assertion) {
+  const spec = UNIMPLEMENTED_ASSERTIONS.find(
+    (item) => item.segment === segment && item.assertion === assertion,
+  );
+  if (!spec) {
+    throw new Error(`no unimplemented assertion spec for ${segment}/${assertion}`);
+  }
+  return spec;
+}
+
+async function emitUnimplemented(ctx, segment, assertion) {
+  const spec = unimplementedSpec(segment, assertion);
+  return ctx.check(segment, assertion, {
+    implemented: false,
+    required: spec.required,
+    bestOf: spec.bestOf ?? 1,
+    reason: spec.reason,
+  });
+}
+
 function usage() {
   return `Usage: node choreography.mjs [all|m1|m2|m3|m4|m5|m6|m8|m1,m3,...] [options]
 
@@ -617,9 +690,54 @@ async function openGlobalFeed(page, timeoutMs) {
   await testId(page, "sm-feed-item").first().waitFor({ state: "visible", timeout: timeoutMs });
 }
 
-async function openFollowingFeed(page, timeoutMs) {
+async function openFollowingFeed(page, timeoutMs, { requireItem = true } = {}) {
   await clickVisible(testId(page, "sm-feed-tab-following"), timeoutMs);
-  await testId(page, "sm-feed-item").first().waitFor({ state: "visible", timeout: timeoutMs });
+  if (requireItem) {
+    await testId(page, "sm-feed-item").first().waitFor({ state: "visible", timeout: timeoutMs });
+  }
+}
+
+function isViewerRepostAttribution(text, viewer = "bob") {
+  return new RegExp(`reposted\\s+by\\s+${viewer}`, "i").test(text);
+}
+
+function hasDirectFollowProjection(texts, postText, viewer = "bob") {
+  return texts.some((text) => text.includes(postText) && !isViewerRepostAttribution(text, viewer));
+}
+
+function hasViewerRepostAttribution(texts, postText, viewer = "bob") {
+  return texts.some((text) => text.includes(postText) && isViewerRepostAttribution(text, viewer));
+}
+
+async function feedItemTexts(page) {
+  return visibleTexts(testId(page, "sm-feed-item"));
+}
+
+async function waitForFeedPredicate(page, tabId, predicate, timeoutMs, description) {
+  await clickVisible(testId(page, tabId), timeoutMs);
+  return waitForValue(
+    testId(page, "sm-feed-item"),
+    async () => {
+      const texts = await feedItemTexts(page);
+      return { matched: predicate(texts), value: texts };
+    },
+    timeoutMs,
+    description,
+  );
+}
+
+async function toggleFollow(ctx, page, handle) {
+  await openProfile(ctx, page, handle);
+  await clickVisible(testId(page, "sm-profile-follow"), ctx.timeoutMs);
+}
+
+async function composeTextPost(page, text, timeoutMs) {
+  await openGlobalFeed(page, timeoutMs);
+  await testId(page, "sm-compose-input").fill(text);
+  await testId(page, "sm-compose-submit").click();
+  const card = testId(page, "sm-feed-item").filter({ hasText: text }).first();
+  await card.waitFor({ state: "visible", timeout: timeoutMs });
+  return card;
 }
 
 async function openConversation(page, counterpart, timeoutMs) {
@@ -874,26 +992,99 @@ async function m2(ctx) {
     },
   );
 
-  await ctx.check("m2", "feed-image-post-live-update", {
-    implemented: false,
-    bestOf: 3,
-    reason: "The contract exposes no media-post picker or upload test ID.",
-  });
-  await ctx.check("m2", "feed-video-post-live-update", {
-    implemented: false,
-    bestOf: 3,
-    reason: "The contract exposes no media-post picker or upload test ID.",
-  });
-  await ctx.check("m2", "follow-unfollow-live-projection", {
-    implemented: false,
-    bestOf: 3,
-    reason:
-      "sm-profile-follow exists, but the contract exposes no deterministic way to navigate Bob to Alice's profile.",
-  });
-  await ctx.check("m2", "feed-author-avatar-and-display-name", {
-    implemented: false,
-    reason:
-      "The P2 ticket does not extend M2's feed-author observation surface; this required choreography assertion remains an explicit skip.",
+  await emitUnimplemented(ctx, "m2", "feed-image-post-live-update");
+  await emitUnimplemented(ctx, "m2", "feed-video-post-live-update");
+
+  await ctx.check(
+    "m2",
+    "follow-unfollow-live-projection",
+    { bestOf: 3 },
+    async (attempt) => {
+      const postText = `choreo-${ctx.runId}-m2-follow-${attempt}`;
+      await composeTextPost(ctx.alicePage, postText, ctx.timeoutMs);
+      await openGlobalFeed(ctx.bobPage, ctx.timeoutMs);
+      await testId(ctx.bobPage, "sm-feed-item")
+        .filter({ hasText: postText })
+        .first()
+        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+
+      const before = await waitForFeedPredicate(
+        ctx.bobPage,
+        "sm-feed-tab-following",
+        () => true,
+        ctx.timeoutMs,
+        "Bob's Following feed",
+      );
+      const beforeHas = hasDirectFollowProjection(before.value, postText);
+
+      const started = performance.now();
+      await toggleFollow(ctx, ctx.bobPage, "alice");
+      await waitForFeedPredicate(
+        ctx.bobPage,
+        "sm-feed-tab-following",
+        (texts) => hasDirectFollowProjection(texts, postText) !== beforeHas,
+        ctx.timeoutMs,
+        "Bob's Following projection after follow toggle",
+      );
+      const followVisibleMs = rounded(performance.now() - started);
+
+      await waitForFeedPredicate(
+        ctx.bobPage,
+        "sm-feed-tab-global",
+        (texts) => texts.some((text) => text.includes(postText)),
+        ctx.timeoutMs,
+        "Alice's post remains in Global after follow toggle",
+      );
+
+      await toggleFollow(ctx, ctx.bobPage, "alice");
+      const restored = await waitForFeedPredicate(
+        ctx.bobPage,
+        "sm-feed-tab-following",
+        (texts) => hasDirectFollowProjection(texts, postText) === beforeHas,
+        ctx.timeoutMs,
+        "Bob's Following projection after unfollow toggle",
+      );
+      await waitForFeedPredicate(
+        ctx.bobPage,
+        "sm-feed-tab-global",
+        (texts) => texts.some((text) => text.includes(postText)),
+        ctx.timeoutMs,
+        "Alice's post remains in Global after unfollow toggle",
+      );
+
+      return {
+        metrics: {
+          followVisibleMs,
+          unfollowVisibleMs: rounded(restored.elapsedMs),
+        },
+      };
+    },
+  );
+
+  await ctx.check("m2", "feed-author-avatar-and-display-name", {}, async () => {
+    if (!livePost.data?.postText) throw new Error("live-post prerequisite did not yield a post");
+    await openProfile(ctx, ctx.alicePage, "alice");
+    const displayName = (await testId(ctx.alicePage, "sm-profile").innerText())
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.length > 0);
+    if (!displayName) {
+      throw new Error("Alice's profile did not expose a display name");
+    }
+    await openGlobalFeed(ctx.bobPage, ctx.timeoutMs);
+    const card = testId(ctx.bobPage, "sm-feed-item")
+      .filter({ hasText: livePost.data.postText })
+      .first();
+    await card.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    const cardText = (await card.innerText()).trim();
+    if (!cardText.includes(displayName)) {
+      throw new Error(
+        `feed item did not render author display name ${JSON.stringify(displayName)}`,
+      );
+    }
+    return {
+      note: "avatar not asserted: the frozen contract has no feed-avatar test ID; display-name text on sm-feed-item is the contracted observation",
+    };
   });
 
   await ctx.check(
@@ -985,13 +1176,73 @@ async function m2(ctx) {
       };
     },
   );
-  await ctx.check("m2", "repost-following-feed-surface", {
-    implemented: false,
-    required: false,
-    bestOf: 3,
-    reason:
-      "This clause depends on first establishing a followed-user edge; deterministic profile navigation is absent from the frozen test-ID contract.",
-  });
+  await ctx.check(
+    "m2",
+    "repost-following-feed-surface",
+    { bestOf: 3 },
+    async (attempt) => {
+      // @ref LLP 0201#d1--the-app-and-why-this-app — viewer-repost is implicit
+      // self-follow, not a follow-edge hit.
+      const postText = `choreo-${ctx.runId}-m2-reproj-${attempt}`;
+      await composeTextPost(ctx.alicePage, postText, ctx.timeoutMs);
+
+      const followingBefore = await waitForFeedPredicate(
+        ctx.bobPage,
+        "sm-feed-tab-following",
+        () => true,
+        ctx.timeoutMs,
+        "Bob's Following feed before follow-edge setup",
+      );
+      if (hasDirectFollowProjection(followingBefore.value, postText)) {
+        await toggleFollow(ctx, ctx.bobPage, "alice");
+        await waitForFeedPredicate(
+          ctx.bobPage,
+          "sm-feed-tab-following",
+          (texts) => !hasDirectFollowProjection(texts, postText),
+          ctx.timeoutMs,
+          "Alice original removed from Following so Bob is unfollowed",
+        );
+      }
+
+      await waitForFeedPredicate(
+        ctx.bobPage,
+        "sm-feed-tab-global",
+        (texts) => texts.some((text) => text.includes(postText)),
+        ctx.timeoutMs,
+        "unfollowed author's original remains in Global",
+      );
+
+      await openGlobalFeed(ctx.bobPage, ctx.timeoutMs);
+      const bobCard = testId(ctx.bobPage, "sm-feed-item").filter({ hasText: postText }).first();
+      await clickVisible(testId(bobCard, "sm-post-repost"), ctx.timeoutMs);
+
+      const afterRepost = await waitForFeedPredicate(
+        ctx.bobPage,
+        "sm-feed-tab-following",
+        (texts) => hasViewerRepostAttribution(texts, postText),
+        ctx.timeoutMs,
+        "viewer-repost of unfollowed author in Following",
+      );
+      if (hasDirectFollowProjection(afterRepost.value, postText)) {
+        throw new Error(
+          "viewer-repost of an unfollowed author was counted as a direct follow-projection hit",
+        );
+      }
+
+      const started = performance.now();
+      await toggleFollow(ctx, ctx.bobPage, "alice");
+      await waitForFeedPredicate(
+        ctx.bobPage,
+        "sm-feed-tab-following",
+        (texts) => hasDirectFollowProjection(texts, postText),
+        ctx.timeoutMs,
+        "followed author's original via the follow edge",
+      );
+      return {
+        metrics: { followProjectionVisibleMs: rounded(performance.now() - started) },
+      };
+    },
+  );
 
   await ctx.check(
     "m2",
@@ -1060,12 +1311,33 @@ async function m2(ctx) {
 }
 
 async function m3(ctx) {
-  await ctx.check("m3", "dm-live-messages-and-sender-avatar", {
-    implemented: false,
-    bestOf: 3,
-    reason:
-      "The P2 ticket does not extend M3's sender-avatar observation surface; the required two-client assertion remains an explicit skip.",
-  });
+  await ctx.check(
+    "m3",
+    "dm-live-messages",
+    { bestOf: 3 },
+    async (attempt) => {
+      await openAliceBobConversation(ctx);
+      const outbound = `choreo-${ctx.runId}-m3-live-${attempt}`;
+      const started = performance.now();
+      await sendConversationText(ctx.alicePage, outbound, ctx.timeoutMs);
+      await testId(ctx.bobPage, "sm-convo-bubble")
+        .filter({ hasText: outbound })
+        .last()
+        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      const visibleMs = rounded(performance.now() - started);
+      const reply = `choreo-${ctx.runId}-m3-live-reply-${attempt}`;
+      await sendConversationText(ctx.bobPage, reply, ctx.timeoutMs);
+      await testId(ctx.alicePage, "sm-convo-bubble")
+        .filter({ hasText: reply })
+        .last()
+        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      return {
+        metrics: { visibleMs },
+        note: "live DM text via sm-convo-bubble; sender avatar is not asserted",
+      };
+    },
+  );
+  await emitUnimplemented(ctx, "m3", "dm-live-messages-and-sender-avatar");
   await ctx.check(
     "m3",
     "typing-indicator-within-2s-expires-within-5s",
@@ -1094,26 +1366,9 @@ async function m3(ctx) {
     },
   );
 
-  await ctx.check("m3", "receipt-sent-delivered-read-transitions", {
-    implemented: false,
-    bestOf: 3,
-    reason:
-      "sm-convo-receipt identifies the element, but the contract does not pin an accessible sent/delivered/read state token; glyph/color inference would fake semantic proof.",
-  });
-
-  await ctx.check("m3", "group-receipt-waits-for-slowest-member", {
-    implemented: false,
-    bestOf: 3,
-    reason:
-      "The P2 ticket does not add group-recipient lifecycle controls or a semantic aggregate-receipt state token.",
-  });
-
-  await ctx.check("m3", "removed-member-live-cutoff-and-retained-history", {
-    implemented: false,
-    bestOf: 3,
-    reason:
-      "The P2 ticket does not add group-member removal controls; the required cutoff/history choreography remains an explicit skip.",
-  });
+  await emitUnimplemented(ctx, "m3", "receipt-sent-delivered-read-transitions");
+  await emitUnimplemented(ctx, "m3", "group-receipt-waits-for-slowest-member");
+  await emitUnimplemented(ctx, "m3", "removed-member-live-cutoff-and-retained-history");
 
   await ctx.check(
     "m3",
@@ -1873,6 +2128,24 @@ export function aggregateChoreography(assertionReceipts) {
   return { counts, browserPass, reason };
 }
 
+// Closed cause of green:false. Lanes MUST copy this field from the
+// segment-summary. Do not invent a second green label ("functionally green").
+// Precedence: required-unimplemented, then choreography-failed, then
+// suite-failed; remaining non-green (missing suite status, harness input) is
+// instrument. Null when green. Optional on the receipt (default null).
+export function classifyNonGreenCause({
+  green,
+  suitePass,
+  browserPass,
+  requiredUnimplemented,
+}) {
+  if (green) return null;
+  if (requiredUnimplemented > 0) return "required-unimplemented";
+  if (browserPass === false) return "choreography-failed";
+  if (suitePass === false) return "suite-failed";
+  return "instrument";
+}
+
 async function emitSegmentSummary({
   emit,
   segment,
@@ -1889,6 +2162,12 @@ async function emitSegmentSummary({
     ? { pass: suiteStatus.pass, receipt: suiteStatus.receipt ?? null }
     : { pass: null, receipt: null };
   const green = suite.pass === true && choreographyPass;
+  const nonGreenCause = classifyNonGreenCause({
+    green,
+    suitePass: suite.pass,
+    browserPass,
+    requiredUnimplemented: counts.requiredUnimplemented,
+  });
   return emit({
     type: "segment-summary",
     segment,
@@ -1925,6 +2204,7 @@ async function emitSegmentSummary({
       pass: choreographyPass,
     },
     green,
+    nonGreenCause,
   });
 }
 
