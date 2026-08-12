@@ -49,3 +49,15 @@ current `main` still rewrites the committed
 functions.manifest.json, artifacts.json}` (verified again today). The
 ticket stays open for item 1 only; the owning demo-truth lane should
 regenerate and commit the complete set.
+
+## Resolution (2026-08-12, LLP 0231 remainders run)
+
+Both halves are now closed.
+
+- **todo-v2 remote-service staleness** — repaired by the LLP 0231 Lane B
+  landing (`0c7b04341`).
+- **latency-kanban trusted-composition activation** — the stale activation was
+  deleted and re-minted as a v2 composition activation, with its generated
+  review manifest and 5/5 receipt regenerated. Latency-kanban is an ordinary
+  `CODEGEN_JOBS` entry with no skip in the current checker, so there was no
+  skip to remove.
