@@ -123,8 +123,7 @@ try {
     action: 0,
     live: 0,
   });
-  // Lane B's implicit table-visibility warn phase adds one warning to this fixture.
-  assert.equal(first.summary.counts.warnings, 2);
+  assert.equal(first.summary.counts.warnings, 1);
   assert.equal(first.summary.counts.degradedResults, 1);
   assert.deepEqual(first.summary.degradedResults[0].source, {
     path: 'functions.mjs',
@@ -137,6 +136,12 @@ try {
     first.artifactIndex.files.find(({ path }) => path === 'api.d.ts').custody,
     CUSTODY.consumerCommitted,
   );
+  const handlerProfileRecord = first.artifactIndex.files.find(
+    ({ path }) => path === 'handler-runtime-profile.v1.json',
+  );
+  assert.equal(handlerProfileRecord.logicalKind, 'handler-runtime-profile');
+  assert.equal(handlerProfileRecord.consumer, 'developer-tooling');
+  assert.equal(handlerProfileRecord.custody, CUSTODY.regenerableCache);
   assert(first.artifactIndex.files.every(({ sha256, logicalKind, consumer, regeneration }) => (
     /^sha256:[0-9a-f]{64}$/u.test(sha256)
     && logicalKind.length > 0

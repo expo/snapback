@@ -149,6 +149,10 @@ proof command, and honest nonclaims without opening every demo.
   cache, summaries, and fail-closed resolution.
 
 ### Backend
+- [Handler runtime profile and generation preflight](./backend/handler-runtime.md)
+  — inspect current handler module/syntax/global limits, run the full
+  non-replacing `generate --check` path, and follow build-bound refusal
+  remediation.
 - [Queries](./backend/queries.md) — indexed snapshot reads, server scoping,
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
@@ -435,6 +439,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.versioned-seed | Experimental local stream-scoped seed identity, pure matched observation, idempotent install/reset receipts, read-only preview, and explicit clear without legacy fallback. Hosted compiled-seed custody remains a GAP. | seed version, seed identity, reset-install, fixture drift | local | partial | tests/conformance/versioned-seed-v1.manifest.json | llp/0103 | backend/versioned-seeds.md |
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate digest-verified artifacts, neutral Contract bindings, and opt-in Exact metadata | codegen, artifacts, custody, contractMetadata, npm-only typecheck, @exact/contract unavailable | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0021, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
+| backend.handler-runtime-profile | Generated current-rule handler admission profile and complete non-replacing generation preflight, with operation selection, build-bound diagnostics, exact definition paths, and separate executable/raw-evidence digests | handler runtime profile, generate --check, Can I import a helper?, Can I use Node crypto?, BUNDLE_UNSUPPORTED_IMPORT, SNAPBACK_INLINE_HELPER_INADMISSIBLE, SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED, SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE | all | shipped | packages/snapback-codegen/handler-runtime-profile.test.mjs + packages/snapback-cli/generate-check.test.mjs | llp/0237, llp/0108 | backend/handler-runtime.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense `ctx.sequence.allocate` with replay/contention/exhaustion evidence; contributor-source local only | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public/hosted qualification; owner: Charlie, review: 2026-09-30; issue: issues/20260808-main-drift-sequence-allocation-publication.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
@@ -1572,6 +1577,41 @@ Case 47 absorbs the npm-only generated-typecheck gap recorded in
     `clients/contract-adapter.md`.
     Route terms: "@exact/contract unavailable", "npm-only typecheck",
     "contractMetadata", "contract-meta".
+
+Cases 48–51 exercise LLP 0237 rollout 1's cold path from familiar module and
+Node vocabulary, plus both new definition-attribution codes, to the generated
+restriction profile.
+
+48. **Handler helper import:** "Can I import a helper into a Snapback handler?"
+    The run fails if it claims relative imports are already admitted, adds a
+    bundler alias, or misses the current same-file function-declaration path.
+    Expected pages: `backend/handler-runtime.md`.
+    Route terms: "Can I import a helper?", "BUNDLE_UNSUPPORTED_IMPORT",
+    "same-file helper".
+
+49. **Node crypto in handlers:** "Can I use Node crypto in a Snapback
+    handler?" The run fails if it treats an engine ambient as Node
+    compatibility or omits the generated profile's per-operation capability
+    answer.
+    Expected pages: `backend/handler-runtime.md`.
+    Route terms: "Can I use Node crypto?", "node:crypto",
+    "BUNDLE_UNSUPPORTED_PROCESS".
+
+50. **Unexported definition:** "Generation reports
+    `SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED`; what exactly should I export?"
+    The run must use the structured binding/span/remediation and must not edit
+    a generated manifest.
+    Expected pages: `backend/handler-runtime.md`.
+    Route terms: "SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED",
+    "unexported top-level operation", "definition path".
+
+51. **Unserializable definition value:** "Generation reports
+    `SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE`; how do I find the bad
+    option?" The run must follow the exported binding and nested property path
+    to the authored span rather than inspecting evaluator internals.
+    Expected pages: `backend/handler-runtime.md`.
+    Route terms: "SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE",
+    "nested property path", "definition path".
 
 ## Static routing check
 

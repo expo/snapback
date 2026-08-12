@@ -523,6 +523,41 @@ Case 47 absorbs the npm-only generated-typecheck gap recorded in
     Route terms: "@exact/contract unavailable", "npm-only typecheck",
     "contractMetadata", "contract-meta".
 
+Cases 48–51 exercise LLP 0237 rollout 1's cold path from familiar module and
+Node vocabulary, plus both new definition-attribution codes, to the generated
+restriction profile.
+
+48. **Handler helper import:** "Can I import a helper into a Snapback handler?"
+    The run fails if it claims relative imports are already admitted, adds a
+    bundler alias, or misses the current same-file function-declaration path.
+    Expected pages: `backend/handler-runtime.md`.
+    Route terms: "Can I import a helper?", "BUNDLE_UNSUPPORTED_IMPORT",
+    "same-file helper".
+
+49. **Node crypto in handlers:** "Can I use Node crypto in a Snapback
+    handler?" The run fails if it treats an engine ambient as Node
+    compatibility or omits the generated profile's per-operation capability
+    answer.
+    Expected pages: `backend/handler-runtime.md`.
+    Route terms: "Can I use Node crypto?", "node:crypto",
+    "BUNDLE_UNSUPPORTED_PROCESS".
+
+50. **Unexported definition:** "Generation reports
+    `SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED`; what exactly should I export?"
+    The run must use the structured binding/span/remediation and must not edit
+    a generated manifest.
+    Expected pages: `backend/handler-runtime.md`.
+    Route terms: "SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED",
+    "unexported top-level operation", "definition path".
+
+51. **Unserializable definition value:** "Generation reports
+    `SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE`; how do I find the bad
+    option?" The run must follow the exported binding and nested property path
+    to the authored span rather than inspecting evaluator internals.
+    Expected pages: `backend/handler-runtime.md`.
+    Route terms: "SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE",
+    "nested property path", "definition path".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
