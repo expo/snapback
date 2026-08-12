@@ -17,7 +17,7 @@ and froze owner/last-holder and custom-policy invalidation rules). 2026-08-12
 and protected retained views are deliberately split to LLP 0242 and LLP 0243)
 **Related:** LLP 0011, LLP 0043, LLP 0053, LLP 0056, LLP 0061, LLP 0080,
 LLP 0100, LLP 0120, LLP 0155, LLP 0172, LLP 0208, LLP 0210, LLP 0220,
-LLP 0231, LLP 0236, LLP 0237, LLP 0238, LLP 0239, LLP 0241,
+LLP 0231, LLP 0234, LLP 0235, LLP 0236, LLP 0237, LLP 0238, LLP 0239, LLP 0241,
 LLP 0242, LLP 0243,
 Diary 0058 (messaging-snapback), Diary 0073, Diary 0074
 
@@ -198,6 +198,11 @@ Reads and writes cannot use separate hand-transcribed role logic. A role field
 or transition edit rotates the authority-profile generation, appears in
 semantic artifact diff, and invalidates/requalifies every dependent generated
 surface.
+
+A profile or role-lattice edit that broadens ordinary visibility, or is
+incomparable with its predecessor, remains subject to LLP 0234's remotely-prior
+content-bound approval and exact-set ratchet. D2 generation rotation records
+and invalidates the change; it does not replace that prerequisite.
 
 ### D3. Generate the ordinary roster and role surface
 

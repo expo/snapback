@@ -788,6 +788,33 @@ function normalizeMembership(spec) {
   };
 }
 
+function normalizeAuthorityProfile(spec) {
+  // Semantic validation deliberately happens in codegen, where every D1
+  // refusal can carry the authored table span and a concrete repair. This
+  // normalization only snapshots the closed facade input so later mutation
+  // cannot change the evaluated definition behind codegen's back.
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return spec;
+  return {
+    ...spec,
+    ...(spec.hierarchy && typeof spec.hierarchy === 'object' && !Array.isArray(spec.hierarchy)
+      ? { hierarchy: Object.fromEntries(Object.entries(spec.hierarchy).map(([role, implied]) => [
+          role,
+          Array.isArray(implied) ? REFLECT_APPLY(ARRAY_SLICE, implied, []) : implied,
+        ])) }
+      : {}),
+    ...(spec.roster && typeof spec.roster === 'object' && !Array.isArray(spec.roster)
+      ? {
+          roster: {
+            ...spec.roster,
+            ...(Array.isArray(spec.roster.visible)
+              ? { visible: REFLECT_APPLY(ARRAY_SLICE, spec.roster.visible, []) }
+              : {}),
+          },
+        }
+      : {}),
+  };
+}
+
 function normalizeTableVisibilityLeaf(
   spec,
   where,
@@ -1250,6 +1277,25 @@ class TableBuilder {
     assert(!this.membershipDeclaration, 'membership() may be declared only once per table');
     assert(!this.permissionBackingDeclared, 'membership() cannot be combined with permissionBacking()');
     this.membershipDeclaration = normalizeMembership(spec);
+    return this;
+  }
+
+  /** Decorate this table's canonical membership declaration with the closed
+   * application-owned authority-profile facade. The facade adds no writer or
+   * evaluator: codegen validates it against, and lowers it back into, the
+   * existing membership and table-visibility IR.
+   *
+   * @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+   *   — one app table remains the roster and authority source of truth.
+   * @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
+   *   — hierarchy sugar is a codegen projection over canonical membership.
+   */
+  authorityProfile(spec) {
+    if (!this.authorityProfileDeclarations) this.authorityProfileDeclarations = [];
+    this.authorityProfileDeclarations.push({
+      afterMembership: this.membershipDeclaration !== undefined,
+      spec: normalizeAuthorityProfile(spec),
+    });
     return this;
   }
 

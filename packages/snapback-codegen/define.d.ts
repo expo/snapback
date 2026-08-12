@@ -499,9 +499,24 @@ export interface AppMembershipSpec extends Omit<ResourceMembershipSpec, 'scope' 
 
 export type MembershipSpec = ResourceMembershipSpec | AppMembershipSpec;
 
+/** The rollout-1 authority facade over one canonical membership table.
+ * `hierarchy` lists the roles implied by each role; codegen closes it into
+ * explicit membership role sets. `roster.visible` is projection metadata
+ * only in v1—generated roster operations and hooks are not part of this lane.
+ */
+export interface AuthorityProfileSpec<
+  Role extends string = string,
+  Field extends string = string,
+> {
+  readonly name: string;
+  readonly hierarchy: Readonly<Partial<Record<Role, readonly Role[]>>>;
+  readonly roster: { readonly visible: readonly Field[] };
+}
+
 type RolesOf<Spec extends MembershipSpec> =
   | Spec['roles'][number]
   | (Spec extends { pendingRoles: readonly (infer Role extends string)[] } ? Role : never);
+type ActiveRolesOf<Spec extends MembershipSpec> = Spec['roles'][number];
 type ScopeOf<Spec extends MembershipSpec> = Spec extends { scope: 'app' } ? 'app' : 'resource';
 
 export type AssetSharingSpec<Fields extends Record<string, Validator> = Record<string, Validator>> =
@@ -537,7 +552,7 @@ export interface TableBuilder<Fields extends Record<string, Validator> = Record<
   searchLiveLimits(spec?: { maxLiveSubscriptionsPerTable?: number }): TableBuilder<Fields>;
   sync(): TableBuilder<Fields>;
   permissionBacking(fields?: Array<keyof Fields & string>): TableBuilder<Fields>;
-  membership<const Spec extends MembershipSpec>(spec: Spec): MembershipTableBuilder<Fields, RolesOf<Spec>, ScopeOf<Spec>>;
+  membership<const Spec extends MembershipSpec>(spec: Spec): MembershipTableBuilder<Fields, RolesOf<Spec>, ScopeOf<Spec>, ActiveRolesOf<Spec>>;
   /** Declare this table's default row-visibility policy (LLP 0231 D1). */
   visibility(spec: TableVisibilitySpec<Fields>): TableBuilder<Fields>;
   /** Declare this table's row-visibility policy sufficient for asset
@@ -623,9 +638,14 @@ export interface MembershipTableBuilder<
   Fields extends Record<string, Validator> = Record<string, Validator>,
   Role extends string = string,
   Scope extends 'resource' | 'app' = 'resource',
+  ActiveRole extends Role = Role,
 > extends TableBuilder<Fields> {
-  index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): MembershipTableBuilder<Fields, Role, Scope>;
-  sync(): MembershipTableBuilder<Fields, Role, Scope>;
+  index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): MembershipTableBuilder<Fields, Role, Scope, ActiveRole>;
+  sync(): MembershipTableBuilder<Fields, Role, Scope, ActiveRole>;
+  /** Decorate this membership with AuthorityProfileV1 (LLP 0240 D1/D2). */
+  authorityProfile(
+    spec: AuthorityProfileSpec<ActiveRole, keyof Fields & string>,
+  ): MembershipTableBuilder<Fields, Role, Scope, ActiveRole>;
   memberOf(...args: Scope extends 'app'
     ? [] | [resource: MembershipResourceRef<'app'>]
     : [resource: MembershipResourceRef]): MembershipPredicate;

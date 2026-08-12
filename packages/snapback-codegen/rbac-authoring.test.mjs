@@ -214,7 +214,7 @@ export const createEvent = defineMutation({
 });
 `;
 
-async function run(inputFunctions = functions(), inputSchema = schema) {
+async function run(inputFunctions = functions(), inputSchema = schema, generateOptions = undefined) {
   const dir = mkdtempSync(join(tmpdir(), 'snapback-rbac-authoring-'));
   dirs.push(dir);
   const snapbackModules = join(dir, 'node_modules', '@expo');
@@ -230,8 +230,144 @@ globalThis.__snapbackHandlers = {
 };
 `);
   mkdirSync(join(dir, 'generated'));
-  const result = await generate(dir);
+  const result = await generate(dir, generateOptions);
   return { dir, result };
+}
+
+const authorityProfileSchema = ({
+  bootstrapRole = 'owner',
+  consumerVisibility = true,
+  duplicateProfile = false,
+  hierarchy = "{ owner: ['admin', 'member'], admin: ['member'], member: [] }",
+  indexName = null,
+  lastHolderProtect = 'owner',
+  legacyAuthority = false,
+  membershipId = 'eventMembers',
+  membershipMutation = '',
+  omitMembershipId = false,
+  pendingRoles = ['invited'],
+  principalValidator = 'v.principal()',
+  profileBeforeMembership = false,
+  profileExtra = '',
+  profileName = 'eventMembers',
+  resourceValidator = "v.id('events')",
+  roleField = 'role',
+  roles = ['owner', 'admin', 'member'],
+  roster = "{ visible: ['userId', 'role', 'displayName'] }",
+  transitions = [],
+  unsupportedComposition = null,
+} = {}) => {
+  const profile = `.authorityProfile({
+    name: ${JSON.stringify(profileName)},
+    hierarchy: ${hierarchy},
+    roster: ${roster},
+    ${profileExtra}
+  })`;
+  const membership = `.membership({
+    ${omitMembershipId ? '' : `id: ${JSON.stringify(membershipId)},`}
+    principal: 'userId',
+    resource: 'eventId',
+    role: ${JSON.stringify(roleField)},
+    roles: ${JSON.stringify(roles)},
+    pendingRoles: ${JSON.stringify(pendingRoles)},
+    bootstrapRole: ${JSON.stringify(bootstrapRole)},
+    lastHolder: { protect: ${JSON.stringify(lastHolderProtect)} },
+    provenance: 'full',
+    transitions: ${JSON.stringify(transitions)},
+  })`;
+  const searchIndex = unsupportedComposition === 'search'
+    ? `.searchIndex('search_notes', {
+        semanticVersion: 'authority-profile-refusal.v1',
+        textFields: { body: { weight: 1, classification: 'private' } },
+        fieldClassifications: { eventId: 'private' },
+        storedFields: ['body'],
+        visibility: {
+          kind: 'membership',
+          declaration: 'eventMembers',
+          resourceField: 'eventId',
+          roles: ['member'],
+        },
+      })`
+    : '';
+  const visibility = unsupportedComposition === 'search' || !consumerVisibility
+    ? ''
+    : `.visibility({
+        kind: 'membership',
+        declaration: 'eventMembers',
+        resourceField: 'eventId',
+        roles: ['member'],
+      })`;
+  const assetSharing = unsupportedComposition === 'asset'
+    ? `.assetSharing({ kind: 'membership', membership: 'eventMembers', roles: ['member'] })`
+    : '';
+  return `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+
+const eventMembersBase = defineTable({
+  eventId: ${resourceValidator},
+  userId: ${principalValidator},
+  ${roleField}: v.string(),
+  displayName: v.string(),
+})${indexName === null ? '' : `.index(${JSON.stringify(indexName)}, ['userId'])`};
+
+export const eventMembers = eventMembersBase${profileBeforeMembership ? `${profile}${membership}` : `${membership}${profile}`};
+${duplicateProfile ? `eventMembers${profile};` : ''}
+${legacyAuthority ? 'eventMembers.permissionBackingDeclared = true;' : ''}
+${membershipMutation}
+
+const eventNotes = defineTable({ eventId: v.id('events'), body: v.string() })
+  ${searchIndex}${visibility}${assetSharing};
+
+export default defineSchema({
+  events: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  eventMembers,
+  eventNotes,
+}, { auth: { mode: 'sessions' } });
+`;
+};
+
+const authorityProfileFunctions = `
+import { eventMembers } from './schema.mjs';
+import {
+  defineJsMutation,
+  defineLiveQuery,
+  membershipResource,
+  v,
+} from '${defineUrl}';
+
+export const eventById = defineLiveQuery({
+  auth: 'authenticated',
+  table: 'events',
+  args: { eventId: v.id('events') },
+  membership: [eventMembers.hasRole(membershipResource.arg('eventId'), 'member')],
+});
+
+export const visibleNotes = defineLiveQuery({
+  auth: 'authenticated',
+  table: 'eventNotes',
+  args: {},
+});
+
+export const writeMembers = defineJsMutation({
+  auth: 'authenticated',
+  args: { title: v.string() },
+  source: 'bootstrap-handler.mjs',
+  exportName: 'bootstrapEvent',
+  writes: ['eventMembers'],
+});
+`;
+
+function authorityProfileDiagnostic(result, code, detail = undefined) {
+  assert.equal(result.ok, false, `${code} unexpectedly generated`);
+  const diagnostic = result.diagnostics.find(({ code: candidate, details }) => (
+    candidate === code && (detail === undefined || detail(details))
+  ));
+  assert(diagnostic, `${code} missing: ${JSON.stringify(result.diagnostics)}`);
+  assert.match(diagnostic.message, /\S/u);
+  assert.match(diagnostic.details?.repair ?? '', /\S/u, `${code} omitted a repair`);
+  assert.match(diagnostic.sourceSpan?.file ?? '', /schema\.mjs$/u, `${code} omitted its authored span`);
+  assert(Number.isInteger(diagnostic.sourceSpan?.line) && diagnostic.sourceSpan.line > 0);
+  return diagnostic;
 }
 
 try {
@@ -485,6 +621,291 @@ ctx.membership.eventMembers.patch(memberId, { role: 'host' });
       '--moduleResolution', 'bundler',
       'consumer.ts',
     ], { cwd: dir, stdio: 'pipe' });
+  }
+
+  // LLP 0240 rollout 1: the authority-profile facade closes hierarchy sugar
+  // into the existing membership/table-policy IR, projects one generation
+  // identity, and refuses every D1 ambiguity with a repair-bearing source span.
+  {
+    const sourceWithPublicWitness = `${authorityProfileFunctions}
+export const publicEvents = defineLiveQuery({
+  auth: 'public',
+  table: 'events',
+  args: {},
+});
+`;
+    const baseline = await run(sourceWithPublicWitness, authorityProfileSchema());
+    assert.equal(baseline.result.ok, true, JSON.stringify(baseline.result.diagnostics));
+    const schemaManifest = JSON.parse(readFileSync(
+      join(baseline.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    const functionManifest = JSON.parse(readFileSync(
+      join(baseline.dir, 'generated', 'functions.manifest.json'),
+      'utf8',
+    ));
+    const tables = Object.fromEntries(schemaManifest.tables.map((table) => [table.name, table]));
+    const profile = tables.eventMembers.authorityProfile;
+    assert.equal(profile.version, 1);
+    assert.equal(profile.id, 'eventMembers');
+    assert.match(profile.generation, /^sha256:[0-9a-f]{64}$/u);
+    assert.deepEqual(profile.membership, {
+      declaration: 'eventMembers',
+      manifestPath: 'tables.eventMembers.membership',
+      predicateIdentity: 'snapback.membership-predicate.v1',
+    });
+    assert.deepEqual(profile.tablePolicy, {
+      identity: 'snapback.table-visibility.v1',
+      membershipDeclaration: 'eventMembers',
+    });
+    assert.deepEqual(profile.scopeRelation, {
+      table: 'eventMembers',
+      resourceField: 'eventId',
+      resourceTable: 'events',
+      principalKey: 'userId',
+    });
+    assert.deepEqual(profile.statusPredicates, {
+      active: 'membership.roles',
+      invited: 'membership.pendingRoles',
+    });
+    assert.deepEqual(profile.roleLattice, [
+      { role: 'owner', implies: ['admin', 'member', 'owner'] },
+      { role: 'admin', implies: ['admin', 'member'] },
+      { role: 'member', implies: ['member'] },
+    ]);
+    assert.deepEqual(profile.authorizationEventFields, [
+      'eventId',
+      'userId',
+      'role',
+      'displayName',
+      'grantedByActor',
+      'grantedByEffective',
+      'grantedByGrant',
+    ]);
+    assert.deepEqual(profile.requiredIndexes, [
+      {
+        name: '_membership_pk',
+        fields: ['userId', 'eventId'],
+        unique: true,
+        lookup: 'principal-in-scope-point',
+      },
+      {
+        name: '_membership_reverse',
+        fields: ['eventId', 'role', 'userId'],
+        unique: false,
+        lookup: 'protected-holders-and-scope-invalidation-range',
+      },
+    ]);
+    assert.deepEqual(profile.permittedCompositionClasses, ['table-visibility.membership.v1']);
+    assert.deepEqual(profile.notYetQualifiedCompositionClasses, [
+      'membership-visible-search.v1',
+      'authority-profile-asset-sharing.v1',
+    ]);
+    assert.deepEqual(profile.subjectDerivation.coarseGlobalWakeUniverse, [
+      'membership-relation-insert-update-delete',
+      'protected-resource-row-insert-update-delete',
+      'effective-principal-or-auth-context-change',
+      'authority-profile-generation-activation',
+    ]);
+    assert.deepEqual(tables.eventNotes.visibility.roles, ['admin', 'member', 'owner']);
+
+    const functionsByName = Object.fromEntries(
+      functionManifest.functions.map((operation) => [operation.name, operation]),
+    );
+    assert.deepEqual(
+      functionsByName.eventById.runtime.HostPlan.Query.membershipFilters[0].roles,
+      ['admin', 'member', 'owner'],
+    );
+    for (const name of ['eventById', 'visibleNotes', 'writeMembers']) {
+      assert.deepEqual(functionsByName[name].authorityProfileDependence, [{
+        id: 'eventMembers',
+        generation: profile.generation,
+      }]);
+    }
+    assert.equal(
+      Object.hasOwn(functionsByName.publicEvents, 'authorityProfileDependence'),
+      false,
+      'an unrelated function must not acquire profile dependence',
+    );
+
+    const transitionEdit = await run(sourceWithPublicWitness, authorityProfileSchema({
+      transitions: [{
+        op: 'setRole',
+        by: ['owner'],
+        target: 'other',
+        from: ['member'],
+        to: ['admin'],
+      }],
+    }));
+    assert.equal(transitionEdit.result.ok, true, JSON.stringify(transitionEdit.result.diagnostics));
+    const transitionSchema = JSON.parse(readFileSync(
+      join(transitionEdit.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    const transitionFunctions = JSON.parse(readFileSync(
+      join(transitionEdit.dir, 'generated', 'functions.manifest.json'),
+      'utf8',
+    ));
+    const transitionGeneration = transitionSchema.tables
+      .find(({ name }) => name === 'eventMembers').authorityProfile.generation;
+    assert.notEqual(transitionGeneration, profile.generation, 'a transition edit rotates the generation');
+    const transitionFunctionsByName = Object.fromEntries(
+      transitionFunctions.functions.map((operation) => [operation.name, operation]),
+    );
+    assert.notEqual(
+      transitionFunctionsByName.eventById.implementationHash,
+      functionsByName.eventById.implementationHash,
+      'a dependent function rotates with the authority profile',
+    );
+    assert.equal(
+      transitionFunctionsByName.publicEvents.implementationHash,
+      functionsByName.publicEvents.implementationHash,
+      'profile edits preserve unrelated implementation identities',
+    );
+
+    const roleFieldEdit = await run(sourceWithPublicWitness, authorityProfileSchema({
+      roleField: 'accessRole',
+      roster: "{ visible: ['userId', 'accessRole', 'displayName'] }",
+    }));
+    assert.equal(roleFieldEdit.result.ok, true, JSON.stringify(roleFieldEdit.result.diagnostics));
+    const roleFieldSchema = JSON.parse(readFileSync(
+      join(roleFieldEdit.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    assert.notEqual(
+      roleFieldSchema.tables.find(({ name }) => name === 'eventMembers').authorityProfile.generation,
+      profile.generation,
+      'a role-field edit rotates the generation',
+    );
+  }
+
+  for (const [label, variant, code, detail] of [
+    [
+      'profile before membership',
+      { profileBeforeMembership: true },
+      'SNAPBACK_AUTHORITY_PROFILE_MEMBERSHIP_REQUIRED',
+    ],
+    [
+      'unpinned membership id',
+      { omitMembershipId: true },
+      'SNAPBACK_AUTHORITY_PROFILE_STABLE_ID_REQUIRED',
+    ],
+    [
+      'invalid profile id',
+      { profileName: 'invalid-profile' },
+      'SNAPBACK_AUTHORITY_PROFILE_ID_INVALID',
+    ],
+    [
+      'facade owns only name hierarchy and roster',
+      { profileExtra: 'transitions: [],' },
+      'SNAPBACK_AUTHORITY_PROFILE_SPEC_INVALID',
+    ],
+    [
+      'profile/membership id mismatch',
+      { profileName: 'eventAccess' },
+      'SNAPBACK_AUTHORITY_PROFILE_ID_MISMATCH',
+    ],
+    [
+      'principal nominal type',
+      { principalValidator: 'v.string()' },
+      'SNAPBACK_AUTHORITY_PROFILE_PRINCIPAL_TYPE_MISMATCH',
+    ],
+    [
+      'scope nominal type',
+      { resourceValidator: 'v.string()', consumerVisibility: false },
+      'SNAPBACK_AUTHORITY_PROFILE_SCOPE_TYPE_MISMATCH',
+    ],
+    [
+      'resource binding',
+      { resourceValidator: "v.id('missingEvents')", consumerVisibility: false },
+      'SNAPBACK_AUTHORITY_PROFILE_RESOURCE_BINDING_INVALID',
+    ],
+    [
+      'closed roles/statuses',
+      { membershipMutation: "eventMembers.membershipDeclaration.pendingRoles = ['member'];" },
+      'SNAPBACK_AUTHORITY_PROFILE_ROLE_VOCABULARY_INVALID',
+    ],
+    [
+      'pending status in lattice',
+      { hierarchy: "{ owner: ['admin', 'member'], admin: ['member'], member: [], invited: [] }" },
+      'SNAPBACK_AUTHORITY_PROFILE_PENDING_STATUS_INVALID',
+    ],
+    [
+      'ambiguous owner',
+      { bootstrapRole: 'admin' },
+      'SNAPBACK_AUTHORITY_PROFILE_AMBIGUOUS_OWNER',
+    ],
+    [
+      'ungoverned owner write',
+      {
+        transitions: [{
+          op: 'setRole',
+          by: ['owner'],
+          target: 'other',
+          from: ['member'],
+          to: ['owner'],
+        }],
+      },
+      'SNAPBACK_AUTHORITY_PROFILE_UNGOVERNED_WRITE_PATH',
+    ],
+    [
+      'duplicate active profile',
+      { duplicateProfile: true },
+      'SNAPBACK_AUTHORITY_PROFILE_CONFLICT',
+    ],
+    [
+      'legacy authority declaration',
+      { legacyAuthority: true },
+      'SNAPBACK_AUTHORITY_PROFILE_CONFLICT',
+      (details) => details?.legacyDeclaration === 'permissionBacking',
+    ],
+    [
+      'missing canonical unique index',
+      { indexName: '_membership_pk' },
+      'SNAPBACK_AUTHORITY_PROFILE_REQUIRED_INDEX_MISSING',
+      (details) => details?.index === '_membership_pk',
+    ],
+    [
+      'missing canonical reverse index',
+      { indexName: '_membership_reverse' },
+      'SNAPBACK_AUTHORITY_PROFILE_REQUIRED_INDEX_MISSING',
+      (details) => details?.index === '_membership_reverse',
+    ],
+    [
+      'invalid role lattice',
+      { hierarchy: "{ owner: ['admin', 'member'], admin: ['owner'], member: [] }" },
+      'SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID',
+    ],
+    [
+      'invalid roster',
+      { roster: "{ visible: ['missingField'] }" },
+      'SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID',
+    ],
+    [
+      'search composition',
+      { unsupportedComposition: 'search' },
+      'SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS',
+      (details) => details?.compositionClass === 'membership-visible-search.v1',
+    ],
+    [
+      'asset composition',
+      { unsupportedComposition: 'asset' },
+      'SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS',
+      (details) => details?.compositionClass === 'authority-profile-asset-sharing.v1',
+    ],
+  ]) {
+    const { result } = await run('export {};\n', authorityProfileSchema(variant));
+    authorityProfileDiagnostic(result, code, detail);
+    assert.equal(result.ok, false, `${label} unexpectedly generated`);
+  }
+
+  {
+    const { result } = await run(
+      'export {};\n',
+      authorityProfileSchema(),
+      { targetProfile: 'remote-service-sqlite-ibex' },
+    );
+    authorityProfileDiagnostic(result, 'SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET');
   }
 
   // LLP 0100 §2: principalAddressedWrites — closed option, total-carrier

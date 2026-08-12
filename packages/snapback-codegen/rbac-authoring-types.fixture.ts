@@ -58,6 +58,72 @@ resourceMembers.hasRole('host');
 // @ts-expect-error The declaration's closed role union excludes viewer.
 resourceMembers.hasRole(membershipResource.arg('eventId'), 'viewer');
 
+const profiledMembers = defineTable({
+  eventId: v.id('events'),
+  userId: v.principal(),
+  role: v.string(),
+  displayName: v.string(),
+}).membership({
+  id: 'profiledMembers',
+  principal: 'userId',
+  resource: 'eventId',
+  role: 'role',
+  roles: ['owner', 'admin', 'member'],
+  pendingRoles: ['invited'],
+  bootstrapRole: 'owner',
+  lastHolder: { protect: 'owner' },
+  transitions: [],
+}).authorityProfile({
+  name: 'profiledMembers',
+  hierarchy: {
+    owner: ['admin', 'member'],
+    admin: ['member'],
+    member: [],
+  },
+  roster: { visible: ['userId', 'role', 'displayName'] },
+});
+void profiledMembers;
+
+defineTable({ eventId: v.id('events'), userId: v.principal(), role: v.string() })
+  .membership({
+    id: 'invalidProfile',
+    principal: 'userId',
+    resource: 'eventId',
+    role: 'role',
+    roles: ['owner', 'member'],
+    pendingRoles: ['invited'],
+    bootstrapRole: 'owner',
+    lastHolder: { protect: 'owner' },
+    transitions: [],
+  })
+  .authorityProfile({
+    name: 'invalidProfile',
+    hierarchy: {
+      owner: ['member'],
+      // @ts-expect-error Pending statuses cannot participate in the active-role lattice.
+      invited: [],
+    },
+    roster: { visible: ['userId'] },
+  });
+
+defineTable({ eventId: v.id('events'), userId: v.principal(), role: v.string() })
+  .membership({
+    id: 'invalidRoster',
+    principal: 'userId',
+    resource: 'eventId',
+    role: 'role',
+    roles: ['owner', 'member'],
+    bootstrapRole: 'owner',
+    lastHolder: { protect: 'owner' },
+    transitions: [],
+  })
+  .authorityProfile({
+    name: 'invalidRoster',
+    hierarchy: { owner: ['member'], member: [] },
+    // @ts-expect-error Roster projections may name only fields on the membership table.
+    roster: { visible: ['missingField'] },
+  });
+
 defineTable({ title: v.string() }).visibility({ kind: 'public-read' });
 defineTable({ ownerId: v.principal(), title: v.string() })
   .visibility(owner('ownerId'));

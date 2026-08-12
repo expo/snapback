@@ -1199,6 +1199,21 @@ pub struct TableManifest {
     ///   is the recognized shape; the derivation, not the app, owns the table.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub membership: Option<MembershipManifest>,
+    /// Rollout-1 projection of `.authorityProfile(...)`. This is a versioned
+    /// authoring/codegen fact over the canonical membership and table-policy
+    /// declarations; it adds no evaluator or independently writable roster.
+    ///
+    /// @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+    ///   — the app membership table remains the single authority source.
+    /// @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
+    ///   — the projection references the shipped membership/policy IR.
+    #[serde(
+        default,
+        rename = "authorityProfile",
+        alias = "authority_profile",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authority_profile: Option<AuthorityProfileV1>,
     /// `.assetSharing(spec)` — the explicit declaration that this table's
     /// analyzable row-visibility policy is sufficient asset-sharing
     /// authority: anyone the spec admits may also read assets referenced
@@ -1723,6 +1738,229 @@ impl MembershipManifest {
             .iter()
             .map(String::as_str)
             .chain(self.pending_roles.iter().flatten().map(String::as_str))
+    }
+}
+
+/// Stable identity of one authority-profile generation. Function manifests
+/// carry this beside their ordinary authorization dimensions so a role-field
+/// or transition edit is visible to dependent artifact review without
+/// changing the evaluator's existing membership predicate shape.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileIdentityV1 {
+    pub id: String,
+    pub generation: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileMembershipReferenceV1 {
+    pub declaration: String,
+    pub manifest_path: String,
+    pub predicate_identity: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileTablePolicyReferenceV1 {
+    pub identity: String,
+    pub membership_declaration: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileScopeRelationV1 {
+    pub table: String,
+    pub resource_field: String,
+    pub resource_table: String,
+    pub principal_key: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileStatusPredicatesV1 {
+    pub active: String,
+    pub invited: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileRoleV1 {
+    pub role: String,
+    pub implies: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileOwnerBootstrapInvariantV1 {
+    pub role: String,
+    pub bootstrap_role: String,
+    pub protected_last_holder_role: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileTransitionPreconditionsV1 {
+    pub source: String,
+    pub owner_mutation: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileSubjectDerivationV1 {
+    pub strategy: String,
+    pub principal_field: String,
+    pub scope_field: String,
+    /// The conservative target universe when a consumer cannot qualify the
+    /// exact `(principal, scope)` invalidation path. This is metadata only in
+    /// rollout 1; no new wake behavior is installed here.
+    pub coarse_global_wake_universe: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileRequiredIndexV1 {
+    pub name: String,
+    pub fields: Vec<String>,
+    pub unique: bool,
+    pub lookup: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileRosterV1 {
+    pub visible_fields: Vec<String>,
+}
+
+/// The closed rollout-1 authority profile projection. Canonical membership
+/// remains in [`TableManifest::membership`] and table policy remains in
+/// [`TableManifest::visibility`]; reference fields below make that ownership
+/// explicit while carrying the profile-only lattice, identity, and
+/// qualification facts codegen needs to explain.
+///
+/// @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions —
+///   one generated projection feeds the already-shipped policy vocabulary.
+/// @ref LLP 0225#1-ownership-map — this cross-owner value shape lives in the
+///   manifest leaf; storage/evaluators consume only their existing carriers.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileV1 {
+    pub version: u8,
+    pub id: String,
+    pub generation: String,
+    pub membership: AuthorityProfileMembershipReferenceV1,
+    pub table_policy: AuthorityProfileTablePolicyReferenceV1,
+    pub scope_relation: AuthorityProfileScopeRelationV1,
+    pub status_predicates: AuthorityProfileStatusPredicatesV1,
+    pub role_lattice: Vec<AuthorityProfileRoleV1>,
+    pub owner_bootstrap_invariant: AuthorityProfileOwnerBootstrapInvariantV1,
+    pub transition_preconditions: AuthorityProfileTransitionPreconditionsV1,
+    pub authorization_event_fields: Vec<String>,
+    pub subject_derivation: AuthorityProfileSubjectDerivationV1,
+    pub required_indexes: Vec<AuthorityProfileRequiredIndexV1>,
+    pub permitted_composition_classes: Vec<String>,
+    pub not_yet_qualified_composition_classes: Vec<String>,
+    pub roster: AuthorityProfileRosterV1,
+}
+
+#[cfg(test)]
+mod authority_profile_manifest_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn profile_json() -> Value {
+        json!({
+            "version": 1,
+            "id": "eventMembers",
+            "generation": "sha256:profile-generation",
+            "membership": {
+                "declaration": "eventMembers",
+                "manifestPath": "tables.eventMembers.membership",
+                "predicateIdentity": "snapback.membership-predicate.v1"
+            },
+            "tablePolicy": {
+                "identity": "snapback.table-visibility.v1",
+                "membershipDeclaration": "eventMembers"
+            },
+            "scopeRelation": {
+                "table": "eventMembers",
+                "resourceField": "eventId",
+                "resourceTable": "events",
+                "principalKey": "userId"
+            },
+            "statusPredicates": {
+                "active": "membership.roles",
+                "invited": "membership.pendingRoles"
+            },
+            "roleLattice": [
+                { "role": "owner", "implies": ["admin", "member", "owner"] },
+                { "role": "admin", "implies": ["admin", "member"] },
+                { "role": "member", "implies": ["member"] }
+            ],
+            "ownerBootstrapInvariant": {
+                "role": "owner",
+                "bootstrapRole": "owner",
+                "protectedLastHolderRole": "owner"
+            },
+            "transitionPreconditions": {
+                "source": "membership.transitions",
+                "ownerMutation": "transfer-owner-only"
+            },
+            "authorizationEventFields": ["eventId", "userId", "role"],
+            "subjectDerivation": {
+                "strategy": "membership-principal-resource-v1",
+                "principalField": "userId",
+                "scopeField": "eventId",
+                "coarseGlobalWakeUniverse": [
+                    "membership-relation-insert-update-delete",
+                    "protected-resource-row-insert-update-delete",
+                    "effective-principal-or-auth-context-change",
+                    "authority-profile-generation-activation"
+                ]
+            },
+            "requiredIndexes": [
+                {
+                    "name": "_membership_pk",
+                    "fields": ["userId", "eventId"],
+                    "unique": true,
+                    "lookup": "principal-in-scope-point"
+                },
+                {
+                    "name": "_membership_reverse",
+                    "fields": ["eventId", "role", "userId"],
+                    "unique": false,
+                    "lookup": "protected-holders-and-scope-invalidation-range"
+                }
+            ],
+            "permittedCompositionClasses": ["table-visibility.membership.v1"],
+            "notYetQualifiedCompositionClasses": [
+                "membership-visible-search.v1",
+                "authority-profile-asset-sharing.v1"
+            ],
+            "roster": { "visibleFields": ["userId", "role"] }
+        })
+    }
+
+    #[test]
+    fn authority_profile_v1_round_trips_the_closed_projection() {
+        let authored = profile_json();
+        let parsed: AuthorityProfileV1 =
+            serde_json::from_value(authored.clone()).expect("authority profile parses");
+        assert_eq!(
+            serde_json::to_value(parsed).expect("authority profile serializes"),
+            authored
+        );
+    }
+
+    #[test]
+    fn authority_profile_v1_refuses_unknown_projection_fields() {
+        let mut authored = profile_json();
+        authored
+            .as_object_mut()
+            .expect("profile object")
+            .insert("rosterOperation".to_owned(), json!("list"));
+        serde_json::from_value::<AuthorityProfileV1>(authored)
+            .expect_err("rollout 1 must not admit roster operations or hooks");
     }
 }
 
@@ -5253,6 +5491,7 @@ mod stored_enum_result_contract_tests {
             vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
+            authority_profile: None,
             asset_sharing: None,
             visibility: None,
             history: None,
@@ -7467,6 +7706,17 @@ pub struct FunctionDefinition {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub authorization_dependence: Vec<AuthorizationInputDimension>,
+    /// Authority-profile generations mechanically referenced by this
+    /// function's compiled membership predicates or membership-table writes.
+    /// Authors cannot supply this field; codegen derives it alongside
+    /// `authorizationDependence`.
+    #[serde(
+        default,
+        rename = "authorityProfileDependence",
+        alias = "authority_profile_dependence",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub authority_profile_dependence: Vec<AuthorityProfileIdentityV1>,
     #[serde(default, rename = "syncabilityClass", alias = "syncability_class")]
     pub syncability_class: Option<String>,
     #[serde(default, rename = "readSetSummary", alias = "read_set_summary")]
@@ -7540,6 +7790,7 @@ impl FunctionDefinition {
             refusals: Vec::new(),
             tracked_refusals: Vec::new(),
             authorization_dependence: Vec::new(),
+            authority_profile_dependence: Vec::new(),
             syncability_class: Some(syncability_class.to_owned()),
             read_set_summary: DependencySummary::default(),
             write_set_summary: DependencySummary::default(),
@@ -8059,6 +8310,11 @@ pub struct PublicFunctionDefinition {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub authorization_dependence: Vec<AuthorizationInputDimension>,
+    #[serde(
+        rename = "authorityProfileDependence",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub authority_profile_dependence: Vec<AuthorityProfileIdentityV1>,
     #[serde(rename = "syncabilityClass")]
     pub syncability_class: Option<String>,
     #[serde(rename = "readSetSummary")]
@@ -8281,6 +8537,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             refusals: _,
             tracked_refusals: _,
             authorization_dependence,
+            authority_profile_dependence,
             syncability_class,
             read_set_summary,
             write_set_summary,
@@ -8315,6 +8572,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             retainable,
             retention_class,
             authorization_dependence,
+            authority_profile_dependence,
             syncability_class,
             read_set_summary,
             write_set_summary,
@@ -15281,6 +15539,7 @@ mod membership_manifest_grammar_tests {
             vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
+            authority_profile: None,
             asset_sharing: None,
             visibility: None,
             history: None,
