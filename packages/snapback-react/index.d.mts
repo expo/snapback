@@ -1,10 +1,12 @@
 import type {
   FunctionArgs,
   FunctionResult,
+  LiveQueryRef,
   EphemeralScope,
   EphemeralValue,
   LiveQueryRetention,
   MutationDisposition,
+  MutationRef,
   OutboxDrainControllerStatus,
   OutboxDrainOptions,
   OutboxDrainPhase,
@@ -17,7 +19,6 @@ import type {
   ResultGoneAcknowledgementOutcome,
   SnapbackProvisionalId,
   SnapbackEphemeralReference,
-  SnapbackFunctionReference,
   StrandedMutation,
   StrandedMutationDiscardOutcome,
 } from '@expo/snapback-client';
@@ -33,6 +34,7 @@ import type {
   AssetBearingCommandDescriptorV1,
   AssetBearingCommandReferenceV1,
   CommandArgs,
+  CommandRef,
   CommandOutcome,
   CommandResidue,
   CommandResult,
@@ -55,6 +57,7 @@ export type {
   AssetBearingCommandDescriptorV1,
   AssetBearingCommandReferenceV1,
   CommandArgs,
+  CommandRef,
   CommandOutcome,
   CommandResidue,
   CommandResult,
@@ -145,13 +148,13 @@ export type QueryReference<
   Name extends string = string,
   Args = Record<string, unknown>,
   Result extends ReadonlyArray<unknown> = ReadonlyArray<unknown>,
-> = SnapbackFunctionReference<Name, 'LiveQuery', Args, Result>;
+> = LiveQueryRef<Name, Args, Result>;
 
 export type MutationReference<
   Name extends string = string,
   Args = Record<string, unknown>,
   Result = unknown,
-> = SnapbackFunctionReference<Name, 'Mutation', Args, Result>;
+> = MutationRef<Name, Args, Result>;
 
 type OptimisticCreateQueryRow<Ref extends QueryReference> =
   FunctionResult<Ref> extends ReadonlyArray<infer Row> ? Row : never;

@@ -4,13 +4,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react, clients.dev-diagnostics]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-react/dev-diagnostics.test.mjs, packages/snapback-react/dev-diagnostics-acceptance.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-10
-reviewed-commit: 308414f8da2c05bc267c8df02a45a2395ab895e9
+reviewed: 2026-08-12
+reviewed-commit: 03125be6a3dc51f7e20d9b7db01bdc225735d0cf
 ---
 
 # The React client
@@ -172,6 +172,35 @@ Keep importing from `@expo/snapback-react` when the application uses an
 [application surface](./surfaces.md), command task, or asset projection. Those
 APIs remain synchronous and unchanged on the root; the core entry does not
 replace them with lazy proxies.
+
+<!-- since: 0.1.21 unreleased -->
+
+> **Unreleased.** Generated nominal reference kinds and their lifecycle JSDoc
+> are not present in the newest published closure, 0.1.20. They are expected
+> in 0.1.21.
+
+## Pass each hook the reference kind it owns
+
+`useSnapbackQuery` accepts a generated `LiveQueryRef`; `useSnapbackMutation`
+and `useSnapbackSettledMutation` accept a generated `MutationRef`; and
+`useSnapbackCommand` accepts a generated `CommandRef`. The nominal brands make
+cross-kind TypeScript calls fail even when two operations happen to have the
+same argument and result shape. The generated reference JSDoc lists the legal
+headless verbs and React hooks, auth requirement, required capabilities,
+freshness and retention meaning, semantic identity, and the build-bound guide
+anchor.
+
+`useSnapbackQuery` remains the current exported live-query hook name. The
+clearer `useSnapbackLiveQuery` spelling is only a planned compatibility alias:
+rollout 1 does not emit it. The current name has no removal date; removal can
+be considered only in a declared major version after stage-2 usage
+measurement. No one-shot `QueryRef` hook and no future watch, mutation-handle,
+or action-handle hook ships in this rollout.
+
+For imperative calls below a hook, the headless client enforces the same
+matrix before transport and reports
+`SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH`; see
+[generated reference kinds and legal verbs](./headless.md#generated-reference-kinds-and-legal-verbs).
 
 ## Bind a generated query
 

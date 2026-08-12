@@ -4,13 +4,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.micro]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-10
-reviewed-commit: 97c985aec0637b08a4c06d7db6b47c5f30745338
+reviewed: 2026-08-12
+reviewed-commit: 03125be6a3dc51f7e20d9b7db01bdc225735d0cf
 ---
 
 # The headless client
@@ -369,6 +369,60 @@ returns the same phased command task documented in
 [application surfaces](./surfaces.md#run-a-command-and-read-its-truthful-outcome).
 `useSnapbackCommand` and `provider.surface(...)` compose this same owner
 rather than a second one.
+
+<!-- since: 0.1.21 unreleased -->
+
+> **Unreleased.** Generated nominal reference kinds, lifecycle metadata, and
+> pre-transport kind diagnostics are not present in the newest published
+> closure, 0.1.20. They are expected in 0.1.21.
+
+## Generated reference kinds and legal verbs
+
+Generated function references are nominally distinct `QueryRef`,
+`LiveQueryRef`, `MutationRef`, and `ActionRef` values. Generated command
+descriptors are `CommandRef` values with the runtime discriminator
+`asset-bearing-command.v1`. The current legal surface is closed:
+
+| Reference kind | Legal headless verb | Meaning |
+| --- | --- | --- |
+| `QueryRef` | `query()` or `liveQuery()` | One authoritative read, or the existing live-subscription compatibility path. |
+| `LiveQueryRef` | `query()` or `liveQuery()` | One-shot read or authoritative snapshot followed by updates. |
+| `MutationRef` | `mutate()` | Dispatch; a queued result is pending, not settled. |
+| `ActionRef` | `action()` | One online action response. |
+| `CommandRef` | `commandClient.start()` | One process-local command task over its ordinary mutation and optional asset transfer. |
+
+TypeScript rejects cross-kind calls. JavaScript, stale generated modules, and
+other skewed callers receive
+`SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH` before auth discovery, store
+preparation, command-task creation, or transport. Its structured details name
+`receivedKind`, the verb's `acceptedKinds`, the received kind's `correctVerb`,
+and this guide anchor. Legacy string names remain untyped compatibility input
+because they carry no kind discriminator. Structured diagnostics are always
+available through `diagnosticsChannel()`; the default console projection is
+attached only under a positive development/HMR signal.
+
+Codegen writes `client-lifecycle.v1.json` beside the other generated
+artifacts. It is currently a developer-tooling, regenerable-cache artifact:
+no rollout-1 runtime consumer requires a committed copy. The artifact and
+generated JSDoc come from the same lifecycle table and bind every operation's
+semantic id, implementation and contract hashes, auth requirement, required
+capabilities, legal verbs, freshness, retention, and guide anchor to the
+generated build.
+
+Mutation dispatch and settlement remain separate. Durable dispositions are
+exactly `pending | settled | failed | stranded | quarantined | resultGone |
+unknown`; do not infer another state from promise completion. Live handles use
+connection states `connecting | live | polling | stale | disconnected` and
+stop publishing after disposal. Command tasks progress through `preparing |
+transferring | committing` and terminate as `succeeded | failed | cancelled |
+ambiguous`.
+
+Resource keys combine reference semantic identity, canonical argument
+contract and bytes, authority partition, normalized lifecycle options, and
+build identity. A later class-M handle may expose `snapshotVersion`; when it
+does, that value means the authorized principal/query `viewRevision`, never a
+raw row version, app commit, or storage snapshot. Rollout 1 does not add that
+handle or any new client verb.
 
 ## Subscribe to durable state
 

@@ -12,6 +12,7 @@ type ReferenceResult<Reference> = Reference extends { readonly __result?: infer 
 type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };
 export interface CommandDescriptor<Mutation = unknown, Input extends string | never = never, MutationArg extends string | never = never, Optional extends boolean = false, Intent = unknown> {
   readonly kind: 'asset-bearing-command.v1';
+  readonly __snapbackReferenceKind: 'Command';
   readonly mutation: Mutation;
   readonly asset: [Input] extends [never] ? null : Readonly<{ input: Input; intent: Intent; mutationArg: MutationArg; optional: Optional }>;
   readonly passthroughArgs: readonly string[];

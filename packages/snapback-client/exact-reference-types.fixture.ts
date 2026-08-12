@@ -1,8 +1,14 @@
 import {
   SnapbackClient,
   admitSnapbackId,
+  createCommandClient,
   createRqsRegisteredRegistry,
+  type ActionRef,
   type ActiveSeedIdentityV1,
+  type CommandRef,
+  type LiveQueryRef,
+  type MutationRef,
+  type QueryRef,
   type SnapbackEphemeralReference,
   type SnapbackAppRefusalError,
   type SnapbackDiagnosticCode,
@@ -36,6 +42,11 @@ declare const createTodo: SnapbackFunctionReference<
   { title: string },
   string
 >;
+declare const oneShotTodo: QueryRef<'oneShotTodo', Record<string, never>, string>;
+declare const liveTodo: LiveQueryRef<'liveTodo', Record<string, never>, readonly string[]>;
+declare const renameTodo: MutationRef<'renameTodo', Record<string, never>, string>;
+declare const rebuildTodo: ActionRef<'rebuildTodo', Record<string, never>, string>;
+declare const uploadTodo: CommandRef;
 declare const presence: SnapbackEphemeralReference<
   'presence',
   { roomId: string },
@@ -69,6 +80,58 @@ type GeneratedId<Table extends string> =
   string & { readonly __snapbackIdTable: Table };
 
 const client = new SnapbackClient('http://127.0.0.1:5050');
+const commandClient = createCommandClient(client);
+
+client.query(oneShotTodo);
+client.query(liveTodo);
+client.liveQuery(oneShotTodo, { connectionId: 'kind-fixture' });
+client.liveQuery(liveTodo, { connectionId: 'kind-fixture' });
+client.mutate(renameTodo);
+client.action(rebuildTodo);
+commandClient.start(uploadTodo, {});
+
+// @ts-expect-error query accepts QueryRef and LiveQueryRef, not MutationRef.
+client.query(renameTodo);
+// @ts-expect-error query accepts QueryRef and LiveQueryRef, not ActionRef.
+client.query(rebuildTodo);
+// @ts-expect-error query does not accept CommandRef.
+client.query(uploadTodo);
+// @ts-expect-error liveQuery does not accept MutationRef.
+client.liveQuery(renameTodo, { connectionId: 'kind-fixture' });
+// @ts-expect-error liveQuery does not accept ActionRef.
+client.liveQuery(rebuildTodo, { connectionId: 'kind-fixture' });
+// @ts-expect-error liveQuery does not accept CommandRef.
+client.liveQuery(uploadTodo, { connectionId: 'kind-fixture' });
+// @ts-expect-error mutate accepts only MutationRef.
+client.mutate(oneShotTodo);
+// @ts-expect-error mutate does not accept LiveQueryRef.
+client.mutate(liveTodo);
+// @ts-expect-error mutate does not accept ActionRef.
+client.mutate(rebuildTodo);
+// @ts-expect-error mutate does not accept CommandRef.
+client.mutate(uploadTodo);
+// @ts-expect-error action accepts only ActionRef.
+client.action(oneShotTodo);
+// @ts-expect-error action does not accept LiveQueryRef.
+client.action(liveTodo);
+// @ts-expect-error action does not accept MutationRef.
+client.action(renameTodo);
+// @ts-expect-error action does not accept CommandRef.
+client.action(uploadTodo);
+// @ts-expect-error commandClient.start accepts only CommandRef.
+commandClient.start(oneShotTodo, {});
+// @ts-expect-error commandClient.start does not accept LiveQueryRef.
+commandClient.start(liveTodo, {});
+// @ts-expect-error commandClient.start does not accept MutationRef.
+commandClient.start(renameTodo, {});
+// @ts-expect-error commandClient.start does not accept ActionRef.
+commandClient.start(rebuildTodo, {});
+
+declare const unbrandedQueryShape: Omit<QueryRef, '__snapbackReferenceKind'>;
+// @ts-expect-error generated reference kinds are nominally branded.
+const nominalQuery: QueryRef = unbrandedQueryShape;
+void nominalQuery;
+
 const admittedTodoId: GeneratedId<'todos'> = admitSnapbackId('todos', 'todo_01');
 admittedTodoId.toUpperCase();
 // @ts-expect-error admission preserves the exact table brand.

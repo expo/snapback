@@ -42,6 +42,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   id: string;
   name: Name;
   kind: Kind;
+  readonly __snapbackReferenceKind: Kind;
   implementationHash: string;
   argsContractHash: string;
   resultContractHash: string;
@@ -56,6 +57,10 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   readonly __args?: Args;
   readonly __result?: Result;
 }
+export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Query', Args, Result>;
+export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'LiveQuery', Args, Result>;
+export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Mutation', Args, Result>;
+export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Action', Args, Result>;
 export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;
 export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
@@ -220,23 +225,167 @@ export interface GeneratedEphemeral {
 export interface GeneratedQueryGroups {
 }
 export interface GeneratedApi {
+  /**
+   * Mutation reference `competitive-checkpoint:applyReplyProgress`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   applyReplyProgress: FunctionReference<'applyReplyProgress', 'Mutation', { attemptId: string; sequence: number; delta: string }, unknown>;
+  /**
+   * Mutation reference `competitive-checkpoint:cancelReply`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   cancelReply: FunctionReference<'cancelReply', 'Mutation', { attemptId: string }, unknown>;
+  /**
+   * Mutation reference `competitive-checkpoint:completeReply`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   completeReply: FunctionReference<'completeReply', 'Mutation', { attemptId: string; sequence: number; tail: string }, unknown>;
+  /**
+   * LiveQuery reference `competitive-checkpoint:conversationBySlug`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   conversationBySlug: FunctionReference<'conversationBySlug', 'LiveQuery', { slug: string }, ReadonlyArray<GeneratedDataModel["conversations"]>>;
+  /**
+   * LiveQuery reference `competitive-checkpoint:conversationsWithModel`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `relational_query_v1`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   conversationsWithModel: FunctionReference<'conversationsWithModel', 'LiveQuery', { cursor?: string }, ReadonlyArray<{ "slug": string; "title": string; "model": string; "modelName": null | string; "modelProvider": null | string }>>;
+  /**
+   * Mutation reference `competitive-checkpoint:createConversation`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   createConversation: FunctionReference<'createConversation', 'Mutation', { slug: string; title: string; model: string }, GeneratedDataModel["conversations"]>;
+  /**
+   * Mutation reference `competitive-checkpoint:deleteConversation`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   deleteConversation: FunctionReference<'deleteConversation', 'Mutation', { id: Id<'conversations'> }, unknown>;
+  /**
+   * LiveQuery reference `competitive-checkpoint:firstConversationPage`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   firstConversationPage: FunctionReference<'firstConversationPage', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["conversations"]>>;
+  /**
+   * LiveQuery reference `competitive-checkpoint:getConversation`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   getConversation: FunctionReference<'getConversation', 'LiveQuery', { id: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["conversations"]>>;
+  /**
+   * LiveQuery reference `competitive-checkpoint:listConversationCards`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   listConversationCards: FunctionReference<'listConversationCards', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["conversationCards"]>>;
+  /**
+   * LiveQuery reference `competitive-checkpoint:listConversations`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   listConversations: FunctionReference<'listConversations', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["conversations"]>>;
+  /**
+   * LiveQuery reference `competitive-checkpoint:listMessages`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   listMessages: FunctionReference<'listMessages', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<{ "_id": string; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": string; "conversationId": Id<"conversations">; "role": string; "content": string; "status": string; "attemptId": string; "idempotencyKey": string; "sequence": number; "lastProgressAt": number; "pageKey": string }>>;
+  /**
+   * LiveQuery reference `competitive-checkpoint:nextConversationPage`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   nextConversationPage: FunctionReference<'nextConversationPage', 'LiveQuery', { after: string }, ReadonlyArray<GeneratedDataModel["conversations"]>>;
+  /**
+   * Mutation reference `competitive-checkpoint:registerModel`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   registerModel: FunctionReference<'registerModel', 'Mutation', { slug: string; displayName: string; provider?: string }, unknown>;
+  /**
+   * Mutation reference `competitive-checkpoint:settleReply`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   settleReply: FunctionReference<'settleReply', 'Mutation', { attemptId: string; status: string }, unknown>;
+  /**
+   * Mutation reference `competitive-checkpoint:startReply`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   startReply: FunctionReference<'startReply', 'Mutation', { conversationId: Id<'conversations'>; content: string; idempotencyKey: string }, unknown>;
+  /**
+   * Action reference `competitive-checkpoint:streamReply`.
+   * Legal client verbs/hooks: `action`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `bounded_response_stream_v1`, `cron_action_run_mutation`, `ibex_ctx_db_host_bridge`, `result_contract_v1`.
+   * Freshness: one-shot online response Retention: none.
+   * Dispatch/task states: promise-only (no handle state table).
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   streamReply: FunctionReference<'streamReply', 'Action', { attemptId: string; streamUrl: string; method: string; upstreamIdempotent: boolean }, unknown>;
+  /**
+   * Mutation reference `competitive-checkpoint:updateConversation`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `c2c98158b45724c6075c502d5bc0dc5312be78ff03941857a9dbe687503de9d1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   updateConversation: FunctionReference<'updateConversation', 'Mutation', { id: Id<'conversations'>; title: string; model: string }, GeneratedDataModel["conversations"]>;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;

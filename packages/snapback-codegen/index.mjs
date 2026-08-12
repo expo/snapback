@@ -88,6 +88,11 @@ import {
   CLOSED_SCRIPT_HANDLER_RULES,
   handlerDiagnosticDetails,
 } from './handler-runtime-profile.mjs';
+import {
+  buildClientLifecycleManifest,
+  CLIENT_LIFECYCLE_MANIFEST_FILE,
+  renderReferenceJSDoc,
+} from './client-lifecycle.mjs';
 
 const AUTH_ASSURANCE_KINDS = new Set([
   'authenticated', 'email_verified', 'phone_verified', 'recent_auth',
@@ -5476,6 +5481,14 @@ async function generateInProcessLocked({
     generatedReferences,
     err,
   });
+  const clientLifecycleManifest = buildClientLifecycleManifest({
+    appId,
+    inputsHash,
+    authoredSourceHash,
+    targetProfile,
+    functions: functionManifest.functions,
+    commands: generatedCommands,
+  });
   const generatedSurfaces = buildGeneratedSurfaces({
     appId,
     surfaceDefs,
@@ -5541,6 +5554,7 @@ async function generateInProcessLocked({
     assetUploadIntents,
     generatedCommands,
     generatedSurfaces,
+    clientLifecycleManifest,
   );
   const apiModule = renderApiModule(
     functionManifest.functions,
@@ -5557,6 +5571,7 @@ async function generateInProcessLocked({
     routesManifest,
     assetUploadIntents,
     capabilityManifest,
+    clientLifecycleManifest,
   );
   const microArtifacts = buildMicroArtifacts({
     backendRoot,
@@ -5605,7 +5620,11 @@ async function generateInProcessLocked({
         functions: functionManifest.functions.filter((fn) => fn.apiExposure?.expose === true),
       }
     : functionManifest;
-  const apiEnvelopeMembers = buildApiEnvelopeMembers(envelopeFunctionManifest, operationSchemas);
+  const apiEnvelopeMembers = buildApiEnvelopeMembers(
+    envelopeFunctionManifest,
+    operationSchemas,
+    clientLifecycleManifest,
+  );
   validateContractModuleFilenames(contractModules, err);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
@@ -5659,6 +5678,7 @@ async function generateInProcessLocked({
       './schema': './schema.manifest.json',
       './functions': './functions.manifest.json',
       './handler-runtime-profile': './handler-runtime-profile.v1.json',
+      './client-lifecycle': `./${CLIENT_LIFECYCLE_MANIFEST_FILE}`,
       './capabilities': './capability.manifest.json',
       ...(trustedCompositionActivation
         ? { './trusted-composition-activation': `./${TRUSTED_COMPOSITION_ACTIVATION_FILE}` }
@@ -5702,7 +5722,7 @@ async function generateInProcessLocked({
     bundleHash,
     authoredSourceHash,
     ...(activationGenerationAdvanced === null ? {} : { activationGenerationAdvanced }),
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'handler-runtime-profile.v1.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'handler-runtime-profile.v1.json', CLIENT_LIFECYCLE_MANIFEST_FILE, 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -5729,6 +5749,7 @@ async function generateInProcessLocked({
       schemaManifest,
       functionManifest,
       handlerRuntimeProfile,
+      clientLifecycleManifest,
       capabilityManifest,
       routesManifest,
       providerIntrospection,
@@ -5814,6 +5835,7 @@ async function generateInProcessLocked({
     schemaManifest,
     functionManifest,
     handlerRuntimeProfile,
+    clientLifecycleManifest,
     capabilityManifest,
     trustedCompositionActivation,
     microProfile: microArtifacts?.profile ?? null,
@@ -11701,7 +11723,13 @@ function renderSurfaceTypeMap(members, referenceNamespace, commandMap = {}) {
   return entries.length === 0 ? 'Record<string, never>' : `{ ${entries.join('; ')} }`;
 }
 
-function renderAppTypes(functions, assetUploadIntents = [], commands = {}, surfaces = {}) {
+function renderAppTypes(
+  functions,
+  assetUploadIntents = [],
+  commands = {},
+  surfaces = {},
+  clientLifecycleManifest,
+) {
   const standalone = standaloneDescriptorFunctions(functions);
   const queryNames = standalone
     .filter(({ kind }) => kind === 'Query' || kind === 'LiveQuery')
@@ -11726,6 +11754,7 @@ function renderAppTypes(functions, assetUploadIntents = [], commands = {}, surfa
     'type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };',
     'export interface CommandDescriptor<Mutation = unknown, Input extends string | never = never, MutationArg extends string | never = never, Optional extends boolean = false, Intent = unknown> {',
     "  readonly kind: 'asset-bearing-command.v1';",
+    "  readonly __snapbackReferenceKind: 'Command';",
     '  readonly mutation: Mutation;',
     '  readonly asset: [Input] extends [never] ? null : Readonly<{ input: Input; intent: Intent; mutationArg: MutationArg; optional: Optional }>;',
     '  readonly passthroughArgs: readonly string[];',
@@ -11733,7 +11762,12 @@ function renderAppTypes(functions, assetUploadIntents = [], commands = {}, surfa
     '  readonly __result?: ReferenceResult<Mutation>;',
     '}',
     'export interface GeneratedAppCommands {',
-    ...Object.entries(commands).map(([name, command]) => `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`),
+    ...Object.entries(commands).flatMap(([name, command]) => [
+      ...renderReferenceJSDoc({ kind: 'Command', name }, clientLifecycleManifest)
+        .split('\n')
+        .map((line) => `  ${line}`),
+      `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`,
+    ]),
     '}',
     '/** Surface member call payloads follow strict omission semantics: an optional input the caller omits is omitted from the composed operation payload (never sent as undefined); passing undefined explicitly is refused by the client value gate before any network work. */',
     'export interface SurfaceMemberDescriptor<Reference = unknown, Input = Record<string, never>> {',
@@ -11829,6 +11863,7 @@ function renderApiTypes(
   routesManifest,
   assetUploadIntents = [],
   capabilityManifest = null,
+  clientLifecycleManifest,
 ) {
   const hasSearchFunction = functions.some(
     (fn) => fn.runtime?.HostPlan?.SearchQuery !== undefined,
@@ -11932,6 +11967,7 @@ function renderApiTypes(
     '  id: string;',
     '  name: Name;',
     '  kind: Kind;',
+    '  readonly __snapbackReferenceKind: Kind;',
     '  implementationHash: string;',
     '  argsContractHash: string;',
     '  resultContractHash: string;',
@@ -11946,6 +11982,10 @@ function renderApiTypes(
     '  readonly __args?: Args;',
     '  readonly __result?: Result;',
     '}',
+    "export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Query', Args, Result>;",
+    "export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'LiveQuery', Args, Result>;",
+    "export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Mutation', Args, Result>;",
+    "export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Action', Args, Result>;",
     'export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;',
     'export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;',
     "export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
@@ -12296,7 +12336,12 @@ function renderApiTypes(
           [search.resourceArg]: def?.args?.[search.resourceArg],
         })}`
       : typeForGeneratedArgs(def?.args ?? {});
-    lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`);
+    lines.push(
+      ...renderReferenceJSDoc(fn, clientLifecycleManifest)
+        .split('\n')
+        .map((line) => `  ${line}`),
+      `  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`,
+    );
   }
   // Explicit and derived upload intents are api members like functions —
   // the runtime module already emits them, and the declaration surface must
@@ -14166,6 +14211,7 @@ function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
   handlerRuntimeProfile,
+  clientLifecycleManifest,
   capabilityManifest,
   routesManifest,
   providerIntrospection,
@@ -14200,6 +14246,7 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
   writeFileSync(join(outDir, 'handler-runtime-profile.v1.json'), stableJson(handlerRuntimeProfile) + '\n');
+  writeFileSync(join(outDir, CLIENT_LIFECYCLE_MANIFEST_FILE), stableJson(clientLifecycleManifest) + '\n');
   writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
   if (trustedCompositionActivation) {
     writeFileSync(

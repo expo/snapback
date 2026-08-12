@@ -80,6 +80,7 @@ export type {
   AssetBearingCommandDescriptorV1,
   AssetBearingCommandReferenceV1,
   CommandArgs,
+  CommandRef,
   CommandAssetSource,
   CommandAssetSourceAdapter,
   AdaptedCommandAssetSource,
@@ -103,7 +104,8 @@ import type {
   TransformPlanV1,
 } from './result-transform.mjs';
 
-export type SnapbackFunctionKind = 'Query' | 'LiveQuery' | 'Mutation' | 'Action';
+export type SnapbackFunctionKind = 'Query' | 'LiveQuery' | 'Mutation' | 'Action' | 'Command';
+export type SnapbackOperationKind = Exclude<SnapbackFunctionKind, 'Command'>;
 export interface GeneratedMutationIrV1 {
   readonly format: 'snapback.generated-mutation-ir.v1';
   readonly operationHash: `sha256:${string}`;
@@ -137,7 +139,7 @@ export interface GeneratedMutationIrV1 {
 }
 export interface SnapbackFunctionReference<
   Name extends string = string,
-  Kind extends SnapbackFunctionKind = SnapbackFunctionKind,
+  Kind extends SnapbackOperationKind = SnapbackOperationKind,
   Args = Record<string, unknown>,
   Result = unknown,
 > {
@@ -147,6 +149,7 @@ export interface SnapbackFunctionReference<
   readonly id: string;
   readonly name: Name;
   readonly kind: Kind;
+  readonly __snapbackReferenceKind: Kind;
   readonly implementationHash: string;
   readonly argsContractHash: string;
   readonly resultContractHash: string;
@@ -158,6 +161,15 @@ export interface SnapbackFunctionReference<
   readonly __args?: Args;
   readonly __result?: Result;
 }
+
+export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> =
+  SnapbackFunctionReference<Name, 'Query', Args, Result>;
+export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> =
+  SnapbackFunctionReference<Name, 'LiveQuery', Args, Result>;
+export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> =
+  SnapbackFunctionReference<Name, 'Mutation', Args, Result>;
+export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> =
+  SnapbackFunctionReference<Name, 'Action', Args, Result>;
 
 export interface ArtifactGeneration {
   readonly schemaVersion: string;
@@ -1226,7 +1238,7 @@ export type SeedPreviewResultV1 =
 export declare function newSeedOperationIdV1(nowMs?: number): string;
 
 type FunctionRef<
-  Kind extends SnapbackFunctionKind,
+  Kind extends SnapbackOperationKind,
   Args = unknown,
   Result = unknown,
 > = string | SnapbackFunctionReference<string, Kind, Args, Result>;
@@ -1880,7 +1892,7 @@ export function admittedReactCommand(
 export function admittedReactReference(
   binding: unknown,
   reference: SnapbackFunctionReference,
-  expectedKind: SnapbackFunctionKind | readonly SnapbackFunctionKind[],
+  expectedKind: SnapbackOperationKind | readonly SnapbackOperationKind[],
 ): SnapbackFunctionReference;
 export function preparedReactResultContract(
   binding: unknown,

@@ -42,6 +42,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   id: string;
   name: Name;
   kind: Kind;
+  readonly __snapbackReferenceKind: Kind;
   implementationHash: string;
   argsContractHash: string;
   resultContractHash: string;
@@ -56,6 +57,10 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   readonly __args?: Args;
   readonly __result?: Result;
 }
+export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Query', Args, Result>;
+export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'LiveQuery', Args, Result>;
+export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Mutation', Args, Result>;
+export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Action', Args, Result>;
 export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;
 export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
@@ -225,20 +230,140 @@ export interface GeneratedQueryGroups {
   "/": QueryGroupReference<"/", Record<string, never>, readonly [Readonly<{ name: "listMyRooms"; ref: FunctionReference<'listMyRooms', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["roomParticipants"]>>; args: Readonly<Record<string, never>> }>, Readonly<{ name: "unreadDeliveries"; ref: FunctionReference<'unreadDeliveries', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["deliveries"]>>; args: Readonly<Record<string, never>> }>]>;
 }
 export interface GeneratedApi {
+  /**
+   * Mutation reference `team-chat:acceptInvite`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   acceptInvite: FunctionReference<'acceptInvite', 'Mutation', { roomId: Id<'rooms'> }, unknown>;
+  /**
+   * Mutation reference `team-chat:createRoom`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   createRoom: FunctionReference<'createRoom', 'Mutation', { title: string; displayName: string }, unknown>;
+  /**
+   * LiveQuery reference `team-chat:firstInboxPage`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   firstInboxPage: FunctionReference<'firstInboxPage', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["deliveries"]>>;
+  /**
+   * Query reference `team-chat:firstRoomMessagePage`.
+   * Legal client verbs/hooks: `query`, `liveQuery`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `result_contract_v1`.
+   * Freshness: one-shot authoritative response or liveQuery snapshot followed by updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   firstRoomMessagePage: FunctionReference<'firstRoomMessagePage', 'Query', { roomId: Id<'rooms'> }, ReadonlyArray<GeneratedDataModel["messages"]>>;
+  /**
+   * Mutation reference `team-chat:inviteMember`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   inviteMember: FunctionReference<'inviteMember', 'Mutation', { roomId: Id<'rooms'>; userId: Principal; displayName: string }, unknown>;
+  /**
+   * Mutation reference `team-chat:leaveRoom`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   leaveRoom: FunctionReference<'leaveRoom', 'Mutation', { roomId: Id<'rooms'> }, unknown>;
+  /**
+   * LiveQuery reference `team-chat:listMyRooms`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   listMyRooms: FunctionReference<'listMyRooms', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["roomParticipants"]>>;
+  /**
+   * Mutation reference `team-chat:markRoomRead`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   markRoomRead: FunctionReference<'markRoomRead', 'Mutation', { roomId: Id<'rooms'> }, unknown>;
+  /**
+   * LiveQuery reference `team-chat:nextInboxPage`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   nextInboxPage: FunctionReference<'nextInboxPage', 'LiveQuery', { after: string }, ReadonlyArray<GeneratedDataModel["deliveries"]>>;
+  /**
+   * Query reference `team-chat:nextRoomMessagePage`.
+   * Legal client verbs/hooks: `query`, `liveQuery`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `result_contract_v1`.
+   * Freshness: one-shot authoritative response or liveQuery snapshot followed by updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   nextRoomMessagePage: FunctionReference<'nextRoomMessagePage', 'Query', { roomId: Id<'rooms'>; after: string }, ReadonlyArray<GeneratedDataModel["messages"]>>;
+  /**
+   * Mutation reference `team-chat:ownerRemoveMember`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   ownerRemoveMember: FunctionReference<'ownerRemoveMember', 'Mutation', { roomId: Id<'rooms'>; targetPrincipal: Principal }, null>;
+  /**
+   * LiveQuery reference `team-chat:roomDetails`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   roomDetails: FunctionReference<'roomDetails', 'LiveQuery', { roomId: Id<'rooms'> }, ReadonlyArray<GeneratedDataModel["rooms"]>>;
+  /**
+   * LiveQuery reference `team-chat:roomMessages`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   roomMessages: FunctionReference<'roomMessages', 'LiveQuery', { roomId: Id<'rooms'> }, ReadonlyArray<GeneratedDataModel["messages"]>>;
+  /**
+   * Mutation reference `team-chat:sendMessage`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   sendMessage: FunctionReference<'sendMessage', 'Mutation', { roomId: Id<'rooms'>; body: string }, unknown>;
+  /**
+   * LiveQuery reference `team-chat:unreadDeliveries`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `9312bbfe141ed932e651bbee6abc7f7765ace7c14f27404fca0a5967434201a7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   unreadDeliveries: FunctionReference<'unreadDeliveries', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["deliveries"]>>;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;

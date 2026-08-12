@@ -141,6 +141,12 @@ try {
   );
   assert.equal(handlerProfileRecord.logicalKind, 'handler-runtime-profile');
   assert.equal(handlerProfileRecord.consumer, 'developer-tooling');
+  const clientLifecycleRecord = first.artifactIndex.files.find(
+    ({ path }) => path === 'client-lifecycle.v1.json',
+  );
+  assert.equal(clientLifecycleRecord.logicalKind, 'client-lifecycle');
+  assert.equal(clientLifecycleRecord.consumer, 'developer-tooling');
+  assert.equal(clientLifecycleRecord.custody, CUSTODY.regenerableCache);
   assert.equal(handlerProfileRecord.custody, CUSTODY.regenerableCache);
   assert(first.artifactIndex.files.every(({ sha256, logicalKind, consumer, regeneration }) => (
     /^sha256:[0-9a-f]{64}$/u.test(sha256)
