@@ -229,9 +229,20 @@ export function issueRuntimeReadinessReceipt({
 }
 
 function packageSealRefusal(reason, message, context, details = {}) {
+  const {
+    repairCommand: _repairCommand,
+    requalifyCommand: _requalifyCommand,
+    custody: _custody,
+    packageName: _packageName,
+    ...classification
+  } = details;
   return refusal(reason, message, {
     ...context,
-    details: { ...details, custody: 'runtime-package' },
+    details: {
+      ...classification,
+      custody: 'runtime-package',
+      packageName: context.packageName,
+    },
   });
 }
 
@@ -284,7 +295,7 @@ export function verifyRuntimePackageSeal({
   root = resolve(root);
   binaryPath = resolve(binaryPath);
   receiptPath = resolve(receiptPath ?? runtimePackageReceiptPath(root));
-  const context = { root, binaryPath, receiptPath };
+  const context = { root, binaryPath, receiptPath, packageName };
   const adminRoot = join(root, 'admin');
   try {
     if (adminConsoleRequired || existsSync(adminRoot)) {
@@ -323,7 +334,14 @@ export function verifyRuntimePackageSeal({
     platform,
     artifacts,
   });
-  if (!verdict.ok) return verdict;
+  if (!verdict.ok) {
+    return packageSealRefusal(
+      verdict.reason,
+      verdict.diagnostic.message,
+      context,
+      verdict.diagnostic.details,
+    );
+  }
   const receipt = verdict.receipt;
   const qualification = receipt.qualification?.report;
   const buildIdentity = receipt.buildIdentity;
@@ -475,6 +493,18 @@ export function produceRuntimePackageSeal({
 }
 
 function refusal(reason, message, { receiptPath, binaryPath, root, details = {} }) {
+  const custody = details.custody ?? 'source-checkout';
+  const recovery = custody === 'runtime-package'
+    ? {
+        repairCommand: details.packageName
+          ? `reinstall ${details.packageName} from the consumer project's lockfile`
+          : 'reinstall the platform runtime package from the consumer project\'s lockfile',
+      }
+    : {
+        repairCommand: join(root, 'scripts/assemble-runtime-package'),
+        requalifyCommand:
+          `node ${join(root, 'packages/snapback-cli/runtime-readiness.mjs')} issue --binary ${binaryPath}`,
+      };
   return {
     ok: false,
     reason,
@@ -490,9 +520,8 @@ function refusal(reason, message, { receiptPath, binaryPath, root, details = {} 
         receiptPath,
         binaryPath,
         ...details,
-        repairCommand: `${join(root, 'scripts/bootstrap-ibex-runtime')}`,
-        requalifyCommand:
-          `node ${join(root, 'packages/snapback-cli/runtime-readiness.mjs')} issue --binary ${binaryPath}`,
+        custody,
+        ...recovery,
       },
     },
   };

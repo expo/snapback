@@ -113,6 +113,7 @@ test('Darwin package seals bind the dyld versioned file across npm symlink remov
       buildIdentity,
       sourceRevision,
       qualification,
+      adminConsoleRequired: false,
     });
     assert.deepEqual(
       packagedRuntimeArtifactCandidates(root, { platform: 'darwin' })
@@ -136,6 +137,7 @@ test('Darwin package seals bind the dyld versioned file across npm symlink remov
       packageName: '@expo/snapback-runtime-darwin-arm64',
       platform: 'darwin',
       architecture: 'arm64',
+      adminConsoleRequired: false,
     });
     assert.equal(installed.ok, true, JSON.stringify(installed.diagnostic));
 
@@ -146,6 +148,7 @@ test('Darwin package seals bind the dyld versioned file across npm symlink remov
       packageName: '@expo/snapback-runtime-darwin-arm64',
       platform: 'darwin',
       architecture: 'arm64',
+      adminConsoleRequired: false,
     }).reason, 'framework-drift');
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -205,7 +208,12 @@ test('absence, malformation, an un-OK verdict, and probe drift are refused with 
     assert.equal(absent.ok, false);
     assert.equal(absent.reason, 'absent');
     assert.equal(absent.diagnostic.code, RUNTIME_READINESS_INVALID_CODE);
-    assert.match(absent.diagnostic.details.repairCommand, /bootstrap-ibex-runtime/);
+    assert.equal(absent.diagnostic.details.custody, 'source-checkout');
+    assert.equal(
+      absent.diagnostic.details.repairCommand,
+      join(root, 'scripts', 'assemble-runtime-package'),
+    );
+    assert.match(absent.diagnostic.details.requalifyCommand, /runtime-readiness\.mjs.*issue/u);
 
     writeFileSync(runtimeReadinessReceiptPath(binary), 'not json');
     const malformed = verifyRuntimeReadinessReceipt({ root, binaryPath: binary });

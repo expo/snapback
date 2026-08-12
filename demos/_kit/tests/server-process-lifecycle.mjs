@@ -327,7 +327,7 @@ try {
       reuse: { allowed: false, reason: 'fixture link failure' },
       diagnostic: { code: typedDiagnostic.code, missingSymbols: ['ex_fixture_symbol'] },
       producerInputs: { root: scratch, target: 'snapback' },
-      recovery: { repairCommand: 'scripts/bootstrap-ibex-runtime', overrideCommand: null },
+      recovery: { repairCommand: 'scripts/assemble-runtime-package', overrideCommand: null },
     };
     await assert.rejects(
       __startServerForTests(
