@@ -7,7 +7,10 @@ Mutation settlement, Authorization, Field masking, Offline retention, Code
 generation, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12
+**Revised:** 2026-08-12 (round-1 review response: class-M-aware
+`via-references`, post-write commit-egress disclosure, exact source-cell JS
+provenance, a sealed settlement carrier with legacy-row policy, and the
+masked-only logical-position qualification); 2026-08-12 (initial Draft)
 **Related:** LLP 0239, LLP 0210, LLP 0211, LLP 0235, LLP 0242, LLP 0243,
 LLP 0044, LLP 0053, LLP 0043,
 `issues/20260812-media-ref-snapshot-projection.md`
@@ -74,6 +77,11 @@ the finalized-only v1 rule without changing LLP 0239 or the general
   timing to distinguish asset-policy outcomes. LLP 0235#22-logical-plan-position-audit
   applies to the media field and the projection operator; LLP 0053#the-one-constraint-everything-follows-from
   leaves authorization authority on the server.
+- A class-M-masked media edge is not asset-read authority. LLP
+  0044#asset-read-authorization's `via-references` decision must evaluate the
+  exact referencing field's disclosure before treating its reverse edge as an
+  authorizing edge, and LLP 0235#31-read-modify-write's field-keyed writeback
+  refusal precedes asset admission diagnostics.
 - Retained data is the already-authorized exact result, under the existing
   lease, descriptor, exclusion, and purge machinery. It is not a license to
   re-run joins offline (LLP 0243#d2-the-retained-view-descriptor-is-complete-and-content-addressed;
@@ -131,7 +139,7 @@ already exists.
 Codegen emits a closed `mediaRef.v1` result-contract node for every projected
 `v.media()` occurrence. The semantic node contains:
 
-- the source table and media-field identity;
+- the source table, media-field identity, and schema field generation;
 - outer optionality and class-M treatment identity;
 - upload-intent identity and the closed admitted-kind set;
 - the literal kind-classification profile `detected-content-type.v1`; and
@@ -176,13 +184,25 @@ operator before serialization into the handler realm. The handler sees either
 physical media column through an application read API.
 
 The invocation retains a host-private media provenance sidecar for disclosed
-cells. At result handoff, `MediaProjectionPlanV1` requires each `mediaRef.v1`
-result occurrence to match a cell observed through that invocation's pinned
-view. Copying, aliasing, or selecting an already-observed ref is allowed;
-supplying an asset id that the handler never received through a declared media
-source refuses with `SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED`. This prevents a
-public handler from becoming an existing-id/kind oracle merely by accepting an
-opaque id argument.
+cells. Each non-null media cell delivered to JS carries an unforgeable,
+non-JS-visible `MediaProvenanceTokenV1`; the sidecar entry is keyed by that
+token and records exactly `(sourceTableId, sourceFieldId,
+sourceFieldGeneration, sourceRowId, assetId)`, the admitted kind, the class-M
+program identity, and the pinned snapshot version. The dynamic row id lives in
+the token rather than the semantic result-contract node.
+
+At result handoff, each non-null `mediaRef.v1` result occurrence MUST carry a
+token whose source table, field, and field generation exactly equal that
+occurrence's semantic node; a value observed through another media field is
+not interchangeable even when its asset id, kind, allowed-kind set, or policy
+text is equal. Aliasing or selecting the original host-tagged value preserves
+the token. Object spread, destructuring into a new object, JSON round-trip,
+structured clone, or construction of a lookalike `{ assetId, kind }` does not
+preserve it and refuses with `SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED`.
+Supplying an asset id that the handler never received through the exact
+declared media source refuses with the same code. This prevents a public
+handler from becoming an existing-id/kind oracle merely by accepting an
+opaque id argument or laundering a value across source fields.
 
 The handoff normalizer replaces any handler-supplied `kind` with the sidecar's
 admitted kind before calling `validate_handler_result`. The shape validator
@@ -197,13 +217,32 @@ through that operation.
 #### Mutation results
 
 A mutation's raw handler/HostPlan result and `MediaProjectionPlanV1` enter the
-storage mutation kernel together. After write validation and attachment
-admission, but before exact result validation, settlement serialization, or
-commit, the committing transaction resolves every media result occurrence
-against the post-write application/asset state. A media id produced by a write
-is provenance-admitted only when that same transaction verified and installed
-its typed reference edge; a previously read media id must match the captured
-read/write provenance and is rechecked in the commit snapshot.
+storage mutation kernel together. The one named mutation projection snapshot
+is the **commit-egress snapshot**: the committing transaction's final
+post-write view after all application writes, reverse-reference edges, grants,
+and system metadata for the mutation are staged, but before result validation,
+settlement serialization, publication, or commit. This is a deliberate atomic
+declassification seam distinct from LLP 0235's handler-read rule: handler reads
+still evaluate class M against their pinned pre-write persisted snapshot, while
+both HostPlan and Ibex mutation egress establish the exact source cell, its
+class-M condition, and its media metadata together in the commit-egress
+snapshot.
+
+For Ibex, the token supplies the source tuple; a closed HostPlan carries the
+same tuple as typed plan lineage and never manufactures a JS token. For each
+non-null result occurrence, the kernel re-resolves that exact source row, field
+generation, field value, class-M condition, and finalized asset record in the
+commit-egress snapshot. If the source row is absent, its field
+generation changed, or the cell no longer contains the token's asset id, the
+mutation refuses with value-free
+`SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED`; it does not publish an earlier
+observation. If the exact cell exists but is masked there, the normalizer emits
+`null`, even when the Ibex handler observed a disclosed `MediaRef` in its
+earlier pinned view. If it remains disclosed, the normalizer emits the
+same-snapshot `{ assetId, kind }`. A media id produced by a write is
+provenance-admitted only when that same transaction verified and installed the
+typed reference edge for the exact source row and field; a previously read id
+must carry its exact token and pass the same commit-egress re-establishment.
 
 The transaction then validates the projected result and, for an idempotent
 mutation, writes those exact projected bytes to the settlement row. Failure to
@@ -220,9 +259,37 @@ and never substitutes a successor projection profile. This preserves LLP
 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01 and the
 current recovery-first storage contract.
 
-Corrupt settlement bytes still fail the existing storage-integrity checks.
-They are not repaired by re-projecting against current metadata because doing
-so would invent a new snapshot and result identity.
+Every newly written settlement whose result contract contains `mediaRef.v1`
+MUST persist a complete `SettlementProjectionSealV1` beside `output_json`:
+
+- `format: "media-projected-settlement.v1"`;
+- the originating `resultContractHash`;
+- `mediaProjectionProfileHash`, SHA-256 over
+  `"snapback:media-projection-profile:v1\n"` followed by the JCS encoding of
+  the complete `MediaProjectionPlanV1`; and
+- `settlementDigest`, SHA-256 over the JCS encoding of
+  `{ domain: "snapback:client-mutation-settlement:v2", resultContractHash,
+  mediaProjectionProfileHash, output }`, where `output` is the complete
+  `MutationOutput` value.
+
+The stored `output_json` bytes MUST themselves equal the JCS encoding of that
+`MutationOutput`. Recovery first requires the seal fields to be all present,
+parses the output, byte-compares its JCS encoding with the stored bytes, and
+recomputes the digest from the stored contract and projection identities before
+running the existing version, sequence-allocation, and broad `MutationOutput`
+checks. Any missing field, noncanonical encoding, digest mismatch, or valid-JSON
+semantic edit—including changing only a media `kind`—refuses with the one
+value-free `SNAPBACK_CLIENT_MUTATION_RESULT_INTEGRITY` diagnostic. It is never
+repaired by re-projecting against current metadata because doing so would
+invent a new snapshot and result identity.
+
+A row with every seal field absent is a predecessor settlement and remains
+recoverable only through the legacy checks that existed when it was written;
+it is never backfilled or upgraded from its result bytes. No pre-capability
+artifact can claim `mediaRef.v1`, so a predecessor row makes no sealed-media
+integrity claim. A partially present seal, an unknown seal format, or a
+media-projected row without the complete seal fails closed rather than
+downgrading to legacy recovery.
 
 #### Retained query results
 
@@ -267,14 +334,38 @@ This is the one unauthorized-asset outcome. The query does not refuse, the
 field does not become null because of asset policy, and the contract does not
 grow a second denied-reference union.
 
+At those separate asset-read boundaries, a `via-references` reverse edge from a
+class-M field is authorizing for a principal only when that exact field is
+disclosed for that principal in the authorizer's pinned storage snapshot. The
+authorizer MUST evaluate the field's class-M condition before admitting the
+edge; a masked edge is ignored, not treated as owner-only failure of the whole
+search and not exposed through a distinct diagnostic. The reverse edge, source
+row and field identity, condition-input reads, class-M program/activation
+identity, and resulting disclosed-or-masked decision all enter the captured
+dependency and LLP 0053 invalidation witness. Any other disclosed edge or
+active grant may independently authorize the asset, but the masked edge itself
+confers no authority.
+
+On every caller-visible patch or replacement that names a class-M `v.media()`
+field, the field-keyed writeback check runs against the pinned persisted source
+row before the runtime parses or looks up the proposed asset id and before any
+intent, owner, lifecycle, readiness, or kind admission. A masked field refuses
+with `SNAPBACK_FIELD_MASK_HANDLER_WRITEBACK_INVALID` using public bytes that are
+identical for unknown, pending, ready, wrong-intent, wrong-kind, and otherwise
+admissible ids. V1 defines no separate explicit write intent that bypasses this
+ordering.
+
 Class-M field denial is distinct. Class M replaces the entire application field
 with `null` at its normal projection/handler-read seam before
-`MediaKindProjectV1` may consume it. The media operator cannot feed filters,
-ordering, grouping, counts, joins, index choice, cursor shape, diagnostics, or
+`MediaKindProjectV1` may consume it. When a media field is masked, neither the
+masked cell nor the skipped media operator may feed filters, ordering,
+grouping, counts, joins, index choice, cursor shape, diagnostics, or
 timing-visible delivery. A masked field causes no asset join and exposes no
-success/failure difference. Asset-policy changes may blank or restore the
-separate media delivery controller, but they do not change or redeliver the
-query row solely to alter `kind`.
+success/failure difference. Once a `MediaRef` is disclosed into JS, handler
+code may use that visible value normally; the fence applies to the masked
+execution path, not to ordinary computation over disclosed values. Asset-policy
+changes may blank or restore the separate media delivery controller, but they
+do not change or redeliver the query row solely to alter `kind`.
 
 An impossible storage invariant—missing asset record, non-ready media edge,
 missing admitted kind, kind outside the field's closed set, or content/profile
@@ -336,6 +427,11 @@ classification profile rotates `resultContractHash` under the existing
 `snapback:function-result:v1` hash. It also rotates every function/plan
 semantic identity that carries that contract.
 
+For a mutation settlement, that originating `resultContractHash` and the
+`mediaProjectionProfileHash` are copied into D1's durable seal before commit;
+recovery authenticates the stored values and never derives either identity
+from the currently active bundle.
+
 A runtime asset's concrete `image` versus `video` value does **not** rotate the
 contract hash; it is result data. An asset id cannot change kind under D3, so it
 also creates no hidden per-id projection generation. A class-M policy-program
@@ -394,7 +490,11 @@ of the following together:
 - Query/LiveQuery typed projection inside a pinned transaction;
 - JS read/result provenance custody;
 - mutation commit-time projection before settlement serialization;
+- post-write commit-egress class-M re-establishment for HostPlan and Ibex;
 - exact recovery with zero re-projection;
+- the canonical settlement seal and predecessor-row downgrade fence;
+- class-M-aware `via-references` authorization and pre-lookup writeback
+  ordering;
 - class-M logical and physical-plan treatment;
 - result-contract/codegen/hash parity; and
 - protected-retention composition or an honest target-specific GAP.
@@ -462,7 +562,8 @@ policy, or artifact generation.
   migration. It validates every non-null edge as ready and kind-admitted,
   rotates result/plan/retention identities, and requires a fresh snapshot.
 - Existing settlements remain byte-for-byte recoverable under their original
-  identity. They are not upgraded to `MediaRef` by bundle activation.
+  identity. Pre-seal rows remain on the explicit legacy recovery branch and are
+  never backfilled; they are not upgraded to `MediaRef` by bundle activation.
 - Existing retained descriptors are deletion-only predecessors unless their
   exact result contract already contained the same `mediaRef.v1` node, which no
   pre-capability artifact can claim.
@@ -478,28 +579,45 @@ policy, or artifact generation.
    writer attempts a relevant change. The result is wholly before or wholly
    after one storage cut, never row/kind skew, and the LLP 0242 completeness
    witness names that cut.
-3. **JS provenance.** A pinned handler read returns `MediaRef`; aliasing and
-   copying that value succeed; a forged `kind` is replaced; a guessed or
-   argument-only asset id refuses as unprovenanced; class-M-masked cells reach
-   JS as null and create no provenance entry.
+3. **JS provenance.** A pinned handler read returns a host-tagged `MediaRef`;
+   aliasing or selecting that exact value succeeds, while cross-field reuse,
+   object spread, structural copy, JSON round-trip, a forged `kind`, and a
+   guessed or argument-only asset id exercise the exact source-token rules.
+   The original tagged value has its forged `kind` replaced; every lost or
+   mismatched token refuses as unprovenanced. Class-M-masked cells reach JS as
+   null and create no provenance entry.
 4. **Atomic mutation settlement.** HostPlan and Ibex mutations project inside
-   the commit transaction. Crash cuts before and after settlement insertion
-   prove there is no committed app write with missing/unprojected result bytes.
+   the commit transaction. Races between handler observation and commit change
+   the exact source cell's class-M condition, delete the source row, replace its
+   id, and change unrelated policy facts: the final post-write commit-egress
+   snapshot alone decides, masked becomes null, and absent/mismatched source
+   refuses atomically. Crash cuts before and after settlement insertion prove
+   there is no committed app write with missing/unprojected result bytes.
    Dry-run reports the same projected shape and retains nothing.
 5. **Exact recovery.** After a successful mutation response is lost, change or
    remove the function and alter unrelated asset policy. Replay of the exact
    identity returns byte-identical `{ assetId, kind }` without handler dispatch
-   or asset metadata reads. Corrupt bytes fail; they are never repaired from
-   current state.
+   or asset metadata reads. Mutate `output_json` to different but valid JSON
+   while preserving every stored version field, including changing only
+   `kind`; canonical-byte or seal verification refuses it before publication.
+   Malformed, partially sealed, and unknown-format rows fail, while a genuine
+   all-null-seal predecessor follows only the legacy checks. No failure is
+   repaired from current state.
 6. **Unauthorized parity.** Two principals who can read the same app row but
    differ only in asset read authority receive byte-identical `MediaRef` fields
    and query shape. The authorized media controller reaches `ready`; the other
    reaches D5 `denied`. Neither query response nor denial diagnostic enumerates
-   variants or richer metadata.
+   variants or richer metadata. Two states differing only by a class-M-masked
+   media edge also produce identical asset-record and issuance denial for that
+   principal; making that exact field disclosed makes the edge eligible and
+   exercises captured invalidation.
 7. **Class-M noninterference.** Hidden-value pairs produce identical membership,
    order, count, cursor, refusal, public details, live delivery kind, and timing
    class. Masked media is null before the media operator; the target's physical
-   certificate inventories and fences the operator under LLP 0235.
+   certificate inventories and fences the operator under LLP 0235. A patch
+   naming the masked field returns the same writeback refusal before asset
+   lookup for unknown, pending, ready, wrong-intent, wrong-kind, and admissible
+   candidate ids.
 8. **Finalized-only attachment.** Every write route refuses a pending media
    asset, including one with a declared content type. Finalization followed by
    the same write succeeds. Successor attempts may disagree before readiness;
