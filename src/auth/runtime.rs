@@ -26,13 +26,13 @@ use super::coordinator::AuthCoordinator;
 use super::keyring::{AuthKeyringStore, KeyringError};
 use super::lifecycle::AUTH_GC_INTERVAL;
 use super::provider::{
-    AuthGcPass, AuthProvider, AuthProviderProfile, AuthProviderReadiness, ProviderError,
-    ProviderResult,
+    AuthGcPass, AuthProvider, AuthProviderReadiness, ProviderError, ProviderResult,
 };
 use super::session_projection::{
     AuthorizationStreamRecord, DueExpiryFinalization, ExpiredSession, ProjectionSource,
     SessionProjection,
 };
+use crate::contract_types::AuthProviderProfile;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
 use crate::server::SharedSnapback;

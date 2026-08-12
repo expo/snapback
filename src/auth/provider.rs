@@ -39,14 +39,14 @@ use super::lifecycle::KeyringGcResult;
 use super::mailbox::{CaptureMailbox, CaptureMailboxEntry};
 use super::session_projection::{ProjectedSessionInsert, TokenDigest};
 use super::throttle::{
-    AuthBudgetDeploymentProfile, AuthBudgetName, AuthBudgetRefusal,
-    ResolvedCompatibilityAuthBudgetPolicy, ServerVerifiedAuthTrustEvidence,
-    derive_auth_trust_tier,
+    AuthBudgetDeploymentProfile, AuthBudgetRefusal, ResolvedCompatibilityAuthBudgetPolicy,
+    ServerVerifiedAuthTrustEvidence, derive_auth_trust_tier,
 };
 use super::wire::{
     CredentialResponse, FamilyAlarmResponse, MailboxResponse, RequestCodeResponse, SessionResponse,
 };
-use crate::contract_types::RevocationReason;
+pub use crate::contract_types::AuthProviderProfile;
+use crate::contract_types::{PlannedIdentityState, RevocationReason};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::LocalDatabase;
 use crate::storage::auth::AuthTransactionAttempt;
@@ -73,14 +73,6 @@ const MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
 const INTERNAL_AUTH_COLLISION: &str = "INTERNAL_AUTH_COLLISION";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum AuthProviderProfile {
-    Dev,
-    Test,
-    Demo,
-    Prod,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AuthProviderReadiness {
     Available,
     Unavailable,
@@ -102,12 +94,6 @@ impl AuthGcPass {
         } else {
             super::lifecycle::AUTH_GC_INTERVAL
         }
-    }
-}
-
-impl AuthProviderProfile {
-    fn permits_capture(self) -> bool {
-        matches!(self, Self::Dev | Self::Test | Self::Demo)
     }
 }
 
@@ -918,18 +904,6 @@ pub(crate) enum PlannedRotationCommit {
     Committed { session: SessionResponse },
     CandidateCollision,
     PredecessorChanged,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum PlannedIdentityState {
-    Existing {
-        identity_id: String,
-        user_id: String,
-    },
-    Create {
-        identity_id: String,
-        user_id: String,
-    },
 }
 
 pub(crate) struct ProviderSessionIssuancePlan {
@@ -5230,11 +5204,7 @@ fn authorized_lease_key_unavailable() -> SnapbackError {
 }
 
 pub(crate) fn code_invalid() -> ProviderError {
-    ProviderError::new(SnapbackError::error(
-        "SNAPBACK_AUTH_CODE_INVALID",
-        "auth",
-        "verification code is invalid",
-    ))
+    ProviderError::new(super::throttle::code_invalid())
 }
 
 // @ref LLP 0077#diagnostics-and-redaction — the public refusal set is closed;
@@ -5250,13 +5220,7 @@ pub(crate) fn sender_key_bound() -> ProviderError {
 }
 
 pub(crate) fn code_locked() -> ProviderError {
-    ProviderError::new(
-        AuthBudgetRefusal::fixed_total(AuthBudgetName::Guessing).legacy_error(
-            "SNAPBACK_AUTH_CODE_LOCKED",
-            "auth",
-            "verification code attempt budget is exhausted",
-        ),
-    )
+    ProviderError::new(super::throttle::code_locked())
 }
 
 pub(crate) fn auth_required() -> ProviderError {

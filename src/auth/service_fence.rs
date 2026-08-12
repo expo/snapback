@@ -1136,7 +1136,8 @@ mod tests {
     use super::*;
     use crate::auth::crypto::OsRandom;
     use crate::auth::keyring::AuthKeyringStore;
-    use crate::auth::provider::{AuthClock, AuthProviderProfile};
+    use crate::auth::provider::AuthClock;
+    use crate::contract_types::AuthProviderProfile;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
     struct ManualClock {

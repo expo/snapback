@@ -578,6 +578,25 @@ impl AuthBudgetRefusal {
     }
 }
 
+// @ref LLP 0215#12-llp-0057-migration — the legacy email-code refusal pair
+// preserves its exact compatibility payload beside the budget vocabulary that
+// gives the locked refusal its structured details.
+pub(crate) fn code_invalid() -> crate::diagnostic::SnapbackError {
+    crate::diagnostic::SnapbackError::error(
+        "SNAPBACK_AUTH_CODE_INVALID",
+        "auth",
+        "verification code is invalid",
+    )
+}
+
+pub(crate) fn code_locked() -> crate::diagnostic::SnapbackError {
+    AuthBudgetRefusal::fixed_total(AuthBudgetName::Guessing).legacy_error(
+        "SNAPBACK_AUTH_CODE_LOCKED",
+        "auth",
+        "verification code attempt budget is exhausted",
+    )
+}
+
 /// Complete normalized request material required to bind an idempotency key.
 /// Secret-bearing semantic inputs enter only as protocol-owned,
 /// domain-separated keyed digests.

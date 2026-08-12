@@ -378,7 +378,7 @@ impl LocalDatabase {
     pub(crate) fn auth_rehearsal_create_identity(
         &mut self,
         exercise: RehearsalExercisePlan,
-        identity: crate::auth::provider::PlannedIdentityState,
+        identity: crate::contract_types::PlannedIdentityState,
         address: &crate::auth::crypto::CanonicalAddress,
         provenance: &crate::auth::rehearsal::AuthRehearsalProvenanceV1,
         governing_not_after_ms: u64,
@@ -397,11 +397,11 @@ impl LocalDatabase {
                 RehearsalAtomicEffectAdmission::Admitted(prepared) => prepared,
             };
             let (identity_id, user_id) = match &identity {
-                crate::auth::provider::PlannedIdentityState::Create {
+                crate::contract_types::PlannedIdentityState::Create {
                     identity_id,
                     user_id,
                 } => (identity_id.clone(), user_id.clone()),
-                crate::auth::provider::PlannedIdentityState::Existing { .. } => {
+                crate::contract_types::PlannedIdentityState::Existing { .. } => {
                     finish_rehearsal_atomic_effect_denial_in(
                         transaction,
                         &exercise,
@@ -2416,12 +2416,8 @@ fn replayed_denial(code: Option<&str>) -> SnapbackError {
         Some("SNAPBACK_AUTH_REHEARSAL_BUDGET_EXHAUSTED") => budget_exhausted("recorded"),
         Some("SNAPBACK_AUTH_REHEARSAL_EXPIRED") => expired(),
         Some("SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH") => binding_mismatch(),
-        Some("SNAPBACK_AUTH_CODE_INVALID") => {
-            crate::auth::provider::code_invalid().into_snapback_error()
-        }
-        Some("SNAPBACK_AUTH_CODE_LOCKED") => {
-            crate::auth::provider::code_locked().into_snapback_error()
-        }
+        Some("SNAPBACK_AUTH_CODE_INVALID") => crate::auth::throttle::code_invalid(),
+        Some("SNAPBACK_AUTH_CODE_LOCKED") => crate::auth::throttle::code_locked(),
         _ => authority_ended(),
     }
 }

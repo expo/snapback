@@ -562,7 +562,7 @@ impl LocalDatabase {
         candidate: &SessionCandidate,
         now_ms: u64,
     ) -> SnapbackResult<(
-        crate::auth::provider::PlannedIdentityState,
+        crate::contract_types::PlannedIdentityState,
         Option<ProviderRevocationPlan>,
     )> {
         self.with_auth_read(|connection| {
@@ -2200,7 +2200,7 @@ impl<'a> AuthCatalogKernel<'a> {
         candidate: &SessionCandidate,
         now_ms: u64,
     ) -> SnapbackResult<(
-        crate::auth::provider::PlannedIdentityState,
+        crate::contract_types::PlannedIdentityState,
         Option<ProviderRevocationPlan>,
     )> {
         self.read_db()

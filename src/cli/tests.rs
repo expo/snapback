@@ -631,7 +631,7 @@ fn production_readiness_exposes_item7_before_item8() {
     let runtime = crate::auth::runtime::AuthRuntime::inspect(
         &mut snapback,
         None,
-        crate::auth::provider::AuthProviderProfile::Test,
+        crate::contract_types::AuthProviderProfile::Test,
     )
     .unwrap();
     let connection = crate::server::connection_binding_construction_receipt();
@@ -1427,8 +1427,7 @@ fn sessions_startup_carrier_with_functions(
 #[tokio::test]
 async fn fresh_sessions_startup_stages_then_quarantines_before_item_five() {
     use crate::auth::mode::{AppDataAvailability, AuthModeStatus, AuthProgramReadiness};
-    use crate::auth::provider::AuthProviderProfile;
-    use crate::contract_types::ServerProfile;
+    use crate::contract_types::{AuthProviderProfile, ServerProfile};
     use crate::local::LocalSnapback;
     use crate::manifest::AuthMode;
 
@@ -1482,7 +1481,7 @@ async fn fresh_sessions_startup_stages_then_quarantines_before_item_five() {
 #[tokio::test]
 async fn omitted_construction_receipts_prevent_sessions_from_binding() {
     use crate::auth::mode::{AppDataAvailability, AuthModeStatus};
-    use crate::auth::provider::AuthProviderProfile;
+    use crate::contract_types::AuthProviderProfile;
     use crate::local::LocalSnapback;
     use crate::manifest::AuthMode;
 
@@ -1576,7 +1575,7 @@ async fn coordinator_and_worker_construction_fail_before_socket_bind() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sessions_startup_offloads_sqlite_and_ibex_from_async_workers() {
     use crate::auth::mode::AuthProgramReadiness;
-    use crate::auth::provider::AuthProviderProfile;
+    use crate::contract_types::AuthProviderProfile;
     use crate::local::LocalSnapback;
     use crate::manifest::{
         AuthMode, FunctionDefinition, FunctionKind, FunctionRuntime, IbexModule,
@@ -1636,7 +1635,7 @@ async fn sessions_startup_offloads_sqlite_and_ibex_from_async_workers() {
 #[tokio::test]
 async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
     use crate::auth::mode::{AuthProgramReadiness, FUNCTION_V1_PREFIX};
-    use crate::auth::provider::AuthProviderProfile;
+    use crate::contract_types::AuthProviderProfile;
     use crate::local::LocalSnapback;
     use crate::manifest::AuthMode;
 
@@ -1790,7 +1789,7 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
 #[tokio::test]
 async fn pending_missing_carrier_quarantines_and_explicit_clear_restores_dev() {
     use crate::auth::mode::{AuthModeStatus, AuthProgramReadiness};
-    use crate::auth::provider::AuthProviderProfile;
+    use crate::contract_types::AuthProviderProfile;
     use crate::local::LocalSnapback;
     use crate::manifest::AuthMode;
 

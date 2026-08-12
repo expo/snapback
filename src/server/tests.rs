@@ -421,7 +421,7 @@ use crate::auth::mode::{
 };
 use crate::auth::provider::{
     AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_SUPERSESSION_GRACE_MS,
-    AUTH_SESSION_USE_COALESCE_MS, AuthClock, AuthProvider, AuthProviderProfile,
+    AUTH_SESSION_USE_COALESCE_MS, AuthClock, AuthProvider,
 };
 use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
@@ -430,7 +430,7 @@ use crate::auth::service_fence::{
     ServiceAuthorityCommitInterlock, ServiceAuthorityFenceRegistry,
     with_service_authority_terminal_gate,
 };
-use crate::contract_types::{RevocationReason, ServerProfile};
+use crate::contract_types::{AuthProviderProfile, RevocationReason, ServerProfile};
 use crate::cron::CronRunOutcome;
 use crate::diagnostic::SnapbackError;
 use crate::local::{

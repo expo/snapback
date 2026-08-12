@@ -1110,8 +1110,8 @@ mod tests {
     use crate::auth::crypto::{CryptoError, OsRandom};
     use crate::auth::keyring::AuthKeyringStore;
     use crate::auth::lifecycle::activate_catalog;
-    use crate::auth::provider::AuthProviderProfile;
     use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
+    use crate::contract_types::AuthProviderProfile;
     use crate::local::LocalSnapback;
     use rusqlite::Connection;
     use std::collections::BTreeSet;

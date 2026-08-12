@@ -32,6 +32,8 @@ inverted)
 to the contract leaf, twelve frozen edges removed and none added)
 **Revised:** 2026-08-11 (m — §4 records the item-3 second cut: `session_projection`
 value shapes to the leaf; the remaining item-3 edges raised as an ownership question)
+**Revised:** 2026-08-11 (q — §4 records item-3 stage A1: the provider plan and
+deployment-profile shapes down, two kernel→sync edges inverted)
 **Revised:** 2026-08-11 (p — §4 records the OQ-C inert-until-reload recovery
 slice and its full-`LocalSnapback` acceptance; the recorded reopen exception
 is discharged)
@@ -727,6 +729,47 @@ OQ-C/finding 2 in
 separate stream-transcript split cut (finding 1) remains a recorded §3
 exception.
 
+### Item-3 stage A1 — the provider shapes down (executed)
+
+Landed 2026-08-11, the first stage of the ruled `provider.rs` split.
+**2 frozen forbidden edges removed, none added — 349 → 347**, no waiver and no
+manifest edit. Both were kernel→sync:
+`src/store_state.rs → src/auth/provider.rs` and
+`src/storage/auth_rehearsal.rs → src/auth/provider.rs`. The third,
+`src/storage/auth_catalog_ops.rs`, is A2's and deliberately remains.
+
+Two pure enums went to the contract leaf `src/contract_types.rs`:
+`AuthProviderProfile` (deployment posture — the same shape and the same
+argument as the landed `ServerProfile` cut) with its pure `permits_capture`,
+and `PlannedIdentityState` (a cross-owner plan value with no policy or storage
+behavior). `impl From<AuthProviderProfile> for AuthBudgetDeploymentProfile`
+**stayed in `provider.rs`**, because it names kernel-owned
+`src/auth/throttle.rs` and a leaf may not: the familiar shape-down/behavior-up
+line, drawn by the dependency rather than by taste.
+
+The refusal pair is the part worth recording. `code_invalid()` and
+`code_locked()` were the other thing `auth_rehearsal.rs` reached up for, and
+they could not both go to the leaf: `code_invalid` is a plain `SnapbackError`,
+but `code_locked` names `AuthBudgetRefusal`/`AuthBudgetName`, which are
+kernel-owned. Splitting the pair by dependency would have scattered one
+compatibility refusal across two owners, so both moved to
+`src/auth/throttle.rs` instead — beside the `auth.guessing` budget rules that
+give the locked refusal its structured details. Every edge that creates is
+allowed: kernel→kernel from `auth_rehearsal`, sync→kernel from `provider`,
+transport→kernel from `server.rs`. `provider.rs` keeps `code_invalid()` /
+`code_locked()` as thin `ProviderError` wrappers, so its own callers and the
+transport surface are untouched.
+
+`ProviderError` and `SessionRevocation` deliberately did not move; `ProviderError`
+carries an `Option<SessionRevocation>`, and dragging that chain to the leaf
+would buy nothing A1 needs. `server.rs` still calls
+`crate::auth::provider::code_invalid()` because it wants the `ProviderError`,
+and transport→sync is an allowed edge.
+
+Characterization envelope: `storage`/`auth`/`server` lib-test failure name sets
+byte-identical to the merge-base with identical pass counts (449/0, 696/2,
+287/2), `cargo build` clean, `./ref-check --verbose` clean.
+
 ### Continuing sequence (order of intent, not a schedule)
 
 1. **Kernel typed-operation slices** (co-sequenced with owner 1 per 0199
@@ -1059,3 +1102,15 @@ so slices can follow product priorities.
   explicit mismatch refusal. Seven file-backed full-`LocalSnapback`
   reopen/reload/retry tests discharge the recorded reopen exception; the
   stream-transcript split cut remains separate and open.
+- **2026-08-11 (q).** §4 records item-3 stage A1, the first stage of the ruled
+  `provider.rs` split: `AuthProviderProfile` and `PlannedIdentityState` down to
+  `src/contract_types.rs`, and the `code_invalid()` / `code_locked()`
+  compatibility refusal pair to kernel-owned `src/auth/throttle.rs` beside the
+  budget rules that give the locked refusal its details — because
+  `code_locked` names kernel-owned budget vocabulary and could not follow its
+  partner to a leaf, and splitting one compatibility pair across two owners
+  would have been worse than moving both. `impl From<AuthProviderProfile> for
+  AuthBudgetDeploymentProfile` stayed with the provider for the same
+  dependency reason. 2 frozen forbidden edges removed, none added, 349 → 347,
+  no waiver; `src/storage/auth_catalog_ops.rs → src/auth/provider.rs` remains
+  and is A2's.

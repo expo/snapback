@@ -3172,7 +3172,7 @@ async fn auth_backup_inner(
         ));
         let provider = Arc::new(
             crate::auth::provider::AuthProvider::new(
-                crate::auth::provider::AuthProviderProfile::Test,
+                crate::contract_types::AuthProviderProfile::Test,
                 keyring,
             )
             .map_err(crate::auth::provider::ProviderError::into_snapback_error)?,
@@ -3365,7 +3365,7 @@ async fn store_export_inner(
         ));
         let provider = Arc::new(
             crate::auth::provider::AuthProvider::new(
-                crate::auth::provider::AuthProviderProfile::Test,
+                crate::contract_types::AuthProviderProfile::Test,
                 keyring,
             )
             .map_err(crate::auth::provider::ProviderError::into_snapback_error)?,

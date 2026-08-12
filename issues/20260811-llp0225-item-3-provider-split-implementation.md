@@ -53,7 +53,35 @@ bodies against the canonical auth store. Three directions:
 - **policy stays** — plan composition and refusal classification stay in
   `provider.rs` (§2: neither leaf nor kernel owns domain policy)
 
-## A1 — shapes down (proven recipe, small)
+## A1 — shapes down (proven recipe, small) — **DONE 2026-08-11**
+
+**349 → 347 frozen forbidden, 2 removed / 0 added, no waiver, no manifest
+edit.** Recorded as LLP 0225 revision (q). Both target edges inverted:
+`store_state → provider` and `storage/auth_rehearsal → provider`. The
+`auth_catalog_ops → provider` edge remains and is A2's.
+
+What moved, and the two places the dependency drew the line rather than taste:
+
+- `AuthProviderProfile` and `PlannedIdentityState` → `src/contract_types.rs`
+  (leaf), the former with its pure `permits_capture`.
+- `impl From<AuthProviderProfile> for AuthBudgetDeploymentProfile` **stayed in
+  `provider.rs`** — it names kernel-owned `src/auth/throttle.rs`, which a leaf
+  may not.
+- `code_invalid()` / `code_locked()` → **`src/auth/throttle.rs` (kernel)**, not
+  a leaf. `code_invalid` is leaf-safe but `code_locked` names
+  `AuthBudgetRefusal`/`AuthBudgetName`, so splitting the pair by dependency
+  would have scattered one compatibility refusal across two owners. Both went
+  beside the `auth.guessing` budget rules instead. Every resulting edge is
+  allowed: kernel→kernel, sync→kernel, transport→kernel.
+- `provider.rs` keeps thin `ProviderError` wrappers, so its callers and
+  `server.rs` are untouched. `ProviderError`/`SessionRevocation` did **not**
+  move — `server.rs` still calls `provider::code_invalid()` for the
+  `ProviderError`, and transport→sync is allowed.
+
+Envelope: storage/auth/server failure name sets byte-identical to the
+merge-base with identical pass counts (449/0, 696/2, 287/2).
+
+*Original A1 plan follows.*
 
 Move the plan/outcome value shapes that cross the boundary to the contract
 leaf, leaving every `impl` block that touches non-leaf state behind

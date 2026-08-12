@@ -20,6 +20,22 @@ fn is_false(value: &bool) -> bool {
 // `SessionProjection` and behavioral impls.
 pub(crate) const SESSION_TERMINAL_CAUSE_META_PREFIX: &str = "auth_session_terminal_cause_v1/";
 
+/// Identity outcome carried from provider policy into a storage commit plan.
+///
+/// @ref LLP 0225#1-ownership-map — cross-owner plan value shapes are leaf-owned;
+///   provider policy and canonical-store behavior remain with their owners.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PlannedIdentityState {
+    Existing {
+        identity_id: String,
+        user_id: String,
+    },
+    Create {
+        identity_id: String,
+        user_id: String,
+    },
+}
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct AuthorizationStreamIncarnation(pub(crate) String);
 
@@ -62,6 +78,24 @@ pub(crate) struct SessionTerminalCauseRecord {
     pub(crate) generation: u64,
     pub(crate) revoked_at_ms: u64,
     pub(crate) reason: PersistedSessionTerminalReason,
+}
+
+/// Deployment posture for the built-in authentication provider.
+///
+/// @ref LLP 0225#1-ownership-map — deployment-profile vocabulary is leaf-owned;
+///   budget-policy conversion remains with the provider service.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthProviderProfile {
+    Dev,
+    Test,
+    Demo,
+    Prod,
+}
+
+impl AuthProviderProfile {
+    pub(crate) fn permits_capture(self) -> bool {
+        matches!(self, Self::Dev | Self::Test | Self::Demo)
+    }
 }
 
 /// The positive environment/profile capability (LLP 0034 §5 D4 residual,
