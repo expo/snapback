@@ -36,3 +36,44 @@ and the set NOT READY
 **Blindness:** structural capsule exclusion; reviewer instructed not to inspect
 the live repository
 **Launch ledger:** one Sol launch (round 1)
+
+### Round 1 revision disposition
+
+A fresh GPT-5.6 Sol xhigh reviser, distinct from the reviewer, revised all five
+targets at commit `77d996d2e82ddb137a5a6a51f0e5e2ec0ba42f4f`:
+
+- LLP 0245 assigned stale-safe single-suggestion application to a Snapback CAS
+  protocol and excluded manual paste from that guarantee.
+- LLP 0247 replaced impossible Proxy detection with observable-shape admission,
+  split one-shot and continuing authority behavior, and returned authority-loss
+  withdrawal to the server barrier.
+- LLP 0248 derived runtime key validation from the index manifest and made
+  `whereApplicable` keys total and non-null.
+- LLP 0249 froze a separate package-aware source profile, qualified isolation,
+  a closed Node power table, and brokered SSRF-safe egress.
+- LLP 0246 absorbed the non-material bounded-checker/editor-project suggestions
+  and the new sibling-profile seam.
+
+All Round 1 MATERIAL concerns were addressed. Net word growth from the entering
+revisions remained within budget: LLP 0245 16.9%, LLP 0246 11.5%, LLP 0247
+18.3%, LLP 0248 19.1%, LLP 0249 15.6%.
+
+## Round 2 — delta + implementer lens
+
+**State:** launched
+**Recorded before launch:** 2026-08-12
+**Target hash vector (SHA-256):**
+
+- LLP 0245: `06aee0324c71e22e9de1a863e0af16a6f65e891c1c1824c528450155cda3cec4`
+- LLP 0246: `2b920d48abf970e813754c51451bc7d578daac9f70fc6d344a0cb98934e9625f`
+- LLP 0247: `8e3e494c7517eb13e2939da1617c3704705fa6893bcc52126f94e14b59ca1b3a`
+- LLP 0248: `369a58f2057212ec630fb196c2b29e6ffab6a54576ab5996a0c3794af670961e`
+- LLP 0249: `836b7c17b11120a2fe33571a8dc679c6b377c88a92f25777f495fdad9ba947ac`
+
+**Capsule SHA-256:** `b742700e72b23dd5ac97792caa5b58337b442902f884a5b2d4b88caea4f6004c`
+**Instruction SHA-256:** `f1572d713159587381ee2e56dc8de1ad559086f00756e8853cde73ada8e94752`
+**Runtime:** fresh GPT-5.6 Sol, xhigh effort, collaboration sub-agent
+**Lens:** delta classification plus implementer contract derivation
+**Blindness:** structural capsule exclusion; reviewer instructed not to inspect
+the live repository
+**Launch ledger:** one Sol launch (round 2; two total)
