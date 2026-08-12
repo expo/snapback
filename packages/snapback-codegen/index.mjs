@@ -81,6 +81,7 @@ import {
 import { withCodegenGenerationLock } from './generation-lock.mjs';
 import {
   extractInlineHandlers,
+  renderInlineOperationGraphModule,
   renderInlineOperationModule,
 } from './inline-handlers.mjs';
 import {
@@ -2785,6 +2786,9 @@ async function generateInProcessLocked({
   const assetUploadDefs = [];
   const commandDefs = [];
   const surfaceDefs = [];
+  const renderInlineOperation = testHooks?.inlineRenderer === 'legacy'
+    ? renderInlineOperationModule
+    : renderInlineOperationGraphModule;
 
   // @ref LLP 0108#final-author-reconciliation-after-round-3 — codegen
   // evaluates only an opaque marker in the definition sandbox, then binds
@@ -2804,11 +2808,14 @@ async function generateInProcessLocked({
         );
         return null;
       }
+      // @ref LLP 0237#d2-closed-graph-and-frozen-bounds — Rollout 2 renders
+      // the unchanged same-file closure through its explicit graph record;
+      // the parity corpus freezes the prior byte stream before imports exist.
       // The capability rescan runs over the complete spliced bytes — the
       // handler registration plus every reachable helper — so an ambient
       // dependency inside a shared helper refuses exactly like inline code,
       // with the refusal mapped back to the helper's authored span.
-      const rendered = renderInlineOperationModule(name, extracted);
+      const rendered = renderInlineOperation(name, extracted);
       for (const issue of scanUnsupportedHandlerSource(rendered.source, 'functions.mjs')) {
         const segment = rendered.segments.findLast(
           (candidate) => issue.line >= candidate.startLine,
@@ -4819,7 +4826,7 @@ async function generateInProcessLocked({
           err('SNAPBACK_INLINE_HANDLER_MARKER_INVALID', 'asset', `${exportName}: inline authorizer marker does not match its direct source expression`, { intent: exportName });
           continue;
         }
-        const rendered = renderInlineOperationModule(exportName, extracted);
+        const rendered = renderInlineOperation(exportName, extracted);
         for (const issue of scanUnsupportedHandlerSource(rendered.source, 'functions.mjs')) {
           err(issue.code, 'bundle', `${exportName}: ${issue.message}`, { intent: exportName, token: issue.token });
         }
@@ -5315,6 +5322,9 @@ async function generateInProcessLocked({
     targetProfile,
     functions: functionManifest.functions,
     sourceFunctions: functions,
+    graphRecords: [...inlineExtraction.handlers.values()].map(
+      ({ graphRecord }) => graphRecord,
+    ),
     outboundActions: egressAllowedAtCodegen(),
   });
   // Server-declared, never authored here (LLP 0032 P2 / LLP 0037): the

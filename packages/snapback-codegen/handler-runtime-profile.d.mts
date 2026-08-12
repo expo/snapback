@@ -1,5 +1,7 @@
 export const HANDLER_RUNTIME_PROFILE_VERSION: 'snapback.handler-runtime-profile.v1';
 export const HANDLER_ADMISSION_VERSION: 'snapback.handler-admission.legacy.v1';
+export const HANDLER_GRAPH_RECORD_VERSION: 'snapback.handler-graph-record.v1';
+export const HANDLER_GRAPH_EXTRACTOR_VERSION: 'snapback.inline-handler-extractor.v1';
 export const HANDLER_RUNTIME_GUIDE: '/_snapback/guide/backend/handler-runtime.md';
 
 export interface HandlerRuntimeDiagnosticRule {
@@ -26,5 +28,6 @@ export function buildHandlerRuntimeProfile(input: Readonly<{
   targetProfile: string;
   functions: readonly Readonly<Record<string, unknown>>[];
   sourceFunctions?: readonly Readonly<Record<string, unknown>>[];
+  graphRecords?: readonly Readonly<Record<string, unknown>>[];
   outboundActions?: boolean;
 }>): Readonly<Record<string, unknown>>;

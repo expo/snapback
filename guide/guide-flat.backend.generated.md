@@ -1695,7 +1695,7 @@ order: 4
 audience: agent-first
 capabilities: [backend.handler-runtime-profile]
 authorities: [llp/0237-bounded-handler-modules.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/handler-runtime-profile.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs]
-examples: [packages/snapback-codegen/handler-runtime-profile.test.mjs, packages/snapback-cli/generate-check.test.mjs]
+examples: [packages/snapback-codegen/handler-runtime-profile.test.mjs, packages/snapback-codegen/handler-graph-parity.test.mjs, packages/snapback-cli/generate-check.test.mjs]
 status: current
 targets: [all]
 maturity: shipped
@@ -1734,6 +1734,31 @@ existing `inline-handler-v1`, `inline-handler-same-file-helpers-v2`,
 `closed-script-handler-v1`, or `host-plan-v1` profiles. In this first rollout,
 `selectionReason` is honestly `legacy-profile`: imported modules are not yet
 an admitted reason to select a different runtime profile.
+
+## Inspect the same-file graph record
+
+`moduleGraph.records` represents every extracted inline handler and its
+reachable same-file helper closure. Each
+`snapback.handler-graph-record.v1` record names the root handler, directed
+helper topology, importer spans, `esm` module format, extractor and admission
+versions, and the normalized root-relative target. In the current profile
+every edge resolves to `self` and the target is `functions.mjs`; the record
+does not admit a relative specifier or a second file.
+
+Every handler and helper node carries two deliberately separate fields.
+`canonicalExecutableAstDigest` hashes the canonical executable AST, while
+`rawSourceEvidenceDigest` hashes the exact authored source slice. A comment or
+formatting edit therefore rotates raw evidence without rotating the canonical
+AST digest or the existing operation `implementationHash`. The explicit
+`graphTopologyDigest` makes helper reachability and self-recursion inspectable,
+but Rollout 2 does not add it to the already-shipped implementation-hash
+preimage.
+
+Same-file extraction parses one captured `functions.mjs` buffer, recorded as
+`single-captured-source-buffer-v1`; no imported file exists to reread. Before a
+later rollout admits relative imports, its implementation Spec and golden
+vectors must freeze the parse-versus-attested-reread protocol and refuse a
+changed file before artifact replacement.
 
 ## Preflight without replacing artifacts
 

@@ -281,6 +281,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'generated-mutation-ir.test.mjs',
       'generation-lock.test.mjs',
       'guide-pointer.test.mjs',
+      'handler-graph-parity.test.mjs',
       'handler-runtime-profile.test.mjs',
       'identifier-validation.test.mjs',
       'inline-helper-sharing.test.mjs',
@@ -468,7 +469,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 257,
+  expectedTotal = 258,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -811,6 +812,9 @@ export function checkPackageTestInventories(options = {}) {
 // 255 -> 257 (2026-08-12, LLP 0237 rollout 1): @expo/snapback-codegen gains
 // generated handler-profile, preflight, and definition-attribution coverage;
 // @expo/snapback-cli gains packaged `generate --check` no-replacement proof.
+// 257 -> 258 (2026-08-12, LLP 0237 rollout 2): @expo/snapback-codegen gains
+// the same-file graph representation byte-parity, identity, refusal, and demo
+// golden corpus.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

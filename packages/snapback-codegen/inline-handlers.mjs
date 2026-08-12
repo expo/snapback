@@ -1,6 +1,9 @@
 import ts from 'typescript';
 import { createHash } from 'node:crypto';
 import {
+  HANDLER_ADMISSION_VERSION,
+  HANDLER_GRAPH_EXTRACTOR_VERSION,
+  HANDLER_GRAPH_RECORD_VERSION,
   handlerDiagnosticDetails,
   INLINE_HANDLER_RULES,
 } from './handler-runtime-profile.mjs';
@@ -20,6 +23,7 @@ import {
 // enforced ceiling.
 
 const INLINE_BUILDERS = new Set(INLINE_HANDLER_RULES.builders);
+const compareText = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 
 // The extracted property per builder: upload intents spell their handler
 // `authorize` (LLP 0044 §Generated upload intents); every other builder
@@ -43,21 +47,26 @@ function inlineEgressAllowedAtCodegen() {
 
 const ALLOWED_GLOBALS = new Set(INLINE_HANDLER_RULES.globals);
 
-const diagnostic = (code, message, path, node, sourceFile, details = {}) => {
+const sourceSpanForNode = (path, node, sourceFile) => {
   const start = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+  return {
+    file: path,
+    line: start.line + 1,
+    column: start.character + 1,
+  };
+};
+
+const diagnostic = (code, message, path, node, sourceFile, details = {}) => {
+  const sourceSpan = sourceSpanForNode(path, node, sourceFile);
   return {
     code,
     severity: 'error',
     subsystem: 'function',
     message,
     path,
-    line: start.line + 1,
-    column: start.character + 1,
-    sourceSpan: {
-      file: path,
-      line: start.line + 1,
-      column: start.character + 1,
-    },
+    line: sourceSpan.line,
+    column: sourceSpan.column,
+    sourceSpan,
     ...handlerDiagnosticDetails(code),
     ...details,
   };
@@ -363,6 +372,7 @@ function selfContainedProblems(expression, checker, sourceFile) {
   const referenced = new Set();
   const freeTopLevel = new Map();
   const helperRefs = new Map();
+  const selfHelperRefs = new Map();
   const inadmissibleRefs = [];
   const inadmissibleSeen = new Set();
   const forbidden = [];
@@ -443,7 +453,12 @@ function selfContainedProblems(expression, checker, sourceFile) {
         // even when it shadows an admitted global name.
         const classification = topLevelClassification(symbol, sourceFile);
         if (classification?.kind === 'helper') {
-          helperRefs.set(classification.name, classification.declaration);
+          if (!helperRefs.has(classification.name)) {
+            helperRefs.set(classification.name, {
+              declaration: classification.declaration,
+              reference: node,
+            });
+          }
         } else if (classification?.kind === 'inadmissible') {
           if (!inadmissibleSeen.has(node.text)) {
             inadmissibleSeen.add(node.text);
@@ -458,13 +473,32 @@ function selfContainedProblems(expression, checker, sourceFile) {
             freeTopLevel.set(node.text, classification.declarationKind);
           }
         }
+      } else {
+        // A top-level function's reference to its own declaration is local
+        // for admission (self-recursion remains valid) but is still a real
+        // topology edge in the graph record.
+        const classification = topLevelClassification(symbol, sourceFile);
+        if (
+          classification?.kind === 'helper'
+          && classification.declaration === expression
+          && !selfHelperRefs.has(classification.name)
+        ) {
+          selfHelperRefs.set(classification.name, node);
+        }
       }
     }
     ts.forEachChild(node, inspect);
   };
   inspect(expression);
   const free = [...referenced].sort();
-  return { forbidden, free, freeTopLevel, helperRefs, inadmissibleRefs };
+  return {
+    forbidden,
+    free,
+    freeTopLevel,
+    helperRefs,
+    selfHelperRefs,
+    inadmissibleRefs,
+  };
 }
 
 function canonicalAst(node, sourceFile) {
@@ -496,6 +530,146 @@ function helperContentHash(ast) {
   return `sha256:${createHash('sha256')
     .update(`snapback:inline-helper-content:v1\n${ast}`)
     .digest('hex')}`;
+}
+
+function graphDigest(domain, value) {
+  return `sha256:${createHash('sha256')
+    .update(`${domain}\n${value}`)
+    .digest('hex')}`;
+}
+
+function normalizedRootRelativeTarget(path) {
+  const normalized = path.replaceAll('\\', '/').replace(/^\.\//u, '');
+  const parts = normalized.split('/').filter((part) => part !== '' && part !== '.');
+  if (normalized.startsWith('/') || parts.includes('..')) {
+    throw new Error(`same-file handler graph target must be root-relative: ${path}`);
+  }
+  return parts.join('/');
+}
+
+// @ref LLP 0237#d2-closed-graph-and-frozen-bounds — the Rollout-2 carrier
+// models the already-admitted same-file closure as explicit nodes and edges;
+// every target resolves to the one normalized authored file (`self`).
+// @ref LLP 0237#d4-runtime-and-implementation-identity — canonical executable
+// AST and raw source evidence use distinct named digests. This record remains
+// outside the legacy implementationHash preimage during the parity rollout.
+function buildSameFileGraphRecord({
+  name,
+  path,
+  expressionSource,
+  ast,
+  sourceSpan,
+  directHelperRefs,
+  helpers,
+  helperAnalyses,
+}) {
+  const target = normalizedRootRelativeTarget(path);
+  const rootNodeId = `handler:${name}`;
+  const nodes = [
+    {
+      nodeId: rootNodeId,
+      kind: 'handler',
+      name,
+      normalizedTarget: target,
+      moduleFormat: 'esm',
+      canonicalExecutableAstDigest: graphDigest(
+        'snapback:handler-graph-canonical-ast:v1',
+        ast,
+      ),
+      rawSourceEvidenceDigest: graphDigest(
+        'snapback:handler-graph-raw-source-evidence:v1',
+        expressionSource,
+      ),
+      sourceSpan,
+    },
+    ...helpers.map((helper) => ({
+      nodeId: `helper:${helper.name}`,
+      kind: 'helper',
+      name: helper.name,
+      normalizedTarget: target,
+      moduleFormat: 'esm',
+      canonicalExecutableAstDigest: graphDigest(
+        'snapback:handler-graph-canonical-ast:v1',
+        helper.ast,
+      ),
+      rawSourceEvidenceDigest: graphDigest(
+        'snapback:handler-graph-raw-source-evidence:v1',
+        helper.rawSourceEvidence,
+      ),
+      sourceSpan: helper.sourceSpan,
+    })),
+  ];
+  const edges = [];
+  for (const [helperName, { reference }] of directHelperRefs) {
+    edges.push({
+      importerNodeId: rootNodeId,
+      importerSpan: sourceSpanForNode(path, reference, reference.getSourceFile()),
+      targetNodeId: `helper:${helperName}`,
+      normalizedTarget: target,
+      resolution: 'self',
+    });
+  }
+  for (const helper of helpers) {
+    const analysis = helperAnalyses.get(helper.name);
+    for (const referencedName of analysis.refs) {
+      edges.push({
+        importerNodeId: `helper:${helper.name}`,
+        importerSpan: analysis.referenceSpans.get(referencedName),
+        targetNodeId: `helper:${referencedName}`,
+        normalizedTarget: target,
+        resolution: 'self',
+      });
+    }
+    if (analysis.selfReferenceSpan) {
+      edges.push({
+        importerNodeId: `helper:${helper.name}`,
+        importerSpan: analysis.selfReferenceSpan,
+        targetNodeId: `helper:${helper.name}`,
+        normalizedTarget: target,
+        resolution: 'self',
+      });
+    }
+  }
+  edges.sort((left, right) => (
+    compareText(left.importerNodeId, right.importerNodeId)
+    || compareText(left.targetNodeId, right.targetNodeId)
+  ));
+  const topology = {
+    nodes: nodes.map(({ nodeId, kind, normalizedTarget: nodeTarget }) => ({
+      nodeId,
+      kind,
+      normalizedTarget: nodeTarget,
+    })),
+    edges: edges.map(({
+      importerNodeId,
+      targetNodeId,
+      normalizedTarget: edgeTarget,
+      resolution,
+    }) => ({
+      importerNodeId,
+      targetNodeId,
+      normalizedTarget: edgeTarget,
+      resolution,
+    })),
+  };
+  return {
+    schemaVersion: HANDLER_GRAPH_RECORD_VERSION,
+    extractorVersion: HANDLER_GRAPH_EXTRACTOR_VERSION,
+    admissionVersion: HANDLER_ADMISSION_VERSION,
+    moduleFormat: 'esm',
+    root: {
+      nodeId: rootNodeId,
+      name,
+      normalizedTarget: target,
+      importerSpan: sourceSpan,
+    },
+    nodes,
+    edges,
+    graphTopologyDigest: graphDigest(
+      'snapback:handler-graph-topology:v1',
+      JSON.stringify(topology),
+    ),
+  };
 }
 
 function freeIdentifierHints(free, freeTopLevel) {
@@ -835,6 +1009,7 @@ export function extractInlineHandlers(source, {
     const analysis = {
       name,
       source: emittedSource,
+      rawSourceEvidence: source.slice(declaration.getFullStart(), declaration.end),
       ast,
       contentHash: helperContentHash(ast),
       sourceSpan: {
@@ -843,6 +1018,8 @@ export function extractInlineHandlers(source, {
         column: startPosition.character + 1,
       },
       refs: [],
+      referenceSpans: new Map(),
+      selfReferenceSpan: null,
     };
     helperAnalyses.set(name, analysis);
     helperStack.push(name);
@@ -851,6 +1028,7 @@ export function extractInlineHandlers(source, {
       free,
       freeTopLevel,
       helperRefs,
+      selfHelperRefs,
       inadmissibleRefs,
     } = selfContainedProblems(declaration, checker, sourceFile);
     // The 2026-07-28 adversarial refusals hold across the helper boundary: a
@@ -888,8 +1066,12 @@ export function extractInlineHandlers(source, {
         { helper: name, reference: reference.name },
       ));
     }
-    for (const [referencedName, referencedDeclaration] of helperRefs) {
+    for (const [referencedName, { declaration: referencedDeclaration, reference }] of helperRefs) {
       analysis.refs.push(referencedName);
+      analysis.referenceSpans.set(
+        referencedName,
+        sourceSpanForNode(path, reference, sourceFile),
+      );
       if (helperStack.includes(referencedName)) {
         const cyclePath = [
           ...helperStack.slice(helperStack.indexOf(referencedName)),
@@ -911,6 +1093,10 @@ export function extractInlineHandlers(source, {
       }
       analyzeHelper(referencedName, referencedDeclaration);
     }
+    const selfReference = selfHelperRefs.get(name);
+    if (selfReference) {
+      analysis.selfReferenceSpan = sourceSpanForNode(path, selfReference, sourceFile);
+    }
     helperStack.pop();
     return analysis;
   };
@@ -927,8 +1113,22 @@ export function extractInlineHandlers(source, {
       }
     }
     return [...reachable].sort().map((helperName) => {
-      const { name, source: helperSource, ast, contentHash, sourceSpan } = helperAnalyses.get(helperName);
-      return { name, source: helperSource, ast, contentHash, sourceSpan };
+      const {
+        name,
+        source: helperSource,
+        rawSourceEvidence,
+        ast,
+        contentHash,
+        sourceSpan,
+      } = helperAnalyses.get(helperName);
+      return {
+        name,
+        source: helperSource,
+        rawSourceEvidence,
+        ast,
+        contentHash,
+        sourceSpan,
+      };
     });
   };
 
@@ -1070,7 +1270,7 @@ export function extractInlineHandlers(source, {
         ));
       }
       if (forbidden.length > 0 || free.length > 0 || inadmissibleRefs.length > 0) continue;
-      for (const [helperName, helperDeclaration] of helperRefs) {
+      for (const [helperName, { declaration: helperDeclaration }] of helperRefs) {
         analyzeHelper(helperName, helperDeclaration);
       }
       const helpers = reachableHelpers(helperRefs);
@@ -1084,20 +1284,32 @@ export function extractInlineHandlers(source, {
         .update(`snapback:inline-handler-marker:v1\n${name}\n${ast}`)
         .digest('hex');
       const start = sourceFile.getLineAndCharacterOfPosition(expression.getStart(sourceFile));
+      const sourceSpan = {
+        file: path,
+        line: start.line + 1,
+        column: start.character + 1,
+      };
+      const graphRecord = buildSameFileGraphRecord({
+        name,
+        path,
+        expressionSource,
+        ast,
+        sourceSpan,
+        directHelperRefs: helperRefs,
+        helpers,
+        helperAnalyses,
+      });
       handlers.set(name, {
         name,
         token,
         expressionSource,
         ast,
         helpers,
+        graphRecord,
         ...(call.expression.text === 'defineJsLiveQuery'
           ? { plainJoinCandidate: plainJoinCandidate(expression) }
           : {}),
-        sourceSpan: {
-          file: path,
-          line: start.line + 1,
-          column: start.character + 1,
-        },
+        sourceSpan,
       });
       replacements.push({
         start: expression.getStart(sourceFile),
@@ -1156,4 +1368,58 @@ export function renderInlineOperationModule(name, extracted) {
     nextLine += lines;
   }
   return { source, segments };
+}
+
+// Render the same bytes through the explicit graph carrier. Reachability is
+// derived from graph edges rather than from the legacy flat helper array;
+// node source is still held by the extractor and never copied into the public
+// graph record. Rollout 2 keeps the legacy renderer exported as the byte
+// oracle used by the parity corpus.
+// @ref LLP 0237#d2-closed-graph-and-frozen-bounds — representation parity
+// precedes any relative-import admission.
+export function renderInlineOperationGraphModule(name, extracted) {
+  const record = extracted.graphRecord;
+  if (
+    record?.schemaVersion !== HANDLER_GRAPH_RECORD_VERSION
+    || record.root?.name !== name
+  ) {
+    throw new Error(`invalid same-file handler graph record for ${name}`);
+  }
+  const nodesById = new Map(record.nodes.map((node) => [node.nodeId, node]));
+  const edgesByImporter = new Map();
+  for (const edge of record.edges) {
+    if (!nodesById.has(edge.importerNodeId) || !nodesById.has(edge.targetNodeId)) {
+      throw new Error(`handler graph ${name} contains an edge with an unknown node`);
+    }
+    const outgoing = edgesByImporter.get(edge.importerNodeId) ?? [];
+    outgoing.push(edge.targetNodeId);
+    edgesByImporter.set(edge.importerNodeId, outgoing);
+  }
+  const reachable = new Set();
+  const queue = [record.root.nodeId];
+  while (queue.length > 0) {
+    const nodeId = queue.pop();
+    if (reachable.has(nodeId)) continue;
+    reachable.add(nodeId);
+    for (const targetNodeId of edgesByImporter.get(nodeId) ?? []) {
+      if (!reachable.has(targetNodeId)) queue.push(targetNodeId);
+    }
+  }
+  const helperSourceByName = new Map(
+    (extracted.helpers ?? []).map((helper) => [helper.name, helper]),
+  );
+  const helperNodes = record.nodes
+    .filter((node) => node.kind === 'helper' && reachable.has(node.nodeId))
+    .sort((left, right) => compareText(left.name, right.name));
+  const graphExtracted = {
+    ...extracted,
+    helpers: helperNodes.map((node) => {
+      const helper = helperSourceByName.get(node.name);
+      if (!helper) {
+        throw new Error(`handler graph ${name} has no extracted source for ${node.nodeId}`);
+      }
+      return helper;
+    }),
+  };
+  return renderInlineOperationModule(name, graphExtracted);
 }

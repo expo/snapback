@@ -76,6 +76,21 @@ export const listTodos = defineJsQuery({
   assert.equal(profile.operations[0].selectionReason, 'legacy-profile');
   assert.equal(profile.moduleGraph.identityEvidence.canonicalExecutableDigestField, 'implementationHash');
   assert.equal(profile.moduleGraph.identityEvidence.rawEvidenceDigestField, 'authoredSourceHash');
+  assert.equal(
+    profile.moduleGraph.graphRecordSchema.schemaVersion,
+    'snapback.handler-graph-record.v1',
+  );
+  assert.deepEqual(profile.moduleGraph.graphRecordSchema.digestFields, {
+    canonicalExecutableAstDigest: 'canonical-executable',
+    rawSourceEvidenceDigest: 'raw-source-evidence',
+  });
+  assert.equal(
+    profile.moduleGraph.graphRecordSchema.sourceSnapshot.attestedReread,
+    'not-applicable-while-relative-imports-are-not-admitted',
+  );
+  assert.equal(profile.moduleGraph.records.length, 1);
+  assert.equal(profile.moduleGraph.records[0].root.normalizedTarget, 'functions.mjs');
+  assert.equal(profile.moduleGraph.records[0].edges[0].resolution, 'self');
   assert.equal(profile.globals.Query.handlerForms.inline.timers, 'unavailable');
   assert.equal(
     handlerRuleForCode('BUNDLE_UNSUPPORTED_IMPORT').phase,

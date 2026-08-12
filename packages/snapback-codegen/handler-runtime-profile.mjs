@@ -4,6 +4,8 @@
 
 export const HANDLER_RUNTIME_PROFILE_VERSION = 'snapback.handler-runtime-profile.v1';
 export const HANDLER_ADMISSION_VERSION = 'snapback.handler-admission.legacy.v1';
+export const HANDLER_GRAPH_RECORD_VERSION = 'snapback.handler-graph-record.v1';
+export const HANDLER_GRAPH_EXTRACTOR_VERSION = 'snapback.inline-handler-extractor.v1';
 export const HANDLER_RUNTIME_GUIDE = '/_snapback/guide/backend/handler-runtime.md';
 
 const rule = (id, code, phase, alternative, anchor) => Object.freeze({
@@ -121,6 +123,7 @@ export function buildHandlerRuntimeProfile({
   targetProfile,
   functions,
   sourceFunctions = [],
+  graphRecords = [],
   outboundActions = false,
 }) {
   // @ref LLP 0237#d6-the-runtime-profile-is-a-generated-product-surface —
@@ -177,6 +180,8 @@ export function buildHandlerRuntimeProfile({
         selectionReason: 'legacy-profile',
       };
     });
+  const sameFileGraphRecords = [...graphRecords]
+    .sort((left, right) => compare(left.root.name, right.root.name));
   return {
     artifactKind: 'handlerRuntimeProfile',
     schemaVersion: HANDLER_RUNTIME_PROFILE_VERSION,
@@ -195,10 +200,33 @@ export function buildHandlerRuntimeProfile({
       reExports: 'forbidden',
       importedHelpers: 'not-admitted',
       integerIndexGrammar: 'not-applicable-to-legacy-profiles',
+      // @ref LLP 0237#d2-closed-graph-and-frozen-bounds — Rollout 2 projects
+      // the same-file closure through the future graph-shaped carrier while
+      // retaining the existing one-file/zero-import admission envelope.
+      graphRecordSchema: {
+        schemaVersion: HANDLER_GRAPH_RECORD_VERSION,
+        extractorVersion: HANDLER_GRAPH_EXTRACTOR_VERSION,
+        admissionVersion: HANDLER_ADMISSION_VERSION,
+        moduleFormat: 'esm',
+        normalizedTarget: 'root-relative-posix-path',
+        sameFileTargetResolution: 'self',
+        topology: 'directed-node-and-edge-list',
+        sourceSnapshot: {
+          protocol: 'single-captured-source-buffer-v1',
+          attestedReread: 'not-applicable-while-relative-imports-are-not-admitted',
+        },
+        // @ref LLP 0237#d4-runtime-and-implementation-identity — never
+        // overload raw authored bytes into the canonical executable digest.
+        digestFields: {
+          canonicalExecutableAstDigest: 'canonical-executable',
+          rawSourceEvidenceDigest: 'raw-source-evidence',
+        },
+      },
       identityEvidence: {
         canonicalExecutableDigestField: 'implementationHash',
         rawEvidenceDigestField: 'authoredSourceHash',
       },
+      records: sameFileGraphRecords,
     },
     syntax: INLINE_HANDLER_RULES.syntax,
     globals: availableGlobalsByOperationKind,
