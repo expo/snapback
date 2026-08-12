@@ -188,6 +188,18 @@ automatic rewriting out of scope.
   debugging. Authenticated developer inspection may report aggregate policy
   facts without identifying hidden keys to application code.
 
+## Addendum — invocation-snapshot scope (2026-08-12)
+
+Implementation orientation against LLP 0003's execution-semantics record
+clarifies the Constraints bullet "Every read executes against one invocation
+snapshot/transaction": the query, live-query, and detached-mutation lanes pin
+one WAL snapshot for the whole invocation, while the mutex-held mutation lane
+is per-read snapshot-atomic with commit-time captured-read validation rather
+than one frozen invocation snapshot. The binding form for this RFC is the
+Acceptance criterion: all members of **one batch** resolve inside one pinned
+read snapshot on every lane, so a concurrent write cannot split a batch. This
+addendum records scope, not a design change.
+
 ## Open questions
 
 1. Is 256 the right portable maximum after SQLite and hosted measurements?

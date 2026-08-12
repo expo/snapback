@@ -6,7 +6,12 @@
 Developer experience, Diagnostics, Operations, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (author acceptance: Charlie Cheever accepted this RFC at
+**Revised:** 2026-08-12 (post-acceptance metadata addendum: repaired the
+Related line — LLP 0046 was a mis-citation; the effect/attempt/receipt owners
+this RFC's "existing idempotency, attempt, receipt, timeout, and
+ambiguous-outcome semantics" refers to are LLP 0076 (streamed-action attempt
+custody) and LLP 0070 (durable background work); LLP 0216 added as the
+untrusted-code launch analysis. No design change). 2026-08-12 (author acceptance: Charlie Cheever accepted this RFC at
 the exact revision bound by the final GPT-5.6 Sol round-3 READY artifacts,
 SHA-256 `e9acd77bb2b7b2ef6636fb5e491a456e63b53fb52c168c727ea0ec3155315ab8`; see
 `llp/reviews/0245-0249-single-family-super-refine.md`). 2026-08-12 (round-2 revision: made isolation attestation
@@ -17,9 +22,9 @@ table activation requirements, and specified brokered SSRF-safe egress and LLP
 0036 secret custody). 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
 xhigh refinement loop; initial Draft came from Clique crypto/broker evidence
 and kept the portable handler profile unchanged)
-**Related:** LLP 0009, LLP 0010, LLP 0036, LLP 0041, LLP 0046, LLP 0060,
-LLP 0061, LLP 0099, LLP 0108, LLP 0123, LLP 0143, LLP 0198, LLP 0224,
-LLP 0227, LLP 0236, LLP 0237, LLP 0241
+**Related:** LLP 0009, LLP 0010, LLP 0036, LLP 0041, LLP 0060,
+LLP 0061, LLP 0070, LLP 0076, LLP 0099, LLP 0108, LLP 0123, LLP 0143,
+LLP 0198, LLP 0216, LLP 0224, LLP 0227, LLP 0236, LLP 0237, LLP 0241
 
 ## Summary
 
