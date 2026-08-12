@@ -1263,7 +1263,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_FUNCTION_HANDLER_FORM_INVALID"
         | "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH"
         | "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID"
-        // @ref LLP 0224#app-readiness — these four validate the caller's own
+        // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — these four validate the caller's own
         // app.readiness.v1 request body, so they are caller input, not a
         // server fault. They ride the HTTP-200 host-operation envelope today;
         // this is the classification if one ever reaches ApiError.
@@ -1388,7 +1388,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ADMIN_REACHABILITY_SESSION_INVALID" => StatusCode::NOT_FOUND,
         "SNAPBACK_ADMIN_RELAY_HOST_REFUSED" => StatusCode::MISDIRECTED_REQUEST,
         "SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE" => StatusCode::NOT_IMPLEMENTED,
-        // @ref LLP 0222#capability-refusal — realtime.hasFreshClient requires
+        // @ref LLP 0222#semantics-pinned — realtime.hasFreshClient requires
         // a session-auth application; absence is permanent for that app, so
         // this is 501 rather than a retryable 503.
         "SNAPBACK_CONNECTED_CLIENT_PREDICATE_UNAVAILABLE" => StatusCode::NOT_IMPLEMENTED,

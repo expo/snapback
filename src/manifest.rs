@@ -10855,13 +10855,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:f11ea62438a77b9f04dcf14abf889c0fcc065c06c9f751686ab99b1cfa9e7490";
+    "sha256:2c0e510e930515bd2901df6bf7ecbdc5a457f763b24ec14fc59dcd94285aee92";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:d54b9c2fb6e818cdab55baf60c76558f2b7c6caa8babb456de905fccb158f7bd";
+    "sha256:74aa6535a9ad8a41bdcca98289749add0ab6b537ef85cee4ddf6c42f3db257ef";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -11296,7 +11296,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:74d048c113e17899e29e2eaca7e798d05c4d8bb1168e0c2c8b268ebaf823fa6a"
+                    "sha256:be43c3c66197d22f6d405649694d0d63feaed1fc02f7d8f0bc326d1bba7eac82"
                         .to_owned(),
                 ),
                 (
@@ -11499,7 +11499,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:74d048c113e17899e29e2eaca7e798d05c4d8bb1168e0c2c8b268ebaf823fa6a"
+                    "sha256:be43c3c66197d22f6d405649694d0d63feaed1fc02f7d8f0bc326d1bba7eac82"
                         .to_owned(),
                 ),
                 (
@@ -11793,7 +11793,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:74d048c113e17899e29e2eaca7e798d05c4d8bb1168e0c2c8b268ebaf823fa6a"
+                    "sha256:be43c3c66197d22f6d405649694d0d63feaed1fc02f7d8f0bc326d1bba7eac82"
                         .to_owned(),
                 ),
                 (
