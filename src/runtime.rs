@@ -9,12 +9,13 @@ use crate::error_tracking::{
     extract_failure_carrier, validated_error_class,
 };
 use crate::live_matcher::{
-    compare_sort_keys, query_dependency_metadata, row_matches_query_filters, sort_key,
+    compare_sort_keys, query_dependencies_from_plan, row_matches_query_filters, sort_key,
 };
 use crate::manifest::{
-    CtxAnswerLedger, FunctionKind, HandlerInput, IbexModule, MutationOutput,
+    CtxAnswerLedger, FilterExpr, FilterOp, FunctionKind, HandlerInput, IbexModule, MutationOutput,
     QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan,
-    SequenceDeclaration, SequenceScopeAccess, effective_query_limit,
+    SequenceDeclaration, SequenceScopeAccess, TableVisibilityArmV1, TableVisibilityV1, ValueExpr,
+    effective_query_limit,
 };
 use crate::storage::{
     BufferedMembershipCommand, BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead,
@@ -1558,6 +1559,243 @@ impl<'a> IbexHostContext<'a> {
             .expect("query/mutation invocation carries a db view")
     }
 
+    fn restricted_table_visibility(&self, table: &str) -> Option<TableVisibilityV1> {
+        self.db()
+            .schema()
+            .table(table)
+            .and_then(|table| table.visibility.as_ref())
+            .filter(|visibility| visibility.is_restricted())
+            .cloned()
+    }
+
+    /// Replace any handler-authored visibility data with the installed
+    /// schema policy. An exact duplicate is tolerated for wire compatibility,
+    /// but a conflicting value is a typed trust-boundary refusal.
+    fn compose_declared_table_visibility(&self, plan: &mut QueryPlan) -> SnapbackResult<()> {
+        let declared = self
+            .db()
+            .schema()
+            .table(&plan.table)
+            .and_then(|table| table.visibility.as_ref())
+            .cloned();
+        let expected = declared
+            .as_ref()
+            .filter(|visibility| visibility.is_restricted())
+            .cloned();
+        if plan.table_visibility.is_some() && plan.table_visibility.as_ref() != declared.as_ref() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
+                "auth",
+                format!(
+                    "ctx.db.query over {} supplied table visibility that differs from the installed schema policy",
+                    plan.table
+                ),
+            )
+            .with_details(json!({
+                "table": plan.table,
+                "expected": expected,
+                "actual": plan.table_visibility,
+            })));
+        }
+        plan.table_visibility = expected;
+        Ok(())
+    }
+
+    fn visibility_string_field<'row>(row: &'row Value, field: &str) -> Option<&'row str> {
+        match row.get(field) {
+            Some(Value::String(value)) => Some(value),
+            // Match the SQL lowering: absent, NULL, and non-text values do not
+            // satisfy a string/principal comparison. They are never a
+            // handler-visible evaluation error (and therefore never an
+            // existence oracle for a stored row).
+            None | Some(_) => None,
+        }
+    }
+
+    fn membership_visibility_matches(
+        &self,
+        principal: &str,
+        declaration: &str,
+        resource_field: &str,
+        roles: &Option<Vec<String>>,
+        row: &Value,
+    ) -> SnapbackResult<bool> {
+        let Some(resource) = Self::visibility_string_field(row, resource_field) else {
+            // SQL equality against an absent/NULL outer resource does not
+            // satisfy the correlated EXISTS predicate. SQLite also treats a
+            // non-text value as non-matching rather than as an error.
+            return Ok(false);
+        };
+        let Some((membership_table, membership)) =
+            crate::membership_rules::find_declaration(self.db().schema(), declaration)
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
+                "auth",
+                format!(
+                    "table visibility names declaration {declaration:?}, which is not installed"
+                ),
+            ));
+        };
+        let effective_roles =
+            crate::membership_rules::effective_roles(membership, roles.as_deref());
+        if effective_roles.is_empty() {
+            return Ok(false);
+        }
+        let outcome = crate::membership_rules::membership_read(
+            self.db(),
+            membership,
+            &membership_table.name,
+            principal,
+            crate::membership_rules::ResourceBinding::Fixed(Value::String(resource.to_owned())),
+            &effective_roles,
+        )?;
+        // Deliberately discard this probe's dependency here. Every caller
+        // captures the policy-bearing point/query plan separately, and
+        // `query_dependencies_from_plan` emits the conservative
+        // principal-scoped membership dependency from that plan on both
+        // outcomes. Keeping both would duplicate the same OCC witness; if the
+        // binding ever narrows, this assumption and the capture must change
+        // together.
+        Ok(outcome.present)
+    }
+
+    /// Exact point/overlay evaluation of the schema policy. Membership arms
+    /// use the same declaration-bound private storage probe as the correlated
+    /// EXISTS lowering; they are never approximated by the live matcher's
+    /// row-local `unknown` result. Non-text policy values match the SQL
+    /// lowering by evaluating false rather than becoming a visible error.
+    fn row_matches_declared_table_visibility(
+        &self,
+        visibility: &TableVisibilityV1,
+        row: &Value,
+    ) -> SnapbackResult<bool> {
+        let Some(principal) = self.input.auth.user_id.as_deref() else {
+            return Ok(false);
+        };
+        let owner_matches = |field: &str| -> SnapbackResult<bool> {
+            Ok(Self::visibility_string_field(row, field) == Some(principal))
+        };
+        let membership_matches = |declaration: &str,
+                                  resource_field: &str,
+                                  roles: &Option<Vec<String>>|
+         -> SnapbackResult<bool> {
+            self.membership_visibility_matches(principal, declaration, resource_field, roles, row)
+        };
+
+        match visibility {
+            // All callers source policies through `restricted_table_visibility`
+            // or a plan whose public policy was normalized away. Fail closed
+            // if a future caller violates that invariant.
+            TableVisibilityV1::PublicRead => Ok(false),
+            TableVisibilityV1::Owner { field } => owner_matches(field),
+            TableVisibilityV1::Membership {
+                declaration,
+                resource_field,
+                roles,
+            } => membership_matches(declaration, resource_field, roles),
+            TableVisibilityV1::AnyOf { arms } => {
+                for arm in arms {
+                    let matches = match arm {
+                        TableVisibilityArmV1::Owner { field } => owner_matches(field)?,
+                        TableVisibilityArmV1::Membership {
+                            declaration,
+                            resource_field,
+                            roles,
+                        } => membership_matches(declaration, resource_field, roles)?,
+                    };
+                    if matches {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+        }
+    }
+
+    fn capture_visibility_point_read(
+        &mut self,
+        table: &str,
+        id: &str,
+        visibility: &TableVisibilityV1,
+        stored: Option<&Value>,
+        storage_visible: bool,
+    ) -> SnapbackResult<()> {
+        let plan = QueryPlan {
+            table: table.to_owned(),
+            table_visibility: Some(visibility.clone()),
+            filters: vec![FilterExpr {
+                field: "_id".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(Value::String(id.to_owned())),
+            }],
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: Some(1),
+            indexed_by: None,
+        };
+        let output = QueryOutput {
+            version: self.db().current_version()?,
+            rows: if storage_visible {
+                stored.cloned().into_iter().collect()
+            } else {
+                Vec::new()
+            },
+            cursor: None,
+        };
+        self.capture_query_read(&plan, &output)
+    }
+
+    fn read_table_visibility_point(
+        &mut self,
+        table: &str,
+        id: &str,
+    ) -> SnapbackResult<(Option<Value>, Option<TableVisibilityV1>, bool)> {
+        let stored = self.db().get(table, id)?;
+        let visibility = self.restricted_table_visibility(table);
+        let storage_visible = match (&visibility, stored.as_ref()) {
+            (Some(visibility), Some(row)) => {
+                self.row_matches_declared_table_visibility(visibility, row)?
+            }
+            (Some(_), None) => false,
+            (None, _) => true,
+        };
+        if let Some(visibility) = &visibility {
+            self.capture_visibility_point_read(
+                table,
+                id,
+                visibility,
+                stored.as_ref(),
+                storage_visible,
+            )?;
+        } else {
+            self.capture_point_read(table, id, stored.as_ref())?;
+        }
+        Ok((stored, visibility, storage_visible))
+    }
+
+    fn effective_point_is_visible(
+        &self,
+        visibility: Option<&TableVisibilityV1>,
+        existed_in_storage: bool,
+        storage_visible: bool,
+        effective: Option<&Value>,
+    ) -> SnapbackResult<bool> {
+        // Short-circuit before policy evaluation. A hidden stored row and a
+        // missing row must be indistinguishable even when buffered state would
+        // make policy evaluation fail for the hidden row.
+        if !(effective.is_some() && (!existed_in_storage || storage_visible)) {
+            return Ok(false);
+        }
+        match (visibility, effective) {
+            (Some(visibility), Some(row)) => {
+                self.row_matches_declared_table_visibility(visibility, row)
+            }
+            (None, Some(_)) => Ok(true),
+            (_, None) => Ok(false),
+        }
+    }
+
     pub(crate) fn epoch(&self) -> u64 {
         self.epoch
     }
@@ -1625,7 +1863,7 @@ impl<'a> IbexHostContext<'a> {
                 if self.mode == IbexInvocationMode::Action {
                     return Err(action_db_denied("query"));
                 }
-                let plan = serde_json::from_value::<QueryPlan>(
+                let mut plan = serde_json::from_value::<QueryPlan>(
                     args.get("plan").cloned().unwrap_or(Value::Null),
                 )
                 .map_err(|error| {
@@ -1636,6 +1874,13 @@ impl<'a> IbexHostContext<'a> {
                     )
                     .with_details(json!({ "error": error.to_string() }))
                 })?;
+                // The handler plan is untrusted input. Resolve the policy from
+                // the installed schema and compose it before *either* execution
+                // or capture: an unpolicied captured predicate would claim
+                // dependence on rows the caller was never entitled to see.
+                //
+                // @ref LLP 0231#d1--the-table-is-the-policy-locus-queries-refine
+                self.compose_declared_table_visibility(&mut plan)?;
                 // @ref LLP 0032#phase-2--execution-semantics-honesty — E2: layer
                 // this invocation's buffered writes over the storage result so
                 // the handler reads its own writes (read-your-writes).
@@ -1673,9 +1918,9 @@ impl<'a> IbexHostContext<'a> {
                         .collect::<BTreeSet<_>>();
                     let mut touched_storage = BTreeMap::new();
                     for id in touched {
-                        let stored = self.db().get(&plan.table, &id)?;
-                        self.capture_point_read(&plan.table, &id, stored.as_ref())?;
-                        touched_storage.insert(id, stored);
+                        let (stored, _, storage_visible) =
+                            self.read_table_visibility_point(&plan.table, &id)?;
+                        touched_storage.insert(id, (stored, storage_visible));
                     }
                     QueryOutput {
                         version: storage_output.version,
@@ -1706,12 +1951,30 @@ impl<'a> IbexHostContext<'a> {
                 }
                 let table = required_string(&args, "table")?;
                 let id = required_string(&args, "id")?;
-                let stored = self.db().get(&table, &id)?;
-                self.capture_point_read(&table, &id, stored.as_ref())?;
-                // E2: read-your-writes — fold buffered writes over the stored row.
-                Ok(self
-                    .apply_buffered_to_point(&table, &id, stored)
-                    .unwrap_or(Value::Null))
+                let (stored, visibility, storage_visible) =
+                    self.read_table_visibility_point(&table, &id)?;
+                let existed_in_storage = stored.is_some();
+                // E2: read-your-writes — fold buffered writes over the stored
+                // row, then re-check the effective row. A previously hidden
+                // stored row may not become readable merely because this
+                // invocation buffered a patch that changes its policy fields.
+                let effective = self.apply_buffered_to_point(&table, &id, stored);
+                let visible = self.effective_point_is_visible(
+                    visibility.as_ref(),
+                    existed_in_storage,
+                    storage_visible,
+                    effective.as_ref(),
+                )?;
+                // Invisible and absent are deliberately indistinguishable at
+                // the handler boundary; inability to evaluate a malformed
+                // policy value remains a typed SNAPBACK_* refusal above.
+                //
+                // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+                Ok(if visible {
+                    effective.unwrap_or(Value::Null)
+                } else {
+                    Value::Null
+                })
             }
             "db.insert" => {
                 self.ensure_writable("insert")?;
@@ -1736,12 +1999,27 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_permission_backing_write(&table)?;
                 let id = required_string(&args, "id")?;
                 let values = required_object(&args, "values")?;
-                let stored = self.db().get(&table, &id)?;
-                self.capture_point_read(&table, &id, stored.as_ref())?;
+                let (stored, visibility, storage_visible) =
+                    self.read_table_visibility_point(&table, &id)?;
+                let existed_in_storage = stored.is_some();
                 // E2: `existed` reflects the effective view — a row buffered-inserted
-                // earlier in this handler exists even though it is not yet committed.
-                let existed = self.apply_buffered_to_point(&table, &id, stored).is_some();
-                self.writes.push(BufferedWrite::Patch { table, id, values });
+                // earlier in this handler exists even though it is not yet
+                // committed. The app-visible existence bit is a read result,
+                // so it follows the same invisible-equals-absent rule.
+                let effective = self.apply_buffered_to_point(&table, &id, stored);
+                let existed = self.effective_point_is_visible(
+                    visibility.as_ref(),
+                    existed_in_storage,
+                    storage_visible,
+                    effective.as_ref(),
+                )?;
+                // This is a read-gated write, not the LLP 0231 D6 write-policy
+                // slice: a row the caller cannot read is treated as absent, so
+                // patch is a no-op and its `existed: false` result agrees with
+                // the eventual commit. D6 may add write-policy checks on top.
+                if existed {
+                    self.writes.push(BufferedWrite::Patch { table, id, values });
+                }
                 Ok(Value::Bool(existed))
             }
             "db.delete" => {
@@ -1750,10 +2028,22 @@ impl<'a> IbexHostContext<'a> {
                 let table = required_string(&args, "table")?;
                 self.ensure_permission_backing_write(&table)?;
                 let id = required_string(&args, "id")?;
-                let stored = self.db().get(&table, &id)?;
-                self.capture_point_read(&table, &id, stored.as_ref())?;
-                let existed = self.apply_buffered_to_point(&table, &id, stored).is_some();
-                self.writes.push(BufferedWrite::Delete { table, id });
+                let (stored, visibility, storage_visible) =
+                    self.read_table_visibility_point(&table, &id)?;
+                let existed_in_storage = stored.is_some();
+                let effective = self.apply_buffered_to_point(&table, &id, stored);
+                let existed = self.effective_point_is_visible(
+                    visibility.as_ref(),
+                    existed_in_storage,
+                    storage_visible,
+                    effective.as_ref(),
+                )?;
+                // Like patch, this is only the read gate: invisible means
+                // absent, so delete is a no-op. It does not implement or claim
+                // the separate LLP 0231 D6 write-policy slice.
+                if existed {
+                    self.writes.push(BufferedWrite::Delete { table, id });
+                }
                 Ok(Value::Bool(existed))
             }
             // A sequence is a scoped, buffered read-modify-write — never a
@@ -1831,12 +2121,12 @@ impl<'a> IbexHostContext<'a> {
                     }
                 }
 
-                let stored = self.db().get(&declaration.scope_table, &scope_row_id)?;
-                self.capture_point_read(&declaration.scope_table, &scope_row_id, stored.as_ref())?;
+                let (stored, _, storage_visible) = self
+                    .read_table_visibility_point(&declaration.scope_table, &scope_row_id)?;
                 let incarnation = self
                     .db()
                     .active_relation_incarnation(&declaration.scope_table, &scope_row_id)?;
-                if stored.is_none() || incarnation.is_none() {
+                if !storage_visible || stored.is_none() || incarnation.is_none() {
                     return Err(sequence_parent_unavailable());
                 }
                 let incarnation = incarnation.expect("checked above");
@@ -2962,7 +3252,7 @@ impl<'a> IbexHostContext<'a> {
         &self,
         plan: &QueryPlan,
         base_rows: Vec<Value>,
-        touched_storage: &BTreeMap<String, Option<Value>>,
+        touched_storage: &BTreeMap<String, (Option<Value>, bool)>,
     ) -> SnapbackResult<Vec<Value>> {
         let touched = touched_storage
             .keys()
@@ -2979,9 +3269,24 @@ impl<'a> IbexHostContext<'a> {
             })
             .collect();
 
-        for (id, stored) in touched_storage {
-            if let Some(row) = self.apply_buffered_to_point(&plan.table, id, stored.clone())
-                && row_matches_query_filters(plan, &self.input, &row) == Some(true)
+        let mut authored_plan = plan.clone();
+        authored_plan.table_visibility = None;
+        for (id, (stored, storage_visible)) in touched_storage {
+            // An existing row must have been visible before the overlay and
+            // remain visible after it. Inserts have no pre-overlay row and are
+            // admitted solely by their effective policy fields.
+            if stored.is_some() && !storage_visible {
+                continue;
+            }
+            let Some(row) = self.apply_buffered_to_point(&plan.table, id, stored.clone()) else {
+                continue;
+            };
+            let effective_visible = match &plan.table_visibility {
+                Some(visibility) => self.row_matches_declared_table_visibility(visibility, &row)?,
+                None => true,
+            };
+            if effective_visible
+                && row_matches_query_filters(&authored_plan, &self.input, &row) == Some(true)
             {
                 merged.push(row);
             }
@@ -3071,61 +3376,10 @@ impl<'a> IbexHostContext<'a> {
     }
 
     fn capture_query_read(&mut self, plan: &QueryPlan, output: &QueryOutput) -> SnapbackResult<()> {
-        let rows = output
-            .rows
-            .iter()
-            .filter_map(|row| {
-                row.get("_id")
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-            })
-            .collect::<Vec<_>>();
-        for row in &output.rows {
-            if let (Some(id), Some(version)) = (
-                row.get("_id").and_then(Value::as_str),
-                row.get("_version").and_then(Value::as_u64),
-            ) {
-                self.push_read_dependency(CapturedReadDependency {
-                    kind: CapturedReadKind::Row,
-                    table: Some(plan.table.clone()),
-                    id: Some(id.to_owned()),
-                    version: Some(version),
-                    predicate: None,
-                    rows: Vec::new(),
-                    field: None,
-                    value: None,
-                    order: None,
-                    limit: None,
-                    result_count: None,
-                    boundary: None,
-                });
-            }
+        let dependencies = query_dependencies_from_plan(plan, &self.input, output, self.db())?;
+        for dependency in dependencies {
+            self.push_read_dependency(dependency);
         }
-        let (order, limit, result_count, boundary) = query_dependency_metadata(plan, &output.rows)?;
-        let predicate = serde_json::to_value(plan).map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED",
-                "runtime",
-                "query dependency could not be serialized",
-            )
-            .with_details(json!({ "error": error.to_string() }))
-        })?;
-        self.push_read_dependency(CapturedReadDependency {
-            kind: CapturedReadKind::Query,
-            table: Some(plan.table.clone()),
-            id: None,
-            // The global snapshot head is a conservative per-table cursor and,
-            // unlike a later table-version read, is inseparable from these rows.
-            version: Some(output.version),
-            predicate: Some(predicate),
-            rows,
-            field: None,
-            value: None,
-            order,
-            limit,
-            result_count,
-            boundary,
-        });
         Ok(())
     }
 
@@ -4897,6 +5151,8 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED"
         | "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
         | "SNAPBACK_QUERY_LIMIT_INVALID"
+        | "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH"
+        | "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION"
         // A claimed application refusal survives the fold only far enough to
         // reach `admit_declared_refusal`, which drops it unless the function
         // declared the carried app code (LLP 0108).
@@ -5757,6 +6013,667 @@ mod handler_result_bridge_tests {
         let body = result["body"].as_str().expect("body string");
         assert_eq!(body.len(), 44_087);
         assert_eq!(body, format!("{}\u{FFFD}", "x".repeat(44_084)));
+    }
+}
+
+#[cfg(test)]
+mod table_visibility_runtime_tests {
+    use super::{IbexHostContext, run_ibex_handler_with_context};
+    use crate::auth::admission::AdmissionLease;
+    use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
+    use crate::manifest::{
+        AuthInput, FieldManifest, FieldType, HandlerInput, IbexModule, MembershipManifest,
+        MembershipScope, SchemaManifest, SeedData, SequenceDeclaration, SequenceScopeAccess,
+        TableManifest, TableVisibilityArmV1, TableVisibilityV1,
+    };
+    use crate::storage::{CapturedReadKind, DbRead, LocalDatabase, MembershipWriter};
+    use serde_json::{Map, Value, json};
+    use std::collections::BTreeMap;
+
+    fn table(
+        name: &str,
+        fields: Vec<FieldManifest>,
+        visibility: Option<TableVisibilityV1>,
+    ) -> TableManifest {
+        TableManifest {
+            name: name.to_owned(),
+            fields,
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            asset_sharing: None,
+            visibility,
+            history: None,
+        }
+    }
+
+    fn field(name: &str, field_type: FieldType) -> FieldManifest {
+        FieldManifest {
+            name: name.to_owned(),
+            field_type,
+            optional: false,
+        }
+    }
+
+    fn schema() -> SchemaManifest {
+        let owner = TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        };
+        let membership = TableVisibilityV1::Membership {
+            declaration: "resourceMembers".to_owned(),
+            resource_field: "resourceId".to_owned(),
+            roles: Some(vec!["reader".to_owned()]),
+        };
+        let mut resource_members = table(
+            "resource_members",
+            vec![
+                field(
+                    "resourceId",
+                    FieldType::Id {
+                        table: "resources".to_owned(),
+                    },
+                ),
+                field("userId", FieldType::Principal),
+                field("role", FieldType::String),
+            ],
+            Some(TableVisibilityV1::PublicRead),
+        );
+        resource_members.membership = Some(MembershipManifest {
+            id: Some("resourceMembers".to_owned()),
+            principal: "userId".to_owned(),
+            resource: Some("resourceId".to_owned()),
+            role: "role".to_owned(),
+            roles: vec!["reader".to_owned()],
+            pending_roles: None,
+            bootstrap_role: None,
+            last_holder: None,
+            expiry: None,
+            incidental: None,
+            provenance: None,
+            transitions: Vec::new(),
+            scope: MembershipScope::Resource,
+            resource_table: Some("resources".to_owned()),
+            principal_addressed_writes: None,
+        });
+        SchemaManifest {
+            tables: vec![
+                table(
+                    "resources",
+                    vec![field("title", FieldType::String)],
+                    Some(TableVisibilityV1::PublicRead),
+                ),
+                resource_members,
+                table(
+                    "owner_docs",
+                    vec![
+                        field("ownerId", FieldType::Principal),
+                        field("body", FieldType::String),
+                    ],
+                    Some(owner.clone()),
+                ),
+                table(
+                    "membership_docs",
+                    vec![
+                        field(
+                            "resourceId",
+                            FieldType::Id {
+                                table: "resources".to_owned(),
+                            },
+                        ),
+                        field("body", FieldType::String),
+                    ],
+                    Some(membership.clone()),
+                ),
+                table(
+                    "any_docs",
+                    vec![
+                        field("ownerId", FieldType::Principal),
+                        field(
+                            "resourceId",
+                            FieldType::Id {
+                                table: "resources".to_owned(),
+                            },
+                        ),
+                        field("body", FieldType::String),
+                    ],
+                    Some(TableVisibilityV1::AnyOf {
+                        arms: vec![
+                            TableVisibilityArmV1::Owner {
+                                field: "ownerId".to_owned(),
+                            },
+                            TableVisibilityArmV1::Membership {
+                                declaration: "resourceMembers".to_owned(),
+                                resource_field: "resourceId".to_owned(),
+                                roles: Some(vec!["reader".to_owned()]),
+                            },
+                        ],
+                    }),
+                ),
+                // Activation currently accepts owner policies over any
+                // existing field type. Runtime evaluation must therefore
+                // match SQL and treat this integer owner field as non-matching
+                // rather than turning row existence into an error oracle.
+                table(
+                    "integer_owner_docs",
+                    vec![
+                        field("seatNumber", FieldType::Integer),
+                        field("body", FieldType::String),
+                    ],
+                    Some(TableVisibilityV1::Owner {
+                        field: "seatNumber".to_owned(),
+                    }),
+                ),
+            ],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn ready_db() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("table-visibility memory database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        db.schema_seed()
+            .apply_schema(schema())
+            .expect("table-visibility schema");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "resources".to_owned(),
+                        vec![
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("resource-visible")),
+                                ("title".to_owned(), json!("Visible")),
+                            ]),
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("resource-hidden")),
+                                ("title".to_owned(), json!("Hidden")),
+                            ]),
+                        ],
+                    ),
+                    (
+                        "resource_members".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("membership-alice-visible")),
+                            ("resourceId".to_owned(), json!("resource-visible")),
+                            ("userId".to_owned(), json!("alice")),
+                            ("role".to_owned(), json!("reader")),
+                        ])],
+                    ),
+                    (
+                        "owner_docs".to_owned(),
+                        vec![
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("owner-alice")),
+                                ("ownerId".to_owned(), json!("alice")),
+                                ("body".to_owned(), json!("alice-only")),
+                            ]),
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("owner-bob")),
+                                ("ownerId".to_owned(), json!("bob")),
+                                ("body".to_owned(), json!("bob-only")),
+                            ]),
+                        ],
+                    ),
+                    (
+                        "membership_docs".to_owned(),
+                        vec![
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("membership-visible")),
+                                ("resourceId".to_owned(), json!("resource-visible")),
+                                ("body".to_owned(), json!("member-only")),
+                            ]),
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("membership-hidden")),
+                                ("resourceId".to_owned(), json!("resource-hidden")),
+                                ("body".to_owned(), json!("not-a-member")),
+                            ]),
+                        ],
+                    ),
+                    (
+                        "any_docs".to_owned(),
+                        vec![
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("any-membership-only")),
+                                ("ownerId".to_owned(), json!("bob")),
+                                ("resourceId".to_owned(), json!("resource-visible")),
+                                ("body".to_owned(), json!("membership-arm")),
+                            ]),
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("any-hidden")),
+                                ("ownerId".to_owned(), json!("bob")),
+                                ("resourceId".to_owned(), json!("resource-hidden")),
+                                ("body".to_owned(), json!("neither-arm")),
+                            ]),
+                        ],
+                    ),
+                    (
+                        "integer_owner_docs".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("integer-owner")),
+                            ("seatNumber".to_owned(), json!(42)),
+                            ("body".to_owned(), json!("must-not-error")),
+                        ])],
+                    ),
+                ]),
+            })
+            .expect("seed table-visibility rows");
+        db
+    }
+
+    fn input(user_id: Option<&str>) -> HandlerInput {
+        HandlerInput {
+            auth: AuthInput {
+                principal: user_id.map(str::to_owned),
+                user_id: user_id.map(str::to_owned),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    fn context<'a>(
+        db: &'a LocalDatabase,
+        user_id: Option<&str>,
+        writable: bool,
+    ) -> IbexHostContext<'a> {
+        let input = input(user_id);
+        let authority = ResolvedAppAuthority::dev_from_auth(&input.auth);
+        IbexHostContext::new_with_projection(
+            DbRead::Live(db),
+            input,
+            HandlerAuthProjection::from_authority(&authority),
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved(&authority),
+            writable,
+        )
+        .expect("table-visibility handler context")
+    }
+
+    fn module(source: &str, export: &str) -> IbexModule {
+        IbexModule {
+            source: source.to_owned(),
+            export: export.to_owned(),
+        }
+    }
+
+    #[test]
+    fn table_visibility_ctx_db_query_filters_rows_and_captures_the_composed_plan() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async list(ctx) {
+    return await ctx.db.query('owner_docs').collect();
+  }
+};
+"#;
+        let db = ready_db();
+        let mut alice = context(&db, Some("alice"), false);
+        let rows = run_ibex_handler_with_context(&module(SOURCE, "list"), &mut alice, None)
+            .expect("owner query runs")
+            .as_array()
+            .expect("query returns rows")
+            .clone();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["_id"], "owner-alice");
+
+        let query = alice
+            .reads
+            .iter()
+            .find(|dependency| {
+                dependency.kind == CapturedReadKind::Query
+                    && dependency.table.as_deref() == Some("owner_docs")
+            })
+            .expect("ctx.db query capture");
+        assert_eq!(
+            query.predicate.as_ref().unwrap()["tableVisibility"],
+            json!({ "kind": "owner", "field": "ownerId" }),
+            "capture must serialize the schema policy before OCC records the read",
+        );
+        assert!(alice.reads.iter().all(|dependency| {
+            !(dependency.kind == CapturedReadKind::Row
+                && dependency.id.as_deref() == Some("owner-bob"))
+        }));
+
+        let mut anonymous = context(&db, None, false);
+        let anonymous_rows =
+            run_ibex_handler_with_context(&module(SOURCE, "list"), &mut anonymous, None)
+                .expect("anonymous query fails closed");
+        assert_eq!(anonymous_rows, json!([]));
+    }
+
+    #[test]
+    fn table_visibility_ctx_db_get_is_exact_for_owner_membership_and_any_of() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    return {
+      ownerAllowed: await ctx.db.get('owner_docs', 'owner-alice'),
+      ownerHidden: await ctx.db.get('owner_docs', 'owner-bob'),
+      memberAllowed: await ctx.db.get('membership_docs', 'membership-visible'),
+      memberHidden: await ctx.db.get('membership_docs', 'membership-hidden'),
+      anyMembershipOnly: await ctx.db.get('any_docs', 'any-membership-only'),
+      anyHidden: await ctx.db.get('any_docs', 'any-hidden'),
+      integerOwner: await ctx.db.get('integer_owner_docs', 'integer-owner'),
+      integerOwnerMiss: await ctx.db.get('integer_owner_docs', 'missing'),
+    };
+  }
+};
+"#;
+        let db = ready_db();
+        let mut alice = context(&db, Some("alice"), false);
+        let result = run_ibex_handler_with_context(&module(SOURCE, "inspect"), &mut alice, None)
+            .expect("point visibility handler runs");
+        assert_eq!(result["ownerAllowed"]["_id"], "owner-alice");
+        assert_eq!(result["ownerHidden"], Value::Null);
+        assert_eq!(result["memberAllowed"]["_id"], "membership-visible");
+        assert_eq!(result["memberHidden"], Value::Null);
+        assert_eq!(result["anyMembershipOnly"]["_id"], "any-membership-only");
+        assert_eq!(result["anyHidden"], Value::Null);
+        assert_eq!(result["integerOwner"], Value::Null);
+        assert_eq!(result["integerOwnerMiss"], Value::Null);
+        assert!(alice.reads.iter().any(|dependency| {
+            dependency.kind == CapturedReadKind::Query
+                && dependency.table.as_deref() == Some("resource_members")
+        }));
+    }
+
+    #[test]
+    fn table_visibility_effective_point_short_circuits_hidden_storage_policy_errors() {
+        let db = ready_db();
+        let ctx = context(&db, Some("alice"), false);
+        let unresolved_membership = TableVisibilityV1::Membership {
+            declaration: "not-installed".to_owned(),
+            resource_field: "resourceId".to_owned(),
+            roles: Some(vec!["reader".to_owned()]),
+        };
+        let effective = json!({ "resourceId": "resource-visible" });
+
+        assert!(
+            !ctx.effective_point_is_visible(
+                Some(&unresolved_membership),
+                true,
+                false,
+                Some(&effective),
+            )
+            .expect("the hidden-row gate runs before the fallible policy probe")
+        );
+    }
+
+    #[test]
+    fn table_visibility_ctx_db_buffered_overlay_cannot_bypass_policy() {
+        let db = ready_db();
+        let mut ctx = context(&db, Some("alice"), true);
+        assert_eq!(
+            ctx.handle_host_call(
+                "db.patch",
+                json!({
+                    "table": "owner_docs",
+                    "id": "owner-bob",
+                    "values": { "ownerId": "alice" },
+                }),
+            )
+            .expect("read-gate hidden ownership patch"),
+            Value::Bool(false),
+            "patch existence also collapses an excluded row to not-found",
+        );
+        assert_eq!(
+            ctx.handle_host_call(
+                "db.get",
+                json!({ "table": "owner_docs", "id": "owner-bob" }),
+            )
+            .expect("hidden point read after no-op patch"),
+            Value::Null,
+            "patching a hidden row's policy field cannot reveal its stored fields",
+        );
+
+        let visible_insert = ctx
+            .handle_host_call(
+                "db.insert",
+                json!({
+                    "table": "owner_docs",
+                    "values": { "ownerId": "alice", "body": "buffered-visible" },
+                }),
+            )
+            .expect("buffer visible owner insert")
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let hidden_insert = ctx
+            .handle_host_call(
+                "db.insert",
+                json!({
+                    "table": "owner_docs",
+                    "values": { "ownerId": "bob", "body": "buffered-hidden" },
+                }),
+            )
+            .expect("buffer hidden owner insert")
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(
+            ctx.handle_host_call(
+                "db.get",
+                json!({ "table": "owner_docs", "id": visible_insert }),
+            )
+            .unwrap()["body"],
+            "buffered-visible",
+        );
+        assert_eq!(
+            ctx.handle_host_call(
+                "db.get",
+                json!({ "table": "owner_docs", "id": hidden_insert }),
+            )
+            .unwrap(),
+            Value::Null,
+        );
+
+        let member_insert = ctx
+            .handle_host_call(
+                "db.insert",
+                json!({
+                    "table": "membership_docs",
+                    "values": { "resourceId": "resource-visible", "body": "buffered-member" },
+                }),
+            )
+            .expect("buffer membership-visible insert")
+            .as_str()
+            .unwrap()
+            .to_owned();
+        assert_eq!(
+            ctx.handle_host_call(
+                "db.get",
+                json!({ "table": "membership_docs", "id": member_insert }),
+            )
+            .unwrap()["body"],
+            "buffered-member",
+            "membership overlay evaluation must be exact rather than conservatively denying",
+        );
+
+        let output = ctx
+            .handle_host_call(
+                "db.query",
+                json!({
+                    "plan": {
+                        "table": "owner_docs",
+                        "filters": [],
+                        "order": [],
+                        "limit": 1024,
+                        "indexed_by": null,
+                    },
+                }),
+            )
+            .expect("buffered owner query");
+        let ids = output["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["_id"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert!(ids.contains(&"owner-alice"));
+        assert!(ids.contains(&visible_insert.as_str()));
+        assert!(!ids.contains(&"owner-bob"));
+        assert!(!ids.contains(&hidden_insert.as_str()));
+
+        let mut delete_ctx = context(&db, Some("alice"), true);
+        assert_eq!(
+            delete_ctx
+                .handle_host_call(
+                    "db.delete",
+                    json!({ "table": "owner_docs", "id": "owner-bob" }),
+                )
+                .expect("read-gate hidden delete"),
+            Value::Bool(false),
+            "delete existence also collapses an excluded row to not-found",
+        );
+    }
+
+    #[test]
+    fn table_visibility_hidden_patch_and_delete_are_no_ops_at_commit() {
+        let mut db = ready_db();
+        let mut ctx = context(&db, Some("alice"), true);
+
+        let hidden_patch = ctx
+            .handle_host_call(
+                "db.patch",
+                json!({
+                    "table": "owner_docs",
+                    "id": "owner-bob",
+                    "values": { "ownerId": 42 },
+                }),
+            )
+            .expect("hidden malformed patch is indistinguishable from a miss");
+        let missing_patch = ctx
+            .handle_host_call(
+                "db.patch",
+                json!({
+                    "table": "owner_docs",
+                    "id": "missing",
+                    "values": { "ownerId": 42 },
+                }),
+            )
+            .expect("missing malformed patch remains a miss");
+        let hidden_read = ctx
+            .handle_host_call(
+                "db.get",
+                json!({ "table": "owner_docs", "id": "owner-bob" }),
+            )
+            .expect("hidden row remains null after the malformed no-op patch");
+        let missing_read = ctx
+            .handle_host_call(
+                "db.get",
+                json!({ "table": "owner_docs", "id": "missing" }),
+            )
+            .expect("missing row remains null after the malformed no-op patch");
+        let hidden_delete = ctx
+            .handle_host_call(
+                "db.delete",
+                json!({ "table": "owner_docs", "id": "owner-bob" }),
+            )
+            .expect("hidden delete is read-gated");
+
+        assert_eq!(hidden_patch, Value::Bool(false));
+        assert_eq!(missing_patch, Value::Bool(false));
+        assert_eq!(hidden_read, Value::Null);
+        assert_eq!(missing_read, Value::Null);
+        assert_eq!(hidden_delete, Value::Bool(false));
+        assert!(
+            ctx.writes.is_empty(),
+            "invisible and absent targets must not enqueue a write"
+        );
+
+        let writes = std::mem::take(&mut ctx.writes);
+        let reads = std::mem::take(&mut ctx.reads);
+        drop(ctx);
+        db.mutation_writes()
+            .commit_buffered_writes(&input(Some("alice")), writes, reads, Value::Null)
+            .expect("read-gated no-op commits cleanly");
+
+        let stored = DbRead::Live(&db)
+            .get("owner_docs", "owner-bob")
+            .expect("read hidden row after commit")
+            .expect("hidden row still exists");
+        assert_eq!(stored["ownerId"], "bob");
+        assert_eq!(stored["body"], "bob-only");
+    }
+
+    #[test]
+    fn table_visibility_ctx_db_query_refuses_conflicting_handler_policy() {
+        let db = ready_db();
+        let mut ctx = context(&db, Some("alice"), false);
+        let error = ctx
+            .handle_host_call(
+                "db.query",
+                json!({
+                    "plan": {
+                        "table": "owner_docs",
+                        "tableVisibility": { "kind": "public-read" },
+                        "filters": [],
+                        "order": [],
+                        "limit": 10,
+                        "indexed_by": null,
+                    },
+                }),
+            )
+            .expect_err("handler policy cannot override the schema");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH"
+        );
+
+        let exact_public = ctx
+            .handle_host_call(
+                "db.query",
+                json!({
+                    "plan": {
+                        "table": "resources",
+                        "tableVisibility": { "kind": "public-read" },
+                        "filters": [],
+                        "order": [],
+                        "limit": 10,
+                        "indexed_by": null,
+                    },
+                }),
+            )
+            .expect("an exact public-read duplicate agrees with the schema");
+        assert_eq!(exact_public["rows"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn table_visibility_sequence_scope_read_is_composed_with_declared_access() {
+        let db = ready_db();
+        let declaration = SequenceDeclaration {
+            name: "ownerSequence".to_owned(),
+            scope_table: "owner_docs".to_owned(),
+            scope_access: SequenceScopeAccess::Public("public.v1".to_owned()),
+        };
+        let mut alice = context(&db, Some("alice"), true);
+        alice.declared_sequences = vec![declaration.clone()];
+        assert_eq!(
+            alice
+                .handle_host_call(
+                    "sequence.allocate",
+                    json!({ "counter": "ownerSequence", "scopeId": "owner-alice" }),
+                )
+                .expect("table policy and public sequence access both allow owner"),
+            json!(1),
+        );
+
+        let mut hidden = context(&db, Some("alice"), true);
+        hidden.declared_sequences = vec![declaration];
+        let error = hidden
+            .handle_host_call(
+                "sequence.allocate",
+                json!({ "counter": "ownerSequence", "scopeId": "owner-bob" }),
+            )
+            .expect_err("public sequence access cannot bypass the table policy");
+        assert_eq!(
+            error.diagnostic,
+            super::sequence_parent_unavailable().diagnostic
+        );
     }
 }
 

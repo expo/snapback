@@ -10861,7 +10861,7 @@ const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:74aa6535a9ad8a41bdcca98289749add0ab6b537ef85cee4ddf6c42f3db257ef";
+    "sha256:6ebffc385137ac286772a520fb9d23aa644238f4f2e9040022129f2a2c5cd06c";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -11504,7 +11504,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:177fb6064d93a0404316651467eb98e12be258fcbac0dc5b42e99f88979ede06"
+                    "sha256:d81c5f97e12887a13144a492cafea3e8393d2f0efb3ce455d6c2290d93ee1c7c"
                         .to_owned(),
                 ),
                 (
@@ -11915,7 +11915,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:3861d6081f183e933a8e8cf9a82fd06feffdbba3b5065cad974a603d04e3ddce"
+                "sha256:6c36e1e7520d60dacda899ab93e91b7cc316bcdc1be9dfee2d08c4f3ee67e880"
                     .to_owned(),
             )])
         && carrier.client_source_sha256

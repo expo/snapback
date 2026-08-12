@@ -218,6 +218,139 @@ export const privateNotes = defineLiveQuery({
     },
   });
 
+  const indexPrefix = await generate(fixture(`
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  notes: defineTable({ ownerId: v.principal(), body: v.string() })
+    .index('by_body', ['body'])
+    .index('by_owner_body', ['ownerId', 'body'])
+    .visibility({ kind: 'owner', field: 'ownerId' }),
+});
+`, `
+import { defineLiveQuery } from '${defineUrl}';
+export const mismatchingIndex = defineLiveQuery({
+  table: 'notes', index: 'by_body', auth: 'optional-user',
+});
+export const matchingIndex = defineLiveQuery({
+  table: 'notes', index: 'by_owner_body', auth: 'optional-user',
+});
+`));
+  assert.equal(indexPrefix.ok, true, JSON.stringify(indexPrefix.diagnostics));
+  const prefixWarnings = indexPrefix.diagnostics.filter(
+    ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_INDEX_PREFIX_MISMATCH',
+  );
+  assert.equal(prefixWarnings.length, 1, JSON.stringify(prefixWarnings));
+  assert.equal(prefixWarnings[0].function, 'mismatchingIndex');
+  assert.equal(prefixWarnings[0].table, 'notes');
+  assert.equal(prefixWarnings[0].details.ownerField, 'ownerId');
+  assert.equal(prefixWarnings[0].details.selectedIndex, 'by_body');
+  assert.deepEqual(prefixWarnings[0].details.selectedIndexFields, ['body']);
+  assert.match(prefixWarnings[0].message, /may degrade to a scan/u);
+  assert(prefixWarnings[0].details.remediations.every((remediation) => (
+    remediation.machineApplicable === false
+    && remediation.requiresApproval === true
+    && remediation.precondition.function === 'mismatchingIndex'
+  )));
+  assert.equal(
+    indexPrefix.diagnostics.some(({ code, function: functionName }) => (
+      code === 'SNAPBACK_TABLE_VISIBILITY_INDEX_PREFIX_MISMATCH'
+      && functionName === 'matchingIndex'
+    )),
+    false,
+    'an owner-leading selected index stays silent',
+  );
+
+  const uncomposed = await generate(fixture(`
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export const parents = defineTable({
+  ownerId: v.principal(),
+  profileSlug: v.string(),
+  title: v.string(),
+})
+  .index('by_owner_title', ['ownerId', 'title'])
+  .visibility({ kind: 'owner', field: 'ownerId' });
+export const profiles = defineTable({ slug: v.string(), name: v.string() })
+  .index('by_slug', ['slug'], { unique: true })
+  .visibility({ kind: 'public-read' });
+export const children = defineTable({
+  parentId: v.id('parents'),
+  parentIncarnation: v.relationIncarnationOf({
+    foreignKeyField: 'parentId', parentTable: 'parents',
+  }),
+  position: v.integer(),
+  body: v.string(),
+})
+  .index('by_parent_position', ['parentId', 'parentIncarnation', 'position'])
+  .visibility({ kind: 'public-read' });
+export default defineSchema({ parents, profiles, children });
+`, `
+import {
+  asc, defineBoundedChildrenQuery, defineRelationalQuery, defineSnapshotBatchQuery, owner,
+  throughParent,
+} from '${defineUrl}';
+import { children, parents, profiles } from './schema.mjs';
+
+export const parentProfiles = defineRelationalQuery({
+  root: parents,
+  joined: profiles,
+  join: [{ root: 'profileSlug', joined: 'slug' }],
+  visibility: {
+    root: owner('ownerId'),
+    joined: { kind: 'public-read' },
+    output: 'owner',
+  },
+  projection: { title: { root: 'title' }, profileName: { joined: 'name' } },
+  take: 10,
+  rootIndex: 'by_owner_title',
+  joinedIndex: 'by_slug',
+});
+
+export const parentChildren = defineBoundedChildrenQuery({
+  parent: {
+    table: parents,
+    idArg: 'parentId',
+    visibility: owner('ownerId'),
+    select: { id: '_id', title: 'title' },
+  },
+  children: {
+    table: children,
+    foreignKey: 'parentId',
+    parentIncarnation: 'parentIncarnation',
+    visibility: throughParent(),
+    index: 'by_parent_position',
+    order: [asc('position')],
+    select: { id: '_id', position: 'position', body: 'body' },
+  },
+  take: 10,
+  parentDeletion: 'hide-orphans.v1',
+});
+
+export const snapshotMixed = defineSnapshotBatchQuery({
+  nodes: [parentChildren, parentProfiles],
+});
+`));
+  assert.equal(uncomposed.ok, true, JSON.stringify(uncomposed.diagnostics));
+  const uncomposedWarnings = uncomposed.diagnostics.filter(
+    ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE',
+  );
+  assert.deepEqual(
+    uncomposedWarnings.map(({ function: functionName, details }) => [functionName, details.surface]),
+    [
+      ['parentChildren', 'boundedChildrenPlan.parent'],
+      ['parentProfiles', 'relationalPlan.root'],
+      ['snapshotMixed', 'snapshotBatchPlan.nodes[0].boundedChildren.parent'],
+      ['snapshotMixed', 'snapshotBatchPlan.nodes[1].relational.root'],
+    ],
+  );
+  assert(uncomposedWarnings.every((warning) => (
+    warning.table === 'parents'
+    && warning.details.declaredPolicy.kind === 'owner'
+    && warning.details.remediations.every((remediation) => (
+      remediation.machineApplicable === false
+      && remediation.requiresApproval === true
+    ))
+  )));
+
   const omitted = await generate(fixture(`
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({

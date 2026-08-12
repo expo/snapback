@@ -2890,6 +2890,158 @@ async function generateInProcessLocked({
       def.plan.tableVisibility = tableVisibility && tableVisibility.kind !== 'public-read'
         ? structuredClone(tableVisibility)
         : undefined;
+
+      // @ref LLP 0065#3-common-pattern-contracts — an owner predicate needs
+      // an owner-leading selected index to preserve the declared access path.
+      // This remains advisory for ordinary queries: enforcement is unchanged,
+      // but the injected predicate may degrade the selected index to a scan.
+      if (def.plan.index && tableVisibility) {
+        const selectedIndex = tables[def.plan.table]?.indexes.find(
+          (candidate) => candidate.name === def.plan.index,
+        );
+        for (const ownerVisibility of tableVisibilityOwnerLeaves(tableVisibility)) {
+          if (!selectedIndex || selectedIndex.fields[0] === ownerVisibility.field) continue;
+          const authoredSpan = functionDefinitionSourceSpans[name];
+          const precondition = {
+            function: name,
+            table: def.plan.table,
+            index: def.plan.index,
+            ownerField: ownerVisibility.field,
+          };
+          diagnostics.push({
+            code: 'SNAPBACK_TABLE_VISIBILITY_INDEX_PREFIX_MISMATCH',
+            severity: 'warning',
+            subsystem: 'auth',
+            message: `${name}: injected owner visibility on ${def.plan.table}.${ownerVisibility.field} is not the leading field of selected index ${def.plan.table}.${def.plan.index}; the policy remains enforced, but this access path may degrade to a scan. Choose or add an index beginning with ${ownerVisibility.field}.`,
+            function: name,
+            table: def.plan.table,
+            ...(authoredSpan
+              ? {
+                  sourceSpan: {
+                    file: authoredSpan.path,
+                    line: authoredSpan.line,
+                    column: authoredSpan.column,
+                  },
+                }
+              : {}),
+            details: {
+              function: name,
+              table: def.plan.table,
+              policy: structuredClone(tableVisibility),
+              ownerField: ownerVisibility.field,
+              selectedIndex: def.plan.index,
+              selectedIndexFields: selectedIndex?.fields ?? null,
+              remediations: [
+                {
+                  kind: 'chooseOwnerLeadingQueryIndex',
+                  edit: `index: '<index beginning with ${ownerVisibility.field}>'`,
+                  riskClass: 'performance',
+                  machineApplicable: false,
+                  requiresApproval: true,
+                  authorityEffect: 'none',
+                  precondition,
+                  description: `Select a declared ${def.plan.table} index whose leading field is ${ownerVisibility.field}.`,
+                },
+                {
+                  kind: 'addOwnerLeadingIndex',
+                  edit: `.index('<name>', ['${ownerVisibility.field}', ...])`,
+                  riskClass: 'schema',
+                  machineApplicable: false,
+                  requiresApproval: true,
+                  authorityEffect: 'none',
+                  precondition,
+                  description: `Add an owner-leading ${def.plan.table} index, then select it for ${name}.`,
+                },
+              ],
+            },
+          });
+        }
+      }
+    }
+
+    const uncomposedVisibilityReads = [];
+    if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.relationalPlan) {
+      uncomposedVisibilityReads.push(
+        { surface: 'relationalPlan.root', table: def.relationalPlan.root },
+        { surface: 'relationalPlan.joined', table: def.relationalPlan.joined },
+      );
+    }
+    if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.boundedChildrenPlan) {
+      uncomposedVisibilityReads.push(
+        { surface: 'boundedChildrenPlan.parent', table: def.boundedChildrenPlan.parentTable },
+        { surface: 'boundedChildrenPlan.children', table: def.boundedChildrenPlan.childTable },
+      );
+    }
+    if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.snapshotBatchPlan) {
+      const v2 = def.snapshotBatchPlan.profile === 'snapshot-batch.v2';
+      for (const [index, rawNode] of def.snapshotBatchPlan.nodes.entries()) {
+        const classId = v2 ? rawNode.classId : 'bounded_children_v1';
+        const node = v2 ? rawNode.plan : rawNode;
+        if (classId === 'relational_query_v1') {
+          uncomposedVisibilityReads.push(
+            { surface: `snapshotBatchPlan.nodes[${index}].relational.root`, table: node.root },
+            { surface: `snapshotBatchPlan.nodes[${index}].relational.joined`, table: node.joined },
+          );
+        } else if (classId === 'bounded_children_v1') {
+          uncomposedVisibilityReads.push(
+            { surface: `snapshotBatchPlan.nodes[${index}].boundedChildren.parent`, table: node.parentTable },
+            { surface: `snapshotBatchPlan.nodes[${index}].boundedChildren.children`, table: node.childTable },
+          );
+        }
+      }
+    }
+    const warnedUncomposedVisibilityReads = new Set();
+    for (const { surface, table } of uncomposedVisibilityReads) {
+      const tableVisibility = tables[table]?.visibility;
+      if (!tableVisibility || tableVisibility.kind === 'public-read') continue;
+      const identity = `${surface}\0${table}`;
+      if (warnedUncomposedVisibilityReads.has(identity)) continue;
+      warnedUncomposedVisibilityReads.add(identity);
+      const authoredSpan = functionDefinitionSourceSpans[name];
+      const precondition = {
+        function: name,
+        surface,
+        table,
+        declaredPolicy: structuredClone(tableVisibility),
+      };
+      // @ref LLP 0231#d2--a-table-without-a-policy-fails-generation — the
+      // warn phase names uncomposed read surfaces before the later fail-closed
+      // rollout; this slice does not alter relational/bounded lowering.
+      diagnostics.push({
+        code: 'SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE',
+        severity: 'warning',
+        subsystem: 'auth',
+        message: `${name}: ${surface} reads restricted table ${table} with declared policy ${JSON.stringify(tableVisibility)}, but this surface does not yet compose the table policy. Review its surface-specific visibility declaration and identity-switching coverage.`,
+        function: name,
+        table,
+        ...(authoredSpan
+          ? {
+              sourceSpan: {
+                file: authoredSpan.path,
+                line: authoredSpan.line,
+                column: authoredSpan.column,
+              },
+            }
+          : {}),
+        details: {
+          function: name,
+          surface,
+          table,
+          declaredPolicy: structuredClone(tableVisibility),
+          analysisLimit: 'table policy is not composed into this plan class; equivalence with the surface-specific declaration was not proved',
+          remediations: [
+            {
+              kind: 'reviewUncomposedTableVisibility',
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'preserves-or-narrows',
+              precondition,
+              description: `Review ${name}'s ${surface} visibility against ${table}'s declared policy and add an identity-switching acceptance test.`,
+            },
+          ],
+        },
+      });
     }
     validateFunctionAuthDefinition(name, def, err);
     // @ref LLP 0178#v4--function-auth-omission — omission remains valid only
@@ -6009,6 +6161,15 @@ function tableVisibilityMembershipLeaves(visibility) {
   if (visibility.kind === 'membership') return [visibility];
   if (visibility.kind === 'any-of') {
     return visibility.arms.filter((arm) => arm.kind === 'membership');
+  }
+  return [];
+}
+
+function tableVisibilityOwnerLeaves(visibility) {
+  if (!visibility) return [];
+  if (visibility.kind === 'owner') return [visibility];
+  if (visibility.kind === 'any-of') {
+    return visibility.arms.filter((arm) => arm.kind === 'owner');
   }
   return [];
 }
