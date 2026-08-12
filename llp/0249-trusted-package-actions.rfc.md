@@ -6,7 +6,9 @@
 Developer experience, Diagnostics, Operations, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-1 revision: froze a separate external-entry
+**Revised:** 2026-08-12 (round-2 revision: made isolation attestation
+authoritative/non-replayable; replaced egress denylisting with positive
+versioned admission). 2026-08-12 (round-1 revision: froze a separate external-entry
 TypeScript/package profile, made qualified OS isolation and a closed Node power
 table activation requirements, and specified brokered SSRF-safe egress and LLP
 0036 secret custody). 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
@@ -92,16 +94,16 @@ declarations; runtime result validation remains authoritative.
 
 Semantic identity binds entry/export, normalized graphs, contracts,
 capabilities, and profile; executable identity adds tool/runtime builds,
-options, package/target integrity, OS/architecture, and final bytes. Any source-
-map/resolution/transform failure preserves the predecessor generation.
+options, package/target integrity, OS/architecture, and bytes. Source-map/
+resolution/transform failure preserves the predecessor.
 
 ### D2. The dependency closure is frozen at build time
 
-The build verifies one supported manifest/lockfile and exact integrities, then
-constructs a content-addressed bundle. Only declared direct packages and their
-locked ESM transitive closure enter. Lifecycle/install scripts, workspace/path/
-git/URL dependencies, dynamic load, native addons, CommonJS entries, and post-
-install downloads refuse. LLP 0241 bundle identity binds the full closure.
+The build verifies one supported manifest/lockfile and exact integrities into a
+content-addressed bundle. Only declared direct packages and locked ESM closure
+enter. Scripts, workspace/path/git/URL dependencies, dynamic load, native
+addons, CommonJS, and post-install downloads refuse. LLP 0241 bundle identity
+binds the closure.
 
 ### D3. Isolation is the authority boundary
 
@@ -125,22 +127,34 @@ These are the only globals/builtins supplied to direct or transitive code;
 other imports or reflective requests refuse. New powers require a reviewed
 facade/grant and qualification.
 
-Activation requires a signed `IsolationProfileV1` receipt naming its OS/
-container enforcement and proving no repository/database mounts, a scrubbed
-environment, read-only bundle, package-inaccessible bounded scratch, process/
-signal/IPC separation, killable limits, and no network route except the egress
-broker. Adversarial repo/database/environment/process/IPC/socket/limit probes
-must pass. A same-UID unsandboxed child is nonconforming even locally.
+`IsolationProfileV1` is a live per-worker attestation, never static
+qualification. The executing runtime's server-owned target registry pins
+target/profile, attester trust root, worker/runtime build, OS/container policy,
+broker/address-classifier/deny-fact/probe-corpus digests, expiry ceiling, and
+revocation generation. Only the target's privileged launcher—never app, bundle,
+or worker—signs after construction/probes; self-signed receipts refuse.
+
+Each launch, the server issues a one-use challenge over its private launcher
+channel. The receipt binds those facts plus the probe-result digest,
+generation/bundle/executable ids, startup/launch nonces, kernel/container
+instance, authenticated worker-channel identity, issuance/expiry, and
+revocation generation.
+The server verifies, atomically consumes the challenge, and binds the receipt
+to that live session. Replay, mismatch, expiry, or revocation makes readiness
+false, stops admissions, and tears down the worker. Probes prove absent
+repository/database mounts, ambient environment, process/IPC/socket paths and
+enforce killable limits; a same-UID unsandboxed child is nonconforming.
 
 V1 network grants are exact HTTPS `{protocol, host, port}` tuples with canonical
 ASCII hosts; wildcards, userinfo, IP literals, and app overrides refuse. For
-every resolution/connect, the broker rejects IPv4/IPv6 loopback, private, link-
-local, multicast, unspecified, metadata/control-plane, and local-socket targets;
-pins an allowed address; binds TLS SNI/certificate identity; and separately
-reauthorizes at most five redirects. Re-resolution repeats the checks. With no
-raw socket/DNS/HTTP/proxy/custom-agent surface, packages cannot bypass them;
-qualification covers rebinding, redirect, address-family, private/metadata,
-certificate, and local-socket negatives.
+every resolution/connect, registry-pinned `globally-routable-unicast-v1`
+canonicalizes every IPv4/IPv6 answer, including mapped/translated equivalents.
+Unknown/noncanonical/scoped forms, any non-global-unicast answer, or a target-
+owned versioned metadata/control-plane/reserved deny match refuses.
+The broker pins one admitted address, binds TLS SNI/certificate identity, and
+reauthorizes/resolves at most five redirects. With no raw socket/DNS/HTTP/proxy/
+custom-agent surface, packages cannot bypass it; qualification covers address
+equivalence, rebinding, redirects, target denies, TLS, and local sockets.
 
 LLP 0036 governs secrets: opaque handles, host-side use, or deliberate greppable
 `handle.expose()` for SDK strings. Each attempt snapshots its staged-value
@@ -150,12 +164,11 @@ holder's deliberate exfiltration remains an explicit residual.
 
 ### D4. One first-party broker lifecycle
 
-Local `snapback dev` builds, starts, health-checks, reloads, and tears down the
-worker as an LLP 0241 custodian. Its candidate readiness binds source profile,
-bundle, Node runtime, and live isolation receipt; a target without an equivalent
-qualified worker refuses before activation. No app gateway owns refs,
-generation, health, or restart. Doctor/logs/inspect expose the worker cut,
-closure, grants, readiness, failure, and safe next steps without secrets.
+`snapback dev` owns build/start/health/reload/teardown as an LLP 0241 custodian.
+Server `OperationalReadinessV1` binds source profile, bundle, Node runtime, and
+the verified live receipt/session; an unqualified target refuses activation.
+No app gateway owns refs, generation, health, or restart. Doctor/logs/inspect
+expose the worker cut, grants, readiness, failure, and next steps.
 
 ### D5. Effects and failures stay truthful
 
@@ -200,11 +213,11 @@ boundary without its qualification.
 - The external `.ts` entry, ESM package edges, emitted source maps, and
   semantic/executable identities pass exact resolver/transform goldens.
 - An undeclared package, dynamic load, install script, native addon, destination,
-  secret, filesystem path, or subprocess refuses before activation with exact
+  secret, filesystem path, or subprocess refuses before activation with
   remediation.
-- Adversarial same-UID, environment, process/IPC, raw-socket, DNS-rebinding,
-  redirect, private/metadata-address, TLS-identity, and local-socket probes all
-  fail under the target's bound isolation receipt.
+- Adversarial same-UID, environment, process/IPC, raw-socket, replayed-receipt,
+  DNS-rebinding, classifier-equivalence, non-global/target-denied address,
+  redirect, TLS-identity, and local-socket probes fail under the bound receipt.
 - Secret coercion/log/error vectors redact against the attempt snapshot; only
   deliberate `expose()` releases plaintext and no receipt hashes a value.
 - Package/Node/bundle changes rotate executable identity and reload through the

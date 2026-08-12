@@ -6,7 +6,9 @@
 Queries, Ephemeral state, Diagnostics, Code generation, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-1 revision: replaced impossible Proxy detection
+**Revised:** 2026-08-12 (round-2 revision: fenced same-authority withdrawal by
+acknowledged room/entry generation; added delayed/ambiguous republish vectors).
+2026-08-12 (round-1 revision: replaced impossible Proxy detection
 with observable descriptor admission, separated one-shot auth refusal from
 continuing blocked resources, and returned authority-loss withdrawal to the
 server barrier). 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
@@ -120,24 +122,23 @@ only continuing handles wake and construct a fresh authority-fenced instance.
 
 ### D3. Presence has explicit active and withdrawn states
 
-`publishPresence(ref, value)` and its hook owner track whether this owner has a
-published member. A transition from a published value to `skip`, or ordinary
-hook disposal while the captured authority is still current, issues one
-idempotent delete/withdrawal under that connection/authority generation. It
-stops keepalives immediately. A race that makes the capture stale cancels that
-application withdrawal and yields ownership to the barrier.
+The owner retains its acknowledged `(scopeEpoch, entryVersion)`. Published →
+`skip` or disposal while authority is current stops keepalives and sends an
+idempotent withdrawal bound also to connection/authority generation. Under the
+room lock, the server deletes only the exact current pair; mismatch settles
+`superseded`. Republish proceeds immediately: delayed/ambiguous retries keep
+the predecessor predicate and cannot delete its successor. Stale authority
+cancels application withdrawal and yields to the barrier.
 
-On owner-authority loss, the client synchronously stops keepalives, quiesces/
-blanks locally, and starts no predecessor application delete. LLP 0059/0107
-server-barrier cleanup owns remote removal; TTL is its backstop. Transition-time
-explicit removal is a server control operation, never predecessor app work.
+On authority loss, the client stops keepalives and blanks/quiesces without a
+predecessor application delete. LLP 0059/0107 server-barrier cleanup owns
+remote removal, with TTL backstop; explicit transition removal is server
+control, never predecessor app work.
 
-The read-side room remains subscribed when the caller uses `skip`. A never-
-published owner sends no delete. Failed/ambiguous withdrawal is surfaced in the
-presence state and retried only within the existing ephemeral bounded retry
-policy. The generated target profile publishes
-`withdrawalVisibilityDeadlineMs`, no greater than half its TTL, so tests and
-diagnostics use a portable target fact rather than an unstated latency.
+`skip` retains the read room; never-published sends none. Current ambiguous
+withdrawal is surfaced and bounded-retried; `superseded` cannot change successor
+state. The target's `withdrawalVisibilityDeadlineMs`, at most half its TTL,
+drives tests and diagnostics.
 
 ### D4. One public typed refusal exception
 
@@ -185,7 +186,7 @@ guard. Package versions remain lockstep.
    valid-auth-exchange regressions under existing LLP 0059 semantics.
 2. Add stable auth-blocked query resources and React no-oscillation tests.
 3. Add contract-directed optional omission with cross-client golden vectors.
-4. Add presence withdrawal on skip/dispose/authority loss.
+4. Add conditional presence withdrawal on skip/dispose and barrier cleanup.
 5. Normalize one-shot refusal access and publish generated failure tables.
 6. Rerun Clique messaging/auth choreography from a fresh npm app.
 
@@ -203,8 +204,9 @@ guard. Package versions remain lockstep.
   real predecessor completions still fail closed under LLP 0059.
 - Published typing → `skip` disappears from another client within the
   generated target's `withdrawalVisibilityDeadlineMs` rather than waiting for
-  TTL; the read-side room remains active. Authority loss starts no predecessor
-  application delete and server/barrier cleanup still removes the member.
+  TTL; the room remains active. Delayed/lost-response withdrawal → republish
+  cannot delete the successor. Authority loss starts no predecessor app delete;
+  server/barrier cleanup removes the member.
 - Query/action/mutation application refusals are caught with the same public
   error guard, while queued dispatch remains a resolved queued outcome.
 - All normalization and failure-carrier behavior occurs identically in

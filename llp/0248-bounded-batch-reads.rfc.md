@@ -6,7 +6,9 @@
 generation, Handler authoring, Diagnostics, Performance, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-1 revision: moved dynamic unique-key validation
+**Revised:** 2026-08-12 (round-2 revision: separated request/response overflow;
+removed public logical-key digests). 2026-08-12 (round-1
+revision: moved dynamic unique-key validation
 to the runtime boundary, canonicalized keys by manifest order, excluded
 non-participating unique-where-present keys, and bounded public size/chunk
 facts). 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
@@ -102,17 +104,18 @@ one SQL statement, a temporary values relation, or bounded internal chunks, but
 the public receipt reports one logical batch plus physical statement/chunk
 counts. It never issues one JS↔host round trip per item.
 
-Malformed dynamic input, bound overflow, generation/index mismatch, or policy-
-plan failure refuses the whole batch before storage work; it never returns a
-partial array. Ordinary not-found/hidden entries are data-level `null`, not
-batch failure.
+Malformed input, item-count/canonical-input-byte overflow, generation/
+index mismatch, or policy-plan failure refuses before storage. Response-byte
+overflow is checked after snapshot-bound authorized reads and canonical
+serialization but before any result release. Neither phase returns a partial
+array; ordinary hidden/not-found entries remain `null`.
 
 ### D4. Dependency and cost evidence remain conservative
 
-Captured reads contain the table and requested logical keys under one batch
-record, with a digest/size rather than raw sensitive keys in public diagnostics.
-OCC and live invalidation use the same conservative dependency semantics as
-equivalent individual reads; batching cannot suppress a dependency.
+Internal OCC/invalidation evidence records canonical logical keys under
+one batch. Public diagnostics expose only count/byte facts, never keys or a
+stable digest/commitment. Dependencies remain no weaker than equivalent
+individual reads.
 
 Generated runtime profiles publish max items, max canonical input bytes,
 target support, and worst-case policy probes. Dev diagnostics flag repeated
