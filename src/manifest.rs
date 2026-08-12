@@ -2720,7 +2720,7 @@ fn invalid_args_contract(
 /// content without depending on a higher-level query/realtime owner.
 pub(crate) fn canonical_content_identity<T: Serialize>(value: &T) -> Option<String> {
     let value = serde_json::to_value(value).ok()?;
-    crate::rqs::sha256_identity(&value).ok()
+    crate::rqs_contract::sha256_identity(&value).ok()
 }
 
 /// Hash witness for the extended argument-contract descriptor.
@@ -2737,7 +2737,7 @@ pub(crate) fn args_contract_hash(contract: &FunctionArgsContract) -> SnapbackRes
             "args contract cannot be represented as canonical JSON",
         )
     })?;
-    let canonical = crate::rqs::jcs(&value).map_err(|_| {
+    let canonical = crate::rqs_contract::jcs(&value).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
             "runtime",
@@ -2765,7 +2765,7 @@ pub(crate) fn stored_structured_contract_hash(
             "stored structured contract cannot be represented as canonical JSON",
         )
     })?;
-    let canonical = crate::rqs::jcs(&value).map_err(|_| {
+    let canonical = crate::rqs_contract::jcs(&value).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_STRUCTURED_CONTRACT_INVALID",
             "schema",
@@ -2786,7 +2786,7 @@ pub(crate) fn result_contract_hash(contract: &FunctionResultContract) -> Snapbac
             "result contract cannot be represented as canonical JSON",
         )
     })?;
-    let canonical = crate::rqs::jcs(&value).map_err(|_| {
+    let canonical = crate::rqs_contract::jcs(&value).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
             "runtime",
@@ -2880,7 +2880,7 @@ fn union_has_object_discriminator(variants: &[ResultValueContract]) -> bool {
             let ResultValueContract::Literal { value } = &field.value else {
                 return false;
             };
-            let Ok(canonical) = crate::rqs::jcs(value) else {
+            let Ok(canonical) = crate::rqs_contract::jcs(value) else {
                 return false;
             };
             if !values.insert(canonical) {
@@ -2909,7 +2909,7 @@ fn union_has_disjoint_primitive_variants(variants: &[ResultValueContract]) -> bo
             let ResultValueContract::Literal { value } = variant else {
                 return false;
             };
-            crate::rqs::jcs(value)
+            crate::rqs_contract::jcs(value)
                 .ok()
                 .is_some_and(|value| literals.insert(value))
         })
@@ -2995,7 +2995,7 @@ fn validate_value_contract_node(
             if !matches!(
                 value,
                 Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)
-            ) || crate::rqs::jcs(value).is_err()
+            ) || crate::rqs_contract::jcs(value).is_err()
             {
                 return Err(invalid_result_contract(
                     function,
@@ -3849,7 +3849,7 @@ fn validate_public_inline(function: &FunctionDefinition) -> SnapbackResult<()> {
 /// presence, Channel B persistence, D1.1 admission — reads this one derived
 /// fact; there is no authored `rqsEligible` field anywhere (an authored field
 /// of that name refuses at load via `deny_unknown_fields`).
-pub fn rqs_eligible_digest_kind(function: &FunctionDefinition) -> Option<crate::rqs::DigestKind> {
+pub fn rqs_eligible_digest_kind(function: &FunctionDefinition) -> Option<crate::rqs_contract::DigestKind> {
     if !function.authority_independent {
         return None;
     }
@@ -3893,9 +3893,9 @@ pub fn rqs_eligible_digest_kind(function: &FunctionDefinition) -> Option<crate::
         return None;
     }
     Some(if plan.order.is_empty() && plan.limit.is_none() {
-        crate::rqs::DigestKind::Mset1
+        crate::rqs_contract::DigestKind::Mset1
     } else {
-        crate::rqs::DigestKind::Seq1
+        crate::rqs_contract::DigestKind::Seq1
     })
 }
 
@@ -3954,7 +3954,7 @@ fn normalize_single_table_value_expr(value: &ValueExpr) -> SnapbackResult<Single
         ValueExpr::Literal(literal) => {
             // JCS is the cross-target numeric/literal profile. In particular,
             // it refuses integers outside the interoperable 53-bit domain.
-            crate::rqs::jcs(literal).map_err(|_| {
+            crate::rqs_contract::jcs(literal).map_err(|_| {
                 single_table_plan_invalid(
                     "single-table literal is outside the RFC 8785 portable JSON profile",
                 )
@@ -5904,7 +5904,7 @@ pub fn single_table_delta_contract_matches_schema(
 }
 
 fn domain_hash(domain: &[u8], value: &Value) -> SnapbackResult<String> {
-    let canonical = crate::rqs::jcs(value).map_err(|_| {
+    let canonical = crate::rqs_contract::jcs(value).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
             "query",
@@ -6193,7 +6193,7 @@ pub fn snapshot_batch_identity_v1(
                 }),
             },
         });
-        let canonical = crate::rqs::jcs(&key).map_err(|_| {
+        let canonical = crate::rqs_contract::jcs(&key).map_err(|_| {
             SnapbackError::error(
                 "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
                 "query",
@@ -6573,7 +6573,7 @@ pub fn snapshot_batch_identity_v2(
                 }),
             },
         });
-        let canonical = crate::rqs::jcs(&key).map_err(|_| {
+        let canonical = crate::rqs_contract::jcs(&key).map_err(|_| {
             SnapbackError::error(
                 "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
                 "query",
@@ -8751,7 +8751,7 @@ impl<'de> Deserialize<'de> for SingleTablePlanV1 {
                 return false;
             }
             match expr {
-                SingleTableValueExprV1::Literal(value) => crate::rqs::jcs(value).is_ok(),
+                SingleTableValueExprV1::Literal(value) => crate::rqs_contract::jcs(value).is_ok(),
                 SingleTableValueExprV1::Field { base, .. } => {
                     expression_in_profile(base, depth + 1)
                 }
@@ -10855,13 +10855,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:eea7ae7fb571f1afce6d2b10dcfd07a7a0b6a556d561e2de7cea2947610a9d03";
+    "sha256:5eedf8d6dc7a1df7ed0912f4d1fd01838e61e79b4b128c239e5545812c1143b5";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:2cdc989baa0b68cef636414dc42668d41c97a33089a6f012f688a1fb489c66e9";
+    "sha256:47d6f9ce38fa23f5b6fe7e60200d3ecbef21d1a4dc6e6e347161fa476832d934";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -11261,7 +11261,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:5fcf94bd9e68494d86c00a7bad69d345d70bef85b16c54c023638d955f285820"
+                    "sha256:c895cdfa093c739e7489a006e206262b2a3147c7846e987288404cc9e996b5b8"
                         .to_owned(),
                 ),
                 (
@@ -11296,12 +11296,12 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:5984289247755c13b8db67eba62c9fd5d5bf788f756d753d3f957c1b74be3cc9"
+                    "sha256:5883e2115b2ca24dafee486110b75da110399bcfb8a1e191f24bd5f5dac8e538"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:69504d62b3f46145c6e7643bb217ed484ba0a54256a03a64d9f22dd02b84d04b"
+                    "sha256:7bc3e06796dbfa433cee7b155f60041991a9ae47a627c51cc80d6b2cacff546f"
                         .to_owned(),
                 ),
                 (
@@ -11386,17 +11386,17 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:b65c0ff666b8f915359600df6bbff1803f93bef7b34b6a6ae5a7b0a7c5a2429d"
+                    "sha256:4ac7ea6a4bdecb33272e847c7fb3215782bb7c2687a58d1a39c6b952b3133aba"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:77e87db570420bec02a3b7dc56bca5a847119bc2e7f6432f178e8914323671f1"
+                    "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d"
                         .to_owned(),
                 ),
                 (
                     "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:3275766501ca2d21ca57fa83b348026f5ce6264336b68cfd280d8e1549512fde"
+                    "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996"
                         .to_owned(),
                 ),
                 (
@@ -11406,7 +11406,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:57b3bcc8b54af77508c5e97b4df15fda8e968f889c6f7491a379e376c65dff4d"
+                    "sha256:2896b14ecf4e748f7c241a51f2856a30c160b34cc184ec540482a8318bbcfcbc"
                         .to_owned(),
                 ),
                 (
@@ -11499,7 +11499,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:5984289247755c13b8db67eba62c9fd5d5bf788f756d753d3f957c1b74be3cc9"
+                    "sha256:5883e2115b2ca24dafee486110b75da110399bcfb8a1e191f24bd5f5dac8e538"
                         .to_owned(),
                 ),
                 (
@@ -11509,7 +11509,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:69504d62b3f46145c6e7643bb217ed484ba0a54256a03a64d9f22dd02b84d04b"
+                    "sha256:7bc3e06796dbfa433cee7b155f60041991a9ae47a627c51cc80d6b2cacff546f"
                         .to_owned(),
                 ),
                 (
@@ -11594,17 +11594,17 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:b65c0ff666b8f915359600df6bbff1803f93bef7b34b6a6ae5a7b0a7c5a2429d"
+                    "sha256:4ac7ea6a4bdecb33272e847c7fb3215782bb7c2687a58d1a39c6b952b3133aba"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:77e87db570420bec02a3b7dc56bca5a847119bc2e7f6432f178e8914323671f1"
+                    "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d"
                         .to_owned(),
                 ),
                 (
                     "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:3275766501ca2d21ca57fa83b348026f5ce6264336b68cfd280d8e1549512fde"
+                    "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996"
                         .to_owned(),
                 ),
                 (
@@ -11614,7 +11614,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:57b3bcc8b54af77508c5e97b4df15fda8e968f889c6f7491a379e376c65dff4d"
+                    "sha256:2896b14ecf4e748f7c241a51f2856a30c160b34cc184ec540482a8318bbcfcbc"
                         .to_owned(),
                 ),
                 (
@@ -11758,7 +11758,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:5fcf94bd9e68494d86c00a7bad69d345d70bef85b16c54c023638d955f285820"
+                    "sha256:c895cdfa093c739e7489a006e206262b2a3147c7846e987288404cc9e996b5b8"
                         .to_owned(),
                 ),
                 (
@@ -11793,12 +11793,12 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:5984289247755c13b8db67eba62c9fd5d5bf788f756d753d3f957c1b74be3cc9"
+                    "sha256:5883e2115b2ca24dafee486110b75da110399bcfb8a1e191f24bd5f5dac8e538"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:69504d62b3f46145c6e7643bb217ed484ba0a54256a03a64d9f22dd02b84d04b"
+                    "sha256:7bc3e06796dbfa433cee7b155f60041991a9ae47a627c51cc80d6b2cacff546f"
                         .to_owned(),
                 ),
                 (
@@ -11883,17 +11883,17 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:b65c0ff666b8f915359600df6bbff1803f93bef7b34b6a6ae5a7b0a7c5a2429d"
+                    "sha256:4ac7ea6a4bdecb33272e847c7fb3215782bb7c2687a58d1a39c6b952b3133aba"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:77e87db570420bec02a3b7dc56bca5a847119bc2e7f6432f178e8914323671f1"
+                    "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d"
                         .to_owned(),
                 ),
                 (
                     "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:3275766501ca2d21ca57fa83b348026f5ce6264336b68cfd280d8e1549512fde"
+                    "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996"
                         .to_owned(),
                 ),
                 (
@@ -11903,7 +11903,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:57b3bcc8b54af77508c5e97b4df15fda8e968f889c6f7491a379e376c65dff4d"
+                    "sha256:2896b14ecf4e748f7c241a51f2856a30c160b34cc184ec540482a8318bbcfcbc"
                         .to_owned(),
                 ),
                 (

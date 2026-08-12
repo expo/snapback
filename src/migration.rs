@@ -529,7 +529,7 @@ pub struct MigrationPlanArtifactV1 {
 }
 
 fn prefixed_digest(prefix: &str, body: &Value) -> SnapbackResult<String> {
-    let jcs = crate::rqs::jcs(body)
+    let jcs = crate::rqs_contract::jcs(body)
         .map_err(|_| plan_invalid("canonical body bytes are not canonicalizable"))?;
     let mut hash = Sha256::new();
     hash.update(prefix.as_bytes());
@@ -1315,7 +1315,7 @@ impl MigrationRehearsalPlanV1 {
                 )
             })?,
         });
-        let jcs = crate::rqs::jcs(&body).map_err(|_| {
+        let jcs = crate::rqs_contract::jcs(&body).map_err(|_| {
             SnapbackError::error(
                 "SNAPBACK_MIGRATION_PLAN_INVALID",
                 "migration",

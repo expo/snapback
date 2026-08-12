@@ -190,7 +190,7 @@ pub fn compact_plaintext(body: &Body) -> Result<Vec<u8>, &'static str> {
     append_member(
         &mut out,
         "args",
-        &crate::rqs::jcs(&body.args).map_err(|_| "serialize")?,
+        &crate::rqs_contract::jcs(&body.args).map_err(|_| "serialize")?,
         &mut first,
     );
 
@@ -267,8 +267,8 @@ pub fn compact_plaintext(body: &Body) -> Result<Vec<u8>, &'static str> {
                 let boundary = Value::Array(boundary.clone());
                 format!(
                     "{{\"kind\":\"boundary\",\"orderFields\":{},\"boundary\":{},\"rowId\":{}}}",
-                    crate::rqs::jcs(&order_fields).map_err(|_| "serialize")?,
-                    crate::rqs::jcs(&boundary).map_err(|_| "serialize")?,
+                    crate::rqs_contract::jcs(&order_fields).map_err(|_| "serialize")?,
+                    crate::rqs_contract::jcs(&boundary).map_err(|_| "serialize")?,
                     json_string(row_id)?,
                 )
             }

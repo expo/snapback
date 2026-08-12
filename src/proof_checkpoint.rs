@@ -9,7 +9,7 @@ use crate::contract_types::ServerProfile;
 use crate::auth::invocation::{InvocationSource, PreparedAuthority, ResolvedAppAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AuthMode, SchemaManifest};
-use crate::rqs::jcs;
+use crate::rqs_contract::jcs;
 use rusqlite::backup::StepResult;
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};

@@ -172,7 +172,7 @@ pub fn durable_state_members(database_path: &Path) -> SnapbackResult<Vec<Durable
         ),
         member(
             "resumeKeyring",
-            directory.join(crate::rqs::RESUME_KEYRING_FILE_NAME),
+            directory.join(crate::rqs_contract::RESUME_KEYRING_FILE_NAME),
             MemberDisposition::Optional,
             MemberKind::File,
             "Live-query resume-token keyring",

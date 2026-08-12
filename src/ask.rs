@@ -93,7 +93,7 @@ impl ReceiptKey {
     /// @ref LLP 0204#d5--surface-4-the-near-data-ai-interface — retained call
     /// values are commitments, never raw authorized data.
     pub(crate) fn digest(&self, domain: &[u8], value: &Value) -> SnapbackResult<String> {
-        let canonical = crate::rqs::jcs(value).map_err(|_| {
+        let canonical = crate::rqs_contract::jcs(value).map_err(|_| {
             SnapbackError::error(
                 "SNAPBACK_API_ASK_RECEIPT_INVALID",
                 "api",

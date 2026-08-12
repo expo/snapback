@@ -2902,7 +2902,7 @@ impl Default for RqsReplayPolicy {
 /// tighter form that also requires the LLP 0053 closed-inputs proof — the
 /// complete `singleTable` read summary). See
 /// [`crate::manifest::rqs_eligible_digest_kind`].
-fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs::DigestKind> {
+fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs_contract::DigestKind> {
     crate::manifest::rqs_eligible_digest_kind(function)
 }
 
@@ -5768,7 +5768,7 @@ impl LocalSnapback {
         let incoming_routes_hash = routes.as_ref().and_then(|manifest| {
             serde_json::to_value(manifest)
                 .ok()
-                .and_then(|value| crate::rqs::sha256_identity(&value).ok())
+                .and_then(|value| crate::rqs_contract::sha256_identity(&value).ok())
         });
         let routes_matched =
             incoming_routes_hash.is_some() && incoming_routes_hash == self.routes_manifest_hash;
@@ -6006,7 +6006,7 @@ impl LocalSnapback {
             Some(manifest) => {
                 let incoming_hash = serde_json::to_value(&manifest)
                     .ok()
-                    .and_then(|value| crate::rqs::sha256_identity(&value).ok());
+                    .and_then(|value| crate::rqs_contract::sha256_identity(&value).ok());
                 if incoming_hash.is_some() && incoming_hash == self.routes_manifest_hash {
                     Some("matched")
                 } else if provisioning_allowed {
@@ -12986,7 +12986,7 @@ impl LocalSnapback {
             return Ok(generation.clone());
         }
         let canonical_identity = |value: &Value| -> SnapbackResult<String> {
-            crate::rqs::sha256_identity(value).map_err(|_| {
+            crate::rqs_contract::sha256_identity(value).map_err(|_| {
                 SnapbackError::error(
                     "SNAPBACK_RESUME_GENERATION_UNAVAILABLE",
                     "realtime",
@@ -13055,7 +13055,7 @@ impl LocalSnapback {
         let value = serde_json::to_value(&manifest).map_err(|error| {
             routes_manifest_error(format!("routes manifest is not serializable: {error}"))
         })?;
-        let hash = crate::rqs::sha256_identity(&value).map_err(|_| {
+        let hash = crate::rqs_contract::sha256_identity(&value).map_err(|_| {
             routes_manifest_error("routes manifest is not canonically hashable".to_owned())
         })?;
         self.routes = Some(manifest);
@@ -13239,7 +13239,7 @@ impl LocalSnapback {
         query_artifact: &str,
         args_hash: &str,
         version: u64,
-        digest_kind: crate::rqs::DigestKind,
+        digest_kind: crate::rqs_contract::DigestKind,
         content_digest: String,
     ) -> Option<ResumeWire> {
         let app = self.functions.app_id.clone();
@@ -13292,7 +13292,7 @@ impl LocalSnapback {
         presented: &ResumeFromToken,
         function: &FunctionDefinition,
         args: &Value,
-        eligibility: Option<crate::rqs::DigestKind>,
+        eligibility: Option<crate::rqs_contract::DigestKind>,
     ) -> Result<crate::rqs::ResumeTokenBody, &'static str> {
         use crate::rqs::refusal;
         let now = now_millis();
@@ -13328,12 +13328,12 @@ impl LocalSnapback {
         }
         let query_artifact = serde_json::to_value(function)
             .ok()
-            .and_then(|value| crate::rqs::query_artifact_hash(&value).ok())
+            .and_then(|value| crate::rqs_contract::query_artifact_hash(&value).ok())
             .ok_or(refusal::QUERY_MISMATCH)?;
         if body.query_artifact != query_artifact {
             return Err(refusal::QUERY_MISMATCH);
         }
-        let args_hash = crate::rqs::args_hash(args).map_err(|_| refusal::QUERY_MISMATCH)?;
+        let args_hash = crate::rqs_contract::args_hash(args).map_err(|_| refusal::QUERY_MISMATCH)?;
         if body.args_hash != args_hash {
             return Err(refusal::QUERY_MISMATCH);
         }
@@ -13424,7 +13424,7 @@ impl LocalSnapback {
             .collect();
         let current_by_id: HashMap<&str, &Value> = current_rows
             .iter()
-            .filter_map(|row| crate::rqs::row_wire_id(row).map(|id| (id, row)))
+            .filter_map(|row| crate::rqs_contract::row_wire_id(row).map(|id| (id, row)))
             .collect();
         let mut ops = Vec::new();
         for id in &affected {
@@ -13436,7 +13436,7 @@ impl LocalSnapback {
                 (None, None) => {}
                 // Predicate exit or delete while offline: exactly removed.
                 (Some(old_hash), None) => {
-                    accumulator.remove_leaf(&crate::rqs::leaf(id, old_hash));
+                    accumulator.remove_leaf(&crate::rqs_contract::leaf(id, old_hash));
                     ops.push(LiveDeltaWireOp {
                         op: LiveDeltaOpKind::Remove,
                         id: id.clone(),
@@ -13448,7 +13448,7 @@ impl LocalSnapback {
                     let Some(row) = current_by_id.get(id.as_str()) else {
                         return Err(refusal::WITNESS_REPLAY_DIVERGED);
                     };
-                    accumulator.add_leaf(&crate::rqs::leaf(id, new_hash));
+                    accumulator.add_leaf(&crate::rqs_contract::leaf(id, new_hash));
                     ops.push(LiveDeltaWireOp {
                         op: LiveDeltaOpKind::Add,
                         id: id.clone(),
@@ -13462,8 +13462,8 @@ impl LocalSnapback {
                         let Some(row) = current_by_id.get(id.as_str()) else {
                             return Err(refusal::WITNESS_REPLAY_DIVERGED);
                         };
-                        accumulator.remove_leaf(&crate::rqs::leaf(id, old_hash));
-                        accumulator.add_leaf(&crate::rqs::leaf(id, new_hash));
+                        accumulator.remove_leaf(&crate::rqs_contract::leaf(id, old_hash));
+                        accumulator.add_leaf(&crate::rqs_contract::leaf(id, new_hash));
                         ops.push(LiveDeltaWireOp {
                             op: LiveDeltaOpKind::Update,
                             id: id.clone(),
@@ -13716,8 +13716,8 @@ impl LocalSnapback {
                             let digest = crate::rqs::ResultDigest::from_rows(kind, &rows).ok()?;
                             let query_artifact = serde_json::to_value(&function)
                                 .ok()
-                                .and_then(|value| crate::rqs::query_artifact_hash(&value).ok())?;
-                            let args_hash = crate::rqs::args_hash(&args).ok()?;
+                                .and_then(|value| crate::rqs_contract::query_artifact_hash(&value).ok())?;
+                            let args_hash = crate::rqs_contract::args_hash(&args).ok()?;
                             snapback.mint_resume_wire(
                                 &query_artifact,
                                 &args_hash,
@@ -14115,8 +14115,8 @@ impl LocalSnapback {
                         let digest = crate::rqs::ResultDigest::from_rows(kind, &rows).ok()?;
                         let query_artifact = serde_json::to_value(&function)
                             .ok()
-                            .and_then(|value| crate::rqs::query_artifact_hash(&value).ok())?;
-                        let args_hash = crate::rqs::args_hash(&args).ok()?;
+                            .and_then(|value| crate::rqs_contract::query_artifact_hash(&value).ok())?;
+                        let args_hash = crate::rqs_contract::args_hash(&args).ok()?;
                         self.mint_resume_wire(
                             &query_artifact,
                             &args_hash,
@@ -14877,8 +14877,8 @@ impl LocalSnapback {
         let rqs_state = rqs_eligibility.and_then(|kind| {
             let query_artifact = serde_json::to_value(&function)
                 .ok()
-                .and_then(|value| crate::rqs::query_artifact_hash(&value).ok());
-            let args_hash = crate::rqs::args_hash(&subscription_input.args).ok();
+                .and_then(|value| crate::rqs_contract::query_artifact_hash(&value).ok());
+            let args_hash = crate::rqs_contract::args_hash(&subscription_input.args).ok();
             match (
                 query_artifact,
                 args_hash,
@@ -14951,7 +14951,7 @@ impl LocalSnapback {
                             .and_then(|presented| presented.membership_witness.as_ref());
                         let replay = match (witness, rqs_state.as_ref(), fresh_resume.as_ref()) {
                             (Some(witness), Some(state), Some(_))
-                                if state.digest.kind == crate::rqs::DigestKind::Mset1 =>
+                                if state.digest.kind == crate::rqs_contract::DigestKind::Mset1 =>
                             {
                                 Some(self.rqs_attempt_delta_replay(
                                     witness,
@@ -20415,7 +20415,7 @@ impl LocalSnapback {
         // loss is availability-only).
         let resume_keyring = Arc::new(RwLock::new(match db.database_path() {
             Some(path) => crate::rqs::ResumeKeyring::load_or_create(
-                path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME),
+                path.with_file_name(crate::rqs_contract::RESUME_KEYRING_FILE_NAME),
                 now_millis(),
             ),
             None => crate::rqs::ResumeKeyring::in_memory(now_millis()),
@@ -24802,7 +24802,7 @@ impl LocalSnapback {
         query_artifact: &str,
         args_hash: &str,
         version: u64,
-        kind: crate::rqs::DigestKind,
+        kind: crate::rqs_contract::DigestKind,
         content_digest: String,
         cache: &mut HashMap<(String, String, u64, String), Option<ResumeWire>>,
     ) -> Option<ResumeWire> {
@@ -29060,7 +29060,7 @@ fn snapshot_batch_non_cursor_args(input: &HandlerInput) -> SnapbackResult<Value>
         .ok_or_else(snapshot_batch_cursor_invalid)?;
     args.remove("cursor");
     let value = Value::Object(args);
-    crate::rqs::jcs(&value).map_err(|_| snapshot_batch_cursor_invalid())?;
+    crate::rqs_contract::jcs(&value).map_err(|_| snapshot_batch_cursor_invalid())?;
     Ok(value)
 }
 
@@ -29110,7 +29110,7 @@ fn snapshot_batch_authority_partition_digest(
         "providerId": provider_id,
         "delegation": delegation,
     });
-    let canonical = crate::rqs::jcs(&record).map_err(|_| snapshot_batch_cursor_invalid())?;
+    let canonical = crate::rqs_contract::jcs(&record).map_err(|_| snapshot_batch_cursor_invalid())?;
     let mut digest = Sha256::new();
     digest.update(b"snapback:authority-partition:v1:");
     digest.update(canonical.as_bytes());
@@ -29964,7 +29964,7 @@ fn standard_pattern_cursor_binding(
         // Keep the inherited owned-keyset digest byte-identical: membership
         // additions are profile-conditional, not nullable members appended to
         // the existing object.
-        return crate::rqs::sha256_identity(&binding).map_err(|_| ());
+        return crate::rqs_contract::sha256_identity(&binding).map_err(|_| ());
     }
 
     let membership = pattern.membership.as_ref().ok_or(())?;
@@ -29991,7 +29991,7 @@ fn standard_pattern_cursor_binding(
             "targetProfile": authority.target_profile,
         },
     });
-    crate::rqs::sha256_identity(&binding).map_err(|_| ())
+    crate::rqs_contract::sha256_identity(&binding).map_err(|_| ())
 }
 
 /// The canonical cursor binding digest (LLP 0080 §2): the cursor binds the
@@ -30047,7 +30047,7 @@ fn relational_cursor_binding(
             "epochs": epochs,
         },
     });
-    crate::rqs::sha256_identity(&binding).map_err(|_| ())
+    crate::rqs_contract::sha256_identity(&binding).map_err(|_| ())
 }
 
 /// Execute a query-shaped invocation against any read view: the write lane
@@ -30373,7 +30373,7 @@ fn execute_query_invocation(
                 _ => None,
             };
             let release_policy_digest =
-                crate::rqs::sha256_identity(&serde_json::to_value(function).map_err(|_| {
+                crate::rqs_contract::sha256_identity(&serde_json::to_value(function).map_err(|_| {
                     SnapbackError::error(
                         "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
                         "search",
@@ -31029,7 +31029,7 @@ fn execute_query_invocation(
                 .unwrap_or(database_id.as_str())
                 .to_owned();
             let authority_partition = prepared.authority().resolved().invalidation_subject();
-            let plan_hash = crate::rqs::sha256_identity(
+            let plan_hash = crate::rqs_contract::sha256_identity(
                 &serde_json::to_value(plan).map_err(|_| bounded_children_cursor_invalid())?,
             )
             .map_err(|_| bounded_children_cursor_invalid())?;

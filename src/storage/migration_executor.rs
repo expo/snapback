@@ -1334,7 +1334,7 @@ fn seal_receipt(
         != 0;
     let entries_value = serde_json::to_value(&entries)
         .map_err(|_| journal_corrupt("journal entries do not serialize".to_owned()))?;
-    let journal_jcs = crate::rqs::jcs(&entries_value)
+    let journal_jcs = crate::rqs_contract::jcs(&entries_value)
         .map_err(|_| journal_corrupt("journal entries are not canonicalizable".to_owned()))?;
     let journal_digest = {
         use sha2::{Digest, Sha256};
@@ -1433,7 +1433,7 @@ pub fn schema_identity(manifest: &SchemaManifest) -> SnapbackResult<String> {
     }
     let value = serde_json::to_value(manifest)
         .map_err(|_| journal_corrupt("schema manifest does not serialize".to_owned()))?;
-    crate::rqs::sha256_identity(&value)
+    crate::rqs_contract::sha256_identity(&value)
         .map_err(|_| journal_corrupt("schema manifest is not canonicalizable".to_owned()))
 }
 
@@ -2625,7 +2625,7 @@ impl LocalDatabase {
         let entries = journal_entries_in_tx(&tx, &approval.operation_id)?;
         let entries_value = serde_json::to_value(&entries)
             .map_err(|_| journal_corrupt("journal serialize".to_owned()))?;
-        let journal_jcs = crate::rqs::jcs(&entries_value)
+        let journal_jcs = crate::rqs_contract::jcs(&entries_value)
             .map_err(|_| journal_corrupt("journal canonicalize".to_owned()))?;
         let journal_digest: String = {
             use sha2::{Digest, Sha256};
@@ -4362,7 +4362,7 @@ fn run_data_proof(
         let successor_table = successor_schema
             .table(table)
             .ok_or_else(|| profile_unsupported("proof table undeclared on the successor"))?;
-        let header = crate::rqs::ContentDigestHeaderV1 {
+        let header = crate::rqs_contract::ContentDigestHeaderV1 {
             algorithm_version: 1,
             plan_digest: artifact.plan_digest.clone(),
             schema_hash: artifact.body.successor_schema_hash.clone(),
@@ -4373,18 +4373,18 @@ fn run_data_proof(
             publication_timestamp: constants.publication_timestamp_ms,
         };
         let mut expected_logical =
-            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_DOMAIN, &header);
+            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_DOMAIN, &header);
         let mut expected_system =
-            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN, &header);
+            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN, &header);
         let mut actual_logical =
-            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_DOMAIN, &header);
+            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_DOMAIN, &header);
         let mut actual_system =
-            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN, &header);
+            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN, &header);
         let input = HandlerInput {
             args: Value::Object(constants.values.clone().into_iter().collect()),
             ..HandlerInput::default()
         };
-        let digest_refused = |_: crate::rqs::MintRefusal| {
+        let digest_refused = |_: crate::rqs_contract::MintRefusal| {
             profile_unsupported(
                 "a row value is outside the canonical proof domain; refused, never digested \
                  approximately",
@@ -5276,7 +5276,7 @@ impl LocalDatabase {
         let entries = &entries[..terminal_cut];
         let entries_value = serde_json::to_value(entries)
             .map_err(|_| journal_corrupt("journal serialize".to_owned()))?;
-        let journal_jcs = crate::rqs::jcs(&entries_value)
+        let journal_jcs = crate::rqs_contract::jcs(&entries_value)
             .map_err(|_| journal_corrupt("journal canonicalize".to_owned()))?;
         let recomputed: String = {
             use sha2::{Digest, Sha256};

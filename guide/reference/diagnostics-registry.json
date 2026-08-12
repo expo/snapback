@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "fc777ffc1464a3e9d56b5c2a5bfd7fd3662a12b7",
-    "sourceDigest": "sha256:35ac5b6341dd21f5f8792284943d08a1338a0203f037b8812099653413aa5ae4"
+    "commit": "55827adc4dbcc1c475be31f3af00e41485d34a4b",
+    "sourceDigest": "sha256:f00da2aff392532fd36c1de02963d5a93890234948036bfde73101c330c6faa8"
   },
   "limits": {
     "lookupBytes": 16384
@@ -66325,12 +66325,12 @@
         },
         {
           "file": "src/rqs.rs",
-          "line": 1166,
+          "line": 725,
           "column": 8
         },
         {
           "file": "src/rqs.rs",
-          "line": 1228,
+          "line": 787,
           "column": 6
         },
         {
@@ -69572,7 +69572,7 @@
         },
         {
           "file": "src/rqs.rs",
-          "line": 77,
+          "line": 78,
           "column": 13
         }
       ],
@@ -69587,7 +69587,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 86,
+          "line": 87,
           "column": 37
         }
       ],
@@ -69602,7 +69602,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 104,
+          "line": 105,
           "column": 40
         }
       ],
@@ -69617,7 +69617,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 91,
+          "line": 92,
           "column": 45
         }
       ],
@@ -69632,7 +69632,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 87,
+          "line": 88,
           "column": 41
         }
       ],
@@ -69667,7 +69667,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 93,
+          "line": 94,
           "column": 38
         }
       ],
@@ -69682,7 +69682,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 84,
+          "line": 85,
           "column": 36
         }
       ],
@@ -69697,7 +69697,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 83,
+          "line": 84,
           "column": 36
         }
       ],
@@ -69712,7 +69712,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 82,
+          "line": 83,
           "column": 36
         }
       ],
@@ -69727,7 +69727,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 90,
+          "line": 91,
           "column": 37
         }
       ],
@@ -69747,7 +69747,7 @@
         },
         {
           "file": "src/rqs.rs",
-          "line": 107,
+          "line": 108,
           "column": 40
         }
       ],
@@ -69762,7 +69762,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 89,
+          "line": 90,
           "column": 39
         }
       ],
@@ -69777,7 +69777,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 106,
+          "line": 107,
           "column": 37
         }
       ],
@@ -69797,7 +69797,7 @@
         },
         {
           "file": "src/rqs.rs",
-          "line": 88,
+          "line": 89,
           "column": 40
         }
       ],
@@ -69812,7 +69812,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 85,
+          "line": 86,
           "column": 38
         }
       ],
@@ -69827,7 +69827,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 80,
+          "line": 81,
           "column": 40
         }
       ],
@@ -69842,7 +69842,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 81,
+          "line": 82,
           "column": 39
         }
       ],
@@ -69857,7 +69857,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 92,
+          "line": 93,
           "column": 44
         }
       ],
@@ -69872,7 +69872,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 94,
+          "line": 95,
           "column": 40
         }
       ],
@@ -69892,7 +69892,7 @@
         },
         {
           "file": "src/rqs.rs",
-          "line": 95,
+          "line": 96,
           "column": 41
         }
       ],
@@ -69907,7 +69907,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 102,
+          "line": 103,
           "column": 48
         }
       ],
@@ -69922,7 +69922,7 @@
       "sites": [
         {
           "file": "src/rqs.rs",
-          "line": 98,
+          "line": 99,
           "column": 46
         }
       ],
@@ -74882,7 +74882,7 @@
         },
         {
           "file": "src/rqs.rs",
-          "line": 176,
+          "line": 177,
           "column": 38
         },
         {

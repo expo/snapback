@@ -47,7 +47,7 @@ const PAGE_SET_DOMAIN: &[u8] = b"snapback:page-set:v1:";
 
 fn jcs_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>> {
     let value = serde_json::to_value(value)?;
-    Ok(crate::rqs::jcs(&value)
+    Ok(crate::rqs_contract::jcs(&value)
         .map_err(|err| anyhow!("JCS refusal: {err:?}"))?
         .into_bytes())
 }
@@ -513,7 +513,7 @@ struct ResultDigestPreimage<'a> {
 }
 
 pub fn result_digest_v1(established_result: &Value) -> Result<String> {
-    let result_bytes = crate::rqs::jcs(established_result)
+    let result_bytes = crate::rqs_contract::jcs(established_result)
         .map_err(|err| anyhow!("established-result JCS refusal: {err:?}"))?;
     let encoded = URL_SAFE_NO_PAD.encode(result_bytes.as_bytes());
     domain_digest(

@@ -158,8 +158,8 @@ fn compact_boundary_state(
     Ok(format!(
         "{{\"kind\":{},\"orderFields\":{},\"boundary\":{},\"rowId\":{}}}",
         json_string(kind)?,
-        crate::rqs::jcs(&order_fields).map_err(|_| "serialize")?,
-        crate::rqs::jcs(&boundary).map_err(|_| "serialize")?,
+        crate::rqs_contract::jcs(&order_fields).map_err(|_| "serialize")?,
+        crate::rqs_contract::jcs(&boundary).map_err(|_| "serialize")?,
         json_string(row_id)?,
     ))
 }
@@ -215,7 +215,7 @@ pub fn compact_plaintext(body: &Body) -> Result<Vec<u8>, &'static str> {
     append_member(
         &mut out,
         "args",
-        &crate::rqs::jcs(&body.args).map_err(|_| "serialize")?,
+        &crate::rqs_contract::jcs(&body.args).map_err(|_| "serialize")?,
         &mut first,
     );
 

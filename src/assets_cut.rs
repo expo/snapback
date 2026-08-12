@@ -135,7 +135,7 @@ pub fn cut_manifest_digest(manifest: &AssetCutManifestV1) -> SnapbackResult<Stri
             .expect("cut body is an object")
             .insert("grants".to_owned(), grants);
     }
-    let canonical = crate::rqs::jcs(&body).map_err(|_| {
+    let canonical = crate::rqs_contract::jcs(&body).map_err(|_| {
         cut_error(
             "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
             "cut manifest is outside canonical JSON limits",

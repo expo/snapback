@@ -1253,7 +1253,7 @@ fn fork_app_binding_digest(receipt: &ForkAppBindingReceiptV1) -> SnapbackResult<
         "appId": receipt.app_id,
         "canonicalAppRoot": receipt.canonical_app_root,
     });
-    let canonical = crate::rqs::jcs(&value).map_err(|error| {
+    let canonical = crate::rqs_contract::jcs(&value).map_err(|error| {
         fork_error(
             APP_BINDING_REQUIRED_CODE,
             format!("fork app binding is not canonically digestible: {error:?}"),
@@ -1283,7 +1283,7 @@ fn fork_diff_receipt_digest<T: Serialize>(
         )
     })?;
     object.remove("receiptDigest");
-    let canonical = crate::rqs::jcs(&value).map_err(|error| {
+    let canonical = crate::rqs_contract::jcs(&value).map_err(|error| {
         fork_error(
             "SNAPBACK_FORK_RECEIPT_INVALID",
             format!("fork diff receipt is not canonically digestible: {error:?}"),
@@ -1741,7 +1741,7 @@ fn scrub_and_mint_with_cut(
 
     let admin_path = crate::admin::admin_token_sibling(database_path);
     let auth_keyring_path = crate::auth::keyring::AuthKeyringStore::keyring_path(database_path);
-    let resume_path = database_path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME);
+    let resume_path = database_path.with_file_name(crate::rqs_contract::RESUME_KEYRING_FILE_NAME);
     let operation_detail_path = crate::operation_detail::keyring_path(database_path);
     if admin_path.exists()
         || auth_keyring_path.exists()
@@ -2176,7 +2176,7 @@ fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {
             )
             .with_details(json!({ "sidecar": "auth-keyring" }))
         })?;
-    let resume_path = database_path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME);
+    let resume_path = database_path.with_file_name(crate::rqs_contract::RESUME_KEYRING_FILE_NAME);
     require_regular(&resume_path, "resume-keyring")?;
     if !crate::rqs::ResumeKeyring::persisted_file_has_active_key(&resume_path) {
         return Err(fork_error(
@@ -6159,7 +6159,7 @@ mod tests {
         ))
         .unwrap();
 
-        let parent_resume_path = directory.path().join(crate::rqs::RESUME_KEYRING_FILE_NAME);
+        let parent_resume_path = directory.path().join(crate::rqs_contract::RESUME_KEYRING_FILE_NAME);
         let mut parent_resume =
             crate::rqs::ResumeKeyring::load_or_create(parent_resume_path, 1_000);
         let (parent_resume_key_id, parent_resume_key) = parent_resume.active(1_000).unwrap();
@@ -6294,7 +6294,7 @@ mod tests {
         .unwrap();
         assert_ne!(child_auth_bytes, parent_auth_bytes);
         let child_resume = crate::rqs::ResumeKeyring::load_or_create(
-            destination.join(crate::rqs::RESUME_KEYRING_FILE_NAME),
+            destination.join(crate::rqs_contract::RESUME_KEYRING_FILE_NAME),
             2_000,
         );
         assert!(
@@ -6627,7 +6627,7 @@ mod tests {
             let path = match sidecar {
                 "admin" => crate::admin::admin_token_sibling(&database),
                 "auth" => crate::auth::keyring::AuthKeyringStore::keyring_path(&database),
-                "resume" => destination.join(crate::rqs::RESUME_KEYRING_FILE_NAME),
+                "resume" => destination.join(crate::rqs_contract::RESUME_KEYRING_FILE_NAME),
                 "operation-detail" => crate::operation_detail::keyring_path(&database),
                 _ => unreachable!(),
             };

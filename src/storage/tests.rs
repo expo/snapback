@@ -863,7 +863,7 @@ mod stored_structured_value_tests {
             "sha256:0969c39c1a3f91259a7949665d61ea93314a6182de90d1f82443f3f8c842a01c"
         );
         assert_eq!(
-            crate::rqs::jcs(&serde_json::to_value(&contract).unwrap()).unwrap(),
+            crate::rqs_contract::jcs(&serde_json::to_value(&contract).unwrap()).unwrap(),
             "{\"descriptor\":{\"allowExtra\":false,\"fields\":[{\"name\":\"quote\",\"required\":true,\"value\":{\"allowExtra\":false,\"fields\":[{\"name\":\"author\",\"required\":true,\"value\":{\"kind\":\"string\",\"maxBytes\":64}},{\"name\":\"text\",\"required\":true,\"value\":{\"kind\":\"string\",\"maxBytes\":512}}],\"kind\":\"object\"}},{\"name\":\"options\",\"required\":true,\"value\":{\"element\":{\"allowExtra\":false,\"fields\":[{\"name\":\"label\",\"required\":true,\"value\":{\"kind\":\"string\",\"maxBytes\":80}},{\"name\":\"votes\",\"required\":true,\"value\":{\"kind\":\"integer\",\"max\":9007199254740991,\"min\":0}},{\"name\":\"note\",\"required\":false,\"value\":{\"kind\":\"string\",\"maxBytes\":128}}],\"kind\":\"object\"},\"kind\":\"array\",\"maxItems\":32}}],\"kind\":\"object\"},\"encoding\":\"canonical-json-text.v1\",\"version\":1}"
         );
     }
@@ -1438,7 +1438,7 @@ mod guarded_commit_tests {
                     where_applicable: false,
                 },
             ],
-            digest: Some(crate::rqs::ContentDigestHeaderV1 {
+            digest: Some(crate::rqs_contract::ContentDigestHeaderV1 {
                 algorithm_version: 1,
                 plan_digest: "sha256:test".to_owned(),
                 schema_hash: "sha256:schema".to_owned(),

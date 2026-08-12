@@ -34,6 +34,8 @@ to the contract leaf, twelve frozen edges removed and none added)
 value shapes to the leaf; the remaining item-3 edges raised as an ownership question)
 **Revised:** 2026-08-10 (l — merge-wave reconciliation of the §5 enforcement
 landing; see Revision history)
+**Revised:** 2026-08-11 (o — §4 records the rqs contract-leaf repoint: sixteen
+frozen edges removed by naming the leaf a re-export already resolved to)
 **Revised:** 2026-08-11 (n — §4 rules the item-3 remainder: the split runs
 through `src/auth/provider.rs`, not `src/storage/auth_catalog_ops.rs`; see
 Revision history)
@@ -644,6 +646,52 @@ This ruling changes no owner, rank, or `allowedDependencies` entry, so §5's
 amendment-only rule for dependency direction is not engaged; it records what
 the eventual module *assignments* will mean, which §5 makes operational.
 
+### Contract-leaf completion — the rqs re-export repoint (executed)
+
+Landed 2026-08-11 against continuing-sequence item 2 (contract leaf
+completion) and LLP 0199 worklist item 2's residue. **16 frozen forbidden
+edges removed, none added — 365 → 349, with no waiver and no manifest edit.**
+
+The lever is a property of the analyzer worth naming, because it generalizes:
+**for a re-exported symbol the extractor records BOTH edges** — the written
+module path and the resolved re-export target (§5, "transitively chained
+explicit/glob re-exports"). `src/rqs.rs` had carried
+`pub use crate::rqs_contract::{MintRefusal, jcs, sha256_identity};` since
+worklist item 2, so every consumer writing `crate::rqs::jcs` held a forbidden
+`→ src/rqs.rs` edge *and* an already-allowed `→ src/rqs_contract.rs` edge.
+Eleven of the sixteen therefore cleared by **repointing the written path
+alone, with no code motion at all** — and cost nothing, because the leaf edge
+was already in the baseline for every consumer, including the unassigned
+`src/local.rs` / `src/local/tests.rs` that normally force a waiver on a leaf
+move.
+
+This is not laundering. The dependency genuinely is on the leaf; the
+sync-engine spelling was an indirection that named an owner the caller does
+not use, which is precisely what `rqs_contract.rs`'s own module doc already
+claimed ("kernel and contract callers depend directly on this leaf").
+
+The remaining five cleared by finishing the leaf: the `ContentDigest*` family
+with `ResumableSha256` and the `CONTENT_DIGEST_*` domains, `row_hash`, `leaf`,
+`row_wire_id`, `MsetState`, `seq1_digest`, `DigestKind`, `args_hash`,
+`query_artifact_hash`, `projection_row_digest`, their `sha256_tagged`/`hex`
+helpers and tag constants, and `RESUME_KEYRING_FILE_NAME`. All are pure
+functions over `serde_json::Value` and `sha2`/`serde`/`base64` — RFC 8785
+canonicalization and content-digest framing are byte-exact language-neutral
+wire contracts shared with the JS arm, which is the leaf charter verbatim.
+`src/rqs_contract.rs` now holds **zero `crate::` references**.
+
+What stayed in `src/rqs.rs` is the resumable-query *engine*: token envelope,
+MAC transcript, keyring custody, and the cursor mint/verify families, each of
+which needs `crate::auth::crypto`. `src/local.rs`, `src/local/tests.rs`,
+`src/instance_fork.rs`, `src/schema_export.rs`, and `src/storage/tests.rs`
+keep their edges because they consume that engine; those clear when its
+consumers drain, not by a shape move.
+
+Characterization envelope: `auth`/`storage`/`server` lib-test failure name
+sets byte-identical to the merge-base with identical pass counts (438/0,
+689/2, 286/3), and the cross-language digest parity suites — which pin the
+exact moved bytes on both arms — green at 5/0 (Rust) and 6/0 (JS).
+
 ### Continuing sequence (order of intent, not a schedule)
 
 1. **Kernel typed-operation slices** (co-sequenced with owner 1 per 0199
@@ -950,3 +998,18 @@ so slices can follow product priorities.
   `issues/20260811-llp0225-item-3-provider-split-implementation.md`; no owner,
   rank, or `allowedDependencies` entry changes, so §5's amendment-only rule for
   dependency direction is not engaged.
+- **2026-08-11 (o).** §4 records the contract-leaf repoint of the rqs
+  re-export surface: 16 frozen forbidden edges removed, none added, 365 → 349,
+  with no waiver and no manifest edit. Eleven cleared with **no code motion** —
+  the analyzer records both the written module path and the resolved
+  re-export target for a re-exported symbol, so consumers spelling
+  `crate::rqs::jcs` held a forbidden sync edge alongside the allowed leaf edge
+  they already had; naming the leaf directly drops the former and keeps the
+  latter. The remaining five cleared by moving the pure
+  digest/canonicalization primitives (`ContentDigest*`, `seq1_digest`,
+  `projection_row_digest`, `row_hash`, `DigestKind`,
+  `RESUME_KEYRING_FILE_NAME`, and their helpers) down beside them;
+  `src/rqs_contract.rs` now carries zero `crate::` references. The
+  resumable-query engine — token envelope, MAC transcript, keyring custody,
+  cursor mint/verify — stays with the sync owner because it needs
+  `crate::auth::crypto`.

@@ -25107,7 +25107,7 @@ async fn app_bundle(
                 })
                 .unwrap_or_else(|| bundle_sender_identity(authority.resolved()));
             let identity_of = |value: serde_json::Value| {
-                crate::rqs::sha256_identity(&value).map_err(|_| {
+                crate::rqs_contract::sha256_identity(&value).map_err(|_| {
                     bundle_refusal(
                         code::ENTRY_INVALID,
                         "bundle entry is not canonically hashable",

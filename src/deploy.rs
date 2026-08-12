@@ -2262,7 +2262,7 @@ impl HostedProductJourneyV1 {
             .as_object_mut()
             .ok_or_else(|| "receipt must serialize as an object".to_owned())?
             .remove("receiptSha256");
-        let canonical = crate::rqs::jcs(&value)
+        let canonical = crate::rqs_contract::jcs(&value)
             .map_err(|_| "receipt is outside canonical JSON limits".to_owned())?;
         Ok(hosted_sha256_prefixed(canonical.as_bytes()))
     }

@@ -81,7 +81,7 @@ fn ensure_projection_identity(
 /// the identity's activation-timestamp constant — key-stable, so the same
 /// output key owns the same row across maintenance and rebuilds.
 fn projection_row_id(identity: &str, activated_at_ms: u64, key_bytes: &str) -> String {
-    let digest = crate::rqs::projection_row_digest(identity, key_bytes);
+    let digest = crate::rqs_contract::projection_row_digest(identity, key_bytes);
     let mut bytes = [0_u8; 16];
     bytes.copy_from_slice(&digest[..16]);
     bytes[..6].copy_from_slice(&activated_at_ms.to_be_bytes()[2..8]);
@@ -121,7 +121,7 @@ fn projection_root_key(
 }
 
 fn projection_key_bytes(key: &[Value]) -> SnapbackResult<String> {
-    crate::rqs::jcs(&Value::Array(key.to_vec()))
+    crate::rqs_contract::jcs(&Value::Array(key.to_vec()))
         .map_err(|_| projection_invariant("output-key bytes are not canonicalizable".to_owned()))
 }
 
@@ -192,7 +192,7 @@ pub(super) fn apply_projection_publication_in(
 pub(super) fn projection_plan_digest(
     plan: &crate::manifest::MaintainedProjectionPlan,
 ) -> SnapbackResult<String> {
-    crate::rqs::sha256_identity(
+    crate::rqs_contract::sha256_identity(
         &serde_json::to_value(plan)
             .map_err(|_| projection_invariant("projection plan does not serialize".to_owned()))?,
     )
@@ -510,7 +510,7 @@ pub(super) fn materialize_projection_in(
             json!({ "k": Value::Array(key.clone()), "r": Value::Object(logical.clone()) })
         })
         .collect();
-    let content_digest = crate::rqs::seq1_digest(&digest_rows)
+    let content_digest = crate::rqs_contract::seq1_digest(&digest_rows)
         .map_err(|_| projection_invariant("rebuilt rows are not canonicalizable".to_owned()))?;
 
     // --- Compute publication facts; materialization commits alone. -----
@@ -529,7 +529,7 @@ pub(super) fn materialize_projection_in(
     // plan digest and generation. The full LLP 0081 §3 UUIDv7 namespace
     // with conformance vectors lands with the plan-artifact ticket.
     let operation_digest =
-        crate::rqs::projection_row_digest(plan_digest, &format!("rebuild:{generation}"));
+        crate::rqs_contract::projection_row_digest(plan_digest, &format!("rebuild:{generation}"));
     let operation_id = format!(
         "rebuild_{}",
         operation_digest[..8]

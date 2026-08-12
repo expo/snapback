@@ -154,7 +154,7 @@ pub fn envelope_digest(canonical_bytes: &str) -> String {
 /// Canonicalize a value with the same JCS serializer the mint path uses, so
 /// one logical envelope can never carry two identities.
 pub fn canonicalize(value: &Value) -> Result<String, EnvelopeRefusal> {
-    crate::rqs::jcs(value).map_err(|refusal| {
+    crate::rqs_contract::jcs(value).map_err(|refusal| {
         EnvelopeRefusal::new(
             "SNAPBACK_API_ENVELOPE_NONCANONICAL",
             format!("envelope is not canonicalizable: {refusal:?}"),
@@ -1087,7 +1087,7 @@ mod tests {
             "properties": {}
         });
         let declaration = "export declare const api: unknown;\n";
-        let canonical_schema = crate::rqs::jcs(&args_schema).expect("schema canonicalizes");
+        let canonical_schema = crate::rqs_contract::jcs(&args_schema).expect("schema canonicalizes");
         json!({
             "artifactKind": API_ENVELOPE_ARTIFACT_KIND,
             "formatVersion": API_ENVELOPE_FORMAT_V1,
@@ -1111,7 +1111,7 @@ mod tests {
     }
 
     fn canonical_bytes(value: &Value) -> Vec<u8> {
-        crate::rqs::jcs(value)
+        crate::rqs_contract::jcs(value)
             .expect("fixture canonicalizes")
             .into_bytes()
     }

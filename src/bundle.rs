@@ -443,7 +443,7 @@ pub struct MixedChildAdmissionV2 {
 }
 
 fn composition_hash(domain: &str, value: &Value) -> Result<String, &'static str> {
-    let canonical = crate::rqs::jcs(value).map_err(|_| code::ENTRY_INVALID)?;
+    let canonical = crate::rqs_contract::jcs(value).map_err(|_| code::ENTRY_INVALID)?;
     let mut digest = Sha256::new();
     digest.update(domain.as_bytes());
     digest.update(canonical.as_bytes());
@@ -911,7 +911,7 @@ pub fn decode_route_param(value: &str, target: RouteParamType) -> Result<Value, 
             // JCS round-trip rule: the decoded value's canonical serialization
             // must reproduce the presented segment exactly, so `argsHash` is
             // well-defined (LLP 0091 §0A.2).
-            match crate::rqs::jcs(&canonical) {
+            match crate::rqs_contract::jcs(&canonical) {
                 Ok(serialized) if serialized == value => Ok(canonical),
                 _ => Err(code::PARAMS_INVALID),
             }

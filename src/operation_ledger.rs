@@ -1850,7 +1850,7 @@ pub fn pending_operation_transition_digest(
 }
 
 fn retained_projection_digest(domain: &[u8], projection: &Value) -> SnapbackResult<String> {
-    let canonical = crate::rqs::jcs(projection)
+    let canonical = crate::rqs_contract::jcs(projection)
         .map_err(|_| invalid("retained operation projection is not canonicalizable"))?;
     let mut digest = Sha256::new();
     digest.update(domain);

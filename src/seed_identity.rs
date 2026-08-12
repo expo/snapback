@@ -475,7 +475,7 @@ pub fn active_installation(
     artifact
         .validate()
         .map_err(|_| corrupt("active seed artifact failed canonical validation"))?;
-    if crate::rqs::jcs(
+    if crate::rqs_contract::jcs(
         &serde_json::to_value(&artifact)
             .map_err(|_| corrupt("active seed artifact could not be projected"))?,
     )
@@ -487,7 +487,7 @@ pub fn active_installation(
     let receipt: SeedInstallReceiptV1 = serde_json::from_str(&receipt_json)
         .map_err(|_| corrupt("active seed receipt is not a closed v1 object"))?;
     validate_receipt(&receipt, Some(&artifact), data_version_stream)?;
-    if crate::rqs::jcs(
+    if crate::rqs_contract::jcs(
         &serde_json::to_value(&receipt)
             .map_err(|_| corrupt("active seed receipt could not be projected"))?,
     )
@@ -728,7 +728,7 @@ pub fn reset_request_digest(value: &Value) -> SnapbackResult<String> {
 }
 
 fn tagged_digest(domain: &[u8], value: &Value, prefixed: bool) -> SnapbackResult<String> {
-    let encoded = crate::rqs::jcs(value)
+    let encoded = crate::rqs_contract::jcs(value)
         .map_err(|_| invalid("seed digest input is outside canonical JSON limits"))?;
     let mut hash = Sha256::new();
     hash.update(domain);
@@ -744,7 +744,7 @@ fn tagged_digest(domain: &[u8], value: &Value, prefixed: bool) -> SnapbackResult
 fn canonical<T: Serialize>(value: &T) -> SnapbackResult<String> {
     let value = serde_json::to_value(value)
         .map_err(|_| invalid("seed carrier could not be projected to JSON"))?;
-    crate::rqs::jcs(&value).map_err(|_| invalid("seed carrier is outside canonical JSON limits"))
+    crate::rqs_contract::jcs(&value).map_err(|_| invalid("seed carrier is outside canonical JSON limits"))
 }
 
 fn validate_receipt(

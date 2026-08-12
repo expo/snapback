@@ -119,7 +119,7 @@ pub struct MigrationKeysetScanRequestV1 {
     /// logical rows under the logical domain and system fields under the
     /// system domain — with this shared header.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub digest: Option<crate::rqs::ContentDigestHeaderV1>,
+    pub digest: Option<crate::rqs_contract::ContentDigestHeaderV1>,
     pub ceilings: MigrationScanCeilingsV1,
 }
 
@@ -141,9 +141,9 @@ pub struct MigrationKeysetScanCheckpointV1 {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub validators: Vec<MigrationScanValidatorStateV1>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub logical_digest: Option<crate::rqs::ContentDigestAccumulatorV1>,
+    pub logical_digest: Option<crate::rqs_contract::ContentDigestAccumulatorV1>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub system_digest: Option<crate::rqs::ContentDigestAccumulatorV1>,
+    pub system_digest: Option<crate::rqs_contract::ContentDigestAccumulatorV1>,
 }
 
 pub const MIGRATION_SCAN_CHECKPOINT_VERSION: &str = "migration-keyset-scan-checkpoint-v1";
@@ -232,11 +232,11 @@ fn migration_scan_initial_state(
             })
             .collect(),
         logical_digest: header.map(|header| {
-            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_DOMAIN, header)
+            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_DOMAIN, header)
                 .checkpoint()
         }),
         system_digest: header.map(|header| {
-            crate::rqs::ContentDigestStream::new(crate::rqs::CONTENT_DIGEST_SYSTEM_DOMAIN, header)
+            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN, header)
                 .checkpoint()
         }),
     })
@@ -332,7 +332,7 @@ pub(crate) fn migration_keyset_scan_batch_on(
         .logical_digest
         .as_ref()
         .map(|accumulator| {
-            crate::rqs::ContentDigestStream::resume(accumulator)
+            crate::rqs_contract::ContentDigestStream::resume(accumulator)
                 .map_err(|reason| migration_precondition_failed(reason.to_owned()))
         })
         .transpose()?;
@@ -340,7 +340,7 @@ pub(crate) fn migration_keyset_scan_batch_on(
         .system_digest
         .as_ref()
         .map(|accumulator| {
-            crate::rqs::ContentDigestStream::resume(accumulator)
+            crate::rqs_contract::ContentDigestStream::resume(accumulator)
                 .map_err(|reason| migration_precondition_failed(reason.to_owned()))
         })
         .transpose()?;

@@ -14295,7 +14295,7 @@ fn sqlite_to_json_with_staged_null(
                 storage_field_corrupt(table, column, "RFC 8785 JSON TEXT", ValueRef::Text(bytes))
                     .with_detail("error", error.to_string())
             })?;
-            let canonical = crate::rqs::jcs(&value).map_err(|_| {
+            let canonical = crate::rqs_contract::jcs(&value).map_err(|_| {
                 storage_field_corrupt(table, column, "RFC 8785 JSON TEXT", ValueRef::Text(bytes))
             })?;
             if canonical.as_bytes() != bytes {
@@ -14636,7 +14636,7 @@ fn canonicalize_stored_structured_value(
         descriptor,
         value,
     )?;
-    let canonical = crate::rqs::jcs(value).map_err(|_| {
+    let canonical = crate::rqs_contract::jcs(value).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_STRUCTURED_VALUE_INVALID",
             "storage",

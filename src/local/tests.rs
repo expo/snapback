@@ -1583,11 +1583,11 @@ fn capability_manifest_is_identical_across_inspect_and_generation_seams() {
     // manifest and the seam's other components; equality proves the
     // generation identity embeds exactly the manifest inspect serves.
     let digest = snapback.rqs_generation_digest().expect("generation digest");
-    let capability_identity = crate::rqs::sha256_identity(
+    let capability_identity = crate::rqs_contract::sha256_identity(
         &serde_json::to_value(&inspected).expect("manifest serializes"),
     )
     .expect("capability identity");
-    let functions_identity = crate::rqs::sha256_identity(
+    let functions_identity = crate::rqs_contract::sha256_identity(
         &serde_json::to_value(&snapback.functions).expect("functions serialize"),
     )
     .expect("functions identity");
@@ -17564,7 +17564,7 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
         snapback.functions.projections, expected_projections,
         "the live manifest is the exact successor whose plans rebuilt"
     );
-    let expected_plan_digest = crate::rqs::sha256_identity(
+    let expected_plan_digest = crate::rqs_contract::sha256_identity(
         &serde_json::to_value(&snapback.functions.projections[0])
             .expect("live projection plan serializes"),
     )
@@ -17609,7 +17609,7 @@ fn generation_activation_reopen_uses_durable_record_and_matching_materialization
     functions.inputs_hash = schema.inputs_hash.clone();
     let durable_generation = DeploymentIdentity::from_manifests(AuthMode::Dev, &schema, &functions)
         .expect("coherent durable generation");
-    let expected_plan_digest = crate::rqs::sha256_identity(
+    let expected_plan_digest = crate::rqs_contract::sha256_identity(
         &serde_json::to_value(&functions.projections[0]).expect("projection plan serializes"),
     )
     .expect("projection plan canonicalizes");
@@ -18923,7 +18923,7 @@ fn membership_keyset_binding_components_change_and_owned_digest_is_stable() {
         None,
     )
     .expect("owned binding");
-    let expected = crate::rqs::sha256_identity(&json!({
+    let expected = crate::rqs_contract::sha256_identity(&json!({
         "app": "local-app",
         "helper": "owned-keyset-pages.v1",
         "profile": "owner.v1",
@@ -27417,10 +27417,10 @@ fn rqs_witness_of_rows(rows: &[Value]) -> crate::live_wire::MembershipWitnessWir
     let mut entries: Vec<crate::live_wire::MembershipWitnessEntry> = rows
         .iter()
         .map(|row| crate::live_wire::MembershipWitnessEntry {
-            id: crate::rqs::row_wire_id(row)
+            id: crate::rqs_contract::row_wire_id(row)
                 .expect("wire row id")
                 .to_owned(),
-            old_row_hash: URL_SAFE_NO_PAD.encode(crate::rqs::row_hash(row).expect("row hash")),
+            old_row_hash: URL_SAFE_NO_PAD.encode(crate::rqs_contract::row_hash(row).expect("row hash")),
         })
         .collect();
     entries.sort_by(|a, b| a.id.encode_utf16().cmp(b.id.encode_utf16()));
@@ -28333,11 +28333,11 @@ fn rqs_interim_eligibility_fails_closed_on_opaque_and_ambient_plans() {
     );
     assert_eq!(
         super::rqs_eligibility(&rqs_public_live_query("u", false)),
-        Some(crate::rqs::DigestKind::Mset1)
+        Some(crate::rqs_contract::DigestKind::Mset1)
     );
     assert_eq!(
         super::rqs_eligibility(&rqs_public_live_query("o", true)),
-        Some(crate::rqs::DigestKind::Seq1)
+        Some(crate::rqs_contract::DigestKind::Seq1)
     );
 }
 
@@ -28770,7 +28770,7 @@ fn rqs_refusals_are_per_cause_and_never_fail_the_subscribe() {
     // eligibility check to be the refusing axis).
     let scoped = snapback.function("listMineOnly").expect("function").clone();
     let scoped_artifact =
-        crate::rqs::query_artifact_hash(&serde_json::to_value(&scoped).unwrap()).unwrap();
+        crate::rqs_contract::query_artifact_hash(&serde_json::to_value(&scoped).unwrap()).unwrap();
     let ineligible = crate::rqs::ResumeTokenBody {
         query_artifact: scoped_artifact,
         ..base_body.clone()
@@ -28972,7 +28972,7 @@ fn rqs_delta_replay_resumes_including_predicate_exit_rows() {
         .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-c", None))
         .expect("current snapshot");
     let expected = crate::rqs::ResultDigest::from_rows(
-        crate::rqs::DigestKind::Mset1,
+        crate::rqs_contract::DigestKind::Mset1,
         &current.snapshot.as_ref().unwrap().rows,
     )
     .unwrap();
@@ -29047,7 +29047,7 @@ fn rqs_delta_replay_strict_subset_mints_root_with_untouched_leaves() {
         })
         .collect();
     let recomputed =
-        crate::rqs::ResultDigest::from_rows(crate::rqs::DigestKind::Mset1, &replayed).unwrap();
+        crate::rqs::ResultDigest::from_rows(crate::rqs_contract::DigestKind::Mset1, &replayed).unwrap();
     assert_eq!(fresh.meta.content_digest, recomputed.published());
 }
 
@@ -29244,7 +29244,7 @@ fn rqs_adversarial_witnesses_never_suppress_a_removal() {
             old_row_hash: {
                 use base64::Engine as _;
                 base64::engine::general_purpose::URL_SAFE_NO_PAD
-                    .encode(crate::rqs::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap())
+                    .encode(crate::rqs_contract::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap())
             },
         });
     extra.count = extra.entries.len() as u32;
@@ -29260,7 +29260,7 @@ fn rqs_adversarial_witnesses_never_suppress_a_removal() {
     target.old_row_hash = {
         use base64::Engine as _;
         base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(crate::rqs::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap())
+            .encode(crate::rqs_contract::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap())
     };
     cases.push(("correct-id-wrong-hash", substituted));
     // Hash permutation: two valid hashes swapped between valid ids — the
