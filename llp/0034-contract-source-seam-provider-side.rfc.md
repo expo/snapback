@@ -5,6 +5,7 @@
 **Systems:** Live Queries, Ephemeral, Codegen, Server, Client Kit, Conformance, Contract Integration
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
+**Revised:** 2026-08-11 (draft §11 proposes an additive, iterator-owned headless `watchQuery` observation API after Diary 0075 repeated live-handle model friction; the amendment is pending author ratification. **Its first review returned NOT READY** — `llp/reviews/0034-s11-watchquery-amendment.claude.md`, 3 blocking. Correction to this header's original wording: §11 does **not** leave every Accepted requirement untouched — its acceptance item 4 would amend §10.11's shared-demand Constraint and flip a currently-green battery assertion. See §11's status note.)
 **Revised:** 2026-08-10 (§10.11 records the keyed-surface ephemeral link family and the D-8 host-independent verdict: shared ephemeral demand withholds keyed durable retirement, so independent teardown requires separate connection ids; also records construction-time unsupported-client refusal, authority-barrier wiring swap, and deliberate keyed `forceEphemeralState` omission). 2026-08-03 (LLP 0109 acceptance reconciliation: §10.10 records the explicit versioned-seed exception boundary — the legacy untagged/`provision` seed-if-empty lane keeps its exact settled semantics and never writes versioned identity, versioned installation is a separate closed family that never routes through seed-if-empty, and legacy success/skip is never retroactive identity evidence). 2026-07-24 (LLP 0090 cluster-0F amendment to §2.4: token-resume still enters through a fresh `subscribe_live` and the resume token only seeds it — no cross-socket continuation, `resume_live` and the reattach route unchanged — but for resume-capable subscribers "snapshot-with-subscribe" becomes "maybe-`CurrentAsOf`-with-subscribe" per 0090's D1.3 admission ladder, with the no-prime-race property carried by 0090's atomic answer-and-register rule; tokenless, non-`rqsEligible`, and auth-scoped subscriptions keep rev-2 behavior verbatim). 2026-07-17 (connection-keyed `self` and `sourceClientId` are explicitly based on the opaque granted wire id; a readable kit connection label is not lease identity). 2026-07-17 (receipt outcome closure: a confirmed mutation receipt requires a portable non-null durable snapshot version; only a rejected mutation whose cursor read failed may carry null, and the generated schema now rejects the impossible confirmed/null pair). 2026-07-13 (ENG-24595: split `/app/ensure` into a closed legacy/attest/provision family; made explicit provisioning AdminWrite plus non-prod before hashes or effects; and retained the untagged form only as settled v0-dev compatibility). 2026-07-12 (ENG-24494/ENG-24495: subscription-event observers join the isolated observational lane and disposal is reentrant/finally-safe; synchronous optimistic reducer failures retire their op, restore authoritative rows, and surface as tracked typed rejections). 2026-07-12 (current-socket readiness reconciliation: a hosted pre-persistence socket/session refusal triggers a bounded, generation-scoped ping/pong readiness proof and only then a retry; per-handle lifecycle cancellation is isolated from shared probes, fresh subscribes serialize before capturing supersession, send failures enter immediate socket loss, and generic/ambiguous failures are never replayed, while successful local socketless subscribe retains HTTP poll fallback). 2026-07-12 (ENG-24371 follow-up: each individually disposed pre-attach query/ephemeral subscription cancels and settles its own waiter, and low-level surface disposal closes already-attached forwarding subscriptions, including synchronous-delivery reentrancy). 2026-07-12 (ENG-24377: multi-live bindings omitted from `liveQueries` now surface a typed unconfigured error instead of successful empty data). 2026-07-12 (ENG-24370: generated Contract manifests now derive their receipt claim from the shipped adapter capability and conformance-gate the claim against the observed surface). 2026-07-12 (ENG-24371: render-first disposal now settles queued writes and active backoff, and observational callbacks cannot strand attachment). 2026-07-02 (OQ1 resolved — row diffs ship as an additive `live_delta` wire kind for the analyzable HostPlan subset, closing DK-3's op-log-delta leg on the M3 evidence; server + client + tests landed, LLP 0008 §Decision DK-3 governs). 2026-07-01 (rev 2 — LLP 0005 review incorporation, one GPT (Codex/gpt-5.5) + one fresh-context Claude (Opus 4.8) review, artifacts in `llp/reviews/0034-contract-source-seam-provider-side.{gpt,claude}.md`, run blind to each other and convergent. Load-bearing corrections: **added D0** — the connection axis requires a server keepalive that does not exist (the stream sends nothing when idle and no-ops Ping/Pong), so "wiring, not server work" was oversold; **collapsed the version story to the existing global durable commit version** (rev 1's "updates are unnumbered" was false — every `live_replace` already carries it) and specified the ephemeral `(scopeEpoch, entryVersion)` mapping, deleting the invented per-subscription sequence; **split receipts into provider-populated vs adapter-stitched keys** with an inbound-correlation convention (several 0284 §2.6 keys are Exact-runtime concepts a provider cannot originate); **rewrote reconnect around reality** — socket close disposes durable subscriptions server-side, so reconnect is always a fresh `subscribe_live`, and `resume_live` is permission-epoch-driven retain/resnapshot with no version replay; corrected D3's baseline (in-tree, ephemeral collections project only as `ephemeralCollectionReference` — the query/mutation presence pair exists only in the off-tree graffiti worktree, so the ephemeral kind is net-new emission, simpler than a migration); re-grounded presence proofs on `cursors-web`; rewrote D4 as three concrete boot edits plus the AdminWrite-vs-profile distinction; promoted old OQ6 to a stated fact (ephemeral has no resume path; it always re-snapshots); reframed OQ1 (the server already pushes full replacement rows — a poke would be a regression); added the durable-over-ephemeral drain-priority invariant, the permission-epoch receipt reason, the §5 ownership table, DO-hibernation and key-mode identity OQs. Accepted same day by the author's decision, the round's blocking concerns being resolved in this revision. rev 1 — initial draft)
 **Related:** Exact LLP 0284 (Contract Source Seam, rev 3 — the interface this implements; its acceptance gates on this document), Exact LLP 0263 (Contract Data Bindings — the manifest/adapter surface), Exact LLP 0278 (Verification Depth — §D consumes the receipts specified here; D2 is the provider home for its OQ2), Exact LLP 0281 (Transient Reactivity Lane — rated `publish` compiles against the budget facts D3 emits), Exact LLP 0275 (the realtime gap report), LLP 0013 (Ephemeral Realtime State — the shipped subsystem D1/D3 expose), LLP 0008 (Local-First Sync and Realtime), LLP 0011 (Auth and Permissions — permission epochs), LLP 0012 (Headless Integration Contract), LLP 0014 (Cloudflare Strategy — OQ5's hibernation semantics), LLP 0020 (Core Authoring Surface), LLP 0021 (Contract/Exact Integration Hardening — the program this lands in), LLP 0025 (Web Cursor Presence Demo — the idempotent-ensure lineage), LLP 0026 (Ephemeral Backend Abstraction), LLP 0027 / LLP 0029 (All Aboard demo + gap closure — the first proof's home), LLP 0031 (Server Route Taxonomy — D4's gating home), LLP 0032 (Decision and Implementation Hardening), LLP 0090 (Resumable Query Snapshots — source of the dated §2.4 amendment: token-seeded fresh subscribe, maybe-`CurrentAsOf`-with-subscribe), diaries 0001 (snapshot-with-subscribe praised), 0004 (provider-conformance lineage), 0006 (graffiti acceptance — landed as demos/graffiti via ENG-22219, §10.4), 0008 (All Aboard glue); **reviews:** `llp/reviews/0034-contract-source-seam-provider-side.{gpt,claude}.md`
 
@@ -463,6 +464,12 @@ D3+D0+D1 (unblocks the All Aboard proof, Exact 0277 §5.1 row 4), then D2
 (unblocks Exact 0278 §D), with D4/D5 alongside — D4's boot edits land with
 the first proof. Implementation of D0/D1/D3/D5 is in flight on branch
 `csw/llp-0034-d1-d3` at the time of acceptance.
+
+The §11 headless observation amendment added on 2026-08-11 is separately
+**Draft and pending author ratification**. The Accepted transport, lifecycle,
+and Contract obligations above remain authoritative; §11 authorizes neither an
+API nor implementation until its open questions are decided and the amendment
+is ratified.
 
 ## 10. ImplNotes (2026-07-01, from the D0/D1/D3/D5 implementation)
 
@@ -1111,3 +1118,223 @@ durable subscriptions. This is why the keyed surface keeps separate
 connections. The battery suite holds both topology outcomes and replaces the
 former browser/host-dependent detector; the resolved evidence is retained in
 `issues/closed/20260810-durable-unsubscribe-withheld-behind-shared-connection-demand.md`.
+
+## 11. Draft amendment: iterator-owned headless live observation (2026-08-11)
+
+**Amendment status:** Draft; pending author ratification. This section proposes
+an additive client surface. It does not describe shipped behavior.
+
+**Review status (2026-08-11): NOT READY.** The first review —
+`llp/reviews/0034-s11-watchquery-amendment.claude.md` — returned 3 blocking,
+6 material, 5 minor concerns, and found the proposed *shape* (cold,
+single-consumer, latest-value-coalescing async iterable) sound while judging
+the evidence base, the acceptance bar, and the cleanup rule not ratifiable as
+written. Three corrections it verified against code, recorded here so this
+section does not assert them uncorrected:
+
+1. **This amendment does change an Accepted requirement.** Acceptance item 4
+   below would amend §10.11's shared-demand Constraint and flip
+   `tests/acceptance/axis-parity-harness.mjs:497`, which asserts
+   `stillRegistered === true` and whose own comment says that if the assertion
+   flips, §10.11 says the keyed surface should return to one connection.
+2. **"dispose that handle and await its settlement" does not map onto shipped
+   primitives.** `handle.settled()` awaits `cleanupTail`, which `dispose()`
+   never feeds — `dispose()` parks its unsubscribe in `disposalTask`. Separately
+   `LiveQueryHandle.dispose()` is declared `void` while the implementation
+   returns that task; filed as
+   `issues/20260811-livequeryhandle-dispose-typed-void-returns-promise.md`.
+3. **The LLP 0187 citation is inverted.** The `.rows` vs `.current` item appears
+   in that RFC's "What routed correctly — the control group" section as a case
+   of accurate types *rescuing* a wrong model.
+
+The four open questions at the end of this section remain the ratification
+gate; the review's recommended answers dissent from the draft on questions 3
+and 4. Nothing here is settled until the author rules.
+
+### Evidence and problem
+
+The low-level `SnapbackClient.liveQuery()` surface is accurate but easy to
+model incorrectly from its name. It returns a promise for one mutable
+`LiveQueryHandle`: the authoritative or retained current value lives at
+`.rows`; explicit poll mode advances through `.poll()`; stream mode updates
+the same handle and may call observers; and the caller owns `.dispose()`.
+Provider code has a second, deliberately different `startLiveQuery()` wrapper
+whose not-yet-established handle lives at `.current`.
+
+The types and Guide document those facts. They have nevertheless produced two
+independent wrong mental models:
+
+- LLP 0187 records `.rows` versus `.current` confusion that accurate type
+  declarations rescued; and
+- Diary 0075 initially treated the promise-resolved `liveQuery()` handle as an
+  async iterator, then corrected the proof after reading the Guide.
+
+The second case is not a Guide gap. It is evidence that the common headless
+intent — “observe this query until I stop” — lacks a surface whose ownership
+and control-flow shape match ordinary JavaScript. Repeating more handle prose
+does not remove that API-model translation.
+
+### Proposed decision
+
+Add a high-level `client.watchQuery()` async-iterable surface. Keep
+`liveQuery()` and `startLiveQuery()` unchanged for compatibility and for
+callers that need direct handle/provider lifecycle control. Do **not** make
+`LiveQueryHandle` itself async iterable in the first slice: a handle may
+already have callback observers and an independently owned lifetime, so
+`break` would have ambiguous authority to dispose it.
+
+The intended common form is:
+
+```ts
+for await (const snapshot of client.watchQuery(api.recentTriumphs, {
+  args: { limit: 10 },
+})) {
+  render(snapshot.rows);
+}
+```
+
+The generated-reference overload preserves the exact argument and result
+types. A declaration sketch, not yet frozen public spelling:
+
+```ts
+export interface LiveQueryWatchSnapshot<Rows> {
+  readonly rows: Rows;
+  readonly version: number;
+  readonly connection: 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected';
+  readonly freshness: 'retained' | 'current' | null;
+  readonly authorizationDenial: LiveQueryAuthorizationDenial | null;
+  readonly reason: 'initial' | 'update' | 'connection' | 'authorization' | 'resubscribed';
+}
+
+watchQuery<Ref extends FunctionRef<'Query' | 'LiveQuery'>>(
+  ref: Ref,
+  options?: {
+    readonly args?: FunctionArgs<Ref>;
+    readonly userId?: string;
+    readonly connectionId?: string;
+    readonly transport?: 'stream' | 'poll';
+    readonly pollCadenceMs?: number;
+    readonly fallbackToPoll?: boolean;
+    readonly signal?: AbortSignal;
+  },
+): AsyncIterable<LiveQueryWatchSnapshot<FunctionResult<Ref>>>;
+```
+
+### Observation semantics
+
+`watchQuery()` is a cold, single-consumer async iterable:
+
+1. Calling it allocates no socket, subscription, timer, or retained-store
+   writer. The first `next()` establishes the underlying live query.
+2. The first yield is the first renderable snapshot. If retained state is
+   legitimately renderable before current authority arrives, it may yield as
+   `freshness: 'retained'`; the later authoritative answer yields again even
+   when its rows compare equal.
+3. Later yields represent current state, not transport events. Row changes,
+   freshness/authorization boundaries, resubscription, and observable
+   connection transitions may produce a new immutable snapshot.
+4. The iterable has a bounded latest-value slot, not an event-log queue. A slow
+   consumer may skip intermediate row replacements or deltas and must receive
+   the newest converged state. Authorization blank/denial state replaces any
+   queued more-authorized state; coalescing may never resurrect rows retired by
+   a later authority boundary.
+5. Mutation settlement still does not imply that the iterator already yielded
+   its matching state; LLP 0200's scheduled fan-out rule is unchanged.
+6. A transient socket loss, poll fallback, resubscribe, or
+   `CurrentAsOf` answer does not terminate the iterator. A terminal
+   establishment/authorization/runtime failure rejects `next()` with the
+   existing stable diagnostic and begins cleanup.
+
+This is a state observer, not a lossless audit stream. Consumers that need
+every receipt or transport frame keep using the existing receipt/observer
+surfaces.
+
+### Lifecycle and connection ownership
+
+The iterator owns exactly one underlying handle. `return()` (including a
+`break` from `for await`), `throw()`, an abort signal, or a terminal failure
+must dispose that handle and await its settlement before the iterator reports
+cleanup complete. Disposal is idempotent. An iterable may be consumed only
+once; a second iterator acquisition refuses rather than creating hidden
+sibling subscriptions.
+
+Omitting `connectionId` uses one client-owned readable connection label so
+ordinary watches multiplex over the managed socket. That label remains local
+plumbing, never granted wire identity or authorization evidence. An explicit
+label continues to support deliberate connection topology.
+
+Shared socket demand must not weaken iterator ownership. §10.11 proves that
+today a durable registration can remain server-side when another consumer
+keeps the same connection alive. The `watchQuery()` acceptance bar therefore
+requires explicit retirement of its exact durable subscription on iterator
+cleanup even while a sibling watch or ephemeral consumer retains socket
+demand. Allocating a new connection per watch would make cleanup easier but
+would discard the one-socket multiplexing design and is not the proposed
+default.
+
+### Compatibility and routing
+
+- `liveQuery()` keeps its existing promise-to-handle result, poll default,
+  callbacks, mutable `.rows`, and caller-owned disposal.
+- `startLiveQuery()` remains the cancellable provider-registration seam with
+  `.current`, `started()`, `dispose()`, and `settled()`.
+- `watchQuery()` defaults to stream observation with the existing honest poll
+  fallback. Explicit `transport: 'poll'` runs the cadence internally; it does
+  not require the consumer to call `.poll()` between iterator steps.
+- The headless Guide should lead with `watchQuery()` for sequential
+  observation and route to `liveQuery()` when a caller needs current-state
+  inspection, manual polling, pause/resume, callbacks, or connection receipts.
+- Generated API references and the package declaration surface must make the
+  common loop typecheck without casts. No generated app wrapper or second
+  manifest family is introduced.
+
+The first slice does not add an `openLiveQuery()` alias or deprecate
+`liveQuery()`. Naming migration can be reconsidered after usage evidence; the
+additive observation surface addresses the demonstrated mistake without
+creating a second compatibility program.
+
+### Acceptance
+
+1. A typed generated-reference test proves exact args and yielded row types,
+   plus negative cases for wrong arguments and non-row results.
+2. A real headless test receives the initial snapshot, observes a later
+   cross-client mutation, breaks, and leaves no live registration or timer.
+3. Early break, thrown loop body, abort-before-establishment,
+   abort-during-establishment, abort-after-yield, and repeated cleanup all
+   settle without an unhandled rejection.
+4. Cleanup retires the exact server subscription while a sibling durable or
+   ephemeral consumer keeps the same managed connection alive.
+5. A slow-consumer test drives more updates than the queue bound, proves
+   bounded memory/latest-state coalescing, and ends at the authoritative rows
+   and version.
+6. Authorization quarantine/denial tests prove that queued older rows cannot
+   follow the blank or denial snapshot.
+7. Reconnect, resync-required, token-seeded `CurrentAsOf`, and poll fallback
+   preserve one iterator identity and converge without duplicate server
+   registrations.
+8. Existing `liveQuery()` and `startLiveQuery()` behavior/type suites remain
+   unchanged and green.
+9. A clean external npm fixture runs the iterator form against published
+   package declarations; the Guide snippet is executable evidence, not prose
+   alone.
+
+### Open questions for ratification
+
+1. Is `watchQuery` the final verb, or does `observeQuery` better distinguish
+   current-state observation from an event stream? The draft recommends
+   `watchQuery` because it matches the control-flow intent and avoids another
+   “subscribe returns what?” noun split.
+2. Should connection-only transitions yield snapshots when rows and freshness
+   are unchanged? The draft says yes so a sequential consumer can render stale
+   and disconnected state without installing a second observer.
+3. Does post-establishment terminal authorization denial yield one final
+   denied snapshot and then remain observable, or yield it and complete? The
+   existing handle freezes the denial for rendering; parity suggests remain
+   open until disposal or later authority replacement.
+4. Is one client-owned default connection label safe for every client custody
+   transition, or must the default roll with a narrower existing connection
+   epoch? The readable label must never become the opaque granted wire id.
+
+Ratification should resolve these four questions, request an LLP 0005-scaled
+review because lifecycle cleanup crosses the §10.11 shared-demand boundary,
+and only then authorize implementation.
