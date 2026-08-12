@@ -78,3 +78,42 @@ revisions remained within budget: LLP 0245 16.9%, LLP 0246 11.5%, LLP 0247
 **Blindness:** structural capsule exclusion; reviewer instructed not to inspect
 the live repository
 **Launch ledger:** one Sol launch (round 2; two total)
+
+### Round 2 revision disposition
+
+A fresh GPT-5.6 Sol xhigh reviser, distinct from both reviewers, revised LLPs
+0247–0249 at commit `fb5a89f414cef74905cacc04968a50c27e708c23`:
+
+- LLP 0247 made same-authority withdrawal conditional on the acknowledged
+  `(scopeEpoch, entryVersion)`, preventing delayed predecessor deletes from
+  removing a republished successor.
+- LLP 0248 separated pre-storage request overflow from post-read/pre-release
+  response overflow and removed public logical-key digests.
+- LLP 0249 assigned live attestation to the target's privileged launcher and
+  server registry with one-use session binding, and replaced egress denylisting
+  with positive versioned globally-routable-unicast admission plus target deny
+  facts.
+
+All Round 2 MATERIAL concerns were addressed. Final net word growth from the
+entering Review revisions remains within budget: LLP 0245 16.1%, LLP 0246
+10.7%, LLP 0247 16.8%, LLP 0248 18.3%, and LLP 0249 19.9%.
+
+## Round 3 — final delta + implementer lens
+
+**State:** launched
+**Recorded before launch:** 2026-08-12
+**Target hash vector (SHA-256):**
+
+- LLP 0245: `06aee0324c71e22e9de1a863e0af16a6f65e891c1c1824c528450155cda3cec4`
+- LLP 0246: `2b920d48abf970e813754c51451bc7d578daac9f70fc6d344a0cb98934e9625f`
+- LLP 0247: `9afb001a67438dfed3fe7ba94ec861c9e9b30ed9720d4b7d48aa15ea08e35ef9`
+- LLP 0248: `80bfed8960746cc53f99dd8246ea659f8a3f183a322cc3543a1f7bbcc9367022`
+- LLP 0249: `e9acd77bb2b7b2ef6636fb5e491a456e63b53fb52c168c727ea0ec3155315ab8`
+
+**Capsule SHA-256:** `da12b8ed0542fb011172a6d2f9b0c71adf8930a10df63e555d0aa5582adc07fa`
+**Instruction SHA-256:** `536eb812b77d615f4276419ca5b3d8078815dca9f3e620b7f10fb3733871876f`
+**Runtime:** fresh GPT-5.6 Sol, xhigh effort, collaboration sub-agent
+**Lens:** final delta classification plus implementer contract derivation
+**Blindness:** structural capsule exclusion; reviewer instructed not to inspect
+the live repository
+**Launch ledger:** one Sol launch (round 3; three total)

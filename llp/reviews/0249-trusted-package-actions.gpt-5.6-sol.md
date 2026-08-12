@@ -18,3 +18,9 @@ records LLP 0249's per-target verdict after receipt.
 **Target hash:** `836b7c17b11120a2fe33571a8dc679c6b377c88a92f25777f495fdad9ba947ac`
 **Review body:** preserved verbatim in the LLP 0245 Sol artifact.
 **Round 2 verdict:** NOT READY
+
+# Round 3 — lockstep cross-reference
+
+**Target hash:** `e9acd77bb2b7b2ef6636fb5e491a456e63b53fb52c168c727ea0ec3155315ab8`
+**Review body:** preserved verbatim in the LLP 0245 Sol artifact.
+**State before launch:** awaiting per-target verdict

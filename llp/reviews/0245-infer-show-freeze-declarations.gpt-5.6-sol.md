@@ -128,6 +128,15 @@ VERDICT LLP 0248: NOT READY
 VERDICT LLP 0249: NOT READY
 VERDICT SET: NOT READY
 
+# Round 3 — final delta + implementer lens
+
+**Target hash:** `06aee0324c71e22e9de1a863e0af16a6f65e891c1c1824c528450155cda3cec4`
+**Hash vector:** see the run journal at
+`0245-0249-single-family-super-refine.md#round-3--final-delta--implementer-lens`
+**Capsule SHA-256:** `da12b8ed0542fb011172a6d2f9b0c71adf8930a10df63e555d0aa5582adc07fa`
+**Instruction SHA-256:** `536eb812b77d615f4276419ca5b3d8078815dca9f3e620b7f10fb3733871876f`
+**State before launch:** awaiting verbatim review body
+
 # Round 2 — delta + implementer lens
 
 **Target hash:** `06aee0324c71e22e9de1a863e0af16a6f65e891c1c1824c528450155cda3cec4`
