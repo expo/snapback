@@ -6,7 +6,10 @@
 Diagnostics, Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
+**Revised:** 2026-08-12 (round-1 revision: gave single-suggestion application a
+Snapback-owned analysis-input CAS, scoped manual-paste guarantees, and added
+stable refusal reasons and evidence-class review metrics). 2026-08-12 (entered
+an author-invoked, single-family GPT-5.6 Sol
 xhigh refinement loop; initial Draft took up LLP 0117 option C and LLP 0236
 OQ3 without changing the authority of explicit contracts)
 **Related:** LLP 0004, LLP 0009, LLP 0037, LLP 0061, LLP 0108, LLP 0115,
@@ -64,17 +67,33 @@ Add:
 ```sh
 snapback author suggest <operation-or-file> --format patch
 snapback author suggest <operation-or-file> --json
+snapback author suggestion apply <suggestion.json> --json
 ```
 
-The command reads the stable source snapshot and generated schema/type facts,
-then emits either a unified patch or `DeclarationSuggestionV1`. It never edits
-source, replaces generated artifacts, or activates a generation. Applying the
-patch is a separate explicit editor/user action.
+The `suggest` command reads a stable source snapshot and generated schema/type
+facts, then emits either a unified patch or `DeclarationSuggestionV1`. It never
+edits source, replaces generated artifacts, or activates a generation. The
+separate `suggestion apply` protocol accepts exactly one suggestion for one
+operation and is the Snapback-owned compare-and-write seam used by editors; v1
+has no multi-operation or ambient “apply current suggestions” command.
 
 Each suggestion binds operation id, source and schema digests, compiler and
 analyzer identities, the frozen declaration before/after, evidence per proposed
-field, confidence class, and diagnostics. A stale source/schema digest makes a
-later apply refuse and requires regeneration.
+field, confidence class, and diagnostics. It also binds one domain-separated
+`analysisInputId` over the complete analyzed definition/helper/type-source
+closure and module-format facts, schema and generated-type facts, effective
+compiler configuration, compiler/analyzer identities, and every runtime
+evidence receipt used. Immediately before writing, the apply protocol takes a
+fresh stable snapshot, recomputes that complete identity, compares the exact
+before-declaration and patch target, and atomically writes only on an exact
+match. Any mismatch refuses with
+`SNAPBACK_DECLARATION_SUGGESTION_STALE` and requires regeneration; a failed
+write changes no source.
+
+Manual copy/paste remains allowed because the emitted patch is ordinary source,
+but it is not stale-safe: only the Snapback-owned single-suggestion protocol
+makes the stale-refusal claim. Normal generation still rechecks a manually
+edited declaration and leaves the previous generation active on failure.
 
 ### D2. Result contracts are the first authoritative candidate class
 
@@ -91,6 +110,8 @@ declared schema references. It prefers existing contract vocabulary:
 The tool never invents a bound, integer refinement, asset policy, or table
 identity. When a required refinement is not derivable, it emits a hole with the
 source expression and available choices rather than a plausible contract.
+Holes and refused candidate classes carry stable machine-readable reason codes
+from the same generated table used by CLI and editor projections.
 
 ### D3. Dependency suggestions only widen
 
@@ -136,10 +157,12 @@ declaration. Suggestion drift alone is advisory until the author asks for it.
 ### D6. Rubber-stamp resistance is visible, not paternalistic
 
 The tool reports how much of a candidate was exact, schema-derived, widened, or
-unresolved. `--apply` is deliberately absent from v1. Editors may offer an
-"Apply patch" action only after rendering the semantic consequences and exact
-source diff; bulk acceptance remains an explicit author action recorded by the
-editor, not by Snapback runtime authority.
+unresolved. A generic or bulk `--apply` is deliberately absent from v1. Editors
+may offer an "Apply this suggestion" action only after rendering the semantic
+consequences and exact source diff, and must invoke D1's identity-checking
+single-suggestion protocol rather than write the patch themselves. Each
+acceptance remains an explicit author action recorded in the suggestion receipt;
+neither the editor nor the receipt gains runtime authority.
 
 ## Compatibility and migration
 
@@ -161,9 +184,10 @@ contract; it composes through this RFC when proposing one.
 3. Add patch rendering and editor action, still without dependency suggestions.
 4. Add addition-only read/write proposals from static and conformance evidence.
 5. Run fresh npm Clique and plain-CRUD controls; compare authored contract
-   lines, correction loops, review errors, and time to first green proof.
-6. Consider a guarded apply command only in a successor RFC after measured
-   review behavior; v1 itself has none.
+   lines, correction loops, review errors, time to first green proof, and
+   semantic correction/false-acceptance rates by confidence and evidence class.
+6. Consider bulk or multi-operation application only in a successor RFC after
+   measured review behavior; v1 remains single-suggestion only.
 
 ## Acceptance
 
@@ -171,7 +195,9 @@ contract; it composes through this RFC when proposing one.
   paste-ready exact contract or explicit holes; it never emits `any`/`unknown`.
 - Applying the displayed patch and running normal generation yields the same
   contract hash and runtime validation as an equivalent hand-authored block.
-- A source/schema change between suggestion and apply refuses the stale patch.
+- A source, helper/type closure, schema/generated-type, compiler-configuration,
+  analyzer, or evidence-receipt change between suggestion and the D1 apply
+  protocol refuses the stale patch; manual paste makes no stale-safe claim.
 - Branch-only and helper-hidden dependencies never produce removal suggestions.
 - An observed undeclared read proposes only an addition and retains its
   path-specific provenance.
@@ -205,5 +231,5 @@ contract; it composes through this RFC when proposing one.
 
 ## Status
 
-Draft. This RFC proposes an authoring assistant, not TypeScript-as-contract
-authority. It requires review against LLP 0108 and LLP 0146 before acceptance.
+Review. This RFC proposes an authoring assistant, not TypeScript-as-contract
+authority. It remains under review against LLP 0108 and LLP 0146.

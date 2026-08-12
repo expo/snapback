@@ -6,7 +6,10 @@
 Queries, Ephemeral state, Diagnostics, Code generation, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
+**Revised:** 2026-08-12 (round-1 revision: replaced impossible Proxy detection
+with observable descriptor admission, separated one-shot auth refusal from
+continuing blocked resources, and returned authority-loss withdrawal to the
+server barrier). 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
 xhigh refinement loop; initial Draft came from later Sonnet/Kimi Clique
 evidence and composed with accepted LLP 0238 without changing its ownership
 model)
@@ -17,9 +20,9 @@ LLP 0241
 ## Summary
 
 Snapback's generated client should accept ordinary TypeScript object
-construction where the contract makes intent unambiguous, keep protected reads
-stable while authority is anonymous, withdraw presence promptly, and expose one
-public way to catch typed refusals across one-shot operation kinds.
+construction where intent is unambiguous, keep protected continuing reads stable
+while authority is anonymous, reject one-shot reads locally, withdraw presence
+promptly, and expose one public way to catch typed one-shot refusals.
 
 This RFC adds four narrowly bounded behaviors:
 
@@ -67,23 +70,33 @@ its exact argument contract. At an object property declared optional, an own
 property with value `undefined` is treated exactly as absence and removed. The
 rule recurses only through closed object contracts.
 
-The following still refuse before resource or network work:
+Captured intrinsic prototype/key/descriptor operations snapshot only enumerable
+string data properties on ordinary/null prototypes into an internal null-
+prototype tree; Snapback invokes no accessor. These still refuse before its
+resource or network work:
 
 - `undefined` for a required property;
 - `undefined` or a hole in an array/tuple position;
 - `undefined` inside an open JSON value;
-- an unknown property, accessor, proxy, exotic prototype, cycle, or getter; and
+- an unknown/symbol property, accessor descriptor, disallowed observable
+  prototype, cycle, or otherwise non-plain observable shape; and
 - any call without a generated exact contract.
+
+JavaScript cannot portably detect a `Proxy`; inspection may invoke its traps and
+it may present an ordinary shape. V1 promises neither Proxy detection nor trap-
+free inspection of arbitrary inputs. Only the captured data snapshot may
+proceed, after closed canonicalization. A no-trap boundary would require a
+separately branded generated carrier.
 
 Defaults apply after omission using the existing declared default semantics.
 Normalization emits no warning on the admitted path; generated types/JSDoc say
 that optional own-property `undefined` is equivalent to omission.
 
-### D2. Protected reads wait on authority rather than retrying transport
+### D2. Protected continuing reads wait; one-shot reads refuse locally
 
-When a generated query/live reference requires authenticated authority and
-`currentPrincipal` is `loading`, `anonymous`, `refreshing`, or `blocked`, the
-client does not issue an application request under the wrong state:
+When a generated live reference requires authenticated authority and
+`currentPrincipal` is `loading`, `anonymous`, `refreshing`, or `blocked`, a
+`watch`/live hook does not issue an application request under the wrong state:
 
 - `loading` and `refreshing` produce one stable pending/refreshing resource;
 - `anonymous` produces a stable `blocked` snapshot with public reason
@@ -99,17 +112,32 @@ later `authExchange` on the same client succeeds unless its own captured
 authority/generation facts are genuinely stale. Predecessor callbacks are
 discarded without clearing or poisoning the successor.
 
+`client.read` remains a one-shot promise, never a snapshot. A protected read
+rejects before application I/O with `SnapbackDiagnosticError`: retryable auth-
+not-settled for `loading`/`refreshing`, `authentication-required` for anonymous,
+or the custody/protocol diagnostic for `blocked`. The caller retries after auth;
+only continuing handles wake and construct a fresh authority-fenced instance.
+
 ### D3. Presence has explicit active and withdrawn states
 
 `publishPresence(ref, value)` and its hook owner track whether this owner has a
-published member. A transition from a published value to `skip`, hook disposal,
-or authenticated-owner loss issues one idempotent delete/withdrawal under the
-captured connection/authority generation. It stops keepalives immediately.
+published member. A transition from a published value to `skip`, or ordinary
+hook disposal while the captured authority is still current, issues one
+idempotent delete/withdrawal under that connection/authority generation. It
+stops keepalives immediately. A race that makes the capture stale cancels that
+application withdrawal and yields ownership to the barrier.
+
+On owner-authority loss, the client synchronously stops keepalives, quiesces/
+blanks locally, and starts no predecessor application delete. LLP 0059/0107
+server-barrier cleanup owns remote removal; TTL is its backstop. Transition-time
+explicit removal is a server control operation, never predecessor app work.
 
 The read-side room remains subscribed when the caller uses `skip`. A never-
 published owner sends no delete. Failed/ambiguous withdrawal is surfaced in the
 presence state and retried only within the existing ephemeral bounded retry
-policy; TTL remains a final cleanup backstop, not the ordinary stop mechanism.
+policy. The generated target profile publishes
+`withdrawalVisibilityDeadlineMs`, no greater than half its TTL, so tests and
+diagnostics use a portable target fact rather than an unstated latency.
 
 ### D4. One public typed refusal exception
 
@@ -131,8 +159,8 @@ this RFC does not convert nonterminal or ambiguous outcomes into exceptions.
 LLP 0238's client-lifecycle manifest gains:
 
 - argument normalization version and optional paths;
-- authority admission state per operation kind;
-- presence stop/dispose action;
+- authority admission/outcome per verb and operation kind;
+- presence stop/dispose action plus authority-loss barrier owner;
 - primary failure carrier and public error type; and
 - guide/diagnostic anchors.
 
@@ -166,14 +194,17 @@ guard. Package versions remain lockstep.
 - `{ replyToId: maybeUndefined }` and conditional omission produce identical
   canonical bytes when `replyToId` is optional; required, array, open-JSON, and
   legacy-string cases still refuse before I/O.
-- Attempting a protected read while anonymous performs no transport request,
-  renders one stable auth-required state across 1,000 retry intervals/renders,
-  and a later valid sign-in plus fresh read succeeds on the same client.
+- Attempting a protected one-shot read while anonymous rejects once with the
+  common error guard and no transport request; a protected live handle renders
+  one stable auth-required state across 1,000 retry intervals/renders; a later
+  valid sign-in plus fresh read/automatically rebuilt live instance succeeds on
+  the same client.
 - A raced server refusal cannot make an unrelated later auth exchange stale;
   real predecessor completions still fail closed under LLP 0059.
-- Published typing → `skip` disappears from another client within the ordinary
-  withdrawal latency bound rather than waiting for TTL; the read-side room
-  remains active.
+- Published typing → `skip` disappears from another client within the
+  generated target's `withdrawalVisibilityDeadlineMs` rather than waiting for
+  TTL; the read-side room remains active. Authority loss starts no predecessor
+  application delete and server/barrier cleanup still removes the member.
 - Query/action/mutation application refusals are caught with the same public
   error guard, while queued dispatch remains a resolved queued outcome.
 - All normalization and failure-carrier behavior occurs identically in
@@ -197,12 +228,10 @@ guard. Package versions remain lockstep.
 1. Should optional nested properties inside `v.json()` remain strictly opaque
    forever, as proposed, or can a future schema-bearing JSON contract admit
    recursive omission?
-2. Should `authentication-required` be a distinct `status` or a reason inside
-   LLP 0238's existing `blocked` state?
-3. What compatibility epoch removes the primary raw action envelope?
+2. What compatibility epoch removes the primary raw action envelope?
 
 ## Status
 
-Draft. The authority-poisoning correction may land as a defect fix before this
+Review. The authority-poisoning correction may land as a defect fix before this
 RFC is accepted; optional omission, presence withdrawal, and public failure-
-carrier changes require acceptance.
+carrier changes remain under review.

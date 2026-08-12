@@ -6,7 +6,10 @@
 Developer experience, Diagnostics, Operations, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
+**Revised:** 2026-08-12 (round-1 revision: froze a separate external-entry
+TypeScript/package profile, made qualified OS isolation and a closed Node power
+table activation requirements, and specified brokered SSRF-safe egress and LLP
+0036 secret custody). 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
 xhigh refinement loop; initial Draft came from Clique crypto/broker evidence
 and kept the portable handler profile unchanged)
 **Related:** LLP 0009, LLP 0010, LLP 0036, LLP 0041, LLP 0046, LLP 0060,
@@ -15,10 +18,10 @@ LLP 0227, LLP 0236, LLP 0237, LLP 0241
 
 ## Summary
 
-Snapback should decide explicitly whether applications may declare a trusted,
+Snapback should decide explicitly whether applications may declare an isolated,
 package-capable action runtime for integrations that cannot reasonably execute
-inside the portable deterministic handler profile. This Draft proposes a
-target-specific `trusted-node-action-v1` profile with a lockfile-closed package
+inside the portable deterministic handler profile. This RFC proposes a
+target-specific `isolated-node-action-v1` profile with a lockfile-closed package
 graph, process isolation, explicit capabilities, generated deployment custody,
 and truthful non-portability.
 
@@ -29,27 +32,19 @@ handlers.
 
 ## Motivation
 
-In the Kimi Clique run, a standards-correct pure-JavaScript scrypt executed in
-roughly 8–11 seconds inside the embedded handler engine, while a native Node
-broker completed in roughly 90–180 milliseconds. Password auth has a dedicated
-owner in LLP 0227, but the general pattern recurs for SDKs, cryptography, media,
-and package-only integrations.
-
-Today the sanctioned answer is an application-owned trusted broker/sidecar.
-That preserves the runtime boundary but charges every app for process custody,
-session/generation coordination, secrets, logs, deployment, and restart. Convex
-offers a conspicuous Node action escape hatch. Snapback should either
-productize its broker boundary or explicitly accept that ecosystem deficit.
+Kimi's standards-correct JavaScript scrypt took roughly 8–11 seconds in the
+embedded engine versus 90–180 ms in a native Node broker. LLP 0227 owns password
+auth, but SDK, crypto, media, and package-only integrations recur. Requiring an
+app-owned sidecar preserves the boundary while duplicating process, generation,
+secret, log, deployment, and restart custody; Snapback should productize that
+boundary or explicitly accept the deficit.
 
 ## Constraints
 
-- Queries, live queries, mutations, authorization policy, and transactional
-  jobs remain on portable/declarative profiles. Trusted actions cannot join a
-  database transaction.
-- Package installation and runtime are build-time/runtime custody, never ambient
-  resolution from the developer's checkout.
-- Every filesystem, network, secret, subprocess, clock, entropy, and native
-  capability is explicit and least-privileged.
+- Queries, live queries, mutations, policy, and transactional jobs stay
+  portable/declarative; isolated actions cannot join a database transaction.
+- Package install/runtime is Snapback custody, never ambient checkout resolution;
+  every host power is explicit and least-privileged.
 - External effects remain non-rollbackable and require existing idempotency,
   attempt, receipt, timeout, and ambiguous-outcome semantics.
 - Local support cannot imply hosted support; target capability and deployment
@@ -63,122 +58,155 @@ An action opts in visibly:
 
 ```ts
 export const deliver = defineAction({
-  runtime: trustedNode({
+  runtime: isolatedNode({
     packages: ["@vendor/sdk"],
-    network: ["api.vendor.example:443"],
+    network: [{ protocol: "https", host: "api.vendor.example", port: 443 }],
     secrets: ["vendor-api-key"],
+    nodeBuiltins: ["crypto.compute"],
   }),
   args: { /* frozen contract */ },
   result: results.value(/* frozen contract */),
   effects: ["vendor-delivery"],
-  handler: "./actions/deliver.ts",
+  handler: isolatedNodeEntry("./actions/deliver.ts", { export: "default" }),
 });
 ```
 
-No inference selects this profile. The generated ref, inspect output, guide,
-capability manifest, and deployment receipt label it `trusted`, `effectful`, and
-target-specific. It is unavailable to query/mutation/live/policy declarations.
+No inference selects this action-only profile; refs, inspect, guide, capability,
+and deployment receipts label it `isolated`, `effectful`, and target-specific.
+`isolatedNodeEntry` is a literal root-relative exception owned only by
+`isolated-node-action-source-v1`: its module exports exactly one default async
+`(ctx, args) => result`, while contracts/capabilities stay inline. It supersedes
+LLP 0237's inline rule only here and does not reuse LLP 0246 unchanged.
+
+Snapback compiles explicit-extension `.ts`/`.mts`/`.js`/`.mjs` app edges under
+the action root: no CommonJS, URL/git/workspace/package-path edges, aliases, dynamic
+import, decorators, JSX, plugins, or custom transforms. Bounds are 64 app files,
+depth 16, 512 KiB app source; 256 locked package instances, package depth 32,
+64 MiB unpacked, and 32 MiB final bundle. Bare ESM edges must resolve within the
+declared locked closure. `isolated-node-action-source-profile.v1.json` freezes
+TypeScript, ESM resolver/conditions, syntax-erasing options, bundler, and source
+maps without absolute paths.
+
+The checker types `ctx`, args, and return assignability from the inline frozen
+declarations; runtime result validation remains authoritative.
+
+Semantic identity binds entry/export, normalized graphs, contracts,
+capabilities, and profile; executable identity adds tool/runtime builds,
+options, package/target integrity, OS/architecture, and final bytes. Any source-
+map/resolution/transform failure preserves the predecessor generation.
 
 ### D2. The dependency closure is frozen at build time
 
-The build reads one supported package manifest and lockfile, verifies exact
-integrities, rejects lifecycle/install scripts unless a future reviewed
-capability admits them, and constructs a content-addressed runtime bundle or
-image. Only declared direct packages and their locked transitive closure enter.
-Workspace/path/git/URL dependencies, undeclared dynamic require/import, native
-addons, and post-install downloads refuse in v1.
-
-The semantic identity binds declared package names/capabilities and action
-contracts. Executable/bundle identity binds the complete dependency closure,
-Node runtime build, OS/architecture, transform, and final bytes under LLP 0241.
+The build verifies one supported manifest/lockfile and exact integrities, then
+constructs a content-addressed bundle. Only declared direct packages and their
+locked ESM transitive closure enter. Lifecycle/install scripts, workspace/path/
+git/URL dependencies, dynamic load, native addons, CommonJS entries, and post-
+install downloads refuse. LLP 0241 bundle identity binds the full closure.
 
 ### D3. Isolation is the authority boundary
 
-Each deployment runs actions in a Snapback-owned worker/process with:
+The worker has a read-only bundle, bounded host-private attempt scratch,
+declared network/secret grants, enforced CPU/memory/wall/output/concurrency
+limits, zero subprocesses, redacted logs, and generation/attempt/idempotency on
+host calls. It has no repository, database, driver, or admin credential;
+durable writes use declared post-effect mutation/command seams. Runtime non-
+exposure, not source scanning, enforces this closed Node table:
 
-- no repository or database-file access;
-- a read-only content-addressed bundle;
-- a per-attempt scratch directory with byte/time cleanup bounds;
-- declared network destinations only;
-- secret handles for declared grants only;
-- CPU, memory, wall-time, output, concurrency, and subprocess ceilings;
-- structured stdout/stderr redaction and diagnostic capture; and
-- generation/attempt/idempotency identity on every host call.
+| Surface | `isolated-node-action-v1` exposure |
+| --- | --- |
+| ES data APIs, URL/text/abort | no host authority |
+| Buffer, `buffer`/`util`/`events`/`string_decoder`/`path` | in-memory facades |
+| Date/timers; `node:crypto` | `clock`; `crypto.compute`, plus `entropy` for randomness |
+| HTTP | brokered `fetch` under exact `network` grant |
+| process/env/require/module/vm/Wasm/inspector/addons | absent |
+| fs/net/tls/dns/http(s)/dgram/child/workers/cluster/OS control | absent |
 
-Direct database drivers and Snapback admin credentials are absent. Durable
-writes occur only through declared post-effect mutation/command seams with
-ordinary authority and settlement rules.
+These are the only globals/builtins supplied to direct or transitive code;
+other imports or reflective requests refuse. New powers require a reviewed
+facade/grant and qualification.
 
-V1 rejects native addons and arbitrary subprocesses. A later profile may admit
-them only with platform-specific build provenance and a stronger sandbox.
+Activation requires a signed `IsolationProfileV1` receipt naming its OS/
+container enforcement and proving no repository/database mounts, a scrubbed
+environment, read-only bundle, package-inaccessible bounded scratch, process/
+signal/IPC separation, killable limits, and no network route except the egress
+broker. Adversarial repo/database/environment/process/IPC/socket/limit probes
+must pass. A same-UID unsandboxed child is nonconforming even locally.
+
+V1 network grants are exact HTTPS `{protocol, host, port}` tuples with canonical
+ASCII hosts; wildcards, userinfo, IP literals, and app overrides refuse. For
+every resolution/connect, the broker rejects IPv4/IPv6 loopback, private, link-
+local, multicast, unspecified, metadata/control-plane, and local-socket targets;
+pins an allowed address; binds TLS SNI/certificate identity; and separately
+reauthorizes at most five redirects. Re-resolution repeats the checks. With no
+raw socket/DNS/HTTP/proxy/custom-agent surface, packages cannot bypass them;
+qualification covers rebinding, redirect, address-family, private/metadata,
+certificate, and local-socket negatives.
+
+LLP 0036 governs secrets: opaque handles, host-side use, or deliberate greppable
+`handle.expose()` for SDK strings. Each attempt snapshots its staged-value
+redactor before package code; logs, errors, receipts, and diagnostics stay
+redacted after rotation. There is no value read-back/hash, and a legitimate
+holder's deliberate exfiltration remains an explicit residual.
 
 ### D4. One first-party broker lifecycle
 
 Local `snapback dev` builds, starts, health-checks, reloads, and tears down the
-worker as a required LLP 0241 generation custodian. Hosted deployment must
-produce an equivalent qualified worker target before activation; otherwise
-codegen/deploy refuses `trusted-node-action-v1` for that target.
-
-The application does not hand-write a gateway that imports generated refs,
-tracks their generation, invents health endpoints, or restarts on artifact
-change. `snapback doctor`, logs, and inspect expose worker generation, package
-closure, declared capabilities, readiness, last failure, and bounded next
-steps without revealing secrets.
+worker as an LLP 0241 custodian. Its candidate readiness binds source profile,
+bundle, Node runtime, and live isolation receipt; a target without an equivalent
+qualified worker refuses before activation. No app gateway owns refs,
+generation, health, or restart. Doctor/logs/inspect expose the worker cut,
+closure, grants, readiness, failure, and safe next steps without secrets.
 
 ### D5. Effects and failures stay truthful
 
-Every attempt has a generated idempotency/effect class, deadline, and receipt.
-Timeout, worker loss, or connection loss after effect admission is ambiguous
-unless the declared provider/idempotency seam proves otherwise. Automatic retry
-is permitted only under the existing action/effect policy and pinned generation;
-package runtime does not make retry safe.
-
-Result-contract validation occurs before a successful result releases, but a
-validation failure cannot roll back an external effect. The public client uses
-LLP 0247's common typed diagnostic access when accepted.
+Every attempt has idempotency/effect class, deadline, and receipt. Timeout or
+worker/connection loss after effect admission is ambiguous unless the declared
+provider seam proves otherwise; only existing pinned-generation effect policy
+may retry. Result validation gates success but cannot undo an effect. The
+public client uses LLP 0247's common typed diagnostic access when accepted.
 
 ### D6. Portable alternatives remain first in the guide
 
-Generated diagnostics suggest, in order:
-
-1. a Snapback-owned portable host operation when one exists;
-2. an ordinary portable action using `ctx.fetch` where sufficient; and
-3. the trusted package profile when the dependency genuinely requires it.
-
-Password KDF should still use the first-class auth mechanism from LLP 0227;
-this profile is not a substitute for platform-owned password custody.
+Diagnostics prefer, in order, a Snapback portable host operation, a portable
+`ctx.fetch` action, then this isolated profile. Password KDF remains LLP 0227
+platform custody.
 
 ## Compatibility and migration
 
-Existing app-owned brokers remain supported external architecture. A migration
-command may scaffold a trusted action declaration and deployment manifest but
-cannot automatically move secrets or assert idempotency. Portable actions keep
-their current identity and runtime.
-
-Because this adds a materially different security and deployment boundary, no
-target advertises support by default. Capability maturity and publication
-follow the existing target qualification process.
+App-owned brokers remain supported. Migration may scaffold declarations and
+deployment metadata but cannot move secrets or assert idempotency. Portable
+actions keep their identity/runtime, and no target advertises this distinct
+boundary without its qualification.
 
 ## Rollout
 
 1. Run a build/sandbox spike against three representative packages: pure JS
    vendor SDK, native-crypto use through Node built-ins, and a package with an
    install/native-addon requirement that must refuse.
-2. Freeze dependency, capability, isolation, receipt, and diagnostic schemas.
+2. Freeze source/dependency, capability, isolation, egress, receipt, and
+   diagnostic schemas.
 3. Implement local worker custody behind an experimental capability with no
    hosted claim.
 4. Integrate generation reload, secrets, logs, timeouts, and cleanup.
 5. Qualify one hosted target or explicitly retain a local-only maturity label.
 6. Rerun an SDK integration and compute-heavy control against an app-owned
-   broker; measure authoring time, startup, latency, memory, and recovery.
+   broker; measure authoring time, cold start, latency, memory, bundle size,
+   source-map fidelity, recovery, and dependency provenance/vulnerability output.
 
 ## Acceptance
 
 - A locked pure-JS package action runs without repository/database/admin access
   and only reaches declared network/secrets.
+- The external `.ts` entry, ESM package edges, emitted source maps, and
+  semantic/executable identities pass exact resolver/transform goldens.
 - An undeclared package, dynamic load, install script, native addon, destination,
   secret, filesystem path, or subprocess refuses before activation with exact
   remediation.
+- Adversarial same-UID, environment, process/IPC, raw-socket, DNS-rebinding,
+  redirect, private/metadata-address, TLS-identity, and local-socket probes all
+  fail under the target's bound isolation receipt.
+- Secret coercion/log/error vectors redact against the attempt snapshot; only
+  deliberate `expose()` releases plaintext and no receipt hashes a value.
 - Package/Node/bundle changes rotate executable identity and reload through the
   same generation boundary; in-flight attempts remain pinned.
 - Worker crash, timeout, ambiguous post-effect loss, and invalid result each
@@ -192,32 +220,24 @@ follow the existing target qualification process.
 
 ## Risks
 
-- This is a substantial security and operations surface. The first slice must
-  stay action-only, isolated, and capability-gated.
-- Package supply-chain risk is larger than Snapback's authored graph. Lockfile
-  integrity, no scripts, immutable bundles, and provenance are minimum controls,
-  not a complete answer.
-- A local-only profile could worsen deployment surprise. Target support is an
-  authoring-time generated fact, and published examples must name maturity.
-- It may duplicate platform-owned host operations inefficiently. Guide ordering
-  and diagnostics keep narrow portable capabilities preferred.
+- This substantial security/operations surface must stay action-only and gated;
+  lockfile integrity, no scripts, immutable bundles, and provenance do not end
+  package supply-chain risk.
+- Local-only support can surprise and host operations may be cheaper. Generated
+  maturity plus portable-first guidance keep both costs visible.
 
 ## Open questions
 
 1. Should v1 use a local Node worker only, or require one qualified hosted
    target before any public package surface ships?
-2. Are Node built-ins admitted individually through capabilities, or is the
-   first profile pure-package plus network/secrets only?
-3. Which sandbox is authoritative per target, and what evidence is required to
-   claim filesystem/network isolation?
-4. Do packages with WASM assets fit v1's immutable bundle, or wait for a
+2. Do packages with WASM assets fit v1's immutable bundle, or wait for a
    separately bounded asset-loading rule?
-5. If the build/operate brief shows first-party broker custody still cannot
+3. If the build/operate brief shows first-party broker custody still cannot
    approach Convex's operations score, should LLP 0198 choose hosted
    productization rather than ship a local-only escape hatch?
 
 ## Status
 
-Draft. This RFC deliberately forces a product/security decision. It does not
-authorize Node or packages until reviewed and accepted, and it never changes
-the portable handler profile.
+Review. This RFC deliberately forces a product/security decision. It does not
+authorize Node or packages until accepted, and it never changes the portable
+handler profile.

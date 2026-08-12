@@ -6,7 +6,10 @@
 generation, Handler authoring, Diagnostics, Performance, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
+**Revised:** 2026-08-12 (round-1 revision: moved dynamic unique-key validation
+to the runtime boundary, canonicalized keys by manifest order, excluded
+non-participating unique-where-present keys, and bounded public size/chunk
+facts). 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
 xhigh refinement loop; initial Draft came from Clique handler-side N+1
 evidence and defined the imperative fallback beside LLP 0242)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0053, LLP 0080,
@@ -77,10 +80,18 @@ const profiles = await ctx.db.uniqueMany(
 );
 ```
 
-Codegen requires a declared unique index and one closed object containing every
-indexed key component in index order. Partial prefixes, range operators,
-ordering, arbitrary predicates, and non-unique indexes refuse and point to LLP
-0242 or the ordinary query builder. Result order/null semantics match `getMany`.
+The declared unique index manifest generates an exact runtime validator: every
+element is a closed object with the exact component names in any construction
+order, then canonicalized in index order before storage. Generation refuses an
+unknown/non-unique index or malformed literal; runtime refuses malformed dynamic
+keys. Prefixes, ranges, ordering, predicates, and non-unique indexes point to
+LLP 0242/query builder. Results match `getMany` order/null semantics.
+
+For LLP 0007 indexes whose manifest says `whereApplicable: true`, every
+component must be present, non-null, and type-valid. An absent or null component
+does not participate in the uniqueness invariant and therefore refuses before
+storage work rather than pretending it addresses one row. This rule applies to
+both single-field and compound optional indexes.
 
 ### D3. One host operation, one authoritative snapshot
 
@@ -91,9 +102,10 @@ one SQL statement, a temporary values relation, or bounded internal chunks, but
 the public receipt reports one logical batch plus physical statement/chunk
 counts. It never issues one JS↔host round trip per item.
 
-Malformed input, bound overflow, generation/index mismatch, or policy-plan
-failure refuses the whole batch; it never returns a partial array. Ordinary
-not-found/hidden entries are data-level `null`, not batch failure.
+Malformed dynamic input, bound overflow, generation/index mismatch, or policy-
+plan failure refuses the whole batch before storage work; it never returns a
+partial array. Ordinary not-found/hidden entries are data-level `null`, not
+batch failure.
 
 ### D4. Dependency and cost evidence remain conservative
 
@@ -106,6 +118,10 @@ Generated runtime profiles publish max items, max canonical input bytes,
 target support, and worst-case policy probes. Dev diagnostics flag repeated
 same-table `get`/complete-unique lookup loops that could collapse into a batch,
 but never rewrite them automatically.
+
+Public statement/chunk counts depend only on request size/bytes and target
+profile, never hidden matches. The profile bounds complete host-response bytes;
+overflow refuses the batch without a partial prefix.
 
 ### D5. Hydration stays application code
 
@@ -139,12 +155,18 @@ automatic rewriting out of scope.
   return hidden/missing rows as indistinguishable nulls.
 - A concurrent write cannot make members of one batch come from different
   snapshots.
-- A partial/non-unique index request refuses at generation with an admitted
-  alternative.
+- An unknown/non-unique index or statically malformed literal key refuses at
+  generation; a malformed dynamic key refuses before storage work, each with an
+  admitted alternative.
+- Single and compound `whereApplicable` unique-index vectors prove absent/null
+  components refuse and cannot become non-unique lookups.
 - A policy failure or malformed request yields no partial result and leaks no
   hidden-row position beyond the ordinary null contract.
 - Captured read/OCC/invalidation behavior is no weaker than the equivalent
   individual reads.
+- The published maximum canonical input bytes and maximum returned host-
+  response bytes pass exact-boundary/one-byte-over vectors with no partial
+  result, and public chunk facts are unchanged by hidden-row matches.
 - Local and hosted targets agree byte-for-byte or generation refuses the
   unsupported target.
 - The Clique control records host-call and latency reduction without claiming
@@ -170,5 +192,5 @@ automatic rewriting out of scope.
 
 ## Status
 
-Draft. This RFC proposes two bounded host operations, not a fifth LLP 0242
+Review. This RFC proposes two bounded host operations, not a fifth LLP 0242
 projection node or a general join facility.

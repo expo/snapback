@@ -6,12 +6,15 @@
 Diagnostics, Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
+**Revised:** 2026-08-12 (round-1 sibling-coherence revision: bounded type-only
+checker nodes, added an exact generated editor project and `.mts` mapping
+golden, and kept the package-aware LLP 0249 profile separate). 2026-08-12
+(entered an author-invoked, single-family GPT-5.6 Sol
 xhigh refinement loop; initial Draft owned the direct `.ts` custody boundary
 explicitly deferred by LLP 0237)
 **Related:** LLP 0009, LLP 0010, LLP 0037, LLP 0061, LLP 0093, LLP 0108,
 LLP 0117, LLP 0123, LLP 0127, LLP 0140, LLP 0198, LLP 0203, LLP 0237,
-LLP 0241, LLP 0245
+LLP 0241, LLP 0245, LLP 0249
 
 ## Summary
 
@@ -60,6 +63,9 @@ extension inference refuse in v1.
 
 The authored operation remains inline beside args/result/auth/read/write/effect
 declarations. A `.ts` extension never selects a broader runtime capability.
+LLP 0237's file-count, import-depth, and source-byte bounds apply to the entire
+checker closure, including type-only nodes; erasure does not create an
+unbounded second graph.
 
 ### D2. Snapback owns the effective compiler configuration
 
@@ -68,6 +74,11 @@ effective option set: ESM output, syntax erasure, exact module semantics,
 source maps, no emit-time helpers, no decorators, no JSX, and no custom plugin
 or transformer. Codegen emits `handler-typescript-profile.v1.json` containing
 that configuration and the diagnostic rule table.
+
+Codegen also emits `.snapback/typescript/tsconfig.json` with the exact effective
+options, generated declarations, and bounded checker file set. First-party
+editor integrations select it, so ignored/refused application options cannot
+leave the editor silently checking a different profile.
 
 An application `tsconfig.json` may contribute editor-only strictness options
 that do not change module resolution or output. Any output-affecting conflict is
@@ -92,10 +103,10 @@ widens them. LLP 0245 may separately propose a result block when one is absent.
 ### D4. Type-only and runtime edges are distinct
 
 `import type` edges and erased type declarations participate in evidence and
-checker identity but not the executable module graph. A value import is a
-runtime edge and must satisfy LLP 0237 in full. Codegen verifies after transform
-that no erased construct introduced an undeclared helper, import, global, or
-capability.
+checker identity and in D1's checker-graph bounds, but not the executable module
+graph. A value import is a runtime edge and must satisfy LLP 0237 in full.
+Codegen verifies after transform that no erased construct introduced an
+undeclared helper, import, global, or capability.
 
 Enums, namespaces, parameter properties, decorator metadata, `const enum`, and
 other TypeScript forms whose output or cross-version semantics are not plain
@@ -129,6 +140,8 @@ Existing `.js`/`.mjs` graphs keep `bounded-handler-modules-v1`. Renaming a file
 to `.ts` opts that operation into the new source profile and rotates the
 appropriate identities. No runtime or target may claim TypeScript support until
 its emitted JavaScript passes the existing Hermes/Workerd conformance corpus.
+LLP 0249's package-aware action source profile is separately versioned and does
+not reuse this package-free profile unchanged.
 
 ## Rollout
 
@@ -156,6 +169,8 @@ its emitted JavaScript passes the existing Hermes/Workerd conformance corpus.
   executable identity.
 - Every negative diagnostic and runtime stack maps to the correct authored
   TypeScript span without an absolute path in executable bytes.
+- `.mts` roots and helpers map import specifiers, emitted extensions, graph
+  identity, and source-map spans identically across local and hosted goldens.
 - A failed TypeScript candidate leaves the previous complete generation active.
 
 ## Risks
@@ -179,5 +194,5 @@ its emitted JavaScript passes the existing Hermes/Workerd conformance corpus.
 
 ## Status
 
-Draft. This RFC extends source custody only. It does not widen runtime
+Review. This RFC extends source custody only. It does not widen runtime
 capabilities or make TypeScript inference authoritative.
