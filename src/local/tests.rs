@@ -3491,6 +3491,7 @@ fn asset_reference_schema() -> SchemaManifest {
         name: name.to_owned(),
         field_type: crate::manifest::FieldType::AssetRef {
             upload: upload.map(str::to_owned),
+            media: None,
         },
         optional: true,
     };
@@ -3565,6 +3566,7 @@ fn asset_handler_commit(
                 job_producer: None,
                 asset_admissions: admissions,
                 asset_grant_ops: Vec::new(),
+                media_projection_proof: None,
             },
             None,
             || Ok(()),
@@ -25621,6 +25623,7 @@ fn executed_insert() -> ExecutedIbexMutation {
         reads: Vec::new(),
         asset_admissions: Vec::new(),
         asset_grant_ops: Vec::new(),
+        media_projection_proof: None,
         result: json!("guarded_item"),
         ctx_ledger: CtxAnswerLedger {
             version: ctx_ledger_version(),

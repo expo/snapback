@@ -5,8 +5,8 @@
   ],
   "appId": "todo",
   "artifactKind": "functionManifest",
-  "authoredSourceHash": "sha256:7205b084562780fd7378c1143b4270cb70fb248745dadbd8bda8ae54d873888a",
-  "bundleHash": "sha256:fe9ff786585e6212",
+  "authoredSourceHash": "sha256:cb2fe2396d50385ace562187bcebfd269f2d8a2f178a60b80194035099ba2ea7",
+  "bundleHash": "sha256:f7794f8574ada65f",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -618,7 +618,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "3c56103fa9119af71133f12fd9a376484c758838974d4dcee2aa6906aa2d90f4",
+  "inputsHash": "23ad778b01aa5fff264dc898f327b099f29c9d4a27a807a3c324a17832c8a7ad",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

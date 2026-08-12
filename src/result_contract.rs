@@ -205,6 +205,32 @@ fn validate_value(
             .filter(|text| !text.is_empty())
             .map(|_| ())
             .ok_or_else(|| Violation::at(path, TYPE)),
+        ResultValueContract::MediaRefV1 { kinds, .. } => {
+            let object = value.as_object().ok_or_else(|| Violation::at(path, TYPE))?;
+            if object.len() != 2 {
+                return Err(Violation::at(path, TYPE));
+            }
+            object
+                .get("assetId")
+                .and_then(Value::as_str)
+                .filter(|asset_id| !asset_id.is_empty())
+                .ok_or_else(|| Violation::at(path, TYPE))?;
+            let kind = object
+                .get("kind")
+                .and_then(Value::as_str)
+                .ok_or_else(|| Violation::at(path, TYPE))?;
+            let admitted = kinds.iter().any(|candidate| {
+                serde_json::to_value(candidate)
+                    .ok()
+                    .and_then(|value| value.as_str().map(str::to_owned))
+                    .is_some_and(|candidate| candidate == kind)
+            });
+            if admitted {
+                Ok(())
+            } else {
+                Err(Violation::at(path, RANGE))
+            }
+        }
         ResultValueContract::Literal { value: expected } if value == expected => Ok(()),
         ResultValueContract::Literal { .. } => Err(Violation::at(path, LITERAL)),
         ResultValueContract::Json {

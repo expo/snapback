@@ -419,6 +419,7 @@ fn validate_node(
             .filter(|text| !text.is_empty())
             .map(|_| ())
             .ok_or_else(mismatch),
+        ResultValueContract::MediaRefV1 { .. } => Err(mismatch()),
         ResultValueContract::Literal { value: expected } => {
             (value == expected).then_some(()).ok_or_else(mismatch)
         }
@@ -654,6 +655,7 @@ fn node_kind(contract: &ResultValueContract) -> &'static str {
         ResultValueContract::FiniteReal { .. } => "finiteReal",
         ResultValueContract::Principal => "principal",
         ResultValueContract::AssetRef => "assetRef",
+        ResultValueContract::MediaRefV1 { .. } => "mediaRef.v1",
         ResultValueContract::Id { .. } => "id",
         ResultValueContract::Literal { .. } => "literal",
         ResultValueContract::Json { .. } => "json",

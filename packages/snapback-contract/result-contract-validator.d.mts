@@ -18,6 +18,21 @@ export interface ResultContractObjectFieldV1 {
 /** Closed Rust-owned value-contract grammar (post-JSON image). */
 export type ResultValueContractV1 =
   | { readonly kind: 'null' | 'boolean' | 'principal' | 'assetRef' }
+  | {
+      readonly kind: 'mediaRef.v1';
+      readonly sourceTable: string;
+      readonly sourceField: string;
+      readonly sourceFieldGeneration: string;
+      readonly optional: boolean;
+      readonly classMTreatment: string;
+      readonly uploadIntent: string;
+      readonly policyGeneration: string;
+      readonly kinds: ReadonlyArray<'image' | 'video' | 'audio' | 'file'>;
+      readonly delivery: string | null;
+      readonly variants: ReadonlyArray<string>;
+      readonly classificationProfile: 'detected-content-type.v1';
+      readonly retentionClass: 'media-reference.v1';
+    }
   | { readonly kind: 'string'; readonly maxBytes: number }
   | { readonly kind: 'integer' | 'finiteReal'; readonly min: number; readonly max: number }
   | { readonly kind: 'id'; readonly table: string }

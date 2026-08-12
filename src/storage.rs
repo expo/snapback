@@ -7,7 +7,8 @@ use crate::manifest::{
     MutationOutput, MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
     QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
-    SeedData, SettlementMintObservation, SettlementTimeObservation, TableManifest, ValueExpr,
+    ResultValueContract, SeedData, SettlementMintObservation, SettlementTimeObservation,
+    TableManifest, ValueExpr,
     auth_fingerprint, effective_query_limit, is_user_identifier, replay_opaque_id_is_valid,
     validate_ctx_answer_ledger, validate_portable_timestamp_millis, validate_query_plan_shape,
 };
@@ -350,7 +351,12 @@ const META_CLIENT_MUTATION_GC_TOTAL: &str = "client_mutation_gc_total";
 const META_CLIENT_MUTATION_RECORDS: &str = "client_mutation_records";
 const META_CLIENT_MUTATION_BYTES: &str = "client_mutation_bytes";
 const META_CLIENT_MUTATION_COUNTERS_VERSION: &str = "client_mutation_counters_version";
+const META_SETTLEMENT_FORMAT_EPOCH_V1: &str = "client_mutation_settlement_format_epoch_v1";
+const META_SETTLEMENT_NEXT_SEQUENCE_V1: &str = "client_mutation_settlement_next_sequence_v1";
 const CLIENT_MUTATION_COUNTERS_VERSION: u64 = 3;
+const LEGACY_SETTLEMENT_FORMAT_V1: &str = "legacy-settlement.v1";
+const PLAIN_SETTLEMENT_FORMAT_V1: &str = "plain-settlement.v1";
+const MEDIA_SETTLEMENT_FORMAT_V1: &str = "media-projected-settlement.v1";
 const TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID: &str = "018f0d90-7b24-7a22-8c33-445566778899";
 /// A hard availability bound, deliberately equal to the existing journal
 /// version budget. We refuse a new durable identity instead of evicting an
@@ -852,6 +858,27 @@ struct RetainedClientMutationRow {
     output_json: String,
     settled_version: SqlValue,
     settled_version_exact: SqlValue,
+    settlement_format: Option<String>,
+    settlement_record_sequence: SqlValue,
+    settlement_projection_seal_json: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct SettlementFormatEpochV1 {
+    store_scope_id: String,
+    legacy_sequence_watermark: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct SettlementProjectionSealV1 {
+    result_contract_hash: String,
+    media_projection_profile_hash: String,
+    settlement_id: String,
+    settlement_store_scope_id: String,
+    settlement_record_sequence: u64,
+    settlement_digest: String,
 }
 
 struct BufferedCommitOptions<'a> {
@@ -879,6 +906,9 @@ pub(crate) struct BufferedCommitPayload {
     /// serialized, never persisted, consumed by the commit hook.
     pub asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     pub asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
+    /// Process-local, take-once proof for `mediaRef.v1` mutation egress. It is
+    /// never serialized into any request, ledger, output, or settlement row.
+    pub media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
 }
 
 struct BufferedEffects {
@@ -891,6 +921,7 @@ struct BufferedEffects {
     job_producer: Option<jobs::JobProducer>,
     asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
+    media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
 }
 
 #[derive(Clone, Copy)]
@@ -3636,7 +3667,12 @@ impl LocalDatabase {
                     )?,
                     "document id",
                 )?;
-                get_document_from_tx(&tx, table, &id, next_version)?.unwrap_or(Value::Null)
+                let mut document =
+                    get_document_from_tx(&tx, table, &id, next_version)?.unwrap_or(Value::Null);
+                if !document.is_null() {
+                    project_media_fields_on(&tx, table, &mut document)?;
+                }
+                document
             }
             Some(ReturnValue::ChangedCount) | None => json!(changes.len()),
             Some(ReturnValue::Expr(expr)) => eval_expr(
@@ -3647,6 +3683,22 @@ impl LocalDatabase {
                 Some(&next_id),
                 "plan/return/expression",
             )?,
+        };
+        let settlement_media = match &plan.return_value {
+            Some(ReturnValue::Document { table, .. }) => {
+                let table = schema_table(&schema, table)?;
+                let contract = crate::manifest::FunctionResultContract::Document {
+                    table: table.name.clone(),
+                    document: crate::manifest::table_document_value_contract(table),
+                };
+                let projection_plan = crate::runtime::media_projection_plan(&contract);
+                (!projection_plan.occurrences.is_empty()).then(|| SettlementMediaContextV1 {
+                    result_contract_hash: crate::manifest::result_contract_hash(&contract)
+                        .expect("schema-derived HostPlan media contract is canonical"),
+                    plan: projection_plan,
+                })
+            }
+            _ => None,
         };
 
         plan_ids.borrow().ensure_exact_consumption()?;
@@ -3728,6 +3780,7 @@ impl LocalDatabase {
                     &read_dependencies,
                     &changes,
                     &output,
+                    settlement_media.as_ref(),
                 )?;
             }
             if let Some(branch_operation) = branch_operation {
@@ -3811,6 +3864,7 @@ impl LocalDatabase {
             job_producer,
             asset_admissions,
             asset_grant_ops,
+            media_projection_proof,
         } = payload;
         let attempted = self.apply_buffered_writes_with_lifecycle(
             match lane {
@@ -3832,6 +3886,7 @@ impl LocalDatabase {
                 job_producer,
                 asset_admissions,
                 asset_grant_ops,
+                media_projection_proof,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -3901,11 +3956,12 @@ impl LocalDatabase {
             sequence_allocations,
             membership_plans,
             mut read_dependencies,
-            result,
+            mut result,
             job_enqueues,
             job_producer,
             asset_admissions,
             asset_grant_ops,
+            media_projection_proof,
         } = effects;
         if !job_enqueues.is_empty() {
             if let Some(runtime) = self.derived_fork() {
@@ -3989,6 +4045,9 @@ impl LocalDatabase {
 
         validate_touched_managed_tables(&tx, &schema, &touched_tables, current_version)?;
         validate_read_set(&tx, &schema, &input.read_set, current_version)?;
+        if let Some(proof) = media_projection_proof.as_ref() {
+            validate_staged_media_projection_dependencies(proof, &read_dependencies)?;
+        }
         // @ref LLP 0020#phase-3-capture-read-sets-during-handler-execution — handler-captured dependencies are validated at commit so callers no longer own the read-set.
         validate_captured_read_set(&tx, &schema, input, &read_dependencies, current_version)?;
 
@@ -4294,6 +4353,34 @@ impl LocalDatabase {
                 .collect();
             (facts, job_changes)
         };
+
+        // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+        // — egress runs only after ordinary OCC admission and after this
+        // transaction has installed app writes, reference edges, grants, and
+        // system metadata. Preview borrows the shared proof; commit consumes
+        // its one take-once authority.
+        let settlement_media = if let Some(proof) = media_projection_proof {
+            let context = SettlementMediaContextV1 {
+                result_contract_hash: proof.result_contract_hash.clone(),
+                plan: proof.plan.clone(),
+            };
+            let occurrences = if options.apply {
+                proof.consume_occurrences()?
+            } else {
+                proof.borrow_occurrences()?
+            };
+            materialize_provenanced_media_result_in_tx(
+                &tx,
+                &schema,
+                next_version,
+                &context.plan,
+                &occurrences,
+                &mut result,
+            )?;
+            Some(context)
+        } else {
+            None
+        };
         let output = MutationOutput {
             version,
             changed_count: changes.len(),
@@ -4344,6 +4431,7 @@ impl LocalDatabase {
                     &read_dependencies,
                     &changes,
                     &output,
+                    settlement_media.as_ref(),
                 )?;
             }
             if let Some(branch_operation) = options.branch_operation {
@@ -4474,7 +4562,10 @@ impl LocalDatabase {
               output_json TEXT NOT NULL,
               settled_at_ms INTEGER NOT NULL,
               settled_version INTEGER NOT NULL DEFAULT 0,
-              settled_version_exact INTEGER
+              settled_version_exact INTEGER,
+              settlement_format TEXT,
+              settlement_record_sequence INTEGER,
+              settlement_projection_seal_json TEXT
             );
             CREATE TABLE IF NOT EXISTS _snapback_client_mutation_auth_retention (
               auth_fingerprint TEXT PRIMARY KEY,
@@ -4664,6 +4755,38 @@ impl LocalDatabase {
                 [],
             )?;
         }
+        if !names.contains("settlement_format") {
+            tx.execute(
+                "ALTER TABLE _snapback_client_mutations
+                 ADD COLUMN settlement_format TEXT",
+                [],
+            )?;
+        }
+        if !names.contains("settlement_record_sequence") {
+            tx.execute(
+                "ALTER TABLE _snapback_client_mutations
+                 ADD COLUMN settlement_record_sequence INTEGER",
+                [],
+            )?;
+        }
+        if !names.contains("settlement_projection_seal_json") {
+            tx.execute(
+                "ALTER TABLE _snapback_client_mutations
+                 ADD COLUMN settlement_projection_seal_json TEXT",
+                [],
+            )?;
+        }
+        // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+        // — one exclusive migration classifies the complete predecessor set;
+        // legacy status is never inferred later from result bytes or null seal
+        // fields.
+        initialize_settlement_format_epoch_v1(&tx)?;
+        tx.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS
+               _snapback_client_mutations_by_record_sequence
+             ON _snapback_client_mutations(settlement_record_sequence)",
+            [],
+        )?;
         tx.execute(
             "CREATE INDEX IF NOT EXISTS _snapback_client_mutations_by_settlement
              ON _snapback_client_mutations(settled_version, settled_at_ms)",
@@ -5650,7 +5773,8 @@ fn query_on_with_storage_limit_visibility_keyset(
                 }
                 Err(error) => return Err(error.into()),
             };
-            let document = row_to_document(row, table, &columns)?;
+            let mut document = row_to_document(row, table, &columns)?;
+            project_media_fields_on(conn, table, &mut document)?;
             validate_document_version_at_most(&document, snapshot_version, &table.name)?;
             output.push(document);
         }
@@ -5703,7 +5827,8 @@ pub(crate) fn get_on(
             .collect::<Vec<_>>();
         let mut rows = statement.query(params![id])?;
         if let Some(row) = rows.next()? {
-            let document = row_to_document(row, table, &columns)?;
+            let mut document = row_to_document(row, table, &columns)?;
+            project_media_fields_on(conn, table, &mut document)?;
             validate_point_read_identity(&document, id, &table.name)?;
             validate_document_version_at_most(&document, snapshot_version, &table.name)?;
             Ok(Some(document))
@@ -6228,6 +6353,19 @@ impl DbRead<'_> {
                 .query_reads_read()
                 .get(table, id),
         }
+    }
+
+    pub(crate) fn project_media_document(
+        &self,
+        table_name: &str,
+        document: &mut Value,
+    ) -> SnapbackResult<()> {
+        let (conn, schema) = match self {
+            DbRead::Pinned { conn, schema } => (*conn, *schema),
+            DbRead::Live(db) => (&db.conn, &db.schema),
+        };
+        let table = schema_table(schema, table_name)?;
+        project_media_fields_on(conn, table, document)
     }
 
     pub(crate) fn active_relation_incarnation(
@@ -7748,6 +7886,9 @@ fn validate_stored_structured_descriptor(
         }
         ResultValueContract::AssetRef => {
             return Err("assetRef leaf is not admitted".to_owned());
+        }
+        ResultValueContract::MediaRefV1 { .. } => {
+            return Err("mediaRef.v1 leaf is not admitted".to_owned());
         }
         ResultValueContract::Id { .. } => {
             return Err("id/relation reference leaf is not admitted".to_owned());
@@ -10061,6 +10202,32 @@ fn validate_captured_read_set(
                 }
             }
             CapturedReadKind::Auth => {}
+            CapturedReadKind::Permission
+                if dependency.table.as_deref() == Some(crate::assets::ASSET_RECORDS_TABLE)
+                    && dependency.field.as_deref()
+                        == Some(MEDIA_PROJECTION_DEPENDENCY_FIELD_V1) =>
+            {
+                // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+                // — system asset/rendition facts observed while projecting a
+                // handler read participate in the ordinary OCC gate. The
+                // digest is private dependency identity; movement collapses
+                // to the same reject-only mutation conflict as app rows.
+                let asset_id = dependency_id(dependency)?;
+                let expected = dependency.value.as_ref().and_then(Value::as_str);
+                let current = media_projection_fact_digest_on(tx, asset_id).ok();
+                if expected.is_none() || current.as_deref() != expected {
+                    return Err(captured_conflict(
+                        "captured media projection facts changed before commit",
+                        dependency,
+                        json!({
+                            "kind": "mediaProjection",
+                            "assetId": asset_id,
+                            "moved": true,
+                        }),
+                        read_set,
+                    ));
+                }
+            }
             CapturedReadKind::Permission => {}
         }
     }
@@ -12441,7 +12608,7 @@ pub(crate) fn enforce_asset_reference_changes(
                 continue;
             };
             let restriction = match &field.field_type {
-                FieldType::AssetRef { upload } => upload.as_deref(),
+                FieldType::AssetRef { upload, .. } => upload.as_deref(),
                 _ => None,
             };
             let admission_upload = match authority.path {
@@ -12488,6 +12655,48 @@ pub(crate) fn enforce_asset_reference_changes(
                 admission_upload,
                 authority,
             )?;
+            if let FieldType::AssetRef {
+                media: Some(media), ..
+            } = &field.field_type
+            {
+                // @ref LLP 0244#d3-vmedia-attachment-is-finalized-only-in-v1
+                // — the final write lock proves ready primary bytes and their
+                //   trusted kind before installing the typed reverse edge.
+                if asset.availability != assets::AssetAvailability::Ready {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MEDIA_ASSET_NOT_FINALIZED",
+                        "assets",
+                        "await asset finalization before writing a v.media() field",
+                    ));
+                }
+                let rendition_id = asset
+                    .primary_rendition_id
+                    .as_deref()
+                    .ok_or_else(assets::media_projection_integrity)?;
+                let rendition = assets::load_rendition(tx, rendition_id)?
+                    .ok_or_else(assets::media_projection_integrity)?;
+                if rendition.state != assets::AssetRenditionState::Ready {
+                    return Err(assets::media_projection_integrity());
+                }
+                let detected = rendition
+                    .media_facts
+                    .as_ref()
+                    .and_then(|facts| facts.get("contentType"))
+                    .and_then(Value::as_str)
+                    .ok_or_else(assets::media_projection_integrity)?;
+                let expected = assets::media_kind_for_detected_content_type(detected);
+                let stored = asset.media_kind.ok_or_else(assets::media_projection_integrity)?;
+                if stored != expected {
+                    return Err(assets::media_projection_integrity());
+                }
+                if !media.kinds.contains(&stored) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MEDIA_KIND_NOT_ADMITTED",
+                        "assets",
+                        "the finalized asset kind is not admitted by this media field",
+                    ));
+                }
+            }
             assets::insert_reference_edge(
                 tx,
                 &schema.app_id,
@@ -12640,6 +12849,14 @@ pub(crate) fn asset_read_authorized(
         let Some(table) = schema.table(&edge.table_name) else {
             continue;
         };
+        // @ref LLP 0244#d2-kind-is-disclosed-with-field-delivery-policy-produces-denied
+        // @ref LLP 0235#22-logical-plan-position-audit — a via-reference edge
+        // from a future class-M media field is authority only when that exact
+        // field is disclosed in this pinned transaction. The shipped subset
+        // has no class-M program, so this refusal-ready branch is dormant.
+        if !via_reference_edge_disclosed_v1(table, &edge.field_path, principal) {
+            continue;
+        }
         let Some(sharing) = table.asset_sharing.as_ref() else {
             // Mixed-table non-bypass: no sharing declaration confers nothing,
             // however broad any other visibility the table declares may be.
@@ -12756,6 +12973,14 @@ pub(crate) fn asset_read_authorized(
         authorized,
         dependencies,
     })
+}
+
+fn via_reference_edge_disclosed_v1(
+    _table: &TableManifest,
+    _field: &str,
+    _principal: &str,
+) -> bool {
+    true
 }
 
 /// Re-evaluate a previously captured asset read decision's dependency set.
@@ -14009,6 +14234,306 @@ fn get_document_from_tx(
     }
 }
 
+#[derive(Clone, Debug)]
+struct SettlementMediaContextV1 {
+    result_contract_hash: String,
+    plan: crate::runtime::MediaProjectionPlanV1,
+}
+
+fn media_path_matches(pattern: &[String], actual: &[String]) -> bool {
+    pattern.len() == actual.len()
+        && pattern
+            .iter()
+            .zip(actual)
+            .all(|(expected, actual)| expected == "*" || expected == actual)
+}
+
+fn value_at_media_path_mut<'a>(
+    mut value: &'a mut Value,
+    path: &[String],
+) -> SnapbackResult<&'a mut Value> {
+    for component in path {
+        value = if let Ok(index) = component.parse::<usize>() {
+            value
+                .as_array_mut()
+                .and_then(|values| values.get_mut(index))
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED",
+                        "assets",
+                        "media result did not preserve exact host provenance",
+                    )
+                })?
+        } else {
+            value
+                .as_object_mut()
+                .and_then(|object| object.get_mut(component))
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED",
+                        "assets",
+                        "media result did not preserve exact host provenance",
+                    )
+                })?
+        };
+    }
+    Ok(value)
+}
+
+fn media_projection_unprovenanced() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED",
+        "assets",
+        "media result did not preserve exact host provenance",
+    )
+}
+
+fn materialize_provenanced_media_result_in_tx(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    maximum_version: u64,
+    plan: &crate::runtime::MediaProjectionPlanV1,
+    occurrences: &[crate::runtime::MediaProjectionProofOccurrenceV1],
+    result: &mut Value,
+) -> SnapbackResult<()> {
+    for occurrence in occurrences {
+        let semantic = plan
+            .occurrences
+            .iter()
+            .find(|semantic| media_path_matches(&semantic.path, &occurrence.path))
+            .ok_or_else(media_projection_unprovenanced)?;
+        let ResultValueContract::MediaRefV1 {
+            source_table,
+            source_field,
+            source_field_generation,
+            ..
+        } = &semantic.node
+        else {
+            return Err(media_projection_unprovenanced());
+        };
+        if source_table != &occurrence.source_table
+            || source_field != &occurrence.source_field
+            || source_field_generation != &occurrence.source_field_generation
+        {
+            return Err(media_projection_unprovenanced());
+        }
+        let table = schema_table(schema, source_table)?;
+        let field = table
+            .fields
+            .iter()
+            .find(|field| &field.name == source_field)
+            .ok_or_else(media_projection_unprovenanced)?;
+        let FieldType::AssetRef {
+            media: Some(media), ..
+        } = &field.field_type
+        else {
+            return Err(media_projection_unprovenanced());
+        };
+        if crate::manifest::media_source_field_generation(source_table, field, media)
+            != *source_field_generation
+        {
+            return Err(media_projection_unprovenanced());
+        }
+        let mut source = get_document_from_tx(
+            tx,
+            table,
+            &occurrence.source_row_id,
+            maximum_version,
+        )?
+        .ok_or_else(media_projection_unprovenanced)?;
+        let physical_asset_id = source
+            .get(source_field)
+            .and_then(Value::as_str)
+            .ok_or_else(media_projection_unprovenanced)?;
+        if physical_asset_id != occurrence.asset_id {
+            return Err(media_projection_unprovenanced());
+        }
+        project_media_fields_on(tx, table, &mut source)?;
+        let projected = source
+            .get(source_field)
+            .cloned()
+            .ok_or_else(media_projection_unprovenanced)?;
+        let projected_kind: crate::contract_types::MediaKindV1 = projected
+            .get("kind")
+            .cloned()
+            .and_then(|value| serde_json::from_value(value).ok())
+            .ok_or_else(media_projection_unprovenanced)?;
+        if projected_kind != occurrence.kind {
+            return Err(media_projection_unprovenanced());
+        }
+        *value_at_media_path_mut(result, &occurrence.path)? = projected;
+    }
+    Ok(())
+}
+
+/// Bind the process-local proof to the captured related-fact identities from
+/// the same handler snapshot before ordinary OCC admission evaluates them.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+fn validate_staged_media_projection_dependencies(
+    proof: &crate::runtime::StagedMediaProjectionProofV1,
+    read_dependencies: &[CapturedReadDependency],
+) -> SnapbackResult<()> {
+    for occurrence in proof.borrow_occurrences()? {
+        let bound = read_dependencies.iter().any(|dependency| {
+            dependency.kind == CapturedReadKind::Permission
+                && dependency.table.as_deref() == Some(crate::assets::ASSET_RECORDS_TABLE)
+                && dependency.id.as_deref() == Some(occurrence.asset_id.as_str())
+                && dependency.version == Some(occurrence.snapshot_version)
+                && dependency.field.as_deref()
+                    == Some(MEDIA_PROJECTION_DEPENDENCY_FIELD_V1)
+                && dependency.value.as_ref().and_then(Value::as_str)
+                    == Some(occurrence.related_fact_digest.as_str())
+        });
+        if !bound {
+            return Err(media_projection_unprovenanced());
+        }
+    }
+    Ok(())
+}
+
+/// Replace physical media asset ids with the two-member public projection
+/// while the caller's exact read/commit transaction is still pinned.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+pub(crate) fn project_media_fields_on(
+    conn: &Connection,
+    table: &TableManifest,
+    document: &mut Value,
+) -> SnapbackResult<()> {
+    let object = document
+        .as_object_mut()
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    for field in &table.fields {
+        let FieldType::AssetRef {
+            media: Some(media), ..
+        } = &field.field_type
+        else {
+            continue;
+        };
+        let Some(value) = object.get_mut(&field.name) else {
+            return Err(crate::assets::media_projection_integrity());
+        };
+        if value.is_null() {
+            continue;
+        }
+        // @ref LLP 0244#d2-kind-is-disclosed-with-field-delivery-policy-produces-denied
+        // — this dormant class-M seam deliberately does not consult asset
+        //   read policy. LLP 0235 activation will replace `true` with the
+        //   exact field program without changing the media operator.
+        if !media_field_disclosed_v1(&table.name, &field.name) {
+            *value = Value::Null;
+            continue;
+        }
+        let asset_id = value
+            .as_str()
+            .ok_or_else(crate::assets::media_projection_integrity)?
+            .to_owned();
+        let (stored_kind, _) = media_projection_related_facts_on(conn, &asset_id)?;
+        if !media.kinds.contains(&stored_kind) {
+            return Err(crate::assets::media_projection_integrity());
+        }
+        let kind = serde_json::to_value(stored_kind)
+            .ok()
+            .and_then(|value| value.as_str().map(str::to_owned))
+            .ok_or_else(crate::assets::media_projection_integrity)?;
+        *value = serde_json::json!({ "assetId": asset_id, "kind": kind });
+    }
+    Ok(())
+}
+
+pub(crate) const MEDIA_PROJECTION_DEPENDENCY_FIELD_V1: &str = "mediaProjection.v1";
+
+/// Digest the exact finalized asset and primary-rendition facts consumed by
+/// `MediaKindProjectV1`. This is deliberately narrower than asset-read policy:
+/// delivery authority may move without changing the disclosed coarse kind.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+fn media_projection_related_facts_on(
+    conn: &Connection,
+    asset_id: &str,
+) -> SnapbackResult<(crate::contract_types::MediaKindV1, String)> {
+    let asset = conn
+        .query_row(
+            "SELECT availability, media_kind, record_json
+               FROM _snapback_asset_records_v1 WHERE asset_id = ?1",
+            [asset_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            },
+        )
+        .optional()?
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    let record: crate::assets::AssetRecordV1 = serde_json::from_str(&asset.2)
+        .map_err(|_| crate::assets::media_projection_integrity())?;
+    let record_kind = record
+        .media_kind
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    let column_kind: crate::contract_types::MediaKindV1 = asset
+        .1
+        .as_deref()
+        .map(|kind| serde_json::from_value(Value::String(kind.to_owned())))
+        .transpose()
+        .map_err(|_| crate::assets::media_projection_integrity())?
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    let rendition_id = record
+        .primary_rendition_id
+        .as_deref()
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    let rendition = crate::assets::load_rendition(conn, rendition_id)?
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    let detected_content_type = rendition
+        .media_facts
+        .as_ref()
+        .and_then(|facts| facts.get("contentType"))
+        .and_then(Value::as_str)
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    let detected_kind =
+        crate::assets::media_kind_for_detected_content_type(detected_content_type);
+    if asset.0 != "ready"
+        || record.availability != crate::assets::AssetAvailability::Ready
+        || record_kind != column_kind
+        || record_kind != detected_kind
+        || rendition.asset_id != asset_id
+        || rendition.variant_key != crate::assets::ASSET_RENDITION_PRIMARY
+        || rendition.state != crate::assets::AssetRenditionState::Ready
+    {
+        return Err(crate::assets::media_projection_integrity());
+    }
+    let facts = json!({
+        "assetId": asset_id,
+        "availability": record.availability,
+        "lifecycleGeneration": record.lifecycle_generation,
+        "mediaKind": record_kind,
+        "primaryRenditionId": rendition_id,
+        "renditionState": rendition.state,
+        "detectedContentType": detected_content_type,
+        "classificationProfile": "detected-content-type.v1",
+    });
+    let canonical = crate::rqs_contract::jcs(&facts)
+        .map_err(|_| crate::assets::media_projection_integrity())?;
+    let mut digest = Sha256::new();
+    digest.update(b"snapback:media-projection-related-facts:v1\n");
+    digest.update(canonical.as_bytes());
+    Ok((record_kind, format!("sha256:{:x}", digest.finalize())))
+}
+
+pub(crate) fn media_projection_fact_digest_on(
+    conn: &Connection,
+    asset_id: &str,
+) -> SnapbackResult<String> {
+    media_projection_related_facts_on(conn, asset_id).map(|(_, digest)| digest)
+}
+
+// @ref LLP 0244#d2-kind-is-disclosed-with-field-delivery-policy-produces-denied
+// @ref LLP 0235#22-logical-plan-position-audit — class-M is dormant in this
+//   shipped subset, but the operator's physical branch is explicit so later
+//   activation cannot accidentally turn a masked edge into a metadata probe.
+fn media_field_disclosed_v1(_table: &str, _field: &str) -> bool {
+    true
+}
+
 fn record_change(
     tx: &Transaction<'_>,
     version: u64,
@@ -14469,6 +14994,13 @@ fn json_to_sql_value_with_context(
         None => Err(type_error("portable scalar", value)),
         // A principal is nominal typing over the string space: it stores and
         // coerces exactly like a String (LLP 0056 §Declaring a membership table).
+        Some(FieldType::AssetRef { media: Some(_), .. }) if !value.is_string() => {
+            Err(SnapbackError::error(
+                "SNAPBACK_MEDIA_WRITE_FORGED_KIND",
+                "assets",
+                "v.media() write input must be an asset-id string, not a projected MediaRef",
+            ))
+        }
         Some(FieldType::String)
         | Some(FieldType::Principal)
         | Some(FieldType::Id { .. })
@@ -15134,6 +15666,219 @@ fn optional_meta_u64_lenient(conn: &Connection, key: &str) -> SnapbackResult<Opt
     Ok(meta_text(conn, key)?.and_then(|value| value.parse().ok()))
 }
 
+fn settlement_integrity_error() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_CLIENT_MUTATION_RESULT_INTEGRITY",
+        "storage",
+        "stored client mutation settlement failed integrity verification",
+    )
+}
+
+fn load_settlement_format_epoch_v1(
+    conn: &Connection,
+) -> SnapbackResult<(SettlementFormatEpochV1, u64)> {
+    let epoch_json = meta_text(conn, META_SETTLEMENT_FORMAT_EPOCH_V1)?
+        .ok_or_else(settlement_integrity_error)?;
+    let epoch: SettlementFormatEpochV1 =
+        serde_json::from_str(&epoch_json).map_err(|_| settlement_integrity_error())?;
+    if epoch.store_scope_id.is_empty()
+        || epoch.legacy_sequence_watermark > SEQUENCE_MAX_SAFE_INTEGER
+    {
+        return Err(settlement_integrity_error());
+    }
+    let next = optional_meta_u64(conn, META_SETTLEMENT_NEXT_SEQUENCE_V1)?
+        .ok_or_else(settlement_integrity_error)?;
+    if next == 0
+        || next > SEQUENCE_MAX_SAFE_INTEGER
+        || next <= epoch.legacy_sequence_watermark
+    {
+        return Err(settlement_integrity_error());
+    }
+    Ok((epoch, next))
+}
+
+fn initialize_settlement_format_epoch_v1(tx: &Transaction<'_>) -> SnapbackResult<()> {
+    let epoch_json = meta_text(tx, META_SETTLEMENT_FORMAT_EPOCH_V1)?;
+    let next = optional_meta_u64(tx, META_SETTLEMENT_NEXT_SEQUENCE_V1)?;
+    match (epoch_json, next) {
+        (None, None) => {
+            let ids = {
+                let mut statement = tx.prepare(
+                    "SELECT client_mutation_id
+                     FROM _snapback_client_mutations
+                     ORDER BY rowid",
+                )?;
+                statement
+                    .query_map([], |row| row.get::<_, String>(0))?
+                    .collect::<Result<Vec<_>, _>>()?
+            };
+            let watermark = u64::try_from(ids.len()).map_err(|_| settlement_integrity_error())?;
+            if watermark >= SEQUENCE_MAX_SAFE_INTEGER {
+                return Err(settlement_integrity_error());
+            }
+            for (index, id) in ids.iter().enumerate() {
+                let sequence = u64::try_from(index + 1)
+                    .map_err(|_| settlement_integrity_error())?;
+                tx.execute(
+                    "UPDATE _snapback_client_mutations
+                     SET settlement_format = ?1,
+                         settlement_record_sequence = ?2,
+                         settlement_projection_seal_json = NULL
+                     WHERE client_mutation_id = ?3",
+                    params![
+                        LEGACY_SETTLEMENT_FORMAT_V1,
+                        i64::try_from(sequence).map_err(|_| settlement_integrity_error())?,
+                        id,
+                    ],
+                )?;
+            }
+            let epoch = SettlementFormatEpochV1 {
+                store_scope_id: Uuid::now_v7().to_string(),
+                legacy_sequence_watermark: watermark,
+            };
+            let epoch_json = serde_json::to_string(&epoch)
+                .map_err(|_| settlement_integrity_error())?;
+            tx.execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
+                params![META_SETTLEMENT_FORMAT_EPOCH_V1, epoch_json],
+            )?;
+            save_meta_u64(tx, META_SETTLEMENT_NEXT_SEQUENCE_V1, watermark + 1)?;
+        }
+        (Some(_), Some(_)) => {
+            let (epoch, next) = load_settlement_format_epoch_v1(tx)?;
+            let invalid: Option<i64> = tx
+                .query_row(
+                    "SELECT 1 FROM _snapback_client_mutations
+                     WHERE settlement_format IS NULL
+                        OR settlement_record_sequence IS NULL
+                        OR typeof(settlement_record_sequence) <> 'integer'
+                        OR settlement_record_sequence <= 0
+                        OR settlement_record_sequence >= ?1
+                     LIMIT 1",
+                    params![i64::try_from(next).map_err(|_| settlement_integrity_error())?],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if invalid.is_some() {
+                return Err(settlement_integrity_error());
+            }
+            let predecessor_misclassified: Option<i64> = tx
+                .query_row(
+                    "SELECT 1 FROM _snapback_client_mutations
+                     WHERE (settlement_record_sequence <= ?1
+                            AND settlement_format <> ?2)
+                        OR (settlement_record_sequence > ?1
+                            AND settlement_format = ?2)
+                     LIMIT 1",
+                    params![
+                        i64::try_from(epoch.legacy_sequence_watermark)
+                            .map_err(|_| settlement_integrity_error())?,
+                        LEGACY_SETTLEMENT_FORMAT_V1,
+                    ],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if predecessor_misclassified.is_some() {
+                return Err(settlement_integrity_error());
+            }
+        }
+        _ => return Err(settlement_integrity_error()),
+    }
+    Ok(())
+}
+
+fn settlement_jcs(value: &Value) -> SnapbackResult<String> {
+    crate::rqs_contract::jcs(value).map_err(|_| settlement_integrity_error())
+}
+
+fn sha256_domain_jcs(domain: &[u8], value: &Value) -> SnapbackResult<String> {
+    let canonical = settlement_jcs(value)?;
+    let mut digest = Sha256::new();
+    digest.update(domain);
+    digest.update(canonical.as_bytes());
+    Ok(format!("sha256:{:x}", digest.finalize()))
+}
+
+fn decode_settlement_record_sequence(value: SqlValue) -> SnapbackResult<u64> {
+    match value {
+        SqlValue::Integer(value) if value > 0 => {
+            let value = u64::try_from(value).map_err(|_| settlement_integrity_error())?;
+            if value <= SEQUENCE_MAX_SAFE_INTEGER {
+                Ok(value)
+            } else {
+                Err(settlement_integrity_error())
+            }
+        }
+        _ => Err(settlement_integrity_error()),
+    }
+}
+
+fn verify_retained_settlement_carrier_v1(
+    conn: &Connection,
+    identity: &ClientMutationIdentity,
+    settlement_format: Option<&str>,
+    settlement_record_sequence: SqlValue,
+    settlement_projection_seal_json: Option<&str>,
+    output_json: &str,
+) -> SnapbackResult<Value> {
+    let (epoch, next) = load_settlement_format_epoch_v1(conn)?;
+    let sequence = decode_settlement_record_sequence(settlement_record_sequence)?;
+    if sequence >= next {
+        return Err(settlement_integrity_error());
+    }
+    let format = settlement_format.ok_or_else(settlement_integrity_error)?;
+    let is_legacy = sequence <= epoch.legacy_sequence_watermark;
+    match format {
+        LEGACY_SETTLEMENT_FORMAT_V1 if is_legacy => {
+            if settlement_projection_seal_json.is_some() {
+                return Err(settlement_integrity_error());
+            }
+            serde_json::from_str(output_json).map_err(|_| settlement_integrity_error())
+        }
+        PLAIN_SETTLEMENT_FORMAT_V1 if !is_legacy => {
+            if settlement_projection_seal_json.is_some() {
+                return Err(settlement_integrity_error());
+            }
+            serde_json::from_str(output_json).map_err(|_| settlement_integrity_error())
+        }
+        MEDIA_SETTLEMENT_FORMAT_V1 if !is_legacy => {
+            let seal_json = settlement_projection_seal_json
+                .ok_or_else(settlement_integrity_error)?;
+            let seal: SettlementProjectionSealV1 =
+                serde_json::from_str(seal_json).map_err(|_| settlement_integrity_error())?;
+            if seal.settlement_store_scope_id != epoch.store_scope_id
+                || seal.settlement_record_sequence != sequence
+                || seal.settlement_id != identity.activity_digest()
+            {
+                return Err(settlement_integrity_error());
+            }
+            let output: Value =
+                serde_json::from_str(output_json).map_err(|_| settlement_integrity_error())?;
+            if settlement_jcs(&output)?.as_bytes() != output_json.as_bytes() {
+                return Err(settlement_integrity_error());
+            }
+            let expected_digest = sha256_domain_jcs(
+                b"",
+                &json!({
+                    "domain": "snapback:client-mutation-settlement:v3",
+                    "settlementFormat": MEDIA_SETTLEMENT_FORMAT_V1,
+                    "settlementStoreScopeId": seal.settlement_store_scope_id,
+                    "settlementRecordSequence": seal.settlement_record_sequence,
+                    "settlementId": seal.settlement_id,
+                    "resultContractHash": seal.result_contract_hash,
+                    "mediaProjectionProfileHash": seal.media_projection_profile_hash,
+                    "output": output,
+                }),
+            )?;
+            if expected_digest != seal.settlement_digest {
+                return Err(settlement_integrity_error());
+            }
+            Ok(output)
+        }
+        _ => Err(settlement_integrity_error()),
+    }
+}
+
 fn optional_meta_u64(conn: &Connection, key: &str) -> SnapbackResult<Option<u64>> {
     meta_text(conn, key)?
         .map(|value| {
@@ -15219,20 +15964,75 @@ fn record_client_mutation_result(
     read_dependencies: &[CapturedReadDependency],
     changes: &[ChangedRow],
     output: &MutationOutput,
+    settlement_media: Option<&SettlementMediaContextV1>,
 ) -> SnapbackResult<()> {
     validate_client_mutation_identity(identity)?;
     // The retained row and its first caller-visible result must obey the same
     // replay grammar. Refuse inside the surrounding transaction before an
     // invalid private sequence fact can commit application writes or a counter.
     validate_retained_sequence_allocations(&output.settlement_sequence_allocations)?;
-    let output_json = serde_json::to_string(output).map_err(|error| {
+    let (settlement_epoch, settlement_record_sequence) =
+        load_settlement_format_epoch_v1(tx)?;
+    let output_value = serde_json::to_value(output).map_err(|error| {
         SnapbackError::error(
             "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
             "storage",
-            "client mutation result could not be encoded",
+            "client mutation result could not be represented",
         )
         .with_details(json!({ "error": error.to_string() }))
     })?;
+    let settlement_format = if settlement_media.is_some() {
+        MEDIA_SETTLEMENT_FORMAT_V1
+    } else {
+        PLAIN_SETTLEMENT_FORMAT_V1
+    };
+    let output_json = if settlement_media.is_some() {
+        settlement_jcs(&output_value)?
+    } else {
+        serde_json::to_string(output).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
+                "storage",
+                "client mutation result could not be encoded",
+            )
+            .with_details(json!({ "error": error.to_string() }))
+        })?
+    };
+    let settlement_projection_seal_json = settlement_media
+        .map(|media| {
+            let plan_value = serde_json::to_value(&media.plan)
+                .map_err(|_| settlement_integrity_error())?;
+            let media_projection_profile_hash = sha256_domain_jcs(
+                b"snapback:media-projection-profile:v1\n",
+                &plan_value,
+            )?;
+            let settlement_id = identity.activity_digest();
+            let settlement_digest = sha256_domain_jcs(
+                b"",
+                &json!({
+                    "domain": "snapback:client-mutation-settlement:v3",
+                    "settlementFormat": settlement_format,
+                    "settlementStoreScopeId": settlement_epoch.store_scope_id,
+                    "settlementRecordSequence": settlement_record_sequence,
+                    "settlementId": settlement_id,
+                    "resultContractHash": media.result_contract_hash,
+                    "mediaProjectionProfileHash": media_projection_profile_hash,
+                    "output": output_value,
+                }),
+            )?;
+            let seal = SettlementProjectionSealV1 {
+                result_contract_hash: media.result_contract_hash.clone(),
+                media_projection_profile_hash,
+                settlement_id,
+                settlement_store_scope_id: settlement_epoch.store_scope_id.clone(),
+                settlement_record_sequence,
+                settlement_digest,
+            };
+            settlement_jcs(
+                &serde_json::to_value(seal).map_err(|_| settlement_integrity_error())?,
+            )
+        })
+        .transpose()?;
     let output_bytes = output_json.len() as u64;
     if output_bytes > CLIENT_MUTATION_MAX_RESULT_BYTES {
         return Err(SnapbackError::error(
@@ -15266,6 +16066,11 @@ fn record_client_mutation_result(
         + identity.authority_instance_id.len() as u64
         + identity.input_fingerprint.len() as u64
         + operation_issuance_json
+            .as_ref()
+            .map_or(0, |value| value.len() as u64)
+        + settlement_format.len() as u64
+        + std::mem::size_of::<u64>() as u64
+        + settlement_projection_seal_json
             .as_ref()
             .map_or(0, |value| value.len() as u64)
         + output_bytes;
@@ -15302,6 +16107,14 @@ fn record_client_mutation_result(
             "scope": scope,
         })));
     }
+    save_meta_u64(
+        tx,
+        META_SETTLEMENT_NEXT_SEQUENCE_V1,
+        settlement_record_sequence
+            .checked_add(1)
+            .filter(|next| *next <= SEQUENCE_MAX_SAFE_INTEGER)
+            .ok_or_else(settlement_integrity_error)?,
+    )?;
     // @ref LLP 0043#milestone-2-queued-mutation-replay — the nullable exact
     // cursor distinguishes a newly authoritative version-zero settlement from
     // predecessor rows whose legacy migration sentinel is also zero.
@@ -15309,8 +16122,9 @@ fn record_client_mutation_result(
         "INSERT INTO _snapback_client_mutations(
            client_mutation_id, function, auth_fingerprint, authority_instance_id,
            input_fingerprint, operation_issuance_json, output_json, settled_at_ms,
-           settled_version, settled_version_exact
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+           settled_version, settled_version_exact, settlement_format,
+           settlement_record_sequence, settlement_projection_seal_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
             identity.id,
             identity.function,
@@ -15322,6 +16136,10 @@ fn record_client_mutation_result(
             timestamp_to_sql_millis(now_millis())?,
             version_to_sql_integer(output.version)?,
             version_to_sql_integer(output.version)?,
+            settlement_format,
+            i64::try_from(settlement_record_sequence)
+                .map_err(|_| settlement_integrity_error())?,
+            settlement_projection_seal_json,
         ],
     )?;
     save_meta_u64(tx, META_CLIENT_MUTATION_RECORDS, retained + 1)?;

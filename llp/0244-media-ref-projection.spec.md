@@ -804,6 +804,6 @@ choice left open by this Spec.
 
 ## Status
 
-Accepted. The author must accept this Spec before implementation or publication of
-`assets.media-ref-projection.v1`; LLP 0239 remains the binding accepted public
-contract.
+Accepted by the author on 2026-08-12. Implementation and publication of
+`assets.media-ref-projection.v1` may proceed under this Spec; LLP 0239 remains
+the binding accepted public contract.

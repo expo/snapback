@@ -381,6 +381,7 @@ mod tests {
             grants_enabled: true,
             availability,
             primary_rendition_id: None,
+            media_kind: None,
             lifecycle_generation: 1,
             created_at_ms: 1,
             updated_at_ms: 1,

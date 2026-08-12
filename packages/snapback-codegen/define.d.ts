@@ -22,7 +22,19 @@ export type FieldType =
   | { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: string } }
   | { readonly RelationIncarnation: { readonly foreignKeyField: string; readonly parentTable: string } }
   | { readonly Vector: { readonly dimensions: number } }
-  | { readonly AssetRef: { readonly upload?: string } };
+  | { readonly AssetRef: {
+      readonly upload?: string;
+      readonly media?: {
+        readonly intent: string;
+        readonly policy: string;
+        readonly kinds: ReadonlyArray<'image' | 'video' | 'audio' | 'file'>;
+        readonly delivery?: string;
+        readonly variants?: ReadonlyArray<string>;
+        readonly classificationProfile: 'detected-content-type.v1';
+        readonly retentionClass: 'media-reference.v1';
+        readonly targetCapability: 'assets.media-ref-projection.v1';
+      };
+    } };
 
 export interface Validator<
   Value = unknown,
@@ -63,6 +75,29 @@ export declare const v: {
   assetRef<const Upload extends string = string>(
     options?: { upload?: Upload | null },
   ): Validator<string, { readonly AssetRef: { readonly upload?: Upload } }, false>;
+  media<
+    const Intent extends string,
+    const Policy extends string,
+    const Kinds extends ReadonlyArray<'image' | 'video' | 'audio' | 'file'>,
+  >(options: {
+    intent: Intent;
+    policy: Policy;
+    kinds: Kinds;
+    delivery?: string;
+    variants?: ReadonlyArray<string>;
+  }): Validator<string, { readonly AssetRef: {
+    readonly upload: Intent;
+    readonly media: {
+      readonly intent: Intent;
+      readonly policy: Policy;
+      readonly kinds: Kinds;
+      readonly delivery?: string;
+      readonly variants?: ReadonlyArray<string>;
+      readonly classificationProfile: 'detected-content-type.v1';
+      readonly retentionClass: 'media-reference.v1';
+      readonly targetCapability: 'assets.media-ref-projection.v1';
+    };
+  } }, false>;
   boolean(): Validator<boolean, 'Boolean', false>;
   integer(options?: { min?: number; max?: number }): Validator<number, 'Integer', false>;
   real(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;

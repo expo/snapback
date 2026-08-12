@@ -6,6 +6,7 @@
   var TrustedError = Error;
   var TrustedFunction = Function;
   var TrustedMap = Map;
+  var TrustedWeakMap = WeakMap;
   var TrustedPromise = Promise;
   var TrustedUint8Array = Uint8Array;
   var trustedAsyncIterator = typeof Symbol === "function" ? Symbol.asyncIterator : null;
@@ -26,6 +27,9 @@
   var trustedMapGet = TrustedMap && TrustedMap.prototype.get;
   var trustedMapDelete = TrustedMap && TrustedMap.prototype.delete;
   var trustedMapForEach = TrustedMap && TrustedMap.prototype.forEach;
+  var trustedWeakMapSet = TrustedWeakMap && TrustedWeakMap.prototype.set;
+  var trustedWeakMapGet = TrustedWeakMap && TrustedWeakMap.prototype.get;
+  var trustedWeakMapDelete = TrustedWeakMap && TrustedWeakMap.prototype.delete;
   var trustedPromiseResolve = TrustedPromise && TrustedPromise.resolve;
   var trustedPromiseThen = TrustedPromise && TrustedPromise.prototype.then;
   var trustedRegExpExec = RegExp.prototype.exec;
@@ -34,6 +38,9 @@
   var harnessPromiseThen = trustedPromiseThen;
   var trustedArrayJoin = Array.prototype.join;
   var trustedArraySlice = Array.prototype.slice;
+  var trustedArrayConcat = Array.prototype.concat;
+  var trustedObjectKeys = Object.keys;
+  var trustedReflectDeleteProperty = Reflect.deleteProperty;
   var trustedStringCharCodeAt = String.prototype.charCodeAt;
   var trustedStringCharAt = String.prototype.charAt;
   function snapbackError(code, message) {
@@ -572,6 +579,40 @@
         throw error;
       }
     }
+    // Media provenance is invocation-local and non-visible. Rust places an
+    // opaque marker only on host-produced media objects; this trusted shim
+    // removes it before application code can observe the value and retains
+    // identity in a WeakMap. Structural copies therefore lose custody.
+    // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    var mediaProvenance = new TrustedWeakMap();
+    var mediaMarker = "__snapbackMediaProvenanceV1";
+    function adoptMedia(value, seen) {
+      if (value === null || (typeof value !== "object" && typeof value !== "function")) return value;
+      if (!seen) seen = new TrustedWeakMap();
+      if (trustedReflectApply(trustedWeakMapGet, seen, [value])) return value;
+      trustedReflectApply(trustedWeakMapSet, seen, [value, true]);
+      var token = null;
+      try {
+        if (trustedReflectApply(trustedHasOwnProperty, value, [mediaMarker])) {
+          token = value[mediaMarker];
+          trustedReflectApply(trustedReflectDeleteProperty, Reflect, [value, mediaMarker]);
+        }
+      } catch (_) {}
+      if (typeof token === "string" && token.length > 0) {
+        trustedReflectApply(trustedWeakMapSet, mediaProvenance, [value, token]);
+      }
+      var keys = trustedReflectApply(trustedObjectKeys, Object, [value]);
+      for (var keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+        adoptMedia(value[keys[keyIndex]], seen);
+      }
+      return value;
+    }
+    function adoptHostResult(value) {
+      if (value && typeof value.then === "function") {
+        return value.then(function(resolved) { return adoptMedia(resolved); });
+      }
+      return adoptMedia(value);
+    }
     function makeBuilder(table) {
       var plan = { table: table, filters: [], order: [], limit: QUERY_MAX_LIMIT, indexed_by: null };
       // @ref LLP 0004#ctxdb-contract — reaching the portable cap without an
@@ -640,7 +681,7 @@
         // async RPC on the V8 leg (LLP 0014 one-way door 3). collect()/first()
         // unwrap either shape from one source, so handlers `await` both.
         collect: function() {
-          var output = host("db.query", { plan: plan });
+          var output = adoptHostResult(host("db.query", { plan: plan }));
           function collectRows(resolved) {
             if (!explicitLimit && resolved.rows.length === QUERY_MAX_LIMIT) {
               throw snapbackError(
@@ -663,7 +704,7 @@
             limit: 1,
             indexed_by: plan.indexed_by
           };
-          var output = host("db.query", { plan: firstPlan });
+          var output = adoptHostResult(host("db.query", { plan: firstPlan }));
           function pick(resolved) {
             return resolved.rows.length ? resolved.rows[0] : null;
           }
@@ -737,7 +778,7 @@
     trustedFreeze(auth);
     var run = runJson ? trustedJsonParse(runJson) : null;
     var db = {
-      get: function(table, id) { return host("db.get", { table: table, id: id }); },
+      get: function(table, id) { return adoptHostResult(host("db.get", { table: table, id: id })); },
       query: makeBuilder,
       insert: function(table, values) { return host("db.insert", { table: table, values: values }); },
       patch: function(table, id, values) { return host("db.patch", { table: table, id: id, values: values }); },
@@ -1290,7 +1331,26 @@
       activeActionFetchHost = host;
     }
     try {
-      return await observeHarnessPromise(handler(ctx, args));
+      var handlerValue = await observeHarnessPromise(handler(ctx, args));
+      var occurrences = [];
+      function collectMedia(value, path, seenPairs) {
+        if (value === null || (typeof value !== "object" && typeof value !== "function")) return;
+        if (trustedReflectApply(trustedWeakMapGet, seenPairs, [value])) return;
+        trustedReflectApply(trustedWeakMapSet, seenPairs, [value, true]);
+        var token = trustedReflectApply(trustedWeakMapGet, mediaProvenance, [value]);
+        if (typeof token === "string") {
+          occurrences[occurrences.length] = { path: path, token: token };
+        }
+        var keys = trustedReflectApply(trustedObjectKeys, Object, [value]);
+        for (var keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+          var key = keys[keyIndex];
+          collectMedia(value[key], trustedReflectApply(trustedArrayConcat, path, [[key]]), seenPairs);
+        }
+        trustedReflectApply(trustedWeakMapDelete, seenPairs, [value]);
+      }
+      collectMedia(handlerValue, [], new TrustedWeakMap());
+      if (mode !== "action") host("media.handoff", { occurrences: occurrences });
+      return handlerValue;
     } finally {
       activeActionFetchHost = previousActionFetchHost;
     }

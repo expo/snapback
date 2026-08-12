@@ -1613,6 +1613,9 @@ pub struct PreparedInvocation {
     /// @ref LLP 0146#d1-declarationobservation-conformance — strict mode
     ///   refuses undeclared application-table reads/writes at the seam.
     strict_declaration_facts: Option<crate::conformance::StrictDeclarationFacts>,
+    result_contract: crate::manifest::FunctionResultContract,
+    result_contract_hash: Option<String>,
+    artifact_generation: Option<String>,
 }
 
 impl PreparedInvocation {
@@ -1634,6 +1637,18 @@ impl PreparedInvocation {
 
     pub fn function_kind(&self) -> &FunctionKind {
         &self.function_kind
+    }
+
+    pub(crate) fn result_contract(&self) -> &crate::manifest::FunctionResultContract {
+        &self.result_contract
+    }
+
+    pub(crate) fn result_contract_hash(&self) -> Option<&str> {
+        self.result_contract_hash.as_deref()
+    }
+
+    pub(crate) fn artifact_generation(&self) -> Option<&str> {
+        self.artifact_generation.as_deref()
     }
 
     pub fn auth_requirement(&self) -> AuthRequirement {
@@ -1985,6 +2000,9 @@ impl InvocationGate {
                 declared_writes: function.write_set_summary.tables.clone(),
                 source_span: function.source_span.clone(),
             }),
+            result_contract: function.result_contract.clone(),
+            result_contract_hash: function.result_contract_hash.clone(),
+            artifact_generation: function.implementation_hash.clone(),
         })
     }
 

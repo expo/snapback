@@ -10,12 +10,13 @@
 
 use std::path::{Path, PathBuf};
 
-use rusqlite::{OptionalExtension, Transaction};
+use rusqlite::{Connection, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+pub use crate::contract_types::MediaKindV1;
 
 /// The v1 canonical digest algorithm (author decision, 2026-07-31): native
 /// S3-compatible checksum interop and universal tooling. The algorithm is a
@@ -854,6 +855,9 @@ pub struct AssetRecordV1 {
     /// quota charges count the primary exactly once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub primary_rendition_id: Option<String>,
+    /// Trusted, immutable coarse kind installed with the ready transition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media_kind: Option<MediaKindV1>,
     pub lifecycle_generation: u64,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
@@ -1510,8 +1514,10 @@ pub struct AssetRefusalDetailV1 {
 /// generations joined the original seven with the session ticket (L1-04);
 /// retained intent artifacts joined with the W2a retention work, and the
 /// seed-fixture mapping with the LLP 0109 §17 amendment (W2f).
+pub const ASSET_RECORDS_TABLE: &str = "_snapback_asset_records_v1";
+
 pub const ASSET_SYSTEM_TABLES: [&str; 13] = [
-    "_snapback_asset_records_v1",
+    ASSET_RECORDS_TABLE,
     "_snapback_asset_attempts_v1",
     "_snapback_asset_blobs_v1",
     "_snapback_asset_renditions_v1",
@@ -1534,6 +1540,7 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
              intent_id TEXT NOT NULL,
              owner_principal TEXT NOT NULL,
              availability TEXT NOT NULL,
+             media_kind TEXT,
              lifecycle_generation INTEGER NOT NULL,
              record_json TEXT NOT NULL,
              updated_at_ms INTEGER NOT NULL
@@ -1701,6 +1708,20 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
             [],
         )?;
     }
+    let has_media_kind = {
+        let mut stmt = tx.prepare(
+            "SELECT 1 FROM pragma_table_info('_snapback_asset_records_v1')
+             WHERE name = 'media_kind'",
+        )?;
+        stmt.exists([])?
+    };
+    if !has_media_kind {
+        tx.execute(
+            "ALTER TABLE _snapback_asset_records_v1 ADD COLUMN media_kind TEXT",
+            [],
+        )?;
+    }
+    backfill_ready_media_kinds(tx)?;
     // The implementation carrier landed additively. Existing rows remain
     // NULL so the first admission under a carrier-aware deployment observes
     // an identity change and bumps instead of silently blessing the legacy
@@ -2041,8 +2062,8 @@ pub fn insert_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackRes
     tx.execute(
         "INSERT INTO _snapback_asset_records_v1 (
              asset_id, app_id, intent_id, owner_principal, availability,
-             lifecycle_generation, record_json, updated_at_ms
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+             media_kind, lifecycle_generation, record_json, updated_at_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         rusqlite::params![
             record.asset_id,
             record.app_id,
@@ -2052,6 +2073,8 @@ pub fn insert_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackRes
                 .ok()
                 .and_then(|v| v.as_str().map(str::to_owned))
                 .unwrap_or_default(),
+            record.media_kind.and_then(|kind| serde_json::to_value(kind).ok())
+                .and_then(|value| value.as_str().map(str::to_owned)),
             record.lifecycle_generation,
             record_json(record)?,
             record.updated_at_ms,
@@ -2428,8 +2451,8 @@ pub fn transition_asset(
 pub fn store_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackResult<()> {
     let changed = tx.execute(
         "UPDATE _snapback_asset_records_v1
-         SET availability = ?2, lifecycle_generation = ?3, record_json = ?4,
-             updated_at_ms = ?5
+         SET availability = ?2, media_kind = ?3, lifecycle_generation = ?4,
+             record_json = ?5, updated_at_ms = ?6
          WHERE asset_id = ?1",
         rusqlite::params![
             record.asset_id,
@@ -2437,6 +2460,8 @@ pub fn store_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackResu
                 .ok()
                 .and_then(|v| v.as_str().map(str::to_owned))
                 .unwrap_or_default(),
+            record.media_kind.and_then(|kind| serde_json::to_value(kind).ok())
+                .and_then(|value| value.as_str().map(str::to_owned)),
             record.lifecycle_generation,
             record_json(record)?,
             record.updated_at_ms,
@@ -2450,6 +2475,63 @@ pub fn store_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackResu
         ));
     }
     Ok(())
+}
+
+/// Closed `detected-content-type.v1` classification profile.
+pub fn media_kind_for_detected_content_type(content_type: &str) -> MediaKindV1 {
+    let normalized = content_type.trim().to_ascii_lowercase();
+    if normalized.starts_with("image/") {
+        MediaKindV1::Image
+    } else if normalized.starts_with("video/") {
+        MediaKindV1::Video
+    } else if normalized.starts_with("audio/") {
+        MediaKindV1::Audio
+    } else {
+        MediaKindV1::File
+    }
+}
+
+fn backfill_ready_media_kinds(tx: &Transaction<'_>) -> SnapbackResult<()> {
+    let mut stmt = tx.prepare(
+        "SELECT asset_id FROM _snapback_asset_records_v1
+         WHERE availability = 'ready' ORDER BY asset_id",
+    )?;
+    let ids = stmt
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(stmt);
+    for asset_id in ids {
+        let mut asset = load_asset(tx, &asset_id)?.ok_or_else(media_projection_integrity)?;
+        let rendition_id = asset
+            .primary_rendition_id
+            .as_deref()
+            .ok_or_else(media_projection_integrity)?;
+        let rendition = load_rendition(tx, rendition_id)?
+            .ok_or_else(media_projection_integrity)?;
+        let detected = rendition
+            .media_facts
+            .as_ref()
+            .and_then(|facts| facts.get("contentType"))
+            .and_then(Value::as_str)
+            .ok_or_else(media_projection_integrity)?;
+        let expected = media_kind_for_detected_content_type(detected);
+        if asset.media_kind.is_some_and(|kind| kind != expected) {
+            return Err(media_projection_integrity());
+        }
+        if asset.media_kind.is_none() {
+            asset.media_kind = Some(expected);
+            store_asset(tx, &asset)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn media_projection_integrity() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_MEDIA_PROJECTION_INTEGRITY",
+        "assets",
+        "media projection storage invariants are not satisfied",
+    )
 }
 
 pub fn insert_attempt(tx: &Transaction<'_>, record: &AssetAttemptRecordV1) -> SnapbackResult<()> {
@@ -3029,7 +3111,7 @@ pub fn insert_rendition(
 }
 
 pub fn load_rendition(
-    tx: &Transaction<'_>,
+    tx: &Connection,
     rendition_id: &str,
 ) -> SnapbackResult<Option<AssetRenditionRecordV1>> {
     let json: Option<String> = tx

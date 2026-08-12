@@ -868,6 +868,7 @@ pub fn function_nested_route_arg_types(
                 | ResultValueContract::Tuple { .. }
                 | ResultValueContract::Vector { .. }
                 | ResultValueContract::Union { .. }
+                | ResultValueContract::MediaRefV1 { .. }
                 | ResultValueContract::PlatformSchemaRef { .. } => None,
             };
             if let Some(inferred) = inferred {

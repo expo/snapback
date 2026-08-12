@@ -11736,6 +11736,7 @@ impl LocalSnapback {
                                     job_producer,
                                     asset_admissions: executed.asset_admissions,
                                     asset_grant_ops: executed.asset_grant_ops,
+                                    media_projection_proof: executed.media_projection_proof,
                                 };
                                 crate::result_contract::validate_handler_result(
                                     &function,
@@ -11756,6 +11757,7 @@ impl LocalSnapback {
                                         payload.job_producer.clone(),
                                         payload.asset_admissions.clone(),
                                         payload.asset_grant_ops.clone(),
+                                        payload.media_projection_proof.clone(),
                                     )?;
                                 (
                                     self.authorization_commit_preflight_for_changes(
@@ -12433,6 +12435,7 @@ impl LocalSnapback {
                         job_producer,
                         asset_admissions: executed.asset_admissions,
                         asset_grant_ops: executed.asset_grant_ops,
+                        media_projection_proof: executed.media_projection_proof,
                     };
                     match (branch_operation, identity.as_ref()) {
                         (Some(branch_operation), None) => {
@@ -12821,6 +12824,7 @@ impl LocalSnapback {
                     job_producer,
                     asset_admissions: executed.asset_admissions,
                     asset_grant_ops: executed.asset_grant_ops,
+                    media_projection_proof: executed.media_projection_proof,
                 },
                 identity.as_ref(),
                 check_live,
@@ -26935,6 +26939,9 @@ fn bounded_projection_result_contract(
                     FieldType::Vector { dimensions } => ResultValueContract::Vector {
                         dimensions: *dimensions,
                     },
+                    FieldType::AssetRef {
+                        media: Some(media), ..
+                    } => crate::manifest::media_result_contract(&table.name, field, media),
                     FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
                     FieldType::Json
                     | FieldType::Structured { .. }
@@ -27013,6 +27020,9 @@ fn snapshot_batch_relational_result_contract(
                 FieldType::Id { table } => ResultValueContract::Id {
                     table: table.clone(),
                 },
+                FieldType::AssetRef {
+                    media: Some(media), ..
+                } => crate::manifest::media_result_contract(&table.name, field, media),
                 FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
                 FieldType::Vector { .. }
                 | FieldType::Json
@@ -28086,11 +28096,16 @@ fn validate_function_schema_references(
                                         FieldType::Id { table } => ResultValueContract::Id {
                                             table: table.clone(),
                                         },
-                                        // An asset reference projects as its
-                                        // opaque id string; commit-boundary
-                                        // admission, not shape, is what
-                                        // protects the field (LLP 0044).
-                                        FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+                                        FieldType::AssetRef {
+                                            media: Some(media), ..
+                                        } => crate::manifest::media_result_contract(
+                                            &declared.name,
+                                            field,
+                                            media,
+                                        ),
+                                        FieldType::AssetRef { .. } => {
+                                            ResultValueContract::AssetRef
+                                        }
                                         FieldType::Json
                                         | FieldType::Structured { .. }
                                         | FieldType::RelationIncarnation { .. } => {

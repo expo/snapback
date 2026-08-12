@@ -1,6 +1,6 @@
 # MediaRef snapshot projection needs an authorization and settlement ruling
 
-**Status:** Open
+**Status:** Ready to close
 **Owner:** LLP 0239 rollout
 **Review:** 2026-08-19
 **Related:** LLP 0044, LLP 0210, LLP 0239, LLP 0244
@@ -40,12 +40,21 @@ command remain GAPs. The independent empty-safe `MediaState` controller and
 `useSnapbackMedia` projection can ship without asserting these server
 semantics.
 
-## Draft ruling
+## Resolution
 
-[`LLP 0244`](../llp/0244-media-ref-projection.spec.md) is the Draft
-implementation Spec for this issue. It selects an authoritative storage-cut
+[`LLP 0244`](../llp/0244-media-ref-projection.spec.md) is accepted and its v1
+slice is implemented and qualified. It freezes the authoritative storage-cut
 projection, treats coarse `kind` as disclosed with a class-M-disclosed media
 field while leaving delivery under asset policy, requires finalized assets for
-v1 attachment, and preserves projected bytes verbatim through settlement and
-protected retention. This issue remains open while the author reviews the
-Draft and until the accepted implementation slice is qualified.
+v1 attachment, and preserves projected bytes verbatim through an
+identity-bound settlement seal.
+
+The implementation adds `v.media()`, exact `mediaRef.v1` result contracts,
+pinned query projection, JS provenance, OCC-before-commit-egress mutation
+projection, legacy-watermarked settlement recovery, conservative RQS
+demotion, and the optional-profile-image guide fixture. Focused acceptance
+tests cover same-snapshot query projection, exact mutation replay, denied
+delivery without a projection oracle, pending attachment refusal, related-fact
+OCC conflict, and valid-JSON settlement corruption. The issue is ready to
+close when this lane is integrated; collection, command, class-M activation,
+and playable-video work remain separately out of scope under LLP 0239.

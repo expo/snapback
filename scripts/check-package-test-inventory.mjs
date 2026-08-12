@@ -285,6 +285,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'inline-result-contracts.test.mjs',
       'live-search-authoring.test.mjs',
       'maintained-projections.test.mjs',
+      'media-field-authoring.test.mjs',
       'membership-search-authoring.test.mjs',
       'micro-profile.test.mjs',
       'mixed-route-v2.test.mjs',
@@ -466,7 +467,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 255,
+  expectedTotal = 256,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -806,6 +807,9 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-client gains anonymous-issuance adoption, same-authority
 // password rotation, strict recovery-code projection, and secret-redaction
 // coverage.
+// 255 -> 256 (2026-08-12, LLP 0244 media projection):
+// @expo/snapback-codegen gains descriptor/lowering, result-contract identity,
+// RQS demotion, and action-refusal coverage for v.media().
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

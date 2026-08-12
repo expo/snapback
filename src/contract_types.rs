@@ -1121,7 +1121,39 @@ pub enum FieldType {
     AssetRef {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         upload: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        media: Option<MediaFieldDescriptorV1>,
     },
+}
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum MediaKindV1 {
+    Image,
+    Video,
+    Audio,
+    File,
+}
+
+/// Semantic facts for the finalized-only member of the AssetRef family.
+/// The application column still contains only the opaque asset id.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaFieldDescriptorV1 {
+    pub intent: String,
+    pub policy: String,
+    pub kinds: Vec<MediaKindV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub variants: Vec<String>,
+    pub classification_profile: String,
+    pub retention_class: String,
+    pub target_capability: String,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1177,6 +1209,30 @@ pub enum ResultValueContract {
     /// is the non-empty opaque asset id string; attachment authority remains
     /// a storage-commit concern rather than an egress-shape concern.
     AssetRef,
+    /// The same-snapshot projection of one distinguished media field.
+    #[serde(rename = "mediaRef.v1")]
+    MediaRefV1 {
+        #[serde(rename = "sourceTable")]
+        source_table: String,
+        #[serde(rename = "sourceField")]
+        source_field: String,
+        #[serde(rename = "sourceFieldGeneration")]
+        source_field_generation: String,
+        optional: bool,
+        #[serde(rename = "classMTreatment")]
+        class_m_treatment: String,
+        #[serde(rename = "uploadIntent")]
+        upload_intent: String,
+        #[serde(rename = "policyGeneration")]
+        policy_generation: String,
+        kinds: Vec<MediaKindV1>,
+        delivery: Option<String>,
+        variants: Vec<String>,
+        #[serde(rename = "classificationProfile")]
+        classification_profile: String,
+        #[serde(rename = "retentionClass")]
+        retention_class: String,
+    },
     Id {
         table: String,
     },
