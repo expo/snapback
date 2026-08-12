@@ -750,7 +750,13 @@ globalThis.fetch = server.fetch;
   blankAuthority({ reason: 'authority_replaced', disposition: 'delete' });
   assert.deepEqual(
     oldStore.getSnapshot(),
-    { url: null, status: 'issuing', diagnostic: null },
+    {
+      url: null,
+      status: 'issuing',
+      diagnostic: null,
+      expiresAt: null,
+      rendition: null,
+    },
     'authority barrier blanks synchronously',
   );
   const newStore = assets.issuedUrlStore('asset_authority');
@@ -792,6 +798,115 @@ globalThis.fetch = server.fetch;
   releaseExternalOld();
   releaseExternalNew();
   await externalParent.closeAuth();
+}
+
+// --- empty-safe media projection: zero work, transitions, authority blank --
+{
+  let currentCapture = Object.freeze({ id: 'media-authority-a' });
+  let blankAuthority;
+  const pending = [];
+  const requests = [];
+  const mediaAssets = new SnapbackAssetClient({
+    baseUrl,
+    authProtocols: { authClient: 1 },
+    authorityFence: {
+      capture: () => currentCapture,
+      isCurrent: (capture) => capture === currentCapture,
+      credentialFor: () => ({ bearer: `bearer-${currentCapture.id}` }),
+    },
+    registerAuthMaterialization: ({ blank }) => {
+      blankAuthority = blank;
+      return () => {};
+    },
+    subscribeLive: () => {},
+  }, {
+    fetch: async (_input, init) => {
+      requests.push(JSON.parse(init.body));
+      return new Promise((resolve) => pending.push(resolve));
+    },
+  });
+
+  const empty = mediaAssets.mediaStore(null);
+  assert.deepEqual(empty.getSnapshot(), { status: 'empty', media: null });
+  const releaseEmpty = empty.subscribe(() => assert.fail('empty media never publishes'));
+  await nextTurn();
+  assert.equal(requests.length, 0, 'null media performs no issuance');
+  assert.deepEqual(
+    mediaAssets.mediaStore(undefined).getSnapshot(),
+    { status: 'empty', media: null },
+  );
+  assert.throws(
+    () => mediaAssets.mediaStore(''),
+    /mediaRefOrNull must be null or undefined for no media; an empty string/,
+  );
+  assert.throws(
+    () => mediaAssets.mediaStore({ assetId: 'asset-video', kind: 'video' }, { widthPx: 320 }),
+    /widthPx is supported only for image media/,
+  );
+  releaseEmpty();
+
+  const media = Object.freeze({ assetId: 'asset-media', kind: 'image' });
+  const store = mediaAssets.mediaStore(media, { widthPx: 640 });
+  const release = store.subscribe(() => {});
+  await nextTurn();
+  assert.deepEqual(store.getSnapshot(), { status: 'issuing', media });
+  assert.deepEqual(requests[0], { variant: 'primary', widthPx: 640 });
+  const expiresAt = Date.now() + 60_000;
+  pending.shift()(Response.json({
+    url: '/assets/signed/media-ready',
+    expiresAtMs: expiresAt,
+    variant: 'primary',
+  }));
+  await waitFor(() => store.getSnapshot().status === 'ready', 'media issuance becomes ready');
+  assert.deepEqual(store.getSnapshot(), {
+    status: 'ready',
+    media,
+    url: `${baseUrl}/assets/signed/media-ready`,
+    expiresAt,
+    rendition: 'primary',
+  });
+
+  const refreshing = store.refresh();
+  await nextTurn();
+  assert.equal(store.getSnapshot().status, 'refreshing');
+  assert.equal(store.getSnapshot().url, `${baseUrl}/assets/signed/media-ready`);
+  pending.shift()(diagnosticResponse(
+    'SNAPBACK_ASSET_FORBIDDEN',
+    'media access was revoked',
+    403,
+  ));
+  await refreshing;
+  assert.equal(store.getSnapshot().status, 'denied');
+  assert.equal('url' in store.getSnapshot(), false, 'denial carries no predecessor URL');
+
+  currentCapture = Object.freeze({ id: 'media-authority-b' });
+  blankAuthority({ reason: 'authority_replaced', disposition: 'delete' });
+  assert.deepEqual(
+    store.getSnapshot(),
+    { status: 'issuing', media },
+    'authority replacement synchronously blanks the projected URL',
+  );
+  release();
+  console.log('media empty, argument contract, ready/refresh/denied, authority blank: ok');
+}
+
+{
+  const unavailableAssets = new SnapbackAssetClient({ baseUrl, subscribeLive: () => {} }, {
+    fetch: async () => diagnosticResponse(
+      'SNAPBACK_ASSET_STORE_UNAVAILABLE',
+      'asset store unavailable',
+      503,
+    ),
+  });
+  const store = unavailableAssets.mediaStore({ assetId: 'asset-unavailable', kind: 'file' });
+  const release = store.subscribe(() => {});
+  await waitFor(
+    () => store.getSnapshot().status === 'unavailable',
+    'media transient refusal becomes unavailable',
+  );
+  assert.equal(store.getSnapshot().diagnostic.code, 'SNAPBACK_ASSET_STORE_UNAVAILABLE');
+  release();
+  console.log('media unavailable state: ok');
 }
 
 // --- upload(): frozen terminal table and picker-shaped normalization ---

@@ -373,7 +373,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-asset-grant-unknown"></a>`SNAPBACK_ASSET_GRANT_UNKNOWN` | assets | 404 | — | `src/server/api_error.rs:907` | 4 |
 | <a id="diagnostic-snapback-asset-host-op-input-invalid"></a>`SNAPBACK_ASSET_HOST_OP_INPUT_INVALID` | assets | — | — | `src/local.rs:8820` | 4 |
 | <a id="diagnostic-snapback-asset-host-op-unknown"></a>`SNAPBACK_ASSET_HOST_OP_UNKNOWN` | assets | — | — | `src/local.rs:8527` | 1 |
-| <a id="diagnostic-snapback-asset-http-error"></a>`SNAPBACK_ASSET_HTTP_ERROR` | assets | — | — | `packages/snapback-client/assets.mjs:475` | 2 |
+| <a id="diagnostic-snapback-asset-http-error"></a>`SNAPBACK_ASSET_HTTP_ERROR` | assets | — | — | `packages/snapback-client/assets.mjs:485` | 2 |
 | <a id="diagnostic-snapback-asset-image-bounds-exceeded"></a>`SNAPBACK_ASSET_IMAGE_BOUNDS_EXCEEDED` | assets | — | — | `src/assets_image.rs:47` | 7 |
 | <a id="diagnostic-snapback-asset-image-decode-failed"></a>`SNAPBACK_ASSET_IMAGE_DECODE_FAILED` | assets | — | — | `src/assets_image.rs:51` | 3 |
 | <a id="diagnostic-snapback-asset-image-time-budget-exceeded"></a>`SNAPBACK_ASSET_IMAGE_TIME_BUDGET_EXCEEDED` | assets | — | — | `src/assets_image.rs:71` | 3 |
@@ -414,7 +414,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-asset-reference-gc-unsupported"></a>`SNAPBACK_ASSET_REFERENCE_GC_UNSUPPORTED` | assets | — | — | `packages/snapback-codegen/index.mjs:5400` | 1 |
 | <a id="diagnostic-snapback-asset-ref-unverified"></a>`SNAPBACK_ASSET_REF_UNVERIFIED` | assets | 400 | [guide](../backend/assets.md#upload-and-attach) | `src/server/api_error.rs:911` | 5 |
 | <a id="diagnostic-snapback-asset-request-invalid"></a>`SNAPBACK_ASSET_REQUEST_INVALID` | assets | 400 | [guide](../backend/assets.md#issue-and-refresh-a-private-signed-url) | `src/server/api_error.rs:922` | 2 |
-| <a id="diagnostic-snapback-asset-retry-ineligible"></a>`SNAPBACK_ASSET_RETRY_INELIGIBLE` | assets | — | [guide](../backend/assets.md#upload-when-you-only-need-the-ready-asset-id) | `packages/snapback-client/assets.mjs:262` | 2 |
+| <a id="diagnostic-snapback-asset-retry-ineligible"></a>`SNAPBACK_ASSET_RETRY_INELIGIBLE` | assets | — | [guide](../backend/assets.md#upload-when-you-only-need-the-ready-asset-id) | `packages/snapback-client/assets.mjs:270` | 2 |
 | <a id="diagnostic-snapback-asset-runner-disabled"></a>`SNAPBACK_ASSET_RUNNER_DISABLED` | assets | — | [guide](../backend/assets.md#operate) | `src/cli.rs:876` | 4 |
 | <a id="diagnostic-snapback-asset-s3-"></a>`SNAPBACK_ASSET_S3_` | assets | — | — | `src/assets_s3.rs:51` | 1 |
 | <a id="diagnostic-snapback-asset-s3-access-key-id"></a>`SNAPBACK_ASSET_S3_ACCESS_KEY_ID` | assets | — | — | `src/assets_s3.rs:72` | 1 |
@@ -438,7 +438,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-asset-store-unqualified"></a>`SNAPBACK_ASSET_STORE_UNQUALIFIED` | assets | — | — | `src/local.rs:7749` | 1 |
 | <a id="diagnostic-snapback-asset-test-crash"></a>`SNAPBACK_ASSET_TEST_CRASH` | assets | — | — | `src/local.rs:31744` | 1 |
 | <a id="diagnostic-snapback-asset-test-transient"></a>`SNAPBACK_ASSET_TEST_TRANSIENT` | assets | — | [guide](../backend/assets.md#upload-when-you-only-need-the-ready-asset-id) | `src/local.rs:10607` | 1 |
-| <a id="diagnostic-snapback-asset-transfer-failed"></a>`SNAPBACK_ASSET_TRANSFER_FAILED` | assets | — | — | `packages/snapback-client/assets.mjs:235` | 2 |
+| <a id="diagnostic-snapback-asset-transfer-failed"></a>`SNAPBACK_ASSET_TRANSFER_FAILED` | assets | — | — | `packages/snapback-client/assets.mjs:243` | 2 |
 | <a id="diagnostic-snapback-asset-transfer-incomplete"></a>`SNAPBACK_ASSET_TRANSFER_INCOMPLETE` | assets | 409 | — | `src/local.rs:9170` | 2 |
 | <a id="diagnostic-snapback-asset-transition-invalid"></a>`SNAPBACK_ASSET_TRANSITION_INVALID` | assets | — | — | `src/assets.rs:2411` | 4 |
 | <a id="diagnostic-snapback-asset-ttl-invalid"></a>`SNAPBACK_ASSET_TTL_INVALID` | assets | 400 | — | `src/local.rs:10079` | 2 |
@@ -2404,7 +2404,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-query-unknown-index"></a>`SNAPBACK_QUERY_UNKNOWN_INDEX` | queries | 400 | — | `packages/snapback-harness/envelope.mjs:33` | 4 |
 | <a id="diagnostic-snapback-random-unavailable"></a>`SNAPBACK_RANDOM_UNAVAILABLE` | server | — | — | `src/ids.rs:325` | 3 |
 | <a id="diagnostic-snapback-react-args-invalid"></a>`SNAPBACK_REACT_ARGS_INVALID` | client | — | — | `packages/snapback-client/canonical-client-value.mjs:34` | 2 |
-| <a id="diagnostic-snapback-react-asset-strict-delivery-sessions"></a>`SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS` | react | — | [guide](../backend/assets.md#render-the-uploaded-image-in-a-plain-image) | `packages/snapback-react/implementation.mjs:5223` | 1 |
+| <a id="diagnostic-snapback-react-asset-strict-delivery-sessions"></a>`SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS` | react | — | [guide](../backend/assets.md#render-the-uploaded-image-in-a-plain-image) | `packages/snapback-react/implementation.mjs:5254` | 1 |
 | <a id="diagnostic-snapback-react-binding-mismatch"></a>`SNAPBACK_REACT_BINDING_MISMATCH` | client | — | [guide](../clients/react.md#the-react-client) | `packages/snapback-client/react-binding.mjs:399` | 3 |
 | <a id="diagnostic-snapback-react-binding-origin-unreachable"></a>`SNAPBACK_REACT_BINDING_ORIGIN_UNREACHABLE` | client | — | [guide](../capabilities.md#capabilities) | `packages/snapback-client/react-binding.mjs:65` | 1 |
 | <a id="diagnostic-snapback-react-binding-receipt-not-persisted"></a>`SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED` | client | — | [guide](../clients/react.md#the-react-client) | `packages/snapback-client/react-binding.mjs:559` | 3 |

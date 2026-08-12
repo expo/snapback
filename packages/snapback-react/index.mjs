@@ -13,6 +13,7 @@ export {
   useSnapbackAssetImage,
   useSnapbackAssetUpload,
   useSnapbackAssetUrl,
+  useSnapbackMedia,
   useSnapbackCommand,
   useSurface,
 } from './full-capabilities.mjs';

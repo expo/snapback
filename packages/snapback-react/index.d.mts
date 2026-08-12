@@ -29,6 +29,9 @@ import type {
   AssetSignedUrlOptions,
   AssetTaskSnapshot,
   AssetUploadTask,
+  MediaKind,
+  MediaRef,
+  MediaState,
 } from '@expo/snapback-client/assets';
 import type {
   AssetBearingCommandDescriptorV1,
@@ -52,6 +55,9 @@ export type {
   AssetSignedUrlOptions,
   AssetTaskSnapshot,
   AssetUploadTask,
+  MediaKind,
+  MediaRef,
+  MediaState,
 } from '@expo/snapback-client/assets';
 export type {
   AssetBearingCommandDescriptorV1,
@@ -894,6 +900,15 @@ export function useSnapbackAssetUrl(
   assetId: string,
   options?: AssetSignedUrlOptions,
 ): AssetUrlState;
+
+export type MediaHookState<K extends MediaKind = MediaKind> = MediaState<K> & Readonly<{
+  refresh: () => Promise<void>;
+}>;
+
+export function useSnapbackMedia<K extends MediaKind>(
+  mediaRefOrNull: MediaRef<K> | null | undefined,
+  options?: AssetSignedUrlOptions,
+): MediaHookState<K>;
 
 export type AssetUploadHookState = Readonly<
   Omit<AssetTaskSnapshot, 'status' | 'integrityBasis'> & {

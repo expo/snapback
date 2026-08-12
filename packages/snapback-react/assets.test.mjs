@@ -20,6 +20,7 @@ import {
   useSnapbackAssetImage,
   useSnapbackAssetUrl,
   useSnapbackAssetUpload,
+  useSnapbackMedia,
 } from './index.mjs';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -190,10 +191,42 @@ class FakeIssuedUrlStore {
   }
 }
 
+const FAKE_EMPTY_MEDIA_SNAPSHOT = Object.freeze({ status: 'empty', media: null });
+const FAKE_EMPTY_MEDIA_STORE = Object.freeze({
+  getSnapshot: () => FAKE_EMPTY_MEDIA_SNAPSHOT,
+  getServerSnapshot: () => FAKE_EMPTY_MEDIA_SNAPSHOT,
+  subscribe: () => () => {},
+  refresh: async () => {},
+});
+
+class FakeMediaStore {
+  listeners = new Set();
+  refreshCalls = 0;
+
+  constructor(media) {
+    this.media = media;
+    this.snapshot = Object.freeze({ status: 'issuing', media });
+  }
+
+  getSnapshot = () => this.snapshot;
+  getServerSnapshot = () => Object.freeze({ status: 'issuing', media: this.media });
+  subscribe = (listener) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+  refresh = async () => { this.refreshCalls += 1; };
+
+  publish(next) {
+    this.snapshot = Object.freeze(next);
+    for (const listener of [...this.listeners]) listener();
+  }
+}
+
 function createFakeAssets() {
   const watchListeners = new Set();
   let watchSnapshot = Object.freeze({ status: 'connecting', record: null, mode: 'live' });
   const issuedUrlStores = new Map();
+  const mediaStores = new Map();
   const issuedUrlKey = (assetId, options = {}) => JSON.stringify([
     assetId,
     options.variant ?? null,
@@ -203,7 +236,9 @@ function createFakeAssets() {
   const assets = {
     started: [],
     issuedUrlStoreCalls: 0,
+    mediaStoreCalls: 0,
     get issuedUrlStoreCount() { return issuedUrlStores.size; },
+    get mediaStoreCount() { return mediaStores.size; },
     start({ upload, file }) {
       const task = new FakeTask({ totalBytes: file.size, status: 'uploading' });
       task.upload = upload;
@@ -230,11 +265,41 @@ function createFakeAssets() {
     issuedUrlStoreFor(assetId, options = {}) {
       return issuedUrlStores.get(issuedUrlKey(assetId, options)) ?? null;
     },
+    mediaStore(mediaRefOrNull, options = {}) {
+      assets.mediaStoreCalls += 1;
+      if (mediaRefOrNull === null || mediaRefOrNull === undefined) {
+        return FAKE_EMPTY_MEDIA_STORE;
+      }
+      if (mediaRefOrNull === '') {
+        throw new TypeError(
+          'mediaStore mediaRefOrNull must be null or undefined for no media; an empty string is not a media reference',
+        );
+      }
+      const media = Object.freeze({
+        assetId: mediaRefOrNull.assetId,
+        kind: mediaRefOrNull.kind,
+      });
+      const key = JSON.stringify([media.assetId, media.kind, options]);
+      let store = mediaStores.get(key);
+      if (!store) {
+        store = new FakeMediaStore(media);
+        mediaStores.set(key, store);
+      }
+      return store;
+    },
+    mediaStoreFor(media, options = {}) {
+      return mediaStores.get(JSON.stringify([media.assetId, media.kind, options])) ?? null;
+    },
     rotateIssuedUrlAuthority() {
       const predecessors = [...issuedUrlStores.values()];
+      const mediaPredecessors = [...mediaStores.values()];
       issuedUrlStores.clear();
+      mediaStores.clear();
       for (const store of predecessors) {
         store.publish(FAKE_ISSUED_URL_CONSTRUCTION_SNAPSHOT);
+      }
+      for (const store of mediaPredecessors) {
+        store.publish({ status: 'issuing', media: store.media });
       }
     },
     watchStore() {
@@ -435,6 +500,77 @@ function renderHook(provider, hook, { strict = false } = {}) {
   assert.equal(output.current.status, 'issuing');
   act(() => { renderer.unmount(); });
   console.log('asset issued URL authority generation adopts a successor store: ok');
+}
+
+// --- media hook: empty-safe render, transitions, authority blanking -------
+
+{
+  const { provider, assets } = await harness();
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackMedia(null),
+  );
+  assert.equal(output.current.status, 'empty');
+  assert.equal(output.current.media, null);
+  assert.equal(assets.mediaStoreCalls, 1);
+  assert.equal(assets.mediaStoreCount, 0);
+  assert.equal(assets.issuedUrlStoreCalls, 0, 'null media renders with zero issuance/network work');
+  await act(async () => { await output.current.refresh(); });
+  assert.equal(assets.issuedUrlStoreCalls, 0, 'empty refresh remains inert');
+  act(() => { renderer.unmount(); });
+  console.log('media hook null is synchronous empty with zero issuance: ok');
+}
+
+{
+  const { provider } = await harness();
+  assert.throws(
+    () => renderHook(provider, () => useSnapbackMedia('')),
+    /mediaRefOrNull must be null or undefined for no media; an empty string/,
+  );
+  console.log('media hook empty string names the nullable argument spelling: ok');
+}
+
+{
+  const { provider, assets, barriers } = await harness();
+  const media = Object.freeze({ assetId: 'asset-media-render', kind: 'image' });
+  const options = { variant: 'card', widthPx: 640 };
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackMedia(media, options),
+  );
+  const predecessor = assets.mediaStoreFor(media, options);
+  assert.equal(output.current.status, 'issuing');
+  act(() => {
+    predecessor.publish({
+      status: 'ready',
+      media,
+      url: 'http://fixture/assets/signed/asset-media-render',
+      expiresAt: Date.now() + 60_000,
+      rendition: 'card',
+    });
+  });
+  assert.equal(output.current.status, 'ready');
+  assert.equal(output.current.rendition, 'card');
+  const refresh = output.current.refresh;
+  await act(async () => { await refresh(); });
+  assert.equal(predecessor.refreshCalls, 1);
+
+  await act(async () => {
+    assets.rotateIssuedUrlAuthority();
+    const assetBarrier = barriers.find(
+      (entry) => entry.name.startsWith('snapback-react-assets:'),
+    );
+    assetBarrier.blank();
+    await assetBarrier.resume();
+  });
+  const successor = assets.mediaStoreFor(media, options);
+  assert.notEqual(successor, predecessor);
+  assert.equal(output.current.status, 'issuing');
+  assert.equal('url' in output.current, false, 'authority replacement blanks the URL');
+  assert.equal(predecessor.listeners.size, 0);
+  assert.equal(successor.listeners.size, 1);
+  act(() => { renderer.unmount(); });
+  console.log('media hook ready/refresh and authority successor blanking: ok');
 }
 
 // --- upload hook reactivity, retry stability, blanking ---------------------

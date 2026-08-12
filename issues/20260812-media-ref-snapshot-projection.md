@@ -1,0 +1,51 @@
+# MediaRef snapshot projection needs an authorization and settlement ruling
+
+**Status:** Open
+**Owner:** LLP 0239 rollout
+**Review:** 2026-08-19
+**Related:** LLP 0044, LLP 0210, LLP 0239, LLP 0244
+
+## Problem
+
+LLP 0239 D1 requires a stored opaque asset id to project as
+`{ assetId, kind }`, with `kind` read from server-admitted asset metadata in
+the same authoritative snapshot as the application row. The current runtime
+cannot add that projection without choosing semantics the RFC does not freeze:
+
+1. Query result validation receives `DbRead` and could perform the lookup, but
+   mutation results and replayed settlement results are validated on paths
+   that no longer carry the write/result snapshot. A single exact result
+   contract therefore cannot currently promise the same projection on every
+   online and retained result path.
+2. Asset metadata has its own LLP 0044 read decision. When a caller may read
+   an application row but not its referenced asset, D1 does not say whether
+   the whole result refuses, the media field becomes null, or another typed
+   state replaces it. Required fields and exact result contracts make those
+   outcomes observably different.
+3. A pending asset may omit `declaredContentType`. It then has no
+   server-admitted kind until finalization. Refusing the attachment, delaying
+   projection, or changing the same asset id's projected kind after a retry
+   are distinct identity/rotation policies.
+
+## Required ruling
+
+Freeze one projection point shared by fresh query, live/retained query,
+mutation return, and settlement replay; freeze the unauthorized-field result;
+and freeze pending/retry kind identity. Then implement a `mediaRef` result node,
+same-snapshot metadata lookup plus live dependencies, write-shape rejection of
+forged `kind`, and the `v.media()` descriptor/lowering as one qualified slice.
+
+Until that ruling, `assets.media-field.v1`, media collections, and the media
+command remain GAPs. The independent empty-safe `MediaState` controller and
+`useSnapbackMedia` projection can ship without asserting these server
+semantics.
+
+## Draft ruling
+
+[`LLP 0244`](../llp/0244-media-ref-projection.spec.md) is the Draft
+implementation Spec for this issue. It selects an authoritative storage-cut
+projection, treats coarse `kind` as disclosed with a class-M-disclosed media
+field while leaving delivery under asset policy, requires finalized assets for
+v1 attachment, and preserves projected bytes verbatim through settlement and
+protected retention. This issue remains open while the author reviews the
+Draft and until the accepted implementation slice is qualified.

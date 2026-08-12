@@ -6,9 +6,12 @@ import {
   type AssetUrlState,
   type AssetTaskSnapshot,
   type AssetUploadTask,
+  type MediaHookState,
+  type MediaRef,
   useSnapbackAssetImage,
   useSnapbackAssetUrl,
   useSnapbackAssetUpload,
+  useSnapbackMedia,
 } from './index.mjs';
 
 declare const file: AssetFileLike;
@@ -51,6 +54,34 @@ const invalidIssuedStatus: AssetUrlState['status'] = 'pending';
 void invalidIssuedStatus;
 // @ts-expect-error signed URL width must be numeric.
 useSnapbackAssetUrl('asset-1', { widthPx: '640' });
+
+const profileImage: MediaRef<'image'> = { assetId: 'asset-1', kind: 'image' };
+const mediaState: MediaHookState<'image'> = useSnapbackMedia(profileImage, {
+  widthPx: 640,
+});
+if (mediaState.status === 'ready' || mediaState.status === 'refreshing') {
+  mediaState.url.toUpperCase();
+  mediaState.rendition.toUpperCase();
+}
+const emptyMedia: MediaHookState<'image'> = useSnapbackMedia(null);
+void emptyMedia.refresh();
+// @ts-expect-error the empty spelling is null/undefined, never an empty string.
+useSnapbackMedia('');
+// @ts-expect-error media kinds are a closed generated/runtime union.
+const forgedMediaKind: MediaRef = { assetId: 'asset-1', kind: 'thumbnail' };
+void forgedMediaKind;
+
+export function ProfileMedia({ media }: { media: MediaRef<'image'> | null }) {
+  const state = useSnapbackMedia(media, { widthPx: 640 });
+  if (state.status === 'empty' || state.status === 'issuing') return null;
+  if (state.status === 'ready' || state.status === 'refreshing') {
+    return { src: state.url, alt: 'Profile' };
+  }
+  if (state.status === 'unavailable') {
+    return { retry: () => state.refresh() };
+  }
+  return null;
+}
 
 declare const weakFile: {
   size: number;
