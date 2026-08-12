@@ -91,6 +91,7 @@ fn schema() -> SchemaManifest {
             vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
+            authority_profile: None,
             asset_sharing: None,
             visibility: None,
             history: None,
@@ -240,8 +241,12 @@ fn settlement_identity_is_stable_across_a_genuine_re_entry() {
     let mut snapback = configured();
     let client_mutation_id = "cm_settlement_reentry_1";
     let attempt = |snapback: &mut LocalSnapback| {
-        let error = invoke_with_id(snapback, "throwSettlement", json!({}), client_mutation_id)
-            .expect_err("the retry probe deliberately throws before settlement");
+        // The re-entry witness is carried by an app-authored throw, whose
+        // message is intentionally visible only under development exposure.
+        let error = snapback::runtime::with_development_handler_error_exposure(|| {
+            invoke_with_id(snapback, "throwSettlement", json!({}), client_mutation_id)
+        })
+        .expect_err("the retry probe deliberately throws before settlement");
         assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
         error.diagnostic.details["message"]
             .as_str()
