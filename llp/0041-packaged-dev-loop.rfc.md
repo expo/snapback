@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (explicit linked-source custody):** 2026-08-12 (external-workspace consumers of
+the source CLI select an identity-matched, receipt-qualified checkout release
+binary without weakening or imitating the published runtime package seal; see
+§Runtime distribution.)
+
 **Revised (non-destructive runtime assembly):** 2026-08-12 (both platform
 runtime preparers now validate a complete loader-relative staging tree,
 including the build-matched admin snapshot and reopened package seal, before
@@ -438,6 +443,15 @@ intermediate-artifact seam; final package assembly cannot.
 
 Unsupported host platforms are a declared capability fact, not a broken
 install.
+
+[observed] A repository may deliberately commit an external workspace path to
+the CLI source package while co-evolving with Snapback. That topology remains
+a contributor source build, not a miniature publication ceremony. The source
+CLI therefore resolves the owning checkout's receipt-qualified release binary
+under the LLP 0010 source-custody rules. It does not assemble the ignored
+platform-package shell, accept a contributor binary as package-production, or
+weaken the seal verifier. Packed and registry-installed CLIs lack the source
+topology and continue to select only the sealed platform package.
 
 #### Validate-then-swap runtime assembly (2026-08-12)
 

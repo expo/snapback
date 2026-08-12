@@ -72,7 +72,12 @@ export async function buildSnapbackContractStaticApp({
     staticPlatformTargets,
     outDir: resolvedOutDir,
   }, async (configFilePath) => {
-    await build({ configFile: configFilePath, logLevel });
+    // @ref LLP 0017#static-bundling-and-the-native-shell — this generated
+    // config is already executable ESM and Exact's nested prerender server
+    // must be able to reopen its stable path. Vite's default bundle loader
+    // executes plugins from an immediately deleted timestamp module; under
+    // Bun/Rolldown that transient path can leak into Exact's resolved config.
+    await build({ configFile: configFilePath, configLoader: 'native', logLevel });
   });
 
   if (rewriteBasePath) {

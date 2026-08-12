@@ -308,6 +308,13 @@ The build recipe (proven by dogfooding) has sharp edges worth recording:
 - **Build through a generated config file.** The preset writes a temporary
   vite config (plugins, workspace aliases, and a `server.fs.allow` spanning
   the Snapback and Exact repos) and builds with `configFile` pointing at it.
+  Because that generated file is already executable ESM, the outer build uses
+  Vite's `configLoader: 'native'`: the default bundle loader executes the
+  plugin graph from an immediately deleted `vite.config.mjs.timestamp-*`
+  module, and Bun/Rolldown can expose that transient path to Exact's nested
+  prerender server, which then correctly but uselessly refuses that the module
+  is gone. Native loading keeps the stable generated path as the reopenable
+  authority for the complete callback lifetime.
   Vite's own `base` stays `/`: native startup/HBC module ids must remain
   app-root-relative, while the browser `index.html` is post-rewritten to the
   `/_snapback/admin/` mount path. The exporter's nested prerender server

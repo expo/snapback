@@ -229,6 +229,16 @@ try {
     'darwin-arm64': '@expo/snapback-runtime-darwin-arm64',
     'linux-x64': '@expo/snapback-runtime-linux-x64',
   });
+  assert.equal(
+    __test.sourceCheckoutRoot(realpathSync(new URL('.', import.meta.url))),
+    realpathSync(new URL('../..', import.meta.url)),
+    'a linked CLI package must recognize its owning Snapback source checkout',
+  );
+  assert.equal(__test.sourceCheckoutRoot(root), null);
+  assert.equal(__test.runtimeReadinessRoot({
+    binary: join(root, 'target', 'release', 'snapback'),
+    checkoutRoot: root,
+  }), root);
   const fakeRuntime = join(root, 'snapback');
   writeFileSync(fakeRuntime, '#!/bin/sh\nexit 0\n');
   chmodSync(fakeRuntime, 0o755);

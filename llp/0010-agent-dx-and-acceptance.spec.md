@@ -248,6 +248,22 @@ not take that shortcut because a commit id cannot identify uncommitted source
 bytes. [LLP 0175](./0175-local-proof-economics.rfc.md) D3.1–D3.2 owns the
 economic rationale.
 
+[observed] A package manager path dependency whose target is
+`packages/snapback-cli` is a third custody shape: it is neither a published
+install nor an implicit developer-machine override. The linked CLI recognizes
+that it is executing inside the owning source checkout and selects only
+`target/release/snapback`. Selection requires the checkout's scoped runtime
+inputs to be clean, the binary's independent stamp to match the checkout
+commit and crate version with a `release` profile, and the ordinary sibling
+`snapback.runtime-readiness.v1` receipt to reopen against the current binary
+and Hermes artifacts. Missing or stale state emits the bootstrap, release
+build, and receipt-issuance commands. It never falls through to or manufactures
+a package-production seal. A CLI without that exact source topology continues
+to require its platform runtime package and production seal. When an
+application persists its own verify receipt for this source runtime, the
+artifact root remains the checkout (including the bootstrapped Hermes inputs),
+not the binary's `target/` parent.
+
 ### Bootstrap diagnostic codes
 
 `scripts/bootstrap-ibex-runtime` fails with a stable `SNAPBACK_*` code prefix on
