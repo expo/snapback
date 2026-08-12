@@ -135,6 +135,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'outbox-quarantine.test.mjs',
       'outbox-store.test.mjs',
       'package.test.mjs',
+      'password-auth.test.mjs',
       'push-registry.test.mjs',
       'registration-ledger.test.mjs',
       'remediation.test.mjs',
@@ -465,7 +466,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 254,
+  expectedTotal = 255,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -801,6 +802,10 @@ export function checkPackageTestInventories(options = {}) {
 // 253 -> 254 (2026-08-11, LLP 0021 Exact-optional implementation note):
 // @expo/snapback-codegen gains deterministic neutral-versus-Exact metadata
 // output, artifact-inventory/hash rotation, and no-package-probing coverage.
+// 254 -> 255 (2026-08-12, LLP 0227 password-auth client surface):
+// @expo/snapback-client gains anonymous-issuance adoption, same-authority
+// password rotation, strict recovery-code projection, and secret-redaction
+// coverage.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

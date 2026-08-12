@@ -1893,6 +1893,142 @@ pub enum AuthCommand {
         #[command(subcommand)]
         command: AuthRehearseCommand,
     },
+    /// First-class email/password signup, signin, change, reset, and admin
+    /// unlock. Password plaintext is never accepted in argv.
+    Password {
+        #[command(subcommand)]
+        command: AuthPasswordCommand,
+    },
+    /// Consume or rotate one-time recovery codes on the sessions surface.
+    Recovery {
+        #[command(subcommand)]
+        command: AuthRecoveryCommand,
+    },
+}
+
+#[derive(clap::Args)]
+pub struct AuthUrlArgs {
+    /// Snapback server base URL (for example http://127.0.0.1:4287).
+    #[arg(long)]
+    pub url: String,
+}
+
+#[derive(clap::Args)]
+pub struct AuthPasswordCarrierArgs {
+    /// Read password line(s) from standard input. Change reads current then new.
+    #[arg(
+        long,
+        required_unless_present_any = ["password_fd", "password_environment"],
+        conflicts_with_all = ["password_fd", "password_environment"]
+    )]
+    pub password_stdin: bool,
+    /// Read password line(s) from inherited descriptor N without taking ownership.
+    #[arg(
+        long,
+        value_name = "N",
+        required_unless_present_any = ["password_stdin", "password_environment"],
+        conflicts_with_all = ["password_stdin", "password_environment"]
+    )]
+    pub password_fd: Option<u32>,
+    /// Internal marker injected by run_from_env when SNAPBACK_PASSWORD exists.
+    /// It is hidden so the public CLI surface remains stdin/fd-only.
+    #[arg(
+        long = "__snapback-password-environment-carrier",
+        hide = true,
+        required_unless_present_any = ["password_stdin", "password_fd"],
+        conflicts_with_all = ["password_stdin", "password_fd"]
+    )]
+    pub password_environment: bool,
+}
+
+#[derive(clap::Args)]
+pub struct AuthSessionTokenCarrierArgs {
+    /// Read the session bearer from standard input. When password input also
+    /// uses stdin, this is the first line before the password line(s).
+    #[arg(
+        long,
+        required_unless_present = "session_token_file",
+        conflicts_with = "session_token_file"
+    )]
+    pub session_token_stdin: bool,
+    /// Read the session bearer from a file rather than argv.
+    #[arg(
+        long,
+        value_name = "FILE",
+        required_unless_present = "session_token_stdin",
+        conflicts_with = "session_token_stdin"
+    )]
+    pub session_token_file: Option<PathBuf>,
+}
+
+#[derive(clap::Subcommand)]
+pub enum AuthPasswordCommand {
+    /// Create a local-password principal and print its one-time recovery codes.
+    Signup {
+        #[command(flatten)]
+        target: AuthUrlArgs,
+        #[arg(long)]
+        email: String,
+        #[command(flatten)]
+        password: AuthPasswordCarrierArgs,
+    },
+    /// Authenticate an existing local-password principal.
+    Signin {
+        #[command(flatten)]
+        target: AuthUrlArgs,
+        #[arg(long)]
+        email: String,
+        #[command(flatten)]
+        password: AuthPasswordCarrierArgs,
+    },
+    /// Rotate the acting session's password and bearer. Password input is two
+    /// lines: current password, then new password.
+    Change {
+        #[command(flatten)]
+        target: AuthUrlArgs,
+        #[command(flatten)]
+        session: AuthSessionTokenCarrierArgs,
+        #[command(flatten)]
+        password: AuthPasswordCarrierArgs,
+    },
+    /// Reset a password with a local capture-mailbox challenge.
+    Reset {
+        #[command(flatten)]
+        target: AuthUrlArgs,
+        #[arg(long)]
+        challenge_id: String,
+        #[arg(long)]
+        code: String,
+        #[command(flatten)]
+        password: AuthPasswordCarrierArgs,
+    },
+    /// Clear one password lockout through the AdminWrite route.
+    Unlock {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        email: String,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum AuthRecoveryCommand {
+    /// Consume one recovery code, mint a session, and print its replacement set.
+    Consume {
+        #[command(flatten)]
+        target: AuthUrlArgs,
+        #[arg(long)]
+        email: String,
+        #[arg(long)]
+        code: String,
+    },
+    /// Replace the current recovery set and rotate the acting session bearer.
+    Rotate {
+        #[command(flatten)]
+        target: AuthUrlArgs,
+        #[command(flatten)]
+        session: AuthSessionTokenCarrierArgs,
+    },
 }
 
 #[derive(clap::Subcommand)]
@@ -2493,7 +2629,7 @@ pub fn project_cli_failure(error: &anyhow::Error) -> (i32, Value) {
 }
 
 pub async fn run_from_env() -> anyhow::Result<()> {
-    let cli = match Cli::try_parse() {
+    let cli = match Cli::try_parse_from(argv_with_password_environment_carrier()) {
         Ok(cli) => cli,
         Err(error)
             if argv_targets_config_set()
@@ -2869,6 +3005,8 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
             AuthCommand::Rehearse { command } => auth_rehearse_command(command),
+            AuthCommand::Password { command } => auth_password_command(command),
+            AuthCommand::Recovery { command } => auth_recovery_command(command),
         },
         Some(HostCommand::Replicate { command }) => replication_command(command).await,
         Some(HostCommand::Store { command }) => match command {
@@ -4073,6 +4211,483 @@ fn request_requires_agent_destroy(request: &Value) -> bool {
 // is only a closed-argument projection of the existing auth.mintSession host-op.
 fn mint_session_request(email: String) -> Value {
     json!({ "operation": "auth.mintSession", "args": { "email": email } })
+}
+
+const MAX_AUTH_CLI_SECRET_BYTES: u64 = 8 * 1024;
+
+fn argv_with_password_environment_carrier() -> Vec<OsString> {
+    password_environment_carrier_argv(
+        std::env::args_os().collect(),
+        std::env::var_os("SNAPBACK_PASSWORD").is_some(),
+    )
+}
+
+fn password_environment_carrier_argv(
+    mut arguments: Vec<OsString>,
+    password_environment_present: bool,
+) -> Vec<OsString> {
+    if !password_environment_present
+        || arguments.iter().any(|argument| {
+            argument.to_str().is_some_and(|argument| {
+                matches!(
+                    argument,
+                    "--password-stdin"
+                        | "--password-fd"
+                        | "--__snapback-password-environment-carrier"
+                ) || argument.starts_with("--password-fd=")
+            })
+        })
+    {
+        return arguments;
+    }
+    let targets_password = arguments.windows(3).any(|window| {
+        window[0] == "auth"
+            && window[1] == "password"
+            && matches!(
+                window[2].to_str(),
+                Some("signup" | "signin" | "change" | "reset")
+            )
+    });
+    if targets_password {
+        // This marker carries no secret. It exists only so clap can retain the
+        // config-set required-unless grammar while the separately zeroized
+        // dev/test-only environment value remains outside argv.
+        arguments.push("--__snapback-password-environment-carrier".into());
+    }
+    arguments
+}
+
+fn read_auth_secret_lines<R: std::io::Read>(
+    reader: R,
+    expected_lines: usize,
+    code: &'static str,
+    label: &'static str,
+) -> anyhow::Result<Vec<zeroize::Zeroizing<String>>> {
+    use zeroize::{Zeroize as _, Zeroizing};
+
+    let mut bytes = Zeroizing::new(Vec::new());
+    reader
+        .take(MAX_AUTH_CLI_SECRET_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| anyhow::anyhow!("{code}: {label} could not be read"))?;
+    if bytes.len() as u64 > MAX_AUTH_CLI_SECRET_BYTES {
+        anyhow::bail!("{code}: {label} exceeds the 8192-byte CLI limit");
+    }
+    let decoded = match String::from_utf8(std::mem::take(&mut *bytes)) {
+        Ok(value) => Zeroizing::new(value),
+        Err(error) => {
+            let mut rejected = error.into_bytes();
+            rejected.zeroize();
+            anyhow::bail!("{code}: {label} must contain valid UTF-8")
+        }
+    };
+    let without_terminator = decoded
+        .strip_suffix("\r\n")
+        .or_else(|| decoded.strip_suffix('\n'))
+        .unwrap_or(decoded.as_str());
+    let raw_lines = without_terminator.split('\n').collect::<Vec<_>>();
+    if raw_lines.len() != expected_lines {
+        anyhow::bail!("{code}: {label} must contain exactly {expected_lines} line(s)");
+    }
+    let mut values = Vec::with_capacity(expected_lines);
+    for raw in raw_lines {
+        let value = raw.strip_suffix('\r').unwrap_or(raw);
+        if value.contains('\r') {
+            anyhow::bail!("{code}: {label} contains an invalid carriage return");
+        }
+        values.push(Zeroizing::new(value.to_owned()));
+    }
+    Ok(values)
+}
+
+#[cfg(unix)]
+fn read_auth_secret_fd(
+    descriptor: u32,
+    expected_lines: usize,
+    code: &'static str,
+    label: &'static str,
+) -> anyhow::Result<Vec<zeroize::Zeroizing<String>>> {
+    use std::os::fd::FromRawFd as _;
+
+    let descriptor = i32::try_from(descriptor).map_err(|_| {
+        anyhow::anyhow!("{code}: {label} descriptor is outside the supported range")
+    })?;
+    // SAFETY: dup reads the inherited descriptor without taking ownership of
+    // it. The returned descriptor is a new owned handle converted exactly
+    // once into File below.
+    let duplicate = unsafe { libc::dup(descriptor) };
+    if duplicate < 0 {
+        return Err(anyhow::anyhow!(
+            "{code}: {label} descriptor is not readable"
+        ));
+    }
+    // SAFETY: duplicate is the fresh owned descriptor returned by dup.
+    let file = unsafe { std::fs::File::from_raw_fd(duplicate) };
+    read_auth_secret_lines(file, expected_lines, code, label)
+}
+
+#[cfg(not(unix))]
+fn read_auth_secret_fd(
+    _descriptor: u32,
+    _expected_lines: usize,
+    code: &'static str,
+    label: &'static str,
+) -> anyhow::Result<Vec<zeroize::Zeroizing<String>>> {
+    anyhow::bail!("{code}: inherited {label} descriptors are unavailable on this host")
+}
+
+fn read_password_environment(
+    target_url: &str,
+    expected_lines: usize,
+) -> anyhow::Result<Option<Vec<zeroize::Zeroizing<String>>>> {
+    use zeroize::Zeroizing;
+
+    let Some(raw) = std::env::var_os("SNAPBACK_PASSWORD") else {
+        return Ok(None);
+    };
+    password_non_stdin_profile_allowed(
+        std::env::var("SNAPBACK_PROFILE").ok().as_deref(),
+        target_url,
+        "SNAPBACK_PASSWORD",
+    )?;
+    let bytes = Zeroizing::new(raw.into_encoded_bytes());
+    Ok(Some(read_auth_secret_lines(
+        bytes.as_slice(),
+        expected_lines,
+        "SNAPBACK_AUTH_PASSWORD_CARRIER_INVALID",
+        "password carrier",
+    )?))
+}
+
+fn password_non_stdin_profile_allowed(
+    raw_profile: Option<&str>,
+    target_url: &str,
+    carrier: &str,
+) -> anyhow::Result<()> {
+    let profile = crate::admin::resolve_profile(raw_profile, origin_is_loopback(target_url));
+    anyhow::ensure!(
+        matches!(profile, ServerProfile::Dev | ServerProfile::Test),
+        "SNAPBACK_PROFILE_FORBIDS: {carrier} is accepted only under dev or test profiles; stdin is the only password carrier in other profiles"
+    );
+    Ok(())
+}
+
+fn read_auth_passwords(
+    target_url: &str,
+    carrier: &AuthPasswordCarrierArgs,
+    expected_lines: usize,
+) -> anyhow::Result<Vec<zeroize::Zeroizing<String>>> {
+    if carrier.password_stdin {
+        return read_auth_secret_lines(
+            std::io::stdin().lock(),
+            expected_lines,
+            "SNAPBACK_AUTH_PASSWORD_CARRIER_INVALID",
+            "password carrier",
+        );
+    }
+    if let Some(descriptor) = carrier.password_fd {
+        password_non_stdin_profile_allowed(
+            std::env::var("SNAPBACK_PROFILE").ok().as_deref(),
+            target_url,
+            "--password-fd",
+        )?;
+        return read_auth_secret_fd(
+            descriptor,
+            expected_lines,
+            "SNAPBACK_AUTH_PASSWORD_CARRIER_INVALID",
+            "password carrier",
+        );
+    }
+    if carrier.password_environment {
+        return read_password_environment(target_url, expected_lines)?.context(
+            "SNAPBACK_AUTH_PASSWORD_CARRIER_INVALID: SNAPBACK_PASSWORD was selected but is unavailable",
+        );
+    }
+    anyhow::bail!(
+        "SNAPBACK_AUTH_PASSWORD_CARRIER_INVALID: choose --password-stdin, or --password-fd N / SNAPBACK_PASSWORD under dev/test"
+    )
+}
+
+fn read_auth_session_token(
+    carrier: &AuthSessionTokenCarrierArgs,
+) -> anyhow::Result<zeroize::Zeroizing<String>> {
+    let mut values = if carrier.session_token_stdin {
+        read_auth_secret_lines(
+            std::io::stdin().lock(),
+            1,
+            "SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID",
+            "session-token carrier",
+        )?
+    } else {
+        let path = carrier.session_token_file.as_ref().context(
+            "SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID: choose --session-token-stdin or --session-token-file FILE",
+        )?;
+        let file = std::fs::File::open(path).map_err(|_| {
+            anyhow::anyhow!(
+                "SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID: session-token file could not be opened"
+            )
+        })?;
+        read_auth_secret_lines(
+            file,
+            1,
+            "SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID",
+            "session-token carrier",
+        )?
+    };
+    let token = values.remove(0);
+    if token.is_empty() {
+        anyhow::bail!(
+            "SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID: session-token carrier is empty"
+        );
+    }
+    Ok(token)
+}
+
+fn read_auth_change_secrets(
+    target_url: &str,
+    session: &AuthSessionTokenCarrierArgs,
+    password: &AuthPasswordCarrierArgs,
+) -> anyhow::Result<(zeroize::Zeroizing<String>, Vec<zeroize::Zeroizing<String>>)> {
+    if session.session_token_stdin && password.password_stdin {
+        let mut values = read_auth_secret_lines(
+            std::io::stdin().lock(),
+            3,
+            "SNAPBACK_AUTH_PASSWORD_CARRIER_INVALID",
+            "combined session-token/password carrier",
+        )?;
+        let token = values.remove(0);
+        if token.is_empty() {
+            anyhow::bail!(
+                "SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID: session-token carrier is empty"
+            );
+        }
+        return Ok((token, values));
+    }
+    let token = read_auth_session_token(session)?;
+    let passwords = read_auth_passwords(target_url, password, 2)?;
+    Ok((token, passwords))
+}
+
+#[derive(serde::Serialize)]
+struct AuthPasswordCredentialCliRequest<'a> {
+    email: &'a str,
+    password: &'a str,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthPasswordChangeCliRequest<'a> {
+    current_password: &'a str,
+    new_password: &'a str,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthPasswordResetCliRequest<'a> {
+    challenge_id: &'a str,
+    code: &'a str,
+    new_password: &'a str,
+}
+
+#[derive(serde::Serialize)]
+struct AuthRecoveryConsumeCliRequest<'a> {
+    email: &'a str,
+    code: &'a str,
+}
+
+#[derive(serde::Serialize)]
+struct AuthEmptyCliRequest {}
+
+fn auth_cli_refusal(status: u16, response: ureq::Response) -> anyhow::Error {
+    let code = response
+        .into_json::<Value>()
+        .ok()
+        .and_then(|body| {
+            body.pointer("/diagnostic/code")
+                .or_else(|| body.pointer("/diagnostics/0/code"))
+                .and_then(Value::as_str)
+                .filter(|code| code.starts_with("SNAPBACK_"))
+                .map(ToOwned::to_owned)
+        })
+        .unwrap_or_else(|| "SNAPBACK_AUTH_CLI_FAILED".to_owned());
+    anyhow::anyhow!(
+        "{code}: authentication request failed with HTTP {status}; response body omitted to protect submitted secrets"
+    )
+}
+
+// @ref LLP 0227#surface-routes-cli-verbs-client-methods — these are direct
+//   product-front-door calls, with no admin or impersonation authority.
+fn auth_cli_post<T: serde::Serialize>(
+    target: &AuthUrlArgs,
+    path: &str,
+    body: &T,
+    session_token: Option<&str>,
+) -> anyhow::Result<Value> {
+    let base_url = target.url.trim_end_matches('/');
+    anyhow::ensure!(
+        !base_url.is_empty(),
+        "SNAPBACK_AUTH_CLI_REQUEST_FAILED: --url must not be empty"
+    );
+    let agent = ureq::AgentBuilder::new().redirects(0).build();
+    let mut request = agent.post(&format!("{base_url}{path}"));
+    let mut authorization = None;
+    if let Some(token) = session_token {
+        authorization = Some(zeroize::Zeroizing::new(format!("Bearer {token}")));
+        request = request.set(
+            "authorization",
+            authorization
+                .as_ref()
+                .expect("authorization was just set")
+                .as_str(),
+        );
+    }
+    let outcome = match request.send_json(body) {
+        Ok(response) => response.into_json().map_err(|_| {
+            anyhow::anyhow!(
+                "SNAPBACK_AUTH_CLI_RESPONSE_INVALID: authentication response was not JSON"
+            )
+        }),
+        Err(ureq::Error::Status(status, response)) => Err(auth_cli_refusal(status, response)),
+        Err(_) => Err(anyhow::anyhow!(
+            "SNAPBACK_AUTH_CLI_REQUEST_FAILED: authentication request failed before a response was received"
+        )),
+    };
+    drop(authorization);
+    outcome
+}
+
+fn render_auth_cli_success(response: &Value) -> anyhow::Result<String> {
+    let rendered = serde_json::to_string_pretty(response).map_err(|_| {
+        anyhow::anyhow!(
+            "SNAPBACK_AUTH_CLI_RESPONSE_INVALID: authentication response could not be rendered"
+        )
+    })?;
+    let Some(codes) = response.get("recoveryCodes") else {
+        return Ok(format!("{rendered}\n"));
+    };
+    let codes = codes
+        .as_array()
+        .filter(|codes| !codes.is_empty())
+        .context("SNAPBACK_AUTH_CLI_RESPONSE_INVALID: recoveryCodes was not a nonempty array")?;
+    for code in codes {
+        let code = code.as_str().context(
+            "SNAPBACK_AUTH_CLI_RESPONSE_INVALID: recoveryCodes contained a non-string value",
+        )?;
+        if rendered.matches(code).count() != 1 {
+            anyhow::bail!(
+                "SNAPBACK_AUTH_CLI_RESPONSE_INVALID: a recovery code was not present exactly once in the success projection"
+            );
+        }
+    }
+    Ok(format!(
+        "Store these recovery codes now; they cannot be shown again.\n{rendered}\n"
+    ))
+}
+
+fn print_auth_cli_success(response: &Value) -> anyhow::Result<()> {
+    print!("{}", render_auth_cli_success(response)?);
+    Ok(())
+}
+
+fn auth_password_command(command: AuthPasswordCommand) -> anyhow::Result<()> {
+    match command {
+        AuthPasswordCommand::Signup {
+            target,
+            email,
+            password,
+        } => {
+            let passwords = read_auth_passwords(&target.url, &password, 1)?;
+            let request = AuthPasswordCredentialCliRequest {
+                email: &email,
+                password: passwords[0].as_str(),
+            };
+            let response = auth_cli_post(&target, "/auth/password/signup", &request, None)?;
+            print_auth_cli_success(&response)
+        }
+        AuthPasswordCommand::Signin {
+            target,
+            email,
+            password,
+        } => {
+            let passwords = read_auth_passwords(&target.url, &password, 1)?;
+            let request = AuthPasswordCredentialCliRequest {
+                email: &email,
+                password: passwords[0].as_str(),
+            };
+            let response = auth_cli_post(&target, "/auth/password/signin", &request, None)?;
+            print_auth_cli_success(&response)
+        }
+        AuthPasswordCommand::Change {
+            target,
+            session,
+            password,
+        } => {
+            let (session_token, passwords) =
+                read_auth_change_secrets(&target.url, &session, &password)?;
+            let request = AuthPasswordChangeCliRequest {
+                current_password: passwords[0].as_str(),
+                new_password: passwords[1].as_str(),
+            };
+            let response = auth_cli_post(
+                &target,
+                "/auth/password/change",
+                &request,
+                Some(session_token.as_str()),
+            )?;
+            print_auth_cli_success(&response)
+        }
+        AuthPasswordCommand::Reset {
+            target,
+            challenge_id,
+            code,
+            password,
+        } => {
+            let passwords = read_auth_passwords(&target.url, &password, 1)?;
+            let request = AuthPasswordResetCliRequest {
+                challenge_id: &challenge_id,
+                code: &code,
+                new_password: passwords[0].as_str(),
+            };
+            let response = auth_cli_post(&target, "/auth/password/reset", &request, None)?;
+            print_auth_cli_success(&response)
+        }
+        AuthPasswordCommand::Unlock { target, email } => {
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/auth/password/unlock",
+                json!({ "email": email }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+fn auth_recovery_command(command: AuthRecoveryCommand) -> anyhow::Result<()> {
+    match command {
+        AuthRecoveryCommand::Consume {
+            target,
+            email,
+            code,
+        } => {
+            let request = AuthRecoveryConsumeCliRequest {
+                email: &email,
+                code: &code,
+            };
+            let response = auth_cli_post(&target, "/auth/recovery/consume", &request, None)?;
+            print_auth_cli_success(&response)
+        }
+        AuthRecoveryCommand::Rotate { target, session } => {
+            let session_token = read_auth_session_token(&session)?;
+            let response = auth_cli_post(
+                &target,
+                "/auth/recovery/rotate",
+                &AuthEmptyCliRequest {},
+                Some(session_token.as_str()),
+            )?;
+            print_auth_cli_success(&response)
+        }
+    }
 }
 
 fn auth_rehearse_command(command: AuthRehearseCommand) -> anyhow::Result<()> {

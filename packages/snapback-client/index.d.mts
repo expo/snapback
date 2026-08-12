@@ -393,6 +393,40 @@ export interface AuthorityDescriptorV1 {
   readonly sessionGeneration: number;
 }
 
+export interface AuthSessionCredentialProjectionV1 {
+  readonly id: string;
+  readonly userId: string;
+  readonly provider: string;
+  readonly createdAt: number;
+  readonly expiresAt: number;
+  readonly absoluteExpiresAt: number;
+}
+
+/** Public credential projection. The bearer is deliberately absent. */
+export interface AuthCredentialPublicProjectionV1 {
+  readonly tokenType: 'Bearer';
+  readonly refreshAfter: number;
+  readonly session: AuthSessionCredentialProjectionV1;
+  readonly authorityDescriptor: AuthorityDescriptorV1;
+}
+
+/** One-time recovery custody returned only by signup/consume/rotate. */
+export interface AuthRecoveryCredentialPublicProjectionV1
+  extends AuthCredentialPublicProjectionV1 {
+  readonly recoveryCodes: readonly string[];
+}
+
+export interface AuthChallengePublicProjectionV1 {
+  readonly challengeId: string;
+  readonly expiresAt: number;
+}
+
+export interface AuthPasswordSetStepUpV1 {
+  readonly challengeId: string;
+  readonly code: string;
+  readonly identityId: string;
+}
+
 export interface SettledMutation {
   readonly clientMutationId: string;
   readonly function: string;
@@ -1290,6 +1324,42 @@ export class SnapbackClient {
   /** Final auth/client cleanup. Disposes the diagnostics channel and releases
    * a client-owned default RQS store; an injected store remains caller-owned. */
   closeAuth(): Promise<void>;
+  authSession(options?: Readonly<{ readonly force?: boolean }>): Promise<Readonly<Record<string, unknown>>>;
+  authRequestCode(email: string): Promise<AuthChallengePublicProjectionV1>;
+  authExchange(input: Readonly<{
+    readonly challengeId: string;
+    readonly code: string;
+  }>): Promise<AuthCredentialPublicProjectionV1>;
+  authPasswordSignup(input: Readonly<{
+    readonly email: string;
+    readonly password: string;
+  }>): Promise<AuthRecoveryCredentialPublicProjectionV1>;
+  authPasswordSignIn(input: Readonly<{
+    readonly email: string;
+    readonly password: string;
+  }>): Promise<AuthCredentialPublicProjectionV1>;
+  authPasswordChange(input: Readonly<{
+    readonly currentPassword: string;
+    readonly newPassword: string;
+  }>): Promise<AuthCredentialPublicProjectionV1>;
+  authPasswordSet(input: Readonly<{
+    readonly newPassword: string;
+    readonly stepUp: AuthPasswordSetStepUpV1;
+  }>): Promise<AuthCredentialPublicProjectionV1>;
+  authPasswordReset(input: Readonly<{
+    readonly challengeId: string;
+    readonly code: string;
+    readonly newPassword: string;
+  }>): Promise<AuthCredentialPublicProjectionV1>;
+  authRecoveryConsume(input: Readonly<{
+    readonly email: string;
+    readonly code: string;
+  }>): Promise<AuthRecoveryCredentialPublicProjectionV1>;
+  authRecoveryRotate(): Promise<AuthRecoveryCredentialPublicProjectionV1>;
+  authRefresh(options?: Readonly<{
+    readonly senderChallengeRetry?: boolean;
+  }>): Promise<AuthCredentialPublicProjectionV1 | Readonly<{ readonly superseded: true }>>;
+  authLogout(): Promise<null>;
   health(): Promise<unknown>;
   inspect(): Promise<unknown>;
   captureAuthority(): unknown;

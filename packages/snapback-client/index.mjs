@@ -897,7 +897,13 @@ const sensitiveProtocolField = (name) => {
     || normalized === 'key_material'
     || normalized.endsWith('_key_material')
     || normalized === 'login_code'
-    || normalized === 'challenge_code';
+    || normalized === 'challenge_code'
+    || normalized === 'password'
+    || normalized.endsWith('_password')
+    || normalized === 'recovery_code'
+    || normalized.endsWith('_recovery_code')
+    || normalized === 'recovery_codes'
+    || normalized.endsWith('_recovery_codes');
 };
 
 const addSecret = (secrets, value) => {
@@ -1659,11 +1665,61 @@ const projectCredentialResponse = (value, forbiddenSecrets = []) => {
   return projected;
 };
 
+const RECOVERY_CODE = /^sbrv1_[A-Za-z0-9_-]{27}$/;
+const RECOVERY_CODE_COUNT = 8;
+
+// Recovery-bearing issuance is a distinct closed wire shape. Do not widen
+// projectCredentialResponse: its exact five-key closure prevents a server or
+// intermediary from smuggling additional fields beside a credential.
+// @ref LLP 0214#9-recovery-code-plaintext-custody — plaintext recovery codes
+//   cross exactly one success boundary and never enter coordinator custody.
+const projectCredentialResponseWithRecoveryCodes = (value, forbiddenSecrets = []) => {
+  if (
+    !exactRecord(value, [
+      'tokenType',
+      'token',
+      'refreshAfter',
+      'session',
+      'authorityDescriptor',
+      'recoveryCodes',
+    ])
+    || value.tokenType !== 'Bearer'
+    || typeof value.token !== 'string'
+    || value.token.length === 0
+    || !safeUnsignedInteger(value.refreshAfter)
+    || !authorityDescriptorIsValid(value.authorityDescriptor)
+    || !Array.isArray(value.recoveryCodes)
+    || value.recoveryCodes.length !== RECOVERY_CODE_COUNT
+    || !value.recoveryCodes.every((code) => typeof code === 'string' && RECOVERY_CODE.test(code))
+    || new Set(value.recoveryCodes).size !== value.recoveryCodes.length
+  ) return null;
+  const session = projectSessionResponse(value.session);
+  if (!session) return null;
+  const projected = {
+    tokenType: 'Bearer',
+    token: value.token,
+    refreshAfter: value.refreshAfter,
+    session,
+    authorityDescriptor: { ...value.authorityDescriptor },
+    recoveryCodes: [...value.recoveryCodes],
+  };
+  const publicProjection = credentialPublicProjection(projected);
+  if ([projected.token, ...projected.recoveryCodes, ...forbiddenSecrets].some((secret) => (
+    valueContainsSecret(publicProjection, secret)
+  ))) return null;
+  return projected;
+};
+
 const credentialPublicProjection = (credential) => ({
   tokenType: credential.tokenType,
   refreshAfter: credential.refreshAfter,
   session: { ...credential.session },
   authorityDescriptor: { ...credential.authorityDescriptor },
+});
+
+const credentialPublicProjectionWithRecoveryCodes = (credential) => ({
+  ...credentialPublicProjection(credential),
+  recoveryCodes: [...credential.recoveryCodes],
 });
 
 const projectChallengeResponse = (value) => {
@@ -3775,6 +3831,12 @@ export class SnapbackClient {
     throw error;
   }
 
+  #validateCredentialResponseWithRecoveryCodes(response, forbiddenSecrets = []) {
+    const projected = projectCredentialResponseWithRecoveryCodes(response, forbiddenSecrets);
+    if (projected) return projected;
+    throw opaqueCredentialResponseError();
+  }
+
   async #familyAlarmWithBearer(bearer) {
     if (!bearer) return { accepted: false };
     return this.#trackedFetchJson(
@@ -5188,6 +5250,198 @@ export class SnapbackClient {
       ...(senderConstraint === null ? {} : { senderConstraint }),
     }, 'login');
     return credentialPublicProjection(response);
+  }
+
+  #requirePasswordBearerCustody() {
+    if (!this.senderConstrained) return;
+    throw clientCodedError(new Error(
+      'SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED: password authentication does not support sender-constrained custody',
+    ), 'SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED');
+  }
+
+  async #authPasswordAnonymousIssuance({
+    path,
+    body,
+    forbiddenSecrets,
+    recoveryCodes,
+  }) {
+    if (!this.authCoordinator) {
+      throw new TypeError('password authentication requires AuthCoordinator custody');
+    }
+    this.#requirePasswordBearerCustody();
+    await this.authSession();
+    const capture = this.authCoordinator.capture();
+    const predecessor = this.authCoordinator.credentialFor(capture);
+    if (predecessor.authority.kind !== 'anonymous') {
+      throw staleAuthorityError();
+    }
+    const raw = await this.#trackedFetchJson(
+      'POST',
+      path,
+      body,
+      this.#authOfferHeaders(true, null),
+      { forbiddenSecrets },
+    );
+    const response = recoveryCodes
+      ? this.#validateCredentialResponseWithRecoveryCodes(raw, forbiddenSecrets)
+      : this.#validateCredentialResponse(raw, forbiddenSecrets);
+
+    // Password issuance runs outside custody ownership, just like
+    // authExchange. Re-capture so an interleaved transition cannot install a
+    // credential against a stale anonymous predecessor.
+    // @ref LLP 0059#coordinator-interface — only the exact successor is an
+    //   idempotent transition; every other current authority is stale.
+    let currentCapture;
+    try {
+      currentCapture = this.authCoordinator.capture();
+    } catch (error) {
+      if (
+        error?.code === 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+        || error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+      ) throw staleAuthorityError();
+      throw error;
+    }
+    const current = this.authCoordinator.credentialFor(currentCapture);
+    const authority = credentialAuthority(
+      response,
+      'sessions',
+      current.authority.authorizationStreamIncarnation,
+    );
+    if (current.authority.kind !== 'anonymous') {
+      if (sameClientAuthority(current.authority, authority)) {
+        return recoveryCodes
+          ? credentialPublicProjectionWithRecoveryCodes(response)
+          : credentialPublicProjection(response);
+      }
+      throw staleAuthorityError();
+    }
+    await this.authCoordinator.transition(currentCapture, {
+      authority,
+      bearer: response.token,
+      refreshAfterMs: response.refreshAfter,
+    }, 'login');
+    return recoveryCodes
+      ? credentialPublicProjectionWithRecoveryCodes(response)
+      : credentialPublicProjection(response);
+  }
+
+  async #authPasswordCredentialRotation({
+    path,
+    body,
+    forbiddenSecrets,
+    recoveryCodes,
+  }) {
+    if (!this.authCoordinator) {
+      throw new TypeError('password credential rotation requires AuthCoordinator custody');
+    }
+    this.#requirePasswordBearerCustody();
+    const currentDescriptor = requireAuthorityDescriptor(
+      (await this.authSession()).authorityDescriptor,
+    );
+    const capture = this.authCoordinator.capture();
+    const outcome = await this.authCoordinator.withCredentialRotation(
+      capture,
+      async ({ bearer, authority }) => {
+        const raw = await this.#trackedFetchJson(
+          'POST',
+          path,
+          body,
+          this.#authOfferHeaders(true, bearer),
+          { forbiddenSecrets: [bearer, ...forbiddenSecrets] },
+        );
+        const response = recoveryCodes
+          ? this.#validateCredentialResponseWithRecoveryCodes(
+            raw,
+            [bearer, ...forbiddenSecrets],
+          )
+          : this.#validateCredentialResponse(raw, [bearer, ...forbiddenSecrets]);
+        const observed = credentialAuthority(
+          response,
+          'sessions',
+          authority.authorizationStreamIncarnation,
+        );
+        if (
+          !sameClientAuthority(observed, authority)
+          || response.authorityDescriptor.authorityInstanceId
+            !== currentDescriptor.authorityInstanceId
+        ) {
+          throw opaqueCredentialResponseError();
+        }
+        return {
+          bearer: response.token,
+          refreshAfterMs: response.refreshAfter,
+          value: recoveryCodes
+            ? credentialPublicProjectionWithRecoveryCodes(response)
+            : credentialPublicProjection(response),
+        };
+      },
+    );
+    if (!outcome.rotated) throw staleAuthorityError();
+    this.clearAuthSession();
+    return outcome.value;
+  }
+
+  authPasswordSignup({ email, password }) {
+    return this.#authPasswordAnonymousIssuance({
+      path: '/auth/password/signup',
+      body: { email, password },
+      forbiddenSecrets: [password],
+      recoveryCodes: true,
+    });
+  }
+
+  authPasswordSignIn({ email, password }) {
+    return this.#authPasswordAnonymousIssuance({
+      path: '/auth/password/signin',
+      body: { email, password },
+      forbiddenSecrets: [password],
+      recoveryCodes: false,
+    });
+  }
+
+  authPasswordChange({ currentPassword, newPassword }) {
+    return this.#authPasswordCredentialRotation({
+      path: '/auth/password/change',
+      body: { currentPassword, newPassword },
+      forbiddenSecrets: [currentPassword, newPassword],
+      recoveryCodes: false,
+    });
+  }
+
+  authPasswordSet({ newPassword, stepUp }) {
+    return this.#authPasswordCredentialRotation({
+      path: '/auth/password/change',
+      body: { currentPassword: null, newPassword, stepUp },
+      forbiddenSecrets: [newPassword, stepUp?.code],
+      recoveryCodes: false,
+    });
+  }
+
+  authPasswordReset({ challengeId, code, newPassword }) {
+    return this.#authPasswordAnonymousIssuance({
+      path: '/auth/password/reset',
+      body: { challengeId, code, newPassword },
+      forbiddenSecrets: [challengeId, code, newPassword],
+      recoveryCodes: false,
+    });
+  }
+
+  authRecoveryConsume({ email, code }) {
+    return this.#authPasswordAnonymousIssuance({
+      path: '/auth/recovery/consume',
+      body: { email, code },
+      forbiddenSecrets: [code],
+      recoveryCodes: true,
+    });
+  }
+
+  authRecoveryRotate() {
+    return this.#authPasswordCredentialRotation({
+      path: '/auth/recovery/rotate',
+      body: {},
+      forbiddenSecrets: [],
+      recoveryCodes: true,
+    });
   }
 
   async #authRefreshSender({

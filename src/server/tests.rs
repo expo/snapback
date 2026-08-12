@@ -19944,6 +19944,33 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "SNAPBACK_CONFIG_VALUE_TOO_LARGE",
         "CLI-local config.set value-carrier bound diagnostic; never emitted by the Snapback HTTP server",
     ),
+    // @ref LLP 0227#surface-routes-cli-verbs-client-methods — password and
+    // session-token carriers are CLI-local; route failures retain the real
+    // server diagnostic when one exists.
+    (
+        "SNAPBACK_AUTH_PASSWORD_CARRIER_INVALID",
+        "CLI-local password secret-carrier diagnostic; never emitted by the Snapback HTTP server",
+    ),
+    (
+        "SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID",
+        "CLI-local session-token secret-carrier diagnostic; never emitted by the Snapback HTTP server",
+    ),
+    (
+        "SNAPBACK_PASSWORD",
+        "dev/test-only environment variable carrying password input for the native CLI; never emitted as an HTTP diagnostic",
+    ),
+    (
+        "SNAPBACK_AUTH_CLI_FAILED",
+        "CLI-local password/recovery HTTP-refusal fallback; the server's actual diagnostic, when present, is classified separately",
+    ),
+    (
+        "SNAPBACK_AUTH_CLI_REQUEST_FAILED",
+        "CLI-local password/recovery transport diagnostic; no HTTP response was received",
+    ),
+    (
+        "SNAPBACK_AUTH_CLI_RESPONSE_INVALID",
+        "CLI-local password/recovery success-envelope diagnostic; never emitted by the Snapback HTTP server",
+    ),
     (
         "SNAPBACK_EPHEMERAL_OPERATOR_DELETE_READY_FILE_REQUIRED",
         "CLI-local operator-delete process-binding diagnostic; never emitted by the Snapback HTTP server",

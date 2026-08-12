@@ -1,25 +1,27 @@
 use super::{
     AdminArgs, AdminCommand, AdminLinkReadyFile, Args, AssetsCommand, AuthCommand,
-    AuthConstructionFailure, AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
-    BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand,
-    ConsoleClaimMintCliResponse, ControlsCommand, CronCommand, DataCommand, DataPatchArgs,
-    DebugCommand, EphemeralCommand, ErrorsCommand, ForkCommand, GUIDE_SEARCH_SCHEMA_VERSION,
-    HostCommand, JobsCommand, ManagedPath, NetworkProfileCommand, ReadyFileTarget,
-    ResolvedHttpTarget, SessionCommand, StoreCommand, TargetArgs, TelemetryCommand,
-    automatic_reap_before_create, bind_first_available, bind_listener, console_claim_fragment_url,
-    console_fragment_url, controls_list_text, fork_secret_disposition, managed_startup_paths,
-    mint_secret_read_via_http, parse_fork_ttl, parse_network_profile_selection, parse_run_args,
-    path_segment_escape, prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
-    reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
-    resolve_http_target_for_operation, resolve_startup_nonce, runtime_auth_program_readiness,
-    search_guide_sections_in, validate_path_disjointness, validated_console_origin,
-    validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
+    AuthConstructionFailure, AuthCoordinatorReadinessReceipt, AuthPasswordCommand,
+    AuthProgramConstructionReceipts, AuthRecoveryCommand, BEFORE_STARTUP_TARGET_RESERVATION, Cli,
+    ConfigCommand, ConnectionsCommand, ConsoleClaimMintCliResponse, ControlsCommand, CronCommand,
+    DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand, ErrorsCommand, ForkCommand,
+    GUIDE_SEARCH_SCHEMA_VERSION, HostCommand, JobsCommand, ManagedPath, NetworkProfileCommand,
+    ReadyFileTarget, ResolvedHttpTarget, SessionCommand, StoreCommand, TargetArgs,
+    TelemetryCommand, automatic_reap_before_create, bind_first_available, bind_listener,
+    console_claim_fragment_url, console_fragment_url, controls_list_text, fork_secret_disposition,
+    managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
+    parse_network_profile_selection, parse_run_args, path_segment_escape, prepare_database_path,
+    prepare_database_path_for_startup, quiet_stop_fork, reject_misdirected_serve_flags,
+    render_guide_command, resolve_http_target, resolve_http_target_for_operation,
+    resolve_startup_nonce, runtime_auth_program_readiness, search_guide_sections_in,
+    validate_path_disjointness, validated_console_origin, validated_secret_read_root_path,
+    write_ready_file_atomic, write_ready_file_atomic_protected,
 };
 use crate::guide::EmbeddedGuideFile;
 use crate::instance_lock::TargetInstanceReservation;
 use crate::store_state::path_with_filename_suffix;
 use clap::{CommandFactory, Parser};
 use serde_json::{Value, json};
+use std::ffi::OsString;
 use std::io::{Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -1984,6 +1986,315 @@ fn auth_logical_transfer_backup_restore_and_declared_startup_have_closed_cli_spe
         ])
         .is_err()
     );
+}
+
+#[test]
+fn password_auth_cli_has_only_non_argv_password_and_session_carriers() {
+    let stdin_argv = [
+        "snapback",
+        "auth",
+        "password",
+        "signup",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--email",
+        "person@example.com",
+        "--password-stdin",
+    ];
+    let submitted_password = "password-read-only-from-stdin";
+    assert!(
+        stdin_argv
+            .iter()
+            .all(|argument| !argument.contains(submitted_password))
+    );
+    let parsed = Cli::parse_from(stdin_argv);
+    assert!(matches!(
+        parsed.command,
+        Some(HostCommand::Auth {
+            command: AuthCommand::Password {
+                command: AuthPasswordCommand::Signup { password, .. }
+            }
+        }) if password.password_stdin && password.password_fd.is_none()
+    ));
+    let values = super::read_auth_secret_lines(
+        std::io::Cursor::new(format!("{submitted_password}\n")),
+        1,
+        "SNAPBACK_AUTH_PASSWORD_CARRIER_INVALID",
+        "password carrier",
+    )
+    .expect("stdin password carrier");
+    assert_eq!(values[0].as_str(), submitted_password);
+
+    let descriptor = Cli::parse_from([
+        "snapback",
+        "auth",
+        "password",
+        "signin",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--email",
+        "person@example.com",
+        "--password-fd",
+        "9",
+    ]);
+    assert!(matches!(
+        descriptor.command,
+        Some(HostCommand::Auth {
+            command: AuthCommand::Password {
+                command: AuthPasswordCommand::Signin { password, .. }
+            }
+        }) if !password.password_stdin && password.password_fd == Some(9)
+    ));
+
+    let change = Cli::parse_from([
+        "snapback",
+        "auth",
+        "password",
+        "change",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--session-token-stdin",
+        "--password-stdin",
+    ]);
+    assert!(matches!(
+        change.command,
+        Some(HostCommand::Auth {
+            command: AuthCommand::Password {
+                command: AuthPasswordCommand::Change {
+                    session,
+                    password,
+                    ..
+                }
+            }
+        }) if session.session_token_stdin && password.password_stdin
+    ));
+    let combined = super::read_auth_secret_lines(
+        std::io::Cursor::new("sbs_session\ncurrent-password\nnew-password\n"),
+        3,
+        "SNAPBACK_AUTH_PASSWORD_CARRIER_INVALID",
+        "combined session-token/password carrier",
+    )
+    .expect("combined stdin carrier");
+    assert_eq!(combined[0].as_str(), "sbs_session");
+    assert_eq!(combined[1].as_str(), "current-password");
+    assert_eq!(combined[2].as_str(), "new-password");
+
+    let argv_password = Cli::try_parse_from([
+        "snapback",
+        "auth",
+        "password",
+        "signup",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--email",
+        "person@example.com",
+        "--password",
+        submitted_password,
+    ])
+    .expect_err("password argv flag must not exist");
+    assert_eq!(
+        argv_password.kind(),
+        clap::error::ErrorKind::UnknownArgument
+    );
+
+    let missing_carrier = Cli::try_parse_from([
+        "snapback",
+        "auth",
+        "password",
+        "signup",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--email",
+        "person@example.com",
+    ])
+    .expect_err("password carrier must be required by clap");
+    assert_eq!(
+        missing_carrier.kind(),
+        clap::error::ErrorKind::MissingRequiredArgument
+    );
+
+    let environment_argv = super::password_environment_carrier_argv(
+        [
+            "snapback",
+            "auth",
+            "password",
+            "signup",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--email",
+            "person@example.com",
+        ]
+        .into_iter()
+        .map(OsString::from)
+        .collect(),
+        true,
+    );
+    assert!(
+        environment_argv
+            .iter()
+            .all(|argument| argument != submitted_password)
+    );
+    let environment = Cli::try_parse_from(environment_argv)
+        .expect("dev/test environment carrier marker satisfies the closed clap group");
+    assert!(matches!(
+        environment.command,
+        Some(HostCommand::Auth {
+            command: AuthCommand::Password {
+                command: AuthPasswordCommand::Signup { password, .. }
+            }
+        }) if password.password_environment
+            && !password.password_stdin
+            && password.password_fd.is_none()
+    ));
+}
+
+#[test]
+fn password_auth_cli_spells_reset_recovery_and_admin_unlock_exactly() {
+    let reset = Cli::parse_from([
+        "snapback",
+        "auth",
+        "password",
+        "reset",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--challenge-id",
+        "sbc_challenge",
+        "--code",
+        "123456",
+        "--password-stdin",
+    ]);
+    assert!(matches!(
+        reset.command,
+        Some(HostCommand::Auth {
+            command: AuthCommand::Password {
+                command: AuthPasswordCommand::Reset { .. }
+            }
+        })
+    ));
+
+    let consume = Cli::parse_from([
+        "snapback",
+        "auth",
+        "recovery",
+        "consume",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--email",
+        "person@example.com",
+        "--code",
+        "sbrv1_recovery",
+    ]);
+    assert!(matches!(
+        consume.command,
+        Some(HostCommand::Auth {
+            command: AuthCommand::Recovery {
+                command: AuthRecoveryCommand::Consume { .. }
+            }
+        })
+    ));
+
+    let rotate = Cli::parse_from([
+        "snapback",
+        "auth",
+        "recovery",
+        "rotate",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--session-token-file",
+        "session-token.txt",
+    ]);
+    assert!(matches!(
+        rotate.command,
+        Some(HostCommand::Auth {
+            command: AuthCommand::Recovery {
+                command: AuthRecoveryCommand::Rotate { session, .. }
+            }
+        }) if session.session_token_file == Some(PathBuf::from("session-token.txt"))
+    ));
+
+    let unlock = Cli::parse_from([
+        "snapback",
+        "auth",
+        "password",
+        "unlock",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--email",
+        "person@example.com",
+    ]);
+    assert!(matches!(
+        unlock.command,
+        Some(HostCommand::Auth {
+            command: AuthCommand::Password {
+                command: AuthPasswordCommand::Unlock { .. }
+            }
+        })
+    ));
+}
+
+#[test]
+fn password_environment_is_dev_test_only_with_typed_profile_refusal() {
+    for profile in [Some("dev"), Some("test")] {
+        super::password_non_stdin_profile_allowed(
+            profile,
+            "https://remote.example",
+            "SNAPBACK_PASSWORD",
+        )
+        .expect("dev/test env password carrier");
+    }
+    super::password_non_stdin_profile_allowed(None, "http://127.0.0.1:4287", "SNAPBACK_PASSWORD")
+        .expect("zero-config loopback is dev");
+    for profile in [Some("demo"), Some("prod"), Some("production")] {
+        let error = super::password_non_stdin_profile_allowed(
+            profile,
+            "http://127.0.0.1:4287",
+            "SNAPBACK_PASSWORD",
+        )
+        .expect_err("non-dev/test profile must refuse SNAPBACK_PASSWORD");
+        assert!(error.to_string().starts_with("SNAPBACK_PROFILE_FORBIDS:"));
+    }
+    let remote_default = super::password_non_stdin_profile_allowed(
+        None,
+        "https://remote.example",
+        "SNAPBACK_PASSWORD",
+    )
+    .expect_err("remote default is production");
+    assert!(
+        remote_default
+            .to_string()
+            .starts_with("SNAPBACK_PROFILE_FORBIDS:")
+    );
+    let descriptor = super::password_non_stdin_profile_allowed(
+        Some("production"),
+        "http://127.0.0.1:4287",
+        "--password-fd",
+    )
+    .expect_err("stdin must be the only production password carrier");
+    assert!(
+        descriptor
+            .to_string()
+            .starts_with("SNAPBACK_PROFILE_FORBIDS:")
+    );
+}
+
+#[test]
+fn password_signup_cli_renders_recovery_codes_exactly_once() {
+    let codes = (0..8)
+        .map(|index| format!("sbrv1_{index:02}{}", "A".repeat(25)))
+        .collect::<Vec<_>>();
+    let response = json!({
+        "tokenType": "Bearer",
+        "token": "sbs_success",
+        "refreshAfter": 1,
+        "session": { "id": "ses_1" },
+        "authorityDescriptor": { "authorityInstanceId": "aut_1" },
+        "recoveryCodes": codes,
+    });
+    let rendered = super::render_auth_cli_success(&response).expect("render signup response");
+    assert!(rendered.starts_with("Store these recovery codes now; they cannot be shown again.\n"));
+    for code in response["recoveryCodes"].as_array().unwrap() {
+        assert_eq!(rendered.matches(code.as_str().unwrap()).count(), 1);
+    }
 }
 
 #[test]

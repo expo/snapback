@@ -1,0 +1,349 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
+import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '@expo/snapback-contract/auth-coordinator';
+
+import { SnapbackClient } from './index.mjs';
+
+const APP_ID = '018f0d90-7b20-7a22-8c33-445566778899';
+const INCARNATION = '018f0d90-7b21-7a22-8c33-445566778899';
+const SESSION = '018f0d90-7b22-7a22-8c33-445566778899';
+const USER = '018f0d90-7b23-7a22-8c33-445566778899';
+const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
+const OTHER_AUTHORITY = '018f0d90-7b25-7a22-8c33-445566778899';
+const SIGNUP_BEARER = 'sbs_password_signup_secret';
+const CHANGE_BEARER = 'sbs_password_change_secret';
+const PASSWORD = 'a-password-that-must-not-leak';
+const NEW_PASSWORD = 'another-password-that-must-not-leak';
+
+const recoveryCodes = Object.freeze(Array.from({ length: 8 }, (_, index) => (
+  `sbrv1_${String(index).padStart(2, '0')}${'A'.repeat(25)}`
+)));
+
+const availability = Object.freeze({
+  onlineRequestResponse: { available: true, reason: null },
+  authScopedLive: {
+    available: false,
+    minimumAuthInvalidationProtocol: 1,
+    reason: 'SNAPBACK_AUTH_INVALIDATION_PROTOCOL_REQUIRED',
+  },
+  retainedReads: {
+    available: false,
+    minimumAuthInvalidationProtocol: 1,
+    minimumAuthorizedLeaseProtocol: 1,
+    reason: 'SNAPBACK_AUTH_RETAINED_READS_UNAVAILABLE',
+  },
+  queuedReplay: {
+    available: true,
+    minimumAuthorityDescriptorProtocol: 1,
+    reason: null,
+  },
+});
+
+const deploymentIdentity = Object.freeze({
+  schemaVersion: 'snapback.v1',
+  authMode: 'sessions',
+  appId: APP_ID,
+  schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+  bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+  inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+});
+
+const handshake = ({ bearer = null } = {}) => ({
+  protocolVersion: 1,
+  serverStartupNonce: 'password-auth-client-test',
+  authorizationStreamIncarnation: INCARNATION,
+  transitionGeneration: 0,
+  activeMode: 'sessions',
+  desiredMode: 'sessions',
+  modeState: 'settled',
+  appDataAvailability: 'available',
+  quarantineCode: null,
+  clientProtocols: {
+    authClient: 1,
+    authInvalidation: null,
+    authorityDescriptor: 1,
+    authorizedLease: null,
+  },
+  availability,
+  provider: { key: 'local-password', available: true },
+  transports: ['bearer'],
+  authority: bearer === null
+    ? { kind: 'anonymous', userId: null, sessionId: null, isAuthenticated: false }
+    : { kind: 'humanSession', userId: USER, sessionId: SESSION, isAuthenticated: true },
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId: bearer === null ? INCARNATION : AUTHORITY,
+    sessionGeneration: bearer === null ? 0 : 1,
+  },
+  deploymentIdentity,
+  authorizedLease: null,
+});
+
+const credential = ({
+  token = SIGNUP_BEARER,
+  authorityInstanceId = AUTHORITY,
+  sessionId = SESSION,
+  codes = null,
+  extra = null,
+} = {}) => ({
+  tokenType: 'Bearer',
+  token,
+  refreshAfter: Date.now() + 60_000,
+  session: {
+    id: sessionId,
+    userId: USER,
+    provider: 'local-password',
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 120_000,
+    absoluteExpiresAt: Date.now() + 240_000,
+  },
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId,
+    sessionGeneration: 1,
+  },
+  ...(codes === null ? {} : { recoveryCodes: [...codes] }),
+  ...(extra === null ? {} : extra),
+});
+
+const makeFixture = ({ senderConstrained = false } = {}) => {
+  const originalFetch = globalThis.fetch;
+  const routeHandlers = new Map();
+  const knownBearers = new Set([SIGNUP_BEARER, CHANGE_BEARER]);
+  const requests = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    const headers = new Headers(init.headers);
+    const authorization = headers.get('authorization');
+    const bearer = authorization?.replace(/^Bearer /u, '') ?? null;
+    const body = init.body === undefined ? undefined : JSON.parse(init.body);
+    requests.push({ path, authorization, body });
+    if (path === '/auth/session') {
+      return Response.json(handshake({ bearer: knownBearers.has(bearer) ? bearer : null }));
+    }
+    const handler = routeHandlers.get(path);
+    if (!handler) throw new Error(`unexpected password-auth request: ${path}`);
+    return handler({ authorization, bearer, body });
+  };
+  const coordinator = new AuthCoordinator({
+    appId: APP_ID,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const client = new SnapbackClient('https://password-auth.test', {
+    authCoordinator: coordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    senderConstrained,
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  return {
+    client,
+    coordinator,
+    requests,
+    respond(path, handler) { routeHandlers.set(path, handler); },
+    async close() {
+      globalThis.fetch = originalFetch;
+      await client.closeAuth();
+    },
+  };
+};
+
+test('password signup adopts the server principal without exposing the bearer', async () => {
+  const fixture = makeFixture();
+  try {
+    fixture.respond('/auth/password/signup', ({ body }) => {
+      assert.deepEqual(body, { email: 'person@example.com', password: PASSWORD });
+      return Response.json(credential({ codes: recoveryCodes }));
+    });
+    const result = await fixture.client.authPasswordSignup({
+      email: 'person@example.com',
+      password: PASSWORD,
+    });
+    assert.equal(result.session.userId, USER);
+    assert.equal(fixture.coordinator.authority.userId, USER);
+    assert.equal(Object.hasOwn(result, 'token'), false);
+    assert.equal(JSON.stringify(result).includes(SIGNUP_BEARER), false);
+    assert.deepEqual(result.recoveryCodes, recoveryCodes);
+    for (const code of recoveryCodes) {
+      assert.equal(JSON.stringify(result.session).includes(code), false);
+      assert.equal(JSON.stringify(result.authorityDescriptor).includes(code), false);
+    }
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('password change uses credential rotation and rejects authority mismatch', async (t) => {
+  await t.test('preserves the authority instance and replaces only bearer custody', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.respond('/auth/password/signup', () => (
+        Response.json(credential({ codes: recoveryCodes }))
+      ));
+      await fixture.client.authPasswordSignup({
+        email: 'person@example.com',
+        password: PASSWORD,
+      });
+      let rotations = 0;
+      const withCredentialRotation = fixture.coordinator.withCredentialRotation
+        .bind(fixture.coordinator);
+      fixture.coordinator.withCredentialRotation = (...args) => {
+        rotations += 1;
+        return withCredentialRotation(...args);
+      };
+      fixture.respond('/auth/password/change', ({ authorization, body }) => {
+        assert.equal(authorization, `Bearer ${SIGNUP_BEARER}`);
+        assert.deepEqual(body, {
+          currentPassword: PASSWORD,
+          newPassword: NEW_PASSWORD,
+        });
+        return Response.json(credential({ token: CHANGE_BEARER }));
+      });
+      const result = await fixture.client.authPasswordChange({
+        currentPassword: PASSWORD,
+        newPassword: NEW_PASSWORD,
+      });
+      assert.equal(rotations, 1);
+      assert.equal(result.authorityDescriptor.authorityInstanceId, AUTHORITY);
+      assert.equal(Object.hasOwn(result, 'token'), false);
+      const current = fixture.coordinator.credentialFor(fixture.coordinator.capture());
+      assert.equal(current.bearer, CHANGE_BEARER);
+      assert.equal(current.authority.sessionId, SESSION);
+      assert.equal(current.authority.userId, USER);
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  await t.test('refuses a changed authority instance without replacing custody', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.respond('/auth/password/signup', () => (
+        Response.json(credential({ codes: recoveryCodes }))
+      ));
+      await fixture.client.authPasswordSignup({
+        email: 'person@example.com',
+        password: PASSWORD,
+      });
+      fixture.respond('/auth/password/change', () => Response.json(credential({
+        token: CHANGE_BEARER,
+        authorityInstanceId: OTHER_AUTHORITY,
+      })));
+      await assert.rejects(
+        fixture.client.authPasswordChange({
+          currentPassword: PASSWORD,
+          newPassword: NEW_PASSWORD,
+        }),
+        (error) => error?.code === 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID',
+      );
+      assert.equal(
+        fixture.coordinator.credentialFor(fixture.coordinator.capture()).bearer,
+        SIGNUP_BEARER,
+      );
+    } finally {
+      await fixture.close();
+    }
+  });
+});
+
+test('recovery credential projection stays six-key strict and secret-safe', async (t) => {
+  await t.test('accepts the exact recovery shape and rejects every other extra key', async () => {
+    const accepted = makeFixture();
+    try {
+      accepted.respond('/auth/password/signup', () => (
+        Response.json(credential({ codes: recoveryCodes }))
+      ));
+      const result = await accepted.client.authPasswordSignup({
+        email: 'person@example.com',
+        password: PASSWORD,
+      });
+      assert.deepEqual(result.recoveryCodes, recoveryCodes);
+    } finally {
+      await accepted.close();
+    }
+
+    const refused = makeFixture();
+    try {
+      refused.respond('/auth/password/signup', () => Response.json(credential({
+        codes: recoveryCodes,
+        extra: { smuggled: 'field' },
+      })));
+      await assert.rejects(
+        refused.client.authPasswordSignup({
+          email: 'person@example.com',
+          password: PASSWORD,
+        }),
+        (error) => {
+          assert.equal(error?.code, 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID');
+          const payload = JSON.stringify({
+            message: error.message,
+            diagnostic: error.diagnostic,
+          });
+          for (const code of recoveryCodes) assert.equal(payload.includes(code), false);
+          return true;
+        },
+      );
+      assert.equal(refused.coordinator.authority.kind, 'anonymous');
+    } finally {
+      await refused.close();
+    }
+  });
+
+  await t.test('redacts recovery-code fields from server error payloads', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.respond('/auth/password/signin', () => Response.json({
+        diagnostic: {
+          code: 'SNAPBACK_AUTH_CREDENTIAL_INVALID',
+          message: 'credential invalid',
+          details: { recoveryCodes: [...recoveryCodes] },
+        },
+      }, { status: 401 }));
+      await assert.rejects(
+        fixture.client.authPasswordSignIn({
+          email: 'person@example.com',
+          password: PASSWORD,
+        }),
+        (error) => {
+          const payload = JSON.stringify({
+            message: error.message,
+            diagnostic: error.diagnostic,
+          });
+          for (const code of recoveryCodes) assert.equal(payload.includes(code), false);
+          assert.equal(payload.includes(PASSWORD), false);
+          return true;
+        },
+      );
+    } finally {
+      await fixture.close();
+    }
+  });
+});
+
+test('password methods refuse sender-constrained custody with a typed error', async () => {
+  const fixture = makeFixture({ senderConstrained: true });
+  try {
+    await assert.rejects(
+      fixture.client.authPasswordSignup({
+        email: 'person@example.com',
+        password: PASSWORD,
+      }),
+      (error) => (
+        error?.code === 'SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED'
+        && error?.diagnostic?.code === error.code
+      ),
+    );
+    assert.equal(fixture.requests.length, 0);
+  } finally {
+    await fixture.close();
+  }
+});
+
+console.log('snapback-client password auth tests: ok');
