@@ -7,9 +7,7 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use ring::rand::{SecureRandom, SystemRandom};
 use ring::signature::{ECDSA_P256_SHA256_FIXED, UnparsedPublicKey};
-use rusqlite::{
-    Connection, ErrorCode, OptionalExtension, Transaction, TransactionBehavior, params,
-};
+use rusqlite::{Connection, ErrorCode, OptionalExtension, Transaction, params};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
@@ -17,6 +15,15 @@ use subtle::ConstantTimeEq;
 use super::crypto::SessionBearer;
 use super::provider::AUTH_SESSION_SUPERSESSION_GRACE_MS;
 use super::wire::SenderPublicJwk;
+pub use crate::contract_types::{
+    ReplayConsumeError, SenderAdmission, SenderAdmissionRejection, SenderAdmissionRejectionKind,
+    SenderCoverNonceKey, SenderNonce, SenderNonceChallenge, SenderNonceError, VerifiedSenderProof,
+};
+use crate::contract_types::{
+    SenderConstraintLookup, SenderFamilyTombstoneLookup, SenderNonceIssue, SenderNonceRead,
+    SenderProofIdConsumption, SenderProofNonceRotation,
+};
+use crate::storage::auth_sender::{self, SenderProofAuthorityOperations};
 
 const MAX_COMPACT_PROOF_BYTES: usize = 8 * 1024;
 const PAST_WINDOW_SECONDS: u64 = 30;
@@ -37,7 +44,6 @@ const REPLAY_RETENTION_AFTER_IAT_SECONDS: u64 = PAST_WINDOW_SECONDS + 1;
 const SENDER_TOMBSTONE_RETENTION_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
 const REPLAY_TABLE: &str = "_snapback_sender_proof_replay";
 const NONCE_TABLE: &str = "_snapback_sender_nonce";
-const EPOCH_TABLE: &str = "_snapback_sender_replay_epoch";
 pub(crate) const SENDER_ISSUANCE_PROTOCOL: &str = "snapback.sender-issuance.v2";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
@@ -98,13 +104,6 @@ impl std::fmt::Debug for SenderProofExpectation<'_> {
 }
 
 #[derive(Clone, Eq, PartialEq)]
-pub struct VerifiedSenderProof {
-    pub proof_id: [u8; 16],
-    pub jwk_thumbprint: String,
-    pub issued_at_seconds: u64,
-}
-
-#[derive(Clone, Eq, PartialEq)]
 pub(crate) struct SenderIssuanceExpectation<'a> {
     pub challenge_id: &'a str,
     pub canonical_exchange_uri: &'a str,
@@ -150,12 +149,6 @@ impl std::fmt::Debug for SenderIssuanceCommitment {
     }
 }
 
-impl std::fmt::Debug for VerifiedSenderProof {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("VerifiedSenderProof([REDACTED])")
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SenderProofError {
     Malformed,
@@ -166,305 +159,31 @@ pub enum SenderProofError {
     Signature,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ReplayConsumeError {
-    Replay,
-    Capacity,
-    Unavailable,
-    Invalid,
-    /// The thumbprint already holds a live family nonce cell under the current
-    /// epoch; a second family cannot be installed for the same key.
-    KeyBound,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SenderNonceError {
-    Required,
-    Replay,
-    Capacity,
-    Unavailable,
-    Invalid,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct SenderNonce {
-    nonce: String,
-    pub generation: u64,
-    pub expires_at_seconds: u64,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct SenderNonceChallenge(String);
-
-impl SenderNonceChallenge {
-    pub fn expose_for_transport(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Debug for SenderNonceChallenge {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("SenderNonceChallenge([REDACTED])")
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SenderAdmissionRejectionKind {
-    Required,
-    Invalid,
-    Replayed,
-    Unavailable,
-    /// A committed logout (or another durable-delete-class revocation) left
-    /// this custody stranded: the post-logout signed request resolved
-    /// against the bounded revoked-family tombstone and must receive the
-    /// terminal `durableDelete` outcome instead of a nonce challenge.
-    TerminalDurableDelete,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct SenderAdmissionRejection {
-    pub kind: SenderAdmissionRejectionKind,
-    challenge: Option<SenderNonceChallenge>,
-}
-
-impl SenderAdmissionRejection {
-    pub fn challenge(&self) -> Option<&SenderNonceChallenge> {
-        self.challenge.as_ref()
-    }
-
-    pub(crate) fn authority_unavailable() -> Self {
-        rejection(SenderAdmissionRejectionKind::Unavailable, None)
-    }
-}
-
-impl std::fmt::Debug for SenderAdmissionRejection {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("SenderAdmissionRejection")
-            .field("kind", &self.kind)
-            .field("challenge", &self.challenge)
-            .finish()
-    }
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct SenderAdmission {
-    pub verified: VerifiedSenderProof,
-    next_nonce: SenderNonce,
-    /// The durable sender replay namespace this admission verified under —
-    /// what a sender-bound grant records as its issuance epoch
-    /// (`BoundGrantAuthorityV2.senderReplayEpochAtIssuance`).
-    pub sender_replay_epoch: u64,
-}
-
-impl SenderAdmission {
-    pub fn next_nonce_for_transport(&self) -> &str {
-        self.next_nonce.expose_for_transport()
-    }
-
-    pub fn next_nonce_generation(&self) -> u64 {
-        self.next_nonce.generation
-    }
-}
-
-impl std::fmt::Debug for SenderAdmission {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("SenderAdmission")
-            .field("verified", &self.verified)
-            .field("next_nonce", &self.next_nonce)
-            .finish()
-    }
-}
-
-impl SenderNonce {
-    pub fn expose_for_transport(&self) -> &str {
-        &self.nonce
-    }
-}
-
-impl std::fmt::Debug for SenderNonce {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("SenderNonce")
-            .field("nonce", &"[REDACTED]")
-            .field("generation", &self.generation)
-            .field("expires_at_seconds", &self.expires_at_seconds)
-            .finish()
-    }
-}
-
-/// Create the durable replay table only after LLP 0060's hosted startup
-/// preflight has authenticated the handler/admission boundary. Calling this
-/// function is deployment authority; request verification never creates DDL.
-///
-/// @ref LLP 0077#http-binding — replay consumption is atomic, bounded, durable
-/// across process restart, and precedes application execution.
+/// Compatibility surface for sender issuance and focused proof tests. The DDL
+/// authority itself is storage-owned.
 pub fn initialize_sender_proof_replay_after_hosted_preflight(
     connection: &Connection,
 ) -> Result<(), ReplayConsumeError> {
-    connection
-        .execute_batch(&format!(
-            "CREATE TABLE IF NOT EXISTS {REPLAY_TABLE} (
-                admission_epoch INTEGER NOT NULL,
-                proof_id BLOB NOT NULL CHECK(length(proof_id) = 16),
-                expires_at_seconds INTEGER NOT NULL,
-                PRIMARY KEY (admission_epoch, proof_id)
-            ) STRICT;
-            CREATE INDEX IF NOT EXISTS _snapback_sender_proof_replay_expiry
-                ON {REPLAY_TABLE}(expires_at_seconds);
-            CREATE TABLE IF NOT EXISTS {NONCE_TABLE} (
-                admission_epoch INTEGER NOT NULL,
-                jwk_thumbprint TEXT NOT NULL
-                    CHECK(length(jwk_thumbprint) = 43),
-                generation INTEGER NOT NULL CHECK(generation > 0),
-                nonce TEXT NOT NULL CHECK(length(nonce) = 43),
-                expires_at_seconds INTEGER NOT NULL,
-                PRIMARY KEY (admission_epoch, jwk_thumbprint)
-            ) STRICT;
-            CREATE INDEX IF NOT EXISTS _snapback_sender_nonce_expiry
-                ON {NONCE_TABLE}(expires_at_seconds);
-            CREATE TABLE IF NOT EXISTS {EPOCH_TABLE} (
-                singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
-                epoch INTEGER NOT NULL CHECK(epoch > 0)
-            ) STRICT;
-            INSERT OR IGNORE INTO {EPOCH_TABLE}(singleton, epoch) VALUES (1, 1);
-            CREATE TABLE IF NOT EXISTS _snapback_sender_family_binding (
-                session_id TEXT PRIMARY KEY
-                    REFERENCES _auth_sessions(id) ON DELETE CASCADE,
-                protocol_version INTEGER NOT NULL CHECK(protocol_version = 2),
-                jwk_thumbprint TEXT NOT NULL
-                    CHECK(length(jwk_thumbprint) = 43)
-            ) STRICT;"
-        ))
-        .map_err(|_| ReplayConsumeError::Unavailable)
+    auth_sender::initialize_sender_proof_replay_on(connection)
 }
 
-/// Read the durable sender replay namespace. The historical SQL column name
-/// `admission_epoch` stores this value; it is no longer sourced from the
-/// short-lived serving admission.
-///
-/// @ref LLP 0077#issuance-refresh-and-recovery — restart and rollout preserve
-/// one sender namespace, while stream reset rotates it transactionally.
 pub(crate) fn sender_replay_epoch(connection: &Connection) -> Result<u64, ReplayConsumeError> {
-    let epoch: i64 = connection
-        .query_row(
-            &format!("SELECT epoch FROM {EPOCH_TABLE} WHERE singleton = 1"),
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    u64::try_from(epoch)
-        .ok()
-        .filter(|value| *value > 0)
-        .ok_or(ReplayConsumeError::Unavailable)
+    auth_sender::sender_replay_epoch_on(connection)
 }
 
-/// Apply the control-plane monotone floor to the durable sender replay
-/// namespace at hosted-authority install. If the floor is ahead of the
-/// durable counter the durable tables were rolled back wholesale: the epoch
-/// advances to the floor and the replay/nonce tables are cleared in one
-/// transaction, so no proof or nonce accepted under a rolled-back epoch
-/// value can resurrect. A floor at or below the durable counter is a no-op
-/// (the floor never lowers the epoch).
-///
-/// @ref LLP 0077#author-decisions--2026-07-23 — decision 1: effective epoch
-/// = max(incarnation-derived durable value, control-plane floor); the floor
-/// lives outside the rolled-back durable set and only ever advances.
+#[cfg(test)]
 pub(crate) fn apply_sender_replay_epoch_floor(
     connection: &mut Connection,
     floor: u64,
 ) -> Result<(), ReplayConsumeError> {
-    if floor == 0 {
-        return Ok(());
-    }
-    let floor = i64::try_from(floor).map_err(|_| ReplayConsumeError::Invalid)?;
-    let transaction = connection
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    let current: i64 = transaction
-        .query_row(
-            &format!("SELECT epoch FROM {EPOCH_TABLE} WHERE singleton = 1"),
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    if floor > current {
-        let advanced = transaction
-            .execute(
-                &format!("UPDATE {EPOCH_TABLE} SET epoch = ?1 WHERE singleton = 1"),
-                params![floor],
-            )
-            .map_err(|_| ReplayConsumeError::Unavailable)?;
-        if advanced != 1 {
-            return Err(ReplayConsumeError::Unavailable);
-        }
-        transaction
-            .execute(&format!("DELETE FROM {REPLAY_TABLE}"), [])
-            .map_err(|_| ReplayConsumeError::Unavailable)?;
-        transaction
-            .execute(&format!("DELETE FROM {NONCE_TABLE}"), [])
-            .map_err(|_| ReplayConsumeError::Unavailable)?;
-    }
-    transaction
-        .commit()
-        .map_err(|_| ReplayConsumeError::Unavailable)
+    auth_sender::apply_sender_replay_epoch_floor_on(connection, floor)
 }
 
-/// Rotate the sender namespace inside the authorization-stream reset
-/// transaction. An uninitialized hosted sender authority is a no-op.
+#[cfg(test)]
 pub(crate) fn rotate_sender_replay_epoch_for_stream_reset(
     transaction: &Transaction<'_>,
 ) -> Result<(), ReplayConsumeError> {
-    let initialized: bool = transaction
-        .query_row(
-            "SELECT EXISTS(
-               SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?1
-             )",
-            params![EPOCH_TABLE],
-            |row| row.get(0),
-        )
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    if !initialized {
-        return Ok(());
-    }
-    let advanced = transaction
-        .execute(
-            &format!(
-                "UPDATE {EPOCH_TABLE}
-                 SET epoch = epoch + 1
-                 WHERE singleton = 1 AND epoch < ?1"
-            ),
-            params![i64::MAX],
-        )
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    if advanced != 1 {
-        return Err(ReplayConsumeError::Unavailable);
-    }
-    transaction
-        .execute(&format!("DELETE FROM {REPLAY_TABLE}"), [])
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    transaction
-        .execute(&format!("DELETE FROM {NONCE_TABLE}"), [])
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    Ok(())
-}
-
-/// Purpose key for the deterministic unknown-carrier cover nonce. The bytes
-/// are a domain-separated derivation owned by the hosted serving authority;
-/// this type never exposes them through `Debug`.
-pub struct SenderCoverNonceKey([u8; 32]);
-
-impl SenderCoverNonceKey {
-    pub(crate) fn from_bytes(bytes: [u8; 32]) -> Self {
-        Self(bytes)
-    }
-}
-
-impl std::fmt::Debug for SenderCoverNonceKey {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("SenderCoverNonceKey([REDACTED])")
-    }
+    auth_sender::rotate_sender_replay_epoch_for_stream_reset_on(transaction)
 }
 
 /// Deterministic cover nonce for a carrier that resolves to no live bound
@@ -482,7 +201,7 @@ fn keyed_cover_nonce(
     time_bucket: u64,
 ) -> String {
     use hmac::{Hmac, Mac as _};
-    let mut mac = <Hmac<Sha256> as hmac::Mac>::new_from_slice(&cover.0)
+    let mut mac = <Hmac<Sha256> as hmac::Mac>::new_from_slice(cover.as_bytes())
         .expect("HMAC-SHA256 accepts a 32-byte key");
     mac.update(b"snapback.sender-cover-nonce.value.v1");
     mac.update(&sender_replay_epoch.to_be_bytes());
@@ -502,16 +221,91 @@ fn canonical_nonce(value: &str) -> bool {
     canonical_thumbprint(value)
 }
 
-fn checked_i64(value: u64) -> Result<i64, SenderNonceError> {
-    i64::try_from(value).map_err(|_| SenderNonceError::Invalid)
-}
-
 pub fn generate_sender_nonce() -> Result<String, SenderNonceError> {
     let mut bytes = [0_u8; 32];
     SystemRandom::new()
         .fill(&mut bytes)
         .map_err(|_| SenderNonceError::Unavailable)?;
     Ok(URL_SAFE_NO_PAD.encode(bytes))
+}
+
+#[cfg(test)]
+fn issue_sender_nonce(
+    authority: &mut impl SenderProofAuthorityOperations,
+    sender_replay_epoch: u64,
+    family_jwk_thumbprint: &str,
+    nonce: &str,
+    now_seconds: u64,
+    expires_at_seconds: u64,
+    capacity: Option<u64>,
+) -> Result<SenderNonce, SenderNonceError> {
+    authority.issue_nonce(SenderNonceIssue {
+        sender_replay_epoch,
+        family_jwk_thumbprint,
+        nonce,
+        now_seconds,
+        expires_at_seconds,
+        capacity,
+    })
+}
+
+#[cfg(test)]
+fn read_sender_nonce(
+    authority: &impl SenderProofAuthorityOperations,
+    sender_replay_epoch: u64,
+    family_jwk_thumbprint: &str,
+    now_seconds: u64,
+) -> Result<Option<SenderNonce>, SenderNonceError> {
+    authority.read_nonce(SenderNonceRead {
+        sender_replay_epoch,
+        family_jwk_thumbprint,
+        now_seconds,
+    })
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn consume_sender_proof_and_rotate_nonce(
+    authority: &mut impl SenderProofAuthorityOperations,
+    sender_replay_epoch: u64,
+    family_jwk_thumbprint: &str,
+    current: &SenderNonce,
+    verified: &VerifiedSenderProof,
+    now_seconds: u64,
+    replay_expires_at_seconds: u64,
+    next_nonce: &str,
+    next_nonce_expires_at_seconds: u64,
+    replay_capacity: Option<u64>,
+) -> Result<SenderNonce, SenderNonceError> {
+    authority.consume_proof_and_rotate_nonce(SenderProofNonceRotation {
+        sender_replay_epoch,
+        family_jwk_thumbprint,
+        current,
+        verified,
+        now_seconds,
+        replay_expires_at_seconds,
+        next_nonce,
+        next_nonce_expires_at_seconds,
+        replay_capacity,
+    })
+}
+
+#[cfg(test)]
+fn consume_sender_proof_id(
+    authority: &mut impl SenderProofAuthorityOperations,
+    sender_replay_epoch: u64,
+    proof_id: [u8; 16],
+    now_seconds: u64,
+    expires_at_seconds: u64,
+    capacity: Option<u64>,
+) -> Result<(), ReplayConsumeError> {
+    authority.consume_proof_id(SenderProofIdConsumption {
+        sender_replay_epoch,
+        proof_id,
+        now_seconds,
+        expires_at_seconds,
+        capacity,
+    })
 }
 
 impl SenderIssuanceCommitment {
@@ -876,138 +670,6 @@ impl SenderIssuanceCommitment {
     }
 }
 
-/// Install a fresh nonce generation for one family and admission epoch.
-///
-/// The caller may return the nonce only through the cache-forbidden
-/// `DPoP-Nonce` transport header. Debug output is redacted and no diagnostic
-/// receives the nonce.
-fn issue_sender_nonce(
-    connection: &mut Connection,
-    admission_epoch: u64,
-    family_jwk_thumbprint: &str,
-    nonce: &str,
-    now_seconds: u64,
-    expires_at_seconds: u64,
-    capacity: Option<u64>,
-) -> Result<SenderNonce, SenderNonceError> {
-    let admission_epoch = checked_i64(admission_epoch)?;
-    let now_seconds_i64 = checked_i64(now_seconds)?;
-    let expires_at_seconds_i64 = checked_i64(expires_at_seconds)?;
-    let capacity = capacity.unwrap_or(DEFAULT_NONCE_CAPACITY);
-    if admission_epoch <= 0
-        || !canonical_thumbprint(family_jwk_thumbprint)
-        || !canonical_nonce(nonce)
-        || expires_at_seconds <= now_seconds
-        || capacity == 0
-        || capacity > i64::MAX as u64
-    {
-        return Err(SenderNonceError::Invalid);
-    }
-    let transaction = connection
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    let current_generation: Option<i64> = transaction
-        .query_row(
-            &format!(
-                "SELECT generation FROM {NONCE_TABLE}
-                 WHERE admission_epoch = ?1 AND jwk_thumbprint = ?2"
-            ),
-            params![admission_epoch, family_jwk_thumbprint],
-            |row| row.get(0),
-        )
-        .optional()
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    transaction
-        .execute(
-            &format!("DELETE FROM {NONCE_TABLE} WHERE expires_at_seconds < ?1"),
-            params![now_seconds_i64],
-        )
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    let generation = match current_generation {
-        Some(value) if value > 0 && value < i64::MAX => value + 1,
-        Some(_) => return Err(SenderNonceError::Unavailable),
-        None => {
-            let retained: i64 = transaction
-                .query_row(&format!("SELECT COUNT(*) FROM {NONCE_TABLE}"), [], |row| {
-                    row.get(0)
-                })
-                .map_err(|_| SenderNonceError::Unavailable)?;
-            if retained < 0 || retained as u64 >= capacity {
-                return Err(SenderNonceError::Capacity);
-            }
-            1
-        }
-    };
-    transaction
-        .execute(
-            &format!(
-                "INSERT INTO {NONCE_TABLE}(
-                    admission_epoch, jwk_thumbprint, generation, nonce, expires_at_seconds
-                 ) VALUES (?1, ?2, ?3, ?4, ?5)
-                 ON CONFLICT(admission_epoch, jwk_thumbprint) DO UPDATE SET
-                    generation = excluded.generation,
-                    nonce = excluded.nonce,
-                    expires_at_seconds = excluded.expires_at_seconds"
-            ),
-            params![
-                admission_epoch,
-                family_jwk_thumbprint,
-                generation,
-                nonce,
-                expires_at_seconds_i64
-            ],
-        )
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    transaction
-        .commit()
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    Ok(SenderNonce {
-        nonce: nonce.to_owned(),
-        generation: generation as u64,
-        expires_at_seconds,
-    })
-}
-
-pub fn read_sender_nonce(
-    connection: &Connection,
-    admission_epoch: u64,
-    family_jwk_thumbprint: &str,
-    now_seconds: u64,
-) -> Result<Option<SenderNonce>, SenderNonceError> {
-    let admission_epoch = checked_i64(admission_epoch)?;
-    let now_seconds = checked_i64(now_seconds)?;
-    if admission_epoch <= 0 || !canonical_thumbprint(family_jwk_thumbprint) {
-        return Err(SenderNonceError::Invalid);
-    }
-    let row: Option<(i64, String, i64)> = connection
-        .query_row(
-            &format!(
-                "SELECT generation, nonce, expires_at_seconds
-                 FROM {NONCE_TABLE}
-                 WHERE admission_epoch = ?1
-                   AND jwk_thumbprint = ?2
-                   AND expires_at_seconds > ?3"
-            ),
-            params![admission_epoch, family_jwk_thumbprint, now_seconds],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .optional()
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    match row {
-        None => Ok(None),
-        Some((generation, nonce, expires_at_seconds))
-            if generation > 0 && canonical_nonce(&nonce) && expires_at_seconds > now_seconds =>
-        {
-            Ok(Some(SenderNonce {
-                nonce,
-                generation: generation as u64,
-                expires_at_seconds: expires_at_seconds as u64,
-            }))
-        }
-        Some(_) => Err(SenderNonceError::Unavailable),
-    }
-}
-
 fn rejection(
     kind: SenderAdmissionRejectionKind,
     challenge: Option<String>,
@@ -1018,8 +680,12 @@ fn rejection(
     }
 }
 
+pub(crate) fn sender_authority_unavailable_rejection() -> SenderAdmissionRejection {
+    rejection(SenderAdmissionRejectionKind::Unavailable, None)
+}
+
 fn fresh_challenge(
-    connection: &mut Connection,
+    authority: &mut impl SenderProofAuthorityOperations,
     admission_epoch: u64,
     family_jwk_thumbprint: Option<&str>,
     now_seconds: u64,
@@ -1028,9 +694,13 @@ fn fresh_challenge(
     cover: Option<(&SenderCoverNonceKey, [u8; 32])>,
 ) -> Result<SenderAdmissionRejection, SenderAdmissionRejection> {
     if let Some(thumbprint) = family_jwk_thumbprint {
-        if let Some(current) =
-            read_sender_nonce(connection, admission_epoch, thumbprint, now_seconds)
-                .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?
+        if let Some(current) = authority
+            .read_nonce(SenderNonceRead {
+                sender_replay_epoch: admission_epoch,
+                family_jwk_thumbprint: thumbprint,
+                now_seconds,
+            })
+            .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?
         {
             return Ok(rejection(
                 SenderAdmissionRejectionKind::Required,
@@ -1042,28 +712,28 @@ fn fresh_challenge(
         let expires_at = now_seconds
             .checked_add(nonce_ttl_seconds)
             .ok_or_else(|| rejection(SenderAdmissionRejectionKind::Unavailable, None))?;
-        issue_sender_nonce(
-            connection,
-            admission_epoch,
-            thumbprint,
-            &nonce,
-            now_seconds,
-            expires_at,
-            nonce_capacity,
-        )
-        .map_err(|error| {
-            rejection(
-                match error {
-                    SenderNonceError::Capacity | SenderNonceError::Unavailable => {
-                        SenderAdmissionRejectionKind::Unavailable
-                    }
-                    SenderNonceError::Required
-                    | SenderNonceError::Replay
-                    | SenderNonceError::Invalid => SenderAdmissionRejectionKind::Invalid,
-                },
-                None,
-            )
-        })?;
+        authority
+            .issue_nonce(SenderNonceIssue {
+                sender_replay_epoch: admission_epoch,
+                family_jwk_thumbprint: thumbprint,
+                nonce: &nonce,
+                now_seconds,
+                expires_at_seconds: expires_at,
+                capacity: nonce_capacity,
+            })
+            .map_err(|error| {
+                rejection(
+                    match error {
+                        SenderNonceError::Capacity | SenderNonceError::Unavailable => {
+                            SenderAdmissionRejectionKind::Unavailable
+                        }
+                        SenderNonceError::Required
+                        | SenderNonceError::Replay
+                        | SenderNonceError::Invalid => SenderAdmissionRejectionKind::Invalid,
+                    },
+                    None,
+                )
+            })?;
         return Ok(rejection(
             SenderAdmissionRejectionKind::Required,
             Some(nonce),
@@ -1099,8 +769,8 @@ fn fresh_challenge(
 /// @ref LLP 0077#http-binding — family binding, proof verification, replay
 /// consumption, and nonce rotation all precede ordinary credential resolution.
 #[allow(clippy::too_many_arguments)]
-pub fn admit_sender_constrained_request(
-    connection: &mut Connection,
+pub(crate) fn admit_sender_constrained_request(
+    authority: &mut impl SenderProofAuthorityOperations,
     admission_epoch: u64,
     method: &str,
     canonical_external_uri: &str,
@@ -1136,13 +806,15 @@ pub fn admit_sender_constrained_request(
             let now_ms = now_seconds
                 .checked_mul(1_000)
                 .ok_or_else(|| rejection(SenderAdmissionRejectionKind::Invalid, None))?;
-            sender_constraint_for_presented_token(
-                connection,
-                bearer.token_hash().as_bytes(),
-                now_ms,
-                allow_superseded_grace,
-            )
-            .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?
+            authority
+                .presented_token_sender_constraint(SenderConstraintLookup {
+                    token_hash: bearer.token_hash().as_bytes(),
+                    now_ms,
+                    supersession_grace_ms: allow_superseded_grace
+                        .then_some(AUTH_SESSION_SUPERSESSION_GRACE_MS),
+                })
+                .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?
+                .map(|fact| fact.jwk_thumbprint)
         }
         None => None,
     };
@@ -1159,7 +831,7 @@ pub fn admit_sender_constrained_request(
     }
     let Some(compact_proof) = compact_proof else {
         return Err(fresh_challenge(
-            connection,
+            authority,
             admission_epoch,
             family.as_deref(),
             now_seconds,
@@ -1179,10 +851,23 @@ pub fn admit_sender_constrained_request(
             let now_ms = now_seconds
                 .checked_mul(1_000)
                 .ok_or_else(|| rejection(SenderAdmissionRejectionKind::Invalid, None))?;
-            let tombstoned =
-                tombstoned_sender_family(connection, bearer.token_hash().as_bytes(), now_ms)
-                    .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?;
-            if let Some(tombstone_thumbprint) = tombstoned
+            let tombstoned = authority
+                .family_tombstone(SenderFamilyTombstoneLookup {
+                    token_hash: bearer.token_hash().as_bytes(),
+                    now_ms,
+                    retention_ms: SENDER_TOMBSTONE_RETENTION_MS,
+                })
+                .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?;
+            let tombstone_thumbprint = tombstoned.and_then(|fact| {
+                let durable_delete = fact.terminal_reason.is_some_and(|reason| {
+                    matches!(
+                        reason.authority_disposition(),
+                        crate::auth::session_projection::TerminalAuthorityDisposition::DurableDelete
+                    )
+                });
+                durable_delete.then_some(fact.jwk_thumbprint)
+            });
+            if let Some(tombstone_thumbprint) = tombstone_thumbprint
                 && let Ok(claimed_nonce) = claimed_proof_nonce(compact_proof)
             {
                 let expected = SenderProofExpectation {
@@ -1201,14 +886,13 @@ pub fn admit_sender_constrained_request(
                             rejection(SenderAdmissionRejectionKind::Unavailable, None)
                         })?;
                     return Err(
-                        match consume_sender_proof_id(
-                            connection,
-                            admission_epoch,
-                            verified.proof_id,
+                        match authority.consume_proof_id(SenderProofIdConsumption {
+                            sender_replay_epoch: admission_epoch,
+                            proof_id: verified.proof_id,
                             now_seconds,
-                            replay_expires_at,
-                            replay_capacity,
-                        ) {
+                            expires_at_seconds: replay_expires_at,
+                            capacity: replay_capacity,
+                        }) {
                             Ok(()) => {
                                 rejection(SenderAdmissionRejectionKind::TerminalDurableDelete, None)
                             }
@@ -1222,7 +906,7 @@ pub fn admit_sender_constrained_request(
             }
         }
         return Err(fresh_challenge(
-            connection,
+            authority,
             admission_epoch,
             None,
             now_seconds,
@@ -1232,7 +916,7 @@ pub fn admit_sender_constrained_request(
         )?);
     };
     admit_sender_constrained_bound_request(
-        connection,
+        authority,
         admission_epoch,
         method,
         canonical_external_uri,
@@ -1254,8 +938,8 @@ pub fn admit_sender_constrained_request(
 /// possession over the exact grant token while retaining the session-family
 /// thumbprint captured when that grant was minted.
 #[allow(clippy::too_many_arguments)]
-pub fn admit_sender_constrained_bound_request(
-    connection: &mut Connection,
+pub(crate) fn admit_sender_constrained_bound_request(
+    authority: &mut impl SenderProofAuthorityOperations,
     admission_epoch: u64,
     method: &str,
     canonical_external_uri: &str,
@@ -1287,7 +971,7 @@ pub fn admit_sender_constrained_bound_request(
     }
     let Some(compact_proof) = compact_proof else {
         return Err(fresh_challenge(
-            connection,
+            authority,
             admission_epoch,
             Some(family_jwk_thumbprint),
             now_seconds,
@@ -1296,16 +980,16 @@ pub fn admit_sender_constrained_bound_request(
             None,
         )?);
     };
-    let Some(current) = read_sender_nonce(
-        connection,
-        admission_epoch,
-        family_jwk_thumbprint,
-        now_seconds,
-    )
-    .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?
+    let Some(current) = authority
+        .read_nonce(SenderNonceRead {
+            sender_replay_epoch: admission_epoch,
+            family_jwk_thumbprint,
+            now_seconds,
+        })
+        .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?
     else {
         return Err(fresh_challenge(
-            connection,
+            authority,
             admission_epoch,
             Some(family_jwk_thumbprint),
             now_seconds,
@@ -1326,7 +1010,7 @@ pub fn admit_sender_constrained_bound_request(
         Ok(verified) => verified,
         Err(SenderProofError::Nonce) => {
             return Err(fresh_challenge(
-                connection,
+                authority,
                 admission_epoch,
                 Some(family_jwk_thumbprint),
                 now_seconds,
@@ -1346,39 +1030,38 @@ pub fn admit_sender_constrained_bound_request(
     let next_nonce_expires_at = now_seconds
         .checked_add(nonce_ttl_seconds)
         .ok_or_else(|| rejection(SenderAdmissionRejectionKind::Unavailable, None))?;
-    match consume_sender_proof_and_rotate_nonce(
-        connection,
-        admission_epoch,
+    match authority.consume_proof_and_rotate_nonce(SenderProofNonceRotation {
+        sender_replay_epoch: admission_epoch,
         family_jwk_thumbprint,
-        &current,
-        &verified,
+        current: &current,
+        verified: &verified,
         now_seconds,
-        replay_expires_at,
-        &next_nonce,
-        next_nonce_expires_at,
+        replay_expires_at_seconds: replay_expires_at,
+        next_nonce: &next_nonce,
+        next_nonce_expires_at_seconds: next_nonce_expires_at,
         replay_capacity,
-    ) {
+    }) {
         Ok(next_nonce) => Ok(SenderAdmission {
             verified,
             next_nonce,
             sender_replay_epoch: admission_epoch,
         }),
         Err(SenderNonceError::Required) => {
-            let challenge = read_sender_nonce(
-                connection,
-                admission_epoch,
-                family_jwk_thumbprint,
-                now_seconds,
-            )
-            .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?
-            .map(|nonce| nonce.expose_for_transport().to_owned());
+            let challenge = authority
+                .read_nonce(SenderNonceRead {
+                    sender_replay_epoch: admission_epoch,
+                    family_jwk_thumbprint,
+                    now_seconds,
+                })
+                .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?
+                .map(|nonce| nonce.expose_for_transport().to_owned());
             match challenge {
                 Some(challenge) => Err(rejection(
                     SenderAdmissionRejectionKind::Required,
                     Some(challenge),
                 )),
                 None => Err(fresh_challenge(
-                    connection,
+                    authority,
                     admission_epoch,
                     Some(family_jwk_thumbprint),
                     now_seconds,
@@ -1398,162 +1081,6 @@ pub fn admit_sender_constrained_bound_request(
             Err(rejection(SenderAdmissionRejectionKind::Invalid, None))
         }
     }
-}
-
-/// Consume the verified proof and retire its nonce in one SQLite transaction.
-/// A successful call installs the next nonce generation before returning.
-///
-/// @ref LLP 0077#nonce-protocol — only the current custody generation may
-/// publish a successor nonce; replay-store or nonce-state failure refuses work.
-#[allow(clippy::too_many_arguments)] // Keep the authenticated rotation tuple explicit at this atomic boundary.
-pub fn consume_sender_proof_and_rotate_nonce(
-    connection: &mut Connection,
-    admission_epoch: u64,
-    family_jwk_thumbprint: &str,
-    current: &SenderNonce,
-    verified: &VerifiedSenderProof,
-    now_seconds: u64,
-    replay_expires_at_seconds: u64,
-    next_nonce: &str,
-    next_nonce_expires_at_seconds: u64,
-    replay_capacity: Option<u64>,
-) -> Result<SenderNonce, SenderNonceError> {
-    let admission_epoch_i64 = checked_i64(admission_epoch)?;
-    let now_seconds_i64 = checked_i64(now_seconds)?;
-    let replay_expires_i64 = checked_i64(replay_expires_at_seconds)?;
-    let next_expires_i64 = checked_i64(next_nonce_expires_at_seconds)?;
-    let current_generation = checked_i64(current.generation)?;
-    let replay_capacity = replay_capacity.unwrap_or(DEFAULT_REPLAY_CAPACITY);
-    if admission_epoch_i64 <= 0
-        || !canonical_thumbprint(family_jwk_thumbprint)
-        || !canonical_nonce(current.expose_for_transport())
-        || !canonical_nonce(next_nonce)
-        || current_generation <= 0
-        || current.expires_at_seconds <= now_seconds
-        || replay_expires_at_seconds
-            < verified
-                .issued_at_seconds
-                .saturating_add(REPLAY_RETENTION_AFTER_IAT_SECONDS)
-        || next_nonce_expires_at_seconds <= now_seconds
-        || replay_capacity == 0
-        || replay_capacity > i64::MAX as u64
-        || !constant_time_text_eq(&verified.jwk_thumbprint, family_jwk_thumbprint)
-    {
-        return Err(SenderNonceError::Invalid);
-    }
-    let next_generation = current_generation
-        .checked_add(1)
-        .ok_or(SenderNonceError::Unavailable)?;
-    let transaction = connection
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    let durable: Option<(i64, String, i64)> = transaction
-        .query_row(
-            &format!(
-                "SELECT generation, nonce, expires_at_seconds
-                 FROM {NONCE_TABLE}
-                 WHERE admission_epoch = ?1 AND jwk_thumbprint = ?2"
-            ),
-            params![admission_epoch_i64, family_jwk_thumbprint],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .optional()
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    let Some((generation, durable_nonce, durable_expiry)) = durable else {
-        return Err(SenderNonceError::Required);
-    };
-    if generation != current_generation
-        || durable_expiry <= now_seconds_i64
-        || !constant_time_text_eq(&durable_nonce, current.expose_for_transport())
-    {
-        let already_consumed: Option<i64> = transaction
-            .query_row(
-                &format!(
-                    "SELECT 1 FROM {REPLAY_TABLE}
-                     WHERE admission_epoch = ?1 AND proof_id = ?2"
-                ),
-                params![admission_epoch_i64, verified.proof_id.as_slice()],
-                |row| row.get(0),
-            )
-            .optional()
-            .map_err(|_| SenderNonceError::Unavailable)?;
-        return if already_consumed.is_some() {
-            Err(SenderNonceError::Replay)
-        } else {
-            Err(SenderNonceError::Required)
-        };
-    }
-    transaction
-        .execute(
-            &format!("DELETE FROM {REPLAY_TABLE} WHERE expires_at_seconds < ?1"),
-            params![now_seconds_i64],
-        )
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    let retained: i64 = transaction
-        .query_row(&format!("SELECT COUNT(*) FROM {REPLAY_TABLE}"), [], |row| {
-            row.get(0)
-        })
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    if retained < 0 || retained as u64 >= replay_capacity {
-        return Err(SenderNonceError::Capacity);
-    }
-    match transaction.execute(
-        &format!(
-            "INSERT INTO {REPLAY_TABLE}
-             (admission_epoch, proof_id, expires_at_seconds)
-             VALUES (?1, ?2, ?3)"
-        ),
-        params![
-            admission_epoch_i64,
-            verified.proof_id.as_slice(),
-            replay_expires_i64
-        ],
-    ) {
-        Ok(1) => {}
-        Ok(_) => return Err(SenderNonceError::Unavailable),
-        Err(error)
-            if error
-                .sqlite_error_code()
-                .is_some_and(|code| code == ErrorCode::ConstraintViolation) =>
-        {
-            return Err(SenderNonceError::Replay);
-        }
-        Err(_) => return Err(SenderNonceError::Unavailable),
-    }
-    let updated = transaction
-        .execute(
-            &format!(
-                "UPDATE {NONCE_TABLE}
-                 SET generation = ?1, nonce = ?2, expires_at_seconds = ?3
-                 WHERE admission_epoch = ?4
-                   AND jwk_thumbprint = ?5
-                   AND generation = ?6
-                   AND nonce = ?7
-                   AND expires_at_seconds > ?8"
-            ),
-            params![
-                next_generation,
-                next_nonce,
-                next_expires_i64,
-                admission_epoch_i64,
-                family_jwk_thumbprint,
-                current_generation,
-                current.expose_for_transport(),
-                now_seconds_i64
-            ],
-        )
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    if updated != 1 {
-        return Err(SenderNonceError::Required);
-    }
-    transaction
-        .commit()
-        .map_err(|_| SenderNonceError::Unavailable)?;
-    Ok(SenderNonce {
-        nonce: next_nonce.to_owned(),
-        generation: next_generation as u64,
-        expires_at_seconds: next_nonce_expires_at_seconds,
-    })
 }
 
 /// Bind a newly issued session to its custody key inside the same transaction
@@ -1585,46 +1112,16 @@ pub fn sender_constraint_for_presented_token(
     now_ms: u64,
     allow_superseded_grace: bool,
 ) -> Result<Option<String>, ReplayConsumeError> {
-    if token_hash.len() != 32 || now_ms > i64::MAX as u64 {
-        return Err(ReplayConsumeError::Invalid);
-    }
-    let current = connection
-        .query_row(
-            "SELECT binding.jwk_thumbprint
-             FROM _auth_sessions AS session
-             JOIN _snapback_sender_family_binding AS binding
-               ON binding.session_id = session.id
-             WHERE session.token_hash = ?1
-               AND session.revoked_at_ms IS NULL",
-            params![token_hash],
-            |row| row.get(0),
-        )
-        .optional()
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    if current.is_some() || !allow_superseded_grace {
-        return Ok(current);
-    }
-    connection
-        .query_row(
-            "SELECT binding.jwk_thumbprint
-             FROM _auth_session_tokens AS token
-             JOIN _auth_sessions AS session
-               ON session.id = token.session_id
-             JOIN _snapback_sender_family_binding AS binding
-               ON binding.session_id = session.id
-             WHERE token.token_hash = ?1
-               AND session.revoked_at_ms IS NULL
-               AND token.superseded_at_ms <= ?2
-               AND (?2 - token.superseded_at_ms) <= ?3",
-            params![
-                token_hash,
-                now_ms as i64,
-                AUTH_SESSION_SUPERSESSION_GRACE_MS as i64,
-            ],
-            |row| row.get(0),
-        )
-        .optional()
-        .map_err(|_| ReplayConsumeError::Unavailable)
+    auth_sender::sender_constraint_for_presented_token_on(
+        connection,
+        SenderConstraintLookup {
+            token_hash,
+            now_ms,
+            supersession_grace_ms: allow_superseded_grace
+                .then_some(AUTH_SESSION_SUPERSESSION_GRACE_MS),
+        },
+    )
+    .map(|fact| fact.map(|fact| fact.jwk_thumbprint))
 }
 
 /// Whether the presented token's live session carries a durable sender family
@@ -1656,73 +1153,6 @@ pub(crate) fn presented_token_has_sender_family_binding(
             if message.contains("no such table") =>
         {
             Ok(false)
-        }
-        Err(_) => Err(ReplayConsumeError::Unavailable),
-    }
-}
-
-/// Atomically consume one verified proof id. SQLite is the shared serialized
-/// authority only for the declared single-process profile; a multi-replica
-/// adapter must replace this with an equivalent shared transactional store.
-fn consume_sender_proof_id(
-    connection: &mut Connection,
-    admission_epoch: u64,
-    proof_id: [u8; 16],
-    now_seconds: u64,
-    expires_at_seconds: u64,
-    capacity: Option<u64>,
-) -> Result<(), ReplayConsumeError> {
-    if admission_epoch == 0
-        || admission_epoch > i64::MAX as u64
-        || now_seconds > i64::MAX as u64
-        || expires_at_seconds <= now_seconds
-        || expires_at_seconds > i64::MAX as u64
-    {
-        return Err(ReplayConsumeError::Invalid);
-    }
-    let capacity = capacity.unwrap_or(DEFAULT_REPLAY_CAPACITY);
-    if capacity == 0 || capacity > i64::MAX as u64 {
-        return Err(ReplayConsumeError::Invalid);
-    }
-    let transaction = connection
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    transaction
-        .execute(
-            &format!("DELETE FROM {REPLAY_TABLE} WHERE expires_at_seconds < ?1"),
-            params![now_seconds as i64],
-        )
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    let retained: i64 = transaction
-        .query_row(&format!("SELECT COUNT(*) FROM {REPLAY_TABLE}"), [], |row| {
-            row.get(0)
-        })
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    if retained < 0 || retained as u64 >= capacity {
-        return Err(ReplayConsumeError::Capacity);
-    }
-    match transaction.execute(
-        &format!(
-            "INSERT INTO {REPLAY_TABLE}
-             (admission_epoch, proof_id, expires_at_seconds)
-             VALUES (?1, ?2, ?3)"
-        ),
-        params![
-            admission_epoch as i64,
-            proof_id.as_slice(),
-            expires_at_seconds as i64
-        ],
-    ) {
-        Ok(1) => transaction
-            .commit()
-            .map_err(|_| ReplayConsumeError::Unavailable),
-        Ok(_) => Err(ReplayConsumeError::Unavailable),
-        Err(error)
-            if error
-                .sqlite_error_code()
-                .is_some_and(|code| code == ErrorCode::ConstraintViolation) =>
-        {
-            Err(ReplayConsumeError::Replay)
         }
         Err(_) => Err(ReplayConsumeError::Unavailable),
     }
@@ -1809,70 +1239,6 @@ fn fixed_proof_id(encoded: &str) -> Result<[u8; 16], SenderProofError> {
     let mut fixed = [0_u8; 16];
     fixed.copy_from_slice(&proof_id);
     Ok(fixed)
-}
-
-/// Resolve the bounded revoked-family sender tombstone for a presented
-/// (revoked) token: the binding thumbprint survives a durable-delete-class
-/// revocation for the tombstone horizon so a stranded post-logout client can
-/// obtain its terminal outcome. Carrier-class endings (expiry, cap
-/// eviction) and horizons past the bound resolve to nothing — those clients
-/// recover through ordinary re-authentication and the anti-oracle cover
-/// challenge reveals no family fact.
-///
-/// @ref LLP 0077#issuance-refresh-and-recovery — the logout-lost-response
-/// tombstone (decision 2): lookup on the refusal path, no nonce rotation.
-fn tombstoned_sender_family(
-    connection: &Connection,
-    token_hash: &[u8],
-    now_ms: u64,
-) -> Result<Option<String>, ReplayConsumeError> {
-    if token_hash.len() != 32 || now_ms > i64::MAX as u64 {
-        return Err(ReplayConsumeError::Invalid);
-    }
-    let row: Option<(String, String, i64, i64)> = connection
-        .query_row(
-            "SELECT binding.jwk_thumbprint, session.id, session.generation,
-                    session.revoked_at_ms
-             FROM _auth_sessions AS session
-             JOIN _snapback_sender_family_binding AS binding
-               ON binding.session_id = session.id
-             WHERE session.token_hash = ?1
-               AND session.revoked_at_ms IS NOT NULL
-               AND (?2 - session.revoked_at_ms) <= ?3",
-            params![
-                token_hash,
-                now_ms as i64,
-                SENDER_TOMBSTONE_RETENTION_MS as i64,
-            ],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-        )
-        .optional()
-        .map_err(|_| ReplayConsumeError::Unavailable)?;
-    let Some((thumbprint, session_id, generation, revoked_at_ms)) = row else {
-        return Ok(None);
-    };
-    let (Ok(generation), Ok(revoked_at_ms)) =
-        (u64::try_from(generation), u64::try_from(revoked_at_ms))
-    else {
-        return Err(ReplayConsumeError::Invalid);
-    };
-    // Only a durable-delete-class ending (logout, alarm, reuse, reset,
-    // restore) is a custody-deletion fact; a missing/carrier-class witness
-    // stays private behind the ordinary cover challenge.
-    let reason = crate::storage::auth::read_session_terminal_cause_on(
-        connection,
-        &session_id,
-        generation,
-        revoked_at_ms,
-    )
-    .map_err(|_| ReplayConsumeError::Unavailable)?;
-    let durable_delete = reason.is_some_and(|reason| {
-        matches!(
-            reason.authority_disposition(),
-            crate::auth::session_projection::TerminalAuthorityDisposition::DurableDelete
-        )
-    });
-    Ok(durable_delete.then_some(thumbprint))
 }
 
 /// The nonce value a compact proof claims, decoded with the same strict

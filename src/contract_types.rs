@@ -36,6 +36,236 @@ pub(crate) enum PlannedIdentityState {
     },
 }
 
+/// Durable sender-proof replay outcomes shared by policy and the storage
+/// authority that enforces them.
+///
+/// @ref LLP 0225#1-ownership-map — cross-owner result shapes are leaf-owned;
+///   replay policy and SQLite behavior remain with their respective owners.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReplayConsumeError {
+    Replay,
+    Capacity,
+    Unavailable,
+    Invalid,
+    /// The thumbprint already holds a live family nonce cell under the current
+    /// epoch; a second family cannot be installed for the same key.
+    KeyBound,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SenderNonceError {
+    Required,
+    Replay,
+    Capacity,
+    Unavailable,
+    Invalid,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct VerifiedSenderProof {
+    pub proof_id: [u8; 16],
+    pub jwk_thumbprint: String,
+    pub issued_at_seconds: u64,
+}
+
+impl std::fmt::Debug for VerifiedSenderProof {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("VerifiedSenderProof([REDACTED])")
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct SenderNonce {
+    pub(crate) nonce: String,
+    pub generation: u64,
+    pub expires_at_seconds: u64,
+}
+
+impl SenderNonce {
+    pub fn expose_for_transport(&self) -> &str {
+        &self.nonce
+    }
+}
+
+impl std::fmt::Debug for SenderNonce {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SenderNonce")
+            .field("nonce", &"[REDACTED]")
+            .field("generation", &self.generation)
+            .field("expires_at_seconds", &self.expires_at_seconds)
+            .finish()
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct SenderNonceChallenge(pub(crate) String);
+
+impl SenderNonceChallenge {
+    pub fn expose_for_transport(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for SenderNonceChallenge {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("SenderNonceChallenge([REDACTED])")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SenderAdmissionRejectionKind {
+    Required,
+    Invalid,
+    Replayed,
+    Unavailable,
+    /// A committed logout (or another durable-delete-class revocation) left
+    /// this custody stranded: the post-logout signed request resolved against
+    /// the bounded revoked-family tombstone and must receive the terminal
+    /// `durableDelete` outcome instead of a nonce challenge.
+    TerminalDurableDelete,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct SenderAdmissionRejection {
+    pub kind: SenderAdmissionRejectionKind,
+    pub(crate) challenge: Option<SenderNonceChallenge>,
+}
+
+impl SenderAdmissionRejection {
+    pub fn challenge(&self) -> Option<&SenderNonceChallenge> {
+        self.challenge.as_ref()
+    }
+}
+
+impl std::fmt::Debug for SenderAdmissionRejection {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SenderAdmissionRejection")
+            .field("kind", &self.kind)
+            .field("challenge", &self.challenge)
+            .finish()
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct SenderAdmission {
+    pub verified: VerifiedSenderProof,
+    pub(crate) next_nonce: SenderNonce,
+    /// The durable sender replay namespace this admission verified under —
+    /// what a sender-bound grant records as its issuance epoch
+    /// (`BoundGrantAuthorityV2.senderReplayEpochAtIssuance`).
+    pub sender_replay_epoch: u64,
+}
+
+impl SenderAdmission {
+    pub fn next_nonce_for_transport(&self) -> &str {
+        self.next_nonce.expose_for_transport()
+    }
+
+    pub fn next_nonce_generation(&self) -> u64 {
+        self.next_nonce.generation
+    }
+}
+
+impl std::fmt::Debug for SenderAdmission {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SenderAdmission")
+            .field("verified", &self.verified)
+            .field("next_nonce", &self.next_nonce)
+            .finish()
+    }
+}
+
+/// Purpose key for the deterministic unknown-carrier cover nonce. The bytes
+/// are a domain-separated derivation owned by the hosted serving authority;
+/// this type never exposes them through `Debug`.
+pub struct SenderCoverNonceKey([u8; 32]);
+
+impl SenderCoverNonceKey {
+    pub(crate) fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub(crate) fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for SenderCoverNonceKey {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("SenderCoverNonceKey([REDACTED])")
+    }
+}
+
+/// Already-composed input for one durable sender nonce lookup.
+pub(crate) struct SenderNonceRead<'a> {
+    pub(crate) sender_replay_epoch: u64,
+    pub(crate) family_jwk_thumbprint: &'a str,
+    pub(crate) now_seconds: u64,
+}
+
+/// Already-composed input for installing or replacing one durable sender
+/// nonce generation.
+pub(crate) struct SenderNonceIssue<'a> {
+    pub(crate) sender_replay_epoch: u64,
+    pub(crate) family_jwk_thumbprint: &'a str,
+    pub(crate) nonce: &'a str,
+    pub(crate) now_seconds: u64,
+    pub(crate) expires_at_seconds: u64,
+    pub(crate) capacity: Option<u64>,
+}
+
+/// Already-composed input for the atomic verified-proof replay consumption
+/// and nonce rotation cut.
+pub(crate) struct SenderProofNonceRotation<'a> {
+    pub(crate) sender_replay_epoch: u64,
+    pub(crate) family_jwk_thumbprint: &'a str,
+    pub(crate) current: &'a SenderNonce,
+    pub(crate) verified: &'a VerifiedSenderProof,
+    pub(crate) now_seconds: u64,
+    pub(crate) replay_expires_at_seconds: u64,
+    pub(crate) next_nonce: &'a str,
+    pub(crate) next_nonce_expires_at_seconds: u64,
+    pub(crate) replay_capacity: Option<u64>,
+}
+
+/// Already-composed input for consuming one verified proof id without a nonce
+/// transition (the bounded terminal tombstone path).
+pub(crate) struct SenderProofIdConsumption {
+    pub(crate) sender_replay_epoch: u64,
+    pub(crate) proof_id: [u8; 16],
+    pub(crate) now_seconds: u64,
+    pub(crate) expires_at_seconds: u64,
+    pub(crate) capacity: Option<u64>,
+}
+
+/// Already-composed durable lookup for a live presented-token sender binding.
+pub(crate) struct SenderConstraintLookup<'a> {
+    pub(crate) token_hash: &'a [u8],
+    pub(crate) now_ms: u64,
+    pub(crate) supersession_grace_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SenderConstraintFact {
+    pub(crate) jwk_thumbprint: String,
+}
+
+/// Already-composed durable lookup for a bounded revoked-family tombstone.
+pub(crate) struct SenderFamilyTombstoneLookup<'a> {
+    pub(crate) token_hash: &'a [u8],
+    pub(crate) now_ms: u64,
+    pub(crate) retention_ms: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SenderFamilyTombstoneFact {
+    pub(crate) jwk_thumbprint: String,
+    pub(crate) terminal_reason: Option<RevocationReason>,
+}
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct AuthorizationStreamIncarnation(pub(crate) String);
 

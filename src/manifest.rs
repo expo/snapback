@@ -10855,13 +10855,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:4a0e99bfb74f269eb42ffc564f0338b28e9f2baf990608c689fab11ac9d7fb8b";
+    "sha256:da6bd7de77fa641ac8300941ebaec6e2f223ede5ce5267cffa55abac26401dfc";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:18c1d2f3b8efed84bfea9ebc05b3db1f2caf88c9f1cb13abc487dafcac9e73f7";
+    "sha256:72610462765873a0d4e01a7edfe65ab5eedcd0a6d4e4d53ae20cb7360f9a76cd";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -11351,7 +11351,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_sender.rs".to_owned(),
-                    "sha256:e72c2665964b26ba971bee9f745ae8afb53266b76d321c7fcdc888f5a761ab06"
+                    "sha256:bc74d2a98ed2bf4e251aae332a6749d682080487c80aba317f1e9fcd572233e3"
                         .to_owned(),
                 ),
                 (
@@ -11559,7 +11559,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_sender.rs".to_owned(),
-                    "sha256:e72c2665964b26ba971bee9f745ae8afb53266b76d321c7fcdc888f5a761ab06"
+                    "sha256:bc74d2a98ed2bf4e251aae332a6749d682080487c80aba317f1e9fcd572233e3"
                         .to_owned(),
                 ),
                 (
@@ -11848,7 +11848,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_sender.rs".to_owned(),
-                    "sha256:e72c2665964b26ba971bee9f745ae8afb53266b76d321c7fcdc888f5a761ab06"
+                    "sha256:bc74d2a98ed2bf4e251aae332a6749d682080487c80aba317f1e9fcd572233e3"
                         .to_owned(),
                 ),
                 (

@@ -32,6 +32,9 @@ inverted)
 to the contract leaf, twelve frozen edges removed and none added)
 **Revised:** 2026-08-11 (m — §4 records the item-3 second cut: `session_projection`
 value shapes to the leaf; the remaining item-3 edges raised as an ownership question)
+**Revised:** 2026-08-11 (r — §4 records item-3 stage A3: the sender-proof
+direction inverted through typed kernel operations, the first worked example of
+the §2 inversion the ruling asks for)
 **Revised:** 2026-08-11 (q — §4 records item-3 stage A1: the provider plan and
 deployment-profile shapes down, two kernel→sync edges inverted)
 **Revised:** 2026-08-11 (p — §4 records the OQ-C inert-until-reload recovery
@@ -770,6 +773,60 @@ Characterization envelope: `storage`/`auth`/`server` lib-test failure name sets
 byte-identical to the merge-base with identical pass counts (449/0, 696/2,
 287/2), `cargo build` clean, `./ref-check --verbose` clean.
 
+### Item-3 stage A3 — the sender-proof inversion (executed)
+
+Landed 2026-08-11. **1 frozen forbidden edge removed, none added — 347 → 346**,
+no waiver and no manifest edit:
+`src/storage/auth_sender.rs → src/auth/sender_proof.rs`.
+
+**This stage is the worked example of the inversion §2 actually asks for, and
+the worklist's premise for it was wrong.** A3 was filed as "same class, same
+ruling, same method" — a body move of six functions. Measurement said
+otherwise: `src/auth/sender_proof.rs` is 3,711 lines with 25
+connection-taking functions and 76 SQL statements, with SQL and policy
+interleaved, and only four of the six imports (`sender_replay_epoch`,
+`rotate_sender_replay_epoch_for_stream_reset`,
+`apply_sender_replay_epoch_floor`,
+`initialize_sender_proof_replay_after_hosted_preflight`) are mechanical
+durable authority. The other two,
+`admit_sender_constrained_request` and `admit_sender_constrained_bound_request`,
+carry LLP 0077 decision-4 token-spelling policy, the anti-oracle
+cover-challenge posture, and bounded revoked-family tombstones. Under the
+ruling's own read-versus-decide test those are **not** kernel commit
+primitives, and §2 forbids the kernel owning them.
+
+So the cut was not "move the bodies down" but **invert the direction through
+typed kernel operations**. The kernel now owns ten mechanical durable
+operations — replay-authority initialization, epoch read/floor/rotation, nonce
+issue and read, atomic proof consumption with nonce rotation, proof-id-only
+consumption, presented-token constraint lookup, and revoked-family tombstone
+lookup — each taking explicit bounds (grace, retention, TTL, capacity) and
+returning typed facts from the contract leaf. Sync keeps every decision: the
+spelling policy, supersession-grace eligibility, the keyed-cover versus
+installed-family challenge behavior, proof parsing and verification, replay
+expiry, rejection classification, tombstone retention, bound-grant
+issuance-epoch equality, and the durable-error-to-outcome mapping.
+`fresh_challenge` therefore stays sync policy; only its durable nonce issue is
+delegated downward.
+
+The constraint that shaped the seam is the module's own invariant — "the server
+layer never receives a raw SQLite connection." It is preserved: the production
+`Connection` stays private inside `src/storage/auth_sender.rs`, and transport
+obtains a narrow `SenderProofAuthority` handle and passes *that* into the sync
+policy. Kernel→sync became sync→kernel without ever handing a connection
+upward, which is the pattern A2 will need at larger scale.
+
+Characterization envelope: `storage`/`auth`/`server` failure name sets
+byte-identical to the merge-base with identical pass counts (449/0, 696/2,
+287/2); `--lib sender_proof` 22/0 and the cross-language sender-proof target
+1/0. The `route_policy_v1` integration target's four failures
+(`durable_watch_rows_pin_the_session_only_policy_tuples`,
+`operation_registry_is_exhaustive_and_bound_to_registered_carriers`,
+`registry_and_router_have_black_box_path_method_parity`,
+`sessions_runtime_rejects_body_auth_on_every_http_ingress`) were measured at
+the merge-base and are identical there — 28 passed / 4 failed both sides — so
+they are pre-existing main reds, not this slice's.
+
 ### Continuing sequence (order of intent, not a schedule)
 
 1. **Kernel typed-operation slices** (co-sequenced with owner 1 per 0199
@@ -1114,3 +1171,16 @@ so slices can follow product priorities.
   dependency reason. 2 frozen forbidden edges removed, none added, 349 → 347,
   no waiver; `src/storage/auth_catalog_ops.rs → src/auth/provider.rs` remains
   and is A2's.
+- **2026-08-11 (r).** §4 records item-3 stage A3, and corrects the worklist's
+  premise for it: A3 was filed as a six-function body move, but
+  `src/auth/sender_proof.rs` measured 3,711 lines with 25 connection-taking
+  functions and 76 SQL statements, and the two `admit_sender_constrained_*`
+  entry points carry LLP 0077 spelling policy, the anti-oracle
+  cover-challenge posture, and revoked-family tombstones — policy the kernel
+  may not own under §2. The slice therefore inverted the direction through ten
+  typed kernel operations that the sync policy composes downward, rather than
+  moving bodies. The module's "the server layer never receives a raw SQLite
+  connection" invariant is preserved: the `Connection` stays private in the
+  kernel and transport passes a narrow authority handle into sync. 1 frozen
+  forbidden edge removed, none added, 347 → 346, no waiver. This is the worked
+  example of the inversion A2 needs at larger scale.

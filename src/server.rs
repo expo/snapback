@@ -34,7 +34,8 @@ use crate::auth::provider::{
 };
 use crate::auth::sender_proof::{
     SENDER_ISSUANCE_PROTOCOL, SenderIssuanceCommitment, SenderIssuanceExpectation,
-    verify_sender_issuance_proof,
+    admit_sender_constrained_bound_request, admit_sender_constrained_request,
+    sender_authority_unavailable_rejection, verify_sender_issuance_proof,
 };
 use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDisposition,
@@ -12002,18 +12003,24 @@ async fn admit_hosted_sender_request(
             Err(error) => return Err(ApiError::from(error).into_response()),
         };
         let result = with_snapback(&runtime.snapback, move |snapback| {
-            snapback
-                .auth_database_mut()
-                .admit_sender_constrained_grant_request(
-                    &method,
-                    &canonical_external_uri,
-                    &connection_token,
-                    proof.as_deref(),
-                    &thumbprint,
-                    issuance_sender_replay_epoch,
-                    now_ms / 1_000,
-                    SENDER_NONCE_TTL_SECONDS,
-                )
+            let mut authority = snapback.auth_database_mut().sender_proof_authority();
+            let sender_replay_epoch = authority
+                .sender_replay_epoch()
+                .map_err(|_| sender_authority_unavailable_rejection())?;
+            admit_sender_constrained_bound_request(
+                &mut authority,
+                sender_replay_epoch,
+                &method,
+                &canonical_external_uri,
+                &connection_token,
+                proof.as_deref(),
+                &thumbprint,
+                now_ms / 1_000,
+                SENDER_NONCE_TTL_SECONDS,
+                None,
+                None,
+                Some(issuance_sender_replay_epoch),
+            )
         })
         .await;
         return match result {
@@ -12132,18 +12139,24 @@ async fn admit_hosted_sender_request(
         Err(error) => return Err(ApiError::from(error).into_response()),
     };
     let result = with_snapback(&runtime.snapback, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .admit_sender_constrained_http_request(
-                &method,
-                &canonical_external_uri,
-                &bearer,
-                proof.as_deref(),
-                now_ms / 1_000,
-                SENDER_NONCE_TTL_SECONDS,
-                spec.path != "/connection/open",
-                Some(&cover_key),
-            )
+        let mut authority = snapback.auth_database_mut().sender_proof_authority();
+        let sender_replay_epoch = authority
+            .sender_replay_epoch()
+            .map_err(|_| sender_authority_unavailable_rejection())?;
+        admit_sender_constrained_request(
+            &mut authority,
+            sender_replay_epoch,
+            &method,
+            &canonical_external_uri,
+            &bearer,
+            proof.as_deref(),
+            now_ms / 1_000,
+            SENDER_NONCE_TTL_SECONDS,
+            spec.path != "/connection/open",
+            None,
+            None,
+            Some(&cover_key),
+        )
     })
     .await;
     match result {

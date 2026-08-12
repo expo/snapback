@@ -141,7 +141,44 @@ failing-test **name sets** for `cargo test --lib {auth,storage,server}` with
 `RUST_MIN_STACK=33554432` and prove them byte-identical pre/post. Do not
 attempt it in the same landing as A1.
 
-## A3 — `sender_proof`
+## A3 — `sender_proof` — **DONE 2026-08-11**
+
+**347 → 346, 1 removed / 0 added, no waiver.** LLP 0225 revision (r).
+
+**The premise below was wrong and is corrected here.** A3 was filed as "same
+class, same ruling, same method" — a six-function body move. It is not.
+Measured: `src/auth/sender_proof.rs` is 3,711 lines with **25
+connection-taking functions and 76 SQL statements**, SQL and policy
+interleaved. Only four of the six imports are mechanical durable authority.
+`admit_sender_constrained_request` and `admit_sender_constrained_bound_request`
+carry LLP 0077 decision-4 spelling policy, the anti-oracle cover-challenge
+posture, and bounded revoked-family tombstones — under the ruling's own
+read-versus-decide test they are **not** kernel primitives, and §2 forbids the
+kernel owning them.
+
+So A3 became the **typed-kernel-operation inversion**, which is the worked
+example A2 needs:
+
+- Kernel gained ten mechanical operations — replay-authority init, epoch
+  read/floor/rotation, nonce issue and read, atomic proof consumption with
+  nonce rotation, proof-id-only consumption, presented-token constraint
+  lookup, revoked-family tombstone lookup — each taking explicit bounds and
+  returning typed leaf facts.
+- Sync kept every decision, including `fresh_challenge`; only its durable
+  nonce issue is delegated downward.
+- The seam is shaped by the module's own invariant, "the server layer never
+  receives a raw SQLite connection": the `Connection` stays private in
+  `src/storage/auth_sender.rs`, and transport passes a narrow
+  `SenderProofAuthority` handle *into* the sync policy. Kernel→sync became
+  sync→kernel without ever handing a connection upward.
+
+Envelope: storage/auth/server name sets byte-identical (449/0, 696/2, 287/2);
+`--lib sender_proof` 22/0; cross-language sender-proof 1/0. `route_policy_v1`'s
+four failures were measured at the merge-base and are identical there (28
+passed / 4 failed both sides) — pre-existing main reds, not this slice's.
+
+*Original A3 plan, retained for provenance; its "same method" claim is the part
+corrected above:*
 
 `src/storage/auth_sender.rs` imports six functions from
 `src/auth/sender_proof.rs` (`admit_sender_constrained_request`,
