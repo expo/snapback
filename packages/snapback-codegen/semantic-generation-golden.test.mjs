@@ -53,6 +53,31 @@ test('canonical executable bytes exclude comments and formatting', () => {
   );
 });
 
+test('canonical executable source admits emitted TypeScript closed-script handlers', () => {
+  const typeScriptHandler = `
+type Result = { ok: boolean };
+const initial: Result = { ok: true };
+globalThis.__snapbackHandlers = {
+  async probe(): Promise<Result> { return initial; },
+};
+`;
+  const emittedJavaScript = `
+const initial = { ok: true };
+globalThis.__snapbackHandlers = {
+  async probe() { return initial; },
+};
+`;
+  assert.equal(
+    canonicalExecutableSource(typeScriptHandler),
+    canonicalExecutableSource(emittedJavaScript),
+  );
+  assert.throws(
+    () => canonicalExecutableSource('const initial: = { ok: true };\n'),
+    (error) => error.code === 'CODEGEN_WRITE_FAILED'
+      && /runtime source could not be canonicalized: Type expected/u.test(error.message),
+  );
+});
+
 test('root address fields are excluded from bundle and generation preimages', () => {
   const baseline = vectors[0].expected;
   const changedRoots = {

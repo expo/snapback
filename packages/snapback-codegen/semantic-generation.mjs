@@ -17,6 +17,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { parse as parseJavaScript } from 'acorn';
+import ts from 'typescript';
 
 export const APPLICATION_GENERATION_SCHEMA_VERSION = 'snapback.application-generation.v1';
 export const GENERATION_INTEGRITY_SCHEMA_VERSION = 'snapback.application-generation-integrity.v1';
@@ -76,11 +77,7 @@ export function canonicalExecutableSource(source) {
   }
   let tree;
   try {
-    tree = parseJavaScript(source, {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      allowAwaitOutsideFunction: true,
-    });
+    tree = parseCanonicalExecutableSource(source);
   } catch (cause) {
     throw generationError(
       'CODEGEN_WRITE_FAILED',
@@ -104,6 +101,65 @@ export function canonicalExecutableSource(source) {
     return entry;
   };
   return canonicalGenerationJson(stripEvidence(tree));
+}
+
+function parseCanonicalExecutableSource(source) {
+  const parseOptions = {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+    allowAwaitOutsideFunction: true,
+  };
+  try {
+    return parseJavaScript(source, parseOptions);
+  } catch (javaScriptCause) {
+    // @ref LLP 0241#d1-split-identity-by-what-changed — TypeScript types stay
+    // in source evidence while the type-erased executable AST owns behavior.
+    // TypeScript handler files are an admitted IbexModule source form. Erase
+    // their non-executable syntax with the same pinned compiler family used by
+    // authoring admission, then canonicalize the resulting JavaScript AST.
+    // Diagnostics remain fatal: this fallback broadens syntax coverage without
+    // turning an unparseable runtime body into an identity-free success.
+    const transpiled = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ESNext,
+        removeComments: true,
+        newLine: ts.NewLineKind.LineFeed,
+      },
+      fileName: 'runtime.ts',
+      reportDiagnostics: true,
+    });
+    const diagnostic = (transpiled.diagnostics ?? []).find(
+      ({ category }) => category === ts.DiagnosticCategory.Error,
+    );
+    if (diagnostic) {
+      const location = Number.isInteger(diagnostic.start)
+        ? ts.getLineAndCharacterOfPosition(
+            ts.createSourceFile(
+              'runtime.ts',
+              source,
+              ts.ScriptTarget.Latest,
+              false,
+              ts.ScriptKind.TS,
+            ),
+            diagnostic.start,
+          )
+        : null;
+      const where = location ? ` (${location.line + 1}:${location.character + 1})` : '';
+      throw new SyntaxError(
+        `${ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')}${where}`,
+        { cause: javaScriptCause },
+      );
+    }
+    try {
+      return parseJavaScript(transpiled.outputText, parseOptions);
+    } catch (transpiledCause) {
+      throw new SyntaxError(
+        `TypeScript emitted invalid JavaScript: ${transpiledCause.message}`,
+        { cause: transpiledCause },
+      );
+    }
+  }
 }
 
 export function canonicalHandlerGraphRecord(record) {
