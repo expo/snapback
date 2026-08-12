@@ -5367,6 +5367,7 @@ fn migrate_rehearse_verb_matches_the_library_path() {
             vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
+            authority_profile: None,
             asset_sharing: None,
             visibility: None,
             history: None,

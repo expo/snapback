@@ -1927,6 +1927,7 @@ async function generateInProcessLocked({
 
   // --- Build + validate schema ------------------------------------------------
   const tables = dict();
+  const authorityProfileRequests = [];
   const seenTables = new Set();
   for (const [name, table] of Object.entries(schemaDef.tables)) {
     if (!IDENT.test(name) || name.startsWith('_snapback') || isAuthReservedIdentifier(name)) {
@@ -2600,6 +2601,415 @@ async function generateInProcessLocked({
       ...(visibility ? { visibility } : {}),
       ...(table.historyDeclaration ? { history: { ...table.historyDeclaration } } : {}),
     };
+    for (const declaration of table.authorityProfileDeclarations ?? []) {
+      authorityProfileRequests.push({ tableName: name, tableBuilder: table, declaration });
+    }
+  }
+
+  // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+  // — the facade is admitted only when it decorates one exact LLP 0056
+  // membership relation; every refusal is codegen-owned and repair-bearing.
+  // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
+  // — role hierarchy sugar closes into literal roles on the existing
+  // membership/table-policy IR, while the versioned projection points back to
+  // those canonical declarations instead of creating another evaluator.
+  const authorityProfiles = new Map();
+  const authorityProfileRelations = new Map();
+  const authorityProfileError = (code, tableName, message, repair, extra = {}) => {
+    const authoredSpan = schemaPropertySourceSpans[`table:${tableName}`];
+    diagnostics.push({
+      code,
+      severity: 'error',
+      subsystem: 'auth',
+      message: `${tableName}: ${message}`,
+      table: tableName,
+      ...(authoredSpan
+        ? {
+            sourceSpan: {
+              file: authoredSpan.path,
+              line: authoredSpan.line,
+              column: authoredSpan.column,
+            },
+          }
+        : {}),
+      details: { table: tableName, repair, ...extra },
+    });
+  };
+  const closeAuthorityHierarchy = (roles, hierarchy) => {
+    const edges = new Map(roles.map((role) => [role, hierarchy[role] ?? []]));
+    const visiting = new Set();
+    const closed = new Map();
+    const visit = (role) => {
+      if (closed.has(role)) return closed.get(role);
+      if (visiting.has(role)) throw new Error(`hierarchy contains a cycle through ${role}`);
+      visiting.add(role);
+      const implied = new Set([role]);
+      for (const child of edges.get(role) ?? []) {
+        for (const descendant of visit(child)) implied.add(descendant);
+      }
+      visiting.delete(role);
+      const result = [...implied].sort();
+      closed.set(role, result);
+      return result;
+    };
+    for (const role of roles) visit(role);
+    return closed;
+  };
+  for (const request of authorityProfileRequests) {
+    const { tableName, tableBuilder, declaration } = request;
+    const table = tables[tableName];
+    const spec = declaration?.spec;
+    let refused = false;
+    const refuse = (code, message, repair, extra = {}) => {
+      refused = true;
+      authorityProfileError(code, tableName, message, repair, extra);
+    };
+    if (targetProfile !== TARGET_PROFILE_LOCAL) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET',
+        `authorityProfile() is not qualified for target ${targetProfile}`,
+        `Generate this authority profile for ${TARGET_PROFILE_LOCAL}, or remove it until the selected target advertises AuthorityProfileV1.`,
+        { targetProfile, supportedTarget: TARGET_PROFILE_LOCAL },
+      );
+    }
+    if (!declaration?.afterMembership || !table?.membership) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_MEMBERSHIP_REQUIRED',
+        'authorityProfile() must be chained after membership() on the same table',
+        'Move .authorityProfile(...) immediately after this table\'s .membership(...) declaration.',
+      );
+    }
+    if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_SPEC_INVALID',
+        'authorityProfile() requires { name, hierarchy, roster }',
+        'Pass one object containing only name, hierarchy, and roster.',
+      );
+      continue;
+    }
+    const specKeys = Object.keys(spec).sort();
+    if (canonicalResultJson(specKeys) !== canonicalResultJson(['hierarchy', 'name', 'roster'])) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_SPEC_INVALID',
+        `authorityProfile() has invalid keys ${specKeys.join(', ') || '(none)'}`,
+        'Use exactly { name, hierarchy, roster }; move transition and role vocabulary declarations to membership().',
+      );
+    }
+    const membership = table?.membership;
+    const membershipId = membership?.id;
+    if (typeof membershipId !== 'string' || membershipId.length === 0) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_STABLE_ID_REQUIRED',
+        'the underlying membership must pin a stable id',
+        'Add a non-empty id to membership(), then use the same value as authorityProfile().name.',
+      );
+    }
+    if (typeof spec.name !== 'string' || !IDENT.test(spec.name)) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_ID_INVALID',
+        `profile name ${JSON.stringify(spec.name)} is not a valid stable declaration id`,
+        'Choose a non-empty JavaScript identifier for both membership().id and authorityProfile().name.',
+      );
+    } else if (typeof membershipId === 'string' && spec.name !== membershipId) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_ID_MISMATCH',
+        `profile id ${spec.name} differs from membership id ${membershipId}`,
+        `Set authorityProfile().name to ${JSON.stringify(membershipId)} so both projections share one stable identity.`,
+        { profileId: spec.name, membershipId },
+      );
+    }
+    if ((tableBuilder.authorityProfileDeclarations?.length ?? 0) !== 1) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_CONFLICT',
+        'more than one active authority profile governs this membership relation',
+        'Keep exactly one authorityProfile() declaration on the canonical membership table.',
+        { declarations: tableBuilder.authorityProfileDeclarations?.length ?? 0 },
+      );
+    }
+    if (typeof spec.name === 'string' && authorityProfiles.has(spec.name)) {
+      const prior = authorityProfiles.get(spec.name)?.table?.name ?? null;
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_CONFLICT',
+        `profile id ${spec.name} already governs membership relation ${String(prior)}`,
+        'Give every profile-backed membership relation one distinct pinned id, or remove the duplicate profile declaration.',
+        { profileId: spec.name, otherTable: prior },
+      );
+    }
+    if (tableBuilder.permissionBackingDeclared || tableBuilder.permissionFields !== undefined) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_CONFLICT',
+        'a legacy permissionBacking declaration also governs this membership relation',
+        'Remove permissionBacking()/permissionFields; membership() owns the authority backing derivation.',
+        { legacyDeclaration: 'permissionBacking' },
+      );
+    }
+    const fields = new Map((table?.fields ?? []).map((field) => [field.name, field]));
+    const principalField = fields.get(membership?.principal);
+    if (!principalField || principalField.optional || principalField.field_type !== 'Principal') {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_PRINCIPAL_TYPE_MISMATCH',
+        `principal key ${String(membership?.principal)} must be a required v.principal() field`,
+        'Point membership().principal at one required v.principal() field.',
+        { principalField: membership?.principal ?? null },
+      );
+    }
+    const resourceField = fields.get(membership?.resource);
+    const resourceTable = resourceField ? idFieldTypeTable(resourceField.field_type) : null;
+    if (membership?.scope !== 'resource' || !resourceField || resourceField.optional || resourceTable === null) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_SCOPE_TYPE_MISMATCH',
+        `scope key ${String(membership?.resource)} must be a required nominal v.id(resourceTable) field`,
+        'Use resource-scoped membership and point membership().resource at one required v.id(<scope table>) field.',
+        { scope: membership?.scope ?? null, resourceField: membership?.resource ?? null },
+      );
+    } else if (!tables[resourceTable]) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_RESOURCE_BINDING_INVALID',
+        `scope key ${membership.resource} binds unknown resource table ${resourceTable}`,
+        `Declare table ${resourceTable}, or retarget ${membership.resource} to a declared scope table.`,
+        { resourceField: membership.resource, resourceTable },
+      );
+    }
+    const roleField = fields.get(membership?.role);
+    const roles = Array.isArray(membership?.roles) ? membership.roles : [];
+    const pendingRoles = Array.isArray(membership?.pendingRoles) ? membership.pendingRoles : [];
+    if (!roleField || roleField.optional || roleField.field_type !== 'String'
+      || roles.length === 0 || new Set([...roles, ...pendingRoles]).size !== roles.length + pendingRoles.length) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_ROLE_VOCABULARY_INVALID',
+        'role/status authority must come from one required membership role field with disjoint closed roles and pendingRoles',
+        'Use a required v.string() role field, list active values in roles, and list invited values only in pendingRoles.',
+      );
+    }
+    if (!roles.includes('owner')
+      || membership?.bootstrapRole !== 'owner'
+      || membership?.lastHolder?.protect !== 'owner') {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_AMBIGUOUS_OWNER',
+        'owner must be the real bootstrapRole and protected lastHolder membership role',
+        "Declare 'owner' in roles with bootstrapRole: 'owner' and lastHolder: { protect: 'owner' }.",
+        {
+          roles,
+          bootstrapRole: membership?.bootstrapRole ?? null,
+          protectedRole: membership?.lastHolder?.protect ?? null,
+        },
+      );
+    }
+    const ownerMutatingTransition = (membership?.transitions ?? []).find((transition) => (
+      transition.to?.includes('owner')
+      || ((transition.op === 'setRole' || transition.op === 'remove')
+        && (transition.from === undefined || transition.from.includes('owner')))
+    ));
+    if (ownerMutatingTransition) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_UNGOVERNED_WRITE_PATH',
+        `ordinary membership transition ${ownerMutatingTransition.op} can create, change, or remove owner`,
+        'Remove owner from ordinary transition from/to sets; owner transfer is a separately qualified atomic operation.',
+        { transition: ownerMutatingTransition },
+      );
+    }
+    for (const requiredIndex of ['_membership_pk', '_membership_reverse']) {
+      if ((tableBuilder.indexes ?? []).some((index) => index.name === requiredIndex)) {
+        refuse(
+          'SNAPBACK_AUTHORITY_PROFILE_REQUIRED_INDEX_MISSING',
+          `author index ${requiredIndex} prevents membership from owning its required generated index`,
+          `Rename the authored ${requiredIndex} index; membership owns that reserved index identity.`,
+          { index: requiredIndex },
+        );
+      }
+    }
+    const relationIdentity = membership
+      ? `${tableName}\u0000${String(membership.resource)}\u0000${String(membership.principal)}`
+      : null;
+    if (relationIdentity && authorityProfileRelations.has(relationIdentity)) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_CONFLICT',
+        'another active authority profile already governs this scope/principal relation',
+        'Keep one authorityProfile() declaration on the canonical membership relation and remove the competing declaration.',
+        { otherTable: authorityProfileRelations.get(relationIdentity) },
+      );
+    }
+    let hierarchyClosed = null;
+    const hierarchy = spec.hierarchy;
+    if (!hierarchy || typeof hierarchy !== 'object' || Array.isArray(hierarchy)) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID',
+        'hierarchy must be an object over active membership roles',
+        'Declare hierarchy as { role: [impliedRole, ...] } using active roles only.',
+      );
+    } else {
+      let hierarchyValid = true;
+      for (const [role, implied] of Object.entries(hierarchy)) {
+        if (pendingRoles.includes(role) || (Array.isArray(implied) && implied.some((item) => pendingRoles.includes(item)))) {
+          hierarchyValid = false;
+          refuse(
+            'SNAPBACK_AUTHORITY_PROFILE_PENDING_STATUS_INVALID',
+            `pending role/status appears in hierarchy at ${role}`,
+            'Keep invited statuses only in membership().pendingRoles; hierarchy may name active roles only.',
+            { role },
+          );
+          continue;
+        }
+        if (!roles.includes(role) || !Array.isArray(implied) || implied.length !== new Set(implied).size
+          || implied.some((item) => typeof item !== 'string' || !roles.includes(item))) {
+          hierarchyValid = false;
+          refuse(
+            'SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID',
+            `hierarchy entry ${role} is not a unique list of active roles`,
+            'Use only declared active membership roles in hierarchy keys and values.',
+            { role },
+          );
+        }
+      }
+      if (hierarchyValid) {
+        try {
+          hierarchyClosed = closeAuthorityHierarchy(roles, hierarchy);
+          if (roles.some((role) => !hierarchyClosed.get('owner')?.includes(role))) {
+            throw new Error('owner must imply every active role');
+          }
+        } catch (error) {
+          refuse(
+            'SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID',
+            error.message,
+            'Make hierarchy acyclic and ensure owner implies every active role.',
+          );
+        }
+      }
+    }
+    const roster = spec.roster;
+    const visibleFields = roster?.visible;
+    if (!roster || typeof roster !== 'object' || Array.isArray(roster)
+      || Object.keys(roster).some((key) => key !== 'visible')
+      || !Array.isArray(visibleFields) || visibleFields.length === 0
+      || visibleFields.length !== new Set(visibleFields).size
+      || visibleFields.some((field) => typeof field !== 'string' || !fields.has(field))) {
+      refuse(
+        'SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID',
+        'roster must contain one non-empty unique visible field list over this membership table',
+        'Set roster to { visible: [<existing membership-table field>, ...] }; generated roster operations/hooks are not available in v1.',
+      );
+    }
+    if (refused || !hierarchyClosed || !membership || !resourceTable) continue;
+
+    const authorizationEventFields = (table.fields ?? [])
+      .map((field) => field.name)
+      .filter((field) => !(membership.incidental ?? []).includes(field));
+    if (membership.provenance) {
+      authorizationEventFields.push('grantedByActor', 'grantedByEffective', 'grantedByGrant');
+    }
+    const requiredIndexes = [
+      {
+        name: '_membership_pk',
+        fields: [membership.principal, membership.resource],
+        unique: true,
+        lookup: 'principal-in-scope-point',
+      },
+      {
+        name: '_membership_reverse',
+        fields: [membership.resource, membership.role, membership.principal],
+        unique: false,
+        lookup: 'protected-holders-and-scope-invalidation-range',
+      },
+    ];
+    const generationPreimage = {
+      version: 1,
+      profile: { name: spec.name, hierarchy, roster },
+      membership,
+      authorityFields: [principalField, resourceField, roleField],
+      requiredIndexes,
+    };
+    const generation = `sha256:${sha256(`snapback:authority-profile:v1\n${canonicalResultJson(generationPreimage)}`)}`;
+    const profile = {
+      version: 1,
+      id: spec.name,
+      generation,
+      membership: {
+        declaration: membershipId,
+        manifestPath: `tables.${tableName}.membership`,
+        predicateIdentity: 'snapback.membership-predicate.v1',
+      },
+      tablePolicy: {
+        identity: 'snapback.table-visibility.v1',
+        membershipDeclaration: membershipId,
+      },
+      scopeRelation: {
+        table: tableName,
+        resourceField: membership.resource,
+        resourceTable,
+        principalKey: membership.principal,
+      },
+      statusPredicates: {
+        active: 'membership.roles',
+        invited: 'membership.pendingRoles',
+      },
+      roleLattice: roles.map((role) => ({ role, implies: hierarchyClosed.get(role) })),
+      ownerBootstrapInvariant: {
+        role: 'owner',
+        bootstrapRole: 'owner',
+        protectedLastHolderRole: 'owner',
+      },
+      transitionPreconditions: {
+        source: 'membership.transitions',
+        ownerMutation: 'transfer-owner-only',
+      },
+      authorizationEventFields,
+      subjectDerivation: {
+        strategy: 'membership-principal-resource-v1',
+        principalField: membership.principal,
+        scopeField: membership.resource,
+        coarseGlobalWakeUniverse: [
+          'membership-relation-insert-update-delete',
+          'protected-resource-row-insert-update-delete',
+          'effective-principal-or-auth-context-change',
+          'authority-profile-generation-activation',
+        ],
+      },
+      requiredIndexes,
+      permittedCompositionClasses: ['table-visibility.membership.v1'],
+      notYetQualifiedCompositionClasses: [
+        'membership-visible-search.v1',
+        'authority-profile-asset-sharing.v1',
+      ],
+      roster: { visibleFields: [...visibleFields] },
+    };
+    table.authorityProfile = profile;
+    authorityProfiles.set(profile.id, { table, profile, hierarchyClosed });
+    authorityProfileRelations.set(relationIdentity, tableName);
+  }
+
+  for (const table of Object.values(tables)) {
+    const visibilityLeaves = tableVisibilityMembershipLeaves(table.visibility);
+    for (const leaf of visibilityLeaves) {
+      const authority = authorityProfiles.get(leaf.declaration);
+      if (!authority) continue;
+      const requested = leaf.roles ?? authority.profile.roleLattice.map(({ role }) => role);
+      leaf.roles = [...new Set(requested.flatMap((minimumRole) => (
+        authority.profile.roleLattice
+          .filter(({ implies }) => implies.includes(minimumRole))
+          .map(({ role }) => role)
+      )))].sort();
+    }
+    for (const search of table.searchIndexes ?? []) {
+      if (search.visibility?.kind !== 'membership') continue;
+      if (!authorityProfiles.has(search.visibility.declaration)) continue;
+      authorityProfileError(
+        'SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS',
+        table.name,
+        `search index ${search.name} references authority profile ${search.visibility.declaration}, but membership-visible search is not yet qualified`,
+        'Use a non-profile membership declaration for this search index, or remove the composition until the search qualification lane lands.',
+        { compositionClass: 'membership-visible-search.v1', declaration: search.visibility.declaration },
+      );
+    }
+    if (table.assetSharing?.kind === 'membership'
+      && authorityProfiles.has(table.assetSharing.membership)) {
+      authorityProfileError(
+        'SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS',
+        table.name,
+        `assetSharing references authority profile ${table.assetSharing.membership}, but profile-backed assets are not yet qualified`,
+        'Use owner/public assetSharing or remove the profile composition until the asset qualification lane lands.',
+        { compositionClass: 'authority-profile-asset-sharing.v1', declaration: table.assetSharing.membership },
+      );
+    }
   }
 
   if (
@@ -3983,7 +4393,7 @@ async function generateInProcessLocked({
         name,
         kind: def.__kind,
         ...authoredFunctionManifestFields(def),
-        runtime: { HostPlan: { Query: serializeQueryPlan(def.plan, membershipDeclarations) } },
+        runtime: { HostPlan: { Query: serializeQueryPlan(def.plan, membershipDeclarations, authorityProfiles) } },
         declaredReads: queryReads,
         declaredWrites: [],
         authScopeField: def.authScopeField ?? null,
@@ -4344,6 +4754,27 @@ async function generateInProcessLocked({
         { function: name },
       );
     }
+  }
+
+  for (const fn of functions) {
+    const declarations = new Set();
+    const query = fn.runtime?.HostPlan?.Query;
+    for (const predicate of query?.membershipFilters ?? []) {
+      declarations.add(predicate.declaration);
+    }
+    for (const leaf of tableVisibilityMembershipLeaves(query?.tableVisibility)) {
+      declarations.add(leaf.declaration);
+    }
+    for (const tableName of fn.declaredWrites ?? []) {
+      const id = tables[tableName]?.authorityProfile?.id;
+      if (id) declarations.add(id);
+    }
+    const dependence = [...declarations]
+      .map((declaration) => authorityProfiles.get(declaration)?.profile)
+      .filter(Boolean)
+      .map(({ id, generation }) => ({ id, generation }))
+      .sort((left, right) => left.id.localeCompare(right.id));
+    if (dependence.length > 0) fn.authorityProfileDependence = dependence;
   }
 
   // Rust validates these schema-expanded contracts. Deriving them once here
@@ -6128,7 +6559,7 @@ export function serializeExpr(expr) {
   );
 }
 
-function serializeQueryPlan(plan, membershipDeclarations) {
+function serializeQueryPlan(plan, membershipDeclarations, authorityProfiles = new Map()) {
   return {
     table: plan.table,
     ...(plan.tableVisibility !== undefined
@@ -6137,6 +6568,17 @@ function serializeQueryPlan(plan, membershipDeclarations) {
     filters: plan.filters.map((f) => ({ field: f.field, op: f.op, value: serializeExpr(f.value) })),
     membershipFilters: (plan.membershipFilters ?? []).map((predicate) => {
       const membership = membershipDeclarations.get(predicate.declaration)?.membership;
+      const authority = authorityProfiles.get(predicate.declaration);
+      const requestedRoles = predicate.roles === null
+        ? authority?.profile.roleLattice.map(({ role }) => role)
+        : predicate.roles;
+      const loweredRoles = authority && Array.isArray(requestedRoles)
+        ? [...new Set(requestedRoles.flatMap((minimumRole) => (
+            authority.profile.roleLattice
+              .filter(({ implies }) => implies.includes(minimumRole))
+              .map(({ role }) => role)
+          )))].sort()
+        : requestedRoles;
       return {
         declaration: predicate.declaration,
         resource: predicate.resource.kind === 'rowField'
@@ -6147,7 +6589,7 @@ function serializeQueryPlan(plan, membershipDeclarations) {
                 resourceTable: membership?.resourceTable ?? null,
               },
             },
-        ...(predicate.roles === null ? {} : { roles: predicate.roles }),
+        ...(loweredRoles === null || loweredRoles === undefined ? {} : { roles: loweredRoles }),
       };
     }),
     order: plan.order.map(serializeOrderExpr),
@@ -8510,9 +8952,17 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
     // @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 —
     // `sequences` extends the frozen implementation identity only through a
     // new format domain; sequence-free v1/v2 hashes remain byte-identical.
-    const implementationFormatVersion = fn.stream === true
-      ? 'v4'
-      : (sequences.length > 0 ? 'v3' : (inlineHelpers ? 'v2' : 'v1'));
+    const hasAuthorityProfileDependence = Array.isArray(fn.authorityProfileDependence)
+      && fn.authorityProfileDependence.length > 0;
+    // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
+    // — profile generation is an implementation-identity input only for
+    // operations that mechanically depend on that profile. Legacy functions
+    // retain their byte-identical v1-v4 hashes.
+    const implementationFormatVersion = hasAuthorityProfileDependence
+      ? 'v5'
+      : (fn.stream === true
+          ? 'v4'
+          : (sequences.length > 0 ? 'v3' : (inlineHelpers ? 'v2' : 'v1')));
     const implementationIdentity = {
       format: `snapback.function-implementation.${implementationFormatVersion}`,
       app: appId,
@@ -8541,6 +8991,9 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
       writes,
       authRequirement: fn.authRequirement ?? 'optional-user',
       authorizationDependence: fn.authorizationDependence ?? [],
+      ...(hasAuthorityProfileDependence
+        ? { authorityProfileDependence: fn.authorityProfileDependence }
+        : {}),
       uses: fn.uses ?? [],
       standardPattern: fn.standardPattern ?? null,
       ...(fn.stream === true ? { stream: true } : {}),
@@ -8579,6 +9032,9 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
         : {}),
       ...(Array.isArray(fn.authorizationDependence) && fn.authorizationDependence.length > 0
         ? { authorizationDependence: fn.authorizationDependence }
+        : {}),
+      ...(Array.isArray(fn.authorityProfileDependence) && fn.authorityProfileDependence.length > 0
+        ? { authorityProfileDependence: fn.authorityProfileDependence }
         : {}),
       ...(fn.fieldBoundary !== undefined ? { fieldBoundary: fn.fieldBoundary } : {}),
       syncabilityClass: syncabilityClass(fn),
@@ -13006,14 +13462,18 @@ function authoredPropertySourceSpans(source, label) {
   for (const tableProperty of tables.properties) {
     if (tableProperty.type !== 'Property') continue;
     const tableName = propertyName(tableProperty);
-    const tableCall = findCall(tableProperty.value, 'defineTable');
-    const fields = tableCall?.arguments?.[0];
-    if (!tableName || fields?.type !== 'ObjectExpression') continue;
+    if (!tableName) continue;
+    // The table property itself is always an authored repair location, even
+    // when its value is a separately declared builder identifier. Field spans
+    // remain available below for inline defineTable(...) declarations.
     spans[`table:${tableName}`] = {
       path: label,
       line: tableProperty.key.loc.start.line,
       column: tableProperty.key.loc.start.column + 1,
     };
+    const tableCall = findCall(tableProperty.value, 'defineTable');
+    const fields = tableCall?.arguments?.[0];
+    if (fields?.type !== 'ObjectExpression') continue;
     for (const fieldProperty of fields.properties) {
       if (fieldProperty.type !== 'Property') continue;
       const fieldName = propertyName(fieldProperty);

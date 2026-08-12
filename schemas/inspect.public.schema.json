@@ -1440,6 +1440,315 @@
       ],
       "type": "string"
     },
+    "AuthorityProfileIdentityV1": {
+      "additionalProperties": false,
+      "description": "Stable identity of one authority-profile generation. Function manifests\ncarry this beside their ordinary authorization dimensions so a role-field\nor transition edit is visible to dependent artifact review without\nchanging the evaluator's existing membership predicate shape.",
+      "properties": {
+        "generation": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "generation"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileMembershipReferenceV1": {
+      "additionalProperties": false,
+      "properties": {
+        "declaration": {
+          "type": "string"
+        },
+        "manifestPath": {
+          "type": "string"
+        },
+        "predicateIdentity": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "declaration",
+        "manifestPath",
+        "predicateIdentity"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileOwnerBootstrapInvariantV1": {
+      "additionalProperties": false,
+      "properties": {
+        "bootstrapRole": {
+          "type": "string"
+        },
+        "protectedLastHolderRole": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "bootstrapRole",
+        "protectedLastHolderRole"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileRequiredIndexV1": {
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "lookup": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "unique": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "fields",
+        "unique",
+        "lookup"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileRoleV1": {
+      "additionalProperties": false,
+      "properties": {
+        "implies": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "implies"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileRosterV1": {
+      "additionalProperties": false,
+      "properties": {
+        "visibleFields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "visibleFields"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileScopeRelationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "principalKey": {
+          "type": "string"
+        },
+        "resourceField": {
+          "type": "string"
+        },
+        "resourceTable": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "resourceField",
+        "resourceTable",
+        "principalKey"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileStatusPredicatesV1": {
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "type": "string"
+        },
+        "invited": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "active",
+        "invited"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileSubjectDerivationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "coarseGlobalWakeUniverse": {
+          "description": "The conservative target universe when a consumer cannot qualify the\nexact `(principal, scope)` invalidation path. This is metadata only in\nrollout 1; no new wake behavior is installed here.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "principalField": {
+          "type": "string"
+        },
+        "scopeField": {
+          "type": "string"
+        },
+        "strategy": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "strategy",
+        "principalField",
+        "scopeField",
+        "coarseGlobalWakeUniverse"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileTablePolicyReferenceV1": {
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "type": "string"
+        },
+        "membershipDeclaration": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "identity",
+        "membershipDeclaration"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileTransitionPreconditionsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "ownerMutation": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "ownerMutation"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileV1": {
+      "additionalProperties": false,
+      "description": "The closed rollout-1 authority profile projection. Canonical membership\nremains in [`TableManifest::membership`] and table policy remains in\n[`TableManifest::visibility`]; reference fields below make that ownership\nexplicit while carrying the profile-only lattice, identity, and\nqualification facts codegen needs to explain.\n\n@ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions —\n  one generated projection feeds the already-shipped policy vocabulary.\n@ref LLP 0225#1-ownership-map — this cross-owner value shape lives in the\n  manifest leaf; storage/evaluators consume only their existing carriers.",
+      "properties": {
+        "authorizationEventFields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "membership": {
+          "$ref": "#/$defs/AuthorityProfileMembershipReferenceV1"
+        },
+        "notYetQualifiedCompositionClasses": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ownerBootstrapInvariant": {
+          "$ref": "#/$defs/AuthorityProfileOwnerBootstrapInvariantV1"
+        },
+        "permittedCompositionClasses": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "requiredIndexes": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileRequiredIndexV1"
+          },
+          "type": "array"
+        },
+        "roleLattice": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileRoleV1"
+          },
+          "type": "array"
+        },
+        "roster": {
+          "$ref": "#/$defs/AuthorityProfileRosterV1"
+        },
+        "scopeRelation": {
+          "$ref": "#/$defs/AuthorityProfileScopeRelationV1"
+        },
+        "statusPredicates": {
+          "$ref": "#/$defs/AuthorityProfileStatusPredicatesV1"
+        },
+        "subjectDerivation": {
+          "$ref": "#/$defs/AuthorityProfileSubjectDerivationV1"
+        },
+        "tablePolicy": {
+          "$ref": "#/$defs/AuthorityProfileTablePolicyReferenceV1"
+        },
+        "transitionPreconditions": {
+          "$ref": "#/$defs/AuthorityProfileTransitionPreconditionsV1"
+        },
+        "version": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "id",
+        "generation",
+        "membership",
+        "tablePolicy",
+        "scopeRelation",
+        "statusPredicates",
+        "roleLattice",
+        "ownerBootstrapInvariant",
+        "transitionPreconditions",
+        "authorizationEventFields",
+        "subjectDerivation",
+        "requiredIndexes",
+        "permittedCompositionClasses",
+        "notYetQualifiedCompositionClasses",
+        "roster"
+      ],
+      "type": "object"
+    },
     "AuthorizationBlastRadiusCounters": {
       "properties": {
         "quarantinedSubscriptions": {
@@ -3964,6 +4273,12 @@
         "authorityIndependent": {
           "type": "boolean"
         },
+        "authorityProfileDependence": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileIdentityV1"
+          },
+          "type": "array"
+        },
         "authorizationDependence": {
           "items": {
             "$ref": "#/$defs/AuthorizationInputDimension"
@@ -4097,6 +4412,7 @@
         "authorityCreating",
         "retainable",
         "authorizationDependence",
+        "authorityProfileDependence",
         "readSetSummary",
         "writeSetSummary",
         "permissionEpochBumps",
@@ -5741,6 +6057,17 @@
             }
           ],
           "description": "`.assetSharing(spec)` — the explicit declaration that this table's\nanalyzable row-visibility policy is sufficient asset-sharing\nauthority: anyone the spec admits may also read assets referenced\nfrom these rows. Without it a typed reference confers no\n`via-references` read authority (owner-only fallback).\n\n@ref LLP 0044#asset-read-authorization — sharing is never inferred\n  from a filter's existence; LLP 0007 dated amendment 2026-07-31\n  freezes the closed spelling."
+        },
+        "authorityProfile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorityProfileV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Rollout-1 projection of `.authorityProfile(...)`. This is a versioned\nauthoring/codegen fact over the canonical membership and table-policy\ndeclarations; it adds no evaluator or independently writable roster.\n\n@ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation\n  — the app membership table remains the single authority source.\n@ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions\n  — the projection references the shipped membership/policy IR."
         },
         "fields": {
           "default": [],
