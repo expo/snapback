@@ -181,6 +181,8 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
     return undefined;
   }
 
+  // @ref LLP 0030#proxy-surface — ws-layer relay because Bun's node:http shim
+  // black-holes raw upgrade-socket writes.
   // WebSocket upgrades for the live stream. The refusal path answers with a
   // real HTTP response before closing, so a browser sees a structured error
   // instead of a dropped socket.

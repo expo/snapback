@@ -86,7 +86,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     packageDir: 'packages/snapback-vite',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['channel-a.test.mjs', 'package.test.mjs', 'rqs-serializer.test.mjs'],
+    expectedFiles: ['bun-relay.test.mjs', 'channel-a.test.mjs', 'package.test.mjs', 'rqs-serializer.test.mjs'],
   },
   {
     id: '@expo/snapback-client',
@@ -427,7 +427,7 @@ export function auditInventory({ root = ROOT, inventory }) {
   }
   discovered.sort();
   const declared = commands.flatMap((command) => [
-    ...command.matchAll(/(?:^|&&)\s*node\s+([^\s&]+\.mjs)(?=\s|$)/g),
+    ...command.matchAll(/(?:^|&&)\s*(?:node|bun)\s+([^\s&]+\.mjs)(?=\s|$)/g),
   ])
     .map((match) => match[1].replace(/^\.\//, ''))
     .filter((path) => path.endsWith(inventory.suffix))
@@ -466,7 +466,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 255,
+  expectedTotal = 256,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -806,6 +806,10 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-client gains anonymous-issuance adoption, same-authority
 // password rotation, strict recovery-code projection, and secret-redaction
 // coverage.
+// 255 -> 256 (2026-08-12,
+// issues/closed/20260812-vite-ws-relay-black-holed-under-bun.md):
+// @expo/snapback-vite gains the Bun-runtime real-Vite websocket relay and
+// refused-upgrade regression suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
