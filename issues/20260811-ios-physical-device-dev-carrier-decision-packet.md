@@ -13,6 +13,12 @@
 `diaries/0059-tandem-expo-messaging-bakeoff.diary.md`,
 `diaries/0075-tiny-triumphs.diary.md`
 
+**Packet:** [`20260811-ios-physical-device-dev-carrier-decision-packet.packet.md`](./20260811-ios-physical-device-dev-carrier-decision-packet.packet.md)
+— assembled 2026-08-11. Recommends topology (c), an already-hosted backend plus a
+separately admitted development asset carrier, and holds the LLP 0168
+successor-RFC gate closed (not-yet) on A3 grounds. Awaiting author go/no-go and
+the six rulings in its §9.
+
 ## Problem
 
 Tiny Triumphs needed two stable HTTPS exposures for an Expo Go phone: one for
