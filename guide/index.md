@@ -222,6 +222,9 @@ proof command, and honest nonclaims without opening every demo.
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
   derives who you are; scoped queries; logout barriers.
+- [Email and password](./auth/passwords.md) — signup and signin end users can
+  do themselves, with no mail adapter: server-side argon2id, declared lockout,
+  one-time recovery codes, and the exact session shape you get back.
 - [Browser sign-in and reload custody](./recipes/browser-auth.md) — local
   trusted-server identity verification, immutable app-user binding,
   IndexedDB restoration, protected rows, and logout without a hosted claim.

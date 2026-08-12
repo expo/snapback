@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "d6fc55d7f97798591ec68d3490c489375ae840dc",
-    "sourceDigest": "sha256:d5d81242bf49b606a4e0319629ecadfb99a8bd75322d65d0c8b814e2fc94fe8f"
+    "commit": "4aab4fb5036e3ada618f9cabfcb6691a294015b3",
+    "sourceDigest": "sha256:8f136197bed48032d493436a86be8e35b94ecd9ab1f5307ad1219255e4373e14"
   },
   "limits": {
     "lookupBytes": 16384
@@ -13,7 +13,7 @@
     "sourceFiles": 425,
     "emittingSites": 10401,
     "httpClassified": 967,
-    "guideAnchored": 357
+    "guideAnchored": 359
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -15450,8 +15450,10 @@
       ],
       "httpStatus": 401,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing",
+      "guideAnchors": [
+        "/_snapback/guide/auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing"
+      ]
     },
     "SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID": {
       "code": "SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID",
@@ -60353,8 +60355,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/auth/passwords.md#from-the-cli",
+      "guideAnchors": [
+        "/_snapback/guide/auth/passwords.md#from-the-cli"
+      ]
     },
     "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION": {
       "code": "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION",

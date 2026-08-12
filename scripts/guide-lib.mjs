@@ -43,7 +43,12 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // Bumped 52736 -> 53760 on 2026-08-10 for LLP 0219's one new
 // clients.dev-diagnostics row; the restructured main left insufficient room
 // for the required witness, aliases, authorities, and Guide destination.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 53760;
+// Bumped 53760 -> 55808 on 2026-08-12 for LLP 0227's one new auth.passwords
+// row: the page had 40 bytes of headroom before it, and the row must carry
+// its nonclaims inline (production blind-accept signup and mail-delivered
+// reset are unready, local reset is capture-mailbox only) so the boundary is
+// visible in the index rather than only on the page.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 55808;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

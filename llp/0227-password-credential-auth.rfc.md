@@ -1,7 +1,7 @@
 # LLP 0227: First-class email+password credential auth on the sessions surface
 
 **Type:** RFC
-**Status:** Review
+**Status:** Implemented (local slice)
 **Systems:** Auth, Server, CLI, Client protocol, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
@@ -20,6 +20,10 @@ budget; see Revision history)
 Revision history)
 **Revised:** 2026-08-10 (i — 0214 reconciliation applied; see Revision
 history)
+**Revised:** 2026-08-12 (j — Review → Implemented (local slice); Status records
+the implemented-core / exposed-surface / published-closure split, the six
+author rulings of 2026-08-11, and the verification-cost correction to
+§Migration)
 **Related:** LLP 0057 (auth catalog and provider protocol — the substrate this
 extends), LLP 0151 (first-party identity integrations — tier-1
 username+password sketch and the identities-vs-credentials rule), LLP 0039
@@ -556,8 +560,58 @@ the auth milestone **without hand-rolled hashing and without shelling out to
 
 ## Status
 
-Review (i). Commissioned 2026-08-10 from
-`issues/20260809-password-credential-auth.md`. No implementation has begun.
+**Implemented (local slice), 2026-08-11/12.** Commissioned 2026-08-10 from
+`issues/20260809-password-credential-auth.md`.
+
+The distinction this section must keep visible — implemented core, exposed
+surface, and published closure are three different claims:
+
+| | State |
+|---|---|
+| **Internal core** | Implemented. Landed `961b8be8c` (LLP 0214 floor) and `ef936353f` (issuance integration, lockout, fence, KDF bounds, budgets). |
+| **Exposed surface** | Implemented. `d6fc55d7f` (7 HTTP routes) and `534b58bdb` (CLI verbs + `@expo/snapback-client` methods). |
+| **Published closure** | See the capability index. Until a published-package clean install proves the flow, `auth.passwords` stays `partial`. |
+
+**Where the shipped implementation diverges from this RFC**, all under author
+rulings taken 2026-08-11:
+
+1. **Catalog v4, not "the composed v3 descriptor."** v3 shipped publicly in
+   0.1.18/0.1.19 before the attempt ledger existed, and catalog recognition
+   compares stored SQL against the marked version's descriptor — so amending v3
+   in place would have made those stores refuse entirely. LLP 0214 §21 records
+   the ruling.
+2. **Identifier is `email-v1`** as this RFC wanted, implemented as LLP 0214
+   §20.3's per-app activation mode rather than as this RFC's sketch DDL. LLP
+   0214's kind-based credential shape won wholesale, as §20.1 ruled.
+3. **Recovery codes are the primary self-serve recovery path**, not the
+   "documented non-recoverable posture" in §Principal binding. The LLP 0214
+   floor already shipped working recovery codes, so a password-only principal
+   is *not* non-recoverable. `POST /auth/password/reset` exists but is
+   non-production (local capture mailbox only), and mail-delivered reset
+   remains an LLP 0045 prerequisite.
+4. **Open question 1 (production signup enumeration) ruled:** local/dev/test
+   return `SNAPBACK_AUTH_PASSWORD_EXISTS`, a deliberate documented oracle on
+   the trusted local target. Production blind-accept is not implemented and
+   `authProgramReadiness` reports it unready rather than pretending.
+5. **Open question 2 (operator unlock) ruled: ship it.**
+   `POST /_snapback/api/auth/password/unlock`, AdminWrite.
+6. **Open question 3 (`SNAPBACK_PASSWORD`) ruled:** accepted under dev/test
+   profiles only and refused elsewhere with a typed code; stdin is the sole
+   carrier in any non-dev profile; never argv in any profile.
+
+**One correction to §Migration and import.** This RFC bounds imported hash cost
+parameters "before storage." That is necessary but not sufficient: PHC
+verification re-derives from the parameters embedded in the stored hash, so a
+policy-configured hasher does not bound verification cost. The implementation
+therefore enforces ceilings at **verification** as well, for argon2, scrypt and
+bcrypt alike, failing closed on unparseable parameters. The KDF concurrency cap
+bounds how many verifications run concurrently; only the cost ceiling bounds how
+expensive one is. See LLP 0214 §18's verification-cost caveat.
+
+The `auth.importPasswordCredential` host operation itself (§Migration's
+create/attach modes) is **not** implemented — no public path admits a foreign
+hash today. The verification ceilings are in place ahead of it deliberately, so
+that surface cannot land next to an unbounded verifier.
 
 ## Revision history
 

@@ -3189,22 +3189,47 @@ claims.
 
 ## 18. Open questions
 
-Only numeric policy parameters remain open in this Draft:
+Only numeric policy parameters remain open in this Draft. **Q1–Q4 were ruled by
+the author on 2026-08-11** when the first-class password surface was
+commissioned; Q5 and Q6 remain open because nothing in that slice depends on
+them.
 
-1. What exact Argon2id memory, iteration, and parallelism parameters ship in
-   password policy version 1?
-2. What exact minimum password length and maximum accepted UTF-8 byte length
-   ship in version 1?
-3. How many recovery codes are issued per set, and how many random bits and
-   display characters does each code carry?
-4. What exact lifetime defines `recent_auth` for password, recovery, and future
-   passkey proofs?
+1. ~~What exact Argon2id memory, iteration, and parallelism parameters ship in
+   password policy version 1?~~ **RULED 2026-08-11:** memory 19 456 KiB,
+   iterations 2, parallelism 1, 16-byte random salt, 32-byte tag (OWASP-aligned).
+   Expressed as a versioned `PasswordHashPolicy` **pinned explicitly in code** —
+   deliberately not inherited from `Argon2::default()`, so a dependency bump
+   cannot silently move the policy. The stored PHC string describes an
+   individual hash and is never the policy authority.
+2. ~~What exact minimum password length and maximum accepted UTF-8 byte length
+   ship in version 1?~~ **RULED 2026-08-11:** minimum 12 bytes, maximum 1 024
+   bytes. Deliberately stricter than LLP 0227's proposed 8, keeping the value
+   the landed floor already enforced.
+3. ~~How many recovery codes are issued per set, and how many random bits and
+   display characters does each code carry?~~ **RULED 2026-08-11:** 8 codes per
+   set, 160 bits each, rendered `sbrv1_` + base64url.
+4. ~~What exact lifetime defines `recent_auth` for password, recovery, and future
+   passkey proofs?~~ **RULED 2026-08-11:** 10 minutes.
 5. What exact default retention duration and reaper batch size ship in the
    guest-first template?
 6. What exact security-journal retention duration and failed-attempt sampling
    ceiling apply before archival or compaction?
 
 These questions may tune constants and policy versions.
+
+**Verification-cost caveat added 2026-08-11 (implementation finding).** The
+policy above pins *hashing*. It does not pin *verification*: PHC verification
+necessarily re-derives using the parameters embedded in the stored hash, so
+passing a policy-configured `Argon2` to a verify call does not bound its cost.
+Any stored hash — including one admitted through §20's widened import
+allowlist — must therefore have its declared cost parameters checked against
+declared ceilings **before** verification, for argon2 (m, t, p), scrypt
+(log n, r, p) and bcrypt (cost) alike. The KDF concurrency permit bounds how
+*many* verifications run at once; only this bounds how expensive one of them is.
+The uniform-timing dummy hash must itself stay within those ceilings, or an
+unknown-identifier signin would refuse early and cheaply while a real one spent
+full KDF — reintroducing exactly the enumeration oracle the dummy exists to
+close.
 
 They may not reopen:
 
@@ -3288,3 +3313,79 @@ is the **catalog authority**; the outcome:
    (`issues/20260810-llp-0214-floor-catalog-v3-backup-blocked.md`) — and
    the exact composed descriptor fixtures now include items 1–2 above plus
    the LLP 0031 route-policy tuples for 0227's four routes.
+
+## 21. Amendment (2026-08-11): catalog v4, and what the reconciliation actually cost
+
+§20 placed `_auth_password_attempts` and the per-app identifier mode in "the
+composed v3 descriptor." That is now **wrong in one respect and is corrected
+here**: they ship in **catalog version 4**, not v3.
+
+**Why.** Catalog v3 shipped publicly in `@expo/snapback-*` 0.1.18
+(2026-08-10) and 0.1.19 (2026-08-11) before those relations existed. Catalog
+recognition compares stored SQL text and physical pragma shape against the
+descriptor for the marked version, so adding a table to v3 in place would make
+every store those published runtimes created fail recognition and refuse
+**entirely** — not merely refuse the password paths. A new version costs one
+marker and confines the consequence: a v3 store keeps doing everything it does
+today, and only the first-class password provider reports unready
+(`SNAPBACK_AUTH_PASSWORD_REQUIRES_V4`) through `authProgramReadiness`. Author
+ruling, 2026-08-11.
+
+The version discipline holds in both directions and is tested as such: a v3-era
+recognizer refuses marker `4` with
+`SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED`, and there is no silent v3 → v4
+migration (§3.1 unchanged).
+
+**Identifier mode** (§20 item 3) is declared at activation in `_snapback_meta`
+as `auth_password_identifier_mode`, readable without a transaction so readiness
+reporting does not need one, immutable after activation
+(`SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE`), with the marker written
+last. `email-v1` reuses the existing `CanonicalAddress` rather than introducing
+a second canonicalizer. Catalog v3's shipped internal floor retains implicit
+`username-v1`.
+
+**Backup** widened **format 2** rather than minting format 3: v3 manifests keep
+their exact prior shape by omitting the optional field and v4 requires it, so
+no new backup envelope or security protocol was introduced. Every existing
+backup security assertion is preserved, none relaxed.
+
+**Logical transfer** carries the identifier mode — so an `email-v1` identity
+cannot be imported into a `username-v1` target under the wrong interpretation —
+but deliberately **excludes** the attempt ledger. Operational anti-abuse history
+is not principal/ownership/identity fact, and exporting it would carry canonical
+addresses into a logical artifact. Physical backup and instance-fork custody do
+carry it, consistent with §20 item 2's custody placement.
+
+### What §20 item 6's gate actually turned out to require
+
+§20 item 6 gated landing on §19's preconditions. In the event, the backup
+blocker was cleared by the format-2 work that landed with the floor
+(`961b8be8c`), and implementation proceeded under author rulings on §18 Q1–Q4
+rather than a full §19 acceptance. **This Spec remains Draft**: §19 still wants
+the dual-family security review and complete acceptance, and the shipped
+surface should not be read as those having happened.
+
+### Session issuance — a floor defect found by exposing it
+
+The floor landed by `961b8be8c` minted sessions with a direct `INSERT` into
+`_auth_sessions` carrying a locally generated authority id. That is sound as
+storage and unsound as issuance: the resulting bearer was absent from the
+memory-only session resolver, so it would not have resolved as a required
+session until a projection rebuild or restart. It was invisible while nothing
+called it and would have surfaced as "signup returns a session that does not
+work" the moment a route existed.
+
+Password, guest-claim, and recovery-consume transitions now run the same
+plan → premark → commit → reconcile → finalize → propagate path as an
+email-code exchange, through a shared issuance primitive rather than a parallel
+copy. They acquire typed `Kind::AuthorityInstance` ids, session-cap planning
+with exact commit-time recheck and cap-eviction terminal causes,
+token-collision admission, commit-uncertainty reconciliation, and LLP 0059
+projection finalization.
+
+Password change is consequently an authenticated **same-authority rotation**,
+not the floor's authority transition: it rotates the acting session's bearer
+and revokes the user's *other* sessions through a new user-scoped revocation
+operation (LLP 0057's bulk helper is deliberately instance-wide and is not
+reused). Preserving the authority instance id is what lets the client arm adopt
+change through its existing credential-rotation path instead of a fresh login.

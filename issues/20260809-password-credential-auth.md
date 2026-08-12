@@ -28,3 +28,41 @@ surface — this commission is not a general OAuth/identity-provider program.
 2026-08-10: RFC drafted as `llp/0227-password-credential-auth.rfc.md`
 (Draft; open questions left for the author: production signup enumeration
 posture, operator unlock verb, `SNAPBACK_PASSWORD` env carrier).
+
+## Implementation update — 2026-08-11/12 (ticket stays OPEN)
+
+**The premise above is now out of date and should not be read as current.** The
+ticket says Snapback "ships email-code sessions but no password credential
+mode." The internal core has existed since `961b8be8c` (LLP 0214 floor: catalog
+v3, argon2id register/authenticate/set/change, recovery codes, assurances). What
+was actually missing was that **none of it was reachable** — no HTTP routes, no
+CLI verbs, no client methods — which is why the pilot lane still hand-rolled a
+scrypt gateway and shelled out to `snapback session mint`.
+
+Landed since:
+
+| Commit | What |
+|---|---|
+| `b180492e9` | Catalog v4 — password attempt ledger, `email-v1` identifier mode, explicitly pinned Argon2id policy |
+| `ef936353f` | Password/guest-claim/recovery minting rerouted through the real provider issuance path; user-scoped revocation; displacement; lockout + two-phase fence; bounded KDF concurrency; LLP 0215 budget bindings; upgrade-on-verify |
+| `d6fc55d7f` | 7 public HTTP routes with complete LLP 0031 policy tuples |
+| `534b58bdb` | `snapback auth password …` CLI verbs and `@expo/snapback-client` methods |
+
+Against the four properties this ticket says GoTrue won on:
+
+- **email+password signup/signin callable non-interactively** — `POST /auth/password/signup` and `/signin`, plus CLI verbs taking the password on stdin. No admin token, no impersonation capability, no `auth.mintSession`.
+- **server-side hashing** — argon2id m=19456/t=2/p=1, pinned in code, computed outside the storage writer lock on a bounded pool.
+- **standard rate limiting** — declared, testable lockout (10 failures → 15 min, every threshold a profile parameter, not a fixed constant — deliberately answering this ticket's own complaint that GoTrue's unconfigurable meter cost the pilot ~2.6h of an envelope run) plus LLP 0215 named budgets.
+- **token issuance** — the ordinary LLP 0057 composed credential response; sessions land in normal `AuthCoordinator` custody.
+
+**Why this stays open:** the commission's definition of done is a fresh app
+using the **published** `@expo/snapback-*` packages. Repository-only tests are
+explicitly insufficient. This closes when a clean install proves the
+client-facing flow end to end. The `auth.passwords` capability row is `partial`
+until then.
+
+Honest boundaries at this point, none of them hidden in the capability row:
+production signup blind-accept and mail-delivered password reset are **not**
+implemented — both are annotated LLP 0045 delivery prerequisites and
+`authProgramReadiness` reports them unready. Local reset works only against the
+capture mailbox. `auth.importPasswordCredential` is not implemented.

@@ -834,6 +834,218 @@ pretend to implement it.
 
 ---
 
+<!-- snapback-guide-source: guide/auth/passwords.md -->
+---
+title: Email and password
+id: auth.passwords
+order: 2
+audience: agent-first
+capabilities: [auth.passwords, auth.sessions, auth.browser-session-custody]
+authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/provider.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs]
+examples: [demos/browser-auth]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-12
+reviewed-commit: HEAD
+---
+
+# Email and password
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](./targets.md).
+
+Password login is a credential class on the ordinary
+[sessions surface](./sessions-and-principals.md). A successful signin runs the
+same session-creation core as an email-code exchange and returns the same
+credential response. There is **no parallel identity system, no parallel token,
+and no separate session shape** — one principal, several credentials.
+
+This is the first sign-in method a browser app can offer end users without a
+mail adapter. Email-code login still has no self-serve production path (no
+delivery), so if you need a real user to sign themselves in today, this is it.
+
+## Sign up, then sign in
+
+`authPasswordSignup` mints an ordinary session and adopts it into
+`AuthCoordinator` custody, exactly as `authExchange` does. You need no admin
+token, no impersonation capability, and no `auth.mintSession`.
+
+```js source=packages/snapback-client/password-auth.test.mjs
+    const result = await fixture.client.authPasswordSignup({
+      email: 'person@example.com',
+      password: PASSWORD,
+    });
+    assert.equal(result.session.userId, USER);
+    assert.equal(fixture.coordinator.authority.userId, USER);
+    assert.equal(Object.hasOwn(result, 'token'), false);
+```
+
+`authPasswordSignIn` takes the same `{ email, password }` and returns the same
+shape. After either, the client holds an ordinary session: protected queries,
+refresh, the logout barrier, and reload restoration all behave exactly as they
+do after an email-code exchange.
+
+Both methods require an `AuthCoordinator` and an anonymous predecessor — they
+create a fresh authority, so they adopt through the same anonymous-issuance
+path `authExchange` uses. The bearer is never returned to your code; the
+coordinator owns it.
+
+## The exact session shape
+
+Two different shapes carry the user id, at two layers. Both are real; use the
+one for the layer you are at.
+
+**On the wire**, `POST /auth/password/signin` returns the LLP 0057 composed
+credential response — the same five fields as `/auth/exchange`:
+
+```text
+{
+  "tokenType": "Bearer",
+  "token": "…",
+  "refreshAfter": 604800000,
+  "session": {
+    "id": "…",
+    "userId": "usr_…",          ← the server-issued principal
+    "provider": "local-password",
+    "createdAt": 0,
+    "expiresAt": 0,
+    "absoluteExpiresAt": 0
+  },
+  "authorityDescriptor": { "descriptorVersion": 1, "authorityInstanceId": "aut_…", "sessionGeneration": 1 }
+}
+```
+
+**In the client**, the session projection nests authority, and
+`session.authority.userId` is the principal:
+
+```text
+session.authority.userId        ← principal id, client-side projection
+session.authority.isAuthenticated
+credential.session.userId       ← the same principal, wire response
+```
+
+`session.provider` reports `local-password` at mint **and on every later
+refresh**, so a session's credential class stays legible for its whole life.
+
+Signup additionally returns `recoveryCodes` — the only response that carries a
+sixth field. Everything else stays byte-shape-identical to `/auth/exchange`.
+
+## Recovery codes are the recovery path
+
+Signup returns eight one-time recovery codes. **They are shown exactly once**
+and are not readable again — not through the admin console, not through any
+route. Store them at signup or lose them.
+
+- `authRecoveryConsume({ email, code })` mints a session and automatically
+  replaces the whole set. A consumed code cannot be reused.
+- `authRecoveryRotate()` replaces the set for an authenticated principal —
+  use it after suspected disclosure.
+
+Recovery codes never enter coordinator custody, the public credential
+projection, or error diagnostics.
+
+## Changing a password
+
+`authPasswordChange({ currentPassword, newPassword })` requires both an
+authenticated session **and** the current password — a stolen bearer alone
+cannot rotate a credential.
+
+Change is a **same-authority rotation**, not a new login: it rotates the acting
+session's bearer, keeps the authority instance id, and revokes the user's
+*other* sessions. A session belonging to a different user is untouched. Because
+the authority is preserved, the client adopts it through the same rotation path
+refresh uses.
+
+`authPasswordSet({ newPassword, stepUp })` adds a first password to a principal
+that has none. It additionally requires a fresh operation-bound step-up
+challenge naming the principal's own verified `email-code` identity — acquire it
+with `POST /auth/request-code` against that address.
+
+## From the CLI
+
+Passwords are accepted on stdin and **never** on the command line, in any
+profile — so they never reach process listings or shell history.
+
+```sh
+printf '%s' "$PASSWORD" | snapback auth password signup \
+  --url http://127.0.0.1:4000 --email person@example.com --password-stdin
+
+printf '%s' "$PASSWORD" | snapback auth password signin \
+  --url http://127.0.0.1:4000 --email person@example.com --password-stdin
+```
+
+`--password-fd N` and the `SNAPBACK_PASSWORD` environment variable are accepted
+**only** under dev and test profiles, and refused elsewhere with a typed code.
+`snapback auth password change` reads the session token first, then the current
+and new passwords, from stdin in that order.
+
+These verbs need no admin token and no impersonation capability. They are the
+product front door, not an operator impersonation path — unlike
+`snapback session mint`.
+
+## What a failed signin tells an attacker: nothing
+
+Wrong password, unknown identifier, and locked-out all answer the **same**
+`SNAPBACK_AUTH_CREDENTIAL_INVALID` with the same status, body, headers, and
+timing envelope. A signin against an address with no account still performs a
+full key-derivation against a dummy hash so the cost is uniform.
+
+Lock state is deliberately **invisible on the wire**. A visible lock would
+itself be an oracle: a real account's counter resets when its owner signs in
+while a missing address's never does, so lock behavior would diverge across
+histories and disclose successful-authentication activity. Lock existence,
+threshold, and expiry are observable only through the authenticated admin
+projection and `authProgramReadiness`.
+
+Declared v1 posture — **every threshold is a profile parameter, not a fixed
+constant**, so acceptance suites and benchmark envelopes can raise them:
+
+| | Default |
+| --- | --- |
+| Consecutive failures before lock | 10 |
+| Lock duration | 15 minutes |
+| Failure window (sub-threshold decay) | 15 minutes |
+| Password length | 12–1024 bytes |
+| Argon2id | m=19456 KiB, t=2, p=1 |
+
+An operator can clear a lock early with the AdminWrite unlock verb; otherwise
+the lock expires on its own with no intervention.
+
+## Capability boundaries — read before shipping
+
+These are not shipped, and Snapback says so rather than pretending:
+
+- **Production signup is not blind-accept.** On local/dev/test, signing up with
+  an address that already has an account refuses with a distinguishable code —
+  a deliberate, documented enumeration oracle on the trusted local target.
+  Blind-accept needs mail delivery to notify the real owner, so
+  `authProgramReadiness` reports production signup **unready** rather than
+  faking it.
+- **Mail-delivered password reset does not exist.**
+  `POST /auth/password/reset` works only against the local capture mailbox and
+  refuses outside that profile. Real reset waits on the LLP 0045 mail adapter.
+  Recovery codes are the self-serve path in the meantime.
+- **Reset is same-principal only.** The address's `email-code` identity and its
+  password identity must belong to the same principal. A password-only account,
+  an email-code-only account, and the two-principal squat state all refuse
+  uniformly — transferring a squatter's credential to someone who later proves
+  the address is exactly the hijack this contains.
+- **A password never proves you own the email address.** It proves control of
+  the account whose login name is that string. Only an email-code exchange
+  proves address ownership, and the two claims are separate identity rows in
+  separate provider namespaces. A password identity can never satisfy an
+  email-code lookup.
+- **Catalog v4 is required.** A store created by an older runtime keeps working
+  for everything else and reports the password provider unready — it does not
+  fail. There is no silent migration.
+- **Sender-constrained custody is refused, not downgraded.** When
+  sender-constrained credentials are active, password methods refuse with a
+  typed error rather than quietly falling back to bearer-only custody.
+
+---
+
 <!-- snapback-guide-source: guide/auth/native-apps.md -->
 ---
 title: Authenticate a native app
