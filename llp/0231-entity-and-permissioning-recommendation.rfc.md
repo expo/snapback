@@ -5,8 +5,8 @@
 **Systems:** Auth, Security/authorization, Storage, Live queries, Code generation, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-10
-**Revised:** 2026-08-11
-**Related:** LLP 0011, LLP 0035, LLP 0043, LLP 0046, LLP 0053, LLP 0056, LLP 0070, LLP 0073, LLP 0080, LLP 0085, LLP 0170, LLP 0172, LLP 0173, LLP 0187, LLP 0230
+**Revised:** 2026-08-12
+**Related:** LLP 0011, LLP 0035, LLP 0043, LLP 0046, LLP 0053, LLP 0056, LLP 0070, LLP 0073, LLP 0080, LLP 0085, LLP 0170, LLP 0172, LLP 0173, LLP 0187, LLP 0230, LLP 0234, LLP 0235
 
 ## Summary
 
@@ -323,10 +323,18 @@ final projection is not a boundary:**
   the one that must not be best-effort.
 
 The class-M *grammar* is deliberately not pinned here: review established that
-the prior-art survey (LLP 0230) contains no field-level enforcement literature
-yet — column privileges, dynamic data masking, masking side channels — so the
+the prior-art survey (LLP 0230) contained no field-level enforcement literature
+— column privileges, dynamic data masking, masking side channels — so the
 grammar goes to a sibling spec grounded in that reading, with pointing-room as
-its acceptance-gated worked case. Until that spec ships, a field-level
+its acceptance-gated worked case. **That reading was done on 2026-08-12 and
+lands as LLP 0230 Tier 5; the sibling is
+[LLP 0235](./0235-field-masking-class-m.spec.md), Draft.** The reading changed
+one thing this section should record: masking applied at projection time is not
+a boundary as a matter of empirical record rather than argument — SurrealDB
+shipped a correct conditional per-field rule and had it bypassed six documented
+ways, several of them through channels the *optimizer* introduced rather than
+the author. That is why 0235 binds its noninterference check to the physical
+plan and not only to the authored query. Until that spec ships, a field-level
 boundary lives in handler code over row-authorized data and **must be
 declared** — a `fieldBoundary:` declaration naming the concealed fields and
 condition — so it appears on D5's projection as handler-enforced (not proven)
@@ -710,3 +718,11 @@ document. Diary citations are quoted exactly.
   lowering, conservative membership live replacement, RQS demotion, and the
   real-session Following projection witness. Class M and the other explicitly
   named read/write/egress surfaces remain open.
+- 2026-08-12 — D3's deferral condition discharged. The field-enforcement
+  reading it gated the class-M sibling on was done and lands as LLP 0230
+  Tier 5; the sibling is LLP 0235 (Draft). D3 now records the reading's
+  load-bearing result — projection-time masking fails as a matter of
+  empirical record, through channels the optimizer introduces — and names why
+  0235 binds noninterference to the physical plan. OQ6's override-governance
+  sibling is LLP 0234 (Draft); D2's second phase stays blocked until it is
+  accepted and implemented. No decision in this document changed.
