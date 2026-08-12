@@ -2,7 +2,7 @@
   "admissionVersion": "snapback.handler-admission.legacy.v1",
   "appId": "app",
   "artifactKind": "handlerRuntimeProfile",
-  "authoredSourceHash": "sha256:448c2437626dc6bd8e7d72311c6180f6e387640bbebb949f1a09930204cd78b7",
+  "authoredSourceHash": "sha256:f7d9bf22fd5df0c5f01a7a114bcf3936c7e485585c5b2fd82dbd99c2b646d2a6",
   "computedAccess": {
     "dynamicProperties": "forbidden",
     "forbiddenReflectionProperties": [
@@ -557,10 +557,27 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:75e324f48e13c3a79befce10834728a88572bcd5a4aeb56363ebd1e2fb272559",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:b06e42782bec25bbee884bd292d54ab0fdb18943be1218528f8f6e8cc8e413c7",
   "moduleGraph": {
     "admittedSpecifiers": [],
     "cycles": "forbidden",
+    "graphRecordSchema": {
+      "admissionVersion": "snapback.handler-admission.legacy.v1",
+      "digestFields": {
+        "canonicalExecutableAstDigest": "canonical-executable",
+        "rawSourceEvidenceDigest": "raw-source-evidence"
+      },
+      "extractorVersion": "snapback.inline-handler-extractor.v1",
+      "moduleFormat": "esm",
+      "normalizedTarget": "root-relative-posix-path",
+      "sameFileTargetResolution": "self",
+      "schemaVersion": "snapback.handler-graph-record.v1",
+      "sourceSnapshot": {
+        "attestedReread": "not-applicable-while-relative-imports-are-not-admitted",
+        "protocol": "single-captured-source-buffer-v1"
+      },
+      "topology": "directed-node-and-edge-list"
+    },
     "identityEvidence": {
       "canonicalExecutableDigestField": "implementationHash",
       "rawEvidenceDigestField": "authoredSourceHash"
@@ -570,6 +587,76 @@
     "maximumFiles": 1,
     "maximumImportDepth": 0,
     "reExports": "forbidden",
+    "records": [
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:f63e2f2d6da99adfdd6be83631a74e319dfa154f3ba20c3fd93e2e5eeb23b4da",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:6f06b358254f7d86c8bbf5fc55e91568339d7670405b51a50320ecfb0cf49a5a",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "annotateMessage",
+            "nodeId": "handler:annotateMessage",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:2ea501c97de3d8ccca1d12962579a863697a5fd5f35a156c6da7b33f52dc0394",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 176
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 176
+          },
+          "name": "annotateMessage",
+          "nodeId": "handler:annotateMessage",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:ea1d2c8b45b77ed817fbbf8ee6bef965f2378b87786b09c20c5756d2e7e8edf5",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:d22899b887656df2c998d57df13aedc62ca6cd17d9bd05a678ca377c62cdb304",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "messageImageUpload",
+            "nodeId": "handler:messageImageUpload",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:11bdc9bc04560485fbc0ba77a09ead8fa85b3a691418a8231df7edf0bf49a9d7",
+            "sourceSpan": {
+              "column": 14,
+              "file": "functions.mjs",
+              "line": 37
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 14,
+            "file": "functions.mjs",
+            "line": 37
+          },
+          "name": "messageImageUpload",
+          "nodeId": "handler:messageImageUpload",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      }
+    ],
     "sameFileFunctionDeclarations": true
   },
   "operations": [

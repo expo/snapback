@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-12T12:16:02.705Z",
-  "completedAt": "2026-08-12T12:17:54.632Z",
+  "startedAt": "2026-08-12T17:31:16.841Z",
+  "completedAt": "2026-08-12T17:33:53.070Z",
   "runtime": {
     "node": "v24.18.0",
     "platform": "darwin",
@@ -15,20 +15,208 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "b92bcd412622d63300105883154ae767d5927401",
+    "revision": "e3e477aa2616e00889ad7ba9fc5b5ff4e20686a1",
     "dirty": true,
     "dirtyPaths": [
+      "demos/access-desk/snapback/generated/artifacts.json",
+      "demos/all-aboard/snapback/generated/artifacts.json",
+      "demos/all-aboard/tests/egress-probe/generated/artifacts.json",
+      "demos/browser-local-first/snapback-sessions/generated/artifacts.json",
+      "demos/browser-local-first/snapback/generated/artifacts.json",
+      "demos/campfire/snapback/generated/artifacts.json",
+      "demos/card-game/snapback/generated/artifacts.json",
+      "demos/catalog-lens/snapback/generated/artifacts.json",
+      "demos/chirp/snapback/generated/artifacts.json",
+      "demos/competitive-checkpoint/snapback/generated/api.d.ts",
+      "demos/competitive-checkpoint/snapback/generated/api.mjs",
+      "demos/competitive-checkpoint/snapback/generated/artifacts.json",
+      "demos/competitive-checkpoint/snapback/generated/functions.manifest.json",
+      "demos/competitive-checkpoint/snapback/generated/schema.manifest.json",
+      "demos/cursors-web/snapback/generated/artifacts.json",
+      "demos/dispatch-board/snapback/generated/artifacts.json",
+      "demos/file-drop/snapback/generated/artifacts.json",
       "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
       "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
+      "demos/graffiti/snapback/generated/artifacts.json",
+      "demos/latency-kanban/snapback/generated/artifacts.json",
+      "demos/latency-kanban/snapback/trusted-composition-activation.json",
+      "demos/messaging-snapback/snapback/generated/artifacts.json",
+      "demos/partiful-matrix/snapback/generated/api.mjs",
+      "demos/partiful-matrix/snapback/generated/artifacts.json",
+      "demos/party-wall/snapback/generated/artifacts.json",
+      "demos/pointing-room/snapback/generated/artifacts.json",
+      "demos/pointing-room/snapback/generated/functions.manifest.json",
+      "demos/pointing-room/snapback/generated/schema.manifest.json",
+      "demos/public-dashboard/snapback/generated/artifacts.json",
+      "demos/pulse-monitor/snapback/generated/artifacts.json",
+      "demos/rbac/snapback/generated/artifacts.json",
+      "demos/shindig/snapback/generated/artifacts.json",
+      "demos/signal-desk/snapback/generated/artifacts.json",
+      "demos/team-chat/snapback/generated/api.d.ts",
+      "demos/team-chat/snapback/generated/api.mjs",
+      "demos/team-chat/snapback/generated/app.binding.mjs",
+      "demos/team-chat/snapback/generated/app.descriptor.json",
+      "demos/team-chat/snapback/generated/app.mjs",
+      "demos/team-chat/snapback/generated/artifacts.json",
+      "demos/team-chat/snapback/generated/contract-data.manifest.json",
+      "demos/team-chat/snapback/generated/functions.manifest.json",
+      "demos/team-chat/snapback/generated/provider-bindings.json",
+      "demos/team-chat/snapback/generated/provider-introspection.json",
+      "demos/team-chat/snapback/generated/schema.manifest.json",
+      "demos/todo-v2/snapback/generated-remote-service/artifacts.json",
+      "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
+      "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
+      "demos/todo-v2/snapback/generated/artifacts.json",
+      "demos/todo-v2/snapback/generated/functions.manifest.json",
+      "demos/todo-v2/snapback/generated/schema.manifest.json",
+      "demos/todo/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/trusted-composition-activation.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api-envelope.members.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.d.ts",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.aeb7fc175135ba8c81b3c09b8a423c747b18805fa5b4e2d1ff3080c60296dcb7.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.fa77355f0fbe6af1f41ca0dda99d6b1dedbe335cf07ef7bf4df78a4446309973.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/client-lifecycle.v1.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/contract-data.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/functions.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/handler-runtime-profile.v1.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-bindings.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-introspection.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/schema.manifest.json",
+      "guide/reference/diagnostics-registry.json",
+      "guide/reference/diagnostics.md",
+      "guide/reference/expo-snapback-cli--verify.md",
+      "guide/reference/expo-snapback-client--agent-authority.md",
+      "guide/reference/expo-snapback-client--app-data.md",
+      "guide/reference/expo-snapback-client--assets.md",
+      "guide/reference/expo-snapback-client--canonical-client-value.md",
+      "guide/reference/expo-snapback-client--client-diagnostics.md",
+      "guide/reference/expo-snapback-client--commands.md",
+      "guide/reference/expo-snapback-client--evaluation-floor.md",
+      "guide/reference/expo-snapback-client--external-store.md",
+      "guide/reference/expo-snapback-client--hosted-browser.md",
+      "guide/reference/expo-snapback-client--ir-evaluator.md",
+      "guide/reference/expo-snapback-client--lease-convergence.md",
+      "guide/reference/expo-snapback-client--local-read-admission.md",
+      "guide/reference/expo-snapback-client--materialization-store.md",
+      "guide/reference/expo-snapback-client--micro-core.md",
+      "guide/reference/expo-snapback-client--micro-live.md",
+      "guide/reference/expo-snapback-client--micro.md",
+      "guide/reference/expo-snapback-client--online.md",
+      "guide/reference/expo-snapback-client--optimistic-rebase.md",
+      "guide/reference/expo-snapback-client--outbox-shared.md",
+      "guide/reference/expo-snapback-client--push-installation-expo.md",
+      "guide/reference/expo-snapback-client--push-registry.md",
+      "guide/reference/expo-snapback-client--react-binding.md",
+      "guide/reference/expo-snapback-client--remediation.md",
+      "guide/reference/expo-snapback-client--result-transform.md",
+      "guide/reference/expo-snapback-client--rqs-preload.md",
+      "guide/reference/expo-snapback-client--rqs-registered.md",
+      "guide/reference/expo-snapback-client--rqs-store-default.md",
+      "guide/reference/expo-snapback-client--rqs-store-expo.md",
+      "guide/reference/expo-snapback-client--rqs-store-file.md",
+      "guide/reference/expo-snapback-client--rqs-store.md",
+      "guide/reference/expo-snapback-client--rqs.md",
+      "guide/reference/expo-snapback-client--search.md",
+      "guide/reference/expo-snapback-client--vector-search.md",
+      "guide/reference/expo-snapback-client.md",
+      "guide/reference/expo-snapback-codegen--ctx.md",
+      "guide/reference/expo-snapback-expo--app-binding.md",
+      "guide/reference/expo-snapback-expo--app.plugin.md",
+      "guide/reference/expo-snapback-expo--asset-source.md",
+      "guide/reference/expo-snapback-expo--config-plugin.md",
+      "guide/reference/expo-snapback-expo--supervised-environment.md",
+      "guide/reference/expo-snapback-expo.md",
+      "guide/reference/expo-snapback-react--core.md",
+      "guide/reference/expo-snapback-react--thumbhash.md",
+      "guide/reference/expo-snapback-react.md",
+      "guide/reference/index.md",
+      "guide/reference/registry.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api-envelope.members.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.d.ts",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.f1e1895a8f5ffe909333ddb5cd40039193b3bb466a439e693a0e4d842dfc069d.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.d.ts",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.7df874dc4b4a614b05292a24c2c4e4b3d84c3d83969dc2f406377ba06635884f.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/artifacts.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract-data.manifest.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/functions.manifest.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/package.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/provider-bindings.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/provider-introspection.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/schema.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api-envelope.members.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.d.ts",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.mjs",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.030279609af3b1b514a84999511d4cfd213f7079f9b5bb6541a0cc1f2c34a54a.mjs",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.mjs",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.d.ts",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.62afd879802a5622be10004bb28d062d36ae6aa7741b8f97d0a665e565b1e907.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.mjs",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/artifacts.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract-data.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/functions.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/package.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/provider-bindings.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/provider-introspection.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/schema.manifest.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/api-envelope.members.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/api.d.ts",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/api.mjs",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.f9f293c30391d8b3e68a9e2f01e59bd85b025bcf2ee5ca32447f0644bc91054b.mjs",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.mjs",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.cde8c902248ef2a350d3c1d6ae352ac66aef1c20da26ac1df05d0767169ff245.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.mjs",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/artifacts.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/client-lifecycle.v1.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/contract-data.manifest.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/functions.manifest.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/handler-runtime-profile.v1.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/provider-bindings.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/provider-introspection.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/schema.manifest.json",
       "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
+      "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json",
       "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md"
+      "tests/acceptance/latency-kanban-move3-v1-evidence.md",
+      "tests/acceptance/triage-graph-move1-v1-evidence.md",
+      "BUDGET-CHARTER.md",
+      "MERGE-CHARTER.md",
+      "REPORT-merge.md",
+      "bootstrap.log",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.943550d9684b1ead1a1cc6b30edda01f270e03eef4f401ff2655c43a4311c1cc.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.3d7a55d5f2eb796801694c035b2e1617331e5d0981ee684ccd1e15ae5bb8f09d.json",
+      "mint-carrier-exit.log",
+      "mint-fleet-observatory-move1-v1.log",
+      "mint-latency-kanban-move3-v1.log",
+      "mint-triage-graph-move1-v1.log",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.cd023a68e926aa3ed534dc1fa68955d25a3ab8a41b3b42cfed8cbd45e2fbef54.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.bf15c0385aada5d9e71826b6c6b2ecb8f6a2a5f260174910e39b4f4e74d6bb76.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/client-lifecycle.v1.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/handler-runtime-profile.v1.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.bd748c3658c56bcb9b1c4c12d24f6fcff28b3ebfa84cd5b682a34e5734f348a7.mjs",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.6959be868133257d7346f647bcfb56fd15b884503f0444f42313d27bb394cddf.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/client-lifecycle.v1.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/handler-runtime-profile.v1.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.311047ba9ce423ba758909d24b4863519e37768a43e612604299039343377a2f.mjs",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.bcd9ddf450df3dc540892f46f192557834e4c9257fcf3e89e183909041ca7ab4.json",
+      "rotation.log",
+      "rotation2.log"
     ],
     "files": [
       {
@@ -85,7 +273,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "9ebcc2c5289e5d1b10c61a890886051cc4bee10bbd07cf1d29bfaec1af780fb4"
+        "sha256": "f95b5ea420749cc26d5d485060447ed5cc9f67976e9a064759adf3f8d6829871"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
@@ -121,19 +309,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "ecb5502ce1648047950453d7f53460f272605a944e8dae15fc34adb0bf35c25e"
+        "sha256": "c34cf1fe5b196d3d747fc79026fd6b7f5c3f36c1bc79df8a8800ba4a35d5f2f2"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "15fb80c3710dc71e8a638f7f463731efaa2e49343000b63a8e91475aa32fd435"
+        "sha256": "b5056277fcac8e9df04957a029c8efd4617d5a5e18d60722bb428072abd01df6"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "c3de32d8792cef6c9d05f3a7acb89b60a0a0c7980363e5304731c0bc990ebbf8"
+        "sha256": "48aa44abc602920b97e44a484c3e779cf68ebb2a8b712c9bd6378a7ce00948b1"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "5265b1a1064c67d0dc5f5df13993bf39a42818af56cf38baab6b56da499d190c"
+        "sha256": "16efa39c31f8fdeecbeff36b478c7714324d29f83ab19b8ab07e65406e6ad3fc"
       }
     ]
   },
@@ -283,11 +471,11 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 1480.067,
+        "relaunchToReadableMs": 1563.193,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-          "version": "Google Chrome 151.0.7922.137",
-          "executableSha256": "6c7eafce21bf9095931824cf05b667f8ba1f7057c39af51db6905962c71918c9"
+          "version": "Google Chrome 151.0.7922.110",
+          "executableSha256": "1e70a2f896b31da52f75f161c8002b8beda992080712ba808bcb5c3040977007"
         },
         "profile": {
           "callerRetained": true,
@@ -296,12 +484,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 4257,
+            "pid": 46551,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 4323,
+            "pid": 46917,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -399,7 +587,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 911,
+            "pid": 26030,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -410,7 +598,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 932,
+            "pid": 26084,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -443,12 +631,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "b765064267cd88cb483e9cd0df2aa7244b47b5eb9b15b80f1a758b146914de49",
+        "serverBinarySha256": "1a78079276f17d22fd81d1562727024402b8f133c3ebb67b3a5067a4a1eff440",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:358cda5d11176dfe97e7d60d800d539267f667bcfaf6816714b63bacb007dde9",
+          "activationHash": "sha256:1ebd9e3f0e1c36fc1a12fa962a1ded3127bdb4ba6ec6440f22e1eb68218c37c3",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -490,7 +678,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.XHK-MsI5YpjYWeQpeSaQBc4xXLiUogcR7swnLnvkVaU",
+          "qmk1": "qmk1.AaVBaISY-c4KCFOvECEHEJ1ZR6CftbI_ga0I_jJY8FM",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -659,7 +847,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 89589.831
+        "maintenanceMs": 128739.211
       }
     },
     {
@@ -734,14 +922,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 100,
           "hydrationPayloadBytes": 14981,
-          "hydrationElapsedMs": 468.565,
+          "hydrationElapsedMs": 211.192,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "ecb5502ce1648047950453d7f53460f272605a944e8dae15fc34adb0bf35c25e",
+          "budgetFreezeSha256": "c34cf1fe5b196d3d747fc79026fd6b7f5c3f36c1bc79df8a8800ba4a35d5f2f2",
           "move1Exit": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "15fb80c3710dc71e8a638f7f463731efaa2e49343000b63a8e91475aa32fd435"
+          "move1ExitSha256": "b5056277fcac8e9df04957a029c8efd4617d5a5e18d60722bb428072abd01df6"
         }
       }
     },
@@ -761,14 +949,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 200,
           "hydrationPayloadBytes": 49652,
-          "hydrationElapsedMs": 291.982,
+          "hydrationElapsedMs": 175.341,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "c3de32d8792cef6c9d05f3a7acb89b60a0a0c7980363e5304731c0bc990ebbf8",
+          "budgetFreezeSha256": "48aa44abc602920b97e44a484c3e779cf68ebb2a8b712c9bd6378a7ce00948b1",
           "move1Exit": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "5265b1a1064c67d0dc5f5df13993bf39a42818af56cf38baab6b56da499d190c"
+          "move1ExitSha256": "16efa39c31f8fdeecbeff36b478c7714324d29f83ab19b8ab07e65406e6ad3fc"
         }
       }
     },
@@ -778,7 +966,7 @@
       "status": "PASS",
       "evidence": {
         "artifact": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json",
-        "minifiedBytes": 772915,
+        "minifiedBytes": 776909,
         "measuredModuleOwnBytes": 113125,
         "modules": 9,
         "browserClosureQualification": {

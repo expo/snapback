@@ -42,6 +42,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   id: string;
   name: Name;
   kind: Kind;
+  readonly __snapbackReferenceKind: Kind;
   implementationHash: string;
   argsContractHash: string;
   resultContractHash: string;
@@ -56,6 +57,10 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   readonly __args?: Args;
   readonly __result?: Result;
 }
+export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Query', Args, Result>;
+export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'LiveQuery', Args, Result>;
+export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Mutation', Args, Result>;
+export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Action', Args, Result>;
 export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;
 export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
@@ -206,9 +211,41 @@ export interface GeneratedEphemeral {
 export interface GeneratedQueryGroups {
 }
 export interface GeneratedApi {
+  /**
+   * Mutation reference `app:joinAsHost`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:d46d757944f4e9f2289b531775729d53654a896b84cc0a88b2cb18e867041103`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   joinAsHost: FunctionReference<'joinAsHost', 'Mutation', Record<string, never>, null>;
+  /**
+   * Mutation reference `app:leaveHost`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:d46d757944f4e9f2289b531775729d53654a896b84cc0a88b2cb18e867041103`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   leaveHost: FunctionReference<'leaveHost', 'Mutation', Record<string, never>, null>;
+  /**
+   * Query reference `app:pushLedger`.
+   * Legal client verbs/hooks: `query`, `liveQuery`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `notifications.expoPushSeam`, `result_contract_v1`.
+   * Freshness: one-shot authoritative response or liveQuery snapshot followed by updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:d46d757944f4e9f2289b531775729d53654a896b84cc0a88b2cb18e867041103`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   pushLedger: FunctionReference<'pushLedger', 'Query', { intentId: string }, ReadonlyArray<{ "_id": string; "intentId": string; "triggerMode": "immediate" | "system" | "deferred"; "intentState": string; "attemptCount": number; "createdAtMs": number; "updatedAtMs": number; "expiresAtMs": number; "batchId": null | string; "attemptNumber": null | number; "batchIndex": null | number; "batchState": null | string; "transmittingAtMs": null | number; "settledAtMs": null | number; "httpStatus": null | number; "requestErrorCode": null | string; "previousAmbiguous": null | boolean; "messageId": null | string; "tokenId": null | string; "messageState": null | string; "ticketId": null | string; "receiptPollCount": null | number; "nextReceiptPollAtMs": null | number; "receiptWindowClosesAtMs": null | number; "handedToExpoAtMs": null | number; "expoAcceptedAtMs": null | number; "expoErrorCode": null | string; "retirementEffect": null | boolean }>>;
+  /**
+   * Action reference `app:sendSelected`.
+   * Legal client verbs/hooks: `action`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `cron_action_run_mutation`, `ibex_ctx_db_host_bridge`, `result_contract_v1`.
+   * Freshness: one-shot online response Retention: none.
+   * Dispatch/task states: promise-only (no handle state table).
+   * Build identity: `snapback.v1:sessions:inputs:sha256:d46d757944f4e9f2289b531775729d53654a896b84cc0a88b2cb18e867041103`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   sendSelected: FunctionReference<'sendSelected', 'Action', { principalIds: ReadonlyArray<Principal>; title: string; body: string; dedupeKey: string; redriveAmbiguous?: boolean }, { "intentId": string; "attempt": number; "targetCount": number; "batchCount": number; "state": string; "deduplicated": boolean }>;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;

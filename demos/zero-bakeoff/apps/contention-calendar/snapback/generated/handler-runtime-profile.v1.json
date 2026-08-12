@@ -2,7 +2,7 @@
   "admissionVersion": "snapback.handler-admission.legacy.v1",
   "appId": "contention-calendar",
   "artifactKind": "handlerRuntimeProfile",
-  "authoredSourceHash": "sha256:989e4273e571d763884d3c8752a8e88b85c21f96acf31d109094ce499bd954c5",
+  "authoredSourceHash": "sha256:3f77cfa334c9928647bc906b407a02308839ad52e2cea69ddc27e5de64766245",
   "computedAccess": {
     "dynamicProperties": "forbidden",
     "forbiddenReflectionProperties": [
@@ -557,10 +557,27 @@
       ]
     }
   },
-  "inputsHash": "bc4e12c44d31212a4ae35b8978559382a5b8236fde668505e7671f29de2731be",
+  "inputsHash": "0774ed444da2f6eee3cd1eee12c231b33ad0d792c8c1ee5f78f7878d9090eb6d",
   "moduleGraph": {
     "admittedSpecifiers": [],
     "cycles": "forbidden",
+    "graphRecordSchema": {
+      "admissionVersion": "snapback.handler-admission.legacy.v1",
+      "digestFields": {
+        "canonicalExecutableAstDigest": "canonical-executable",
+        "rawSourceEvidenceDigest": "raw-source-evidence"
+      },
+      "extractorVersion": "snapback.inline-handler-extractor.v1",
+      "moduleFormat": "esm",
+      "normalizedTarget": "root-relative-posix-path",
+      "sameFileTargetResolution": "self",
+      "schemaVersion": "snapback.handler-graph-record.v1",
+      "sourceSnapshot": {
+        "attestedReread": "not-applicable-while-relative-imports-are-not-admitted",
+        "protocol": "single-captured-source-buffer-v1"
+      },
+      "topology": "directed-node-and-edge-list"
+    },
     "identityEvidence": {
       "canonicalExecutableDigestField": "implementationHash",
       "rawEvidenceDigestField": "authoredSourceHash"
@@ -570,6 +587,42 @@
     "maximumFiles": 1,
     "maximumImportDepth": 0,
     "reExports": "forbidden",
+    "records": [
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:dc15d494dcbf6abce81b81a3dfeec4c377cf1329c8594bb2b0d54d2da9fb7907",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:1587f423a2d13b761dae534e0af14aa1de708a65fbdc8608d232e0595aad21af",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "clearReservations",
+            "nodeId": "handler:clearReservations",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:6b08a595990a790aa09d1a44ae4dec99b99dde2048a8f3fa33990cadcf588f7e",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 70
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 70
+          },
+          "name": "clearReservations",
+          "nodeId": "handler:clearReservations",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      }
+    ],
     "sameFileFunctionDeclarations": true
   },
   "operations": [

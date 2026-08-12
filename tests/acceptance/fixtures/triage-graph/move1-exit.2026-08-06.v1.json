@@ -8,7 +8,7 @@
     "LLP 0166#d4--completeness-honest-local-answers"
   ],
   "source": {
-    "revision": "b92bcd412622d63300105883154ae767d5927401",
+    "revision": "e3e477aa2616e00889ad7ba9fc5b5ff4e20686a1",
     "dirty": true,
     "files": [
       {
@@ -25,11 +25,11 @@
       },
       {
         "path": "demos/triage-graph/snapback/trusted-composition-activation.json",
-        "sha256": "5d3aeb76e967ecc279e82421939036dc9e89974d5fc6e59b9782a2d9a4559f63"
+        "sha256": "8ce8edff795a643e226701670305deee41aea9e3ccbd719b1e96d44990e78769"
       },
       {
         "path": "demos/triage-graph/snapback/generated/artifacts.json",
-        "sha256": "0fa9f89420b8dfac1eab9828eadd08cf660a8b5a405e25f51762fee716b78ea1"
+        "sha256": "da7a56ae08863a587ea6d95d0c2fa9e91256701d09c92d2edde81390d7cde8f2"
       },
       {
         "path": "demos/triage-graph/demo.snapback.json",
@@ -45,7 +45,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "9ebcc2c5289e5d1b10c61a890886051cc4bee10bbd07cf1d29bfaec1af780fb4"
+        "sha256": "f95b5ea420749cc26d5d485060447ed5cc9f67976e9a064759adf3f8d6829871"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
@@ -77,13 +77,13 @@
     "status": "PASS",
     "runtime": {
       "serverBinary": "target/debug/snapback",
-      "serverBinarySha256": "2d00c405ec2ea7116fb402fa1d2545b596d8e304ea7cb3515d43eb124ad729c9",
+      "serverBinarySha256": "1a78079276f17d22fd81d1562727024402b8f133c3ebb67b3a5067a4a1eff440",
       "launchRung": "configured",
       "backendStoppedBeforeRelaunch": true
     },
     "activation": {
       "format": "snapback.composition-activation-preparation.v1",
-      "activationHash": "sha256:f3e6410d6cb94dc78a74e37c7bd7c2830c9d010c4ef2edf15f34ece675acb739",
+      "activationHash": "sha256:c433c52b27e4f2506ca4b4ebb00073e02f6a4d45990792ba5a048ac798e61903",
       "deploymentId": "triage-graph-p3-controlled-run"
     }
   },
@@ -117,13 +117,13 @@
         "durableRegistrations": 1,
         "registrationBytes": 1554,
         "leaseRecords": 1,
-        "physicalCarrierBytes": 74975
+        "physicalCarrierBytes": 74973
       },
       "hydration": {
         "attempts": 1,
         "rowsInstalled": 100,
         "payloadBytes": 14981,
-        "elapsedMs": 468.565
+        "elapsedMs": 211.192
       }
     },
     "frozenCeilings": {
@@ -183,31 +183,31 @@
         "releasedVolatilePayloadRecords": 0,
         "retainingSets": {
           "registrations": [
-            "qmk1.e-URfm4CTyrquHG4RR2tfPtDqfzvKdfn7Qm_KO8YsW0"
+            "qmk1.l0Gbg2vAhumZ5AL1brtA89a6nRvVlz3yFCWKi1AVWx0"
           ],
           "releaseGrace": [],
           "safetyBlockers": [],
           "instanceBookkeepingStubs": [
-            "qmk1.0R_wSnTHii0rTkumCT8d9VMnc6y50l4ERvH6aYYhivk",
-            "qmk1.2CvgLyuZBUR0-WPEhIOuybQ2HAnUD9hGqs4qBcto0RQ",
-            "qmk1.2PxPnx6dXsSNDx7LNfnusroJjOwctiMNa645ZRhy5mQ",
-            "qmk1.4-lCwJKmq5uGKuWt21-XPLsNCvi7GmztomX3nfW4WwE",
-            "qmk1.5rwQPuP0Ov4ot-jUZDXVLf7SggY5C7ons67uwbFnSq0",
-            "qmk1.7LsmwzZDMQHCD6shWmtbqQ51l9h7bO-CWohmsORISrA",
-            "qmk1.AQI31kIoJhQK0DJU7QkN6Mw5yUKKoA4QY3Z3PKJFtCo",
-            "qmk1.HSoEZjlLKGknWu6ltoygdGZOCnS6eEwAF1sbxRt1UXI",
-            "qmk1.OLQ_PGk6jAHxbkAI8WunFTUoKNUmFotAADcU6YBJ4rs",
-            "qmk1.TlRuNFCfM1gQcDu8yJn8nGUAkZrEZc0KrkJBbLx2jIw",
-            "qmk1.XFbSNMbpctLEfpohkHeqjsnZiREaASqDAORt4vsZSSY",
-            "qmk1.aUd5M04UdZwdComnKguI44ej2UwKzopuBnmYVJ2ZHfs",
-            "qmk1.cFGLLW22hSwAL98w_U38CW_K8vyj3lW1cZx3DuGVWQc",
-            "qmk1.eeY2M8k8-kOqS_HmEuV16KzrEIfroS57JLyZaaoXgCI",
-            "qmk1.fYzFILhCbYMuq90tJCfj1wGJg9PxCE6LuP2P6e7kTtc",
-            "qmk1.fsF_1trJ_GQMlucQcxA9nd2UuUAAWm1Ejx1x7pz0Xs8",
-            "qmk1.gBtpX_CvDMAhY_82ZIFwxtnZk7UacsFu0OXCP_FUo9A",
-            "qmk1.ih474m7Y72N_zE7hit1qh8eLkOpagySKU9xC8vnfqq4",
-            "qmk1.qZYZT_Rts9sXdsVsqIIW5pN7FUJy0Ah2cOuv6KWTqME",
-            "qmk1.xuYbSimo0qLM6aK60f6yuXzLKqFnSPI1OwoVtVvt9Eg"
+            "qmk1.0M1--oGtS4F3BECeGH_hAW_WczJ-FrSqPl-IfqPYmsM",
+            "qmk1.3EStHQuCIa5ZNl_H2io_fxLuyPV3vq7R8DMCSb7oVuM",
+            "qmk1.ElAuMmc_VhL0m5TGYFmWNU96ppRJwoPaVEWZO0Z51yg",
+            "qmk1.H3BhOYiVmpYrUACl8CIXXUJBIGMt5TW2080zWmgJFnY",
+            "qmk1.IUeryahn7VVnWjeA6OxIydU1w57Vru0NNvl6pbgv_g0",
+            "qmk1.KnF9pnCH6IvL-sAm2dmwWYRULcOCAW2ZTbzVXA7g390",
+            "qmk1.KxArjfV1nNoYnvYrwNtxClF6oupYGiBI15O-rCz0ASk",
+            "qmk1.LTtzZrr3MV65s3j7qE63HCQSd24vgSoNbWwE-CLdlhQ",
+            "qmk1.PhU_2Xi2Ban1sVy8kMUI54K-zXUsOgramj3H6S1Idb0",
+            "qmk1.TE9X29Uw-bR3aWVCaw3mVSIpaRt6f-RBM3h7CmP7KeE",
+            "qmk1.bApEXxUxpR3tMfIqfcCsLA5k5iu2CKDKXQA1CPwnlsk",
+            "qmk1.e5gtTQ6yLuPo1skh2STkNlsPWDFhaW6jch9DH_B9Np4",
+            "qmk1.ijMn76k7gxvK9laLyzU8Smsy7Nbl3K3L57KtJaRXmKw",
+            "qmk1.mFicKaBlz-PaWKZ_b5YOQUYzNXkmNVX_GJAz-a2VOsU",
+            "qmk1.oGG6HwF4KM2OgrYzMLLCFK--V0iPhY8bdrbeiWRlB20",
+            "qmk1.pnO_hKS7GdvwNmt9sCJBxwDa4bNfzoFj3Nl4rfGbHd8",
+            "qmk1.qsDkpRmfjUyNM9Cjzs2KwfjBSBEbPvkakYu3kc2pbCA",
+            "qmk1.t5tJo69qx63hJrA-U5PXAqI7X151hG-jFmVZSO9Fyqc",
+            "qmk1.wfeTjJU83-Cl2J2NmiTSxLF8lriR8iDMRyHu98y_Wvg",
+            "qmk1.wou6ASG0Ok6vxsANyzMs7V6QENjdLjvPX5xl6FcA4so"
           ]
         },
         "fragments": 1,
@@ -215,7 +215,7 @@
         "authoritativeRetainedRowsExplained": 100,
         "durableRegistrations": 1,
         "leaseRecords": 1,
-        "addressKey": "qmk1.e-URfm4CTyrquHG4RR2tfPtDqfzvKdfn7Qm_KO8YsW0",
+        "addressKey": "qmk1.l0Gbg2vAhumZ5AL1brtA89a6nRvVlz3yFCWKi1AVWx0",
         "currentTransition": {
           "answerClass": "authoritative",
           "freshness": "current"
@@ -308,31 +308,31 @@
         "releasedVolatilePayloadRecords": 0,
         "retainingSets": {
           "registrations": [
-            "qmk1.e-URfm4CTyrquHG4RR2tfPtDqfzvKdfn7Qm_KO8YsW0"
+            "qmk1.l0Gbg2vAhumZ5AL1brtA89a6nRvVlz3yFCWKi1AVWx0"
           ],
           "releaseGrace": [],
           "safetyBlockers": [],
           "instanceBookkeepingStubs": [
-            "qmk1.0R_wSnTHii0rTkumCT8d9VMnc6y50l4ERvH6aYYhivk",
-            "qmk1.2CvgLyuZBUR0-WPEhIOuybQ2HAnUD9hGqs4qBcto0RQ",
-            "qmk1.2PxPnx6dXsSNDx7LNfnusroJjOwctiMNa645ZRhy5mQ",
-            "qmk1.4-lCwJKmq5uGKuWt21-XPLsNCvi7GmztomX3nfW4WwE",
-            "qmk1.5rwQPuP0Ov4ot-jUZDXVLf7SggY5C7ons67uwbFnSq0",
-            "qmk1.7LsmwzZDMQHCD6shWmtbqQ51l9h7bO-CWohmsORISrA",
-            "qmk1.AQI31kIoJhQK0DJU7QkN6Mw5yUKKoA4QY3Z3PKJFtCo",
-            "qmk1.HSoEZjlLKGknWu6ltoygdGZOCnS6eEwAF1sbxRt1UXI",
-            "qmk1.OLQ_PGk6jAHxbkAI8WunFTUoKNUmFotAADcU6YBJ4rs",
-            "qmk1.TlRuNFCfM1gQcDu8yJn8nGUAkZrEZc0KrkJBbLx2jIw",
-            "qmk1.XFbSNMbpctLEfpohkHeqjsnZiREaASqDAORt4vsZSSY",
-            "qmk1.aUd5M04UdZwdComnKguI44ej2UwKzopuBnmYVJ2ZHfs",
-            "qmk1.cFGLLW22hSwAL98w_U38CW_K8vyj3lW1cZx3DuGVWQc",
-            "qmk1.eeY2M8k8-kOqS_HmEuV16KzrEIfroS57JLyZaaoXgCI",
-            "qmk1.fYzFILhCbYMuq90tJCfj1wGJg9PxCE6LuP2P6e7kTtc",
-            "qmk1.fsF_1trJ_GQMlucQcxA9nd2UuUAAWm1Ejx1x7pz0Xs8",
-            "qmk1.gBtpX_CvDMAhY_82ZIFwxtnZk7UacsFu0OXCP_FUo9A",
-            "qmk1.ih474m7Y72N_zE7hit1qh8eLkOpagySKU9xC8vnfqq4",
-            "qmk1.qZYZT_Rts9sXdsVsqIIW5pN7FUJy0Ah2cOuv6KWTqME",
-            "qmk1.xuYbSimo0qLM6aK60f6yuXzLKqFnSPI1OwoVtVvt9Eg"
+            "qmk1.0M1--oGtS4F3BECeGH_hAW_WczJ-FrSqPl-IfqPYmsM",
+            "qmk1.3EStHQuCIa5ZNl_H2io_fxLuyPV3vq7R8DMCSb7oVuM",
+            "qmk1.ElAuMmc_VhL0m5TGYFmWNU96ppRJwoPaVEWZO0Z51yg",
+            "qmk1.H3BhOYiVmpYrUACl8CIXXUJBIGMt5TW2080zWmgJFnY",
+            "qmk1.IUeryahn7VVnWjeA6OxIydU1w57Vru0NNvl6pbgv_g0",
+            "qmk1.KnF9pnCH6IvL-sAm2dmwWYRULcOCAW2ZTbzVXA7g390",
+            "qmk1.KxArjfV1nNoYnvYrwNtxClF6oupYGiBI15O-rCz0ASk",
+            "qmk1.LTtzZrr3MV65s3j7qE63HCQSd24vgSoNbWwE-CLdlhQ",
+            "qmk1.PhU_2Xi2Ban1sVy8kMUI54K-zXUsOgramj3H6S1Idb0",
+            "qmk1.TE9X29Uw-bR3aWVCaw3mVSIpaRt6f-RBM3h7CmP7KeE",
+            "qmk1.bApEXxUxpR3tMfIqfcCsLA5k5iu2CKDKXQA1CPwnlsk",
+            "qmk1.e5gtTQ6yLuPo1skh2STkNlsPWDFhaW6jch9DH_B9Np4",
+            "qmk1.ijMn76k7gxvK9laLyzU8Smsy7Nbl3K3L57KtJaRXmKw",
+            "qmk1.mFicKaBlz-PaWKZ_b5YOQUYzNXkmNVX_GJAz-a2VOsU",
+            "qmk1.oGG6HwF4KM2OgrYzMLLCFK--V0iPhY8bdrbeiWRlB20",
+            "qmk1.pnO_hKS7GdvwNmt9sCJBxwDa4bNfzoFj3Nl4rfGbHd8",
+            "qmk1.qsDkpRmfjUyNM9Cjzs2KwfjBSBEbPvkakYu3kc2pbCA",
+            "qmk1.t5tJo69qx63hJrA-U5PXAqI7X151hG-jFmVZSO9Fyqc",
+            "qmk1.wfeTjJU83-Cl2J2NmiTSxLF8lriR8iDMRyHu98y_Wvg",
+            "qmk1.wou6ASG0Ok6vxsANyzMs7V6QENjdLjvPX5xl6FcA4so"
           ]
         },
         "fragments": 1,
@@ -340,7 +340,7 @@
         "authoritativeRetainedRowsExplained": 100,
         "durableRegistrations": 1,
         "leaseRecords": 1,
-        "addressKey": "qmk1.e-URfm4CTyrquHG4RR2tfPtDqfzvKdfn7Qm_KO8YsW0",
+        "addressKey": "qmk1.l0Gbg2vAhumZ5AL1brtA89a6nRvVlz3yFCWKi1AVWx0",
         "currentTransition": {
           "answerClass": "authoritative",
           "freshness": "current"
