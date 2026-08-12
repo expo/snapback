@@ -1,6 +1,7 @@
 # LLP 0225 item-3 remainder: implement the ruled `provider.rs` split (A1/A2/A3)
 
-**Opened:** 2026-08-11 · **Status:** open, ruled, unclaimed · **Area:** core
+**Opened:** 2026-08-11 · **Status:** open, ruled, **A1/A2/A3 claimed
+2026-08-11** · **Area:** core
 modularization / ownership ratchet (LLP 0225 §4 "Item-3 remainder — the
 provider split, ruled", revision (n))
 
@@ -12,6 +13,34 @@ ruling, and starting from its premise will send you the wrong way.
 
 **Claim a stage in this file before starting it.** `main` moves continuously;
 first-claim-wins.
+
+**CLAIMED 2026-08-11 — all three stages, sequentially, by the session that
+landed the ruling.** A1 in flight; A3 then A2 to follow. Each stage lands on
+its own. If you need one of these, say so here and I will hand it over rather
+than duplicate.
+
+Verified against `2fa1af6f6` while claiming, so the next worker does not have
+to re-derive it:
+
+- The three frozen kernel→provider edges are `store_state`,
+  `storage/auth_rehearsal`, and `storage/auth_catalog_ops`. A1 targets the
+  first two; `auth_catalog_ops` needs A2.
+- **A1 carries zero waiver risk.** Every consumer of the A1 symbols
+  (`AuthProviderProfile`, `PlannedIdentityState`, `code_invalid`,
+  `code_locked`, `ProviderError`) is transport, sync, or kernel — there is no
+  *unassigned* consumer, so a leaf destination adds only allowed downward
+  edges.
+- Two dependency constraints shape A1: `impl From<AuthProviderProfile> for
+  AuthBudgetDeploymentProfile` names **kernel-owned** `src/auth/throttle.rs`,
+  so it cannot follow the enum to a leaf; and `code_locked()` is likewise
+  budget-bound and therefore not leaf-safe, while `code_invalid()` is a plain
+  `SnapbackError` and is.
+- `store_state.rs`'s only provider reference is a **function-local** `use` at
+  line 1113 — the whole-file grep matters here.
+- A3's shape is confirmed: `src/storage/auth_sender.rs` is a 136-line
+  connection-scoping wrapper that passes `&self.conn` / `&mut self.conn` down
+  into `sender_proof`'s SQL — structurally identical to
+  `auth_catalog_ops`→`provider`, which is exactly what the ruling describes.
 
 ## The shape of the work
 
