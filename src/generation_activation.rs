@@ -7,13 +7,80 @@
 
 use crate::auth::admission::ModeCommitFailure;
 use crate::auth::mode::DeploymentIdentity;
-use crate::diagnostic::Diagnostic;
+use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::local::{DiagnosticBoundary, LocalSnapback};
 use crate::manifest::{FunctionManifest, SchemaManifest, SeedData, SequenceDeclaration};
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit};
-use crate::storage::{CommitFunctionGeneration, PendingProjectionPublication};
+use crate::storage::{
+    CommitFunctionGeneration, FunctionGenerationRecord, PendingProjectionPublication,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
+
+/// Process posture for the durable raw-dev function generation found at open.
+/// The durable record remains the sole recovery authority; this state only
+/// decides whether this process may serve or must classify its next load.
+///
+/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
+///   recovery consumes the kernel's typed persisted record without moving its
+///   transaction authority into the coordinator or treating a process fence
+///   as durable truth.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum FunctionGenerationRecoveryState {
+    NoCommittedGeneration,
+    AwaitingReload(FunctionGenerationRecord),
+    Resolved,
+}
+
+impl FunctionGenerationRecoveryState {
+    pub(crate) fn from_record(record: Option<FunctionGenerationRecord>) -> Self {
+        match record {
+            Some(record) => Self::AwaitingReload(record),
+            None => Self::NoCommittedGeneration,
+        }
+    }
+
+    /// Fence invocation before an empty post-reopen manifest can turn a known
+    /// committed function name into the ordinary unknown-function refusal.
+    ///
+    /// @ref LLP 0225#open-questions-for-the-author — OQ-C requires serving to
+    ///   remain inert by function name until verified rehydration or a
+    ///   committed successor resolves the reopened generation.
+    pub(crate) fn ensure_invocation_ready(&self, name: &str) -> SnapbackResult<()> {
+        let Self::AwaitingReload(record) = self else {
+            return Ok(());
+        };
+        Err(SnapbackError::error(
+            "SNAPBACK_FUNCTION_GENERATION_AWAITING_RELOAD",
+            "runtime",
+            format!(
+                "function {name} cannot be invoked until the committed function generation is reloaded"
+            ),
+        )
+        .with_details(serde_json::json!({
+            "function": name,
+            "generationHighWater": record.generation_high_water,
+        })))
+    }
+
+    fn awaiting_record(&self) -> Option<&FunctionGenerationRecord> {
+        match self {
+            Self::AwaitingReload(record) => Some(record),
+            Self::NoCommittedGeneration | Self::Resolved => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FunctionGenerationActivationIntent {
+    Automatic,
+    RehydrateCommittedGeneration,
+}
+
+struct CandidateGenerationDigests {
+    function_manifest: String,
+    sequence_declarations: String,
+}
 
 /// Inputs already admitted by the caller's artifact/capability preflight.
 pub(crate) struct FunctionGenerationActivation {
@@ -27,6 +94,7 @@ pub(crate) struct FunctionGenerationActivation {
     pub(crate) inject_publication_warning: bool,
     pub(crate) diagnostic_boundary: DiagnosticBoundary,
     pub(crate) diagnostics: Vec<Diagnostic>,
+    pub(crate) intent: FunctionGenerationActivationIntent,
 }
 
 /// The durable same-mode cut plus the process publication it authorized.
@@ -68,7 +136,43 @@ impl<'a> GenerationActivation<'a> {
             inject_publication_warning,
             diagnostic_boundary,
             mut diagnostics,
+            intent,
         } = activation;
+
+        // @ref LLP 0225#open-questions-for-the-author — OQ-C classifies the
+        //   first post-reopen artifact as recovery only by exact equality with
+        //   both durable digests; every automatic non-match is a successor.
+        let candidate_digests = (self
+            .snapback
+            .function_generation_recovery_state()
+            .awaiting_record()
+            .is_some()
+            || intent == FunctionGenerationActivationIntent::RehydrateCommittedGeneration)
+            .then(|| Self::candidate_generation_digests(&manifest));
+        let digests_match = self
+            .snapback
+            .function_generation_recovery_state()
+            .awaiting_record()
+            .zip(candidate_digests.as_ref())
+            .is_some_and(|(record, candidate)| {
+                record.function_manifest_digest == candidate.function_manifest
+                    && record.sequence_declarations_digest == candidate.sequence_declarations
+            });
+
+        if intent == FunctionGenerationActivationIntent::RehydrateCommittedGeneration
+            && !digests_match
+        {
+            diagnostics.push(Self::rehydration_mismatch_diagnostic(
+                self.snapback
+                    .function_generation_recovery_state()
+                    .awaiting_record(),
+                candidate_digests.as_ref(),
+                &[],
+            ));
+            self.snapback
+                .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
+            return diagnostics;
+        }
 
         // @ref LLP 0080#5-transactionally-maintained-projections — activation
         //   materializes every stale plan under the local barrier, then its
@@ -89,20 +193,45 @@ impl<'a> GenerationActivation<'a> {
             }
         };
 
-        if let Err(error) = self
-            .snapback
-            .generation_commit_ops()
-            .commit_function_generation(CommitFunctionGeneration {
-                manifest: manifest.clone(),
-                trusted_active_generation,
-                projection_publications,
-            })
+        let rehydrating = digests_match && projection_publications.is_empty();
+        if intent == FunctionGenerationActivationIntent::RehydrateCommittedGeneration
+            && !rehydrating
         {
-            diagnostics.push(error.diagnostic);
+            diagnostics.push(Self::rehydration_mismatch_diagnostic(
+                self.snapback
+                    .function_generation_recovery_state()
+                    .awaiting_record(),
+                candidate_digests.as_ref(),
+                &projection_publications,
+            ));
             self.snapback
                 .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
             return diagnostics;
         }
+
+        let committed_record = if !rehydrating {
+            let record = match self
+                .snapback
+                .generation_commit_ops()
+                .commit_function_generation(CommitFunctionGeneration {
+                    manifest: manifest.clone(),
+                    trusted_active_generation,
+                    projection_publications,
+                }) {
+                Ok(record) => record,
+                Err(error) => {
+                    diagnostics.push(error.diagnostic);
+                    self.snapback.record_generation_activation_diagnostics(
+                        diagnostics.clone(),
+                        diagnostic_boundary,
+                    );
+                    return diagnostics;
+                }
+            };
+            Some(record)
+        } else {
+            None
+        };
 
         if publish_ephemeral_collections {
             self.snapback.publish_generation_ephemeral_collections();
@@ -118,6 +247,17 @@ impl<'a> GenerationActivation<'a> {
             .generation_commit_ops()
             .activate_stream_transcript_manifest(&manifest)
         {
+            if let Some(record) = committed_record {
+                // The generation cut is durable even though its recorded
+                // post-commit exception failed. Fence every process lane
+                // against that exact record so a later verified retry can
+                // repair the split cut without inventing rollback.
+                self.snapback.set_function_generation_recovery_state(
+                    FunctionGenerationRecoveryState::AwaitingReload(record),
+                );
+                self.snapback
+                    .refresh_read_manifests_after_generation_commit();
+            }
             diagnostics.push(error.diagnostic);
             self.snapback
                 .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
@@ -128,6 +268,8 @@ impl<'a> GenerationActivation<'a> {
             .compose_function_generation_successor(manifest, order_field_bounds);
         self.snapback.publish_generation_ephemeral_collections();
         Self::install_process_generation(self.snapback, generation);
+        self.snapback
+            .set_function_generation_recovery_state(FunctionGenerationRecoveryState::Resolved);
         self.snapback.post_install_function_generation(
             &mut diagnostics,
             validate_routes_after_install,
@@ -136,6 +278,59 @@ impl<'a> GenerationActivation<'a> {
         self.snapback
             .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
         diagnostics
+    }
+
+    fn candidate_generation_digests(manifest: &FunctionManifest) -> CandidateGenerationDigests {
+        let sequence_declarations =
+            crate::storage::sequence_declarations_from_function_manifest(manifest);
+        CandidateGenerationDigests {
+            function_manifest: crate::manifest::canonical_content_identity(manifest)
+                .expect("validated function manifests are canonically digestible"),
+            sequence_declarations: crate::manifest::canonical_content_identity(
+                &sequence_declarations,
+            )
+            .expect("validated sequence declarations are canonically digestible"),
+        }
+    }
+
+    fn rehydration_mismatch_diagnostic(
+        persisted: Option<&FunctionGenerationRecord>,
+        candidate: Option<&CandidateGenerationDigests>,
+        pending_publications: &[PendingProjectionPublication],
+    ) -> Diagnostic {
+        let persisted_function = persisted.map(|record| record.function_manifest_digest.as_str());
+        let persisted_sequences =
+            persisted.map(|record| record.sequence_declarations_digest.as_str());
+        let candidate_function = candidate.map(|candidate| candidate.function_manifest.as_str());
+        let candidate_sequences =
+            candidate.map(|candidate| candidate.sequence_declarations.as_str());
+        let mut diverged_digests = Vec::new();
+        if persisted_function != candidate_function {
+            diverged_digests.push("functionManifestDigest");
+        }
+        if persisted_sequences != candidate_sequences {
+            diverged_digests.push("sequenceDeclarationsDigest");
+        }
+        Diagnostic::error(
+            "SNAPBACK_FUNCTION_GENERATION_REHYDRATION_MISMATCH",
+            "runtime",
+            "the supplied artifacts cannot rehydrate the committed function generation",
+        )
+        .with_details(serde_json::json!({
+            "mismatchedDigests": diverged_digests,
+            "functionManifestDigest": {
+                "persisted": persisted_function,
+                "candidate": candidate_function,
+            },
+            "sequenceDeclarationsDigest": {
+                "persisted": persisted_sequences,
+                "candidate": candidate_sequences,
+            },
+            "pendingProjectionPlanIds": pending_publications
+                .iter()
+                .map(|publication| publication.plan_id.as_str())
+                .collect::<Vec<_>>(),
+        }))
     }
 
     /// Compose the complete-pair storage cut and process publication under one
@@ -206,6 +401,8 @@ impl<'a> GenerationActivation<'a> {
         self.snapback
             .compose_function_generation_successor(functions, order_field_bounds);
         Self::install_process_generation(self.snapback, publication_generation);
+        self.snapback
+            .set_function_generation_recovery_state(FunctionGenerationRecoveryState::Resolved);
         self.snapback
             .post_install_function_generation(&mut diagnostics, false, true);
         self.snapback

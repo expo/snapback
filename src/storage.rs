@@ -93,7 +93,7 @@ pub use connections::{PooledReader, ReaderPool};
 pub(crate) use connections::{
     RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
 };
-pub(crate) use generation_commit::CommitFunctionGeneration;
+pub(crate) use generation_commit::{CommitFunctionGeneration, FunctionGenerationRecord};
 pub use jobs::{JobsKernel, JobsReadKernel};
 pub use membership_plans::{MembershipPlansKernel, MembershipPlansReadKernel};
 pub use membership_reads::MembershipReadsKernel;

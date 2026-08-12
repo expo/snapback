@@ -32,6 +32,9 @@ inverted)
 to the contract leaf, twelve frozen edges removed and none added)
 **Revised:** 2026-08-11 (m — §4 records the item-3 second cut: `session_projection`
 value shapes to the leaf; the remaining item-3 edges raised as an ownership question)
+**Revised:** 2026-08-11 (p — §4 records the OQ-C inert-until-reload recovery
+slice and its full-`LocalSnapback` acceptance; the recorded reopen exception
+is discharged)
 **Revised:** 2026-08-10 (l — merge-wave reconciliation of the §5 enforcement
 landing; see Revision history)
 **Revised:** 2026-08-11 (o — §4 records the rqs contract-leaf repoint: sixteen
@@ -691,6 +694,38 @@ Characterization envelope: `auth`/`storage`/`server` lib-test failure name
 sets byte-identical to the merge-base with identical pass counts (438/0,
 689/2, 286/3), and the cross-language digest parity suites — which pin the
 exact moved bytes on both arms — green at 5/0 (Rust) and 6/0 (JS).
+### OQ-C recovery slice — inert until verified reload (executed)
+
+The raw-dev reopen exception recorded by the first generation-activation slice
+is discharged. `LocalSnapback::from_database` now derives one process recovery
+state from the kernel-owned `FunctionGenerationRecord`: no record preserves
+the ordinary fresh-store behavior, while a record starts `AwaitingReload` and
+the shared by-name invocation resolver refuses every serving lane with
+`SNAPBACK_FUNCTION_GENERATION_AWAITING_RELOAD`. The durable record remains the
+sole recovery authority; this process state neither replaces it nor gains
+transaction authority.
+
+The first artifact load after reopen is classified in the generation-activation
+coordinator using canonical function-manifest and sequence-declaration digests.
+An exact two-digest match with no pending projection publication is rehydration:
+the process successor installs without calling `commit_function_generation`,
+so the durable generation high-water is unchanged. An automatic mismatch is an
+intentional successor deployment through the existing kernel commit. The
+explicit `rehydrate_committed_generation` entry point instead refuses a
+mismatch with `SNAPBACK_FUNCTION_GENERATION_REHYDRATION_MISMATCH`, leaves the
+high-water unchanged, and preserves the fence for a correct retry. Any pending
+projection publication still forces a real generation commit, preserving §3.2.
+
+The acceptance is seven file-backed, full-`LocalSnapback` witnesses in
+`src/local/tests.rs`: no-record reopen compatibility; committed-record serving
+fence; matching reload with the high-water asserted unchanged; different
+automatic reload advancing exactly once; explicit mismatch refusal with an
+unchanged high-water and retained fence; correct retry after refusal; and
+rehydration followed by one successor advancing exactly once. This ends only
+OQ-C/finding 2 in
+`issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`; the
+separate stream-transcript split cut (finding 1) remains a recorded §3
+exception.
 
 ### Continuing sequence (order of intent, not a schedule)
 
@@ -859,8 +894,12 @@ These are different activities and this Decision keeps them distinct:
   distinguished from intentional successor deployment by that digest match;
   rehydration never advances the durable high-water; serving stays fenced
   until a verified reload or committed successor; full-`LocalSnapback`
-  reopen/reload/retry tests are the slice's acceptance. The recorded
-  exception ends when those tests land
+  reopen/reload/retry tests are the slice's acceptance. **Discharged by
+  revision (o):** the seven landed file-backed `LocalSnapback` tests assert
+  every clause, including the unchanged high-water on rehydration, exact
+  single advance for successors, retained fence after explicit mismatch, and
+  successful retry. The OQ-C reopen exception is therefore ended; the sibling
+  stream-transcript split-cut exception remains open
   (`issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`).
 
 With OQ-A/OQ-B ruled, acceptance carries this same-landing
@@ -1013,3 +1052,10 @@ so slices can follow product priorities.
   resumable-query engine — token envelope, MAC transcript, keyring custody,
   cursor mint/verify — stays with the sync owner because it needs
   `crate::auth::crypto`.
+- **2026-08-11 (p).** The OQ-C inert-until-reload slice consumes the durable
+  raw-dev generation record at `LocalSnapback` reopen, fences invocation until
+  a verified reload or committed successor, distinguishes exact rehydration
+  from deployment without advancing the rehydration high-water, and adds the
+  explicit mismatch refusal. Seven file-backed full-`LocalSnapback`
+  reopen/reload/retry tests discharge the recorded reopen exception; the
+  stream-transcript split cut remains separate and open.

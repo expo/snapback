@@ -229,7 +229,6 @@ impl LocalDatabase {
         Ok(record)
     }
 
-    #[allow(dead_code)] // retained kernel surface; the staged sequence-declaration callers land next
     pub(crate) fn function_generation_record(
         &self,
     ) -> SnapbackResult<Option<FunctionGenerationRecord>> {

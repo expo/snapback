@@ -2504,6 +2504,8 @@ pub struct LocalSnapback {
     // "the loaded app declares no config" for `config_status` consumers —
     // the empty default manifest is indistinguishable by content alone.
     functions_loaded: bool,
+    function_generation_recovery_state:
+        crate::generation_activation::FunctionGenerationRecoveryState,
     // @ref LLP 0036#the-store-and-the-target-seam-d1-d2-d7 — the config store
     // is deployment state beside the database, never inside it; `reset()`
     // deliberately does not touch it (D2).
@@ -4510,6 +4512,30 @@ impl LocalSnapback {
     }
 
     pub fn load_functions(&mut self, manifest: FunctionManifest) -> Vec<Diagnostic> {
+        self.load_functions_with_intent(
+            manifest,
+            crate::generation_activation::FunctionGenerationActivationIntent::Automatic,
+        )
+    }
+
+    /// Reinstall the artifacts named by the durable raw-dev generation
+    /// record. Unlike [`Self::load_functions`], this recovery-only entry point
+    /// refuses instead of interpreting a non-match as a successor deployment.
+    pub fn rehydrate_committed_generation(
+        &mut self,
+        manifest: FunctionManifest,
+    ) -> Vec<Diagnostic> {
+        self.load_functions_with_intent(
+            manifest,
+            crate::generation_activation::FunctionGenerationActivationIntent::RehydrateCommittedGeneration,
+        )
+    }
+
+    fn load_functions_with_intent(
+        &mut self,
+        manifest: FunctionManifest,
+        intent: crate::generation_activation::FunctionGenerationActivationIntent,
+    ) -> Vec<Diagnostic> {
         if let Err(error) = manifest.validate_artifact() {
             let diagnostic = error.diagnostic;
             self.record_attached_diagnostics(vec![diagnostic.clone()]);
@@ -4587,6 +4613,7 @@ impl LocalSnapback {
                 inject_publication_warning: false,
                 diagnostic_boundary: DiagnosticBoundary::Attached,
                 diagnostics: preflight,
+                intent,
             },
         )
     }
@@ -4703,6 +4730,7 @@ impl LocalSnapback {
                 inject_publication_warning: true,
                 diagnostic_boundary,
                 diagnostics: Vec::new(),
+                intent: crate::generation_activation::FunctionGenerationActivationIntent::Automatic,
             },
         )
     }
@@ -7473,13 +7501,12 @@ impl LocalSnapback {
         expected_generation: Option<&ArtifactGeneration>,
     ) -> SnapbackResult<QueryInvocation> {
         self.validate_prepared_service_authority(&authority)?;
-        let function = self.functions.function(name).ok_or_else(|| {
-            crate::authoring_suggestion::unknown_function_error(
-                &self.functions,
-                name,
-                &[FunctionKind::Query, FunctionKind::LiveQuery],
-            )
-        })?;
+        let function = resolve_invocation_function(
+            &self.function_generation_recovery_state,
+            &self.functions,
+            name,
+            &[FunctionKind::Query, FunctionKind::LiveQuery],
+        )?;
         self.validate_expected_generation(&authority, expected_generation)?;
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
@@ -16600,29 +16627,36 @@ impl LocalSnapback {
     ) -> FunctionRunResult {
         use crate::conformance::{DeclarationConformance, DependencyProvenance};
         let started = Instant::now();
-        let Some(definition) = self.functions.function(name).cloned() else {
-            return FunctionRunResult {
-                ok: false,
-                function: name.to_owned(),
-                kind: None,
-                reads: Vec::new(),
-                writes: Vec::new(),
-                captured_reads: Vec::new(),
-                captured_writes: Vec::new(),
-                conformance: Some(DeclarationConformance::without_capture(
-                    DependencyProvenance::Incomplete,
-                )),
-                admin_bypass: false,
-                elapsed_ms: elapsed_ms(started),
-                version: None,
-                changed_count: None,
-                rows: None,
-                result: None,
-                diagnostic: Some(
-                    crate::authoring_suggestion::unknown_function_error(&self.functions, name, &[])
-                        .diagnostic,
-                ),
-            };
+        let definition = match resolve_invocation_function(
+            &self.function_generation_recovery_state,
+            &self.functions,
+            name,
+            &[],
+        )
+        .cloned()
+        {
+            Ok(definition) => definition,
+            Err(error) => {
+                return FunctionRunResult {
+                    ok: false,
+                    function: name.to_owned(),
+                    kind: None,
+                    reads: Vec::new(),
+                    writes: Vec::new(),
+                    captured_reads: Vec::new(),
+                    captured_writes: Vec::new(),
+                    conformance: Some(DeclarationConformance::without_capture(
+                        DependencyProvenance::Incomplete,
+                    )),
+                    admin_bypass: false,
+                    elapsed_ms: elapsed_ms(started),
+                    version: None,
+                    changed_count: None,
+                    rows: None,
+                    result: None,
+                    diagnostic: Some(error.diagnostic),
+                };
+            }
         };
         let prepared = match InvocationGate::prepare_function(authority, &definition) {
             Ok(prepared) => prepared,
@@ -16940,33 +16974,36 @@ impl LocalSnapback {
                 diagnostic: Some(error.diagnostic),
             }));
         }
-        let Some(definition) = self.functions.function(name).cloned() else {
-            return StagedAppAction::Done(Box::new(FunctionRunResult {
-                ok: false,
-                function: name.to_owned(),
-                kind: None,
-                reads: Vec::new(),
-                writes: Vec::new(),
-                captured_reads: Vec::new(),
-                captured_writes: Vec::new(),
-                conformance: Some(crate::conformance::DeclarationConformance::without_capture(
-                    crate::conformance::DependencyProvenance::Incomplete,
-                )),
-                admin_bypass: false,
-                elapsed_ms: elapsed_ms(started),
-                version: None,
-                changed_count: None,
-                rows: None,
-                result: None,
-                diagnostic: Some(
-                    crate::authoring_suggestion::unknown_function_error(
-                        &self.functions,
-                        name,
-                        &[FunctionKind::Action],
-                    )
-                    .diagnostic,
-                ),
-            }));
+        let definition = match resolve_invocation_function(
+            &self.function_generation_recovery_state,
+            &self.functions,
+            name,
+            &[FunctionKind::Action],
+        )
+        .cloned()
+        {
+            Ok(definition) => definition,
+            Err(error) => {
+                return StagedAppAction::Done(Box::new(FunctionRunResult {
+                    ok: false,
+                    function: name.to_owned(),
+                    kind: None,
+                    reads: Vec::new(),
+                    writes: Vec::new(),
+                    captured_reads: Vec::new(),
+                    captured_writes: Vec::new(),
+                    conformance: Some(crate::conformance::DeclarationConformance::without_capture(
+                        crate::conformance::DependencyProvenance::Incomplete,
+                    )),
+                    admin_bypass: false,
+                    elapsed_ms: elapsed_ms(started),
+                    version: None,
+                    changed_count: None,
+                    rows: None,
+                    result: None,
+                    diagnostic: Some(error.diagnostic),
+                }));
+            }
         };
 
         if let Err(error) = self.validate_expected_generation(&authority, expected_generation) {
@@ -20380,6 +20417,10 @@ impl LocalSnapback {
         // durable queue into a forever-polling database workload.
         let jobs_active = db.jobs().pending_job_count()? != 0;
         let auth_mode = db.auth_mode_snapshot()?.state;
+        let function_generation_recovery_state =
+            crate::generation_activation::FunctionGenerationRecoveryState::from_record(
+                db.function_generation_record()?,
+            );
         // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
         //   persisted migration fence outlives the process: opening over a
         //   fenced database starts every lane closed until the operation's
@@ -20407,6 +20448,7 @@ impl LocalSnapback {
             schema: db.schema().clone(),
             capabilities: runtime.capabilities().clone(),
             app_generation,
+            function_generation_recovery_state: function_generation_recovery_state.clone(),
         })));
         // @ref LLP 0091#0a1-token-envelope-mac-keyring-custody-expiry — the
         // local-arm resume keyring is a `secure_file` sidecar beside the
@@ -20451,6 +20493,7 @@ impl LocalSnapback {
             functions: FunctionManifest::default(),
             preflighted_artifact_pairs: VecDeque::new(),
             functions_loaded: false,
+            function_generation_recovery_state,
             config: ConfigStore::in_memory(),
             telemetry,
             telemetry_store_identity,
@@ -20527,9 +20570,62 @@ impl LocalSnapback {
         &self,
         name: &str,
     ) -> SnapbackResult<&crate::manifest::FunctionDefinition> {
-        self.functions.function(name).ok_or_else(|| {
-            crate::authoring_suggestion::unknown_function_error(&self.functions, name, &[])
-        })
+        resolve_invocation_function(
+            &self.function_generation_recovery_state,
+            &self.functions,
+            name,
+            &[],
+        )
+    }
+
+    pub(crate) fn function_generation_recovery_state(
+        &self,
+    ) -> &crate::generation_activation::FunctionGenerationRecoveryState {
+        &self.function_generation_recovery_state
+    }
+
+    /// Reports the reopened generation's observable recovery posture without
+    /// making unassigned acceptance callers depend on the coordinator type.
+    ///
+    /// @ref LLP 0225#2-dependency-direction — unassigned callers assert the
+    ///   owner's behavior through `LocalSnapback`'s API.
+    pub(crate) fn has_committed_generation_record(&self) -> bool {
+        !matches!(
+            self.function_generation_recovery_state,
+            crate::generation_activation::FunctionGenerationRecoveryState::NoCommittedGeneration
+        )
+    }
+
+    /// Reports whether a reopened committed generation is still fenced for
+    /// reload without exposing the coordinator type to unassigned callers.
+    pub(crate) fn awaits_committed_generation_reload(&self) -> bool {
+        matches!(
+            self.function_generation_recovery_state,
+            crate::generation_activation::FunctionGenerationRecoveryState::AwaitingReload(_)
+        )
+    }
+
+    /// Exposes the awaiting record's high-water as observable recovery
+    /// posture without exposing the coordinator type to unassigned callers.
+    pub(crate) fn awaiting_generation_high_water(&self) -> Option<u64> {
+        match &self.function_generation_recovery_state {
+            crate::generation_activation::FunctionGenerationRecoveryState::AwaitingReload(
+                record,
+            ) => Some(record.generation_high_water),
+            crate::generation_activation::FunctionGenerationRecoveryState::NoCommittedGeneration
+            | crate::generation_activation::FunctionGenerationRecoveryState::Resolved => None,
+        }
+    }
+
+    pub(crate) fn set_function_generation_recovery_state(
+        &mut self,
+        state: crate::generation_activation::FunctionGenerationRecoveryState,
+    ) {
+        self.function_generation_recovery_state = state;
+    }
+
+    pub(crate) fn refresh_read_manifests_after_generation_commit(&self) {
+        self.refresh_read_manifests();
     }
 
     /// Install the exact read-only activation delivered with the generated
@@ -21689,6 +21785,7 @@ impl LocalSnapback {
             schema: self.db.schema().clone(),
             capabilities: self.runtime.capabilities().clone(),
             app_generation: self.app_generation,
+            function_generation_recovery_state: self.function_generation_recovery_state.clone(),
         });
         *self
             .read_manifests
@@ -25697,6 +25794,18 @@ fn owner_mutation_explanation_policy(
     )
 }
 
+fn resolve_invocation_function<'a>(
+    recovery_state: &crate::generation_activation::FunctionGenerationRecoveryState,
+    functions: &'a FunctionManifest,
+    name: &str,
+    expected_kinds: &[FunctionKind],
+) -> SnapbackResult<&'a FunctionDefinition> {
+    recovery_state.ensure_invocation_ready(name)?;
+    functions.function(name).ok_or_else(|| {
+        crate::authoring_suggestion::unknown_function_error(functions, name, expected_kinds)
+    })
+}
+
 /// The manifest state a read-only query invocation needs, published as one
 /// immutable snapshot so the read lane swaps it in O(1) and never blocks on
 /// (or observes a partially-applied) manifest load.
@@ -25705,6 +25814,8 @@ struct ReadManifests {
     schema: SchemaManifest,
     capabilities: RuntimeCapabilities,
     app_generation: u64,
+    function_generation_recovery_state:
+        crate::generation_activation::FunctionGenerationRecoveryState,
 }
 
 /// The lock-free read lane (LLP 0032 L6): `/query` and `/health` execute
@@ -25951,13 +26062,12 @@ impl ReadLane {
             .read()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
-        let function = manifests.functions.function(name).ok_or_else(|| {
-            crate::authoring_suggestion::unknown_function_error(
-                &manifests.functions,
-                name,
-                &[FunctionKind::Query, FunctionKind::LiveQuery],
-            )
-        })?;
+        let function = resolve_invocation_function(
+            &manifests.function_generation_recovery_state,
+            &manifests.functions,
+            name,
+            &[FunctionKind::Query, FunctionKind::LiveQuery],
+        )?;
         validate_expected_generation_against_manifests(
             authority.active_mode(),
             expected_generation,
