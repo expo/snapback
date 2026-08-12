@@ -7,7 +7,10 @@ Mutation settlement, Authorization, Field masking, Offline retention, Code
 generation, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-1 review response: class-M-aware
+**Revised:** 2026-08-12 (round-2 review response: OCC-before-egress race
+disposition, a single-attempt `MediaProvenanceTokenV1` lifecycle, an explicit
+settlement-format epoch and legacy watermark, and settlement-identity-bound
+seals); 2026-08-12 (round-1 review response: class-M-aware
 `via-references`, post-write commit-egress disclosure, exact source-cell JS
 provenance, a sealed settlement carrier with legacy-row policy, and the
 masked-only logical-position qualification); 2026-08-12 (initial Draft)
@@ -208,6 +211,49 @@ The handoff normalizer replaces any handler-supplied `kind` with the sidecar's
 admitted kind before calling `validate_handler_result`. The shape validator
 remains pure and is never taught to open storage.
 
+`MediaProvenanceTokenV1` has one closed host-owned lifecycle. At process
+startup the host creates a process-local media-token epoch; every handler
+invocation allocates a monotonically increasing, nonzero invocation nonce and
+every disclosed media cell allocates a monotonically increasing, nonzero entry
+nonce within it. Neither counter wraps or reuses a value: exhaustion refuses
+with value-free `SNAPBACK_MEDIA_PROJECTION_TOKEN_EXHAUSTED`, and a process
+restart discards the old epoch and every carrier that referred to it. The
+sidecar scope also binds the prepared principal/authority instance, function
+and artifact generation, `resultContractHash`, and pinned snapshot version.
+A token is valid only for its exact process epoch, invocation nonce, sidecar
+entry, and semantic result occurrence; it is never a VM-global capability.
+
+Before an Ibex realm can return to the warm pool, result handoff MUST validate
+every occurrence and move the matched entries out of the invocation registry
+into one typed, process-local `StagedMediaProjectionProofV1` owned by that
+invocation's `BufferedCommitPayload`. The carrier records the exact semantic
+occurrence paths and source tuples, admitted kinds, disclosure-policy
+identities, pinned snapshot, and captured dependency identities. It MUST NOT
+enter the result JSON, `ctxLedger`, mutation request or identity, logs,
+receipts, output bytes, or settlement row. Handoff then invalidates the entire
+invocation registry and all JS object tags before the realm is pooled; a tagged
+object retained in warm module state therefore refers only to an expired nonce
+and cannot validate in a later invocation.
+
+Storage preview receives a read-only borrow of
+`StagedMediaProjectionProofV1`; preview may normalize and validate the result
+inside its rolled-back transaction, but MUST NOT consume, clone, refresh, or
+replace the proof. The one authoritative commit call takes sole ownership,
+checks that its prepared invocation, payload, function generation, and request
+identity match the carrier, and admits it for that attempt only. The carrier
+expires whether that attempt commits, conflicts, refuses, is cancelled, loses
+to a concurrent same-id settlement, or is dropped before commit. No second
+commit attempt may reuse it.
+
+A retry that executes application code again, including same-id re-entry after
+an attempt for which no settlement exists, performs fresh reads and mints a new
+process/invocation-scoped proof. An already-settled replay and recovery after a
+concurrent same-id winner dispatch no handler, use no token or staged proof,
+and return only D1's verified settlement bytes. Query handoff consumes its
+tokens during normalization and destroys the invocation registry immediately;
+queries have no commit carrier. HostPlan results mint no JS token and carry the
+same source lineage in their typed plan.
+
 V1 refuses `mediaRef.v1` in an Action's direct result contract with
 `SNAPBACK_MEDIA_PROJECTION_SNAPSHOT_UNAVAILABLE`. Actions do not own one pinned
 read view across their lifetime; an action returns an ordinary scalar/result or
@@ -228,13 +274,38 @@ both HostPlan and Ibex mutation egress establish the exact source cell, its
 class-M condition, and its media metadata together in the commit-egress
 snapshot.
 
-For Ibex, the token supplies the source tuple; a closed HostPlan carries the
-same tuple as typed plan lineage and never manufactures a JS token. For each
-non-null result occurrence, the kernel re-resolves that exact source row, field
-generation, field value, class-M condition, and finalized asset record in the
-commit-egress snapshot. If the source row is absent, its field
-generation changed, or the cell no longer contains the token's asset id, the
-mutation refuses with value-free
+The commit-egress snapshot decides projection only **after** ordinary stale-read
+admission has succeeded; it does not rebase an invocation whose persisted view
+moved. Every exact media source cell, related row, and class-M condition-input
+fact observed by Ibex MUST enter the invocation's captured read set, and the
+prepared class-M program/activation identity MUST enter the guarded commit
+dependencies. Before applying the buffered overlay or evaluating
+commit-egress, the kernel validates those dependencies under the same OCC gate
+as every other handler read. If another writer changed any source-cell or
+class-M condition-input fact between the pinned handler view and that gate,
+the attempt refuses with `SNAPBACK_MUTATION_CONFLICT` and
+`retryPolicy: "reject"`; it emits neither `null` nor an updated `MediaRef`, and
+commits no application write, edge, grant, settlement, or result. A moved
+program/activation identity likewise fails its existing artifact/admission
+guard before commit-egress and is never normalized under the successor policy.
+
+Only changes made by this same, already-admitted transaction participate in
+the later commit-egress decision. Thus a transaction-local condition change
+from disclosed to masked emits `null`; a transaction-local delete, field-
+generation change, or asset-id replacement follows the unprovenanced refusal
+below; and a transaction-local change that leaves the exact cell disclosed
+emits its overlay value. A HostPlan has no earlier opaque handler view: it first
+validates any client read set and other pre-transaction plan dependencies, then
+its reads and overlay share the committing transaction. These rules preserve
+ordinary HostPlan isolation without inventing an external-race rebase.
+
+For Ibex, the consumed `StagedMediaProjectionProofV1` supplies the source tuple;
+a closed HostPlan carries the same tuple as typed plan lineage and never
+manufactures a JS token. For each non-null result occurrence, the kernel
+re-resolves that exact source row, field generation, field value, class-M
+condition, and finalized asset record in the commit-egress snapshot. If the
+source row is absent, its field generation changed, or the cell no longer
+contains the staged proof's asset id, the mutation refuses with value-free
 `SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED`; it does not publish an earlier
 observation. If the exact cell exists but is masked there, the normalizer emits
 `null`, even when the Ibex handler observed a disclosed `MediaRef` in its
@@ -242,14 +313,16 @@ earlier pinned view. If it remains disclosed, the normalizer emits the
 same-snapshot `{ assetId, kind }`. A media id produced by a write is
 provenance-admitted only when that same transaction verified and installed the
 typed reference edge for the exact source row and field; a previously read id
-must carry its exact token and pass the same commit-egress re-establishment.
+must carry its exact staged proof and pass the same commit-egress
+re-establishment.
 
 The transaction then validates the projected result and, for an idempotent
 mutation, writes those exact projected bytes to the settlement row. Failure to
 project or validate aborts application writes, reference edges, grants,
 settlement, and result publication together. Dry-run executes the same
-materializer inside its rolled-back transaction and reports the projected
-shape.
+materializer through the read-only preview borrow inside its rolled-back
+transaction and reports the projected shape; only the later guarded commit
+consumes the staged proof.
 
 #### Replayed and settled result recovery
 
@@ -259,37 +332,87 @@ and never substitutes a successor projection profile. This preserves LLP
 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01 and the
 current recovery-first storage contract.
 
-Every newly written settlement whose result contract contains `mediaRef.v1`
-MUST persist a complete `SettlementProjectionSealV1` beside `output_json`:
+Before this capability activates, one exclusive storage migration MUST create
+a protected `SettlementFormatEpochV1` store record containing an immutable
+`storeScopeId` and `legacySequenceWatermark`. In the same migration, while old
+settlement writers are excluded, it assigns every existing settlement a unique
+positive store-local `settlementRecordSequence` no greater than the watermark
+and stamps the independent, non-null row discriminator
+`settlementFormat: "legacy-settlement.v1"`. The classification comes only from
+membership in the pre-activation row set, never from `output_json`, the current
+bundle, or the apparent presence of `{ assetId, kind }`. Activation refuses
+until every predecessor is stamped and the store rejects writers that do not
+understand the format epoch.
 
-- `format: "media-projected-settlement.v1"`;
+After activation, every new settlement atomically allocates a strictly
+increasing `settlementRecordSequence` greater than the legacy watermark and
+never reuses it, even after acknowledgement GC. This is a server-owned replay-
+ledger row sequence, distinct from the client's queue-order sequence and from
+sequence values inside `MutationOutput`. A new result contract without
+`mediaRef.v1` writes `settlementFormat: "plain-settlement.v1"`; a contract with
+any `mediaRef.v1` writes
+`settlementFormat: "media-projected-settlement.v1"` and a complete
+`SettlementProjectionSealV1` in the same transaction as `output_json`.
+
+The store scope is the logical settlement-ledger scope, not a physical file
+path. Backup/restore of that logical store preserves its `storeScopeId`, format
+epoch, watermark, and sequence allocator; creating a distinct logical store
+mints a distinct scope id. Sequence allocation exhaustion refuses before the
+settlement or application effects commit and never wraps.
+
+`SettlementProjectionSealV1` contains:
+
 - the originating `resultContractHash`;
 - `mediaProjectionProfileHash`, SHA-256 over
   `"snapback:media-projection-profile:v1\n"` followed by the JCS encoding of
-  the complete `MediaProjectionPlanV1`; and
+  the complete `MediaProjectionPlanV1`;
+- `settlementId`, exactly LLP 0043's request-derived
+  `ClientMutationIdentity::activity_digest`, which already binds
+  `clientMutationId`, function, input, auth/authority, and any operation
+  issuance;
+- `settlementStoreScopeId`, equal to the active format epoch's `storeScopeId`;
+- `settlementRecordSequence`, equal to the independent row column; and
 - `settlementDigest`, SHA-256 over the JCS encoding of
-  `{ domain: "snapback:client-mutation-settlement:v2", resultContractHash,
-  mediaProjectionProfileHash, output }`, where `output` is the complete
-  `MutationOutput` value.
+  `{ domain: "snapback:client-mutation-settlement:v3",
+  settlementFormat: "media-projected-settlement.v1",
+  settlementStoreScopeId, settlementRecordSequence, settlementId,
+  resultContractHash, mediaProjectionProfileHash, output }`, where `output` is
+  the complete `MutationOutput` value.
 
 The stored `output_json` bytes MUST themselves equal the JCS encoding of that
-`MutationOutput`. Recovery first requires the seal fields to be all present,
-parses the output, byte-compares its JCS encoding with the stored bytes, and
-recomputes the digest from the stored contract and projection identities before
-running the existing version, sequence-allocation, and broad `MutationOutput`
-checks. Any missing field, noncanonical encoding, digest mismatch, or valid-JSON
-semantic edit—including changing only a media `kind`—refuses with the one
-value-free `SNAPBACK_CLIENT_MUTATION_RESULT_INTEGRITY` diagnostic. It is never
-repaired by re-projecting against current metadata because doing so would
-invent a new snapshot and result identity.
+`MutationOutput`. For a media-projected row, recovery first requires the
+complete seal, compares its format, store scope, row sequence, and
+`settlementId` with the independent row/store fields and the request-derived
+identity, parses the output, byte-compares its JCS encoding with the stored
+bytes, and recomputes the digest before running the existing version,
+sequence-allocation, and broad `MutationOutput` checks. Transplanting an
+otherwise valid `(output_json, seal)` between client-mutation rows therefore
+fails on `settlementId` and/or `settlementRecordSequence`; transplanting it
+between logical stores also fails on `settlementStoreScopeId`.
 
-A row with every seal field absent is a predecessor settlement and remains
-recoverable only through the legacy checks that existed when it was written;
-it is never backfilled or upgraded from its result bytes. No pre-capability
-artifact can claim `mediaRef.v1`, so a predecessor row makes no sealed-media
-integrity claim. A partially present seal, an unknown seal format, or a
-media-projected row without the complete seal fails closed rather than
-downgrading to legacy recovery.
+Once `SettlementFormatEpochV1` exists, recovery MUST NOT infer legacy status
+from an all-null seal group. A `legacy-settlement.v1` row is eligible for the
+predecessor checks only when its stamped sequence is at or below the immutable
+legacy watermark; `plain-settlement.v1` and
+`media-projected-settlement.v1` are eligible only above it. Legacy and plain
+rows require the seal group to be wholly absent, while media-projected rows
+require it to be complete. Missing or unknown row format, missing row sequence,
+a format on the wrong side of the watermark, any seal field on a legacy/plain
+row, a partially present seal, or a media-projected row with any missing or
+mismatched seal field refuses with the one value-free
+`SNAPBACK_CLIENT_MUTATION_RESULT_INTEGRITY` diagnostic. A genuine stamped
+predecessor remains recoverable only through the legacy checks that existed
+when it was written; it is never backfilled or upgraded from result bytes and
+makes no sealed-media integrity claim.
+
+Noncanonical encoding, digest mismatch, or a valid-JSON semantic edit—including
+changing only a media `kind`—uses the same integrity refusal and is never
+repaired by re-projecting against current metadata. The seal and watermark
+detect accidental corruption, incomplete writes, and record misassociation
+under the trusted storage boundary. They are unkeyed integrity witnesses, not
+authentication against an actor able to rewrite both protected store metadata
+and row data and recompute the digest; defense against such a database writer
+is explicitly outside this capability's claim.
 
 #### Retained query results
 
@@ -427,10 +550,12 @@ classification profile rotates `resultContractHash` under the existing
 `snapback:function-result:v1` hash. It also rotates every function/plan
 semantic identity that carries that contract.
 
-For a mutation settlement, that originating `resultContractHash` and the
-`mediaProjectionProfileHash` are copied into D1's durable seal before commit;
-recovery authenticates the stored values and never derives either identity
-from the currently active bundle.
+For a mutation settlement, that originating `resultContractHash`, the
+`mediaProjectionProfileHash`, the request-derived LLP 0043 `settlementId`, the
+store scope, and the row's never-reused settlement sequence are copied into
+D1's durable seal before commit. Recovery verifies those stored values against
+the independent request, row, and store facts and never derives the contract or
+projection identity from the currently active bundle.
 
 A runtime asset's concrete `image` versus `video` value does **not** rotate the
 contract hash; it is result data. An asset id cannot change kind under D3, so it
@@ -489,10 +614,13 @@ of the following together:
 - ready-transition persistence and validation of immutable `mediaKind`;
 - Query/LiveQuery typed projection inside a pinned transaction;
 - JS read/result provenance custody;
+- preview/commit/retry/replay token lifecycle and warm-realm expiry;
 - mutation commit-time projection before settlement serialization;
-- post-write commit-egress class-M re-establishment for HostPlan and Ibex;
+- OCC-before-egress plus post-write class-M re-establishment for HostPlan and
+  Ibex;
 - exact recovery with zero re-projection;
-- the canonical settlement seal and predecessor-row downgrade fence;
+- the canonical identity-bound settlement seal, store format epoch, legacy
+  watermark, and predecessor-row downgrade fence;
 - class-M-aware `via-references` authorization and pre-lookup writeback
   ordering;
 - class-M logical and physical-plan treatment;
@@ -562,8 +690,15 @@ policy, or artifact generation.
   migration. It validates every non-null edge as ready and kind-admitted,
   rotates result/plan/retention identities, and requires a fresh snapshot.
 - Existing settlements remain byte-for-byte recoverable under their original
-  identity. Pre-seal rows remain on the explicit legacy recovery branch and are
-  never backfilled; they are not upgraded to `MediaRef` by bundle activation.
+  identity. Before capability activation, the exclusive format-epoch migration
+  stamps the pre-seal row set as `legacy-settlement.v1`, assigns its bounded
+  store-local sequences, and records the immutable legacy watermark; it does
+  not inspect or rewrite result bytes. Those rows remain on the explicit legacy
+  recovery branch and are not upgraded to `MediaRef` by bundle activation.
+- Backup/restore preserves the logical settlement store scope, format epoch,
+  legacy watermark, and next sequence together with settlement rows. A new
+  logical store receives a new scope id rather than adopting seals from another
+  store.
 - Existing retained descriptors are deletion-only predecessors unless their
   exact result contract already contained the same `mediaRef.v1` node, which no
   pre-capability artifact can claim.
@@ -585,24 +720,41 @@ policy, or artifact generation.
    guessed or argument-only asset id exercise the exact source-token rules.
    The original tagged value has its forged `kind` replaced; every lost or
    mismatched token refuses as unprovenanced. Class-M-masked cells reach JS as
-   null and create no provenance entry.
+   null and create no provenance entry. Preview borrows one staged proof and
+   the authoritative commit consumes it once; preview cannot consume or clone
+   it. OCC rejection followed by fresh execution mints a new invocation nonce,
+   a same-id loser expires its proof and returns the winner's sealed bytes, and
+   a tagged object retained by a warm realm cannot validate in the next
+   invocation. Cancellation, refusal, dropped staged work, and nonce exhaustion
+   exercise their value-free expiry/refusal paths, and no token appears in any
+   JSON, ledger, receipt, output, or settlement carrier.
 4. **Atomic mutation settlement.** HostPlan and Ibex mutations project inside
-   the commit transaction. Races between handler observation and commit change
-   the exact source cell's class-M condition, delete the source row, replace its
-   id, and change unrelated policy facts: the final post-write commit-egress
-   snapshot alone decides, masked becomes null, and absent/mismatched source
-   refuses atomically. Crash cuts before and after settlement insertion prove
-   there is no committed app write with missing/unprojected result bytes.
-   Dry-run reports the same projected shape and retains nothing.
+   the commit transaction. An external writer changing the exact source cell,
+   a related class-M condition input, or its disclosed/masked outcome after
+   Ibex observation loses captured-read validation with
+   `SNAPBACK_MUTATION_CONFLICT` / `retryPolicy: "reject"` before overlay or
+   egress; no handler effect or settlement commits. Separate fixtures make this
+   mutation's own admitted overlay mask the source (result `null`), delete or
+   replace the source (unprovenanced atomic refusal), and leave it disclosed
+   (same-overlay `MediaRef`). HostPlan client/declarative baselines retain their
+   ordinary validation semantics. Crash cuts before and after settlement
+   insertion prove there is no committed app write with missing/unprojected
+   result bytes. Dry-run reports the same projected shape, borrows rather than
+   consumes provenance, and retains nothing.
 5. **Exact recovery.** After a successful mutation response is lost, change or
    remove the function and alter unrelated asset policy. Replay of the exact
    identity returns byte-identical `{ assetId, kind }` without handler dispatch
    or asset metadata reads. Mutate `output_json` to different but valid JSON
    while preserving every stored version field, including changing only
    `kind`; canonical-byte or seal verification refuses it before publication.
-   Malformed, partially sealed, and unknown-format rows fail, while a genuine
-   all-null-seal predecessor follows only the legacy checks. No failure is
-   repaired from current state.
+   The migration fixture stamps genuine predecessors and its watermark without
+   reading result shape; stamped legacy rows alone follow predecessor checks.
+   Erasing every seal field from a media row, clearing/changing its row format
+   or sequence, placing `legacy-settlement.v1` above the watermark, and using a
+   partial or unknown format all fail closed. Swap a complete `(output_json,
+   seal)` between two same-contract client-mutation rows and between two store
+   scopes: settlement-id, row-sequence, or store-scope comparison refuses each
+   substitution before publication. No failure is repaired from current state.
 6. **Unauthorized parity.** Two principals who can read the same app row but
    differ only in asset read authority receive byte-identical `MediaRef` fields
    and query shape. The authorized media controller reaches `ready`; the other
@@ -636,7 +788,9 @@ policy, or artifact generation.
 11. **Cross-target and restore parity.** Every target claiming the capability
     passes the same kind mapping, result bytes, transaction-cut, recovery, and
     denial fixtures. Backup/restore preserves asset records, kind, app edges,
-    and retained/settlement identity without recomputation from client data.
+    retained/settlement identity, settlement store scope, format epoch, legacy
+    watermark, and next row sequence without recomputation from client data; a
+    distinct logical store mints a different scope.
 12. **Reference validation.** `./ref-check --verbose` reports zero errors after
     the Spec and issue pointer land.
 
