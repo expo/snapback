@@ -11,3 +11,4 @@
 `0245-infer-show-freeze-declarations.gpt-5.6-sol.md`; this sibling artifact
 records LLP 0246's per-target verdict after receipt.
 
+**Round 1 verdict:** READY

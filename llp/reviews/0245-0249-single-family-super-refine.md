@@ -19,7 +19,8 @@ Sol-ready recommendation, not standard dual-family convergence.
 
 ## Round 1 — standard design review
 
-**State:** launched
+**State:** complete — LLP 0246 READY; LLP 0245, LLP 0247, LLP 0248, LLP 0249,
+and the set NOT READY
 **Recorded before launch:** 2026-08-12
 **Target hash vector (SHA-256):**
 
@@ -35,4 +36,3 @@ Sol-ready recommendation, not standard dual-family convergence.
 **Blindness:** structural capsule exclusion; reviewer instructed not to inspect
 the live repository
 **Launch ledger:** one Sol launch (round 1)
-
