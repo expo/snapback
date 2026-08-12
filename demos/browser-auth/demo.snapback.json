@@ -30,6 +30,12 @@
       "buildTargets": ["web"],
       "runner": "node demos/browser-auth/tests/acceptance/browser-auth.mjs",
       "toolchain": "node>=24, Vite, a qualified Snapback runtime, and system Chrome"
+    },
+    "password-auth-custody-witness": {
+      "requirement": "integration",
+      "buildTargets": ["web"],
+      "runner": "node demos/browser-auth/tests/acceptance/password-auth.mjs",
+      "toolchain": "node>=24, Vite, a qualified Snapback runtime, and system Chrome"
     }
   },
   "acceptanceChecks": {
@@ -42,6 +48,11 @@
       "logout blanks protected data while revocation is held, settles anonymous custody, and stays anonymous across reload",
       "changing the fixture email preserves issuer-subject identity while a second external subject cannot read the predecessor private note",
       "admin token, impersonation capability, private backend origin, provider assertion, and Snapback bearer never cross the browser bundle or URL boundary"
+    ],
+    "password-auth-custody-witness": [
+      "a real browser adopts password signup into AuthCoordinator IndexedDB custody and restores it after full reload without another signup",
+      "logout settles anonymous custody, public password signin adopts a new session, and a second full reload restores it without another signin",
+      "no admin token, impersonation capability, password, or bearer crosses the browser module or URL boundary"
     ]
   },
   "capabilityGaps": [

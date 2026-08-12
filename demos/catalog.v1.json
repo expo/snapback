@@ -37,7 +37,10 @@
       "run": "SNAPBACK_RUNTIME_BINARY=/path/to/snapback bun run prove",
       "proof": "SNAPBACK_RUNTIME_BINARY=/path/to/snapback bun run prove",
       "expectedEvidence": "A browser-auth witness covering binding, restoration, logout, and public omission.",
-      "evidence": ["demos/browser-auth/tests/acceptance/browser-auth.mjs"],
+      "evidence": [
+        "demos/browser-auth/tests/acceptance/browser-auth.mjs",
+        "demos/browser-auth/tests/acceptance/password-auth.mjs"
+      ],
       "documentation": { "status": "contract", "path": "demos/browser-auth/README.md" }
     },
     {
@@ -274,7 +277,19 @@
       "run": "node packages/snapback-codegen/index.mjs demos/rbac/snapback",
       "proof": "node demos/rbac/tests/acceptance/rbac.mjs",
       "expectedEvidence": "A sessions RBAC visibility/write-refusal trace.",
-      "evidence": ["demos/rbac/tests/acceptance/rbac.mjs"],
+      "evidence": [
+        "demos/rbac/tests/acceptance/rbac.mjs",
+        "demos/rbac/tests/acceptance/password-auth-definition-of-done.mjs",
+        "demos/rbac/tests/acceptance/password-auth-uniformity.mjs",
+        "demos/rbac/tests/acceptance/password-auth-concurrency.mjs",
+        "demos/rbac/tests/acceptance/password-auth-change-consequences.mjs",
+        "demos/rbac/tests/acceptance/password-auth-packaged-client.mjs",
+        "demos/rbac/tests/acceptance/password-auth-cli-stdin.mjs",
+        "demos/rbac/tests/acceptance/password-auth-recovery.mjs",
+        "demos/rbac/tests/acceptance/password-auth-transfer.mjs",
+        "demos/rbac/tests/acceptance/password-auth-logical-transfer.mjs",
+        "demos/rbac/tests/acceptance/password-auth-lockout-wire.mjs"
+      ],
       "documentation": { "status": "contract", "path": "demos/rbac/README.md" }
     },
     {

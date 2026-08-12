@@ -138,8 +138,8 @@ function syntheticEmail(claims, secret) {
   return `external-${digest.slice(0, 32)}@browser-auth.fixture.invalid`;
 }
 
-export function createBrowserAuthGateway({ server, api, appId }) {
-  if (!server?.adminToken || !server?.impersonationCapability) {
+export function createBrowserAuthGateway({ server, api, appId, passwordOnly = false }) {
+  if (!passwordOnly && (!server?.adminToken || !server?.impersonationCapability)) {
     throw new TypeError('browser-auth gateway requires local capture authorities');
   }
   if (typeof appId !== 'string' || appId.length === 0) {
@@ -158,6 +158,9 @@ export function createBrowserAuthGateway({ server, api, appId }) {
   };
   let selectedIdentity = { ...FIXTURE_IDENTITIES.alice };
   let logoutGate = null;
+  const publicRoutes = passwordOnly
+    ? new Set([...PUBLIC_ROUTES, 'POST /auth/password/signup', 'POST /auth/password/signin'])
+    : PUBLIC_ROUTES;
 
   const prune = (nowMs = Date.now()) => {
     for (const collection of [authorizationTransactions, fixtureCodes, loginBootstraps]) {
@@ -204,7 +207,7 @@ export function createBrowserAuthGateway({ server, api, appId }) {
   async function proxyPublic(request, response, url) {
     const upstreamPath = url.pathname.slice('/__snapback'.length) || '/';
     const key = `${request.method.toUpperCase()} ${upstreamPath}`;
-    if (!PUBLIC_ROUTES.has(key)) {
+    if (!publicRoutes.has(key)) {
       facts.publicRequests.push({ key, outcome: 'refused' });
       sendJson(response, 403, {
         diagnostic: {

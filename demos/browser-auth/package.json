@@ -9,7 +9,8 @@
   "scripts": {
     "generate": "node ../../packages/snapback-codegen/index.mjs snapback",
     "witness:browser": "node tests/acceptance/browser-auth.mjs",
-    "prove": "bun run generate && bun run witness:browser"
+    "witness:password": "node tests/acceptance/password-auth.mjs",
+    "prove": "bun run generate && bun run witness:browser && bun run witness:password"
   },
   "dependencies": {
     "@expo/snapback-client": "file:../../packages/snapback-client",
