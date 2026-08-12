@@ -1,5 +1,6 @@
 # Fast-path release fails SNAPBACK_FASTPATH_DIRTY_TREE when run from the shared primary checkout
 
+**Status:** Closed 2026-08-12 — this commit
 **Opened:** 2026-08-11
 **Found by:** model-sweep supervision session (Fable), reviewing
 `release-0120-stage.log` after the author asked whether 0.1.20 had shipped.
@@ -52,3 +53,20 @@ the filer to avoid clobbering an in-flight retry).
 - Publication posture: LLP 0041; qualification cadence: LLP 0189
 - Comparator seal recipe (clean-worktree precedent): memory
   `comparator-profile-seal-recipe`
+
+## Resolution (2026-08-12, this commit)
+
+Both proposed fixes landed in `scripts/snapback-fastpath-release.mjs` and
+LLP 0041 §Isolated worktrees (2026-08-12):
+
+- `preflight` / exported `assertCleanTree` inspect cleanliness and HEAD in
+  seconds. Wrappers must call this before any Ibex bootstrap.
+- `stage`/`release` default to `--isolate-worktree`: they re-exec from an
+  ephemeral detached worktree at `$TMPDIR/snapback-fastpath-*` so a dirty
+  shared checkout is the paved path, not a refusal.
+- `--no-isolate-worktree` still fails in the first check with
+  `SNAPBACK_FASTPATH_DIRTY_TREE` and does not spawn publish/qualify.
+
+`release-0120-stage.log` was not in this worktree and was left untouched.
+0.1.20 later shipped via the qualified ceremony (LLP 0041 §0.1.20); this
+closes the operational trap for the next fast-path cut.
