@@ -421,7 +421,8 @@ impl LocalDatabase {
                 .query_row(
                     "SELECT function, auth_fingerprint, authority_instance_id,
                         input_fingerprint, operation_issuance_json, output_json,
-                        settled_version, settled_version_exact
+                        settled_version, settled_version_exact, settlement_format,
+                        settlement_record_sequence, settlement_projection_seal_json
                  FROM _snapback_client_mutations WHERE client_mutation_id = ?1",
                     params![identity.id],
                     |row| {
@@ -434,6 +435,9 @@ impl LocalDatabase {
                             output_json: row.get(5)?,
                             settled_version: row.get(6)?,
                             settled_version_exact: row.get(7)?,
+                            settlement_format: row.get(8)?,
+                            settlement_record_sequence: row.get(9)?,
+                            settlement_projection_seal_json: row.get(10)?,
                         })
                     },
                 )
@@ -447,6 +451,9 @@ impl LocalDatabase {
                 output_json,
                 settled_version,
                 settled_version_exact: exact_settled_version,
+                settlement_format,
+                settlement_record_sequence,
+                settlement_projection_seal_json,
             }) = row
             else {
                 return covered_operation_recovery_result(conn, identity);
@@ -529,17 +536,18 @@ impl LocalDatabase {
                 )
                 .with_details(json!({ "clientMutationId": identity.id })));
             }
-            let output_value = serde_json::from_str::<Value>(&output_json).map_err(|error| {
-                SnapbackError::error(
-                    "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
-                    "storage",
-                    "stored client mutation result could not be decoded",
-                )
-                .with_details(json!({
-                    "clientMutationId": identity.id,
-                    "error": error.to_string(),
-                }))
-            })?;
+            // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+            // — format/watermark and media seal verification precede every
+            // broad MutationOutput/version check and never consult current
+            // asset metadata or the active bundle.
+            let output_value = verify_retained_settlement_carrier_v1(
+                conn,
+                identity,
+                settlement_format.as_deref(),
+                settlement_record_sequence,
+                settlement_projection_seal_json.as_deref(),
+                &output_json,
+            )?;
             let head = current_version_on(conn)?;
             let output_version = decode_json_storage_version(
                 output_value.get("version"),

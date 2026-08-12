@@ -390,6 +390,7 @@ impl LocalDatabase {
             None,
             asset_admissions,
             Vec::new(),
+            None,
         )
     }
 
@@ -414,6 +415,7 @@ impl LocalDatabase {
         // even though the real commit would admit the write.
         asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
         asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
+        media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
     ) -> SnapbackResult<MutationCommit> {
         self.apply_buffered_writes_with_lifecycle_gated(
             write_authority::LocalWriterLaneV1::DryRun,
@@ -428,6 +430,7 @@ impl LocalDatabase {
                 job_producer,
                 asset_admissions,
                 asset_grant_ops,
+                media_projection_proof,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -462,6 +465,7 @@ impl LocalDatabase {
                 job_producer: None,
                 asset_admissions: Vec::new(),
                 asset_grant_ops: Vec::new(),
+                media_projection_proof: None,
             },
             options,
             MembershipCommitAuthority::deny(),
@@ -724,6 +728,7 @@ impl<'a> MutationWritesKernel<'a> {
         job_producer: Option<crate::jobs::JobProducer>,
         asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
         asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
+        media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
     ) -> SnapbackResult<MutationCommit> {
         self.db.dry_run_buffered_writes_with_jobs(
             input,
@@ -737,6 +742,7 @@ impl<'a> MutationWritesKernel<'a> {
             job_producer,
             asset_admissions,
             asset_grant_ops,
+            media_projection_proof,
         )
     }
 }

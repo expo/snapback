@@ -838,6 +838,9 @@ function resultValueType(value) {
   if (value.kind === 'null') return 'null';
   if (value.kind === 'boolean') return 'boolean';
   if (value.kind === 'string' || value.kind === 'principal' || value.kind === 'assetRef' || value.kind === 'id') return 'string';
+  if (value.kind === 'mediaRef.v1') {
+    return `{ readonly assetId: string; readonly kind: ${value.kinds.map(JSON.stringify).join(' | ')} }`;
+  }
   if (value.kind === 'integer' || value.kind === 'finiteReal') return 'number';
   if (value.kind === 'literal') return JSON.stringify(value.value);
   if (value.kind === 'array') return `ReadonlyArray<${resultValueType(value.element)}>`;

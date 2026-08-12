@@ -3037,6 +3037,141 @@ pub(crate) fn result_contract_hash(contract: &FunctionResultContract) -> Snapbac
     Ok(format!("sha256:{:x}", hash.finalize()))
 }
 
+pub(crate) fn media_result_contract(
+    table: &str,
+    field: &FieldManifest,
+    media: &crate::contract_types::MediaFieldDescriptorV1,
+) -> ResultValueContract {
+    let source_field_generation = media_source_field_generation(table, field, media);
+    ResultValueContract::MediaRefV1 {
+        source_table: table.to_owned(),
+        source_field: field.name.clone(),
+        source_field_generation,
+        optional: field.optional,
+        class_m_treatment: "class-m.none.v1".to_owned(),
+        upload_intent: media.intent.clone(),
+        policy_generation: media.policy.clone(),
+        kinds: media.kinds.clone(),
+        delivery: media.delivery.clone(),
+        variants: media.variants.clone(),
+        classification_profile: media.classification_profile.clone(),
+        retention_class: media.retention_class.clone(),
+    }
+}
+
+pub(crate) fn table_document_value_contract(table: &TableManifest) -> ResultValueContract {
+    let safe_integer = || ResultValueContract::Integer {
+        min: 0,
+        max: RESULT_CONTRACT_JS_SAFE_INTEGER,
+    };
+    let mut fields = vec![
+        ResultObjectFieldContract {
+            name: "_id".to_owned(),
+            required: true,
+            value: ResultValueContract::Id {
+                table: table.name.clone(),
+            },
+        },
+        ResultObjectFieldContract {
+            name: "_version".to_owned(),
+            required: true,
+            value: safe_integer(),
+        },
+        ResultObjectFieldContract {
+            name: "_createdAt".to_owned(),
+            required: true,
+            value: safe_integer(),
+        },
+        ResultObjectFieldContract {
+            name: "_updatedAt".to_owned(),
+            required: true,
+            value: safe_integer(),
+        },
+    ];
+    fields.extend(table.fields.iter().map(|field| {
+        let value = match &field.field_type {
+            FieldType::String => ResultValueContract::String {
+                max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
+            },
+            FieldType::Enum { values } => ResultValueContract::Union {
+                variants: values
+                    .iter()
+                    .cloned()
+                    .map(|value| ResultValueContract::Literal {
+                        value: Value::String(value),
+                    })
+                    .collect(),
+            },
+            FieldType::Boolean => ResultValueContract::Boolean,
+            FieldType::Integer => ResultValueContract::Integer {
+                min: -RESULT_CONTRACT_JS_SAFE_INTEGER,
+                max: RESULT_CONTRACT_JS_SAFE_INTEGER,
+            },
+            FieldType::Real => ResultValueContract::FiniteReal {
+                min: -f64::MAX,
+                max: f64::MAX,
+            },
+            FieldType::Vector { dimensions } => ResultValueContract::Vector {
+                dimensions: *dimensions,
+            },
+            FieldType::Json => ResultValueContract::Json {
+                max_depth: RESULT_CONTRACT_MAX_DEPTH,
+                max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
+            },
+            FieldType::Structured { contract, .. } => contract.descriptor.clone(),
+            FieldType::Principal => ResultValueContract::Principal,
+            FieldType::Id { table } => ResultValueContract::Id {
+                table: table.clone(),
+            },
+            FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
+            FieldType::AssetRef {
+                media: Some(media), ..
+            } => media_result_contract(&table.name, field, media),
+            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+        };
+        let value = if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
+            match value {
+                ResultValueContract::Union { mut variants } => {
+                    variants.insert(0, ResultValueContract::Null);
+                    ResultValueContract::Union { variants }
+                }
+                value => ResultValueContract::Union {
+                    variants: vec![ResultValueContract::Null, value],
+                },
+            }
+        } else {
+            value
+        };
+        ResultObjectFieldContract {
+            name: field.name.clone(),
+            required: true,
+            value,
+        }
+    }));
+    ResultValueContract::Object {
+        fields,
+        allow_extra: false,
+    }
+}
+
+pub(crate) fn media_source_field_generation(
+    table: &str,
+    field: &FieldManifest,
+    media: &crate::contract_types::MediaFieldDescriptorV1,
+) -> String {
+    let generation_value = serde_json::json!({
+        "table": table,
+        "field": field.name,
+        "descriptor": media,
+    });
+    let canonical = crate::rqs_contract::jcs(&generation_value)
+        .expect("validated media field descriptor is canonical JSON");
+    let mut hash = Sha256::new();
+    hash.update(b"snapback:media-source-field-generation:v1\n");
+    hash.update(canonical.as_bytes());
+    format!("sha256:{:x}", hash.finalize())
+}
+
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 enum ResultPrimitiveKind {
     Null,
@@ -3073,7 +3208,9 @@ fn result_primitive_kind(contract: &ResultValueContract) -> ResultPrimitiveKind 
         ResultValueContract::Array { .. }
         | ResultValueContract::Tuple { .. }
         | ResultValueContract::Vector { .. } => ResultPrimitiveKind::Array,
-        ResultValueContract::Object { .. } => ResultPrimitiveKind::Object,
+        ResultValueContract::Object { .. } | ResultValueContract::MediaRefV1 { .. } => {
+            ResultPrimitiveKind::Object
+        }
     }
 }
 
@@ -3371,6 +3508,40 @@ fn validate_value_contract_node(
                 ));
             }
         }
+        ResultValueContract::MediaRefV1 {
+            source_table,
+            source_field,
+            source_field_generation,
+            optional: _,
+            class_m_treatment,
+            upload_intent,
+            policy_generation,
+            kinds,
+            delivery: _,
+            variants,
+            classification_profile,
+            retention_class,
+        } => {
+            if lane != ContractLane::Result
+                || source_table.is_empty()
+                || source_field.is_empty()
+                || !source_field_generation.starts_with("sha256:")
+                || class_m_treatment != "class-m.none.v1"
+                || upload_intent.is_empty()
+                || policy_generation.is_empty()
+                || kinds.is_empty()
+                || kinds.iter().collect::<BTreeSet<_>>().len() != kinds.len()
+                || variants.iter().any(String::is_empty)
+                || variants.iter().collect::<BTreeSet<_>>().len() != variants.len()
+                || classification_profile != "detected-content-type.v1"
+                || retention_class != "media-reference.v1"
+            {
+                return Err(invalid_result_contract(
+                    function,
+                    "mediaRef.v1 carries invalid source or projection-profile facts",
+                ));
+            }
+        }
         ResultValueContract::Null
         | ResultValueContract::Boolean
         | ResultValueContract::Principal
@@ -3581,6 +3752,13 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
     if let Some(contract) = value_contract {
         let mut object_fields = 0;
         validate_result_value_contract(function, contract, 0, &mut object_fields)?;
+        if matches!(function.kind, FunctionKind::Action) && value_contract_contains_media(contract) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MEDIA_PROJECTION_SNAPSHOT_UNAVAILABLE",
+                "assets",
+                "an Action direct result cannot carry mediaRef.v1; return it from a Query or Mutation",
+            ));
+        }
     }
     if let Some(form) = function.handler_form.as_deref() {
         let form_matches = matches!(
@@ -3676,6 +3854,33 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
         ));
     }
     Ok(())
+}
+
+pub(crate) fn value_contract_contains_media(contract: &ResultValueContract) -> bool {
+    match contract {
+        ResultValueContract::MediaRefV1 { .. } => true,
+        ResultValueContract::Array { element, .. } => value_contract_contains_media(element),
+        ResultValueContract::Tuple { elements } | ResultValueContract::Union { variants: elements } => {
+            elements.iter().any(value_contract_contains_media)
+        }
+        ResultValueContract::Object { fields, .. } => fields
+            .iter()
+            .any(|field| value_contract_contains_media(&field.value)),
+        _ => false,
+    }
+}
+
+pub(crate) fn result_contract_contains_media(contract: &FunctionResultContract) -> bool {
+    match contract {
+        FunctionResultContract::Unknown => false,
+        FunctionResultContract::Documents { document, .. }
+        | FunctionResultContract::Document { document, .. } => {
+            value_contract_contains_media(document)
+        }
+        FunctionResultContract::Records { record, .. }
+        | FunctionResultContract::LegacyQueryRowsV0 { row: record }
+        | FunctionResultContract::Value { value: record } => value_contract_contains_media(record),
+    }
 }
 
 fn result_row_contract_has_field(contract: &FunctionResultContract, field: &str) -> Option<bool> {
@@ -4088,6 +4293,12 @@ fn validate_public_inline(function: &FunctionDefinition) -> SnapbackResult<()> {
 /// fact; there is no authored `rqsEligible` field anywhere (an authored field
 /// of that name refuses at load via `deny_unknown_fields`).
 pub fn rqs_eligible_digest_kind(function: &FunctionDefinition) -> Option<crate::rqs_contract::DigestKind> {
+    // @ref LLP 0244#d4-result-artifact-retention-and-rqs-identity-rotate-explicitly
+    // — media projection reads protected asset metadata in addition to the
+    // app table, so it cannot inhabit the current exact one-table RQS class.
+    if result_contract_contains_media(&function.result_contract) {
+        return None;
+    }
     if !function.authority_independent {
         return None;
     }
@@ -5364,6 +5575,9 @@ pub(crate) fn expected_search_result_contract(
                 table: table.clone(),
             },
             FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
+            FieldType::AssetRef {
+                media: Some(media), ..
+            } => media_result_contract(&table.name, field, media),
             FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
         };
         if field.optional && !matches!(&field.field_type, FieldType::Json) {
@@ -5673,6 +5887,9 @@ pub(crate) fn expected_vector_result_contract(
                 table: table.clone(),
             },
             FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
+            FieldType::AssetRef {
+                media: Some(media), ..
+            } => media_result_contract(&table.name, field, media),
             FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
             FieldType::Vector { .. } => {
                 return Err(vector_manifest_invalid(format!(
@@ -6113,6 +6330,9 @@ pub fn single_table_delta_contract_matches_schema(
                 table: table.clone(),
             },
             FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
+            FieldType::AssetRef {
+                media: Some(media), ..
+            } => media_result_contract(&table.name, field, media),
             FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
         };
         let value = if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
@@ -10530,6 +10750,8 @@ pub enum TargetCapabilityId {
     WriteActivityV1,
     #[serde(rename = "asset_lifecycle_v1")]
     AssetLifecycleV1,
+    #[serde(rename = "assets.media-ref-projection.v1")]
+    MediaRefProjectionV1,
     #[serde(rename = "asset_image_finalization_v1")]
     AssetImageFinalizationV1,
     #[serde(rename = "asset_image_pipeline_v1")]
@@ -10550,7 +10772,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 40] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -10584,6 +10806,7 @@ impl TargetCapabilityId {
         Self::VersionedSeedResetV1,
         Self::WriteActivityV1,
         Self::AssetLifecycleV1,
+        Self::MediaRefProjectionV1,
         Self::AssetImageFinalizationV1,
         Self::AssetImagePipelineV1,
         Self::AssetReferenceGcV1,
@@ -10627,6 +10850,7 @@ impl TargetCapabilityId {
             Self::VersionedSeedResetV1 => "versioned_seed_reset_v1",
             Self::WriteActivityV1 => "write_activity_v1",
             Self::AssetLifecycleV1 => "asset_lifecycle_v1",
+            Self::MediaRefProjectionV1 => "assets.media-ref-projection.v1",
             Self::AssetImageFinalizationV1 => "asset_image_finalization_v1",
             Self::AssetVideoFinalizationV1 => "asset_video_finalization_v1",
             Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
@@ -10682,6 +10906,7 @@ impl TargetCapabilityId {
             | Self::VersionedSeedResetV1
             | Self::WriteActivityV1
             | Self::AssetLifecycleV1
+            | Self::MediaRefProjectionV1
             | Self::AssetImageFinalizationV1
             | Self::AssetVideoFinalizationV1
             | Self::AssetImagePipelineV1
@@ -10999,6 +11224,17 @@ impl TargetCapabilityId {
                                 .iter()
                                 .any(|profile| profile == "private-strict")
                     })
+            }
+            // @ref LLP 0244#d6-projection-is-a-capability-gated-storage-feature
+            // — positive presence is the qualified local conjunction, never
+            //   inference from a media-shaped schema field alone.
+            Self::MediaRefProjectionV1 => {
+                facts.media_ref_projection_v1_registered
+                    && facts.result_contract_v1_registered
+                    && facts.mutation_read_set_validator_registered
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                    && manifest.storage_engine == "sqlite"
+                    && Self::AssetLifecycleV1.is_supported_by(manifest, facts)
             }
             // @ref LLP 0044#capability-facts-and-implementation-slices — the
             // image facts block IS the `asset-image-finalization` fact: the
@@ -12306,6 +12542,7 @@ pub struct TargetCapabilityFacts {
     local_persistent_store_publication_v1_verified: bool,
     packaged_store_qualification_mode: bool,
     asset_lifecycle_local_fs_registered: bool,
+    media_ref_projection_v1_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
     asset_video_finalization_registered: bool,
@@ -12415,6 +12652,7 @@ impl TargetCapabilityFacts {
         // stays experimental until the author accepts the contract.
         Self {
             asset_lifecycle_local_fs_registered: true,
+            media_ref_projection_v1_registered: true,
             asset_image_finalization_registered: true,
             asset_reference_gc_registered: true,
             asset_video_finalization_registered: true,
@@ -18297,6 +18535,82 @@ mod asset_upload_intent_manifest_tests {
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_ASSET_INTENT_RUNTIME_INVALID"
+        );
+    }
+}
+
+#[cfg(test)]
+mod media_ref_manifest_tests {
+    use super::*;
+
+    /// @ref LLP 0244#d4-result-artifact-retention-and-rqs-identity-rotate-explicitly
+    /// @ref LLP 0244#d6-projection-is-a-capability-gated-storage-feature
+    #[test]
+    fn generated_media_contract_rotates_identity_demotes_rqs_and_refuses_actions() {
+        let schema: SchemaManifest = serde_json::from_str(include_str!(
+            "../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
+        ))
+        .expect("generated media schema");
+        let functions: FunctionManifest = serde_json::from_str(include_str!(
+            "../tests/acceptance/fixtures/media-profile/snapback/generated/functions.manifest.json"
+        ))
+        .expect("generated media functions");
+        let function = functions
+            .functions
+            .iter()
+            .find(|function| function.name == "listProfiles")
+            .expect("media LiveQuery");
+        assert!(result_contract_contains_media(&function.result_contract));
+        let contract_hash = result_contract_hash(&function.result_contract).unwrap();
+        assert_eq!(
+            function.result_contract_hash.as_deref(),
+            Some(contract_hash.as_str())
+        );
+        assert!(function.required_capabilities.iter().any(|capability| {
+            capability == TargetCapabilityId::MediaRefProjectionV1.as_str()
+        }));
+        assert_eq!(rqs_eligible_digest_kind(function), None);
+
+        let table = schema.table("profiles").expect("profiles table");
+        let field = table.field("image").expect("media field");
+        let FieldType::AssetRef {
+            media: Some(media), ..
+        } = &field.field_type
+        else {
+            panic!("image must lower as distinguished AssetRef media")
+        };
+        let generation = media_source_field_generation("profiles", field, media);
+        let mut changed_field = field.clone();
+        let FieldType::AssetRef {
+            media: Some(changed),
+            ..
+        } = &mut changed_field.field_type
+        else {
+            unreachable!()
+        };
+        changed.policy = "profile-image.v2".to_owned();
+        let changed = changed.clone();
+        assert_ne!(
+            media_source_field_generation("profiles", &changed_field, &changed),
+            generation,
+            "policy generation rotates source identity"
+        );
+
+        let FunctionResultContract::Documents { table, document } = &function.result_contract else {
+            panic!("fixture LiveQuery must return documents")
+        };
+        let mut action = function.clone();
+        action.kind = FunctionKind::Action;
+        action.result_contract = FunctionResultContract::Document {
+            table: table.clone(),
+            document: document.clone(),
+        };
+        action.result_contract_hash = Some(result_contract_hash(&action.result_contract).unwrap());
+        let error = validate_result_contract_definition(&action)
+            .expect_err("Action has no pinned snapshot for direct media output");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEDIA_PROJECTION_SNAPSHOT_UNAVAILABLE"
         );
     }
 }

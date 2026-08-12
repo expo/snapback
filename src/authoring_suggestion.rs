@@ -339,6 +339,7 @@ fn contract_kind(contract: &ResultValueContract) -> &'static str {
         ResultValueContract::FiniteReal { .. } => "finiteReal",
         ResultValueContract::Principal => "principal",
         ResultValueContract::AssetRef => "assetRef",
+        ResultValueContract::MediaRefV1 { .. } => "mediaRef.v1",
         ResultValueContract::Id { .. } => "id",
         ResultValueContract::Literal { .. } => "literal",
         ResultValueContract::Json { .. } => "json",

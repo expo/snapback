@@ -335,6 +335,7 @@ impl LocalDatabase {
                         grants_enabled: intent.grants,
                         availability: assets::AssetAvailability::Pending,
                         primary_rendition_id: None,
+                        media_kind: None,
                         lifecycle_generation: 1,
                         created_at_ms: now,
                         updated_at_ms: now,
@@ -959,6 +960,7 @@ impl LocalDatabase {
                 )
             })?;
             asset.primary_rendition_id = Some(rendition.rendition_id.clone());
+            asset.media_kind = Some(assets::media_kind_for_detected_content_type(&detected_type));
             assets::transition_asset(tx, &mut asset, assets::AssetAvailability::Ready, now)?;
             // A never-attached upload starts its reference-GC grace
             // clock at publication; any attachment clears it.

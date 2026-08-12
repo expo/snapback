@@ -404,6 +404,70 @@ export const v = {
       },
     }, 'string');
   },
+  /** A finalized-only media asset reference. The physical stored value stays
+   * the opaque asset id; query/result lowering projects the distinguished
+   * mediaRef.v1 value from the exact source cell. */
+  // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut —
+  //   authoring preserves the exact media policy facts required by the
+  //   semantic result node instead of disguising this as a plain assetRef.
+  media: (options = {}) => {
+    assertKnownSpecFields(
+      options,
+      'v.media() options',
+      new Set(['intent', 'policy', 'kinds', 'delivery', 'variants']),
+    );
+    assert(
+      typeof options.intent === 'string' && options.intent.length > 0,
+      'v.media() intent must name an upload-intent binding',
+    );
+    assert(
+      typeof options.policy === 'string' && options.policy.length > 0,
+      'v.media() policy must name the attachment/read policy generation',
+    );
+    const admittedKinds = new Set(['image', 'video', 'audio', 'file']);
+    assert(
+      Array.isArray(options.kinds) && options.kinds.length > 0,
+      'v.media() kinds must be a non-empty array',
+    );
+    const kinds = [];
+    for (const kind of options.kinds) {
+      assert(
+        typeof kind === 'string' && admittedKinds.has(kind),
+        `v.media() kinds contains unsupported kind ${String(kind)}`,
+      );
+      assert(!kinds.includes(kind), `v.media() kinds repeats ${kind}`);
+      kinds.push(kind);
+    }
+    if (options.delivery !== undefined) {
+      assert(
+        typeof options.delivery === 'string' && options.delivery.length > 0,
+        'v.media() delivery must be a non-empty delivery profile name',
+      );
+    }
+    if (options.variants !== undefined) {
+      assert(
+        Array.isArray(options.variants)
+          && options.variants.every((variant) => typeof variant === 'string' && variant.length > 0)
+          && new Set(options.variants).size === options.variants.length,
+        'v.media() variants must be an array of unique non-empty names',
+      );
+    }
+    return validator({
+      AssetRef: {
+        upload: options.intent,
+        media: {
+          intent: options.intent,
+          policy: options.policy,
+          kinds,
+          ...(options.delivery !== undefined ? { delivery: options.delivery } : {}),
+          ...(options.variants !== undefined ? { variants: [...options.variants] } : {}),
+          classificationProfile: 'detected-content-type.v1',
+          retentionClass: 'media-reference.v1',
+          targetCapability: 'assets.media-ref-projection.v1',
+        },
+      },
+    }, 'string');
+  },
   boolean: () => validator('Boolean', 'boolean'),
   integer: (options = {}) => {
     assertKnownSpecFields(options, 'v.integer() options', new Set(['min', 'max']));

@@ -1,0 +1,194 @@
+{
+  "artifactKind": "contractDataManifest",
+  "authoredSourceHash": "sha256:ebb04301732af2158a37669fddbcc3799457e154db36468e841d273e7c3ba895",
+  "bundleHash": "sha256:3c79312be6ee5b58",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "8253ae0b273a16e547288102e0a0843b5ea0d4a3cd0534d6a166808c89fd71de",
+  "manifestVersion": 2,
+  "mutations": {},
+  "provider": "snapback",
+  "queries": {
+    "listProfiles": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:366df3df5beadf039d5d0bdbf15ae6b90afabe5b6e5247921b88efa3d476168d",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listProfiles",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "profiles"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "displayName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "image": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "fields": {
+                    "assetId": {
+                      "name": "string",
+                      "shape": "primitive"
+                    },
+                    "kind": {
+                      "shape": "literal",
+                      "value": "image"
+                    }
+                  },
+                  "shape": "object"
+                }
+              ]
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "profiles"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "displayName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "image",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "classMTreatment": "class-m.none.v1",
+                    "classificationProfile": "detected-content-type.v1",
+                    "delivery": "primary",
+                    "kind": "mediaRef.v1",
+                    "kinds": [
+                      "image"
+                    ],
+                    "optional": true,
+                    "policyGeneration": "profile-image.v1",
+                    "retentionClass": "media-reference.v1",
+                    "sourceField": "image",
+                    "sourceFieldGeneration": "sha256:81082f909aa3205703b52dff1369c21f792edc2e023e24ce43b7cb215b92f3aa",
+                    "sourceTable": "profiles",
+                    "uploadIntent": "profileImageUpload",
+                    "variants": [
+                      "primary"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "profiles"
+      },
+      "resultHash": "sha256:fdba488a1c2e90ff8d992d648077042d017b66b7e9b9e3fe21a280d0fb5eed67",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:1166da2451a839e5",
+  "schemaVersion": "snapback.v0"
+}

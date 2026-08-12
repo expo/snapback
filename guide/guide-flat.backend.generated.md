@@ -3556,11 +3556,11 @@ id: backend.media-happy-paths
 order: 10
 audience: agent-first
 capabilities: [assets.media-field.v1]
-authorities: [llp/0239-asset-collections-and-media-field.rfc.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, packages/snapback-client/assets.mjs, packages/snapback-react/implementation.mjs, issues/20260812-media-ref-snapshot-projection.md]
-examples: [packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs, packages/snapback-react/asset-upload-types.fixture.ts]
+authorities: [llp/0239-asset-collections-and-media-field.rfc.md, llp/0244-media-ref-projection.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, packages/snapback-codegen/define.mjs, src/storage.rs, packages/snapback-client/assets.mjs, packages/snapback-react/implementation.mjs]
+examples: [tests/acceptance/fixtures/media-profile/snapback/schema.mjs, tests/acceptance/fixtures/media-profile/snapback/functions.mjs, packages/snapback-codegen/media-field-authoring.test.mjs, packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs, packages/snapback-react/asset-upload-types.fixture.ts]
 status: current
 targets: [local]
-maturity: partial
+maturity: shipped
 since: 0.1.21
 unreleased: true
 reviewed: 2026-08-12
@@ -3577,22 +3577,62 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-This page is the four-path map from LLP 0239. Only path 3 has a shipped
-contributor-source implementation in this rollout. The other paths stay
-explicit GAPs so an agent does not mistake RFC syntax for an available API.
+This page is the four-path map from LLP 0239. Paths 1 and 3 are shipped in
+contributor source. Paths 2 and 4 stay explicit GAPs so an agent does not
+mistake the separately indexed collection and command RFC syntax for an
+available API.
 
-## Path 1 — store one optional profile image (GAP)
+## Path 1 — store one optional profile image
 
-`v.media()` is not available yet. The intended optional profile-image field
-cannot ship until the server can project its stored asset id as an exact,
-authorized `MediaRef` at the application row's snapshot. The unresolved
-authorization, settlement, and pending-kind choices are recorded in the
-[open projection issue](repo:issues/20260812-media-ref-snapshot-projection.md).
+Declare `v.optional(v.media(...))` at the top level of a table. Name the upload
+intent, a policy-generation identity, and the closed coarse kinds the field
+admits. This fixture is the complete optional-profile-image schema:
 
-For an application that must ship now, use the existing
-[`v.optional(v.assetRef(...))` path](./assets.md#declare-the-upload-intent-and-the-reference-field).
-It returns an opaque asset id rather than `MediaRef`; do not manufacture a
-`kind` client-side and call it equivalent.
+```js source=tests/acceptance/fixtures/media-profile/snapback/schema.mjs
+import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
+
+// @ref LLP 0239#d1-vmedia-is-the-zero-or-one-application-field
+// @ref LLP 0244#d3-vmedia-attachment-is-finalized-only-in-v1
+export const profiles = defineTable({
+  ownerId: v.principal(),
+  displayName: v.string(),
+  image: v.optional(v.media({
+    intent: 'profileImageUpload',
+    policy: 'profile-image.v1',
+    kinds: ['image'],
+    delivery: 'primary',
+    variants: ['primary'],
+  })),
+})
+  .assetSharing({ kind: 'owner', field: 'ownerId' })
+  .sync();
+
+export default defineSchema({ profiles });
+```
+
+The named upload intent remains an ordinary asset upload declaration:
+
+```js source=tests/acceptance/fixtures/media-profile/snapback/functions.mjs
+export const profileImageUpload = defineAssetUpload({
+  auth: 'authenticated',
+  accept: { mediaTypes: ['image/jpeg', 'image/png'], maxBytes: 8_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'via-references' },
+  image: { location: 'strip' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+Await finalization before attaching its asset id. Writes carry the opaque id
+string; a client-supplied `{ assetId, kind }` object is refused because `kind`
+is output-only server authority. Query and LiveQuery results project a non-null
+field as exact `{ assetId, kind }` inside the application row's pinned storage
+snapshot. Optional null stays null. Media-bearing LiveQueries deliberately do
+not receive the current single-table RQS resume class.
+
+For a plain opaque reference with the older pending-attachment behavior, use
+[`v.optional(v.assetRef(...))`](./assets.md#declare-the-upload-intent-and-the-reference-field).
+It is a different contract and does not return `MediaRef`.
 
 ## Path 2 — attach a bounded media collection (GAP)
 
@@ -3609,8 +3649,10 @@ application cannot wait for the generated collection.
 issuance, and make `refresh()` an inert resolved promise. An empty string is a
 contract error that names the nullable spelling.
 
-For non-empty input, pass only a `MediaRef` obtained from an authorized server
-result. The hook projects the shared issued-URL controller: image delivery
+For non-empty input, pass only a `MediaRef` obtained from a server result. Its
+coarse kind is disclosed with the readable media field even when separate
+asset delivery is denied; projection success is not an asset-existence or
+authorization oracle. The hook projects the shared issued-URL controller: image delivery
 defaults to `primary`, accepts `widthPx` or an explicitly declared `variant`,
 refreshes before expiry, and blanks the URL on denial or authority replacement.
 It does not probe a signed route and does not claim portable video playback.
@@ -3646,6 +3688,8 @@ semantics; those require the future closed binding.
 - Do not pass `""` for no media; pass `null` or `undefined`.
 - Do not construct `{ assetId, kind }` from MIME guesses, filenames, or client
   upload assertions. `kind` is reserved for server-admitted result metadata.
+- Do not write a projected `MediaRef` object back to a media field; attach its
+  finalized `assetId` string through an authorized write.
 - Do not probe signed routes to discover variants or playback support.
 - Do not treat `assetCollection` or the media command as shipped.
 - Do not claim `media.video.playable.v1`; this rollout adds no transcoding or

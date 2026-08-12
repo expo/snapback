@@ -69,7 +69,6 @@ export const PACKAGE_TEST_INVENTORIES = [
       'expo-dev-loop.test.mjs',
       'expo-metro-watch-advisory.test.mjs',
       'fake-expo-push.test.mjs',
-      'generate-check.test.mjs',
       'hosted-admission-producer.test.mjs',
       'hosted-control.test.mjs',
       'load-generated.test.mjs',
@@ -139,7 +138,6 @@ export const PACKAGE_TEST_INVENTORIES = [
       'password-auth.test.mjs',
       'push-registry.test.mjs',
       'registration-ledger.test.mjs',
-      'reference-kind.test.mjs',
       'remediation.test.mjs',
       'reservation-retry.test.mjs',
       'result-transform.test.mjs',
@@ -273,7 +271,6 @@ export const PACKAGE_TEST_INVENTORIES = [
       'auth-artifacts.test.mjs',
       'auth-crypto-vectors.test.mjs',
       'authoring-validation.test.mjs',
-      'client-lifecycle.test.mjs',
       'contract-binding-reads.test.mjs',
       'contract-output-mode.test.mjs',
       'data-tier-corpus.test.mjs',
@@ -283,13 +280,12 @@ export const PACKAGE_TEST_INVENTORIES = [
       'generated-mutation-ir.test.mjs',
       'generation-lock.test.mjs',
       'guide-pointer.test.mjs',
-      'handler-graph-parity.test.mjs',
-      'handler-runtime-profile.test.mjs',
       'identifier-validation.test.mjs',
       'inline-helper-sharing.test.mjs',
       'inline-result-contracts.test.mjs',
       'live-search-authoring.test.mjs',
       'maintained-projections.test.mjs',
+      'media-field-authoring.test.mjs',
       'membership-search-authoring.test.mjs',
       'micro-profile.test.mjs',
       'mixed-route-v2.test.mjs',
@@ -310,8 +306,6 @@ export const PACKAGE_TEST_INVENTORIES = [
       'schema-reference-type-flow.test.mjs',
       'search-ast-fixtures.test.mjs',
       'search-result-contracts.test.mjs',
-      'semantic-generation-golden.test.mjs',
-      'semantic-generation-rotation.test.mjs',
       'sequence-authoring.test.mjs',
       'seed-artifact.test.mjs',
       'seed-asset-fixtures.test.mjs',
@@ -473,7 +467,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 262,
+  expectedTotal = 256,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -813,17 +807,9 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-client gains anonymous-issuance adoption, same-authority
 // password rotation, strict recovery-code projection, and secret-redaction
 // coverage.
-// 255 -> 257 (2026-08-12, LLP 0237 rollout 1): @expo/snapback-codegen gains
-// generated handler-profile, preflight, and definition-attribution coverage;
-// @expo/snapback-cli gains packaged `generate --check` no-replacement proof.
-// 257 -> 258 (2026-08-12, LLP 0237 rollout 2): @expo/snapback-codegen gains
-// the same-file graph representation byte-parity, identity, refusal, and demo
-// golden corpus.
-// 258 -> 260 (2026-08-12, LLP 0241 rollout 1): @expo/snapback-codegen gains
-// semantic-generation golden/no-self-hash and rotation/envelope coverage.
-// 260 -> 262 (2026-08-12, LLP 0238 rollout 1): @expo/snapback-codegen gains
-// lifecycle-manifest/JSDoc parity proof; @expo/snapback-client gains the
-// complete pre-transport generated-reference mismatch matrix.
+// 255 -> 256 (2026-08-12, LLP 0244 media projection):
+// @expo/snapback-codegen gains descriptor/lowering, result-contract identity,
+// RQS demotion, and action-refusal coverage for v.media().
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

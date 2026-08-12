@@ -1,13 +1,14 @@
 # LLP 0244: MediaRef projection
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Assets, Schema, Storage, Query planning, Live Queries, Runtime,
 Mutation settlement, Authorization, Field masking, Offline retention, Code
 generation, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-2 review response: OCC-before-egress race
+**Revised:** 2026-08-12 (author acceptance after the round-3 READY convergence;
+metadata-only transition, no decision bytes changed); 2026-08-12 (round-2 review response: OCC-before-egress race
 disposition, a single-attempt `MediaProvenanceTokenV1` lifecycle, an explicit
 settlement-format epoch and legacy watermark, and settlement-identity-bound
 seals); 2026-08-12 (round-1 review response: class-M-aware
@@ -803,6 +804,6 @@ choice left open by this Spec.
 
 ## Status
 
-Draft. The author must accept this Spec before implementation or publication of
-`assets.media-ref-projection.v1`; LLP 0239 remains the binding accepted public
-contract.
+Accepted by the author on 2026-08-12. Implementation and publication of
+`assets.media-ref-projection.v1` may proceed under this Spec; LLP 0239 remains
+the binding accepted public contract.

@@ -23,6 +23,15 @@
         "via-references"
       ],
       "type": "string"
+    },
+    "MediaKindV1": {
+      "enum": [
+        "image",
+        "video",
+        "audio",
+        "file"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/asset.record.schema.json",
@@ -74,6 +83,17 @@
       "format": "uint64",
       "minimum": 0,
       "type": "integer"
+    },
+    "mediaKind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MediaKindV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Trusted, immutable coarse kind installed with the ready transition."
     },
     "ownerPrincipal": {
       "type": "string"

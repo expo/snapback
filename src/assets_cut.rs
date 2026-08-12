@@ -633,6 +633,7 @@ pub fn apply_cut(
             grants_enabled: false,
             availability: crate::assets::AssetAvailability::Deleted,
             primary_rendition_id: None,
+            media_kind: None,
             lifecycle_generation: tombstone.lifecycle_generation.saturating_add(1),
             created_at_ms: now_ms,
             updated_at_ms: now_ms,

@@ -12,7 +12,8 @@ use crate::live_matcher::{
     compare_sort_keys, query_dependencies_from_plan, row_matches_query_filters, sort_key,
 };
 use crate::manifest::{
-    CtxAnswerLedger, FilterExpr, FilterOp, FunctionKind, HandlerInput, IbexModule, MutationOutput,
+    CtxAnswerLedger, FilterExpr, FilterOp, FunctionKind, FunctionResultContract, HandlerInput,
+    IbexModule, MutationOutput, ResultValueContract,
     QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan,
     SequenceDeclaration, SequenceScopeAccess, TableVisibilityArmV1, TableVisibilityV1, ValueExpr,
     effective_query_limit,
@@ -26,6 +27,7 @@ use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
+use sha2::{Digest, Sha256};
 use std::cell::{Cell, RefCell};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -34,9 +36,9 @@ use std::ffi::{CStr, CString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::ptr;
-use std::sync::{Arc, Mutex as StdMutex, PoisonError};
+use std::sync::{Arc, Mutex as StdMutex, OnceLock, PoisonError};
 #[cfg(debug_assertions)]
-use std::sync::{OnceLock, mpsc};
+use std::sync::mpsc;
 use std::time::Instant;
 
 #[derive(Clone)]
@@ -374,6 +376,284 @@ pub(crate) struct ExecutedIbexMutation {
     pub asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
     pub result: Value,
     pub ctx_ledger: CtxAnswerLedger,
+    pub media_projection_proof: Option<StagedMediaProjectionProofV1>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct MediaProjectionPlanV1 {
+    pub occurrences: Vec<MediaProjectionSemanticOccurrenceV1>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct MediaProjectionSemanticOccurrenceV1 {
+    pub path: Vec<String>,
+    pub node: ResultValueContract,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct StagedMediaProjectionProofV1 {
+    pub plan: MediaProjectionPlanV1,
+    pub result_contract_hash: String,
+    state: Arc<StdMutex<Option<Vec<MediaProjectionProofOccurrenceV1>>>>,
+}
+
+impl StagedMediaProjectionProofV1 {
+    pub(crate) fn new(
+        plan: MediaProjectionPlanV1,
+        result_contract_hash: String,
+        occurrences: Vec<MediaProjectionProofOccurrenceV1>,
+    ) -> Self {
+        Self {
+            plan,
+            result_contract_hash,
+            state: Arc::new(StdMutex::new(Some(occurrences))),
+        }
+    }
+
+    /// Preview receives a read-only copy of the facts while the one shared
+    /// carrier remains live for the later authoritative commit.
+    pub(crate) fn borrow_occurrences(
+        &self,
+    ) -> SnapbackResult<Vec<MediaProjectionProofOccurrenceV1>> {
+        self.state
+            .lock()
+            .map_err(|_| media_unprovenanced())?
+            .as_ref()
+            .cloned()
+            .ok_or_else(media_unprovenanced)
+    }
+
+    /// Clones of the Rust handle share this one take-once state; cloning a
+    /// buffered payload therefore cannot duplicate or refresh authority.
+    pub(crate) fn consume_occurrences(
+        self,
+    ) -> SnapbackResult<Vec<MediaProjectionProofOccurrenceV1>> {
+        self.state
+            .lock()
+            .map_err(|_| media_unprovenanced())?
+            .take()
+            .ok_or_else(media_unprovenanced)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct MediaProjectionProofOccurrenceV1 {
+    pub path: Vec<String>,
+    pub source_table: String,
+    pub source_field: String,
+    pub source_field_generation: String,
+    pub source_row_id: String,
+    pub asset_id: String,
+    pub kind: crate::contract_types::MediaKindV1,
+    pub snapshot_version: u64,
+    pub related_fact_digest: String,
+}
+
+#[derive(Clone, Debug)]
+struct MediaProvenanceEntryV1 {
+    source_table: String,
+    source_field: String,
+    source_field_generation: String,
+    source_row_id: String,
+    asset_id: String,
+    kind: crate::contract_types::MediaKindV1,
+    snapshot_version: u64,
+    related_fact_digest: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct MediaHandoffV1 {
+    occurrences: Vec<MediaHandoffOccurrenceV1>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct MediaHandoffOccurrenceV1 {
+    path: Vec<String>,
+    token: String,
+}
+
+fn media_unprovenanced() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED",
+        "assets",
+        "media result did not preserve exact host provenance",
+    )
+}
+
+pub(crate) fn media_projection_plan(contract: &FunctionResultContract) -> MediaProjectionPlanV1 {
+    let mut occurrences = Vec::new();
+    match contract {
+        FunctionResultContract::Documents { document, .. }
+        | FunctionResultContract::Records { record: document, .. }
+        | FunctionResultContract::LegacyQueryRowsV0 { row: document } => {
+            collect_media_plan_value(document, &mut vec!["*".to_owned()], &mut occurrences);
+        }
+        FunctionResultContract::Document { document, .. }
+        | FunctionResultContract::Value { value: document } => {
+            collect_media_plan_value(document, &mut Vec::new(), &mut occurrences);
+        }
+        FunctionResultContract::Unknown => {}
+    }
+    MediaProjectionPlanV1 { occurrences }
+}
+
+fn collect_media_plan_value(
+    contract: &ResultValueContract,
+    path: &mut Vec<String>,
+    output: &mut Vec<MediaProjectionSemanticOccurrenceV1>,
+) {
+    match contract {
+        ResultValueContract::MediaRefV1 { .. } => output.push(
+            MediaProjectionSemanticOccurrenceV1 {
+                path: path.clone(),
+                node: contract.clone(),
+            },
+        ),
+        ResultValueContract::Array { element, .. } => {
+            path.push("*".to_owned());
+            collect_media_plan_value(element, path, output);
+            path.pop();
+        }
+        ResultValueContract::Tuple { elements } => {
+            for (index, element) in elements.iter().enumerate() {
+                path.push(index.to_string());
+                collect_media_plan_value(element, path, output);
+                path.pop();
+            }
+        }
+        ResultValueContract::Union { variants } => {
+            for variant in variants {
+                collect_media_plan_value(variant, path, output);
+            }
+        }
+        ResultValueContract::Object { fields, .. } => {
+            for field in fields {
+                path.push(field.name.clone());
+                collect_media_plan_value(&field.value, path, output);
+                path.pop();
+            }
+        }
+        _ => {}
+    }
+}
+
+fn normalize_media_contract_value(
+    contract: &FunctionResultContract,
+    value: &mut Value,
+    path: &mut Vec<String>,
+    handoff: &BTreeMap<Vec<String>, String>,
+    entries: &BTreeMap<String, MediaProvenanceEntryV1>,
+    proof: &mut Vec<MediaProjectionProofOccurrenceV1>,
+) -> SnapbackResult<()> {
+    match contract {
+        FunctionResultContract::Documents { document, .. }
+        | FunctionResultContract::Records { record: document, .. }
+        | FunctionResultContract::LegacyQueryRowsV0 { row: document } => {
+            let rows = value.as_array_mut().ok_or_else(media_unprovenanced)?;
+            for (index, row) in rows.iter_mut().enumerate() {
+                path.push(index.to_string());
+                normalize_media_value(document, row, path, handoff, entries, proof)?;
+                path.pop();
+            }
+        }
+        FunctionResultContract::Document { document, .. }
+        | FunctionResultContract::Value { value: document } => {
+            normalize_media_value(document, value, path, handoff, entries, proof)?;
+        }
+        FunctionResultContract::Unknown => {}
+    }
+    Ok(())
+}
+
+fn normalize_media_value(
+    contract: &ResultValueContract,
+    value: &mut Value,
+    path: &mut Vec<String>,
+    handoff: &BTreeMap<Vec<String>, String>,
+    entries: &BTreeMap<String, MediaProvenanceEntryV1>,
+    proof: &mut Vec<MediaProjectionProofOccurrenceV1>,
+) -> SnapbackResult<()> {
+    match contract {
+        ResultValueContract::MediaRefV1 {
+            source_table,
+            source_field,
+            source_field_generation,
+            ..
+        } => {
+            let token = handoff.get(path).ok_or_else(media_unprovenanced)?;
+            let entry = entries.get(token).ok_or_else(media_unprovenanced)?;
+            if &entry.source_table != source_table
+                || &entry.source_field != source_field
+                || &entry.source_field_generation != source_field_generation
+            {
+                return Err(media_unprovenanced());
+            }
+            let object = value.as_object_mut().ok_or_else(media_unprovenanced)?;
+            if object.get("assetId").and_then(Value::as_str) != Some(entry.asset_id.as_str()) {
+                return Err(media_unprovenanced());
+            }
+            object.insert(
+                "kind".to_owned(),
+                serde_json::to_value(entry.kind).map_err(|_| media_unprovenanced())?,
+            );
+            proof.push(MediaProjectionProofOccurrenceV1 {
+                path: path.clone(),
+                source_table: entry.source_table.clone(),
+                source_field: entry.source_field.clone(),
+                source_field_generation: entry.source_field_generation.clone(),
+                source_row_id: entry.source_row_id.clone(),
+                asset_id: entry.asset_id.clone(),
+                kind: entry.kind,
+                snapshot_version: entry.snapshot_version,
+                related_fact_digest: entry.related_fact_digest.clone(),
+            });
+        }
+        ResultValueContract::Array { element, .. } => {
+            let values = value.as_array_mut().ok_or_else(media_unprovenanced)?;
+            for (index, value) in values.iter_mut().enumerate() {
+                path.push(index.to_string());
+                normalize_media_value(element, value, path, handoff, entries, proof)?;
+                path.pop();
+            }
+        }
+        ResultValueContract::Tuple { elements } => {
+            let values = value.as_array_mut().ok_or_else(media_unprovenanced)?;
+            for (index, (contract, value)) in elements.iter().zip(values.iter_mut()).enumerate() {
+                path.push(index.to_string());
+                normalize_media_value(contract, value, path, handoff, entries, proof)?;
+                path.pop();
+            }
+        }
+        ResultValueContract::Union { variants } => {
+            if value.is_null() {
+                return Ok(());
+            }
+            if let Some(variant) = variants
+                .iter()
+                .find(|variant| crate::manifest::value_contract_contains_media(variant))
+            {
+                normalize_media_value(variant, value, path, handoff, entries, proof)?;
+            }
+        }
+        ResultValueContract::Object { fields, .. } => {
+            let object = value.as_object_mut().ok_or_else(media_unprovenanced)?;
+            for field in fields {
+                if !crate::manifest::value_contract_contains_media(&field.value) {
+                    continue;
+                }
+                let child = object.get_mut(&field.name).ok_or_else(media_unprovenanced)?;
+                path.push(field.name.clone());
+                normalize_media_value(&field.value, child, path, handoff, entries, proof)?;
+                path.pop();
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 impl RuntimeManager {
@@ -449,7 +729,13 @@ impl RuntimeManager {
         if let Some(denial) = invocation.take_terminal_denial() {
             return Err(denial);
         }
-        let result = result?;
+        let mut result = result?;
+        let media_projection_proof = invocation
+            .normalize_media_result(
+                &mut result,
+                prepared.result_contract(),
+                prepared.result_contract_hash(),
+            )?;
         let ctx_ledger = invocation.take_ctx_ledger()?;
         let IbexHostContext {
             writes,
@@ -480,6 +766,7 @@ impl RuntimeManager {
             }),
             asset_admissions,
             asset_grant_ops,
+            media_projection_proof,
         )
     }
 
@@ -544,7 +831,13 @@ pub(crate) fn execute_ibex_mutation_prepared(
     if let Some(denial) = invocation.take_terminal_denial() {
         return Err(denial);
     }
-    let result = result?;
+    let mut result = result?;
+    let media_projection_proof = invocation
+        .normalize_media_result(
+            &mut result,
+            prepared.result_contract(),
+            prepared.result_contract_hash(),
+        )?;
     // The recorded (or replayed) ctx-answer ledger rides the output (LLP 0051
     // D1) so the later commit is semantically identical to the in-lock path.
     let ctx_ledger = invocation.take_ctx_ledger()?;
@@ -588,6 +881,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         asset_grant_ops,
         result,
         ctx_ledger,
+        media_projection_proof,
     })
 }
 
@@ -633,7 +927,12 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
     if let Some(denial) = invocation.take_terminal_denial() {
         return Err(denial);
     }
-    let value = value?;
+    let mut value = value?;
+    invocation.normalize_media_result(
+        &mut value,
+        prepared.result_contract(),
+        prepared.result_contract_hash(),
+    )?;
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
     // query handler that returns a non-array fails closed.
     let rows = value.as_array().cloned().ok_or_else(|| {
@@ -1068,6 +1367,11 @@ fn next_invocation_epoch() -> SnapbackResult<u64> {
     allocate_invocation_epoch(&NEXT_INVOCATION_EPOCH)
 }
 
+fn media_process_epoch() -> &'static str {
+    static EPOCH: OnceLock<String> = OnceLock::new();
+    EPOCH.get_or_init(|| uuid::Uuid::now_v7().to_string())
+}
+
 /// Every handler VM must hold its own Enforce-mode Ibex capability context.
 ///
 /// The armed context is a single-use, thread-bound token: a VM that claims it
@@ -1161,6 +1465,133 @@ mod invocation_epoch_tests {
                 "SNAPBACK_HANDLER_INVOCATION_EPOCH_EXHAUSTED"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod media_provenance_tests {
+    use super::*;
+
+    fn node(source_table: &str) -> ResultValueContract {
+        ResultValueContract::MediaRefV1 {
+            source_table: source_table.to_owned(),
+            source_field: "image".to_owned(),
+            source_field_generation: "sha256:field-generation".to_owned(),
+            optional: false,
+            class_m_treatment: "class-m.none.v1".to_owned(),
+            upload_intent: "profileImageUpload".to_owned(),
+            policy_generation: "profile-image.v1".to_owned(),
+            kinds: vec![crate::contract_types::MediaKindV1::Image],
+            delivery: Some("primary".to_owned()),
+            variants: vec!["primary".to_owned()],
+            classification_profile: "detected-content-type.v1".to_owned(),
+            retention_class: "media-reference.v1".to_owned(),
+        }
+    }
+
+    fn entry(source_table: &str) -> MediaProvenanceEntryV1 {
+        MediaProvenanceEntryV1 {
+            source_table: source_table.to_owned(),
+            source_field: "image".to_owned(),
+            source_field_generation: "sha256:field-generation".to_owned(),
+            source_row_id: "profile-1".to_owned(),
+            asset_id: "asset-1".to_owned(),
+            kind: crate::contract_types::MediaKindV1::Image,
+            snapshot_version: 7,
+            related_fact_digest: "sha256:related-facts".to_owned(),
+        }
+    }
+
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn exact_token_overwrites_handler_kind_while_copy_and_cross_source_refuse() {
+        let contract = FunctionResultContract::Value {
+            value: node("profiles"),
+        };
+        let token = "smp1.token".to_owned();
+        let handoff = BTreeMap::from([(Vec::<String>::new(), token.clone())]);
+        let entries = BTreeMap::from([(token, entry("profiles"))]);
+        let mut value = json!({ "assetId": "asset-1", "kind": "video" });
+        let mut proof = Vec::new();
+        normalize_media_contract_value(
+            &contract,
+            &mut value,
+            &mut Vec::new(),
+            &handoff,
+            &entries,
+            &mut proof,
+        )
+        .expect("exact host identity is admitted");
+        assert_eq!(value["kind"], "image", "handler kind is never authority");
+        assert_eq!(proof.len(), 1);
+        assert_eq!(proof[0].source_row_id, "profile-1");
+        assert_eq!(proof[0].snapshot_version, 7);
+        assert_eq!(proof[0].related_fact_digest, "sha256:related-facts");
+
+        let mut copied = json!({ "assetId": "asset-1", "kind": "image" });
+        let error = normalize_media_contract_value(
+            &contract,
+            &mut copied,
+            &mut Vec::new(),
+            &BTreeMap::new(),
+            &entries,
+            &mut Vec::new(),
+        )
+        .expect_err("a structural copy has no WeakMap custody");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
+
+        let cross_source_entries = BTreeMap::from([(
+            "smp1.cross-source".to_owned(),
+            entry("accountSettings"),
+        )]);
+        let cross_source_handoff = BTreeMap::from([(
+            Vec::<String>::new(),
+            "smp1.cross-source".to_owned(),
+        )]);
+        let error = normalize_media_contract_value(
+            &contract,
+            &mut json!({ "assetId": "asset-1", "kind": "image" }),
+            &mut Vec::new(),
+            &cross_source_handoff,
+            &cross_source_entries,
+            &mut Vec::new(),
+        )
+        .expect_err("a token from another semantic source is not interchangeable");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
+    }
+
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn preview_borrows_and_all_clones_share_one_take_once_commit_authority() {
+        let occurrence = MediaProjectionProofOccurrenceV1 {
+            path: vec!["image".to_owned()],
+            source_table: "profiles".to_owned(),
+            source_field: "image".to_owned(),
+            source_field_generation: "sha256:field-generation".to_owned(),
+            source_row_id: "profile-1".to_owned(),
+            asset_id: "asset-1".to_owned(),
+            kind: crate::contract_types::MediaKindV1::Image,
+            snapshot_version: 7,
+            related_fact_digest: "sha256:related-facts".to_owned(),
+        };
+        let proof = StagedMediaProjectionProofV1::new(
+            MediaProjectionPlanV1 {
+                occurrences: vec![MediaProjectionSemanticOccurrenceV1 {
+                    path: vec!["image".to_owned()],
+                    node: node("profiles"),
+                }],
+            },
+            "sha256:result-contract".to_owned(),
+            vec![occurrence],
+        );
+        let commit_handle = proof.clone();
+        assert_eq!(proof.borrow_occurrences().expect("preview borrow").len(), 1);
+        assert_eq!(proof.borrow_occurrences().expect("second preview borrow").len(), 1);
+        assert_eq!(commit_handle.consume_occurrences().expect("one commit take").len(), 1);
+        let error = proof
+            .consume_occurrences()
+            .expect_err("a clone cannot refresh consumed authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
     }
 }
 
@@ -1265,6 +1696,9 @@ pub(crate) struct IbexHostContext<'a> {
     membership_writer: MembershipWriter,
     reads: Vec<CapturedReadDependency>,
     read_keys: HashSet<String>,
+    media_entries: BTreeMap<String, MediaProvenanceEntryV1>,
+    media_handoff: Option<Vec<MediaHandoffOccurrenceV1>>,
+    next_media_entry: u64,
     now_ms: u64,
     action_run: Option<CronRunMetadata>,
     action_host: Option<&'a mut dyn IbexActionHost>,
@@ -1381,6 +1815,9 @@ impl<'a> IbexHostContext<'a> {
             membership_writer,
             reads,
             read_keys,
+            media_entries: BTreeMap::new(),
+            media_handoff: None,
+            next_media_entry: 1,
             now_ms,
             action_run: None,
             action_host: None,
@@ -1446,6 +1883,9 @@ impl<'a> IbexHostContext<'a> {
             membership_writer: MembershipWriter::System,
             reads,
             read_keys,
+            media_entries: BTreeMap::new(),
+            media_handoff: None,
+            next_media_entry: 1,
             now_ms: run.due_at_ms,
             action_run: Some(run),
             action_host: Some(host),
@@ -1489,6 +1929,173 @@ impl<'a> IbexHostContext<'a> {
             now: self.now_ms,
             auth_fingerprint: None,
         })
+    }
+
+    fn deproject_media_document(&self, table: &str, document: &mut Value) -> SnapbackResult<()> {
+        let Some(table) = self.db().schema().table(table) else {
+            return Ok(());
+        };
+        let Some(object) = document.as_object_mut() else {
+            return Ok(());
+        };
+        for field in &table.fields {
+            if !matches!(field.field_type, crate::manifest::FieldType::AssetRef { media: Some(_), .. }) {
+                continue;
+            }
+            let Some(value) = object.get_mut(&field.name) else {
+                continue;
+            };
+            if let Some(asset_id) = value.get("assetId").and_then(Value::as_str) {
+                *value = Value::String(asset_id.to_owned());
+            }
+        }
+        Ok(())
+    }
+
+    fn tag_media_document(&mut self, table_name: &str, document: &mut Value) -> SnapbackResult<()> {
+        self.db().project_media_document(table_name, document)?;
+        let snapshot_version = self.db().current_version()?;
+        let table = self
+            .db()
+            .schema()
+            .table(table_name)
+            .cloned()
+            .ok_or_else(|| SnapbackError::error(
+                "SNAPBACK_MEDIA_PROJECTION_INTEGRITY",
+                "assets",
+                "media projection source table is unavailable",
+            ))?;
+        let object = document
+            .as_object_mut()
+            .ok_or_else(crate::assets::media_projection_integrity)?;
+        let source_row_id = object
+            .get("_id")
+            .and_then(Value::as_str)
+            .ok_or_else(crate::assets::media_projection_integrity)?
+            .to_owned();
+        let mut captured = Vec::new();
+        for field in &table.fields {
+            let crate::manifest::FieldType::AssetRef {
+                media: Some(media), ..
+            } = &field.field_type
+            else {
+                continue;
+            };
+            let Some(value) = object.get_mut(&field.name) else {
+                return Err(crate::assets::media_projection_integrity());
+            };
+            if value.is_null() {
+                continue;
+            }
+            let media_ref = value
+                .as_object_mut()
+                .ok_or_else(crate::assets::media_projection_integrity)?;
+            let asset_id = media_ref
+                .get("assetId")
+                .and_then(Value::as_str)
+                .ok_or_else(crate::assets::media_projection_integrity)?
+                .to_owned();
+            let kind: crate::contract_types::MediaKindV1 = media_ref
+                .get("kind")
+                .cloned()
+                .map(serde_json::from_value)
+                .transpose()
+                .map_err(|_| crate::assets::media_projection_integrity())?
+                .ok_or_else(crate::assets::media_projection_integrity)?;
+            let related_fact_digest = crate::storage::media_projection_fact_digest_on(
+                self.db().conn(),
+                &asset_id,
+            )?;
+            let entry = self.next_media_entry;
+            self.next_media_entry = entry.checked_add(1).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_MEDIA_PROJECTION_TOKEN_EXHAUSTED",
+                    "assets",
+                    "media projection token space is exhausted",
+                )
+            })?;
+            let mut digest = Sha256::new();
+            digest.update(b"snapback:media-provenance-token:v1\n");
+            digest.update(media_process_epoch().as_bytes());
+            digest.update(self.epoch.to_be_bytes());
+            digest.update(entry.to_be_bytes());
+            let token = format!("smp1.{:x}", digest.finalize());
+            media_ref.insert(
+                "__snapbackMediaProvenanceV1".to_owned(),
+                Value::String(token.clone()),
+            );
+            let provenance = (
+                token,
+                MediaProvenanceEntryV1 {
+                    source_table: table.name.clone(),
+                    source_field: field.name.clone(),
+                    source_field_generation: crate::manifest::media_source_field_generation(
+                        &table.name,
+                        field,
+                        media,
+                    ),
+                    source_row_id: source_row_id.clone(),
+                    asset_id: asset_id.clone(),
+                    kind,
+                    snapshot_version,
+                    related_fact_digest: related_fact_digest.clone(),
+                },
+            );
+            let dependency = CapturedReadDependency {
+                kind: CapturedReadKind::Permission,
+                table: Some(crate::assets::ASSET_RECORDS_TABLE.to_owned()),
+                id: Some(asset_id),
+                version: Some(snapshot_version),
+                predicate: None,
+                rows: Vec::new(),
+                field: Some(crate::storage::MEDIA_PROJECTION_DEPENDENCY_FIELD_V1.to_owned()),
+                value: Some(Value::String(related_fact_digest)),
+                order: None,
+                limit: None,
+                result_count: None,
+                boundary: None,
+            };
+            captured.push((provenance, dependency));
+        }
+        for ((token, provenance), dependency) in captured {
+            self.media_entries.insert(token, provenance);
+            self.push_read_dependency(dependency);
+        }
+        Ok(())
+    }
+
+    fn normalize_media_result(
+        &mut self,
+        value: &mut Value,
+        contract: &FunctionResultContract,
+        result_contract_hash: Option<&str>,
+    ) -> SnapbackResult<Option<StagedMediaProjectionProofV1>> {
+        let plan = media_projection_plan(contract);
+        if plan.occurrences.is_empty() {
+            return Ok(None);
+        }
+        let handoff = self.media_handoff.take().ok_or_else(media_unprovenanced)?;
+        let handoff = handoff
+            .into_iter()
+            .map(|occurrence| (occurrence.path, occurrence.token))
+            .collect::<BTreeMap<_, _>>();
+        let mut proof = Vec::new();
+        normalize_media_contract_value(
+            contract,
+            value,
+            &mut Vec::new(),
+            &handoff,
+            &self.media_entries,
+            &mut proof,
+        )?;
+        let result_contract_hash = result_contract_hash
+            .ok_or_else(media_unprovenanced)?
+            .to_owned();
+        Ok(Some(StagedMediaProjectionProofV1::new(
+            plan,
+            result_contract_hash,
+            proof,
+        )))
     }
 
     /// The single host id source for the deterministic tier (LLP 0051 D1):
@@ -1751,7 +2358,7 @@ impl<'a> IbexHostContext<'a> {
         table: &str,
         id: &str,
     ) -> SnapbackResult<(Option<Value>, Option<TableVisibilityV1>, bool)> {
-        let stored = self.db().get(table, id)?;
+        let mut stored = self.db().get(table, id)?;
         let visibility = self.restricted_table_visibility(table);
         let storage_visible = match (&visibility, stored.as_ref()) {
             (Some(visibility), Some(row)) => {
@@ -1770,6 +2377,9 @@ impl<'a> IbexHostContext<'a> {
             )?;
         } else {
             self.capture_point_read(table, id, stored.as_ref())?;
+        }
+        if let Some(document) = stored.as_mut() {
+            self.deproject_media_document(table, document)?;
         }
         Ok((stored, visibility, storage_visible))
     }
@@ -1823,7 +2433,7 @@ impl<'a> IbexHostContext<'a> {
                 // snapshot-bound dependency joins the read summary), so it is
                 // admitted for protected queries exactly like `db.query`.
                 // @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906
-                "db.query" | "db.get" | "runtime.log" | "permissions.requireRole" => {}
+                "db.query" | "db.get" | "media.handoff" | "runtime.log" | "permissions.requireRole" => {}
                 "runtime.now" => {
                     return Err(protected_host_input_error(
                         "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
@@ -1859,6 +2469,21 @@ impl<'a> IbexHostContext<'a> {
                 .validate_host_call(op)?;
         }
         match op {
+            "media.handoff" => {
+                if self.mode == IbexInvocationMode::Action || self.media_handoff.is_some() {
+                    return Err(media_unprovenanced());
+                }
+                let handoff: MediaHandoffV1 = serde_json::from_value(args)
+                    .map_err(|_| media_unprovenanced())?;
+                let mut paths = BTreeSet::new();
+                if handoff.occurrences.iter().any(|occurrence| {
+                    occurrence.token.is_empty() || !paths.insert(occurrence.path.clone())
+                }) {
+                    return Err(media_unprovenanced());
+                }
+                self.media_handoff = Some(handoff.occurrences);
+                Ok(Value::Null)
+            }
             "db.query" => {
                 if self.mode == IbexInvocationMode::Action {
                     return Err(action_db_denied("query"));
@@ -1884,7 +2509,7 @@ impl<'a> IbexHostContext<'a> {
                 // @ref LLP 0032#phase-2--execution-semantics-honesty — E2: layer
                 // this invocation's buffered writes over the storage result so
                 // the handler reads its own writes (read-your-writes).
-                let output = if self.has_buffered_writes_for(&plan.table) {
+                let mut output = if self.has_buffered_writes_for(&plan.table) {
                     // Overfetch only enough stored candidates to replace every
                     // row this bounded invocation could delete or reorder.
                     // The write ceiling makes this exact top-N merge bounded.
@@ -1896,9 +2521,12 @@ impl<'a> IbexHostContext<'a> {
                     let storage_limit = effective_query_limit(&plan)
                         .saturating_add(buffered)
                         .min(QUERY_INTERNAL_OVERFETCH_MAX);
-                    let storage_output =
+                    let mut storage_output =
                         self.db()
                             .query_with_storage_limit(&plan, &self.input, storage_limit)?;
+                    for row in &mut storage_output.rows {
+                        self.deproject_media_document(&plan.table, row)?;
+                    }
                     // Capture the exact storage range the merge consumes. A
                     // separate declared-limit query (or a later overfetch) can
                     // observe another snapshot and leave the returned rows
@@ -1936,6 +2564,9 @@ impl<'a> IbexHostContext<'a> {
                     self.capture_query_read(&plan, &output)?;
                     output
                 };
+                for row in &mut output.rows {
+                    self.tag_media_document(&plan.table, row)?;
+                }
                 serde_json::to_value(output).map_err(|error| {
                     SnapbackError::error(
                         "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
@@ -1970,11 +2601,13 @@ impl<'a> IbexHostContext<'a> {
                 // policy value remains a typed SNAPBACK_* refusal above.
                 //
                 // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
-                Ok(if visible {
-                    effective.unwrap_or(Value::Null)
+                if visible {
+                    let mut effective = effective.unwrap_or(Value::Null);
+                    self.tag_media_document(&table, &mut effective)?;
+                    Ok(effective)
                 } else {
-                    Value::Null
-                })
+                    Ok(Value::Null)
+                }
             }
             "db.insert" => {
                 self.ensure_writable("insert")?;
@@ -7031,6 +7664,7 @@ mod membership_bridge_tests {
             job_producer: None,
             asset_admissions,
             asset_grant_ops,
+            media_projection_proof: None,
         }
     }
 
@@ -7090,6 +7724,7 @@ mod membership_bridge_tests {
                     job_producer: None,
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
+                    media_projection_proof: None,
                 },
                 None,
                 || Ok(()),
@@ -7523,6 +8158,7 @@ globalThis.__snapbackHandlers = {
                     sequence_allocations: Vec::new(),
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
+                    media_projection_proof: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
                     result: json!(null),
@@ -7794,6 +8430,7 @@ globalThis.__snapbackHandlers = {
                     sequence_allocations: Vec::new(),
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
+                    media_projection_proof: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
                     result: result.clone(),

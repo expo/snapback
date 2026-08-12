@@ -125,6 +125,108 @@ test('sealed auth projection carries the asset-callback actor kind', async () =>
   });
 });
 
+// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+test('media provenance marker is hidden and exact object identity reaches handoff', async () => {
+  const context = vm.createContext({});
+  const calls = [];
+  vm.runInContext(bootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(`
+    globalThis.__snapbackHandlers = {
+      probe: async function(ctx) {
+        var row = await ctx.db.get('profiles', 'profile-1');
+        return {
+          image: row.image,
+          markerVisible: Object.prototype.hasOwnProperty.call(
+            row.image,
+            '__snapbackMediaProvenanceV1'
+          )
+        };
+      }
+    };
+  `, context);
+  const decoded = parseHandlerEnvelope(await context.__snapbackSettle(
+    'probe',
+    '{}',
+    '{}',
+    'mutation',
+    null,
+    null,
+    '41',
+    (operation, argsJson) => {
+      const op = operation.split('|').at(-1);
+      const args = JSON.parse(argsJson);
+      calls.push({ op, args });
+      if (op === 'db.get') {
+        return {
+          _id: 'profile-1',
+          image: {
+            assetId: 'asset-1',
+            kind: 'image',
+            __snapbackMediaProvenanceV1: 'smp1.invocation-local-secret',
+          },
+        };
+      }
+      return null;
+    },
+  ));
+  assert.equal(decoded.ok, true);
+  assert.equal(decoded.value.markerVisible, false);
+  assert.deepEqual(decoded.value.image, { assetId: 'asset-1', kind: 'image' });
+  assert.deepEqual(calls.at(-1), {
+    op: 'media.handoff',
+    args: {
+      occurrences: [{
+        path: ['image'],
+        token: 'smp1.invocation-local-secret',
+      }],
+    },
+  });
+});
+
+// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+test('structural media copies lose provenance custody', async () => {
+  const context = vm.createContext({});
+  const calls = [];
+  vm.runInContext(bootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(`
+    globalThis.__snapbackHandlers = {
+      probe: async function(ctx) {
+        var row = await ctx.db.get('profiles', 'profile-1');
+        return { image: { assetId: row.image.assetId, kind: row.image.kind } };
+      }
+    };
+  `, context);
+  await context.__snapbackSettle(
+    'probe',
+    '{}',
+    '{}',
+    'mutation',
+    null,
+    null,
+    '42',
+    (operation, argsJson) => {
+      const op = operation.split('|').at(-1);
+      const args = JSON.parse(argsJson);
+      calls.push({ op, args });
+      if (op === 'db.get') {
+        return {
+          _id: 'profile-1',
+          image: {
+            assetId: 'asset-1',
+            kind: 'image',
+            __snapbackMediaProvenanceV1: 'smp1.invocation-local-secret',
+          },
+        };
+      }
+      return null;
+    },
+  );
+  assert.deepEqual(calls.at(-1), {
+    op: 'media.handoff',
+    args: { occurrences: [] },
+  });
+});
+
 test('mutation settlement availability refusals survive the JS-host decoder', () => {
   assert.equal(
     handlerEnvelopeCode('SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE'),

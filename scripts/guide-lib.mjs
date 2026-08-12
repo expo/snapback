@@ -48,7 +48,9 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // its nonclaims inline (production blind-accept signup and mail-delivered
 // reset are unready, local reset is capture-mailbox only) so the boundary is
 // visible in the index rather than only on the page.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 55808;
+// Bumped 55808 -> 56832 on 2026-08-12 for LLP 0244's one new
+// assets.media-field.v1 row, including its explicit future-work nonclaims.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 56832;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

@@ -85,7 +85,7 @@ function primitiveKind(contract) {
   if (['string', 'principal', 'assetRef', 'id'].includes(contract.kind)) return 'string';
   if (['integer', 'finiteReal'].includes(contract.kind)) return 'number';
   if (contract.kind === 'array' || contract.kind === 'tuple' || contract.kind === 'vector') return 'array';
-  if (contract.kind === 'object') return 'object';
+  if (contract.kind === 'object' || contract.kind === 'mediaRef.v1') return 'object';
   if (contract.kind === 'literal') {
     if (contract.value === null) return 'null';
     if (Array.isArray(contract.value)) return 'array';
@@ -241,6 +241,7 @@ export function validatorResultValue(validator, {
   legacy = false,
   args = false,
   tables,
+  mediaSource,
 } = {}) {
   if (!validator || validator.__validator !== true) {
     throw new TypeError('result value must be a Snapback validator');
@@ -331,7 +332,35 @@ export function validatorResultValue(validator, {
       value = scalar('vector', { dimensions: fieldType.Vector.dimensions });
     }
     else if (fieldType && typeof fieldType === 'object' && fieldType.AssetRef) {
-      value = scalar('assetRef');
+      const media = fieldType.AssetRef.media;
+      if (!media) value = scalar('assetRef');
+      else {
+        if (args || !mediaSource) {
+          throw new TypeError('v.media() is a top-level stored field projection, not an argument or anonymous result validator');
+        }
+        const sourceFieldGeneration = `sha256:${createHash('sha256')
+          .update('snapback:media-source-field-generation:v1\n')
+          .update(canonicalJson({
+            table: mediaSource.table,
+            field: mediaSource.field,
+            descriptor: media,
+          }))
+          .digest('hex')}`;
+        value = scalar('mediaRef.v1', {
+          sourceTable: mediaSource.table,
+          sourceField: mediaSource.field,
+          sourceFieldGeneration,
+          optional: mediaSource.optional === true,
+          classMTreatment: 'class-m.none.v1',
+          uploadIntent: media.intent,
+          policyGeneration: media.policy,
+          kinds: [...media.kinds],
+          delivery: media.delivery ?? null,
+          variants: [...(media.variants ?? [])],
+          classificationProfile: media.classificationProfile,
+          retentionClass: media.retentionClass,
+        });
+      }
     }
     else if (fieldType && typeof fieldType === 'object' && fieldType.RelationIncarnation) {
       // @ref LLP 0131#the-argument-contract-descriptor — normalization rule:
@@ -410,7 +439,7 @@ function tableDocumentValue(table, tables) {
             ? field.field_type.toLowerCase()
             : 'string',
           optional: false,
-        });
+        }, { mediaSource: { table, field: field.name, optional: field.optional } });
     fields.push({
       name: field.name,
       // Storage materializes authored optionals as a present null.
@@ -425,7 +454,7 @@ function tableDocumentValue(table, tables) {
   return scalar('object', { fields, allowExtra: false });
 }
 
-function tableFieldValue(field) {
+function tableFieldValue(field, table) {
   const value = field.field_type?.Structured
     ? structuredClone(field.field_type.Structured.contract.descriptor)
     : validatorResultValue({
@@ -435,7 +464,7 @@ function tableFieldValue(field) {
           ? field.field_type.toLowerCase()
           : 'string',
         optional: false,
-      });
+      }, { mediaSource: { table, field: field.name, optional: field.optional } });
   // Search stores every declared projection key. An absent optional source
   // value is materialized as JSON null by the Rust authority.
   return field.optional
@@ -479,7 +508,7 @@ function relationalRowsValue(runtime, tables) {
         `relational result contract references unknown field ${tableName}.${fieldName}`,
       );
     }
-    const value = tableFieldValue(field);
+    const value = tableFieldValue(field, tableName);
     return nullable ? nullableValue(value) : value;
   };
   const fields = plan.projection.map((leaf) => {
@@ -542,7 +571,7 @@ function searchRowsValue(runtime, tables) {
         `search result contract references unknown stored field ${plan.table}.${name}`,
       );
     }
-    return { name, required: true, value: tableFieldValue(field) };
+    return { name, required: true, value: tableFieldValue(field, plan.table) };
   });
   return {
     kind: 'records',
@@ -627,7 +656,7 @@ function vectorRowsValue(runtime, tables) {
     const field = sourceFields.get(name);
     if (!field) throw new TypeError(`vector result contract references unknown stored field ${plan.table}.${name}`);
     if (field.field_type?.Vector) throw new TypeError('vector storedFields must not expose source vectors');
-    return { name, required: true, value: tableFieldValue(field) };
+    return { name, required: true, value: tableFieldValue(field, plan.table) };
   });
   return {
     kind: 'records',
@@ -925,6 +954,9 @@ function resultValueType(value) {
   if (value.kind === 'null') return 'null';
   if (value.kind === 'boolean') return 'boolean';
   if (value.kind === 'string' || value.kind === 'principal' || value.kind === 'assetRef') return 'string';
+  if (value.kind === 'mediaRef.v1') {
+    return `{ readonly assetId: string; readonly kind: ${value.kinds.map(JSON.stringify).join(' | ')} }`;
+  }
   if (value.kind === 'id') return `Id<${JSON.stringify(value.table)}>`;
   if (value.kind === 'integer' || value.kind === 'finiteReal') return 'number';
   if (value.kind === 'literal') return JSON.stringify(value.value);

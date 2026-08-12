@@ -1981,6 +1981,7 @@ mod guarded_commit_tests {
                     job_producer: None,
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
+                    media_projection_proof: None,
                 },
                 identity,
                 || Ok(()),
@@ -7177,6 +7178,7 @@ mod guarded_commit_tests {
                     job_producer: None,
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
+                    media_projection_proof: None,
                 },
                 Some(&buffered_identity),
                 || Ok(()),
@@ -7413,6 +7415,7 @@ mod guarded_commit_tests {
                         job_producer: None,
                         asset_admissions: Vec::new(),
                         asset_grant_ops: Vec::new(),
+                        media_projection_proof: None,
                     },
                     Some(identity),
                     || Ok(()),
@@ -7502,6 +7505,7 @@ mod guarded_commit_tests {
                         job_producer: None,
                         asset_admissions: Vec::new(),
                         asset_grant_ops: Vec::new(),
+                        media_projection_proof: None,
                     },
                     Some(identity),
                     || Ok(()),
@@ -8089,6 +8093,7 @@ mod guarded_commit_tests {
             job_producer: None,
             asset_admissions: Vec::new(),
             asset_grant_ops: Vec::new(),
+            media_projection_proof: None,
         };
         let first_buffered = both
             .mutation_writes()
@@ -9085,6 +9090,7 @@ mod guarded_commit_tests {
             job_producer: None,
             asset_admissions: Vec::new(),
             asset_grant_ops: Vec::new(),
+            media_projection_proof: None,
         }
     }
 
@@ -9719,7 +9725,10 @@ mod guarded_commit_tests {
                 foreign_key_field: "parentId".to_owned(),
                 parent_table: "parents".to_owned(),
             },
-            FieldType::AssetRef { upload: None },
+            FieldType::AssetRef {
+                upload: None,
+                media: None,
+            },
         ];
         for field_type in string_families {
             let field = declared_storage_field(field_type, false);
@@ -12697,6 +12706,7 @@ mod guarded_commit_tests {
                     job_producer: None,
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
+                    media_projection_proof: None,
                 },
                 None,
                 || Ok(()),
@@ -13556,6 +13566,7 @@ mod membership_write_tests {
                     job_enqueues: Vec::new(),
                     job_producer: None,
                     asset_grant_ops: Vec::new(),
+                    media_projection_proof: None,
                 },
                 None,
                 || Ok(()),
@@ -16958,5 +16969,397 @@ mod membership_write_tests {
             })
             .expect("predecessor identity remains active");
         assert!(matches!(matched, SeedEnsureResultV1::Matched { .. }));
+    }
+}
+
+#[cfg(test)]
+mod media_ref_projection_acceptance_tests {
+    use super::*;
+
+    fn media_database() -> LocalDatabase {
+        let manifest: SchemaManifest = serde_json::from_str(include_str!(
+            "../../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
+        ))
+        .expect("generated media fixture schema");
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.schema_seed()
+            .apply_schema(manifest)
+            .expect("apply generated media fixture schema");
+        db
+    }
+
+    fn asset(asset_id: &str, owner: &str, availability: crate::assets::AssetAvailability) -> crate::assets::AssetRecordV1 {
+        let ready = availability == crate::assets::AssetAvailability::Ready;
+        crate::assets::AssetRecordV1 {
+            asset_id: asset_id.to_owned(),
+            app_id: "media-profile-fixture".to_owned(),
+            intent_id: "media-profile-fixture:profileImageUpload".to_owned(),
+            intent_name: "profileImageUpload".to_owned(),
+            intent_policy_hash: "sha256:media-fixture-policy".to_owned(),
+            policy_generation: 0,
+            owner_principal: owner.to_owned(),
+            delivery_profile: crate::assets::AssetDeliveryProfile::PrivateStrict,
+            read_access: crate::assets::AssetReadAccessPolicy::ViaReferences,
+            grants_enabled: false,
+            availability,
+            primary_rendition_id: ready.then(|| format!("rendition-{asset_id}")),
+            media_kind: ready.then_some(crate::contract_types::MediaKindV1::Image),
+            lifecycle_generation: u64::from(ready),
+            created_at_ms: 1,
+            updated_at_ms: 1,
+            deleted_at_ms: None,
+        }
+    }
+
+    fn install_asset(
+        db: &mut LocalDatabase,
+        asset_id: &str,
+        owner: &str,
+        availability: crate::assets::AssetAvailability,
+    ) {
+        let ready = availability == crate::assets::AssetAvailability::Ready;
+        let tx = db.conn.transaction().expect("asset fixture transaction");
+        crate::assets::insert_asset(&tx, &asset(asset_id, owner, availability))
+            .expect("insert fixture asset");
+        if ready {
+            crate::assets::insert_rendition(
+                &tx,
+                &crate::assets::AssetRenditionRecordV1 {
+                    rendition_id: format!("rendition-{asset_id}"),
+                    asset_id: asset_id.to_owned(),
+                    variant_key: crate::assets::ASSET_RENDITION_PRIMARY.to_owned(),
+                    blob_id: format!("blob-{asset_id}"),
+                    state: crate::assets::AssetRenditionState::Ready,
+                    recipe: "identity".to_owned(),
+                    recipe_version: 1,
+                    media_facts: Some(json!({ "contentType": "image/png" })),
+                    created_at_ms: 1,
+                    updated_at_ms: 1,
+                    failure: None,
+                },
+            )
+            .expect("insert ready primary rendition");
+        }
+        tx.commit().expect("commit asset fixture");
+    }
+
+    fn principal(user: &str) -> HandlerInput {
+        HandlerInput {
+            auth: AuthInput {
+                principal: Some(user.to_owned()),
+                user_id: Some(user.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    fn insert_profile(image: Value, return_document: bool) -> MutationPlan {
+        MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "profiles".to_owned(),
+                values: BTreeMap::from([
+                    ("ownerId".to_owned(), ValueExpr::Literal(json!("row-owner"))),
+                    ("displayName".to_owned(), ValueExpr::Literal(json!("Ada"))),
+                    ("image".to_owned(), ValueExpr::Literal(image)),
+                ]),
+                bind_id_as: Some("profileId".to_owned()),
+            }],
+            return_value: return_document.then(|| ReturnValue::Document {
+                table: "profiles".to_owned(),
+                id: ValueExpr::Binding("profileId".to_owned()),
+            }),
+        }
+    }
+
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    /// @ref LLP 0244#d2-kind-is-disclosed-with-field-delivery-policy-produces-denied
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn query_projection_is_snapshot_local_retry_is_exact_and_denied_delivery_is_not_an_oracle() {
+        let mut db = media_database();
+        install_asset(
+            &mut db,
+            "asset-ready",
+            "asset-owner",
+            crate::assets::AssetAvailability::Ready,
+        );
+        let input = principal("asset-owner");
+        let plan = insert_profile(json!("asset-ready"), true);
+        let identity = ClientMutationIdentity::new("media-settlement", "setProfileImage", &input);
+
+        let fresh = db
+            .mutation_writes()
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("fresh media mutation");
+        assert_eq!(
+            fresh.output.result["image"],
+            json!({ "assetId": "asset-ready", "kind": "image" })
+        );
+        let replay = db
+            .mutation_writes()
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("same attempt replays");
+        assert_eq!(replay.output, fresh.output, "retry republishes the exact settlement");
+        assert!(replay.changes.is_empty(), "retry performs no second write");
+
+        let query = QueryPlan {
+            table: "profiles".to_owned(),
+            table_visibility: None,
+            filters: Vec::new(),
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+        let outsider = principal("outsider");
+        let projected = db
+            .query_reads_read()
+            .query(&query, &outsider)
+            .expect("readable row projects media in its pinned transaction");
+        assert_eq!(projected.rows.len(), 1);
+        assert_eq!(
+            projected.rows[0]["image"],
+            json!({ "assetId": "asset-ready", "kind": "image" })
+        );
+
+        let schema = db.schema().clone();
+        let tx = db.conn.unchecked_transaction().expect("authorization probe");
+        let ready = crate::assets::load_asset(&tx, "asset-ready")
+            .expect("load asset")
+            .expect("ready asset exists");
+        let decision = asset_read_authorized(&schema, &tx, Some("outsider"), &ready)
+            .expect("asset authorization decision");
+        assert!(!decision.authorized, "delivery remains denied despite coarse projection");
+        tx.rollback().expect("rollback read-only authorization probe");
+
+        let (format, sequence, seal): (String, i64, Option<String>) = db
+            .conn
+            .query_row(
+                "SELECT settlement_format, settlement_record_sequence,
+                        settlement_projection_seal_json
+                   FROM _snapback_client_mutations
+                  WHERE client_mutation_id = ?1",
+                [&identity.id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("retained media settlement");
+        assert_eq!(format, MEDIA_SETTLEMENT_FORMAT_V1);
+        assert!(sequence > 0);
+        let seal: Value = serde_json::from_str(seal.as_deref().expect("media seal"))
+            .expect("closed settlement seal");
+        assert_eq!(seal["settlementId"], identity.activity_digest());
+        assert!(seal["resultContractHash"].as_str().is_some());
+        assert!(seal["mediaProjectionProfileHash"].as_str().is_some());
+    }
+
+    /// @ref LLP 0244#d3-vmedia-attachment-is-finalized-only-in-v1
+    #[test]
+    fn pending_media_attachment_is_refused_at_the_commit_boundary() {
+        let mut db = media_database();
+        install_asset(
+            &mut db,
+            "asset-pending",
+            "asset-owner",
+            crate::assets::AssetAvailability::Pending,
+        );
+        let error = db
+            .mutation_writes()
+            .execute_mutation(&insert_profile(json!("asset-pending"), false), &principal("asset-owner"))
+            .expect_err("pending media must not attach");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_ASSET_NOT_FINALIZED");
+        let count: i64 = db
+            .conn
+            .query_row("SELECT count(*) FROM profiles", [], |row| row.get(0))
+            .expect("profile count");
+        assert_eq!(count, 0, "the refusing transaction rolls back its row");
+    }
+
+    /// @ref LLP 0244#d3-vmedia-attachment-is-finalized-only-in-v1
+    #[test]
+    fn projected_kind_objects_are_refused_as_forged_write_authority() {
+        let mut db = media_database();
+        let error = db
+            .mutation_writes()
+            .execute_mutation(
+                &insert_profile(
+                    json!({ "assetId": "asset-ready", "kind": "video" }),
+                    false,
+                ),
+                &principal("asset-owner"),
+            )
+            .expect_err("MediaRef objects are output-only");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_WRITE_FORGED_KIND");
+    }
+
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn valid_json_semantic_edit_of_media_settlement_fails_before_recovery_publication() {
+        let mut db = media_database();
+        install_asset(
+            &mut db,
+            "asset-ready",
+            "asset-owner",
+            crate::assets::AssetAvailability::Ready,
+        );
+        let input = principal("asset-owner");
+        let plan = insert_profile(json!("asset-ready"), true);
+        let identity = ClientMutationIdentity::new("media-tamper", "setProfileImage", &input);
+        db.mutation_writes()
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("sealed media settlement");
+
+        let output_json: String = db
+            .conn
+            .query_row(
+                "SELECT output_json FROM _snapback_client_mutations
+                  WHERE client_mutation_id = ?1",
+                [&identity.id],
+                |row| row.get(0),
+            )
+            .expect("settlement output");
+        let mut edited: Value = serde_json::from_str(&output_json).expect("valid settlement JSON");
+        edited["result"]["image"]["kind"] = json!("video");
+        let edited = settlement_jcs(&edited).expect("semantic edit remains canonical JSON");
+        db.conn
+            .execute(
+                "UPDATE _snapback_client_mutations SET output_json = ?1
+                  WHERE client_mutation_id = ?2",
+                params![edited, identity.id],
+            )
+            .expect("install corruption fixture");
+
+        let error = db
+            .mutation_writes()
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect_err("seal rejects valid-JSON semantic corruption");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_RESULT_INTEGRITY"
+        );
+    }
+
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn related_media_fact_movement_refuses_at_the_ordinary_occ_gate() {
+        let mut db = media_database();
+        install_asset(
+            &mut db,
+            "asset-ready",
+            "asset-owner",
+            crate::assets::AssetAvailability::Ready,
+        );
+        let snapshot_version = db.current_version().expect("snapshot version");
+        let digest = media_projection_fact_digest_on(&db.conn, "asset-ready")
+            .expect("captured related facts");
+        let dependency = CapturedReadDependency {
+            kind: CapturedReadKind::Permission,
+            table: Some(crate::assets::ASSET_RECORDS_TABLE.to_owned()),
+            id: Some("asset-ready".to_owned()),
+            version: Some(snapshot_version),
+            predicate: None,
+            rows: Vec::new(),
+            field: Some(MEDIA_PROJECTION_DEPENDENCY_FIELD_V1.to_owned()),
+            value: Some(Value::String(digest)),
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        };
+
+        let tx = db.conn.transaction().expect("external asset movement");
+        let mut moved = crate::assets::load_asset(&tx, "asset-ready")
+            .expect("load asset")
+            .expect("ready asset");
+        moved.lifecycle_generation += 1;
+        moved.updated_at_ms += 1;
+        crate::assets::store_asset(&tx, &moved).expect("move related facts");
+        tx.commit().expect("commit external asset movement");
+
+        let schema = db.schema().clone();
+        let tx = db.conn.transaction().expect("commit OCC gate");
+        let error = validate_captured_read_set(
+            &tx,
+            &schema,
+            &principal("asset-owner"),
+            std::slice::from_ref(&dependency),
+            snapshot_version,
+        )
+        .expect_err("related asset movement must conflict before egress");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+        assert_eq!(error.diagnostic.details["retryPolicy"], "reject");
+        tx.rollback().expect("rollback validation probe");
+    }
+
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn settlement_epoch_watermarks_predecessors_and_never_reopens_legacy_admission() {
+        let mut db = media_database();
+        let plan = MutationPlan {
+            steps: Vec::new(),
+            return_value: Some(ReturnValue::Literal(json!({ "plain": true }))),
+        };
+        let input = HandlerInput::default();
+        let predecessor = ClientMutationIdentity::new("legacy-predecessor", "plain", &input);
+        let first = db
+            .mutation_writes()
+            .execute_mutation_idempotent(&plan, &input, &predecessor)
+            .expect("predecessor settlement");
+
+        db.conn
+            .execute(
+                "UPDATE _snapback_client_mutations
+                    SET settlement_format = NULL,
+                        settlement_record_sequence = NULL,
+                        settlement_projection_seal_json = NULL
+                  WHERE client_mutation_id = ?1",
+                [&predecessor.id],
+            )
+            .expect("model predecessor carrier");
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_meta
+                  WHERE key IN (?1, ?2)",
+                params![META_SETTLEMENT_FORMAT_EPOCH_V1, META_SETTLEMENT_NEXT_SEQUENCE_V1],
+            )
+            .expect("model pre-epoch store");
+        let tx = db.conn.transaction().expect("format migration");
+        initialize_settlement_format_epoch_v1(&tx).expect("stamp immutable legacy watermark");
+        tx.commit().expect("commit format migration");
+
+        let (format, sequence): (String, i64) = db
+            .conn
+            .query_row(
+                "SELECT settlement_format, settlement_record_sequence
+                   FROM _snapback_client_mutations
+                  WHERE client_mutation_id = ?1",
+                [&predecessor.id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("migrated predecessor");
+        assert_eq!(format, LEGACY_SETTLEMENT_FORMAT_V1);
+        assert_eq!(sequence, 1);
+        let replay = db
+            .mutation_writes()
+            .execute_mutation_idempotent(&plan, &input, &predecessor)
+            .expect("watermarked predecessor remains replayable");
+        assert_eq!(replay.output, first.output);
+
+        let successor = ClientMutationIdentity::new("post-watermark", "plain", &input);
+        db.mutation_writes()
+            .execute_mutation_idempotent(&plan, &input, &successor)
+            .expect("post-watermark settlement");
+        let (format, sequence): (String, i64) = db
+            .conn
+            .query_row(
+                "SELECT settlement_format, settlement_record_sequence
+                   FROM _snapback_client_mutations
+                  WHERE client_mutation_id = ?1",
+                [&successor.id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("post-watermark carrier");
+        assert_eq!(format, PLAIN_SETTLEMENT_FORMAT_V1);
+        assert_eq!(sequence, 2);
     }
 }

@@ -1,0 +1,62 @@
+{
+  "appId": "media-profile-fixture",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "authoredSourceHash": "sha256:ebb04301732af2158a37669fddbcc3799457e154db36468e841d273e7c3ba895",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "8253ae0b273a16e547288102e0a0843b5ea0d4a3cd0534d6a166808c89fd71de",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "assets.media-ref-projection.v1"
+  ],
+  "schemaHash": "sha256:1166da2451a839e5",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "assetSharing": {
+        "field": "ownerId",
+        "kind": "owner"
+      },
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "displayName",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "media": {
+                "classificationProfile": "detected-content-type.v1",
+                "delivery": "primary",
+                "intent": "profileImageUpload",
+                "kinds": [
+                  "image"
+                ],
+                "policy": "profile-image.v1",
+                "retentionClass": "media-reference.v1",
+                "targetCapability": "assets.media-ref-projection.v1",
+                "variants": [
+                  "primary"
+                ]
+              },
+              "upload": "profileImageUpload"
+            }
+          },
+          "name": "image",
+          "optional": true
+        }
+      ],
+      "indexes": [],
+      "name": "profiles",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

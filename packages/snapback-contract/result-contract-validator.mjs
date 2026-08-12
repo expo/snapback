@@ -60,7 +60,7 @@ function primitiveKind(contract) {
   if (['string', 'principal', 'assetRef', 'id'].includes(contract.kind)) return 'string';
   if (['integer', 'finiteReal'].includes(contract.kind)) return 'number';
   if (contract.kind === 'array' || contract.kind === 'tuple' || contract.kind === 'vector') return 'array';
-  if (contract.kind === 'object') return 'object';
+  if (contract.kind === 'object' || contract.kind === 'mediaRef.v1') return 'object';
   if (contract.kind === 'literal') {
     if (contract.value === null) return 'null';
     return typeof contract.value;
@@ -116,6 +116,11 @@ function admitValueContract(contract, depth, budget, where) {
       case 'boolean':
       case 'principal':
       case 'assetRef': return ['kind'];
+      case 'mediaRef.v1': return [
+        'kind', 'sourceTable', 'sourceField', 'sourceFieldGeneration', 'optional',
+        'classMTreatment', 'uploadIntent', 'policyGeneration', 'kinds', 'delivery',
+        'variants', 'classificationProfile', 'retentionClass',
+      ];
       case 'string': return ['kind', 'maxBytes'];
       case 'integer':
       case 'finiteReal': return ['kind', 'min', 'max'];
@@ -137,6 +142,37 @@ function admitValueContract(contract, depth, budget, where) {
     case 'principal':
     case 'assetRef':
       break;
+    case 'mediaRef.v1': {
+      for (const name of [
+        'sourceTable', 'sourceField', 'sourceFieldGeneration', 'classMTreatment',
+        'uploadIntent', 'policyGeneration', 'classificationProfile', 'retentionClass',
+      ]) {
+        if (typeof contract[name] !== 'string' || contract[name].length === 0) {
+          throw invalid(`${where}.${name} must be non-empty`);
+        }
+      }
+      if (
+        typeof contract.optional !== 'boolean'
+        || (contract.delivery !== null && typeof contract.delivery !== 'string')
+      ) throw invalid(`${where} has invalid optional/delivery facts`);
+      const admitted = new Set(['image', 'video', 'audio', 'file']);
+      if (
+        !Array.isArray(contract.kinds)
+        || contract.kinds.length < 1
+        || new Set(contract.kinds).size !== contract.kinds.length
+        || !contract.kinds.every((kind) => admitted.has(kind))
+      ) throw invalid(`${where}.kinds must be a non-empty closed media-kind set`);
+      if (
+        !Array.isArray(contract.variants)
+        || !contract.variants.every((variant) => typeof variant === 'string' && variant.length > 0)
+        || new Set(contract.variants).size !== contract.variants.length
+      ) throw invalid(`${where}.variants must contain unique non-empty names`);
+      if (
+        contract.classificationProfile !== 'detected-content-type.v1'
+        || contract.retentionClass !== 'media-reference.v1'
+      ) throw invalid(`${where} has an unsupported media projection profile`);
+      break;
+    }
     case 'string':
       integer(contract.maxBytes, `${where}.maxBytes`, {
         min: 0,
@@ -328,6 +364,12 @@ function valuePath(contract, value, path, depth, budget) {
     case 'assetRef':
     case 'id':
       return typeof value === 'string' && value.length > 0 ? null : path;
+    case 'mediaRef.v1':
+      return value !== null && typeof value === 'object' && !Array.isArray(value)
+        && Object.keys(value).length === 2
+        && typeof value.assetId === 'string' && value.assetId.length > 0
+        && contract.kinds.includes(value.kind)
+        ? null : path;
     case 'literal':
       return canonicalJson(value) === canonicalJson(contract.value) ? null : path;
     case 'json': {

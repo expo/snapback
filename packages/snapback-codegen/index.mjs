@@ -656,7 +656,8 @@ function singleTableRqsDigestKind(fn) {
   // already-emitted summary. Consume the same host-owned derivation in both
   // positions; an author-supplied class marker is never consulted.
   const summary = fn.readSetSummary ?? readSummary(fn);
-  if (fn.authorityIndependent !== true
+  if (resultContractContainsMedia(fn.resultContract)
+    || fn.authorityIndependent !== true
     || fn.kind !== 'LiveQuery'
     || fn.authRequirement !== 'public'
     || (fn.uses?.length ?? 0) !== 0
@@ -1006,6 +1007,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'structured_stored_value_v1',
   'result_contract_v1',
   'args_contract_v1',
+  'assets.media-ref-projection.v1',
   'settlement.bounded_skew',
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
@@ -1030,6 +1032,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'asset_image_finalization_v1',
   'asset_image_pipeline_v1',
   'asset_lifecycle_v1',
+  'assets.media-ref-projection.v1',
   'asset_reference_gc_v1',
   'asset_video_finalization_v1',
   'bounded_children_v1',
@@ -1087,6 +1090,13 @@ const TARGET_PROFILES = new Map([
     outputDirectory: 'generated-remote-service',
   }],
 ]);
+
+function resultContractContainsMedia(value) {
+  if (!value || typeof value !== 'object') return false;
+  if (value.kind === 'mediaRef.v1') return true;
+  if (Array.isArray(value)) return value.some(resultContractContainsMedia);
+  return Object.values(value).some(resultContractContainsMedia);
+}
 const REMOTE_SERVICE_WIRE_SCHEMAS = Object.freeze({
   queryInput: 'schemas/query.input.schema.json',
   mutationInput: 'schemas/mutation.input.schema.json',
@@ -2121,6 +2131,12 @@ async function generateInProcessLocked({
         field_type: val.fieldType,
         optional: val.optional,
       });
+      if (
+        val.fieldType?.AssetRef?.media
+        && !schemaRequiredCapabilities.includes('assets.media-ref-projection.v1')
+      ) {
+        schemaRequiredCapabilities.push('assets.media-ref-projection.v1');
+      }
     }
 
     const indexes = [];
@@ -5078,6 +5094,16 @@ async function generateInProcessLocked({
     functions,
     functionDefinitionSourceSpans,
   );
+  for (const fn of decoratedFunctionDefinitions) {
+    if (fn.kind === 'Action' && resultContractContainsMedia(fn.resultContract)) {
+      err(
+        'SNAPBACK_MEDIA_PROJECTION_SNAPSHOT_UNAVAILABLE',
+        'asset',
+        `${fn.name}: an Action direct result cannot carry mediaRef.v1; return it from a Query or Mutation`,
+        { function: fn.name },
+      );
+    }
+  }
   for (const fn of decoratedFunctionDefinitions) {
     const binding = contractQueries[fn.name]
       ?? contractMutations[fn.name]
@@ -8396,6 +8422,20 @@ function providerResultDescriptor(contract) {
     if (entry.kind === 'string' || entry.kind === 'principal' || entry.kind === 'assetRef' || entry.kind === 'id') {
       return { shape: 'primitive', name: 'string' };
     }
+    if (entry.kind === 'mediaRef.v1') {
+      return {
+        shape: 'object',
+        fields: {
+          assetId: { shape: 'primitive', name: 'string' },
+          kind: entry.kinds.length === 1
+            ? { shape: 'literal', value: entry.kinds[0] }
+            : {
+                shape: 'union',
+                variants: entry.kinds.map((kind) => ({ shape: 'literal', value: kind })),
+              },
+        },
+      };
+    }
     if (entry.kind === 'literal') {
       return { shape: 'literal', value: entry.value };
     }
@@ -9421,6 +9461,9 @@ function requiredCapabilities(fn) {
     // and empty argument roots included), so deployment to a target that
     // does not run the fail-closed ingress seam refuses outright.
     'args_contract_v1',
+    ...(resultContractContainsMedia(fn.resultContract)
+      ? ['assets.media-ref-projection.v1']
+      : []),
     ...(fn.handlerForm === 'inline' ? ['inline_handler_v1'] : []),
   ];
   if (fn.runtime?.HostPlan?.SearchQuery) {
@@ -12294,6 +12337,9 @@ function surfaceContractType(value) {
   if (!value || typeof value !== 'object') return 'unknown';
   if (value.kind === 'null') return 'null';
   if (value.kind === 'string' || value.kind === 'assetRef') return 'string';
+  if (value.kind === 'mediaRef.v1') {
+    return `{ readonly assetId: string; readonly kind: ${(value.kinds ?? []).map(JSON.stringify).join(' | ')} }`;
+  }
   if (value.kind === 'commandAssetSource') return 'CommandAssetSource';
   if (value.kind === 'principal') return 'Principal';
   if (value.kind === 'id') return `Id<${JSON.stringify(value.table)}>`;

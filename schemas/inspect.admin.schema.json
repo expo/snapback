@@ -4349,6 +4349,16 @@
           "properties": {
             "AssetRef": {
               "properties": {
+                "media": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/MediaFieldDescriptorV1"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "upload": {
                   "type": [
                     "string",
@@ -5873,6 +5883,63 @@
       ],
       "type": "object"
     },
+    "MediaFieldDescriptorV1": {
+      "additionalProperties": false,
+      "description": "Semantic facts for the finalized-only member of the AssetRef family.\nThe application column still contains only the opaque asset id.\n@ref LLP 0244#d1-one-authoritative-media-result-materialization-cut",
+      "properties": {
+        "classificationProfile": {
+          "type": "string"
+        },
+        "delivery": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "intent": {
+          "type": "string"
+        },
+        "kinds": {
+          "items": {
+            "$ref": "#/$defs/MediaKindV1"
+          },
+          "type": "array"
+        },
+        "policy": {
+          "type": "string"
+        },
+        "retentionClass": {
+          "type": "string"
+        },
+        "targetCapability": {
+          "type": "string"
+        },
+        "variants": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "intent",
+        "policy",
+        "kinds",
+        "classificationProfile",
+        "retentionClass",
+        "targetCapability"
+      ],
+      "type": "object"
+    },
+    "MediaKindV1": {
+      "enum": [
+        "image",
+        "video",
+        "audio",
+        "file"
+      ],
+      "type": "string"
+    },
     "MembershipExpiry": {
       "additionalProperties": false,
       "description": "`expiry: { field, onExpiry }` — a time-bounded membership materialized by\nthe host-bound sweep. In v1 the only `onExpiry` effect is `remove`: with no\ndeclared role ordering the host cannot prove any downgrade is\nnon-escalating, so a `downgradeTo:` effect is a manifest error.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — remove-only\n  in v1; the host owns the rollback-checked sweep.",
@@ -7396,6 +7463,76 @@
           },
           "required": [
             "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The same-snapshot projection of one distinguished media field.",
+          "properties": {
+            "classMTreatment": {
+              "type": "string"
+            },
+            "classificationProfile": {
+              "type": "string"
+            },
+            "delivery": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "const": "mediaRef.v1",
+              "type": "string"
+            },
+            "kinds": {
+              "items": {
+                "$ref": "#/$defs/MediaKindV1"
+              },
+              "type": "array"
+            },
+            "optional": {
+              "type": "boolean"
+            },
+            "policyGeneration": {
+              "type": "string"
+            },
+            "retentionClass": {
+              "type": "string"
+            },
+            "sourceField": {
+              "type": "string"
+            },
+            "sourceFieldGeneration": {
+              "type": "string"
+            },
+            "sourceTable": {
+              "type": "string"
+            },
+            "uploadIntent": {
+              "type": "string"
+            },
+            "variants": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "sourceTable",
+            "sourceField",
+            "sourceFieldGeneration",
+            "optional",
+            "classMTreatment",
+            "uploadIntent",
+            "policyGeneration",
+            "kinds",
+            "variants",
+            "classificationProfile",
+            "retentionClass"
           ],
           "type": "object"
         },
@@ -9057,6 +9194,7 @@
             "versioned_seed_reset_v1",
             "write_activity_v1",
             "asset_lifecycle_v1",
+            "assets.media-ref-projection.v1",
             "asset_image_finalization_v1",
             "asset_image_pipeline_v1",
             "asset_reference_gc_v1",
