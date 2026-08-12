@@ -883,10 +883,11 @@ fn configure(snapback: &mut LocalSnapback) {
         .apply_schema(concurrency_schema())
         .expect("apply schema");
     let diagnostics = snapback.load_functions(concurrency_functions());
-    assert!(diagnostics.iter().all(|diagnostic| {
-        diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
-            || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-    }));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED")
+    );
 }
 
 fn seed_todo(snapback: &mut LocalSnapback, title: &str) -> String {

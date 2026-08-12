@@ -15,8 +15,9 @@
 
 use serde_json::Value;
 use snapback::admin::{AdminInspect, ServerContext};
-use snapback::local::LocalSnapback;
+use snapback::local::{InspectState, LocalSnapback};
 use snapback::manifest::{FunctionManifest, SchemaManifest};
+use snapback::runtime::IbexCliCapability;
 use std::fs;
 use std::path::PathBuf;
 
@@ -36,6 +37,19 @@ fn configured_snapback() -> LocalSnapback {
     snapback.apply_schema(schema).expect("apply schema");
     snapback.load_functions(functions);
     snapback
+}
+
+fn missing_external_cli_inspect() -> InspectState {
+    let mut inspect = configured_snapback().inspect().expect("inspect");
+    inspect.runtime.ibex_cli = IbexCliCapability {
+        available: false,
+        path: None,
+        version: None,
+    };
+    if !inspect.capability_gaps.iter().any(|gap| gap == "ibex_cli") {
+        inspect.capability_gaps.push("ibex_cli".to_owned());
+    }
+    inspect
 }
 
 fn is_camel_case(key: &str) -> bool {
@@ -126,4 +140,34 @@ fn p8_diagnostic_severity_serializes_lowercase() {
     let parsed: snapback::diagnostic::DiagnosticSeverity =
         serde_json::from_value(Value::String("Error".into())).expect("old spelling parses");
     assert_eq!(parsed, snapback::diagnostic::DiagnosticSeverity::Error);
+}
+
+#[test]
+fn p8_missing_external_cli_stays_a_camel_case_capability_fact() {
+    let inspect = missing_external_cli_inspect();
+    let admin = serde_json::to_value(AdminInspect::assemble(
+        inspect.clone(),
+        &ServerContext::detached(),
+    ))
+    .expect("serialize admin inspect");
+    let public = serde_json::to_value(snapback::local::PublicInspect::from(inspect))
+        .expect("serialize public inspect");
+
+    for (name, payload) in [("admin", admin), ("public", public)] {
+        assert_eq!(payload["runtime"]["ibexCli"]["available"], false, "{name}");
+        assert!(
+            payload["capabilityGaps"]
+                .as_array()
+                .is_some_and(|gaps| gaps.iter().any(|gap| gap == "ibex_cli")),
+            "{name}: {payload}"
+        );
+        assert!(
+            payload["recentDiagnostics"]
+                .as_array()
+                .is_some_and(|diagnostics| diagnostics
+                    .iter()
+                    .all(|diagnostic| { diagnostic["code"] != "SNAPBACK_IBEX_CLI_UNAVAILABLE" })),
+            "{name}: {payload}"
+        );
+    }
 }

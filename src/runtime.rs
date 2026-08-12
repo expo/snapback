@@ -130,6 +130,13 @@ pub struct RuntimeManager {
     capabilities: RuntimeCapabilities,
 }
 
+// `SNAPBACK_IBEX_CLI_UNAVAILABLE` is retired as a produced diagnostic: external
+// Ibex CLI absence is now reported only as a runtime capability fact, and no
+// currently supported operation requires that executable. The code itself stays
+// reserved for historical records in the two projections that actually carry the
+// stable vocabulary — `guide/reference/diagnostics-registry.json` and the client
+// `diagnostic-codes.d.mts` union — so it is deliberately not re-declared here.
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct IbexQueryRun {
     pub output: QueryOutput,
@@ -390,27 +397,22 @@ impl RuntimeManager {
         &self.capabilities
     }
 
+    /// Diagnostics observed while detecting the runtime itself. Capability
+    /// availability is projected separately by [`Self::capabilities`].
+    ///
+    /// @ref LLP 0010#capability-reports — passive capability gaps are facts;
+    /// diagnostics begin when an operation actually requests missing power.
     pub fn diagnostics(&self) -> Vec<Diagnostic> {
-        let mut diagnostics = Vec::new();
-        if !self.capabilities.ibex_cli.available {
-            diagnostics.push(
-                Diagnostic::info(
-                    "SNAPBACK_IBEX_CLI_UNAVAILABLE",
-                    "runtime",
-                    "ibex binary was not found; embedded Ibex handlers still run through the vendored runtime",
-                )
-                // Detail keys are payload keys — camelCase per the LLP 0032
-                // P8 casing rule (tests/inspect_casing_v0.rs walks these when
-                // the diagnostic lands in recentDiagnostics).
-                .with_details(json!({
-                    "canonicalEngine": self.capabilities.canonical_engine,
-                    "ibexSubmodule": self.capabilities.ibex_submodule,
-                    "hostPlanRuntime": self.capabilities.host_plan_runtime,
-                    "ibexCtxDbHostBridge": self.capabilities.ibex_ctx_db_host_bridge
-                })),
-            );
-        }
-        diagnostics
+        Vec::new()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn force_ibex_cli_unavailable_for_test(&mut self) {
+        self.capabilities.ibex_cli = IbexCliCapability {
+            available: false,
+            path: None,
+            version: None,
+        };
     }
 
     /// Dry-run an Ibex-module mutation (LLP 0051 D8): the handler runs for
@@ -5101,6 +5103,27 @@ fn find_on_path(binary: &str) -> Option<PathBuf> {
 
 fn is_executable(path: &Path) -> bool {
     path.is_file()
+}
+
+#[cfg(test)]
+mod runtime_capability_diagnostic_tests {
+    use super::*;
+
+    #[test]
+    fn missing_external_ibex_cli_is_a_capability_fact_not_a_diagnostic() {
+        let mut runtime = RuntimeManager::detect();
+        runtime.force_ibex_cli_unavailable_for_test();
+
+        assert_eq!(
+            runtime.capabilities().ibex_cli,
+            IbexCliCapability {
+                available: false,
+                path: None,
+                version: None,
+            }
+        );
+        assert!(runtime.diagnostics().is_empty());
+    }
 }
 
 #[cfg(test)]

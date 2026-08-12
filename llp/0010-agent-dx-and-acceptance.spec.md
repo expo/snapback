@@ -5,6 +5,10 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-11 (runtime capability gaps are inspectable facts, not
+diagnostic occurrences by themselves; an unavailable capability emits a
+stable actionable diagnostic only when an operation actually requests it,
+while retired codes remain reserved in the compatibility vocabulary).
 **Revised:** 2026-08-10 (prepared Hermes artifacts are gitlink-stamped and must pass an early dlopen dependency-resolution probe). 2026-08-07 (LLP 0189 re-scope: release/capability-promotion authority follows the D-6 battery form; the former declared-complete-authority clause is superseded). 2026-08-06 (LLP 0175 D2 selector: every canonical gate is
 classified by a checked path authority; docs/guide can remain fast, affected
 code retains Contract/Exact and admin behavior plus prerequisite closure, and
@@ -782,6 +786,15 @@ features are present everywhere. Capability reports should include at least:
 - portability opt-outs.
 
 Adapters and tests must fail or degrade explicitly when a capability is missing.
+
+A passive capability gap is an inspectable target fact, not a diagnostic
+occurrence by itself. Runtime diagnostics record events that need attention:
+when an operation actually requests an unavailable capability, that operation
+must refuse with one stable, actionable diagnostic. Merely constructing a
+healthy target or reloading a generation must not turn the same missing optional
+capability into repeated notices. Retired diagnostic codes remain reserved in
+the compatibility vocabulary so older clients can continue to parse retained
+or historical records.
 
 Encode known **local-vs-server parity** divergences as capability flags or
 diagnostics rather than leaving them as tribal knowledge — the agent contract above

@@ -5342,7 +5342,6 @@ impl LocalSnapback {
         }
         diagnostics.extend(self.cron.reconcile(&self.functions));
         diagnostics.extend(self.reconcile_config());
-        diagnostics.extend(self.runtime.diagnostics());
         self.refresh_read_manifests();
         self.refresh_cron_active();
         if let Err(error) = self.persist_cron_state() {
@@ -7343,6 +7342,12 @@ impl LocalSnapback {
 
     pub(crate) fn current_capability_manifest(&self) -> CapabilityManifest {
         self.served_capability_manifest(self.capability_gaps())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn force_ibex_cli_unavailable_for_test(&mut self) {
+        self.runtime.force_ibex_cli_unavailable_for_test();
+        self.refresh_read_manifests();
     }
 
     fn project_agent_safe_app_effective(&self, manifest: &mut CapabilityManifest) {

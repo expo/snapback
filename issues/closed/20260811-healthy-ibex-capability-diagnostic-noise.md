@@ -1,6 +1,6 @@
 # Healthy embedded Ibex runtime reports CLI unavailability twice
 
-**Status:** Open
+**Status:** Closed 2026-08-11
 **Impact:** 2
 **Urgency:** 3
 **Ease:** 4
@@ -69,3 +69,18 @@ requires it during transition.
 - Bundling a second external Ibex executable into npm packages.
 - Changing the canonical embedded Ibex/Hermes execution engine.
 - Hiding errors or warnings because their codes happen to match.
+
+## Resolution
+
+`RuntimeManager::diagnostics()` no longer turns passive absence of the optional
+external `ibex` executable into a diagnostic occurrence. The exact absence
+remains projected through `runtime.ibexCli` and the `ibex_cli` capability gap,
+while each successful embedded generation continues to emit
+`SNAPBACK_IBEX_FUNCTIONS_LOADED`. No supported operation consumes the detected
+external executable, so there is no genuine missing-CLI refusal path to retain.
+
+The retired `SNAPBACK_IBEX_CLI_UNAVAILABLE` spelling remains reserved in the
+generated diagnostic vocabulary for compatibility with historical records.
+Runtime, local generation, inspect casing, server projection, and admin tests
+cover the new boundary; the admin regression also proves that two genuine
+same-code warnings remain two ordered `recentDiagnostics` occurrences.

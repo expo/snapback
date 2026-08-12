@@ -126,10 +126,11 @@ async fn stream_app() -> snapback::server::SnapbackApp {
         let _sanction = snapback::exec_guard::BlockingSanction::acquire();
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
         let diagnostics = snapback.load_functions(functions());
-        assert!(diagnostics.iter().all(|diagnostic| {
-            diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
-                || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-        }));
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED")
+        );
         snapback
             .set_config_entry("streamKey", vec![STREAM_SECRET.to_owned()], false, "test")
             .expect("stage stream secret");

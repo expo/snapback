@@ -176,10 +176,9 @@ fn configured_memory() -> LocalSnapback {
     snapback.apply_schema(bundle_schema()).expect("schema");
     let diagnostics = snapback.load_functions(bundle_functions());
     assert!(
-        diagnostics.iter().all(|diagnostic| {
-            diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
-                || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-        }),
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"),
         "unexpected load diagnostics: {diagnostics:?}"
     );
     snapback
@@ -291,10 +290,9 @@ fn nested_configured_memory() -> LocalSnapback {
     };
     let diagnostics = snapback.load_functions(functions);
     assert!(
-        diagnostics.iter().all(|diagnostic| {
-            diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
-                || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-        }),
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"),
         "unexpected nested function diagnostics: {diagnostics:?}"
     );
     snapback

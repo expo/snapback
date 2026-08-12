@@ -1548,6 +1548,67 @@ fn maintenance_failures_are_counted_redacted_and_rate_limited() {
     assert_eq!(public.maintenance, snapback.maintenance);
 }
 
+#[test]
+fn embedded_ibex_generations_report_loaded_without_cli_unavailability_noise() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.force_ibex_cli_unavailable_for_test();
+
+    let initial = snapback.inspect().expect("initial inspect");
+    assert!(!initial.runtime.ibex_cli.available);
+    assert_eq!(initial.runtime.ibex_cli.path, None);
+    assert_eq!(initial.runtime.ibex_cli.version, None);
+    assert!(initial.capability_gaps.iter().any(|gap| gap == "ibex_cli"));
+    assert!(
+        initial
+            .recent_diagnostics
+            .iter()
+            .all(|diagnostic| { diagnostic.code != "SNAPBACK_IBEX_CLI_UNAVAILABLE" })
+    );
+
+    let manifest = FunctionManifest {
+        bundle_hash: Some("embedded-generation-no-cli".to_owned()),
+        functions: vec![FunctionDefinition::new(
+            "embeddedQuery",
+            FunctionKind::Query,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async embeddedQuery() { return []; } };"
+                    .to_owned(),
+                export: "embeddedQuery".to_owned(),
+            }),
+        )],
+        ..FunctionManifest::default()
+    };
+    for generation in 1..=2 {
+        let diagnostics = snapback.load_functions(manifest.clone());
+        assert_eq!(
+            diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code.as_str())
+                .collect::<Vec<_>>(),
+            vec!["SNAPBACK_IBEX_FUNCTIONS_LOADED"],
+            "generation {generation} should report only the positive embedded load event"
+        );
+    }
+
+    let inspected = snapback.inspect().expect("inspect loaded generations");
+    assert!(!inspected.runtime.ibex_cli.available);
+    assert!(
+        inspected
+            .recent_diagnostics
+            .iter()
+            .all(|diagnostic| { diagnostic.code != "SNAPBACK_IBEX_CLI_UNAVAILABLE" })
+    );
+    assert_eq!(
+        inspected
+            .recent_diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED")
+            .count(),
+        2,
+        "repeated real generation events remain distinct occurrences"
+    );
+}
+
 /// Cross-seam capability-manifest parity
 /// (issues/20260729-centralize-served-capability-manifest-composition.md):
 /// the inspect seam and the RQS generation-identity seam must serve one
@@ -22726,9 +22787,7 @@ fn live_limit_snapback() -> LocalSnapback {
         ..FunctionManifest::default()
     });
     assert!(
-        diagnostics
-            .iter()
-            .all(|diagnostic| { diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE" }),
+        diagnostics.is_empty(),
         "unexpected function diagnostics: {diagnostics:?}"
     );
     snapback
@@ -24581,9 +24640,7 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         ..FunctionManifest::default()
     });
     assert!(
-        diagnostics
-            .iter()
-            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"),
+        diagnostics.is_empty(),
         "unexpected function diagnostics: {diagnostics:?}"
     );
 
@@ -27541,9 +27598,7 @@ fn rqs_snapback() -> LocalSnapback {
     snapback.apply_schema(rqs_schema()).expect("apply schema");
     let diagnostics = snapback.load_functions(rqs_functions());
     assert!(
-        diagnostics
-            .iter()
-            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"),
+        diagnostics.is_empty(),
         "unexpected load diagnostics: {diagnostics:?}"
     );
     snapback
@@ -29643,11 +29698,7 @@ fn rqs_resume_keyring_survives_restart_on_disk() {
         let mut snapback = LocalSnapback::open(&path).expect("open snapback");
         snapback.apply_schema(rqs_schema()).expect("apply schema");
         let diagnostics = snapback.load_functions(rqs_functions());
-        assert!(
-            diagnostics
-                .iter()
-                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE")
-        );
+        assert!(diagnostics.is_empty());
         snapback
             .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
             .expect("subscribe")
@@ -29661,11 +29712,7 @@ fn rqs_resume_keyring_survives_restart_on_disk() {
     let mut reopened = LocalSnapback::open(&path).expect("reopen snapback");
     reopened.apply_schema(rqs_schema()).expect("reapply schema");
     let diagnostics = reopened.load_functions(rqs_functions());
-    assert!(
-        diagnostics
-            .iter()
-            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE")
-    );
+    assert!(diagnostics.is_empty());
     let resumed = reopened
         .subscribe_live(
             "listPublicTodos",

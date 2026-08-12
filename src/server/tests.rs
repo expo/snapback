@@ -12895,6 +12895,38 @@ async fn public_and_admin_inspect_project_exact_auth_program_readiness() {
 }
 
 #[tokio::test]
+async fn inspect_projects_missing_external_ibex_cli_without_startup_notice() {
+    let mut snapback = LocalSnapback::memory().expect("missing CLI inspect fixture");
+    snapback.force_ibex_cli_unavailable_for_test();
+    let router = app(test_detached_app_state(snapback));
+
+    for uri in ["/inspect", "/_snapback/api/inspect"] {
+        let response = router
+            .clone()
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "{uri}");
+        let body = response_json(response).await;
+        assert_eq!(body["runtime"]["ibexCli"]["available"], false, "{uri}");
+        assert!(
+            body["capabilityGaps"]
+                .as_array()
+                .is_some_and(|gaps| gaps.iter().any(|gap| gap == "ibex_cli")),
+            "{uri}: {body}"
+        );
+        assert!(
+            body["recentDiagnostics"]
+                .as_array()
+                .is_some_and(|diagnostics| diagnostics
+                    .iter()
+                    .all(|diagnostic| { diagnostic["code"] != "SNAPBACK_IBEX_CLI_UNAVAILABLE" })),
+            "{uri}: {body}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn route_middleware_installs_generation_and_epoch_bound_prepared_authority() {
     async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
         Json(json!({
@@ -21253,6 +21285,8 @@ const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_HANDLER_REJECTION_INSPECTION_INVALID",
     "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR",
     "SNAPBACK_HOST_STOP_UNVERIFIABLE",
+    // Retired compatibility vocabulary: passive external-CLI absence is now
+    // an inspectable capability fact, but historical records retain this code.
     "SNAPBACK_IBEX_CLI_UNAVAILABLE",
     "SNAPBACK_IBEX_FUNCTIONS_LOADED",
     "SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE",

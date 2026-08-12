@@ -149,12 +149,9 @@ impl KickFixture {
             .expect("publish the staged protected room definition");
         let diagnostics = snapback.load_functions(game_functions());
         assert!(
-            diagnostics.iter().all(|diagnostic| {
-                matches!(
-                    diagnostic.code.as_str(),
-                    "SNAPBACK_IBEX_CLI_UNAVAILABLE" | "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-                )
-            }),
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"),
             "game functions load without error diagnostics: {diagnostics:?}"
         );
         let [connection_a, connection_b] = install_invalidation(&mut snapback);

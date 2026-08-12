@@ -37,6 +37,15 @@ assert.deepEqual(
 
 const view = surface.queryRows('inspect')[0];
 assert.equal(view.id, 'inspect', 'inspect resource hydrates');
+assert.equal(view.ui.tiles.find((tile) => tile.key === 'diags').value, '3', 'diagnostic count preserves occurrences');
+assert.deepEqual(
+  view.ui.diagnostics.map((diagnostic) => diagnostic.code),
+  ['snapback_info', 'SNAPBACK_REPEATED_WARNING', 'SNAPBACK_REPEATED_WARNING'],
+  'the admin projection preserves repeated genuine warning occurrences in order',
+);
+assert.equal(view.ui.runtime.find((fact) => fact.key === 'ibex').v, 'unavailable', 'missing external CLI remains visible as a runtime fact');
+assert.ok(view.ui.gaps.some((gap) => gap.key === 'ibex_cli'), 'missing external CLI remains visible as a capability gap');
+assert.equal(view.ui.diagnostics.some((diagnostic) => diagnostic.code === 'SNAPBACK_IBEX_CLI_UNAVAILABLE'), false, 'passive CLI absence is not projected as a diagnostic');
 // The flattened view model the .contract renders (correct casing — schema.schemaHash,
 // not schema_hash — and the capability-manifest surface the rebuild added).
 assert.equal(view.ui.schemaHash, 'sha256:test', 'schema hash reads the camelCase key');
@@ -314,7 +323,7 @@ function createFakeAdminClient() {
         },
         runtime: {
           canonicalEngine: 'ibex',
-          ibexCli: { available: true, version: 'test' },
+          ibexCli: { available: false, path: null, version: null },
           hostPlanRuntime: true,
           ibexCtxDbHostBridge: 'Available',
           asyncHandlerCompletion: 'Available',
@@ -330,7 +339,7 @@ function createFakeAdminClient() {
           tokenConfigured: false,
           writesRequireToken: false,
         },
-        capabilityGaps: ['offline_mutation_replay'],
+        capabilityGaps: ['offline_mutation_replay', 'ibex_cli'],
         capabilityManifest: {
           storageEngine: 'sqlite',
           runtimeEngine: 'ibex',
@@ -392,7 +401,11 @@ function createFakeAdminClient() {
             },
           ],
         },
-        recentDiagnostics: [{ code: 'snapback_info', severity: 'info', subsystem: 'test', message: 'lowercase severity' }],
+        recentDiagnostics: [
+          { code: 'snapback_info', severity: 'info', subsystem: 'test', message: 'lowercase severity' },
+          { code: 'SNAPBACK_REPEATED_WARNING', severity: 'warning', subsystem: 'test', message: 'first occurrence' },
+          { code: 'SNAPBACK_REPEATED_WARNING', severity: 'warning', subsystem: 'test', message: 'second occurrence' },
+        ],
         ephemeral: {
           roomCount: 0,
           entryCount: 0,

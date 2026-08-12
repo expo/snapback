@@ -365,10 +365,11 @@ fn configure(snapback: &mut LocalSnapback) {
         .apply_schema(schema())
         .expect("apply scheduler schema");
     let diagnostics = snapback.load_functions(functions());
-    assert!(diagnostics.iter().all(|diagnostic| {
-        diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
-            || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-    }));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED")
+    );
 }
 
 fn schema() -> SchemaManifest {

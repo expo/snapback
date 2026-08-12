@@ -300,10 +300,11 @@ async fn watchdog_state_and_app() -> (
             .apply_schema(watchdog_schema())
             .expect("apply schema");
         let diagnostics = snapback.load_functions(watchdog_functions());
-        assert!(diagnostics.iter().all(|diagnostic| {
-            diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
-                || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-        }));
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED")
+        );
         let app_state = test_detached_app_state(snapback);
         let state = app_state.snapback.clone();
         (state, snapback::server::app(app_state))
@@ -581,13 +582,14 @@ async fn assert_paused_action_generation_fence(
 }
 
 /// Assert `load_functions` over the watchdog manifest reports only the expected
-/// CLI-availability diagnostics (this machine has no Ibex CLI on PATH).
+/// positive embedded-runtime load event.
 fn assert_watchdog_reload(snapback: &mut LocalSnapback) {
     let diagnostics = snapback.load_functions(watchdog_functions());
-    assert!(diagnostics.iter().all(|diagnostic| {
-        diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
-            || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-    }));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED")
+    );
 }
 
 /// A detached action can cross an app generation without another ctx host op:

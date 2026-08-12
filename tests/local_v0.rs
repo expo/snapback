@@ -2541,11 +2541,7 @@ fn configured_snapback() -> LocalSnapback {
         .apply_schema(todo_schema())
         .expect("apply todo schema");
     let diagnostics = snapback.load_functions(todo_functions());
-    assert!(
-        diagnostics
-            .iter()
-            .all(|diagnostic| { diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE" })
-    );
+    assert!(diagnostics.is_empty());
     snapback
 }
 
@@ -2555,10 +2551,11 @@ fn configured_ibex_snapback(source: &str) -> LocalSnapback {
         .apply_schema(todo_schema())
         .expect("apply todo schema");
     let diagnostics = snapback.load_functions(ibex_todo_functions(source));
-    assert!(diagnostics.iter().all(|diagnostic| {
-        diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
-            || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-    }));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED")
+    );
     snapback
 }
 

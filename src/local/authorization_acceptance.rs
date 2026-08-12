@@ -395,12 +395,9 @@ fn configure(mut snapback: LocalSnapback) -> LocalSnapback {
     );
     let diagnostics = snapback.load_functions(functions);
     assert!(
-        diagnostics.iter().all(|diagnostic| {
-            matches!(
-                diagnostic.code.as_str(),
-                "SNAPBACK_IBEX_CLI_UNAVAILABLE" | "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-            )
-        }),
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"),
         "unexpected function diagnostics: {diagnostics:?}"
     );
     assert_eq!(snapback.loaded_app_id(), CLIENT_REPLAY_APP_ID);
@@ -1754,12 +1751,9 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     let mut restarted = LocalSnapback::open(&database_path).expect("restart acceptance database");
     let diagnostics = restarted.load_functions(acceptance_functions());
     assert!(
-        diagnostics.iter().all(|diagnostic| {
-            matches!(
-                diagnostic.code.as_str(),
-                "SNAPBACK_IBEX_CLI_UNAVAILABLE" | "SNAPBACK_IBEX_FUNCTIONS_LOADED"
-            )
-        }),
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"),
         "unexpected restart function diagnostics: {diagnostics:?}"
     );
     let after_restart = restarted
