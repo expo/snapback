@@ -219,26 +219,59 @@ impl LocalDatabase {
         let mut deleted = 0_u64;
         let mut deleted_bytes = 0_u64;
         for id in unique {
-            let row_bytes = tx
+            let retained_row = tx
                 .query_row(
-                    "SELECT
-                       length(CAST(client_mutation_id AS BLOB)) +
-                       length(CAST(function AS BLOB)) +
-                       length(CAST(auth_fingerprint AS BLOB)) +
-                       COALESCE(length(CAST(authority_instance_id AS BLOB)), 0) +
-                       length(CAST(input_fingerprint AS BLOB)) +
-                       COALESCE(length(CAST(operation_issuance_json AS BLOB)), 0) +
-                       length(CAST(output_json AS BLOB))
+                    "SELECT client_mutation_id, function, auth_fingerprint,
+                            authority_instance_id, input_fingerprint,
+                            operation_issuance_json, output_json, settlement_format,
+                            settlement_record_sequence, settlement_projection_seal_json
                      FROM _snapback_client_mutations
                      WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2
                        AND (?3 IS NULL OR authority_instance_id = ?3)",
                     params![id, auth_fingerprint, authority_instance_id],
-                    |row| row.get::<_, u64>(0),
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, String>(2)?,
+                            row.get::<_, Option<String>>(3)?,
+                            row.get::<_, String>(4)?,
+                            row.get::<_, Option<String>>(5)?,
+                            row.get::<_, String>(6)?,
+                            row.get::<_, Option<String>>(7)?,
+                            row.get::<_, SqlValue>(8)?,
+                            row.get::<_, Option<String>>(9)?,
+                        ))
+                    },
                 )
                 .optional()?;
-            let Some(row_bytes) = row_bytes else {
+            let Some((
+                row_id,
+                function,
+                row_auth_fingerprint,
+                row_authority_instance_id,
+                input_fingerprint,
+                operation_issuance_json,
+                output_json,
+                settlement_format,
+                settlement_record_sequence,
+                settlement_projection_seal_json,
+            )) = retained_row
+            else {
                 continue;
             };
+            let row_bytes = logical_client_mutation_retained_row_bytes_v4(
+                &row_id,
+                &function,
+                &row_auth_fingerprint,
+                row_authority_instance_id.as_deref(),
+                &input_fingerprint,
+                operation_issuance_json.as_deref(),
+                &output_json,
+                settlement_format.as_deref(),
+                settlement_record_sequence,
+                settlement_projection_seal_json.as_deref(),
+            )?;
             crate::operation_ledger::acknowledge_client_operation_by_id_in(
                 &tx,
                 id,
@@ -318,10 +351,23 @@ impl LocalDatabase {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let (retained_records, retained_bytes) = client_mutation_retention_counters(&tx)?;
+        let scanned_global = scan_client_mutation_retention_totals(&tx)?;
+        if scanned_global != (retained_records, retained_bytes) {
+            return Err(invalid_client_mutation_retention_state(
+                "authority-wide collection found stale global retention counters",
+            ));
+        }
         let deleted = match auth_fingerprint {
             Some(auth_fingerprint) => {
                 let (auth_records, auth_bytes) =
                     client_mutation_auth_retention_counters(&tx, auth_fingerprint)?;
+                let scanned_auth =
+                    scan_client_mutation_retention_totals_for_auth(&tx, Some(auth_fingerprint))?;
+                if scanned_auth != (auth_records, auth_bytes) {
+                    return Err(invalid_client_mutation_retention_state(
+                        "authority-wide collection found stale authority retention counters",
+                    ));
+                }
                 let settlements = tx
                     .prepare(
                         "SELECT client_mutation_id,auth_fingerprint,authority_instance_id

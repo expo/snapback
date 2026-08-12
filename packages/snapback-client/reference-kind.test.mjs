@@ -103,3 +103,54 @@ test('every wrong generated reference/verb pair refuses before transport', async
     client.diagnosticsChannel().dispose();
   }
 });
+
+test('missing, future, and malformed object kinds refuse every verb before transport', async () => {
+  const originalFetch = globalThis.fetch;
+  let transports = 0;
+  globalThis.fetch = async () => {
+    transports += 1;
+    throw new Error('transport must not run for an invalid reference kind');
+  };
+  const client = new SnapbackClient('http://127.0.0.1:9', {
+    offlineQueue: false,
+    devDiagnosticsReporter: false,
+  });
+  const commandClient = createCommandClient(client);
+  const callFamilies = [
+    ['query', (reference) => client.query(reference)],
+    ['liveQuery', (reference) => client.liveQuery(reference, { connectionId: 'invalid-kind' })],
+    ['mutate', (reference) => client.mutate(reference, { queue: false })],
+    ['action', (reference) => client.action(reference)],
+    ['commandClient.start', (reference) => commandClient.start(reference, {})],
+  ];
+  const invalidReferences = [
+    ['missing', Object.freeze({ artifactKind: 'functionReference' })],
+    ['unknown', Object.freeze({ artifactKind: 'functionReference', kind: 'FutureQuery', name: null })],
+    ['malformed', Object.freeze({ artifactKind: 'functionReference', kind: Object.freeze({ private: 'payload' }), name: 42 })],
+  ];
+
+  try {
+    for (const [verb, call] of callFamilies) {
+      for (const [receivedKind, reference] of invalidReferences) {
+        await assert.rejects(
+          Promise.resolve().then(() => call(reference)),
+          (error) => {
+            assert.equal(error.code, 'SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH');
+            assert.equal(error.diagnostic.details.receivedKind, receivedKind);
+            assert.equal(error.diagnostic.details.invokedVerb, verb);
+            assert.equal(error.diagnostic.details.correctVerb, null);
+            assert.match(error.diagnostic.details.repair, /Regenerate generated references/u);
+            assert.doesNotMatch(JSON.stringify(error.diagnostic), /FutureQuery|private|payload/u);
+            return true;
+          },
+          `${verb} accepted ${receivedKind} object kind`,
+        );
+      }
+    }
+    assert.equal(transports, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await commandClient.dispose();
+    client.diagnosticsChannel().dispose();
+  }
+});

@@ -191,7 +191,7 @@ impl LocalDatabase {
                 job_producer: None,
                 asset_admissions: Vec::new(),
                 asset_grant_ops: Vec::new(),
-                media_projection_proof: None,
+                media_projection: None,
             },
             BufferedCommitOptions {
                 ctx_ledger: None,

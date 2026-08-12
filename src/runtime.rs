@@ -365,7 +365,6 @@ pub trait IbexActionHost {
 /// A mutation handler's completed, still-uncommitted effect buffer. Detached
 /// action-hosted mutations execute into this owned value outside the global
 /// instance mutex; only the bounded validation/SQLite commit re-enters it.
-#[derive(Clone)]
 pub(crate) struct ExecutedIbexMutation {
     pub writes: Vec<BufferedWrite>,
     pub sequence_allocations: Vec<SequenceAllocationFact>,
@@ -377,6 +376,7 @@ pub(crate) struct ExecutedIbexMutation {
     pub result: Value,
     pub ctx_ledger: CtxAnswerLedger,
     pub media_projection_proof: Option<StagedMediaProjectionProofV1>,
+    pub media_projection_scope: Option<MediaProjectionInvocationScopeV1>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -392,49 +392,75 @@ pub(crate) struct MediaProjectionSemanticOccurrenceV1 {
     pub node: ResultValueContract,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MediaProjectionInvocationScopeV1 {
+    process_epoch: String,
+    invocation_nonce: u64,
+    pinned_snapshot: u64,
+}
+
+/// Closed host-only identity checked independently at storage admission.
+/// None of these fields enter handler or settlement bytes.
+///
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut — the
+/// staged proof is scoped to one process invocation, prepared authority,
+/// function generation, result contract, snapshot, and request identity.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MediaProjectionProofBindingV1 {
+    pub process_epoch: String,
+    pub invocation_nonce: u64,
+    pub principal_binding: String,
+    pub authority_instance_binding: String,
+    pub function_id: String,
+    pub function_artifact_generation: Option<String>,
+    pub result_contract_hash: String,
+    pub pinned_snapshot: u64,
+    pub request_identity: String,
+    pub client_mutation_identity: Option<String>,
+}
+
+#[derive(Debug)]
+struct MediaProjectionStagingV1 {
+    proof: StagedMediaProjectionProofV1,
+    scope: MediaProjectionInvocationScopeV1,
+}
+
+#[derive(Debug)]
 pub(crate) struct StagedMediaProjectionProofV1 {
     pub plan: MediaProjectionPlanV1,
     pub result_contract_hash: String,
-    state: Arc<StdMutex<Option<Vec<MediaProjectionProofOccurrenceV1>>>>,
+    pub binding: MediaProjectionProofBindingV1,
+    occurrences: Vec<MediaProjectionProofOccurrenceV1>,
 }
 
 impl StagedMediaProjectionProofV1 {
     pub(crate) fn new(
         plan: MediaProjectionPlanV1,
         result_contract_hash: String,
+        binding: MediaProjectionProofBindingV1,
         occurrences: Vec<MediaProjectionProofOccurrenceV1>,
     ) -> Self {
         Self {
             plan,
             result_contract_hash,
-            state: Arc::new(StdMutex::new(Some(occurrences))),
+            binding,
+            occurrences,
         }
     }
 
-    /// Preview receives a read-only copy of the facts while the one shared
-    /// carrier remains live for the later authoritative commit.
-    pub(crate) fn borrow_occurrences(
-        &self,
-    ) -> SnapbackResult<Vec<MediaProjectionProofOccurrenceV1>> {
-        self.state
-            .lock()
-            .map_err(|_| media_unprovenanced())?
-            .as_ref()
-            .cloned()
-            .ok_or_else(media_unprovenanced)
+    /// Preview borrows the exact carrier. There is no cloneable proof handle
+    /// and therefore no second authority to refresh or consume.
+    pub(crate) fn borrow_occurrences(&self) -> &[MediaProjectionProofOccurrenceV1] {
+        &self.occurrences
     }
 
-    /// Clones of the Rust handle share this one take-once state; cloning a
-    /// buffered payload therefore cannot duplicate or refresh authority.
+    /// The authoritative boundary takes ownership of the proof and consumes
+    /// its occurrences once. Cancellation or a same-id winner drops the sole
+    /// owner, so retry must execute again and mint a fresh invocation nonce.
     pub(crate) fn consume_occurrences(
         self,
     ) -> SnapbackResult<Vec<MediaProjectionProofOccurrenceV1>> {
-        self.state
-            .lock()
-            .map_err(|_| media_unprovenanced())?
-            .take()
-            .ok_or_else(media_unprovenanced)
+        Ok(self.occurrences)
     }
 }
 
@@ -482,6 +508,46 @@ fn media_unprovenanced() -> SnapbackError {
         "assets",
         "media result did not preserve exact host provenance",
     )
+}
+
+fn media_projection_proof_binding(
+    prepared: &PreparedInvocation,
+    input: &HandlerInput,
+    scope: &MediaProjectionInvocationScopeV1,
+) -> SnapbackResult<MediaProjectionProofBindingV1> {
+    let result_contract_hash = prepared
+        .result_contract_hash()
+        .ok_or_else(media_unprovenanced)?
+        .to_owned();
+    let principal_value =
+        serde_json::to_value(prepared.projection()).map_err(|_| media_unprovenanced())?;
+    let principal_binding = crate::operation_ledger::digest_fact_set(
+        b"snapback:media-proof-principal:v1\n",
+        &principal_value,
+    );
+    Ok(MediaProjectionProofBindingV1 {
+        process_epoch: scope.process_epoch.clone(),
+        invocation_nonce: scope.invocation_nonce,
+        principal_binding,
+        authority_instance_binding: prepared.authority().resolved().invalidation_subject(),
+        function_id: prepared.function_id().to_owned(),
+        function_artifact_generation: prepared.artifact_generation().map(str::to_owned),
+        result_contract_hash,
+        pinned_snapshot: scope.pinned_snapshot,
+        request_identity: prepared.invocation_id().to_owned(),
+        client_mutation_identity: input.auth.client_mutation_digest.clone(),
+    })
+}
+
+/// Reconstruct the expected proof binding from the still-trusted prepared
+/// invocation and request carrier. Storage receives this separately from the
+/// staged proof and compares the closed records before OCC admission.
+pub(crate) fn expected_media_projection_proof_binding(
+    prepared: &PreparedInvocation,
+    input: &HandlerInput,
+    scope: &MediaProjectionInvocationScopeV1,
+) -> SnapbackResult<MediaProjectionProofBindingV1> {
+    media_projection_proof_binding(prepared, input, scope)
 }
 
 pub(crate) fn media_projection_plan(contract: &FunctionResultContract) -> MediaProjectionPlanV1 {
@@ -730,12 +796,13 @@ impl RuntimeManager {
             return Err(denial);
         }
         let mut result = result?;
-        let media_projection_proof = invocation
-            .normalize_media_result(
-                &mut result,
-                prepared.result_contract(),
-                prepared.result_contract_hash(),
-            )?;
+        let media_projection = invocation.normalize_media_result(&mut result, prepared)?;
+        let expected_media_projection_binding = media_projection
+            .as_ref()
+            .map(|staging| {
+                expected_media_projection_proof_binding(prepared, &input, &staging.scope)
+            })
+            .transpose()?;
         let ctx_ledger = invocation.take_ctx_ledger()?;
         let IbexHostContext {
             writes,
@@ -766,7 +833,8 @@ impl RuntimeManager {
             }),
             asset_admissions,
             asset_grant_ops,
-            media_projection_proof,
+            media_projection.as_ref().map(|staging| &staging.proof),
+            expected_media_projection_binding.as_ref(),
         )
     }
 
@@ -832,12 +900,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         return Err(denial);
     }
     let mut result = result?;
-    let media_projection_proof = invocation
-        .normalize_media_result(
-            &mut result,
-            prepared.result_contract(),
-            prepared.result_contract_hash(),
-        )?;
+    let media_projection = invocation.normalize_media_result(&mut result, prepared)?;
     // The recorded (or replayed) ctx-answer ledger rides the output (LLP 0051
     // D1) so the later commit is semantically identical to the in-lock path.
     let ctx_ledger = invocation.take_ctx_ledger()?;
@@ -871,6 +934,9 @@ pub(crate) fn execute_ibex_mutation_prepared(
         ..
     } = invocation;
     prepared.validate_admission("ibex mutation completion")?;
+    let (media_projection_proof, media_projection_scope) = media_projection
+        .map(|staging| (Some(staging.proof), Some(staging.scope)))
+        .unwrap_or((None, None));
     Ok(ExecutedIbexMutation {
         writes,
         sequence_allocations,
@@ -882,6 +948,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         result,
         ctx_ledger,
         media_projection_proof,
+        media_projection_scope,
     })
 }
 
@@ -928,11 +995,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
         return Err(denial);
     }
     let mut value = value?;
-    invocation.normalize_media_result(
-        &mut value,
-        prepared.result_contract(),
-        prepared.result_contract_hash(),
-    )?;
+    invocation.normalize_media_result(&mut value, prepared)?;
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
     // query handler that returns a non-array fails closed.
     let rows = value.as_array().cloned().ok_or_else(|| {
@@ -1562,7 +1625,7 @@ mod media_provenance_tests {
 
     /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
     #[test]
-    fn preview_borrows_and_all_clones_share_one_take_once_commit_authority() {
+    fn preview_borrows_and_commit_takes_the_only_proof_owner() {
         let occurrence = MediaProjectionProofOccurrenceV1 {
             path: vec!["image".to_owned()],
             source_table: "profiles".to_owned(),
@@ -1574,6 +1637,18 @@ mod media_provenance_tests {
             snapshot_version: 7,
             related_fact_digest: "sha256:related-facts".to_owned(),
         };
+        let binding = MediaProjectionProofBindingV1 {
+            process_epoch: "process-a".to_owned(),
+            invocation_nonce: 7,
+            principal_binding: "sha256:principal".to_owned(),
+            authority_instance_binding: "authority-a".to_owned(),
+            function_id: "profiles:setImage".to_owned(),
+            function_artifact_generation: Some("sha256:generation".to_owned()),
+            result_contract_hash: "sha256:result-contract".to_owned(),
+            pinned_snapshot: 7,
+            request_identity: "request-a".to_owned(),
+            client_mutation_identity: Some("sha256:mutation-a".to_owned()),
+        };
         let proof = StagedMediaProjectionProofV1::new(
             MediaProjectionPlanV1 {
                 occurrences: vec![MediaProjectionSemanticOccurrenceV1 {
@@ -1582,16 +1657,12 @@ mod media_provenance_tests {
                 }],
             },
             "sha256:result-contract".to_owned(),
+            binding,
             vec![occurrence],
         );
-        let commit_handle = proof.clone();
-        assert_eq!(proof.borrow_occurrences().expect("preview borrow").len(), 1);
-        assert_eq!(proof.borrow_occurrences().expect("second preview borrow").len(), 1);
-        assert_eq!(commit_handle.consume_occurrences().expect("one commit take").len(), 1);
-        let error = proof
-            .consume_occurrences()
-            .expect_err("a clone cannot refresh consumed authority");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
+        assert_eq!(proof.borrow_occurrences().len(), 1);
+        assert_eq!(proof.borrow_occurrences().len(), 1);
+        assert_eq!(proof.consume_occurrences().expect("one commit take").len(), 1);
     }
 }
 
@@ -1705,6 +1776,9 @@ pub(crate) struct IbexHostContext<'a> {
     /// This invocation's identity. A host call whose carried epoch does not
     /// equal this is a stale continuation and is rejected.
     epoch: u64,
+    /// Storage snapshot named when this invocation was prepared. Media proof
+    /// binding carries this independently of per-occurrence dependencies.
+    pinned_snapshot: u64,
     /// The granted-config payload for this invocation (actions only) — the
     /// host-computed `uses` grant, never a process-wide blob.
     ///
@@ -1788,6 +1862,7 @@ impl<'a> IbexHostContext<'a> {
             db.schema(),
             handler_auth.roles(),
         )?;
+        let pinned_snapshot = db.current_version()?;
         let reads = auth_dependencies(&input);
         let read_keys = read_dependency_keys(&reads);
         Ok(Self {
@@ -1822,6 +1897,7 @@ impl<'a> IbexHostContext<'a> {
             action_run: None,
             action_host: None,
             epoch: next_invocation_epoch()?,
+            pinned_snapshot,
             grants: Value::Null,
             recorded_ids: Vec::new(),
             replay,
@@ -1890,6 +1966,7 @@ impl<'a> IbexHostContext<'a> {
             action_run: Some(run),
             action_host: Some(host),
             epoch: next_invocation_epoch()?,
+            pinned_snapshot: 0,
             grants,
             recorded_ids: Vec::new(),
             replay: None,
@@ -2067,9 +2144,9 @@ impl<'a> IbexHostContext<'a> {
     fn normalize_media_result(
         &mut self,
         value: &mut Value,
-        contract: &FunctionResultContract,
-        result_contract_hash: Option<&str>,
-    ) -> SnapbackResult<Option<StagedMediaProjectionProofV1>> {
+        prepared: &PreparedInvocation,
+    ) -> SnapbackResult<Option<MediaProjectionStagingV1>> {
+        let contract = prepared.result_contract();
         let plan = media_projection_plan(contract);
         if plan.occurrences.is_empty() {
             return Ok(None);
@@ -2088,14 +2165,21 @@ impl<'a> IbexHostContext<'a> {
             &self.media_entries,
             &mut proof,
         )?;
-        let result_contract_hash = result_contract_hash
-            .ok_or_else(media_unprovenanced)?
-            .to_owned();
-        Ok(Some(StagedMediaProjectionProofV1::new(
-            plan,
-            result_contract_hash,
-            proof,
-        )))
+        let scope = MediaProjectionInvocationScopeV1 {
+            process_epoch: media_process_epoch().to_owned(),
+            invocation_nonce: self.epoch,
+            pinned_snapshot: self.pinned_snapshot,
+        };
+        let binding = media_projection_proof_binding(prepared, &self.input, &scope)?;
+        Ok(Some(MediaProjectionStagingV1 {
+            proof: StagedMediaProjectionProofV1::new(
+                plan,
+                binding.result_contract_hash.clone(),
+                binding,
+                proof,
+            ),
+            scope,
+        }))
     }
 
     /// The single host id source for the deterministic tier (LLP 0051 D1):
@@ -7665,6 +7749,7 @@ mod membership_bridge_tests {
             asset_admissions,
             asset_grant_ops,
             media_projection_proof: None,
+            expected_media_projection_binding: None,
         }
     }
 
@@ -7725,6 +7810,7 @@ mod membership_bridge_tests {
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
+                    expected_media_projection_binding: None,
                 },
                 None,
                 || Ok(()),
@@ -8159,6 +8245,7 @@ globalThis.__snapbackHandlers = {
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
+                    expected_media_projection_binding: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
                     result: json!(null),
@@ -8431,6 +8518,7 @@ globalThis.__snapbackHandlers = {
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
+                    expected_media_projection_binding: None,
                     membership_plans: plans,
                     read_dependencies: Vec::new(),
                     result: result.clone(),

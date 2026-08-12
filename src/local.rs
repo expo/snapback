@@ -1442,6 +1442,28 @@ pub(crate) struct DetachedMutationBinding {
     pub epoch_scopes: BTreeSet<String>,
 }
 
+fn expected_media_projection_binding(
+    prepared: &PreparedInvocation,
+    input: &HandlerInput,
+    executed: &ExecutedIbexMutation,
+) -> SnapbackResult<Option<crate::runtime::MediaProjectionProofBindingV1>> {
+    match (
+        executed.media_projection_proof.as_ref(),
+        executed.media_projection_scope.as_ref(),
+    ) {
+        (Some(_), Some(scope)) => crate::runtime::expected_media_projection_proof_binding(
+            prepared, input, scope,
+        )
+        .map(Some),
+        (None, None) => Ok(None),
+        _ => Err(SnapbackError::error(
+            "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED",
+            "assets",
+            "media result did not preserve exact host provenance",
+        )),
+    }
+}
+
 pub(crate) enum DetachedMutationRead {
     Lane(ReadLane),
     Snapshot(Box<LocalDatabase>),
@@ -11711,6 +11733,12 @@ impl LocalSnapback {
                                     Some(&self.warm_vms),
                                     None,
                                 )?;
+                                let expected_media_projection_binding =
+                                    expected_media_projection_binding(
+                                        &prepared,
+                                        &input,
+                                        &executed,
+                                    )?;
                                 let membership_plans = self
                                     .db
                                     .membership_plans()
@@ -11737,6 +11765,7 @@ impl LocalSnapback {
                                     asset_admissions: executed.asset_admissions,
                                     asset_grant_ops: executed.asset_grant_ops,
                                     media_projection_proof: executed.media_projection_proof,
+                                    expected_media_projection_binding,
                                 };
                                 crate::result_contract::validate_handler_result(
                                     &function,
@@ -11757,7 +11786,8 @@ impl LocalSnapback {
                                         payload.job_producer.clone(),
                                         payload.asset_admissions.clone(),
                                         payload.asset_grant_ops.clone(),
-                                        payload.media_projection_proof.clone(),
+                                        payload.media_projection_proof.as_ref(),
+                                        payload.expected_media_projection_binding.as_ref(),
                                     )?;
                                 (
                                     self.authorization_commit_preflight_for_changes(
@@ -12406,6 +12436,11 @@ impl LocalSnapback {
                             )
                         },
                     )?;
+                    let expected_media_projection_binding = expected_media_projection_binding(
+                        &prepared,
+                        &input,
+                        &executed,
+                    )?;
                     crate::result_contract::validate_handler_result(&function, &executed.result)?;
                     let membership_plans = self
                         .db
@@ -12436,6 +12471,7 @@ impl LocalSnapback {
                         asset_admissions: executed.asset_admissions,
                         asset_grant_ops: executed.asset_grant_ops,
                         media_projection_proof: executed.media_projection_proof,
+                        expected_media_projection_binding,
                     };
                     match (branch_operation, identity.as_ref()) {
                         (Some(branch_operation), None) => {
@@ -12791,6 +12827,11 @@ impl LocalSnapback {
             ));
         }
         crate::result_contract::validate_handler_result(&function, &executed.result)?;
+        let expected_media_projection_binding = expected_media_projection_binding(
+            &binding.invocation,
+            &input,
+            &executed,
+        )?;
         let membership_plans = self
             .db
             .membership_plans()
@@ -12825,6 +12866,7 @@ impl LocalSnapback {
                     asset_admissions: executed.asset_admissions,
                     asset_grant_ops: executed.asset_grant_ops,
                     media_projection_proof: executed.media_projection_proof,
+                    expected_media_projection_binding,
                 },
                 identity.as_ref(),
                 check_live,
@@ -17338,11 +17380,16 @@ impl LocalSnapback {
             ));
         }
         let canonical_input = binding.invocation.canonicalize_input(input.clone());
+        let expected_media_projection_binding = expected_media_projection_binding(
+            &binding.invocation,
+            &canonical_input,
+            executed,
+        )?;
         let membership_plans = self
             .db
             .membership_plans()
             .authorize_membership_commands(executed.membership_commands.clone())?;
-        let preview = self.db.mutation_writes().dry_run_buffered_writes(
+        let preview = self.db.mutation_writes().dry_run_buffered_writes_with_jobs(
             &canonical_input,
             executed.writes.clone(),
             executed.sequence_allocations.clone(),
@@ -17350,7 +17397,12 @@ impl LocalSnapback {
             executed.reads.clone(),
             executed.result.clone(),
             executed.ctx_ledger.clone(),
+            Vec::new(),
+            None,
             executed.asset_admissions.clone(),
+            executed.asset_grant_ops.clone(),
+            executed.media_projection_proof.as_ref(),
+            expected_media_projection_binding.as_ref(),
         )?;
         Ok(self.authorization_commit_preflight_for_changes(preview.changes))
     }

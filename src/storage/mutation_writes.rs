@@ -391,6 +391,7 @@ impl LocalDatabase {
             asset_admissions,
             Vec::new(),
             None,
+            None,
         )
     }
 
@@ -415,8 +416,20 @@ impl LocalDatabase {
         // even though the real commit would admit the write.
         asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
         asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
-        media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
+        media_projection_proof: Option<&crate::runtime::StagedMediaProjectionProofV1>,
+        expected_media_projection_binding:
+            Option<&crate::runtime::MediaProjectionProofBindingV1>,
     ) -> SnapbackResult<MutationCommit> {
+        let media_projection = match (
+            media_projection_proof,
+            expected_media_projection_binding,
+        ) {
+            (Some(proof), Some(expected)) => {
+                Some(MediaProjectionProofAccess::Borrowed { proof, expected })
+            }
+            (None, None) => None,
+            _ => return Err(media_projection_unprovenanced()),
+        };
         self.apply_buffered_writes_with_lifecycle_gated(
             write_authority::LocalWriterLaneV1::DryRun,
             input,
@@ -430,7 +443,7 @@ impl LocalDatabase {
                 job_producer,
                 asset_admissions,
                 asset_grant_ops,
-                media_projection_proof,
+                media_projection,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -465,7 +478,7 @@ impl LocalDatabase {
                 job_producer: None,
                 asset_admissions: Vec::new(),
                 asset_grant_ops: Vec::new(),
-                media_projection_proof: None,
+                media_projection: None,
             },
             options,
             MembershipCommitAuthority::deny(),
@@ -728,7 +741,9 @@ impl<'a> MutationWritesKernel<'a> {
         job_producer: Option<crate::jobs::JobProducer>,
         asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
         asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
-        media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
+        media_projection_proof: Option<&crate::runtime::StagedMediaProjectionProofV1>,
+        expected_media_projection_binding:
+            Option<&crate::runtime::MediaProjectionProofBindingV1>,
     ) -> SnapbackResult<MutationCommit> {
         self.db.dry_run_buffered_writes_with_jobs(
             input,
@@ -743,6 +758,7 @@ impl<'a> MutationWritesKernel<'a> {
             asset_admissions,
             asset_grant_ops,
             media_projection_proof,
+            expected_media_projection_binding,
         )
     }
 }

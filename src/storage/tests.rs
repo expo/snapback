@@ -1982,6 +1982,7 @@ mod guarded_commit_tests {
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
+                    expected_media_projection_binding: None,
                 },
                 identity,
                 || Ok(()),
@@ -7179,6 +7180,7 @@ mod guarded_commit_tests {
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
+                    expected_media_projection_binding: None,
                 },
                 Some(&buffered_identity),
                 || Ok(()),
@@ -7416,6 +7418,7 @@ mod guarded_commit_tests {
                         asset_admissions: Vec::new(),
                         asset_grant_ops: Vec::new(),
                         media_projection_proof: None,
+                        expected_media_projection_binding: None,
                     },
                     Some(identity),
                     || Ok(()),
@@ -7506,6 +7509,7 @@ mod guarded_commit_tests {
                         asset_admissions: Vec::new(),
                         asset_grant_ops: Vec::new(),
                         media_projection_proof: None,
+                        expected_media_projection_binding: None,
                     },
                     Some(identity),
                     || Ok(()),
@@ -8078,7 +8082,7 @@ mod guarded_commit_tests {
             TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
         )
         .with_operation_issuance(buffered_issuance);
-        let buffered_payload = BufferedCommitPayload {
+        let buffered_payload = || BufferedCommitPayload {
             writes: vec![BufferedWrite::Insert {
                 table: "items".to_owned(),
                 id: "host-buffered".to_owned(),
@@ -8094,12 +8098,13 @@ mod guarded_commit_tests {
             asset_admissions: Vec::new(),
             asset_grant_ops: Vec::new(),
             media_projection_proof: None,
+            expected_media_projection_binding: None,
         };
         let first_buffered = both
             .mutation_writes()
             .commit_buffered_host_writes_guarded(
                 &buffered_input,
-                buffered_payload.clone(),
+                buffered_payload(),
                 Some(&buffered_identity),
                 || Ok(()),
                 || Ok(()),
@@ -8110,7 +8115,7 @@ mod guarded_commit_tests {
             .mutation_writes()
             .commit_buffered_host_writes_guarded(
                 &buffered_input,
-                buffered_payload,
+                buffered_payload(),
                 Some(&buffered_identity),
                 || Ok(()),
                 || Ok(()),
@@ -9091,6 +9096,7 @@ mod guarded_commit_tests {
             asset_admissions: Vec::new(),
             asset_grant_ops: Vec::new(),
             media_projection_proof: None,
+            expected_media_projection_binding: None,
         }
     }
 
@@ -12707,6 +12713,7 @@ mod guarded_commit_tests {
                     asset_admissions: Vec::new(),
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
+                    expected_media_projection_binding: None,
                 },
                 None,
                 || Ok(()),
@@ -13567,6 +13574,7 @@ mod membership_write_tests {
                     job_producer: None,
                     asset_grant_ops: Vec::new(),
                     media_projection_proof: None,
+                    expected_media_projection_binding: None,
                 },
                 None,
                 || Ok(()),
@@ -17361,5 +17369,347 @@ mod media_ref_projection_acceptance_tests {
             .expect("post-watermark carrier");
         assert_eq!(format, PLAIN_SETTLEMENT_FORMAT_V1);
         assert_eq!(sequence, 2);
+    }
+
+    fn proof_binding(nonce: u64) -> crate::runtime::MediaProjectionProofBindingV1 {
+        crate::runtime::MediaProjectionProofBindingV1 {
+            process_epoch: "process-proof-fixture".to_owned(),
+            invocation_nonce: nonce,
+            principal_binding: "sha256:principal-a".to_owned(),
+            authority_instance_binding: "authority-a".to_owned(),
+            function_id: "profiles:setImage".to_owned(),
+            function_artifact_generation: Some("sha256:generation-a".to_owned()),
+            result_contract_hash: "sha256:result-a".to_owned(),
+            pinned_snapshot: 7,
+            request_identity: "request-a".to_owned(),
+            client_mutation_identity: Some("sha256:client-mutation-a".to_owned()),
+        }
+    }
+
+    fn empty_staged_proof(
+        binding: crate::runtime::MediaProjectionProofBindingV1,
+    ) -> crate::runtime::StagedMediaProjectionProofV1 {
+        crate::runtime::StagedMediaProjectionProofV1::new(
+            crate::runtime::MediaProjectionPlanV1 {
+                occurrences: Vec::new(),
+            },
+            binding.result_contract_hash.clone(),
+            binding,
+            Vec::new(),
+        )
+    }
+
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn closed_proof_binding_refuses_every_scope_authority_function_and_request_swap() {
+        let binding = proof_binding(11);
+        let proof = empty_staged_proof(binding.clone());
+        let mut swaps = Vec::new();
+        let mut cross_process = binding.clone();
+        cross_process.process_epoch = "process-proof-fixture-b".to_owned();
+        swaps.push(cross_process);
+        let mut cross_invocation = binding.clone();
+        cross_invocation.invocation_nonce += 1;
+        swaps.push(cross_invocation);
+        let mut cross_request = binding.clone();
+        cross_request.request_identity = "request-b".to_owned();
+        swaps.push(cross_request);
+        let mut cross_principal = binding.clone();
+        cross_principal.principal_binding = "sha256:principal-b".to_owned();
+        swaps.push(cross_principal);
+        let mut cross_authority = binding.clone();
+        cross_authority.authority_instance_binding = "authority-b".to_owned();
+        swaps.push(cross_authority);
+        let mut cross_function = binding.clone();
+        cross_function.function_id = "profiles:setBanner".to_owned();
+        swaps.push(cross_function);
+        let mut cross_generation = binding.clone();
+        cross_generation.function_artifact_generation = Some("sha256:generation-b".to_owned());
+        swaps.push(cross_generation);
+        let mut cross_contract = binding.clone();
+        cross_contract.result_contract_hash = "sha256:result-b".to_owned();
+        swaps.push(cross_contract);
+        let mut cross_snapshot = binding.clone();
+        cross_snapshot.pinned_snapshot += 1;
+        swaps.push(cross_snapshot);
+        let mut cross_client_mutation = binding.clone();
+        cross_client_mutation.client_mutation_identity =
+            Some("sha256:client-mutation-b".to_owned());
+        swaps.push(cross_client_mutation);
+
+        for swapped in swaps {
+            let error = validate_staged_media_projection_binding(&proof, &swapped)
+                .expect_err("a proof cannot cross its prepared invocation binding");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
+        }
+        validate_staged_media_projection_binding(&proof, &binding)
+            .expect("the exact independently reconstructed binding is admitted");
+    }
+
+    fn empty_media_payload(
+        binding: crate::runtime::MediaProjectionProofBindingV1,
+        expected: crate::runtime::MediaProjectionProofBindingV1,
+    ) -> BufferedCommitPayload {
+        BufferedCommitPayload {
+            writes: Vec::new(),
+            sequence_allocations: Vec::new(),
+            membership_plans: Vec::new(),
+            read_dependencies: Vec::new(),
+            result: json!({ "proof": "fresh" }),
+            ctx_ledger: CtxAnswerLedger::default(),
+            job_enqueues: Vec::new(),
+            job_producer: None,
+            asset_admissions: Vec::new(),
+            asset_grant_ops: Vec::new(),
+            media_projection_proof: Some(empty_staged_proof(binding)),
+            expected_media_projection_binding: Some(expected),
+        }
+    }
+
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn dry_run_borrows_exact_proof_then_authoritative_commit_takes_its_owner() {
+        let mut db = media_database();
+        let input = principal("asset-owner");
+        let binding = proof_binding(19);
+        let proof = empty_staged_proof(binding.clone());
+        let preview = db
+            .mutation_writes()
+            .dry_run_buffered_writes_with_jobs(
+                &input,
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                json!({ "proof": "previewed" }),
+                CtxAnswerLedger::default(),
+                Vec::new(),
+                None,
+                Vec::new(),
+                Vec::new(),
+                Some(&proof),
+                Some(&binding),
+            )
+            .expect("preview borrows the staged proof");
+        assert_eq!(preview.output.result, json!({ "proof": "previewed" }));
+        assert!(proof.borrow_occurrences().is_empty());
+
+        let identity = ClientMutationIdentity::new("media-proof-preview", "setImage", &input);
+        let committed = db
+            .mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                BufferedCommitPayload {
+                    writes: Vec::new(),
+                    sequence_allocations: Vec::new(),
+                    membership_plans: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    result: json!({ "proof": "committed" }),
+                    ctx_ledger: CtxAnswerLedger::default(),
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    asset_admissions: Vec::new(),
+                    asset_grant_ops: Vec::new(),
+                    media_projection_proof: Some(proof),
+                    expected_media_projection_binding: Some(binding),
+                },
+                Some(&identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("authoritative commit takes the proof after preview");
+        assert_eq!(committed.output.result, json!({ "proof": "committed" }));
+    }
+
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn cancelled_attempt_expires_proof_fresh_retry_mints_new_nonce_and_same_id_winner_replays() {
+        let mut db = media_database();
+        let input = principal("asset-owner");
+        let identity = ClientMutationIdentity::new("media-proof-lifecycle", "setImage", &input);
+        let cancelled_binding = proof_binding(20);
+        let error = db
+            .mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                empty_media_payload(cancelled_binding.clone(), cancelled_binding),
+                Some(&identity),
+                || {
+                    Err(SnapbackError::error(
+                        "SNAPBACK_ACTION_CANCELLED",
+                        "runtime",
+                        "injected cancellation",
+                    ))
+                },
+                || Ok(()),
+            )
+            .expect_err("cancellation drops the only proof owner");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_CANCELLED");
+        assert!(
+            db.settlement_read()
+                .client_mutation_result(&identity)
+                .expect("settlement lookup")
+                .is_none(),
+            "cancelled work retains no settlement"
+        );
+
+        let retry_binding = proof_binding(21);
+        let committed = db
+            .mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                empty_media_payload(retry_binding.clone(), retry_binding),
+                Some(&identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("fresh execution with a new invocation nonce commits");
+
+        let mut losing_expected = proof_binding(22);
+        losing_expected.request_identity = "cross-request-loser".to_owned();
+        let replayed = db
+            .mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                empty_media_payload(proof_binding(22), losing_expected),
+                Some(&identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("same-id winner returns sealed bytes without admitting loser proof");
+        assert_eq!(replayed.output, committed.output);
+        assert!(replayed.changes.is_empty());
+    }
+
+    /// @ref LLP 0043#milestone-2-queued-mutation-replay
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn mixed_settlement_rows_ack_and_rebuild_to_exact_predecessor_counters() {
+        let dir = tempfile::tempdir().expect("temporary mixed-settlement store");
+        let path = dir.path().join("mixed-settlements.sqlite3");
+        let manifest: SchemaManifest = serde_json::from_str(include_str!(
+            "../../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
+        ))
+        .expect("generated media fixture schema");
+        let mut db = LocalDatabase::open(&path).expect("open media store");
+        db.schema_seed()
+            .apply_schema(manifest)
+            .expect("apply media schema");
+        install_asset(
+            &mut db,
+            "asset-mixed",
+            "asset-owner",
+            crate::assets::AssetAvailability::Ready,
+        );
+        let input = principal("asset-owner");
+        let plain_plan = MutationPlan {
+            steps: Vec::new(),
+            return_value: Some(ReturnValue::Literal(json!({ "plain": true }))),
+        };
+        let legacy = ClientMutationIdentity::new("mixed-legacy", "plain", &input);
+        db.mutation_writes()
+            .execute_mutation_idempotent(&plain_plan, &input, &legacy)
+            .expect("write predecessor row");
+        db.conn
+            .execute(
+                "UPDATE _snapback_client_mutations
+                    SET settlement_format=NULL, settlement_record_sequence=NULL,
+                        settlement_projection_seal_json=NULL
+                  WHERE client_mutation_id=?1",
+                [&legacy.id],
+            )
+            .expect("model legacy carrier");
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_meta
+                  WHERE key IN (?1, ?2)",
+                params![META_SETTLEMENT_FORMAT_EPOCH_V1, META_SETTLEMENT_NEXT_SEQUENCE_V1],
+            )
+            .expect("model pre-epoch store");
+        save_meta_u64(&db.conn, META_CLIENT_MUTATION_COUNTERS_VERSION, 3)
+            .expect("force formula migration");
+        drop(db);
+
+        let mut db = LocalDatabase::open(&path).expect("migrate legacy row and rebuild v4");
+        let predecessor = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .expect("predecessor global counters");
+        let predecessor_auth = client_mutation_auth_retention_counters(
+            &db.conn,
+            &legacy.auth_fingerprint,
+        )
+        .expect("predecessor authority counters");
+        assert_eq!(predecessor.records, 1);
+
+        let plain = ClientMutationIdentity::new("mixed-plain", "plain", &input);
+        db.mutation_writes()
+            .execute_mutation_idempotent(&plain_plan, &input, &plain)
+            .expect("write plain row");
+        let media = ClientMutationIdentity::new("mixed-media", "setProfileImage", &input);
+        db.mutation_writes()
+            .execute_mutation_idempotent(
+                &insert_profile(json!("asset-mixed"), true),
+                &input,
+                &media,
+            )
+            .expect("write media row");
+        assert_eq!(
+            scan_client_mutation_retention_totals(&db.conn)
+                .expect("scan mixed rows")
+                .0,
+            3
+        );
+
+        save_meta_u64(&db.conn, META_CLIENT_MUTATION_COUNTERS_VERSION, 3)
+            .expect("force mixed-row rebuild");
+        drop(db);
+        let mut db = LocalDatabase::open(&path).expect("reopen and rebuild mixed rows");
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .expect("rebuilt mixed global counters")
+                .bytes,
+            scan_client_mutation_retention_totals(&db.conn)
+                .expect("logical mixed total")
+                .1
+        );
+
+        assert_eq!(
+            db.settlement()
+                .acknowledge_client_mutations(
+                    &legacy.auth_fingerprint,
+                    &[plain.id.clone(), media.id.clone()],
+                )
+                .expect("ack plain and media rows"),
+            2
+        );
+        let after_ack = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .expect("global counters after ack");
+        assert_eq!(after_ack.records, predecessor.records);
+        assert_eq!(after_ack.bytes, predecessor.bytes);
+        assert_eq!(
+            client_mutation_auth_retention_counters(&db.conn, &legacy.auth_fingerprint)
+                .expect("authority counters after ack"),
+            predecessor_auth
+        );
+
+        save_meta_u64(&db.conn, META_CLIENT_MUTATION_COUNTERS_VERSION, 3)
+            .expect("force predecessor rebuild");
+        drop(db);
+        let db = LocalDatabase::open(&path).expect("reopen exact predecessor");
+        let after_reopen = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .expect("global predecessor after reopen");
+        assert_eq!(after_reopen.records, predecessor.records);
+        assert_eq!(after_reopen.bytes, predecessor.bytes);
+        assert_eq!(
+            client_mutation_auth_retention_counters(&db.conn, &legacy.auth_fingerprint)
+                .expect("authority predecessor after reopen"),
+            predecessor_auth
+        );
     }
 }

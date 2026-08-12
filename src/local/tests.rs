@@ -3577,6 +3577,7 @@ fn asset_handler_commit(
                 asset_admissions: admissions,
                 asset_grant_ops: Vec::new(),
                 media_projection_proof: None,
+                expected_media_projection_binding: None,
             },
             None,
             || Ok(()),
@@ -25675,6 +25676,7 @@ fn executed_insert() -> ExecutedIbexMutation {
         asset_admissions: Vec::new(),
         asset_grant_ops: Vec::new(),
         media_projection_proof: None,
+        media_projection_scope: None,
         result: json!("guarded_item"),
         ctx_ledger: CtxAnswerLedger {
             version: ctx_ledger_version(),

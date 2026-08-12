@@ -353,7 +353,11 @@ const META_CLIENT_MUTATION_BYTES: &str = "client_mutation_bytes";
 const META_CLIENT_MUTATION_COUNTERS_VERSION: &str = "client_mutation_counters_version";
 const META_SETTLEMENT_FORMAT_EPOCH_V1: &str = "client_mutation_settlement_format_epoch_v1";
 const META_SETTLEMENT_NEXT_SEQUENCE_V1: &str = "client_mutation_settlement_next_sequence_v1";
-const CLIENT_MUTATION_COUNTERS_VERSION: u64 = 3;
+/// V4 charges the complete settlement carrier: the original seven logical
+/// fields plus format, one exact eight-byte sequence, and optional seal JSON.
+/// Opening a store with any predecessor version rebuilds global/per-authority
+/// counters from rows before admitting another settlement.
+const CLIENT_MUTATION_COUNTERS_VERSION: u64 = 4;
 const LEGACY_SETTLEMENT_FORMAT_V1: &str = "legacy-settlement.v1";
 const PLAIN_SETTLEMENT_FORMAT_V1: &str = "plain-settlement.v1";
 const MEDIA_SETTLEMENT_FORMAT_V1: &str = "media-projected-settlement.v1";
@@ -888,7 +892,6 @@ struct BufferedCommitOptions<'a> {
     branch_operation: Option<&'a crate::fork_promotion::BranchMutationCommitV1>,
 }
 
-#[derive(Clone)]
 pub(crate) struct BufferedCommitPayload {
     pub writes: Vec<BufferedWrite>,
     pub sequence_allocations: Vec<SequenceAllocationFact>,
@@ -909,9 +912,40 @@ pub(crate) struct BufferedCommitPayload {
     /// Process-local, take-once proof for `mediaRef.v1` mutation egress. It is
     /// never serialized into any request, ledger, output, or settlement row.
     pub media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
+    /// Independently reconstructed from the prepared invocation/request
+    /// carrier; the storage boundary compares it with the proof before OCC.
+    pub expected_media_projection_binding:
+        Option<crate::runtime::MediaProjectionProofBindingV1>,
 }
 
-struct BufferedEffects {
+enum MediaProjectionProofAccess<'a> {
+    Borrowed {
+        proof: &'a crate::runtime::StagedMediaProjectionProofV1,
+        expected: &'a crate::runtime::MediaProjectionProofBindingV1,
+    },
+    Owned {
+        proof: crate::runtime::StagedMediaProjectionProofV1,
+        expected: crate::runtime::MediaProjectionProofBindingV1,
+    },
+}
+
+impl MediaProjectionProofAccess<'_> {
+    fn proof(&self) -> &crate::runtime::StagedMediaProjectionProofV1 {
+        match self {
+            Self::Borrowed { proof, .. } => proof,
+            Self::Owned { proof, .. } => proof,
+        }
+    }
+
+    fn expected(&self) -> &crate::runtime::MediaProjectionProofBindingV1 {
+        match self {
+            Self::Borrowed { expected, .. } => expected,
+            Self::Owned { expected, .. } => expected,
+        }
+    }
+}
+
+struct BufferedEffects<'a> {
     writes: Vec<BufferedWrite>,
     sequence_allocations: Vec<SequenceAllocationFact>,
     membership_plans: Vec<AuthorizedMembershipPlan>,
@@ -921,7 +955,7 @@ struct BufferedEffects {
     job_producer: Option<jobs::JobProducer>,
     asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
-    media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
+    media_projection: Option<MediaProjectionProofAccess<'a>>,
 }
 
 #[derive(Clone, Copy)]
@@ -3865,7 +3899,18 @@ impl LocalDatabase {
             asset_admissions,
             asset_grant_ops,
             media_projection_proof,
+            expected_media_projection_binding,
         } = payload;
+        let media_projection = match (
+            media_projection_proof,
+            expected_media_projection_binding,
+        ) {
+            (Some(proof), Some(expected)) => {
+                Some(MediaProjectionProofAccess::Owned { proof, expected })
+            }
+            (None, None) => None,
+            _ => return Err(media_projection_unprovenanced()),
+        };
         let attempted = self.apply_buffered_writes_with_lifecycle(
             match lane {
                 CoveredMutationLaneV1::Ordinary => {
@@ -3886,7 +3931,7 @@ impl LocalDatabase {
                 job_producer,
                 asset_admissions,
                 asset_grant_ops,
-                media_projection_proof,
+                media_projection,
             },
             BufferedCommitOptions {
                 ctx_ledger: Some(ctx_ledger),
@@ -3910,7 +3955,7 @@ impl LocalDatabase {
         &mut self,
         writer_lane: write_authority::LocalWriterLaneV1,
         input: &HandlerInput,
-        effects: BufferedEffects,
+        effects: BufferedEffects<'_>,
         options: BufferedCommitOptions<'_>,
         check_live: &Check,
         before_commit: BeforeCommit,
@@ -3938,7 +3983,7 @@ impl LocalDatabase {
         &mut self,
         writer_lane: write_authority::LocalWriterLaneV1,
         input: &HandlerInput,
-        effects: BufferedEffects,
+        effects: BufferedEffects<'_>,
         options: BufferedCommitOptions<'_>,
         membership_authority: MembershipCommitAuthority<'_>,
         check_live: &Check,
@@ -3961,8 +4006,21 @@ impl LocalDatabase {
             job_producer,
             asset_admissions,
             asset_grant_ops,
-            media_projection_proof,
+            media_projection,
         } = effects;
+        // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+        // — compare the proof with the independently reconstructed prepared
+        // invocation/request binding before any OCC admission or egress work.
+        if let Some(media_projection) = media_projection.as_ref() {
+            validate_staged_media_projection_binding(
+                media_projection.proof(),
+                media_projection.expected(),
+            )?;
+            validate_staged_media_projection_dependencies(
+                media_projection.proof(),
+                &read_dependencies,
+            )?;
+        }
         if !job_enqueues.is_empty() {
             if let Some(runtime) = self.derived_fork() {
                 return Err(runtime.deny(
@@ -4045,9 +4103,6 @@ impl LocalDatabase {
 
         validate_touched_managed_tables(&tx, &schema, &touched_tables, current_version)?;
         validate_read_set(&tx, &schema, &input.read_set, current_version)?;
-        if let Some(proof) = media_projection_proof.as_ref() {
-            validate_staged_media_projection_dependencies(proof, &read_dependencies)?;
-        }
         // @ref LLP 0020#phase-3-capture-read-sets-during-handler-execution — handler-captured dependencies are validated at commit so callers no longer own the read-set.
         validate_captured_read_set(&tx, &schema, input, &read_dependencies, current_version)?;
 
@@ -4359,27 +4414,40 @@ impl LocalDatabase {
         // transaction has installed app writes, reference edges, grants, and
         // system metadata. Preview borrows the shared proof; commit consumes
         // its one take-once authority.
-        let settlement_media = if let Some(proof) = media_projection_proof {
-            let context = SettlementMediaContextV1 {
-                result_contract_hash: proof.result_contract_hash.clone(),
-                plan: proof.plan.clone(),
-            };
-            let occurrences = if options.apply {
-                proof.consume_occurrences()?
-            } else {
-                proof.borrow_occurrences()?
-            };
-            materialize_provenanced_media_result_in_tx(
-                &tx,
-                &schema,
-                next_version,
-                &context.plan,
-                &occurrences,
-                &mut result,
-            )?;
-            Some(context)
-        } else {
-            None
+        let settlement_media = match media_projection {
+            Some(MediaProjectionProofAccess::Owned { proof, .. }) if options.apply => {
+                let context = SettlementMediaContextV1 {
+                    result_contract_hash: proof.result_contract_hash.clone(),
+                    plan: proof.plan.clone(),
+                };
+                let occurrences = proof.consume_occurrences()?;
+                materialize_provenanced_media_result_in_tx(
+                    &tx,
+                    &schema,
+                    next_version,
+                    &context.plan,
+                    &occurrences,
+                    &mut result,
+                )?;
+                Some(context)
+            }
+            Some(MediaProjectionProofAccess::Borrowed { proof, .. }) if !options.apply => {
+                let context = SettlementMediaContextV1 {
+                    result_contract_hash: proof.result_contract_hash.clone(),
+                    plan: proof.plan.clone(),
+                };
+                materialize_provenanced_media_result_in_tx(
+                    &tx,
+                    &schema,
+                    next_version,
+                    &context.plan,
+                    proof.borrow_occurrences(),
+                    &mut result,
+                )?;
+                Some(context)
+            }
+            Some(_) => return Err(media_projection_unprovenanced()),
+            None => None,
         };
         let output = MutationOutput {
             version,
@@ -4809,9 +4877,9 @@ impl LocalDatabase {
     }
 
     /// Install the O(1) retention-accounting metadata for old databases.
-    /// Existing ledgers are scanned once only when either counter is absent or
-    /// malformed; every later settlement and acknowledgement maintains both
-    /// values in the same transaction as its ledger-row change.
+    /// Existing ledgers are scanned once when the formula version is old or a
+    /// counter is absent/malformed; every later settlement, acknowledgement,
+    /// and authority-wide collection uses that same versioned row formula.
     ///
     /// @ref LLP 0043#milestone-2-queued-mutation-replay — refusal limits and
     /// acknowledgement-driven GC must preserve exactly-once settlements.
@@ -4828,23 +4896,28 @@ impl LocalDatabase {
             save_meta_u64(&tx, META_CLIENT_MUTATION_RECORDS, records)?;
             save_meta_u64(&tx, META_CLIENT_MUTATION_BYTES, bytes)?;
             tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
-            tx.execute(
-                "INSERT INTO _snapback_client_mutation_auth_retention(
-                   auth_fingerprint, records, bytes
-                 )
-                 SELECT auth_fingerprint, COUNT(*), SUM(
-                   length(CAST(client_mutation_id AS BLOB)) +
-                   length(CAST(function AS BLOB)) +
-                   length(CAST(auth_fingerprint AS BLOB)) +
-                   COALESCE(length(CAST(authority_instance_id AS BLOB)), 0) +
-                   length(CAST(input_fingerprint AS BLOB)) +
-                   COALESCE(length(CAST(operation_issuance_json AS BLOB)), 0) +
-                   length(CAST(output_json AS BLOB))
-                 )
-                 FROM _snapback_client_mutations
-                 GROUP BY auth_fingerprint",
-                [],
-            )?;
+            let auth_fingerprints = {
+                let mut statement = tx.prepare(
+                    "SELECT DISTINCT auth_fingerprint
+                       FROM _snapback_client_mutations
+                      ORDER BY auth_fingerprint",
+                )?;
+                statement
+                    .query_map([], |row| row.get::<_, String>(0))?
+                    .collect::<rusqlite::Result<Vec<_>>>()?
+            };
+            for auth_fingerprint in auth_fingerprints {
+                let (records, bytes) = scan_client_mutation_retention_totals_for_auth(
+                    &tx,
+                    Some(&auth_fingerprint),
+                )?;
+                save_client_mutation_auth_retention_counters(
+                    &tx,
+                    &auth_fingerprint,
+                    records,
+                    bytes,
+                )?;
+            }
             save_meta_u64(
                 &tx,
                 META_CLIENT_MUTATION_COUNTERS_VERSION,
@@ -14373,7 +14446,7 @@ fn validate_staged_media_projection_dependencies(
     proof: &crate::runtime::StagedMediaProjectionProofV1,
     read_dependencies: &[CapturedReadDependency],
 ) -> SnapbackResult<()> {
-    for occurrence in proof.borrow_occurrences()? {
+    for occurrence in proof.borrow_occurrences() {
         let bound = read_dependencies.iter().any(|dependency| {
             dependency.kind == CapturedReadKind::Permission
                 && dependency.table.as_deref() == Some(crate::assets::ASSET_RECORDS_TABLE)
@@ -14387,6 +14460,20 @@ fn validate_staged_media_projection_dependencies(
         if !bound {
             return Err(media_projection_unprovenanced());
         }
+    }
+    Ok(())
+}
+
+/// The proof cannot establish its own invocation authority. Compare it with
+/// the record reconstructed from the current prepared invocation/request
+/// carrier before any stale-read validation or result materialization.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+fn validate_staged_media_projection_binding(
+    proof: &crate::runtime::StagedMediaProjectionProofV1,
+    expected: &crate::runtime::MediaProjectionProofBindingV1,
+) -> SnapbackResult<()> {
+    if &proof.binding != expected || proof.result_contract_hash != expected.result_contract_hash {
+        return Err(media_projection_unprovenanced());
     }
     Ok(())
 }
@@ -15621,23 +15708,112 @@ fn canonical_json(value: Value) -> Value {
     }
 }
 
-/// The logical retained-byte definition is stable and deliberately excludes
-/// SQLite row/index overhead. It is the sum of the seven replay-identity/result
-/// payloads whose contents the server must keep for exactly-once replay.
+/// V4's logical retained-row measure deliberately excludes SQLite row/index
+/// overhead. The sequence is always exactly one big-endian/logical u64 (eight
+/// bytes), independent of SQLite's variable physical integer encoding.
+///
+/// @ref LLP 0043#milestone-2-queued-mutation-replay — insertion admission,
+/// reconstruction, acknowledgement, and collection share one byte contract.
+#[allow(clippy::too_many_arguments)]
+fn logical_client_mutation_retained_row_bytes_v4(
+    client_mutation_id: &str,
+    function: &str,
+    auth_fingerprint: &str,
+    authority_instance_id: Option<&str>,
+    input_fingerprint: &str,
+    operation_issuance_json: Option<&str>,
+    output_json: &str,
+    settlement_format: Option<&str>,
+    settlement_record_sequence: SqlValue,
+    settlement_projection_seal_json: Option<&str>,
+) -> SnapbackResult<u64> {
+    let settlement_format = settlement_format.ok_or_else(|| {
+        invalid_client_mutation_retention_state(
+            "retained settlement format is missing from byte accounting",
+        )
+    })?;
+    match settlement_record_sequence {
+        SqlValue::Integer(value)
+            if value > 0
+                && u64::try_from(value)
+                    .is_ok_and(|value| value <= SEQUENCE_MAX_SAFE_INTEGER) => {}
+        _ => {
+            return Err(invalid_client_mutation_retention_state(
+                "retained settlement sequence is invalid for byte accounting",
+            ));
+        }
+    }
+    let members = [
+        client_mutation_id.len() as u64,
+        function.len() as u64,
+        auth_fingerprint.len() as u64,
+        authority_instance_id.map_or(0, |value| value.len() as u64),
+        input_fingerprint.len() as u64,
+        operation_issuance_json.map_or(0, |value| value.len() as u64),
+        output_json.len() as u64,
+        settlement_format.len() as u64,
+        std::mem::size_of::<u64>() as u64,
+        settlement_projection_seal_json.map_or(0, |value| value.len() as u64),
+    ];
+    members.into_iter().try_fold(0_u64, |total, member| {
+        total.checked_add(member).ok_or_else(|| {
+            invalid_client_mutation_retention_state(
+                "retained settlement byte accounting overflowed",
+            )
+        })
+    })
+}
+
 fn scan_client_mutation_retention_totals(conn: &Connection) -> SnapbackResult<(u64, u64)> {
-    let (records, bytes): (u64, u64) = conn.query_row(
-        "SELECT COUNT(*), COALESCE(SUM(
-           length(CAST(client_mutation_id AS BLOB)) +
-           length(CAST(function AS BLOB)) +
-           length(CAST(auth_fingerprint AS BLOB)) +
-           COALESCE(length(CAST(authority_instance_id AS BLOB)), 0) +
-           length(CAST(input_fingerprint AS BLOB)) +
-           COALESCE(length(CAST(operation_issuance_json AS BLOB)), 0) +
-           length(CAST(output_json AS BLOB))
-         ), 0) FROM _snapback_client_mutations",
-        [],
-        |row| Ok((row.get(0)?, row.get(1)?)),
+    scan_client_mutation_retention_totals_for_auth(conn, None)
+}
+
+fn scan_client_mutation_retention_totals_for_auth(
+    conn: &Connection,
+    auth_fingerprint: Option<&str>,
+) -> SnapbackResult<(u64, u64)> {
+    let mut statement = conn.prepare(
+        "SELECT client_mutation_id, function, auth_fingerprint,
+                authority_instance_id, input_fingerprint,
+                operation_issuance_json, output_json, settlement_format,
+                settlement_record_sequence, settlement_projection_seal_json
+           FROM _snapback_client_mutations
+          WHERE (?1 IS NULL OR auth_fingerprint = ?1)
+          ORDER BY client_mutation_id",
     )?;
+    let mut rows = statement.query(params![auth_fingerprint])?;
+    let mut records = 0_u64;
+    let mut bytes = 0_u64;
+    while let Some(row) = rows.next()? {
+        let client_mutation_id: String = row.get(0)?;
+        let function: String = row.get(1)?;
+        let row_auth_fingerprint: String = row.get(2)?;
+        let authority_instance_id: Option<String> = row.get(3)?;
+        let input_fingerprint: String = row.get(4)?;
+        let operation_issuance_json: Option<String> = row.get(5)?;
+        let output_json: String = row.get(6)?;
+        let settlement_format: Option<String> = row.get(7)?;
+        let settlement_record_sequence: SqlValue = row.get(8)?;
+        let settlement_projection_seal_json: Option<String> = row.get(9)?;
+        let row_bytes = logical_client_mutation_retained_row_bytes_v4(
+            &client_mutation_id,
+            &function,
+            &row_auth_fingerprint,
+            authority_instance_id.as_deref(),
+            &input_fingerprint,
+            operation_issuance_json.as_deref(),
+            &output_json,
+            settlement_format.as_deref(),
+            settlement_record_sequence,
+            settlement_projection_seal_json.as_deref(),
+        )?;
+        records = records.checked_add(1).ok_or_else(|| {
+            invalid_client_mutation_retention_state("retained settlement row count overflowed")
+        })?;
+        bytes = bytes.checked_add(row_bytes).ok_or_else(|| {
+            invalid_client_mutation_retention_state("retained settlement byte total overflowed")
+        })?;
+    }
     Ok((records, bytes))
 }
 
@@ -16060,20 +16236,21 @@ fn record_client_mutation_result(
                 "operation issuance could not be encoded: {error}"
             ))
         })?;
-    let new_bytes = identity.id.len() as u64
-        + identity.function.len() as u64
-        + identity.auth_fingerprint.len() as u64
-        + identity.authority_instance_id.len() as u64
-        + identity.input_fingerprint.len() as u64
-        + operation_issuance_json
-            .as_ref()
-            .map_or(0, |value| value.len() as u64)
-        + settlement_format.len() as u64
-        + std::mem::size_of::<u64>() as u64
-        + settlement_projection_seal_json
-            .as_ref()
-            .map_or(0, |value| value.len() as u64)
-        + output_bytes;
+    let new_bytes = logical_client_mutation_retained_row_bytes_v4(
+        &identity.id,
+        &identity.function,
+        &identity.auth_fingerprint,
+        Some(&identity.authority_instance_id),
+        &identity.input_fingerprint,
+        operation_issuance_json.as_deref(),
+        &output_json,
+        Some(settlement_format),
+        SqlValue::Integer(
+            i64::try_from(settlement_record_sequence)
+                .map_err(|_| settlement_integrity_error())?,
+        ),
+        settlement_projection_seal_json.as_deref(),
+    )?;
     let limits = client_mutation_retention_limits();
     let admitted_bytes = retained_bytes.checked_add(new_bytes);
     let auth_admitted_bytes = auth_retained_bytes.checked_add(new_bytes);
