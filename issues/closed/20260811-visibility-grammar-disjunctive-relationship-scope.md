@@ -1,8 +1,8 @@
 # Visibility grammar cannot express disjunctive relationship scoping (the Clique feed shape)
 
-**Opened:** 2026-08-11 · **Closed:** 2026-08-11 · **Status:** resolved —
-implemented in Lane C · **Systems:** Security/authorization, Code generation,
-Live queries
+**Opened:** 2026-08-11 · **Closed:** 2026-08-11 · **Landed:** `908f52350` ·
+**Status:** resolved — implemented in Lane C · **Systems:**
+Security/authorization, Code generation, Live queries
 
 **Related:** LLP 0231 (OQ1 — the visibility grammar), LLP 0201 (Clique
 benchmark), LLP 0056 (memberships), ship run `llp0231-visibility-20260811`

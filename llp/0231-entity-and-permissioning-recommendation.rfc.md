@@ -663,13 +663,14 @@ encryption dismissal.
 ## Status
 
 Accepted — author ruling 2026-08-11, implementation directed in-session and
-recorded by the orchestrator; implementation running as ship run
-`llp0231-visibility-20260811`. No capability claim until scoped post-landing
-evidence exists (LLP 0189). The census figures are
-reproducible at `5373238eb`; they were corrected three times by review (raw
-counts, taxonomy, then the no-scoping roster), so treat them as re-derived per
-round rather than settled — re-derive before citing them outside this
-document. Diary citations are quoted exactly.
+recorded by the orchestrator. Ship run `llp0231-visibility-20260811` landed at
+`908f52350`; the scoped local `auth.table-visibility` capability claim is
+`shipped` in `guide/capabilities.md`, witnessed by
+`tests/acceptance/table-visibility-any-of-live.mjs` (LLP 0189). The census
+figures are reproducible at `5373238eb`; they were corrected three times by
+review (raw counts, taxonomy, then the no-scoping roster), so treat them as
+re-derived per round rather than settled — re-derive before citing them outside
+this document. Diary citations are quoted exactly.
 
 ## Revision history
 
@@ -726,3 +727,6 @@ document. Diary citations are quoted exactly.
   0235 binds noninterference to the physical plan. OQ6's override-governance
   sibling is LLP 0234 (Draft); D2's second phase stays blocked until it is
   accepted and implemented. No decision in this document changed.
+- 2026-08-12 — status reconciled with the completed ship run: recorded landing
+  `908f52350` and the scoped shipped `auth.table-visibility` capability claim
+  and acceptance witness.
