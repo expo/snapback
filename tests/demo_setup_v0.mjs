@@ -30,6 +30,7 @@ export const EXPECTED_DEMO_IDS = Object.freeze([
   'rbac',
   'shindig',
   'team-chat',
+  'tiny-triumphs',
   'todo',
   'todo-v2',
   'triage-graph',

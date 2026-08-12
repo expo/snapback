@@ -317,6 +317,19 @@
       "documentation": { "status": "contract", "path": "demos/team-chat/README.md" }
     },
     {
+      "id": "tiny-triumphs",
+      "directory": "demos/tiny-triumphs",
+      "teaches": "An Expo SDK 57 app for celebrating small wins over Snapback live queries and mutations.",
+      "clients": ["expo", "headless"],
+      "targets": ["local", "web-client"],
+      "maturity": "integration",
+      "run": "npm start --prefix demos/tiny-triumphs",
+      "proof": "npm test --prefix demos/tiny-triumphs",
+      "expectedEvidence": "A headless seed, validation, trusted-time, and managed-stream acceptance pass plus an Expo universal client.",
+      "evidence": ["demos/tiny-triumphs/tests/acceptance/headless.mjs"],
+      "documentation": { "status": "contract", "path": "demos/tiny-triumphs/README.md" }
+    },
+    {
       "id": "todo-v2",
       "directory": "demos/todo-v2",
       "teaches": "A second todo reference app used to test LLP 0021 and LLP 0051 D6: a richer row shape, an all-IR generated Contract binding surface, retained/offline replay, Exact project checks, a wrong-native-server-shape capability diagnostic, and an Exact-owned provider conformance fixture.",

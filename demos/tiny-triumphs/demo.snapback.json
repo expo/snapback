@@ -1,0 +1,11 @@
+{
+  "id": "tiny-triumphs",
+  "title": "Tiny Triumphs — shared victory jar",
+  "description": "An Expo SDK 57 app for celebrating small wins over Snapback live queries and mutations.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["API", "Storage", "Runtime", "Realtime", "React/Expo", "Developer experience"],
+  "backend": { "source": "snapback/schema.mjs + snapback/functions.mjs", "codegen": "snapback generate snapback", "generated": ["snapback/generated/artifacts.json"] },
+  "surfaces": { "expo": { "buildTargets": ["ios", "android", "web"], "entrypoint": "src/app/_layout.tsx" }, "headless": { "runner": "node tests/acceptance/headless.mjs" } },
+  "notClaiming": ["hosted Snapback backend", "production authentication"]
+}

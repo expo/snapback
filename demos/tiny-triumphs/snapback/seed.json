@@ -1,0 +1,8 @@
+{
+  "seedVersion": "2026-08-11.1",
+  "tables": { "triumphs": [
+    { "_id": "triumph_first", "text": "Made coffee before checking notifications", "vibe": "sun", "createdAt": 1786417200000 },
+    { "_id": "triumph_walk", "text": "Took the long way home and spotted a hummingbird", "vibe": "leaf", "createdAt": 1786420800000 },
+    { "_id": "triumph_ship", "text": "Shipped a small thing instead of polishing it forever", "vibe": "spark", "createdAt": 1786424400000 }
+  ] }
+}
