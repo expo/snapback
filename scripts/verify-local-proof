@@ -530,6 +530,11 @@ run snapback-cli-real-server --requires "$runtime_prerequisite" -- \
 # allowlist, WS relay); it needs the debug binary for the same reason.
 run snapback-vite-real-server --requires "$runtime_prerequisite" -- \
     env SNAPBACK_RUNTIME_BINARY="$runtime_binary" npm --prefix packages/snapback-vite test
+# LLP 0030 §Validation requirements: the Bun-specific relay witness must keep
+# Vite's node:http server on Bun's shim while driving the qualified native
+# backend through the durable websocket path.
+run snapback-vite-bun-relay --requires "$runtime_prerequisite" -- \
+    env SNAPBACK_RUNTIME_BINARY="$runtime_binary" bun packages/snapback-vite/bun-relay.test.mjs
 # @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate — the
 # closed versioned-seed dispatcher is a revision-bound local
 # proof gate, not an ignored receipt cited as durable repository evidence.
