@@ -15,6 +15,8 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
+pub(crate) const AUTH_MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
+
 // @ref LLP 0225#1-ownership-map — the kernel consumes these session and
 // terminal value shapes from the leaf; the sync engine keeps
 // `SessionProjection` and behavioral impls.
@@ -34,6 +36,248 @@ pub(crate) enum PlannedIdentityState {
         identity_id: String,
         user_id: String,
     },
+}
+
+/// Opaque, exact-width digest used to name current and superseded session
+/// bearers across provider policy, projection, and catalog commits.
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct TokenDigest(pub(crate) [u8; 32]);
+
+impl TokenDigest {
+    pub(crate) fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub(crate) fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for TokenDigest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("TokenDigest([REDACTED])")
+    }
+}
+
+/// Durable session-family revocation published after the owning kernel commit.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SessionRevocation {
+    pub session_id: String,
+    pub generation: u64,
+}
+
+/// Provider-neutral durable session row returned by the auth-catalog kernel.
+/// Sync policy decides whether this row is live, expired, or usable through a
+/// retained predecessor.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolvedSession {
+    pub session_id: String,
+    pub user_id: String,
+    pub identity_id: String,
+    pub provider: String,
+    pub generation: u64,
+    pub authority_instance_id: String,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+    pub absolute_expires_at_ms: u64,
+}
+
+#[derive(Debug)]
+pub(crate) struct AuthSessionRecord {
+    pub(crate) session: ResolvedSession,
+    pub(crate) revoked: bool,
+}
+
+/// Current-first durable bearer lookup. The kernel reports only row facts;
+/// supersession-grace and expiry classification remain provider policy.
+#[derive(Debug)]
+pub(crate) enum PresentedSessionLookup {
+    Current(AuthSessionRecord),
+    Tombstone {
+        session: AuthSessionRecord,
+        superseded_at_ms: u64,
+    },
+    Unknown,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthenticatedUse {
+    Unchanged { expires_at_ms: u64 },
+    Extended { expires_at_ms: u64 },
+    NotLive,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct AuthenticatedUseRow {
+    pub(crate) generation: u64,
+    pub(crate) last_used_at_ms: u64,
+    pub(crate) expires_at_ms: u64,
+    pub(crate) absolute_expires_at_ms: u64,
+    pub(crate) revoked: bool,
+}
+
+/// Wire-neutral session response facts used by kernel transaction outcomes.
+/// The sync owner converts this shape into the public auth wire DTO.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct AuthSessionResponseFact {
+    pub(crate) id: String,
+    pub(crate) user_id: String,
+    pub(crate) provider: String,
+    pub(crate) created_at: u64,
+    pub(crate) expires_at: u64,
+    pub(crate) absolute_expires_at: u64,
+    pub(crate) authority_instance_id: String,
+    pub(crate) generation: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PlannedRevocationCommit {
+    Committed(SessionRevocation),
+    AlreadyTerminal {
+        generation: u64,
+        reason: Option<RevocationReason>,
+    },
+    PredecessorChanged,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PlannedFamilyAlarmCommit {
+    Revoked(SessionRevocation),
+    Noop,
+    Retry,
+}
+
+#[derive(Clone)]
+pub(crate) enum PlannedRotationTransaction {
+    Refreshed(AuthSessionResponseFact),
+    CandidateCollision,
+    PredecessorChanged,
+}
+
+pub(crate) enum DurableRevocationReconcile {
+    ExactPredecessor,
+    ExactSuccessor(SessionRevocation),
+    DifferentValid,
+}
+
+pub(crate) enum DurableRotationReconcile {
+    ExactPredecessor,
+    ExactSuccessor(AuthSessionResponseFact),
+    DifferentValid,
+}
+
+/// Unclassified durable verification-code row. Provider policy decides
+/// terminality, lockout, and whether an issuance may be planned.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ExchangeChallengeFact {
+    pub(crate) address: String,
+    pub(crate) code_digest: [u8; 32],
+    pub(crate) key_id: String,
+    pub(crate) attempts: u32,
+    pub(crate) max_attempts: u32,
+    pub(crate) expires_at_ms: u64,
+    pub(crate) consumed: bool,
+    pub(crate) superseded: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ExistingIdentityFact {
+    pub(crate) identity_id: String,
+    pub(crate) user_id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct EvictionCandidateFact {
+    pub(crate) session_id: String,
+    pub(crate) generation: u64,
+    pub(crate) token_digest: TokenDigest,
+}
+
+/// Unclassified durable session row that sync policy may turn into a
+/// revocation plan. The kernel does not choose the revocation reason.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SessionRevocationCandidateFact {
+    pub(crate) session_id: String,
+    pub(crate) generation: u64,
+    pub(crate) token_digest: TokenDigest,
+}
+
+/// Durable live-session cap facts. Sync policy decides whether the oldest
+/// row becomes a cap-eviction plan.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SessionCapFacts {
+    pub(crate) live_session_count: u64,
+    pub(crate) oldest_live_session: Option<EvictionCandidateFact>,
+}
+
+/// Unclassified catalog facts for session issuance. Provider policy owns the
+/// Create/Existing identity choice and the live-cap eviction decision.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SessionIssuanceFacts {
+    pub(crate) existing_identity: Option<ExistingIdentityFact>,
+    pub(crate) live_session_count: u64,
+    pub(crate) oldest_live_session: Option<EvictionCandidateFact>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RequestInsertOutcome {
+    Inserted,
+    AuthRequired,
+}
+
+pub(crate) enum CatalogIssuanceReconcile {
+    ExactPredecessor,
+    ExactSuccessor {
+        session: AuthSessionResponseFact,
+        committed_revocations: Vec<SessionRevocation>,
+    },
+    DifferentValid,
+}
+
+pub(crate) enum DurableRejectedIssuanceReconcile {
+    ExactPredecessor,
+    ExactSuccessor,
+    DifferentValid,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RejectedExchangeOutcome {
+    Invalid,
+    Locked,
+    PredecessorChanged,
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+#[derive(Debug)]
+pub(crate) enum ExchangeOutcome {
+    Invalid,
+    Locked,
+    Issued {
+        session: AuthSessionResponseFact,
+        committed_revocation: Option<SessionRevocation>,
+    },
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+#[derive(Debug)]
+pub(crate) enum RefreshOutcome {
+    AuthRequired,
+    SessionExpired,
+    SupersededInsideGrace,
+    ReuseRevoked(SessionRevocation),
+    Refreshed(AuthSessionResponseFact),
+}
+
+#[cfg(test)]
+#[allow(dead_code)]
+#[derive(Debug)]
+pub(crate) enum LogoutOutcome {
+    AuthRequired,
+    SessionExpired,
+    CredentialSuperseded,
+    Revoked(SessionRevocation),
 }
 
 /// Durable sender-proof replay outcomes shared by policy and the storage

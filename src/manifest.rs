@@ -10855,13 +10855,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:6cb46cffcca4d9178469fc766a022d9d031e10e503fbb5171c6580ecc9c18df1";
+    "sha256:cf31936bf107ab897eb5acacf0ddf1fe6b8d975b820cecb25599325f019255d4";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:e9b7511abb612e73270a4b1b5ceb96012b9c232edb864d8941849b72d4e1760e";
+    "sha256:d245c24d3820a80e4753c5b365b266de95731fa841d25b872372a4a66f6f1de1";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -11301,7 +11301,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:e8e558908f86ea13a62080cc285734796200944904d76cdfd915bf561c726d01"
+                    "sha256:43988584e60a0bf41bf5c9588bf5b19e309f0a6a5ecd5313eb23fa65541404ce"
                         .to_owned(),
                 ),
                 (
@@ -11316,7 +11316,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:f2fde7cc58a8869f7cf78bdf4a0be73268359ee0e450aaad62327c86a24e35d7"
+                    "sha256:621b8add7b15c7124dd47cfd74961411ec7be2155579f304753ad972a58367f4"
                         .to_owned(),
                 ),
                 (
@@ -11326,7 +11326,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:7227f7d52a6ae5486bb3e284af265b3f4bc751396947644cadedad2099d9c063"
+                    "sha256:9ccc7da5ba2877b1b31f0b55b81acae602a35229abd6feccd686a584f2e96cb7"
                         .to_owned(),
                 ),
                 (
@@ -11509,7 +11509,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:e8e558908f86ea13a62080cc285734796200944904d76cdfd915bf561c726d01"
+                    "sha256:43988584e60a0bf41bf5c9588bf5b19e309f0a6a5ecd5313eb23fa65541404ce"
                         .to_owned(),
                 ),
                 (
@@ -11524,7 +11524,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:f2fde7cc58a8869f7cf78bdf4a0be73268359ee0e450aaad62327c86a24e35d7"
+                    "sha256:621b8add7b15c7124dd47cfd74961411ec7be2155579f304753ad972a58367f4"
                         .to_owned(),
                 ),
                 (
@@ -11534,7 +11534,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:7227f7d52a6ae5486bb3e284af265b3f4bc751396947644cadedad2099d9c063"
+                    "sha256:9ccc7da5ba2877b1b31f0b55b81acae602a35229abd6feccd686a584f2e96cb7"
                         .to_owned(),
                 ),
                 (
@@ -11798,7 +11798,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:e8e558908f86ea13a62080cc285734796200944904d76cdfd915bf561c726d01"
+                    "sha256:43988584e60a0bf41bf5c9588bf5b19e309f0a6a5ecd5313eb23fa65541404ce"
                         .to_owned(),
                 ),
                 (
@@ -11813,7 +11813,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:f2fde7cc58a8869f7cf78bdf4a0be73268359ee0e450aaad62327c86a24e35d7"
+                    "sha256:621b8add7b15c7124dd47cfd74961411ec7be2155579f304753ad972a58367f4"
                         .to_owned(),
                 ),
                 (
@@ -11823,7 +11823,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:7227f7d52a6ae5486bb3e284af265b3f4bc751396947644cadedad2099d9c063"
+                    "sha256:9ccc7da5ba2877b1b31f0b55b81acae602a35229abd6feccd686a584f2e96cb7"
                         .to_owned(),
                 ),
                 (

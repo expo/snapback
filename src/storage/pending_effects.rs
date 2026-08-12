@@ -513,7 +513,7 @@ impl LocalDatabase {
             }
             if approve && requires_step_up {
                 let proof = step_up.ok_or_else(crate::auth::crypto::step_up_required_error)?;
-                if proof.consume_on(tx, now_ms)?
+                if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
                     != crate::auth::crypto::StepUpConsumption::Verified
                 {
                     return Err(crate::auth::crypto::step_up_required_error());

@@ -17,10 +17,11 @@ use super::provider::{
 use super::session_projection::{
     AUTH_LOCK_RANK_TOPOLOGY, AuthorityWorkDrain, BoundConnectionSessionIdentity, DueExpiryBatch,
     DueExpiryFinalization, FencedPublication, MutationTicket, PendingMutationKind,
-    ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution, ProjectedSessionAuthority,
-    ProjectedTokenResolution, RankedMutexGuard, SessionProjection, TokenDigest, ranked_mutex_lock,
+    ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution,
+    ProjectedSessionAuthority, ProjectedTokenResolution, RankedMutexGuard, SessionProjection,
+    ranked_mutex_lock,
 };
-use crate::contract_types::{AuthorizationStreamIncarnation, RevocationReason};
+use crate::contract_types::{AuthorizationStreamIncarnation, RevocationReason, TokenDigest};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
 use std::collections::BTreeSet;

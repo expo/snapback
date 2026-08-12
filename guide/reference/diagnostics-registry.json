@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "eec542b90609fc6f09a4ae6a1c6f327a5e858c97",
-    "sourceDigest": "sha256:1373ea15c7b658993f8ade6916d87ba2202f3e6212f19068df447729359ea007"
+    "commit": "ef936353ffdc540dedd4d5760e51c78eb6e38f72",
+    "sourceDigest": "sha256:f8ae4c427854d82ed53f88b742ae991e7344cd3a031179cf05271009406a5977"
   },
   "limits": {
     "lookupBytes": 16384
@@ -13150,7 +13150,7 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6955,
+          "line": 4540,
           "column": 14
         },
         {
@@ -13380,7 +13380,7 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 2084,
+          "line": 1959,
           "column": 18
         },
         {
@@ -13410,7 +13410,7 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 6322,
+          "line": 3939,
           "column": 10
         },
         {
@@ -13920,7 +13920,7 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1469,
+          "line": 1471,
           "column": 10
         }
       ],
@@ -13995,12 +13995,12 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1159,
+          "line": 1161,
           "column": 10
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1317,
+          "line": 1319,
           "column": 48
         }
       ],
@@ -14020,22 +14020,22 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1168,
+          "line": 1170,
           "column": 10
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1353,
+          "line": 1355,
           "column": 14
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1387,
+          "line": 1389,
           "column": 14
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1423,
+          "line": 1425,
           "column": 14
         }
       ],
@@ -14100,7 +14100,7 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 675,
+          "line": 677,
           "column": 10
         }
       ],
@@ -14115,7 +14115,7 @@
       "sites": [
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 691,
+          "line": 693,
           "column": 10
         }
       ],
@@ -14140,7 +14140,7 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 659,
+          "line": 661,
           "column": 10
         }
       ],
@@ -14160,7 +14160,7 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 667,
+          "line": 669,
           "column": 10
         }
       ],
@@ -14180,7 +14180,7 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 643,
+          "line": 645,
           "column": 10
         }
       ],
@@ -14195,7 +14195,7 @@
       "sites": [
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 699,
+          "line": 701,
           "column": 10
         }
       ],
@@ -14215,7 +14215,7 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 651,
+          "line": 653,
           "column": 10
         }
       ],
@@ -14235,7 +14235,7 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 581,
+          "line": 583,
           "column": 14
         }
       ],
@@ -14297,7 +14297,7 @@
       "sites": [
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 683,
+          "line": 685,
           "column": 10
         }
       ],
@@ -14317,7 +14317,7 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 635,
+          "line": 637,
           "column": 10
         }
       ],
@@ -14337,12 +14337,12 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1150,
+          "line": 1152,
           "column": 10
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1509,
+          "line": 1511,
           "column": 48
         }
       ],
@@ -14824,7 +14824,7 @@
       "sites": [
         {
           "file": "src/auth/throttle.rs",
-          "line": 1159,
+          "line": 1167,
           "column": 52
         },
         {
@@ -14844,7 +14844,7 @@
       "sites": [
         {
           "file": "src/auth/throttle.rs",
-          "line": 1161,
+          "line": 1169,
           "column": 31
         },
         {
@@ -14984,7 +14984,7 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1534,
+          "line": 1536,
           "column": 14
         },
         {
@@ -15154,32 +15154,32 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7267,
+          "line": 4852,
           "column": 50
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7281,
+          "line": 4866,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7320,
+          "line": 4905,
           "column": 50
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7419,
+          "line": 5004,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7438,
+          "line": 5023,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7476,
+          "line": 5061,
           "column": 47
         },
         {
@@ -15219,12 +15219,12 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7325,
+          "line": 4910,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7338,
+          "line": 4923,
           "column": 46
         },
         {
@@ -15319,12 +15319,12 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 6337,
+          "line": 3954,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 9108,
+          "line": 6693,
           "column": 14
         },
         {
@@ -15334,37 +15334,37 @@
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2966,
+          "line": 2938,
           "column": 18
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2975,
+          "line": 2947,
           "column": 539
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2993,
+          "line": 2965,
           "column": 18
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2999,
+          "line": 2971,
           "column": 505
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2999,
+          "line": 2971,
           "column": 775
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3296,
+          "line": 3268,
           "column": 14
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3330,
+          "line": 3302,
           "column": 14
         }
       ],
@@ -15474,27 +15474,27 @@
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 1899,
+          "line": 1900,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6390,
+          "line": 4007,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7627,
+          "line": 5212,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7702,
+          "line": 5287,
           "column": 18
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7797,
+          "line": 5382,
           "column": 14
         },
         {
@@ -16178,7 +16178,7 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1493,
+          "line": 1495,
           "column": 10
         },
         {
@@ -16203,27 +16203,27 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1774,
+          "line": 1776,
           "column": 26
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1812,
+          "line": 1814,
           "column": 30
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1828,
+          "line": 1830,
           "column": 10
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1875,
+          "line": 1877,
           "column": 22
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1889,
+          "line": 1891,
           "column": 10
         }
       ],
@@ -16243,7 +16243,7 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1897,
+          "line": 1899,
           "column": 10
         }
       ],
@@ -16273,32 +16273,32 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1461,
+          "line": 1463,
           "column": 10
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 2326,
+          "line": 2328,
           "column": 44
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 2353,
+          "line": 2355,
           "column": 52
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 2380,
+          "line": 2382,
           "column": 44
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 2394,
+          "line": 2396,
           "column": 52
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 2496,
+          "line": 2498,
           "column": 46
         }
       ],
@@ -16331,7 +16331,7 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 2528,
+          "line": 2530,
           "column": 46
         }
       ],
@@ -16418,7 +16418,7 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1477,
+          "line": 1479,
           "column": 10
         }
       ],
@@ -16438,12 +16438,12 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1485,
+          "line": 1487,
           "column": 10
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 2301,
+          "line": 2303,
           "column": 44
         }
       ],
@@ -16463,7 +16463,7 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1905,
+          "line": 1907,
           "column": 10
         }
       ],
@@ -16478,22 +16478,22 @@
       "sites": [
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2559,
+          "line": 2531,
           "column": 230
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2595,
+          "line": 2567,
           "column": 194
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3208,
+          "line": 3180,
           "column": 44
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3236,
+          "line": 3208,
           "column": 14
         }
       ],
@@ -16538,22 +16538,22 @@
       "sites": [
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2412,
+          "line": 2384,
           "column": 22
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2558,
+          "line": 2530,
           "column": 52
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2594,
+          "line": 2566,
           "column": 69
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3267,
+          "line": 3239,
           "column": 14
         }
       ],
@@ -16988,12 +16988,12 @@
       "sites": [
         {
           "file": "src/auth/throttle.rs",
-          "line": 1160,
+          "line": 1168,
           "column": 43
         },
         {
           "file": "src/auth/throttle.rs",
-          "line": 2217,
+          "line": 2225,
           "column": 14
         },
         {
@@ -17013,17 +17013,17 @@
       "sites": [
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2629,
+          "line": 2601,
           "column": 191
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2667,
+          "line": 2639,
           "column": 40
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3380,
+          "line": 3352,
           "column": 14
         }
       ],
@@ -18464,12 +18464,12 @@
       "sites": [
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3082,
+          "line": 3054,
           "column": 432
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3504,
+          "line": 3476,
           "column": 14
         }
       ],
@@ -18674,22 +18674,22 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 6406,
+          "line": 4023,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7085,
+          "line": 4670,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7289,
+          "line": 4874,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 8092,
+          "line": 5677,
           "column": 14
         },
         {
@@ -19484,7 +19484,7 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1501,
+          "line": 1503,
           "column": 10
         }
       ],
@@ -19504,7 +19504,7 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1509,
+          "line": 1511,
           "column": 10
         }
       ],
@@ -19534,7 +19534,7 @@
       "sites": [
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2670,
+          "line": 2642,
           "column": 51
         }
       ],
@@ -19564,27 +19564,27 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 1455,
+          "line": 1317,
           "column": 18
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 1532,
+          "line": 1394,
           "column": 18
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 1658,
+          "line": 1525,
           "column": 18
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 1821,
+          "line": 1691,
           "column": 18
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 1900,
+          "line": 1770,
           "column": 18
         },
         {
@@ -19604,12 +19604,12 @@
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2215,
+          "line": 2187,
           "column": 22
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3461,
+          "line": 3433,
           "column": 14
         }
       ],
@@ -19689,17 +19689,17 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 1757,
+          "line": 1626,
           "column": 18
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6305,
+          "line": 3922,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 9272,
+          "line": 6857,
           "column": 14
         },
         {
@@ -19724,7 +19724,7 @@
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2242,
+          "line": 2214,
           "column": 22
         }
       ],
@@ -20403,17 +20403,22 @@
       "sites": [
         {
           "file": "src/auth/session_projection.rs",
-          "line": 2954,
+          "line": 2941,
           "column": 27
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3237,
+          "line": 3224,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3245,
+          "line": 3232,
+          "column": 14
+        },
+        {
+          "file": "src/auth/session_projection.rs",
+          "line": 3240,
           "column": 14
         },
         {
@@ -20423,17 +20428,12 @@
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3266,
+          "line": 3261,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3274,
-          "column": 14
-        },
-        {
-          "file": "src/auth/session_projection.rs",
-          "line": 3282,
+          "line": 3269,
           "column": 14
         },
         {
@@ -20468,27 +20468,27 @@
       "sites": [
         {
           "file": "src/auth/coordinator.rs",
-          "line": 1875,
+          "line": 1876,
           "column": 10
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2600,
+          "line": 2601,
           "column": 14
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2627,
+          "line": 2628,
           "column": 14
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2717,
+          "line": 2718,
           "column": 14
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2915,
+          "line": 2916,
           "column": 14
         },
         {
@@ -20533,27 +20533,27 @@
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 2958,
+          "line": 2945,
           "column": 27
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3466,
+          "line": 3453,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3502,
+          "line": 3489,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3527,
+          "line": 3514,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3929,
+          "line": 3916,
           "column": 14
         },
         {
@@ -20683,32 +20683,32 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 3370,
+          "line": 3241,
           "column": 22
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6285,
+          "line": 3902,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6562,
+          "line": 4147,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7366,
+          "line": 4951,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7393,
+          "line": 4978,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 8116,
+          "line": 5701,
           "column": 14
         },
         {
@@ -20773,22 +20773,22 @@
         },
         {
           "file": "src/storage/auth_catalog_ops.rs",
-          "line": 283,
+          "line": 2584,
           "column": 26
         },
         {
           "file": "src/storage/auth_catalog_ops.rs",
-          "line": 669,
+          "line": 2944,
           "column": 22
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 1913,
+          "line": 1915,
           "column": 10
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2351,
+          "line": 2323,
           "column": 26
         },
         {
@@ -20828,12 +20828,12 @@
       "sites": [
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2513,
+          "line": 2485,
           "column": 40
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3595,
+          "line": 3567,
           "column": 14
         }
       ],
@@ -20853,12 +20853,12 @@
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2516,
+          "line": 2488,
           "column": 94
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2517,
+          "line": 2489,
           "column": 114
         }
       ],
@@ -21078,12 +21078,12 @@
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2839,
+          "line": 2811,
           "column": 18
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2886,
+          "line": 2858,
           "column": 18
         }
       ],
@@ -21103,7 +21103,7 @@
         },
         {
           "file": "src/auth/throttle.rs",
-          "line": 1989,
+          "line": 1997,
           "column": 47
         },
         {
@@ -21123,22 +21123,22 @@
       "sites": [
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2495,
+          "line": 2467,
           "column": 18
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3074,
+          "line": 3046,
           "column": 18
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3078,
+          "line": 3050,
           "column": 391
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 3342,
+          "line": 3314,
           "column": 14
         }
       ],
@@ -21168,22 +21168,22 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6398,
+          "line": 4015,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7494,
+          "line": 5079,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7616,
+          "line": 5201,
           "column": 47
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7690,
+          "line": 5275,
           "column": 18
         },
         {
@@ -21848,7 +21848,7 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 6277,
+          "line": 3894,
           "column": 10
         },
         {
@@ -21896,12 +21896,12 @@
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 1891,
+          "line": 1892,
           "column": 10
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2851,
+          "line": 2852,
           "column": 14
         },
         {
@@ -21916,17 +21916,17 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 3113,
+          "line": 3008,
           "column": 57
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6361,
+          "line": 3978,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7645,
+          "line": 5230,
           "column": 50
         },
         {
@@ -22409,17 +22409,17 @@
       "sites": [
         {
           "file": "src/auth/coordinator.rs",
-          "line": 1883,
+          "line": 1884,
           "column": 10
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2756,
+          "line": 2757,
           "column": 44
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2907,
+          "line": 2908,
           "column": 44
         },
         {
@@ -22564,12 +22564,12 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 2572,
+          "line": 2574,
           "column": 14
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 2622,
+          "line": 2624,
           "column": 14
         }
       ],
@@ -22916,12 +22916,12 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6344,
+          "line": 3961,
           "column": 36
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6349,
+          "line": 3966,
           "column": 10
         },
         {
@@ -23086,77 +23086,77 @@
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 1911,
+          "line": 1912,
           "column": 10
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2556,
+          "line": 2557,
           "column": 18
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6378,
+          "line": 3995,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7560,
+          "line": 5145,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7564,
+          "line": 5149,
           "column": 47
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7632,
+          "line": 5217,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7640,
+          "line": 5225,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7709,
+          "line": 5294,
           "column": 18
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7719,
+          "line": 5304,
           "column": 52
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7758,
+          "line": 5343,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7848,
+          "line": 5433,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7874,
+          "line": 5459,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7935,
+          "line": 5520,
           "column": 49
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 8024,
+          "line": 5609,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 8028,
+          "line": 5613,
           "column": 47
         },
         {
@@ -23231,17 +23231,17 @@
       "sites": [
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2231,
+          "line": 2203,
           "column": 44
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2326,
+          "line": 2298,
           "column": 44
         },
         {
           "file": "src/storage/auth_identity.rs",
-          "line": 2664,
+          "line": 2636,
           "column": 39
         }
       ],
@@ -23531,7 +23531,7 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 6314,
+          "line": 3931,
           "column": 10
         },
         {
@@ -23573,7 +23573,7 @@
         },
         {
           "file": "src/storage/auth_grants.rs",
-          "line": 2068,
+          "line": 2070,
           "column": 44
         }
       ],
@@ -23595,17 +23595,17 @@
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 2950,
+          "line": 2937,
           "column": 27
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3062,
+          "line": 3049,
           "column": 18
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3290,
+          "line": 3277,
           "column": 14
         },
         {
@@ -23819,58 +23819,58 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 3081,
+          "line": 2975,
           "column": 57
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 3110,
+          "line": 3005,
           "column": 57
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 3187,
+          "line": 3082,
           "column": 57
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 3232,
+          "line": 3128,
           "column": 57
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6294,
+          "line": 3911,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6414,
-          "column": 10
-        },
-        {
-          "file": "src/auth/provider.rs",
-          "line": 7065,
+          "line": 4650,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7137,
+          "line": 4722,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7188,
+          "line": 4773,
           "column": 47
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 7226,
+          "line": 4811,
           "column": 49
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 9256,
+          "line": 6841,
           "column": 48
+        },
+        {
+          "file": "src/auth/throttle.rs",
+          "line": 715,
+          "column": 10
         },
         {
           "file": "src/error_tracking.rs",
@@ -53015,7 +53015,7 @@
       "sites": [
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1134,
+          "line": 1136,
           "column": 10
         }
       ],
@@ -53270,12 +53270,12 @@
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1119,
+          "line": 1121,
           "column": 10
         },
         {
           "file": "src/storage/auth_agents.rs",
-          "line": 1493,
+          "line": 1495,
           "column": 14
         },
         {
@@ -60633,7 +60633,7 @@
         },
         {
           "file": "src/contract_types.rs",
-          "line": 334,
+          "line": 578,
           "column": 60
         },
         {
@@ -74881,12 +74881,12 @@
       "sites": [
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2750,
+          "line": 2751,
           "column": 22
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2901,
+          "line": 2902,
           "column": 22
         },
         {

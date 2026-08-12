@@ -266,7 +266,7 @@ pub(crate) struct PasswordSetPredecessor {
     pub(crate) acting_session_id: String,
     pub(crate) acting_user_id: String,
     pub(crate) acting_generation: u64,
-    pub(crate) acting_token_digest: crate::auth::session_projection::TokenDigest,
+    pub(crate) acting_token_digest: crate::contract_types::TokenDigest,
     pub(crate) email_identity_id: String,
 }
 
@@ -290,7 +290,7 @@ pub(crate) struct PasswordChangePlanning {
     pub(crate) canonical_identifier: String,
     pub(crate) acting_session_id: String,
     pub(crate) acting_generation: u64,
-    pub(crate) acting_token_digest: crate::auth::session_projection::TokenDigest,
+    pub(crate) acting_token_digest: crate::contract_types::TokenDigest,
     pub(crate) authority_instance_id: String,
     pub(crate) sender_constrained: bool,
 }
@@ -308,7 +308,7 @@ pub(crate) struct GuestClaimPredecessor {
     pub(crate) session_id: String,
     pub(crate) user_id: String,
     pub(crate) generation: u64,
-    pub(crate) token_digest: crate::auth::session_projection::TokenDigest,
+    pub(crate) token_digest: crate::contract_types::TokenDigest,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2163,16 +2163,6 @@ pub(crate) fn password_change_is_exact_successor_on(
 }
 
 impl LocalDatabase {
-    pub(crate) fn plan_password_session_cap(
-        &self,
-        user_id: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<Option<crate::auth::provider::ProviderRevocationPlan>> {
-        self.with_auth_read(|connection| {
-            crate::auth::provider::plan_session_cap_read(connection, user_id, now_ms)
-        })
-    }
-
     pub(crate) fn password_attempt_matches(
         &self,
         canonical_identifier: &str,
@@ -2180,24 +2170,6 @@ impl LocalDatabase {
     ) -> SnapbackResult<bool> {
         self.with_auth_read(|connection| {
             password_attempt_matches_on(connection, canonical_identifier, expected)
-        })
-    }
-
-    pub(crate) fn plan_user_session_revocations(
-        &self,
-        user_id: &str,
-        excluded_session_id: Option<&str>,
-        identity_id: Option<&str>,
-        now_ms: u64,
-    ) -> SnapbackResult<Vec<crate::auth::provider::ProviderRevocationPlan>> {
-        self.with_auth_read(|connection| {
-            crate::auth::provider::plan_user_session_revocations_read(
-                connection,
-                user_id,
-                excluded_session_id,
-                identity_id,
-                now_ms,
-            )
         })
     }
 
@@ -2274,7 +2246,7 @@ impl LocalDatabase {
                             "authentication state invariant failed",
                         )
                     })?,
-                    acting_token_digest: crate::auth::session_projection::TokenDigest::from_slice(
+                    acting_token_digest: crate::contract_types::TokenDigest::from_slice(
                         &acting_digest,
                     )
                     .map_err(|_| {
@@ -2374,7 +2346,7 @@ impl LocalDatabase {
                         "authentication state invariant failed",
                     )
                 })?,
-                acting_token_digest: crate::auth::session_projection::TokenDigest::from_slice(
+                acting_token_digest: crate::contract_types::TokenDigest::from_slice(
                     &token_digest,
                 )
                 .map_err(|_| {
@@ -2422,7 +2394,7 @@ impl LocalDatabase {
                         "authentication state invariant failed",
                     )
                 })?,
-                token_digest: crate::auth::session_projection::TokenDigest::from_slice(&digest)
+                token_digest: crate::contract_types::TokenDigest::from_slice(&digest)
                     .map_err(|_| {
                         auth_error(
                             "INTERNAL_AUTH_STATE",

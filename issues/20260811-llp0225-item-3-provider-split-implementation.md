@@ -115,7 +115,48 @@ modules each unassigned consumer already depends on. If the charter-correct
 destination costs a waiver, take the waiver — do not distort the architecture
 to dodge a record.
 
-## A2 — the provider bodies (the substantial one)
+## A2 — the provider bodies (the substantial one) — **DONE 2026-08-11**
+
+**The last kernel→provider edge is gone; the direction is now sync→kernel.**
+LLP 0225 revision (s). With A1, A3 and A2 landed, **ratchet worklist item 3 is
+closed.**
+
+`src/auth/provider.rs`: 9,606 → 7,191 lines, **45 → 0** connection/transaction-
+taking functions, **51 → 0** SQL operation sites. `auth_catalog_ops.rs` no
+longer names `crate::auth::provider`.
+
+A2 applied A3's typed-operation pattern, not the body-move shorthand below. The
+three mixed read-and-classify functions were split explicitly:
+`plan_exchange_read` → kernel `exchange_challenge_fact` + sync
+`classify_exchange_challenge`; `plan_session_issuance_read` → kernel
+`session_issuance_facts` + sync `classify_session_issuance`;
+`record_authenticated_use_transaction` → kernel row read/exact update + sync
+liveness, coalescing and sliding expiry. Every decision stayed sync-owned.
+
+**Two things future stages should carry forward.**
+
+1. *The regression, because it is this program's characteristic hazard.* The
+   first verified run took `auth` from 709/2 to 708/3:
+   `guest_claim_and_recovery_consume_use_shared_issuance_finalization` panicked
+   `guest claim must commit, got PredecessorChanged`. The relocated kernel
+   lookup had turned a guest-aware `LEFT JOIN` into an inner `_auth_identities`
+   join; guest sessions have no identity row, so the re-read returned absent and
+   an exact predecessor was classified as changed. **Moving SQL across an owner
+   boundary can silently change the shape of a read even when the surrounding
+   logic is faithfully preserved.** Only the byte-identical failing-**name-set**
+   envelope caught it — pass counts alone would not have.
+2. *The baseline came out 346 → 346, not 345, and that is provenance not
+   growth.* The regeneration removed A2's target fingerprint and recorded a
+   previously unrecorded pre-existing edge,
+   `storage/auth_identity → auth/sender_proof`, introduced by `ef936353f`
+   without a baseline regeneration. A2 does not touch that call site. It is
+   ticketed and routed at
+   `issues/20260811-main-unrecorded-kernel-sync-auth-identity-sender-proof-edge.md`.
+
+Envelope: storage/auth/server failure name sets byte-identical to the
+merge-base with identical pass counts (451/0, 709/2, 287/2).
+
+*Original A2 plan follows, retained for provenance.*
 
 ~24 functions. Move each SQL body into `src/storage/`, co-located with the
 `auth_catalog_ops` wrapper that scopes its transaction, so the kernel stops

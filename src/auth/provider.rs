@@ -18,17 +18,16 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use rusqlite::{Connection, OptionalExtension as _, Transaction, params};
 use tokio::sync::{
     Mutex as AsyncMutex, OwnedMutexGuard, OwnedRwLockReadGuard, OwnedRwLockWriteGuard,
     RwLock as AsyncRwLock, Semaphore,
 };
 use uuid::Uuid;
-use zeroize::{Zeroize as _, Zeroizing};
+use zeroize::Zeroize as _;
 
 use super::crypto::{
     AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CodeDigest, OsRandom, RandomSource,
-    SessionBearer, StepUpConsumption, StepUpDigest, StepUpProof, TokenHash, VerificationCode,
+    SessionBearer, StepUpDigest, StepUpProof, TokenHash, VerificationCode,
 };
 use super::keyring::AuthKeyringStore;
 use super::lease::{
@@ -37,19 +36,38 @@ use super::lease::{
 };
 use super::lifecycle::KeyringGcResult;
 use super::mailbox::{CaptureMailbox, CaptureMailboxEntry};
-use super::session_projection::{ProjectedSessionInsert, TokenDigest};
+use super::session_projection::ProjectedSessionInsert;
 use super::throttle::{
-    AuthBudgetDeploymentProfile, AuthBudgetRefusal, ResolvedCompatibilityAuthBudgetPolicy,
+    AuthBudgetDeploymentProfile, ResolvedCompatibilityAuthBudgetPolicy,
     ServerVerifiedAuthTrustEvidence, derive_auth_trust_tier,
 };
 use super::wire::{
     CredentialResponse, FamilyAlarmResponse, MailboxResponse, RequestCodeResponse, SessionResponse,
 };
-pub use crate::contract_types::AuthProviderProfile;
-use crate::contract_types::{PlannedIdentityState, RevocationReason};
+pub use crate::contract_types::{
+    AuthProviderProfile, AuthenticatedUse, ResolvedSession, SessionRevocation,
+};
+use crate::contract_types::{
+    AuthSessionRecord as SessionRecord, AuthSessionResponseFact, CatalogIssuanceReconcile,
+    ExchangeChallengeFact, PlannedIdentityState, RejectedExchangeOutcome, RequestInsertOutcome,
+    RevocationReason, SessionCapFacts, SessionIssuanceFacts, SessionRevocationCandidateFact,
+    TokenDigest,
+};
+pub(crate) use crate::contract_types::{AuthenticatedUseRow, PresentedSessionLookup};
+pub(crate) use crate::contract_types::{
+    DurableRejectedIssuanceReconcile, DurableRevocationReconcile, DurableRotationReconcile,
+    PlannedFamilyAlarmCommit, PlannedRevocationCommit, PlannedRotationTransaction,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::LocalDatabase;
 use crate::storage::auth::AuthTransactionAttempt;
+use crate::storage::auth_catalog_ops::{
+    CatalogChallengeConsumption, CatalogFamilyAlarmPlan, CatalogIssuanceCommit,
+    CatalogPasswordChangeCommit, CatalogPasswordChangePlan, CatalogPasswordChangeReconcile,
+    CatalogProjectedSession, CatalogRejectedExchangePlan, CatalogRevocationPlan,
+    CatalogRotationPlan, CatalogSessionIssuancePlan, CatalogStepUpBinding,
+    INTERNAL_AUTH_COLLISION, internal_state_snapback,
+};
 
 pub const AUTH_ADDRESS_STRIPES: usize = 256;
 pub const AUTH_MAX_COLLISION_ATTEMPTS: usize = 3;
@@ -69,8 +87,7 @@ pub const AUTH_SESSION_LIVE_LIMIT: usize = 20;
 pub const AUTH_SESSION_USE_COALESCE_MS: u64 = 3 * 24 * 60 * 60 * 1_000;
 pub const AUTH_FAMILY_ALARM_MINIMUM_MS: u64 = 20;
 pub const AUTH_FAMILY_ALARM_JITTER_MAXIMUM_MS: u64 = 5;
-const MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
-const INTERNAL_AUTH_COLLISION: &str = "INTERNAL_AUTH_COLLISION";
+const MAX_SAFE_TIMESTAMP: u64 = crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AuthProviderReadiness {
@@ -132,32 +149,6 @@ impl AuthClock for SystemAuthClock {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SessionRevocation {
-    pub session_id: String,
-    pub generation: u64,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ResolvedSession {
-    pub session_id: String,
-    pub user_id: String,
-    pub identity_id: String,
-    pub provider: String,
-    pub generation: u64,
-    pub authority_instance_id: String,
-    pub created_at_ms: u64,
-    pub expires_at_ms: u64,
-    pub absolute_expires_at_ms: u64,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum AuthenticatedUse {
-    Unchanged { expires_at_ms: u64 },
-    Extended { expires_at_ms: u64 },
-    NotLive,
-}
-
 /// Redacted result of the first, read-only exchange lookup. It carries only
 /// enough state to select the address stripe and key before the writer starts;
 /// the transaction treats every field as untrusted and re-reads the row.
@@ -181,6 +172,15 @@ pub(crate) struct StepUpBinding {
 }
 
 impl StepUpBinding {
+    fn catalog_binding(&self) -> CatalogStepUpBinding<'_> {
+        CatalogStepUpBinding {
+            user_id: &self.user_id,
+            session_id: &self.session_id,
+            session_generation: self.session_generation,
+            authority_instance_id: &self.authority_instance_id,
+        }
+    }
+
     pub(crate) fn grant_approval(
         user_id: String,
         session_id: String,
@@ -281,174 +281,6 @@ impl StepUpProofAdmission {
 impl fmt::Debug for StepUpProofAdmission {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("StepUpProofAdmission([REDACTED])")
-    }
-}
-
-impl StepUpProof {
-    pub(crate) fn reconcile_consumed_on(&self, connection: &Connection) -> SnapbackResult<bool> {
-        let Some(expected_key_id) = self.key_id.as_ref() else {
-            return Ok(false);
-        };
-        connection
-            .query_row(
-                "SELECT canonical_address, key_id,
-                        consumed_at_ms IS NOT NULL, superseded_by IS NOT NULL
-                 FROM _auth_verification_codes WHERE challenge_id = ?1",
-                params![self.challenge_id.as_str()],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, bool>(2)?,
-                        row.get::<_, bool>(3)?,
-                    ))
-                },
-            )
-            .optional()
-            .map(|row| {
-                row.is_some_and(|(address, key_id, consumed, superseded)| {
-                    address == self.address.as_str()
-                        && key_id == expected_key_id.as_str()
-                        && consumed
-                        && !superseded
-                })
-            })
-            .map_err(SnapbackError::from)
-    }
-
-    pub(crate) fn reconcile_unconsumed_on(&self, connection: &Connection) -> SnapbackResult<bool> {
-        let Some(expected_key_id) = self.key_id.as_ref() else {
-            return Ok(true);
-        };
-        connection
-            .query_row(
-                "SELECT canonical_address, key_id, consumed_at_ms IS NULL
-                 FROM _auth_verification_codes WHERE challenge_id = ?1",
-                params![self.challenge_id.as_str()],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, bool>(2)?,
-                    ))
-                },
-            )
-            .optional()
-            .map(|row| {
-                row.is_some_and(|(address, key_id, unconsumed)| {
-                    address == self.address.as_str()
-                        && key_id == expected_key_id.as_str()
-                        && unconsumed
-                })
-            })
-            .map_err(SnapbackError::from)
-    }
-
-    /// Verify and consume the proof inside the protected operation's writer
-    /// transaction. A successful proof can therefore commit at most one
-    /// authority-creating effect; rollback leaves both proof and effect
-    /// untouched.
-    pub(crate) fn consume_on(
-        &self,
-        transaction: &Transaction<'_>,
-        now_ms: u64,
-    ) -> SnapbackResult<StepUpConsumption> {
-        let row = transaction
-            .query_row(
-                "SELECT canonical_address, code_digest, key_id, attempts,
-                        max_attempts, expires_at_ms,
-                        consumed_at_ms IS NOT NULL, superseded_by IS NOT NULL
-                 FROM _auth_verification_codes WHERE challenge_id = ?1",
-                params![self.challenge_id.as_str()],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        Zeroizing::new(row.get::<_, Vec<u8>>(1)?),
-                        row.get::<_, String>(2)?,
-                        row.get::<_, i64>(3)?,
-                        row.get::<_, i64>(4)?,
-                        row.get::<_, i64>(5)?,
-                        row.get::<_, bool>(6)?,
-                        row.get::<_, bool>(7)?,
-                    ))
-                },
-            )
-            .optional()?;
-        let Some((
-            address,
-            digest,
-            key_id,
-            attempts,
-            max_attempts,
-            expires_at,
-            consumed,
-            superseded,
-        )) = row
-        else {
-            return Ok(StepUpConsumption::Rejected);
-        };
-        let Some(expected_key_id) = self.key_id.as_ref() else {
-            return Ok(StepUpConsumption::Rejected);
-        };
-        let attempts = u32::try_from(attempts).map_err(|_| internal_state_snapback())?;
-        let max_attempts = u32::try_from(max_attempts).map_err(|_| internal_state_snapback())?;
-        let expires_at_ms = checked_stored_time(expires_at)?;
-        if address != self.address.as_str()
-            || key_id != expected_key_id.as_str()
-            || digest.len() != 32
-            || max_attempts != AUTH_MAXIMUM_ATTEMPTS
-            || attempts > max_attempts
-        {
-            return Err(internal_state_snapback());
-        }
-        if consumed || superseded || now_ms >= expires_at_ms || attempts == max_attempts {
-            return Ok(StepUpConsumption::Rejected);
-        }
-
-        let next_attempts = attempts
-            .checked_add(1)
-            .ok_or_else(internal_state_snapback)?;
-        if !self.submitted_digest.verify(&digest) {
-            let changed = transaction.execute(
-                "UPDATE _auth_verification_codes SET attempts = ?1
-                 WHERE challenge_id = ?2 AND attempts = ?3
-                   AND code_digest = ?4 AND key_id = ?5 AND expires_at_ms = ?6
-                   AND consumed_at_ms IS NULL AND superseded_by IS NULL",
-                params![
-                    next_attempts as i64,
-                    self.challenge_id.as_str(),
-                    attempts as i64,
-                    digest.as_slice(),
-                    expected_key_id.as_str(),
-                    expires_at_ms as i64,
-                ],
-            )?;
-            if changed != 1 {
-                return Ok(StepUpConsumption::Rejected);
-            }
-            return Ok(StepUpConsumption::Rejected);
-        }
-
-        let changed = transaction.execute(
-            "UPDATE _auth_verification_codes
-             SET attempts = ?1, consumed_at_ms = ?2
-             WHERE challenge_id = ?3 AND attempts = ?4
-               AND code_digest = ?5 AND key_id = ?6 AND expires_at_ms = ?7
-               AND consumed_at_ms IS NULL AND superseded_by IS NULL",
-            params![
-                next_attempts as i64,
-                now_ms as i64,
-                self.challenge_id.as_str(),
-                attempts as i64,
-                digest.as_slice(),
-                expected_key_id.as_str(),
-                expires_at_ms as i64,
-            ],
-        )?;
-        if changed != 1 {
-            return Ok(StepUpConsumption::Rejected);
-        }
-        Ok(StepUpConsumption::Verified)
     }
 }
 
@@ -625,12 +457,6 @@ pub(crate) enum PasswordIssuanceCustody {
     Bearer,
     SenderConstrained,
 }
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum RequestInsertOutcome {
-    Inserted,
-}
-
 pub(crate) struct SessionCandidate {
     user_id: String,
     identity_id: String,
@@ -655,24 +481,6 @@ impl fmt::Debug for SessionCandidate {
     }
 }
 
-#[cfg(test)]
-#[derive(Debug)]
-pub(crate) enum ExchangeOutcome {
-    Invalid,
-    Locked,
-    Issued {
-        session: SessionResponse,
-        committed_revocation: Option<SessionRevocation>,
-    },
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum RejectedExchangeOutcome {
-    Invalid,
-    Locked,
-    PredecessorChanged,
-}
-
 pub(crate) struct BearerCandidate {
     bearer: Option<SessionBearer>,
     token_hash: TokenHash,
@@ -682,25 +490,6 @@ impl fmt::Debug for BearerCandidate {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("BearerCandidate([REDACTED])")
     }
-}
-
-#[cfg(test)]
-#[derive(Debug)]
-pub(crate) enum RefreshOutcome {
-    AuthRequired,
-    SessionExpired,
-    SupersededInsideGrace,
-    ReuseRevoked(SessionRevocation),
-    Refreshed(SessionResponse),
-}
-
-#[cfg(test)]
-#[derive(Debug)]
-pub(crate) enum LogoutOutcome {
-    AuthRequired,
-    SessionExpired,
-    CredentialSuperseded,
-    Revoked(SessionRevocation),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -731,11 +520,17 @@ impl ProviderRevocationPlan {
         self.reason
     }
 
-    fn committed_generation(&self) -> SnapbackResult<u64> {
-        self.expected_generation
-            .checked_add(1)
-            .filter(|generation| *generation <= MAX_SAFE_TIMESTAMP)
-            .ok_or_else(internal_state_snapback)
+    fn catalog_plan(&self) -> CatalogRevocationPlan<'_> {
+        CatalogRevocationPlan {
+            session_id: &self.session_id,
+            expected_generation: self.expected_generation,
+            presented_digest: self.presented_digest,
+            superseded_at_ms: match self.source {
+                PlannedTokenSource::Current => None,
+                PlannedTokenSource::Superseded { superseded_at_ms } => Some(superseded_at_ms),
+            },
+            reason: self.reason,
+        }
     }
 
     #[cfg(test)]
@@ -844,6 +639,18 @@ impl ProviderTokenRotationPlan {
     }
 }
 
+impl ProviderTokenRotationCommitPlan {
+    fn catalog_plan(&self) -> CatalogRotationPlan<'_> {
+        CatalogRotationPlan {
+            session_id: &self.session_id,
+            expected_generation: self.expected_generation,
+            predecessor_digest: self.predecessor_digest,
+            successor_digest: self.successor_digest,
+            superseded_at_ms: self.superseded_at_ms,
+        }
+    }
+}
+
 impl fmt::Debug for ProviderTokenRotationPlan {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
@@ -902,6 +709,21 @@ impl ProviderPasswordChangePlan {
 
     pub(crate) fn into_issue(self, session: SessionResponse) -> CredentialIssue {
         self.rotation.into_issue(session)
+    }
+}
+
+impl ProviderPasswordChangeCommitPlan {
+    fn catalog_plan(&self) -> CatalogPasswordChangePlan<'_> {
+        CatalogPasswordChangePlan {
+            mutation: &self.mutation,
+            rotation: self.rotation.catalog_plan(),
+            revocations: self
+                .revocations
+                .iter()
+                .map(ProviderRevocationPlan::catalog_plan)
+                .collect(),
+            password_profile: self.password_profile,
+        }
     }
 }
 
@@ -966,23 +788,20 @@ impl ProviderFamilyAlarmPlan {
     pub(crate) fn publish_not_before(&self) -> Instant {
         self.publish_not_before
     }
-}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum PlannedFamilyAlarmCommit {
-    Revoked(SessionRevocation),
-    Noop,
-    Retry,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum PlannedRevocationCommit {
-    Committed(SessionRevocation),
-    AlreadyTerminal {
-        generation: u64,
-        reason: Option<RevocationReason>,
-    },
-    PredecessorChanged,
+    fn catalog_plan(&self) -> CatalogFamilyAlarmPlan<'_> {
+        CatalogFamilyAlarmPlan {
+            revocation: CatalogRevocationPlan {
+                session_id: &self.session_id,
+                expected_generation: self.expected_generation,
+                presented_digest: self.presented_digest,
+                superseded_at_ms: Some(self.superseded_at_ms),
+                reason: RevocationReason::FamilyAlarm,
+            },
+            observed_at_ms: self.observed_at_ms,
+            actionable: self.actionable,
+        }
+    }
 }
 
 pub(crate) enum PlannedRotationCommit {
@@ -1205,6 +1024,49 @@ impl ProviderSessionIssuancePlan {
             cap_revocation,
         )
         .with_recovery_codes(self.recovery_codes.take())
+    }
+}
+
+impl ProviderSessionIssuanceCommitPlan {
+    fn catalog_plan(&self) -> CatalogSessionIssuancePlan<'_> {
+        CatalogSessionIssuancePlan {
+            address: &self.address,
+            now_ms: self.now_ms,
+            identity: &self.identity,
+            projected: CatalogProjectedSession {
+                session_id: &self.projected.session_id,
+                user_id: &self.projected.user_id,
+                provider: &self.projected.provider,
+                authority_instance_id: &self.projected.authority_instance_id,
+                generation: self.projected.generation,
+                token_digest: self.projected.token_digest,
+                created_at_ms: self.projected.created_at_ms,
+                expires_at_ms: self.projected.expires_at_ms,
+                absolute_expires_at_ms: self.projected.absolute_expires_at_ms,
+                rehearsal_provenance: self.projected.rehearsal_provenance.as_ref(),
+            },
+            revocations: self
+                .revocations
+                .iter()
+                .map(ProviderRevocationPlan::catalog_plan)
+                .collect(),
+            password: self.password.as_ref(),
+            password_profile: self.password_profile,
+            challenge: self
+                .challenge
+                .as_ref()
+                .map(|challenge| CatalogChallengeConsumption {
+                    challenge_id: &challenge.challenge_id,
+                    key_id: &challenge.key_id,
+                    code_digest: &challenge.code_digest,
+                    expected_attempts: challenge.expected_attempts,
+                    max_attempts: challenge.max_attempts,
+                    expires_at_ms: challenge.expires_at_ms,
+                }),
+            sender_issuance: self.sender_issuance.as_ref(),
+            rehearsal_exercise: self.rehearsal_exercise.as_ref(),
+            live_session_limit: AUTH_SESSION_LIVE_LIMIT as u64,
+        }
     }
 }
 
@@ -1559,8 +1421,13 @@ impl AuthProvider {
                     identity_id: snapshot.identity_id.clone(),
                     user_id: snapshot.user_id.clone(),
                 },
-                database
-                    .plan_password_session_cap(&snapshot.user_id, now_ms)?
+                classify_session_cap(
+                    database.auth_catalog_read().session_cap_facts(
+                        &snapshot.user_id,
+                        now_ms,
+                        AUTH_SESSION_LIVE_LIMIT as u64,
+                    )?,
+                )?
                     .into_iter()
                     .collect(),
             ),
@@ -1670,14 +1537,16 @@ impl AuthProvider {
         )?;
         let candidate =
             SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
-        let mut revocations = database.plan_user_session_revocations(
+        let mut revocations = plan_user_session_revocations(
+            database,
             &planning.predecessor.acting_user_id,
             None,
             None,
             now_ms,
         )?;
         if let Some(displaced) = &planning.displaced {
-            for revocation in database.plan_user_session_revocations(
+            for revocation in plan_user_session_revocations(
+                database,
                 &displaced.user_id,
                 None,
                 Some(&displaced.identity_id),
@@ -1773,7 +1642,8 @@ impl AuthProvider {
             superseded_at_ms: now_ms,
             successor,
         };
-        let revocations = database.plan_user_session_revocations(
+        let revocations = plan_user_session_revocations(
+            database,
             &planning.credential.user_id,
             Some(&planning.acting_session_id),
             None,
@@ -1834,7 +1704,7 @@ impl AuthProvider {
             SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
         let user_id = predecessor.user_id.clone();
         let identity_id = candidate.identity_id.clone();
-        let revocations = database.plan_user_session_revocations(&user_id, None, None, now_ms)?;
+        let revocations = plan_user_session_revocations(database, &user_id, None, None, now_ms)?;
         let projected = ProjectedSessionInsert {
             session_id: candidate.session_id.clone(),
             user_id: user_id.clone(),
@@ -1912,8 +1782,13 @@ impl AuthProvider {
             )?;
         let candidate =
             SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
-        let revocations =
-            database.plan_user_session_revocations(&predecessor.user_id, None, None, now_ms)?;
+        let revocations = plan_user_session_revocations(
+            database,
+            &predecessor.user_id,
+            None,
+            None,
+            now_ms,
+        )?;
         let projected = ProjectedSessionInsert {
             session_id: candidate.session_id.clone(),
             user_id: predecessor.user_id.clone(),
@@ -2194,7 +2069,7 @@ impl AuthAdmission {
         validate_now(now_ms)?;
         let address = database
             .auth_catalog_read()
-            .step_up_address(binding, now_ms)
+            .step_up_address(&binding.catalog_binding(), now_ms)
             .map_err(|_| provider_unavailable())?
             .ok_or_else(auth_required)?;
         CanonicalAddress::parse(&address).map_err(|_| provider_unavailable())
@@ -2524,7 +2399,10 @@ impl AuthAdmission {
         database: &mut LocalDatabase,
         plan: &ProviderFamilyAlarmPlan,
     ) -> AuthTransactionAttempt<PlannedFamilyAlarmCommit> {
-        let attempt = database.auth_catalog().attempt_planned_family_alarm(plan);
+        let catalog_plan = plan.catalog_plan();
+        let attempt = database
+            .auth_catalog()
+            .attempt_planned_family_alarm(&catalog_plan);
         let AuthTransactionAttempt::CommitUncertain(error) = attempt else {
             return attempt;
         };
@@ -2534,9 +2412,10 @@ impl AuthAdmission {
             // no authority successor exists to publish.
             return AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop);
         };
+        let revocation_catalog_plan = revocation.catalog_plan();
         match database
             .auth_catalog_read()
-            .reconcile_planned_revocation(&revocation, plan.observed_at_ms)
+            .reconcile_planned_revocation(&revocation_catalog_plan, plan.observed_at_ms)
         {
             Ok(DurableRevocationReconcile::ExactSuccessor(revocation)) => {
                 AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(revocation))
@@ -2563,9 +2442,10 @@ impl AuthAdmission {
         if let Err(error) = validate_now(now_ms) {
             return AuthTransactionAttempt::RolledBack(error.into_snapback_error());
         }
+        let catalog_plan = plan.catalog_plan();
         let attempt = database
             .auth_catalog()
-            .attempt_planned_revocation(plan, now_ms);
+            .attempt_planned_revocation(&catalog_plan, now_ms);
         let AuthTransactionAttempt::CommitUncertain(commit_error) = attempt else {
             return attempt;
         };
@@ -2574,7 +2454,7 @@ impl AuthAdmission {
         // coordinator may unmark or finalize its ticket.
         match database
             .auth_catalog_read()
-            .reconcile_planned_revocation(plan, now_ms)
+            .reconcile_planned_revocation(&catalog_plan, now_ms)
         {
             Ok(DurableRevocationReconcile::ExactPredecessor) => {
                 AuthTransactionAttempt::RolledBack(commit_error)
@@ -2597,7 +2477,10 @@ impl AuthAdmission {
         if let Err(error) = validate_now(plan.superseded_at_ms) {
             return AuthTransactionAttempt::RolledBack(error.into_snapback_error());
         }
-        let (attempt, body_outcome) = database.auth_catalog().attempt_planned_rotation(plan);
+        let catalog_plan = plan.catalog_plan();
+        let (attempt, body_outcome) = database
+            .auth_catalog()
+            .attempt_planned_rotation(&catalog_plan);
         match attempt {
             AuthTransactionAttempt::Committed(PlannedRotationTransaction::CandidateCollision) => {
                 AuthTransactionAttempt::Committed(PlannedRotationCommit::CandidateCollision)
@@ -2606,7 +2489,9 @@ impl AuthAdmission {
                 AuthTransactionAttempt::Committed(PlannedRotationCommit::PredecessorChanged)
             }
             AuthTransactionAttempt::Committed(PlannedRotationTransaction::Refreshed(session)) => {
-                AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session })
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                    session: session.into(),
+                })
             }
             AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
             AuthTransactionAttempt::CommitUncertain(error) => {
@@ -2624,14 +2509,14 @@ impl AuthAdmission {
                 }
                 match database
                     .auth_catalog_read()
-                    .reconcile_planned_rotation(plan)
+                    .reconcile_planned_rotation(&catalog_plan)
                 {
                     Ok(DurableRotationReconcile::ExactPredecessor) => {
                         AuthTransactionAttempt::RolledBack(error)
                     }
                     Ok(DurableRotationReconcile::ExactSuccessor(session)) => {
                         AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
-                            session,
+                            session: session.into(),
                         })
                     }
                     Ok(DurableRotationReconcile::DifferentValid) => {
@@ -2653,52 +2538,34 @@ impl AuthAdmission {
         bearer: &str,
         now_ms: u64,
     ) -> ProviderResult<CredentialIssue> {
-        validate_now(now_ms)?;
-        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
-        let predecessor_hash = bearer.token_hash();
-        // @ref LLP 0077#author-decisions--2026-07-23 — decision 4: successors of a
-        // sender-bound family stay `sbs2_`, selected by the durable binding.
-        let sender_bound = database
-            .auth_catalog_read()
-            .presented_token_sender_bound_for_test(&predecessor_hash)
-            .map_err(|_| provider_unavailable())?;
         for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
-            let mut successor = if sender_bound {
-                BearerCandidate::generate_sender_v2(&self.provider)?
-            } else {
-                BearerCandidate::generate(&self.provider)?
-            };
-            let outcome = database.auth_catalog().refresh_for_test(
-                &predecessor_hash,
-                &successor.token_hash,
-                now_ms,
-            );
-            match outcome {
-                Ok(RefreshOutcome::AuthRequired) => return Err(auth_required()),
-                Ok(RefreshOutcome::SessionExpired) => return Err(session_expired()),
-                Ok(RefreshOutcome::SupersededInsideGrace) => {
-                    return Err(refresh_superseded());
+            match self.plan_refresh(database, bearer, now_ms)? {
+                PlannedRefresh::AuthRequired => return Err(auth_required()),
+                PlannedRefresh::SessionExpired => return Err(session_expired()),
+                PlannedRefresh::SupersededInsideGrace => return Err(refresh_superseded()),
+                PlannedRefresh::ReuseRevoke(plan) => {
+                    return match self.commit_planned_revocation(database, &plan, now_ms) {
+                        AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
+                            revocation,
+                        )) => Err(ProviderError::with_committed_revocation(
+                            session_revoked().into_snapback_error(),
+                            revocation,
+                        )),
+                        _ => Err(provider_unavailable()),
+                    };
                 }
-                Ok(RefreshOutcome::ReuseRevoked(revocation)) => {
-                    return Err(ProviderError::with_committed_revocation(
-                        session_revoked().into_snapback_error(),
-                        revocation,
-                    ));
+                PlannedRefresh::Rotate(rotation) => {
+                    let commit_plan = rotation.commit_plan();
+                    match self.commit_planned_rotation(database, &commit_plan) {
+                        AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                            session,
+                        }) => return Ok(rotation.into_issue(session)),
+                        AuthTransactionAttempt::Committed(
+                            PlannedRotationCommit::CandidateCollision,
+                        ) => continue,
+                        _ => return Err(provider_unavailable()),
+                    }
                 }
-                Ok(RefreshOutcome::Refreshed(session)) => {
-                    let token = successor.bearer.take().ok_or_else(provider_unavailable)?;
-                    let refresh_after = now_ms
-                        .checked_add(AUTH_SESSION_REFRESH_CADENCE_MS)
-                        .unwrap_or(MAX_SAFE_TIMESTAMP)
-                        .min(session.expires_at)
-                        .min(session.absolute_expires_at);
-                    return Ok(CredentialIssue::new(
-                        CredentialResponse::new(token, refresh_after, session),
-                        None,
-                    ));
-                }
-                Err(error) if error.diagnostic.code == INTERNAL_AUTH_COLLISION => continue,
-                Err(_) => return Err(provider_unavailable()),
             }
         }
         Err(provider_unavailable())
@@ -2712,18 +2579,18 @@ impl AuthAdmission {
         bearer: &str,
         now_ms: u64,
     ) -> ProviderResult<SessionRevocation> {
-        validate_now(now_ms)?;
-        let bearer = SessionBearer::parse_any_version(bearer).map_err(|_| auth_required())?;
-        let token_hash = bearer.token_hash();
-        let outcome = database
-            .auth_catalog()
-            .logout_for_test(&token_hash, now_ms)
-            .map_err(|_| provider_unavailable())?;
-        match outcome {
-            LogoutOutcome::AuthRequired => Err(auth_required()),
-            LogoutOutcome::SessionExpired => Err(session_expired()),
-            LogoutOutcome::CredentialSuperseded => Err(credential_superseded()),
-            LogoutOutcome::Revoked(revocation) => Ok(revocation),
+        match self.plan_logout(database, bearer, now_ms)? {
+            PlannedLogout::AuthRequired => Err(auth_required()),
+            PlannedLogout::SessionExpired => Err(session_expired()),
+            PlannedLogout::CredentialSuperseded => Err(credential_superseded()),
+            PlannedLogout::Revoke(plan) => {
+                match self.commit_planned_revocation(database, &plan, now_ms) {
+                    AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
+                        revocation,
+                    )) => Ok(revocation),
+                    _ => Err(provider_unavailable()),
+                }
+            }
         }
     }
 
@@ -2736,19 +2603,16 @@ impl AuthAdmission {
         bearer: &str,
         now_ms: u64,
     ) -> ProviderResult<FamilyAlarmResult> {
-        validate_now(now_ms)?;
-        let started_at = self.provider.clock.monotonic_now();
-        let jitter_ms = uniform_alarm_jitter(self.provider.random.as_ref())?;
-        let publish_not_before = minimum_alarm_deadline(started_at, jitter_ms)?;
-        let parsed = SessionBearer::parse_any_version(bearer).ok();
-        let parsed_hash = parsed.as_ref().map(SessionBearer::token_hash);
-        let token_hash = parsed_hash
-            .as_ref()
-            .unwrap_or(&self.provider.dummy_token_hash);
-        let committed_revocation = database
-            .auth_catalog()
-            .family_alarm_for_test(token_hash, now_ms)
-            .map_err(|_| provider_unavailable())?;
+        let plan = self.plan_family_alarm(database, bearer, now_ms)?;
+        let publish_not_before = plan.publish_not_before();
+        let committed_revocation = match self.commit_planned_family_alarm(database, &plan) {
+            AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(revocation)) => {
+                Some(revocation)
+            }
+            AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop)
+            | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry) => None,
+            _ => return Err(provider_unavailable()),
+        };
         Ok(FamilyAlarmResult {
             response: FamilyAlarmResponse::default(),
             publish_not_before,
@@ -2781,10 +2645,28 @@ impl AuthAdmission {
                 expires_at_ms: preliminary.expires_at_ms,
             });
         }
-        database
+        let expires_at_ms = now_ms
+            .checked_add(AUTH_SESSION_SLIDING_WINDOW_MS)
+            .unwrap_or(MAX_SAFE_TIMESTAMP)
+            .min(preliminary.absolute_expires_at_ms);
+        if expires_at_ms < now_ms {
+            return Ok(AuthenticatedUse::NotLive);
+        }
+        let extended = database
             .auth_catalog()
-            .record_authenticated_use(session_id, expected_generation, now_ms)
-            .map_err(|_| provider_unavailable())
+            .extend_authenticated_use(
+                session_id,
+                expected_generation,
+                now_ms,
+                expires_at_ms,
+                AUTH_SESSION_USE_COALESCE_MS,
+            )
+            .map_err(|_| provider_unavailable())?;
+        Ok(if extended {
+            AuthenticatedUse::Extended { expires_at_ms }
+        } else {
+            AuthenticatedUse::NotLive
+        })
     }
 
     pub async fn for_exchange(
@@ -2842,18 +2724,37 @@ impl ExchangeAdmission {
         now_ms: u64,
     ) -> ProviderResult<PlannedExchange> {
         validate_now(now_ms)?;
-        let code = VerificationCode::parse(code).map_err(|_| request_invalid())?;
+        let _code = VerificationCode::parse(code).map_err(|_| request_invalid())?;
         let provider = &self.admission.provider;
         provider
             .keyring
-            .with_key(&self.coordination.key_id, |key| {
-                database.auth_catalog_read().plan_exchange(
-                    provider,
-                    &self.coordination,
-                    key,
-                    &code,
+            .with_key(&self.coordination.key_id, |_key| {
+                let fact = database
+                    .auth_catalog_read()
+                    .exchange_challenge_fact(&self.coordination.challenge_id)?;
+                let Some((address, challenge)) =
+                    classify_exchange_challenge(&self.coordination, fact, now_ms)?
+                else {
+                    return Ok(PlannedExchange::Reject);
+                };
+                let candidate = SessionCandidate::generate(provider, now_ms)
+                    .map_err(ProviderError::into_snapback_error)?;
+                let facts = database.auth_catalog_read().session_issuance_facts(
+                    &address,
+                    &candidate.user_id,
                     now_ms,
+                    AUTH_SESSION_LIVE_LIMIT as u64,
+                )?;
+                let (identity, eviction) = classify_session_issuance(facts, &candidate)?;
+                build_session_issuance_plan(
+                    address,
+                    now_ms,
+                    candidate,
+                    identity,
+                    eviction,
+                    Some(challenge),
                 )
+                .map(PlannedExchange::Issue)
             })
             .map_err(|_| provider_unavailable())?
             .map_err(|_| provider_unavailable())
@@ -2906,14 +2807,19 @@ impl ExchangeAdmission {
         let outcome = provider
             .keyring
             .with_key(&self.coordination.key_id, |key| {
-                database.auth_catalog().commit_planned_rejection(
-                    provider,
-                    &self.coordination,
-                    key,
-                    &code,
-                    now_ms,
-                    sender_issuance,
-                )
+                database
+                    .auth_catalog()
+                    .commit_planned_rejection(&CatalogRejectedExchangePlan {
+                        challenge_id: &self.coordination.challenge_id,
+                        address: &self.coordination.address,
+                        key_id: self.coordination.key_id.as_str(),
+                        key,
+                        code: &code,
+                        now_ms,
+                        dummy_key: &provider.dummy_key,
+                        dummy_address: &provider.dummy_address,
+                        sender_issuance,
+                    })
             })
             .map_err(|_| provider_unavailable())?
             .map_err(|_| provider_unavailable())?;
@@ -2943,51 +2849,39 @@ impl ExchangeAdmission {
         code: &str,
         now_ms: u64,
     ) -> ProviderResult<CredentialIssue> {
-        validate_now(now_ms)?;
-        let code = VerificationCode::parse(code).map_err(|_| request_invalid())?;
         let provider = &self.admission.provider;
-
         for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
-            // Candidate generation is outside the writer and independent of
-            // preliminary row state. Only the single in-transaction HMAC may
-            // authorize its insertion.
-            let mut candidate = SessionCandidate::generate(provider, now_ms)?;
-            let transaction = provider
-                .keyring
-                .with_key(&self.coordination.key_id, |key| {
-                    database.auth_catalog().exchange_for_test(
-                        provider,
-                        &self.coordination,
-                        key,
-                        &code,
-                        &candidate,
-                        now_ms,
-                    )
-                })
-                .map_err(|_| provider_unavailable())?;
-
-            match transaction {
-                Ok(ExchangeOutcome::Invalid) => return Err(code_invalid()),
-                Ok(ExchangeOutcome::Locked) => return Err(code_locked()),
-                Ok(ExchangeOutcome::Issued {
-                    session,
-                    committed_revocation,
-                }) => {
-                    provider.mailbox.erase(&self.coordination.challenge_id);
-                    let bearer = candidate.bearer.take().ok_or_else(provider_unavailable)?;
-                    let refresh_after = session
-                        .created_at
-                        .checked_add(AUTH_SESSION_REFRESH_CADENCE_MS)
-                        .unwrap_or(session.expires_at)
-                        .min(session.expires_at)
-                        .min(session.absolute_expires_at);
-                    return Ok(CredentialIssue::new(
-                        CredentialResponse::new(bearer, refresh_after, session),
-                        committed_revocation,
-                    ));
+            match self.plan_exchange(database, code, now_ms)? {
+                PlannedExchange::Reject => {
+                    return match self.commit_planned_rejection(database, code, now_ms, None) {
+                        Ok(RejectedExchangeCommit::PredecessorChanged) => {
+                            Err(provider_unavailable())
+                        }
+                        Err(error) => Err(error),
+                    };
                 }
-                Err(error) if error.diagnostic.code == INTERNAL_AUTH_COLLISION => continue,
-                Err(_) => return Err(provider_unavailable()),
+                PlannedExchange::Issue(issuance) => {
+                    let commit_plan = issuance.commit_plan();
+                    match self.commit_planned_issuance(database, &commit_plan, code) {
+                        AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+                            session,
+                            committed_revocations,
+                        }) => {
+                            provider.mailbox.erase(&self.coordination.challenge_id);
+                            return Ok(issuance.into_issue(session, committed_revocations));
+                        }
+                        AuthTransactionAttempt::Committed(
+                            PlannedIssuanceCommit::CandidateCollision,
+                        ) => continue,
+                        AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeInvalid) => {
+                            return Err(code_invalid());
+                        }
+                        AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CodeLocked) => {
+                            return Err(code_locked());
+                        }
+                        _ => return Err(provider_unavailable()),
+                    }
+                }
             }
         }
         Err(provider_unavailable())
@@ -3085,7 +2979,7 @@ impl AddressAdmission {
             };
 
             let outcome = database.auth_catalog().insert_step_up_challenge(
-                binding,
+                &binding.catalog_binding(),
                 &self.address,
                 &challenge_id,
                 &digest,
@@ -3106,6 +3000,7 @@ impl AddressAdmission {
                         expires_at: expires_at_ms,
                     });
                 }
+                Ok(RequestInsertOutcome::AuthRequired) => return Err(auth_required()),
                 Err(error) if error.diagnostic.code == INTERNAL_AUTH_COLLISION => continue,
                 Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_THROTTLED" => {
                     return Err(ProviderError::new(error));
@@ -3228,6 +3123,7 @@ impl AddressAdmission {
                         expires_at: expires_at_ms,
                     });
                 }
+                Ok(RequestInsertOutcome::AuthRequired) => return Err(provider_unavailable()),
                 Err(error) if error.diagnostic.code == INTERNAL_AUTH_COLLISION => continue,
                 Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_THROTTLED" => {
                     return Err(ProviderError::new(error));
@@ -3251,44 +3147,26 @@ impl AddressAdmission {
             return Err(provider_unavailable());
         }
         let candidate = SessionCandidate::generate(self.provider(), now_ms)?;
-        let (identity, eviction) = database
+        let facts = database
             .auth_catalog_read()
-            .plan_session_issuance(&self.address, &candidate, now_ms)
+            .session_issuance_facts(
+                &self.address,
+                &candidate.user_id,
+                now_ms,
+                AUTH_SESSION_LIVE_LIMIT as u64,
+            )
             .map_err(|_| provider_unavailable())?;
-        let (user_id, provider) = match &identity {
-            PlannedIdentityState::Existing { user_id, .. }
-            | PlannedIdentityState::Create { user_id, .. } => {
-                (user_id.clone(), "email-code".to_owned())
-            }
-        };
-        let expires_at_ms = checked_time_add(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?;
-        let absolute_expires_at_ms = checked_time_add(now_ms, AUTH_SESSION_ABSOLUTE_WINDOW_MS)?;
-        let projected = ProjectedSessionInsert {
-            session_id: candidate.session_id.clone(),
-            user_id,
-            provider,
-            authority_instance_id: candidate.authority_instance_id.clone(),
-            generation: 1,
-            token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
-            created_at_ms: now_ms,
-            expires_at_ms,
-            absolute_expires_at_ms,
-            rehearsal_provenance: None,
-        };
-        Ok(ProviderSessionIssuancePlan {
-            address: self.address.clone(),
+        let (identity, eviction) =
+            classify_session_issuance(facts, &candidate).map_err(|_| provider_unavailable())?;
+        build_session_issuance_plan(
+            self.address.clone(),
             now_ms,
-            identity,
             candidate,
-            projected,
-            revocations: eviction.into_iter().collect(),
-            password: None,
-            password_profile: None,
-            recovery_codes: None,
-            challenge: None,
-            sender_issuance: None,
-            rehearsal_exercise: None,
-        })
+            identity,
+            eviction,
+            None,
+        )
+        .map_err(|_| provider_unavailable())
     }
 
     pub(crate) fn commit_planned_issuance(
@@ -3313,24 +3191,17 @@ impl AddressAdmission {
             return Err(provider_unavailable());
         }
         for _ in 0..AUTH_MAX_COLLISION_ATTEMPTS {
-            let mut candidate = SessionCandidate::generate(self.provider(), now_ms)?;
-            let outcome =
-                database
-                    .auth_catalog()
-                    .mint_session_for_test(&self.address, &candidate, now_ms);
-            match outcome {
-                Ok((session, committed_revocation)) => {
-                    let token = candidate.bearer.take().ok_or_else(provider_unavailable)?;
-                    let refresh_after = checked_time_add(now_ms, AUTH_SESSION_REFRESH_CADENCE_MS)?
-                        .min(session.expires_at)
-                        .min(session.absolute_expires_at);
-                    return Ok(CredentialIssue::new(
-                        CredentialResponse::new(token, refresh_after, session),
-                        committed_revocation,
-                    ));
+            let issuance = self.plan_mint_session(database, now_ms)?;
+            let commit_plan = issuance.commit_plan();
+            match self.commit_planned_issuance(database, &commit_plan) {
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+                    session,
+                    committed_revocations,
+                }) => return Ok(issuance.into_issue(session, committed_revocations)),
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CandidateCollision) => {
+                    continue;
                 }
-                Err(error) if error.diagnostic.code == INTERNAL_AUTH_COLLISION => continue,
-                Err(_) => return Err(provider_unavailable()),
+                _ => return Err(provider_unavailable()),
             }
         }
         Err(provider_unavailable())
@@ -3470,48 +3341,10 @@ impl BearerCandidate {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct SessionRecord {
-    session: ResolvedSession,
-    revoked: bool,
-}
-
 impl SessionRecord {
     fn live_at(&self, now_ms: u64) -> bool {
         !self.revoked && now_ms < self.session.expires_at_ms
     }
-
-    fn response(&self) -> SessionResponse {
-        SessionResponse {
-            id: self.session.session_id.clone(),
-            user_id: self.session.user_id.clone(),
-            provider: self.session.provider.clone(),
-            created_at: self.session.created_at_ms,
-            expires_at: self.session.expires_at_ms,
-            absolute_expires_at: self.session.absolute_expires_at_ms,
-            authority_instance_id: self.session.authority_instance_id.clone(),
-            generation: self.session.generation,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) enum PresentedSessionLookup {
-    Current(SessionRecord),
-    Tombstone {
-        session: SessionRecord,
-        superseded_at_ms: u64,
-    },
-    Unknown,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct AuthenticatedUseRow {
-    pub(crate) generation: u64,
-    pub(crate) last_used_at_ms: u64,
-    pub(crate) expires_at_ms: u64,
-    pub(crate) absolute_expires_at_ms: u64,
-    pub(crate) revoked: bool,
 }
 
 impl AuthenticatedUseRow {
@@ -3520,212 +3353,19 @@ impl AuthenticatedUseRow {
     }
 }
 
-#[derive(Debug)]
-struct RawSessionRecord {
-    session_id: String,
-    user_id: String,
-    identity_id: String,
-    provider: String,
-    generation: i64,
-    authority_instance_id: String,
-    created_at_ms: i64,
-    last_used_at_ms: i64,
-    expires_at_ms: i64,
-    absolute_expires_at_ms: i64,
-    revoked_at_ms: Option<i64>,
-}
-
-pub(crate) fn lookup_presented_session(
-    connection: &Connection,
-    token_hash: &TokenHash,
-) -> SnapbackResult<PresentedSessionLookup> {
-    if let Some(current) = lookup_current_session(connection, token_hash)? {
-        return Ok(PresentedSessionLookup::Current(current));
+impl From<AuthSessionResponseFact> for SessionResponse {
+    fn from(fact: AuthSessionResponseFact) -> Self {
+        Self {
+            id: fact.id,
+            user_id: fact.user_id,
+            provider: fact.provider,
+            created_at: fact.created_at,
+            expires_at: fact.expires_at,
+            absolute_expires_at: fact.absolute_expires_at,
+            authority_instance_id: fact.authority_instance_id,
+            generation: fact.generation,
+        }
     }
-    if let Some((session, superseded_at_ms)) = lookup_tombstone_session(connection, token_hash)? {
-        return Ok(PresentedSessionLookup::Tombstone {
-            session,
-            superseded_at_ms,
-        });
-    }
-    Ok(PresentedSessionLookup::Unknown)
-}
-
-fn lookup_current_session(
-    connection: &Connection,
-    token_hash: &TokenHash,
-) -> SnapbackResult<Option<SessionRecord>> {
-    let raw = connection
-        .query_row(
-            "SELECT session.id, session.user_id,
-                    COALESCE(session.identity_id,session.id),
-                    CASE WHEN session.authn_source='guest'
-                         THEN 'guest' ELSE identity.provider END,
-                    session.generation,
-                    session.authority_instance_id, session.created_at_ms,
-                    session.last_used_at_ms, session.expires_at_ms,
-                    session.absolute_expires_at_ms, session.revoked_at_ms
-             FROM _auth_sessions AS session
-             LEFT JOIN _auth_identities AS identity
-               ON identity.id = session.identity_id AND identity.user_id = session.user_id
-             WHERE session.token_hash = ?1",
-            params![token_hash.as_bytes().as_slice()],
-            raw_session_record,
-        )
-        .optional()?;
-    raw.map(checked_session_record).transpose()
-}
-
-fn lookup_tombstone_session(
-    connection: &Connection,
-    token_hash: &TokenHash,
-) -> SnapbackResult<Option<(SessionRecord, u64)>> {
-    let raw = connection
-        .query_row(
-            "SELECT session.id, session.user_id,
-                    COALESCE(session.identity_id,session.id),
-                    CASE WHEN session.authn_source='guest'
-                         THEN 'guest' ELSE identity.provider END,
-                    session.generation,
-                    session.authority_instance_id, session.created_at_ms,
-                    session.last_used_at_ms, session.expires_at_ms,
-                    session.absolute_expires_at_ms, session.revoked_at_ms,
-                    token.superseded_at_ms
-             FROM _auth_session_tokens AS token
-             JOIN _auth_sessions AS session ON session.id = token.session_id
-             JOIN _auth_identities AS identity
-               ON identity.id = session.identity_id AND identity.user_id = session.user_id
-             WHERE token.token_hash = ?1",
-            params![token_hash.as_bytes().as_slice()],
-            |row| Ok((raw_session_record(row)?, row.get::<_, i64>(11)?)),
-        )
-        .optional()?;
-    raw.map(|(raw, superseded_at_ms)| {
-        Ok((
-            checked_session_record(raw)?,
-            checked_stored_time(superseded_at_ms)?,
-        ))
-    })
-    .transpose()
-}
-
-fn raw_session_record(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawSessionRecord> {
-    Ok(RawSessionRecord {
-        session_id: row.get(0)?,
-        user_id: row.get(1)?,
-        identity_id: row.get(2)?,
-        provider: row.get(3)?,
-        generation: row.get(4)?,
-        authority_instance_id: row.get(5)?,
-        created_at_ms: row.get(6)?,
-        last_used_at_ms: row.get(7)?,
-        expires_at_ms: row.get(8)?,
-        absolute_expires_at_ms: row.get(9)?,
-        revoked_at_ms: row.get(10)?,
-    })
-}
-
-fn checked_session_record(raw: RawSessionRecord) -> SnapbackResult<SessionRecord> {
-    let generation = u64::try_from(raw.generation)
-        .ok()
-        .filter(|generation| *generation != 0 && *generation <= MAX_SAFE_TIMESTAMP)
-        .ok_or_else(internal_state_snapback)?;
-    let created_at_ms = checked_stored_time(raw.created_at_ms)?;
-    let last_used_at_ms = checked_stored_time(raw.last_used_at_ms)?;
-    let expires_at_ms = checked_stored_time(raw.expires_at_ms)?;
-    let absolute_expires_at_ms = checked_stored_time(raw.absolute_expires_at_ms)?;
-    let revoked_at_ms = raw.revoked_at_ms.map(checked_stored_time).transpose()?;
-    if created_at_ms > last_used_at_ms
-        || last_used_at_ms > expires_at_ms
-        || expires_at_ms > absolute_expires_at_ms
-        || revoked_at_ms.is_some_and(|revoked_at_ms| revoked_at_ms < created_at_ms)
-    {
-        return Err(internal_state_snapback());
-    }
-    Ok(SessionRecord {
-        session: ResolvedSession {
-            session_id: raw.session_id,
-            user_id: raw.user_id,
-            identity_id: raw.identity_id,
-            provider: raw.provider,
-            generation,
-            authority_instance_id: raw.authority_instance_id,
-            created_at_ms,
-            expires_at_ms,
-            absolute_expires_at_ms,
-        },
-        revoked: revoked_at_ms.is_some(),
-    })
-}
-
-fn checked_stored_time(value: i64) -> SnapbackResult<u64> {
-    u64::try_from(value)
-        .ok()
-        .filter(|value| *value <= MAX_SAFE_TIMESTAMP)
-        .ok_or_else(internal_state_snapback)
-}
-
-#[derive(Debug)]
-struct DurableSessionSnapshot {
-    record: SessionRecord,
-    current_digest: TokenDigest,
-    last_used_at_ms: u64,
-    revoked_at_ms: Option<u64>,
-}
-
-fn lookup_session_snapshot(
-    connection: &Connection,
-    session_id: &str,
-) -> SnapbackResult<Option<DurableSessionSnapshot>> {
-    let raw = connection
-        .query_row(
-            "SELECT session.id, session.user_id,
-                    COALESCE(session.identity_id,session.id),
-                    CASE WHEN session.authn_source='guest'
-                         THEN 'guest' ELSE identity.provider END,
-                    session.generation,
-                    session.authority_instance_id, session.created_at_ms,
-                    session.last_used_at_ms, session.expires_at_ms,
-                    session.absolute_expires_at_ms, session.revoked_at_ms,
-                    session.token_hash
-             FROM _auth_sessions AS session
-             LEFT JOIN _auth_identities AS identity
-               ON identity.id = session.identity_id AND identity.user_id = session.user_id
-             WHERE session.id = ?1",
-            params![session_id],
-            |row| Ok((raw_session_record(row)?, row.get::<_, Vec<u8>>(11)?)),
-        )
-        .optional()?;
-    raw.map(|(raw, token_hash)| {
-        let revoked_at_ms = raw.revoked_at_ms.map(checked_stored_time).transpose()?;
-        let last_used_at_ms = checked_stored_time(raw.last_used_at_ms)?;
-        let current_digest =
-            TokenDigest::from_slice(&token_hash).map_err(|_| internal_state_snapback())?;
-        Ok(DurableSessionSnapshot {
-            record: checked_session_record(raw)?,
-            current_digest,
-            last_used_at_ms,
-            revoked_at_ms,
-        })
-    })
-    .transpose()
-}
-
-fn exact_tombstone_time(
-    connection: &Connection,
-    session_id: &str,
-    digest: TokenDigest,
-) -> SnapbackResult<Option<u64>> {
-    connection
-        .query_row(
-            "SELECT superseded_at_ms FROM _auth_session_tokens
-             WHERE session_id = ?1 AND token_hash = ?2",
-            params![session_id, digest.as_bytes().as_slice()],
-            |row| row.get::<_, i64>(0),
-        )
-        .optional()?
-        .map(checked_stored_time)
-        .transpose()
 }
 
 fn resolve_ordinary_lookup(
@@ -3779,843 +3419,136 @@ fn revocation_plan(
     }
 }
 
-pub(crate) fn planned_revocation_transaction(
-    transaction: &Transaction<'_>,
-    plan: &ProviderRevocationPlan,
-    now_ms: u64,
-) -> SnapbackResult<PlannedRevocationCommit> {
-    let committed_generation = plan.committed_generation()?;
-    let changed = match plan.source {
-        PlannedTokenSource::Current => transaction.execute(
-            "UPDATE _auth_sessions
-             SET revoked_at_ms = ?1, generation = ?2
-             WHERE id = ?3 AND generation = ?4 AND token_hash = ?5
-               AND revoked_at_ms IS NULL AND ?1 < expires_at_ms",
-            params![
-                now_ms as i64,
-                committed_generation as i64,
-                plan.session_id,
-                plan.expected_generation as i64,
-                plan.presented_digest.as_bytes().as_slice(),
-            ],
-        )?,
-        PlannedTokenSource::Superseded { superseded_at_ms } => transaction.execute(
-            "UPDATE _auth_sessions
-             SET revoked_at_ms = ?1, generation = ?2
-             WHERE id = ?3 AND generation = ?4 AND revoked_at_ms IS NULL
-               AND ?1 < expires_at_ms
-               AND EXISTS(
-                 SELECT 1 FROM _auth_session_tokens AS token
-                 WHERE token.session_id = _auth_sessions.id
-                   AND token.token_hash = ?5 AND token.superseded_at_ms = ?6
-               )",
-            params![
-                now_ms as i64,
-                committed_generation as i64,
-                plan.session_id,
-                plan.expected_generation as i64,
-                plan.presented_digest.as_bytes().as_slice(),
-                superseded_at_ms as i64,
-            ],
-        )?,
-    };
-    if changed > 1 {
-        return Err(internal_state_snapback());
-    }
-    if changed == 1 {
-        crate::storage::auth::write_session_terminal_cause_in(
-            transaction,
-            &plan.session_id,
-            committed_generation,
-            now_ms,
-            plan.reason,
-        )?;
-    }
-    let durable: Option<(i64, Option<i64>)> = transaction
-        .query_row(
-            "SELECT generation, revoked_at_ms
-             FROM _auth_sessions WHERE id = ?1",
-            params![plan.session_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .optional()?;
-    let Some((generation, revoked_at_ms)) = durable else {
-        return Ok(PlannedRevocationCommit::PredecessorChanged);
-    };
-    let generation = u64::try_from(generation)
-        .ok()
-        .filter(|generation| *generation != 0 && *generation <= MAX_SAFE_TIMESTAMP)
-        .ok_or_else(internal_state_snapback)?;
-    if changed == 1 {
-        if revoked_at_ms == Some(now_ms as i64) && generation == committed_generation {
-            return Ok(PlannedRevocationCommit::Committed(SessionRevocation {
-                session_id: plan.session_id.clone(),
-                generation,
-            }));
-        }
-        return Err(internal_state_snapback());
-    }
-    if let Some(revoked_at_ms) = revoked_at_ms
-        && generation >= committed_generation
-    {
-        let revoked_at_ms = u64::try_from(revoked_at_ms).map_err(|_| internal_state_snapback())?;
-        let reason = crate::storage::auth::read_session_terminal_cause_on(
-            transaction,
-            &plan.session_id,
-            generation,
-            revoked_at_ms,
-        )?;
-        Ok(PlannedRevocationCommit::AlreadyTerminal { generation, reason })
-    } else {
-        Ok(PlannedRevocationCommit::PredecessorChanged)
-    }
-}
-
-pub(crate) fn planned_family_alarm_transaction(
-    transaction: &Transaction<'_>,
-    plan: &ProviderFamilyAlarmPlan,
-) -> SnapbackResult<PlannedFamilyAlarmCommit> {
-    let exact = ProviderRevocationPlan {
-        session_id: plan.session_id.clone(),
-        expected_generation: plan.expected_generation,
-        presented_digest: plan.presented_digest,
-        source: PlannedTokenSource::Superseded {
-            superseded_at_ms: plan.superseded_at_ms,
-        },
-        reason: RevocationReason::FamilyAlarm,
-    };
-    match planned_revocation_transaction(transaction, &exact, plan.observed_at_ms)? {
-        PlannedRevocationCommit::Committed(revocation) if plan.actionable => {
-            Ok(PlannedFamilyAlarmCommit::Revoked(revocation))
-        }
-        PlannedRevocationCommit::Committed(_) => Err(internal_state_snapback()),
-        PlannedRevocationCommit::AlreadyTerminal { .. }
-        | PlannedRevocationCommit::PredecessorChanged
-            if plan.actionable =>
-        {
-            Ok(PlannedFamilyAlarmCommit::Retry)
-        }
-        PlannedRevocationCommit::AlreadyTerminal { .. }
-        | PlannedRevocationCommit::PredecessorChanged => Ok(PlannedFamilyAlarmCommit::Noop),
-    }
-}
-
-pub(crate) enum DurableRevocationReconcile {
-    ExactPredecessor,
-    ExactSuccessor(SessionRevocation),
-    DifferentValid,
-}
-
-pub(crate) fn reconcile_planned_revocation(
-    connection: &Connection,
-    plan: &ProviderRevocationPlan,
-    now_ms: u64,
-) -> SnapbackResult<DurableRevocationReconcile> {
-    let Some(snapshot) = lookup_session_snapshot(connection, &plan.session_id)? else {
-        return Ok(DurableRevocationReconcile::DifferentValid);
-    };
-    let committed_generation = plan.committed_generation()?;
-    if snapshot.record.session.generation == committed_generation
-        && snapshot.revoked_at_ms == Some(now_ms)
-        && crate::storage::auth::session_terminal_cause_matches_on(
-            connection,
-            &plan.session_id,
-            committed_generation,
-            now_ms,
-            plan.reason,
-        )?
-    {
-        return Ok(DurableRevocationReconcile::ExactSuccessor(
-            SessionRevocation {
-                session_id: plan.session_id.clone(),
-                generation: committed_generation,
-            },
-        ));
-    }
-    let exact_source = match plan.source {
-        PlannedTokenSource::Current => snapshot.current_digest == plan.presented_digest,
-        PlannedTokenSource::Superseded { superseded_at_ms } => {
-            exact_tombstone_time(connection, &plan.session_id, plan.presented_digest)?
-                == Some(superseded_at_ms)
-        }
-    };
-    if snapshot.record.session.generation == plan.expected_generation
-        && !snapshot.record.revoked
-        && snapshot.record.live_at(now_ms)
-        && exact_source
-    {
-        Ok(DurableRevocationReconcile::ExactPredecessor)
-    } else {
-        Ok(DurableRevocationReconcile::DifferentValid)
-    }
-}
-
-#[derive(Clone)]
-pub(crate) enum PlannedRotationTransaction {
-    Refreshed(SessionResponse),
-    CandidateCollision,
-    PredecessorChanged,
-}
-
-pub(crate) enum DurableRotationReconcile {
-    ExactPredecessor,
-    ExactSuccessor(SessionResponse),
-    DifferentValid,
-}
-
-pub(crate) fn reconcile_planned_rotation(
-    connection: &Connection,
-    plan: &ProviderTokenRotationCommitPlan,
-) -> SnapbackResult<DurableRotationReconcile> {
-    let Some(snapshot) = lookup_session_snapshot(connection, &plan.session_id)? else {
-        return Ok(DurableRotationReconcile::DifferentValid);
-    };
-    let predecessor_tombstone =
-        exact_tombstone_time(connection, &plan.session_id, plan.predecessor_digest)?;
-    if snapshot.record.session.generation == plan.expected_generation
-        && !snapshot.record.revoked
-        && snapshot.current_digest == plan.successor_digest
-    {
-        if predecessor_tombstone != Some(plan.superseded_at_ms) {
-            return Err(internal_state_snapback());
-        }
-        return Ok(DurableRotationReconcile::ExactSuccessor(
-            snapshot.record.response(),
-        ));
-    }
-    if snapshot.record.session.generation == plan.expected_generation
-        && !snapshot.record.revoked
-        && snapshot.current_digest == plan.predecessor_digest
-        && predecessor_tombstone.is_none()
-    {
-        Ok(DurableRotationReconcile::ExactPredecessor)
-    } else {
-        Ok(DurableRotationReconcile::DifferentValid)
-    }
-}
-
-pub(crate) fn planned_rotation_transaction(
-    transaction: &Transaction<'_>,
-    plan: &ProviderTokenRotationCommitPlan,
-) -> SnapbackResult<PlannedRotationTransaction> {
-    let now_ms = plan.superseded_at_ms;
-    let predecessor = TokenHash::from_bytes(*plan.predecessor_digest.as_bytes());
-    let Some(current) = lookup_current_session(transaction, &predecessor)? else {
-        return Ok(PlannedRotationTransaction::PredecessorChanged);
-    };
-    if current.session.session_id != plan.session_id
-        || current.session.generation != plan.expected_generation
-        || !current.live_at(now_ms)
-    {
-        return Ok(PlannedRotationTransaction::PredecessorChanged);
-    }
-    let successor_exists: bool = transaction.query_row(
-        "SELECT EXISTS(SELECT 1 FROM _auth_sessions WHERE token_hash = ?1)
-                OR EXISTS(SELECT 1 FROM _auth_session_tokens WHERE token_hash = ?1)",
-        params![plan.successor_digest.as_bytes().as_slice()],
-        |row| row.get(0),
-    )?;
-    if successor_exists {
-        return Ok(PlannedRotationTransaction::CandidateCollision);
-    }
-    execute_candidate(
-        transaction,
-        "INSERT INTO _auth_session_tokens(token_hash, session_id, superseded_at_ms)
-         VALUES(?1, ?2, ?3)",
-        params![
-            plan.predecessor_digest.as_bytes().as_slice(),
-            plan.session_id,
-            now_ms as i64,
-        ],
-    )?;
-    let changed = execute_candidate(
-        transaction,
-        "UPDATE _auth_sessions SET token_hash = ?1
-         WHERE id = ?2 AND generation = ?3 AND token_hash = ?4
-           AND revoked_at_ms IS NULL AND ?5 < expires_at_ms",
-        params![
-            plan.successor_digest.as_bytes().as_slice(),
-            plan.session_id,
-            plan.expected_generation as i64,
-            plan.predecessor_digest.as_bytes().as_slice(),
-            now_ms as i64,
-        ],
-    )?;
-    if changed != 1 {
-        return Err(internal_state_snapback());
-    }
-    Ok(PlannedRotationTransaction::Refreshed(current.response()))
-}
-
-fn planned_revocation_set_is_exact_predecessor(
-    connection: &Connection,
-    revocations: &[ProviderRevocationPlan],
-    now_ms: u64,
-) -> SnapbackResult<bool> {
-    for revocation in revocations {
-        if !matches!(
-            reconcile_planned_revocation(connection, revocation, now_ms)?,
-            DurableRevocationReconcile::ExactPredecessor
-        ) {
-            return Ok(false);
-        }
-    }
-    Ok(true)
-}
-
-fn commit_planned_revocation_set(
-    transaction: &Transaction<'_>,
-    revocations: &[ProviderRevocationPlan],
-    now_ms: u64,
-) -> SnapbackResult<Vec<SessionRevocation>> {
-    let mut committed = Vec::with_capacity(revocations.len());
-    for revocation in revocations {
-        let generation = revocation.committed_generation()?;
-        let changed = transaction.execute(
-            "UPDATE _auth_sessions
-             SET revoked_at_ms=?1,generation=?2
-             WHERE id=?3 AND generation=?4 AND token_hash=?5
-               AND revoked_at_ms IS NULL AND ?1<expires_at_ms",
-            params![
-                now_ms as i64,
-                generation as i64,
-                revocation.session_id,
-                revocation.expected_generation as i64,
-                revocation.presented_digest.as_bytes().as_slice(),
-            ],
-        )?;
-        if changed != 1 {
-            return Err(internal_state_snapback());
-        }
-        crate::storage::auth::write_session_terminal_cause_in(
-            transaction,
-            &revocation.session_id,
-            generation,
-            now_ms,
-            revocation.reason,
-        )?;
-        committed.push(SessionRevocation {
-            session_id: revocation.session_id.clone(),
-            generation,
-        });
-    }
-    Ok(committed)
-}
-
-#[allow(dead_code)]
-pub(crate) fn planned_password_change_transaction(
-    transaction: &Transaction<'_>,
-    plan: &ProviderPasswordChangeCommitPlan,
-) -> SnapbackResult<PlannedPasswordChangeCommit> {
-    match crate::storage::auth_identity::admit_password_change_in(
-        transaction,
-        &plan.mutation,
-        plan.rotation.superseded_at_ms,
-        plan.password_profile,
-    )? {
-        crate::storage::auth_identity::PasswordIssuanceAdmission::Proceed { .. } => {}
-        crate::storage::auth_identity::PasswordIssuanceAdmission::Invalid { committed_attempt } => {
-            return Ok(PlannedPasswordChangeCommit::CredentialInvalid { committed_attempt });
-        }
-        crate::storage::auth_identity::PasswordIssuanceAdmission::LedgerCapacityExhausted => {
-            return Ok(PlannedPasswordChangeCommit::CredentialThrottled);
-        }
-        crate::storage::auth_identity::PasswordIssuanceAdmission::PredecessorChanged => {
-            return Ok(PlannedPasswordChangeCommit::PredecessorChanged);
-        }
-    }
-    if !planned_revocation_set_is_exact_predecessor(
-        transaction,
-        &plan.revocations,
-        plan.rotation.superseded_at_ms,
-    )? {
-        return Ok(PlannedPasswordChangeCommit::PredecessorChanged);
-    }
-    let session = match planned_rotation_transaction(transaction, &plan.rotation)? {
-        PlannedRotationTransaction::Refreshed(session) => session,
-        PlannedRotationTransaction::CandidateCollision => {
-            return Ok(PlannedPasswordChangeCommit::CandidateCollision);
-        }
-        PlannedRotationTransaction::PredecessorChanged => {
-            return Ok(PlannedPasswordChangeCommit::PredecessorChanged);
-        }
-    };
-    crate::storage::auth_identity::apply_password_change_in(
-        transaction,
-        &plan.mutation,
-        plan.rotation.superseded_at_ms,
-    )?;
-    let committed_revocations = commit_planned_revocation_set(
-        transaction,
-        &plan.revocations,
-        plan.rotation.superseded_at_ms,
-    )?;
-    Ok(PlannedPasswordChangeCommit::Committed {
-        session,
-        committed_revocations,
-    })
-}
-
-#[allow(dead_code)]
-pub(crate) enum DurablePasswordChangeReconcile {
-    ExactPredecessor,
-    ExactSuccessor {
-        session: SessionResponse,
-        committed_revocations: Vec<SessionRevocation>,
-    },
-    DifferentValid,
-}
-
-#[allow(dead_code)]
-pub(crate) fn reconcile_password_change(
-    connection: &Connection,
-    plan: &ProviderPasswordChangeCommitPlan,
-) -> SnapbackResult<DurablePasswordChangeReconcile> {
-    let rotation = reconcile_planned_rotation(connection, &plan.rotation)?;
-    let mutation_successor = crate::storage::auth_identity::password_change_is_exact_successor_on(
-        connection,
-        &plan.mutation,
-        plan.rotation.superseded_at_ms,
-    )?;
-    let mutation_predecessor =
-        crate::storage::auth_identity::password_change_is_exact_predecessor_on(
-            connection,
-            &plan.mutation,
-        )?;
-    let mut revocation_successors = Vec::with_capacity(plan.revocations.len());
-    let mut all_revocation_successors = true;
-    let mut all_revocation_predecessors = true;
-    for revocation in &plan.revocations {
-        match reconcile_planned_revocation(connection, revocation, plan.rotation.superseded_at_ms)?
-        {
-            DurableRevocationReconcile::ExactSuccessor(committed) => {
-                revocation_successors.push(committed);
-                all_revocation_predecessors = false;
-            }
-            DurableRevocationReconcile::ExactPredecessor => {
-                all_revocation_successors = false;
-            }
-            DurableRevocationReconcile::DifferentValid => {
-                all_revocation_successors = false;
-                all_revocation_predecessors = false;
-            }
-        }
-    }
-    match rotation {
-        DurableRotationReconcile::ExactSuccessor(session)
-            if mutation_successor && all_revocation_successors =>
-        {
-            Ok(DurablePasswordChangeReconcile::ExactSuccessor {
-                session,
-                committed_revocations: revocation_successors,
-            })
-        }
-        DurableRotationReconcile::ExactPredecessor
-            if mutation_predecessor && all_revocation_predecessors =>
-        {
-            Ok(DurablePasswordChangeReconcile::ExactPredecessor)
-        }
-        _ => Ok(DurablePasswordChangeReconcile::DifferentValid),
-    }
-}
-
-#[allow(dead_code)]
-fn attempt_planned_password_change(
-    database: &mut LocalDatabase,
-    plan: &ProviderPasswordChangeCommitPlan,
-) -> AuthTransactionAttempt<PlannedPasswordChangeCommit> {
-    let (attempt, body_outcome) = database.auth_catalog().attempt_password_change(plan);
-    let AuthTransactionAttempt::CommitUncertain(commit_error) = attempt else {
-        return attempt;
-    };
-    let Some(body_outcome) = body_outcome else {
-        return AuthTransactionAttempt::CommitUncertain(commit_error);
-    };
-    match body_outcome {
-        PlannedPasswordChangeCommit::CandidateCollision
-        | PlannedPasswordChangeCommit::PredecessorChanged
-        | PlannedPasswordChangeCommit::CredentialThrottled => {
-            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::PredecessorChanged)
-        }
-        PlannedPasswordChangeCommit::CredentialInvalid { committed_attempt } => {
-            let committed = committed_attempt.as_ref().is_none_or(|expected| {
-                database
-                    .password_attempt_matches(&plan.mutation.canonical_identifier, expected)
-                    .unwrap_or(false)
-            });
-            if committed {
-                AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::CredentialInvalid {
-                    committed_attempt,
-                })
-            } else {
-                AuthTransactionAttempt::RolledBack(commit_error)
-            }
-        }
-        PlannedPasswordChangeCommit::Committed { .. } => {
-            match database.auth_catalog_read().reconcile_password_change(plan) {
-                Ok(DurablePasswordChangeReconcile::ExactSuccessor {
-                    session,
-                    committed_revocations,
-                }) => AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::Committed {
-                    session,
-                    committed_revocations,
-                }),
-                Ok(DurablePasswordChangeReconcile::ExactPredecessor) => {
-                    AuthTransactionAttempt::RolledBack(commit_error)
-                }
-                Ok(DurablePasswordChangeReconcile::DifferentValid) => {
-                    AuthTransactionAttempt::Committed(
-                        PlannedPasswordChangeCommit::PredecessorChanged,
-                    )
-                }
-                Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-pub(crate) fn refresh_transaction(
-    transaction: &Transaction<'_>,
-    predecessor_hash: &TokenHash,
-    successor_hash: &TokenHash,
-    now_ms: u64,
-) -> SnapbackResult<RefreshOutcome> {
-    if let Some(current) = lookup_current_session(transaction, predecessor_hash)? {
-        if !current.live_at(now_ms) {
-            return Ok(RefreshOutcome::SessionExpired);
-        }
-        let successor_exists: bool = transaction.query_row(
-            "SELECT EXISTS(SELECT 1 FROM _auth_sessions WHERE token_hash = ?1)
-                    OR EXISTS(SELECT 1 FROM _auth_session_tokens WHERE token_hash = ?1)",
-            params![successor_hash.as_bytes().as_slice()],
-            |row| row.get(0),
-        )?;
-        if successor_exists {
-            return Err(internal_collision_snapback());
-        }
-        execute_candidate(
-            transaction,
-            "INSERT INTO _auth_session_tokens(token_hash, session_id, superseded_at_ms)
-             VALUES(?1, ?2, ?3)",
-            params![
-                predecessor_hash.as_bytes().as_slice(),
-                current.session.session_id,
-                now_ms as i64,
-            ],
-        )?;
-        let changed = execute_candidate(
-            transaction,
-            "UPDATE _auth_sessions SET token_hash = ?1
-             WHERE id = ?2 AND token_hash = ?3 AND revoked_at_ms IS NULL
-               AND ?4 < expires_at_ms",
-            params![
-                successor_hash.as_bytes().as_slice(),
-                current.session.session_id,
-                predecessor_hash.as_bytes().as_slice(),
-                now_ms as i64,
-            ],
-        )?;
-        if changed != 1 {
-            return Err(internal_state_snapback());
-        }
-        return Ok(RefreshOutcome::Refreshed(current.response()));
-    }
-
-    let Some((session, superseded_at_ms)) =
-        lookup_tombstone_session(transaction, predecessor_hash)?
-    else {
-        return Ok(RefreshOutcome::AuthRequired);
-    };
-    if !session.live_at(now_ms) {
-        return Ok(RefreshOutcome::SessionExpired);
-    }
-    let age = now_ms
-        .checked_sub(superseded_at_ms)
-        .ok_or_else(internal_state_snapback)?;
-    if age <= AUTH_SESSION_SUPERSESSION_GRACE_MS {
-        return Ok(RefreshOutcome::SupersededInsideGrace);
-    }
-    let revocation = revoke_live_session(
-        transaction,
-        &session,
-        now_ms,
-        RevocationReason::RefreshReuse,
-    )?;
-    Ok(RefreshOutcome::ReuseRevoked(revocation))
-}
-
-#[cfg(test)]
-pub(crate) fn logout_transaction(
-    transaction: &Transaction<'_>,
-    token_hash: &TokenHash,
-    now_ms: u64,
-) -> SnapbackResult<LogoutOutcome> {
-    match lookup_presented_session(transaction, token_hash)? {
-        PresentedSessionLookup::Unknown => Ok(LogoutOutcome::AuthRequired),
-        PresentedSessionLookup::Current(session) => {
-            if !session.live_at(now_ms) {
-                Ok(LogoutOutcome::SessionExpired)
-            } else {
-                revoke_live_session(transaction, &session, now_ms, RevocationReason::Logout)
-                    .map(LogoutOutcome::Revoked)
-            }
-        }
-        PresentedSessionLookup::Tombstone {
-            session,
-            superseded_at_ms,
-        } => {
-            if !session.live_at(now_ms) {
-                return Ok(LogoutOutcome::SessionExpired);
-            }
-            let age = now_ms
-                .checked_sub(superseded_at_ms)
-                .ok_or_else(internal_state_snapback)?;
-            if age > AUTH_SESSION_SUPERSESSION_GRACE_MS {
-                Ok(LogoutOutcome::CredentialSuperseded)
-            } else {
-                revoke_live_session(transaction, &session, now_ms, RevocationReason::Logout)
-                    .map(LogoutOutcome::Revoked)
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-fn revoke_live_session(
-    transaction: &Transaction<'_>,
-    session: &SessionRecord,
-    now_ms: u64,
-    reason: RevocationReason,
-) -> SnapbackResult<SessionRevocation> {
-    let generation = session
-        .session
-        .generation
-        .checked_add(1)
-        .and_then(|generation| i64::try_from(generation).ok().map(|_| generation))
-        .ok_or_else(internal_state_snapback)?;
-    let changed = transaction.execute(
-        "UPDATE _auth_sessions SET revoked_at_ms = ?1, generation = ?2
-         WHERE id = ?3 AND generation = ?4 AND revoked_at_ms IS NULL
-           AND ?1 < expires_at_ms",
-        params![
-            now_ms as i64,
-            generation as i64,
-            session.session.session_id,
-            session.session.generation as i64,
-        ],
-    )?;
-    if changed != 1 {
-        return Err(internal_state_snapback());
-    }
-    crate::storage::auth::write_session_terminal_cause_in(
-        transaction,
-        &session.session.session_id,
-        generation,
-        now_ms,
-        reason,
-    )?;
-    Ok(SessionRevocation {
-        session_id: session.session.session_id.clone(),
-        generation,
-    })
-}
-
-#[cfg(test)]
-pub(crate) fn family_alarm_transaction(
-    transaction: &Transaction<'_>,
-    token_hash: &TokenHash,
-    now_ms: u64,
-) -> SnapbackResult<Option<SessionRevocation>> {
-    let revoked = transaction
-        .query_row(
-            "UPDATE _auth_sessions
-             SET revoked_at_ms = ?2, generation = generation + 1
-             WHERE id = (
-               SELECT session_id FROM _auth_session_tokens WHERE token_hash = ?1
-             )
-               AND revoked_at_ms IS NULL AND ?2 < expires_at_ms
-             RETURNING id, generation",
-            params![token_hash.as_bytes().as_slice(), now_ms as i64],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
-        )
-        .optional()?;
-    let revocation = revoked
-        .map(|(session_id, generation)| {
-            let generation = u64::try_from(generation)
-                .ok()
-                .filter(|generation| (2..=MAX_SAFE_TIMESTAMP).contains(generation))
-                .ok_or_else(internal_state_snapback)?;
-            if generation < 2 {
-                return Err(internal_state_snapback());
-            }
-            Ok(SessionRevocation {
-                session_id,
-                generation,
-            })
-        })
-        .transpose()?;
-    if let Some(revocation) = &revocation {
-        crate::storage::auth::write_session_terminal_cause_in(
-            transaction,
-            &revocation.session_id,
-            revocation.generation,
-            now_ms,
-            RevocationReason::FamilyAlarm,
-        )?;
-    }
-    Ok(revocation)
-}
-
-pub(crate) fn authenticated_use_row(
-    connection: &Connection,
-    session_id: &str,
-    expected_generation: u64,
-) -> SnapbackResult<Option<AuthenticatedUseRow>> {
-    let raw = connection
-        .query_row(
-            "SELECT generation, last_used_at_ms, expires_at_ms,
-                    absolute_expires_at_ms, revoked_at_ms IS NOT NULL
-             FROM _auth_sessions WHERE id = ?1",
-            params![session_id],
-            |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, i64>(2)?,
-                    row.get::<_, i64>(3)?,
-                    row.get::<_, bool>(4)?,
-                ))
-            },
-        )
-        .optional()?;
-    raw.map(|(generation, last_used, expires, absolute, revoked)| {
-        let generation = u64::try_from(generation)
-            .ok()
-            .filter(|generation| *generation != 0 && *generation <= MAX_SAFE_TIMESTAMP)
-            .ok_or_else(internal_state_snapback)?;
-        let row = AuthenticatedUseRow {
-            generation,
-            last_used_at_ms: checked_stored_time(last_used)?,
-            expires_at_ms: checked_stored_time(expires)?,
-            absolute_expires_at_ms: checked_stored_time(absolute)?,
-            revoked,
-        };
-        if row.generation == 0 || row.expires_at_ms > row.absolute_expires_at_ms {
-            return Err(internal_state_snapback());
-        }
-        Ok((row.generation == expected_generation).then_some(row))
-    })
-    .transpose()
-    .map(Option::flatten)
-}
-
-pub(crate) fn record_authenticated_use_transaction(
-    transaction: &Transaction<'_>,
-    session_id: &str,
-    expected_generation: u64,
-    now_ms: u64,
-) -> SnapbackResult<AuthenticatedUse> {
-    let Some(row) = authenticated_use_row(transaction, session_id, expected_generation)? else {
-        return Ok(AuthenticatedUse::NotLive);
-    };
-    if !row.live_at(now_ms) {
-        return Ok(AuthenticatedUse::NotLive);
-    }
-    if now_ms.saturating_sub(row.last_used_at_ms) < AUTH_SESSION_USE_COALESCE_MS {
-        return Ok(AuthenticatedUse::Unchanged {
-            expires_at_ms: row.expires_at_ms,
-        });
-    }
-    let expires_at_ms = now_ms
-        .checked_add(AUTH_SESSION_SLIDING_WINDOW_MS)
-        .unwrap_or(MAX_SAFE_TIMESTAMP)
-        .min(row.absolute_expires_at_ms);
-    if expires_at_ms < now_ms {
-        return Ok(AuthenticatedUse::NotLive);
-    }
-    let changed = transaction.execute(
-        "UPDATE _auth_sessions
-         SET last_used_at_ms = ?1, expires_at_ms = ?2
-         WHERE id = ?3 AND generation = ?4 AND revoked_at_ms IS NULL
-           AND ?1 < expires_at_ms AND ?1 < absolute_expires_at_ms
-           AND ?1 - last_used_at_ms >= ?5",
-        params![
-            now_ms as i64,
-            expires_at_ms as i64,
-            session_id,
-            expected_generation as i64,
-            AUTH_SESSION_USE_COALESCE_MS as i64,
-        ],
-    )?;
-    if changed == 1 {
-        Ok(AuthenticatedUse::Extended { expires_at_ms })
-    } else {
-        Ok(AuthenticatedUse::NotLive)
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn plan_exchange_read(
-    connection: &Connection,
-    provider: &AuthProvider,
+fn classify_exchange_challenge(
     coordination: &ExchangeCoordination,
-    _key: &AuthKeyMaterial,
-    _code: &VerificationCode,
+    fact: Option<ExchangeChallengeFact>,
     now_ms: u64,
-) -> SnapbackResult<PlannedExchange> {
-    let row = connection
-        .query_row(
-            "SELECT canonical_address, code_digest, key_id, attempts,
-                    max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
-                    superseded_by IS NOT NULL
-             FROM _auth_verification_codes
-             WHERE challenge_id = ?1",
-            params![coordination.challenge_id.as_str()],
-            |row| {
-                Ok(ChallengeTransactionRow {
-                    address: row.get(0)?,
-                    code_digest: Zeroizing::new(row.get(1)?),
-                    key_id: row.get(2)?,
-                    attempts: row.get(3)?,
-                    max_attempts: row.get(4)?,
-                    expires_at_ms: row.get(5)?,
-                    consumed: row.get(6)?,
-                    superseded: row.get(7)?,
-                })
-            },
-        )
-        .optional()?;
-    let Some(row) = row else {
-        return Ok(PlannedExchange::Reject);
+) -> SnapbackResult<Option<(CanonicalAddress, PlannedChallengeConsumption)>> {
+    let Some(fact) = fact else {
+        return Ok(None);
     };
-    let address = CanonicalAddress::parse(&row.address).map_err(|_| internal_state_snapback())?;
-    if address != coordination.address || row.key_id != coordination.key_id.as_str() {
+    let address = CanonicalAddress::parse(&fact.address).map_err(|_| internal_state_snapback())?;
+    if address != coordination.address || fact.key_id != coordination.key_id.as_str() {
         return Err(internal_state_snapback());
     }
-    let code_digest: [u8; 32] = row
-        .code_digest
-        .as_slice()
-        .try_into()
-        .map_err(|_| internal_state_snapback())?;
-    let expected_attempts = u32::try_from(row.attempts).map_err(|_| internal_state_snapback())?;
-    let max_attempts = u32::try_from(row.max_attempts).map_err(|_| internal_state_snapback())?;
-    let expires_at_ms = checked_stored_time(row.expires_at_ms)?;
-    if max_attempts != AUTH_MAXIMUM_ATTEMPTS || expected_attempts > max_attempts {
+    if fact.max_attempts != AUTH_MAXIMUM_ATTEMPTS || fact.attempts > fact.max_attempts {
         return Err(internal_state_snapback());
     }
-    if row.consumed
-        || row.superseded
-        || now_ms >= expires_at_ms
-        || expected_attempts == max_attempts
+    if fact.consumed
+        || fact.superseded
+        || now_ms >= fact.expires_at_ms
+        || fact.attempts == fact.max_attempts
     {
-        return Ok(PlannedExchange::Reject);
+        return Ok(None);
     }
+    Ok(Some((
+        address,
+        PlannedChallengeConsumption {
+            challenge_id: coordination.challenge_id.as_str().to_owned(),
+            key_id: coordination.key_id.as_str().to_owned(),
+            code_digest: fact.code_digest,
+            expected_attempts: fact.attempts,
+            max_attempts: fact.max_attempts,
+            expires_at_ms: fact.expires_at_ms,
+        },
+    )))
+}
 
-    let candidate =
-        SessionCandidate::generate(provider, now_ms).map_err(ProviderError::into_snapback_error)?;
-    let (identity, eviction) =
-        plan_session_issuance_read(connection, &address, &candidate, now_ms)?;
+fn classify_session_issuance(
+    facts: SessionIssuanceFacts,
+    candidate: &SessionCandidate,
+) -> SnapbackResult<(PlannedIdentityState, Option<ProviderRevocationPlan>)> {
+    let identity = match facts.existing_identity {
+        Some(existing) => PlannedIdentityState::Existing {
+            identity_id: existing.identity_id,
+            user_id: existing.user_id,
+        },
+        None => PlannedIdentityState::Create {
+            identity_id: candidate.identity_id.clone(),
+            user_id: candidate.user_id.clone(),
+        },
+    };
+    if facts.live_session_count > AUTH_SESSION_LIVE_LIMIT as u64 {
+        return Err(internal_state_snapback());
+    }
+    let eviction = if facts.live_session_count == AUTH_SESSION_LIVE_LIMIT as u64 {
+        let oldest = facts
+            .oldest_live_session
+            .ok_or_else(internal_state_snapback)?;
+        Some(ProviderRevocationPlan {
+            session_id: oldest.session_id,
+            expected_generation: oldest.generation,
+            presented_digest: oldest.token_digest,
+            source: PlannedTokenSource::Current,
+            reason: RevocationReason::CapEviction,
+        })
+    } else {
+        if facts.oldest_live_session.is_some() {
+            return Err(internal_state_snapback());
+        }
+        None
+    };
+    Ok((identity, eviction))
+}
+
+fn classify_session_cap(facts: SessionCapFacts) -> SnapbackResult<Option<ProviderRevocationPlan>> {
+    if facts.live_session_count > AUTH_SESSION_LIVE_LIMIT as u64 {
+        return Err(internal_state_snapback());
+    }
+    if facts.live_session_count == AUTH_SESSION_LIVE_LIMIT as u64 {
+        let oldest = facts
+            .oldest_live_session
+            .ok_or_else(internal_state_snapback)?;
+        return Ok(Some(ProviderRevocationPlan {
+            session_id: oldest.session_id,
+            expected_generation: oldest.generation,
+            presented_digest: oldest.token_digest,
+            source: PlannedTokenSource::Current,
+            reason: RevocationReason::CapEviction,
+        }));
+    }
+    if facts.oldest_live_session.is_some() {
+        return Err(internal_state_snapback());
+    }
+    Ok(None)
+}
+
+fn classify_user_session_revocations(
+    facts: Vec<SessionRevocationCandidateFact>,
+) -> Vec<ProviderRevocationPlan> {
+    facts
+        .into_iter()
+        .map(|fact| ProviderRevocationPlan {
+            session_id: fact.session_id,
+            expected_generation: fact.generation,
+            presented_digest: fact.token_digest,
+            source: PlannedTokenSource::Current,
+            reason: RevocationReason::DurableRevocation,
+        })
+        .collect()
+}
+
+fn plan_user_session_revocations(
+    database: &LocalDatabase,
+    user_id: &str,
+    excluded_session_id: Option<&str>,
+    identity_id: Option<&str>,
+    now_ms: u64,
+) -> SnapbackResult<Vec<ProviderRevocationPlan>> {
+    database
+        .auth_catalog_read()
+        .user_session_revocation_facts(user_id, excluded_session_id, identity_id, now_ms)
+        .map(classify_user_session_revocations)
+}
+
+fn build_session_issuance_plan(
+    address: CanonicalAddress,
+    now_ms: u64,
+    candidate: SessionCandidate,
+    identity: PlannedIdentityState,
+    eviction: Option<ProviderRevocationPlan>,
+    challenge: Option<PlannedChallengeConsumption>,
+) -> SnapbackResult<ProviderSessionIssuancePlan> {
     let user_id = match &identity {
         PlannedIdentityState::Existing { user_id, .. }
         | PlannedIdentityState::Create { user_id, .. } => user_id.clone(),
@@ -4635,7 +3568,7 @@ pub(crate) fn plan_exchange_read(
         absolute_expires_at_ms,
         rehearsal_provenance: None,
     };
-    Ok(PlannedExchange::Issue(ProviderSessionIssuancePlan {
+    Ok(ProviderSessionIssuancePlan {
         address,
         now_ms,
         identity,
@@ -4645,475 +3578,107 @@ pub(crate) fn plan_exchange_read(
         password: None,
         password_profile: None,
         recovery_codes: None,
-        challenge: Some(PlannedChallengeConsumption {
-            challenge_id: coordination.challenge_id.as_str().to_owned(),
-            key_id: coordination.key_id.as_str().to_owned(),
-            code_digest,
-            expected_attempts,
-            max_attempts,
-            expires_at_ms: checked_stored_time(row.expires_at_ms)?,
-        }),
+        challenge,
         sender_issuance: None,
         rehearsal_exercise: None,
-    }))
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn rejected_exchange_transaction(
-    transaction: &Transaction<'_>,
-    provider: &AuthProvider,
-    coordination: &ExchangeCoordination,
-    key: &AuthKeyMaterial,
-    code: &VerificationCode,
-    now_ms: u64,
-    sender_issuance: Option<&crate::auth::sender_proof::SenderIssuanceCommitment>,
-) -> SnapbackResult<RejectedExchangeOutcome> {
-    let row = transaction
-        .query_row(
-            "SELECT canonical_address, code_digest, key_id, attempts,
-                    max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
-                    superseded_by IS NOT NULL
-             FROM _auth_verification_codes
-             WHERE challenge_id = ?1",
-            params![coordination.challenge_id.as_str()],
-            |row| {
-                Ok(ChallengeTransactionRow {
-                    address: row.get(0)?,
-                    code_digest: Zeroizing::new(row.get(1)?),
-                    key_id: row.get(2)?,
-                    attempts: row.get(3)?,
-                    max_attempts: row.get(4)?,
-                    expires_at_ms: row.get(5)?,
-                    consumed: row.get(6)?,
-                    superseded: row.get(7)?,
-                })
-            },
-        )
-        .optional()?;
-    let Some(row) = row else {
-        perform_dummy_hmac(provider, &coordination.challenge_id, code);
-        if let Some(sender_issuance) = sender_issuance {
-            sender_issuance
-                .consume_rejected_outcome(transaction)
-                .map_err(|_| internal_state_snapback())?;
-        }
-        return Ok(RejectedExchangeOutcome::Invalid);
-    };
-    let address = CanonicalAddress::parse(&row.address).map_err(|_| internal_state_snapback())?;
-    if address != coordination.address || row.key_id != coordination.key_id.as_str() {
-        return Err(internal_state_snapback());
-    }
-    let stored: [u8; 32] = row
-        .code_digest
-        .as_slice()
-        .try_into()
-        .map_err(|_| internal_state_snapback())?;
-    let attempts = u32::try_from(row.attempts).map_err(|_| internal_state_snapback())?;
-    let max_attempts = u32::try_from(row.max_attempts).map_err(|_| internal_state_snapback())?;
-    let expires_at_ms = checked_stored_time(row.expires_at_ms)?;
-    if max_attempts != AUTH_MAXIMUM_ATTEMPTS || attempts > max_attempts {
-        return Err(internal_state_snapback());
-    }
-    if row.consumed || row.superseded || now_ms >= expires_at_ms {
-        perform_dummy_hmac(provider, &coordination.challenge_id, code);
-        if let Some(sender_issuance) = sender_issuance {
-            sender_issuance
-                .consume_rejected_outcome(transaction)
-                .map_err(|_| internal_state_snapback())?;
-        }
-        return Ok(RejectedExchangeOutcome::Invalid);
-    }
-    if attempts == max_attempts {
-        perform_dummy_hmac(provider, &coordination.challenge_id, code);
-        if let Some(sender_issuance) = sender_issuance {
-            sender_issuance
-                .consume_rejected_outcome(transaction)
-                .map_err(|_| internal_state_snapback())?;
-        }
-        return Ok(RejectedExchangeOutcome::Locked);
-    }
-
-    let submitted = CodeDigest::compute(key, &coordination.challenge_id, &address, code);
-    if submitted.verify(&stored) {
-        return Ok(RejectedExchangeOutcome::PredecessorChanged);
-    }
-    let next_attempts = attempts
-        .checked_add(1)
-        .ok_or_else(internal_state_snapback)?;
-    let changed = transaction.execute(
-        "UPDATE _auth_verification_codes
-         SET attempts = ?1
-         WHERE challenge_id = ?2 AND attempts = ?3
-           AND code_digest = ?4 AND key_id = ?5
-           AND expires_at_ms = ?6
-           AND consumed_at_ms IS NULL AND superseded_by IS NULL",
-        params![
-            next_attempts as i64,
-            coordination.challenge_id.as_str(),
-            attempts as i64,
-            stored.as_slice(),
-            coordination.key_id.as_str(),
-            expires_at_ms as i64,
-        ],
-    )?;
-    if changed != 1 {
-        return Err(internal_state_snapback());
-    }
-    if let Some(sender_issuance) = sender_issuance {
-        sender_issuance
-            .consume_rejected_outcome(transaction)
-            .map_err(|_| internal_state_snapback())?;
-    }
-    Ok(if next_attempts == max_attempts {
-        RejectedExchangeOutcome::Locked
-    } else {
-        RejectedExchangeOutcome::Invalid
     })
 }
 
-#[allow(clippy::too_many_arguments)]
-#[cfg(test)]
-pub(crate) fn exchange_transaction(
-    transaction: &Transaction<'_>,
-    provider: &AuthProvider,
-    coordination: &ExchangeCoordination,
-    key: &AuthKeyMaterial,
-    code: &VerificationCode,
-    candidate: &SessionCandidate,
-    now_ms: u64,
-) -> SnapbackResult<ExchangeOutcome> {
-    let row = transaction
-        .query_row(
-            "SELECT canonical_address, code_digest, key_id, attempts,
-                    max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
-                    superseded_by IS NOT NULL
-             FROM _auth_verification_codes
-             WHERE challenge_id = ?1",
-            params![coordination.challenge_id.as_str()],
-            |row| {
-                Ok(ChallengeTransactionRow {
-                    address: row.get(0)?,
-                    code_digest: Zeroizing::new(row.get(1)?),
-                    key_id: row.get(2)?,
-                    attempts: row.get(3)?,
-                    max_attempts: row.get(4)?,
-                    expires_at_ms: row.get(5)?,
-                    consumed: row.get(6)?,
-                    superseded: row.get(7)?,
-                })
-            },
-        )
-        .optional()?;
-    let Some(row) = row else {
-        perform_dummy_hmac(provider, &coordination.challenge_id, code);
-        return Ok(ExchangeOutcome::Invalid);
-    };
-
-    let address = CanonicalAddress::parse(&row.address).map_err(|_| internal_state_snapback())?;
-    if address != coordination.address || row.key_id != coordination.key_id.as_str() {
-        return Err(internal_state_snapback());
-    }
-    if row.code_digest.len() != 32 {
-        return Err(internal_state_snapback());
-    }
-    let mut stored_bytes = Zeroizing::new([0_u8; 32]);
-    stored_bytes.copy_from_slice(&row.code_digest);
-    let attempts = u32::try_from(row.attempts).map_err(|_| internal_state_snapback())?;
-    let max_attempts = u32::try_from(row.max_attempts).map_err(|_| internal_state_snapback())?;
-    let expires_at_ms = u64::try_from(row.expires_at_ms).map_err(|_| internal_state_snapback())?;
-    if max_attempts != AUTH_MAXIMUM_ATTEMPTS || attempts > max_attempts {
-        return Err(internal_state_snapback());
-    }
-
-    if row.consumed || row.superseded || now_ms >= expires_at_ms {
-        perform_dummy_hmac(provider, &coordination.challenge_id, code);
-        return Ok(ExchangeOutcome::Invalid);
-    }
-    if attempts == max_attempts {
-        perform_dummy_hmac(provider, &coordination.challenge_id, code);
-        return Ok(ExchangeOutcome::Locked);
-    }
-
-    let submitted = CodeDigest::compute(key, &coordination.challenge_id, &address, code);
-    let correct = submitted.verify(&stored_bytes[..]);
-    let next_attempts = attempts
-        .checked_add(1)
-        .ok_or_else(internal_state_snapback)?;
-    if !correct {
-        let changed = transaction.execute(
-            "UPDATE _auth_verification_codes
-             SET attempts = ?1
-             WHERE challenge_id = ?2 AND attempts = ?3
-               AND consumed_at_ms IS NULL AND superseded_by IS NULL",
-            params![
-                next_attempts as i64,
-                coordination.challenge_id.as_str(),
-                attempts as i64,
-            ],
-        )?;
-        if changed != 1 {
-            return Err(internal_state_snapback());
+fn planned_password_change_from_catalog(
+    outcome: CatalogPasswordChangeCommit,
+) -> PlannedPasswordChangeCommit {
+    match outcome {
+        CatalogPasswordChangeCommit::Committed {
+            session,
+            committed_revocations,
+        } => PlannedPasswordChangeCommit::Committed {
+            session: session.into(),
+            committed_revocations,
+        },
+        CatalogPasswordChangeCommit::CredentialInvalid { committed_attempt } => {
+            PlannedPasswordChangeCommit::CredentialInvalid { committed_attempt }
         }
-        return Ok(if next_attempts == max_attempts {
-            ExchangeOutcome::Locked
-        } else {
-            ExchangeOutcome::Invalid
-        });
+        CatalogPasswordChangeCommit::CredentialThrottled => {
+            PlannedPasswordChangeCommit::CredentialThrottled
+        }
+        CatalogPasswordChangeCommit::CandidateCollision => {
+            PlannedPasswordChangeCommit::CandidateCollision
+        }
+        CatalogPasswordChangeCommit::PredecessorChanged => {
+            PlannedPasswordChangeCommit::PredecessorChanged
+        }
     }
+}
 
-    let changed = transaction.execute(
-        "UPDATE _auth_verification_codes
-         SET attempts = ?1, consumed_at_ms = ?2
-         WHERE challenge_id = ?3 AND attempts = ?4
-           AND consumed_at_ms IS NULL AND superseded_by IS NULL",
-        params![
-            next_attempts as i64,
-            now_ms as i64,
-            coordination.challenge_id.as_str(),
-            attempts as i64,
-        ],
-    )?;
-    if changed != 1 {
-        return Err(internal_state_snapback());
-    }
-
-    let existing_identity = transaction
-        .query_row(
-            "SELECT id, user_id FROM _auth_identities
-             WHERE provider = 'email-code' AND subject = ?1",
-            params![address.as_str()],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-        )
-        .optional()?;
-    let (identity_id, user_id) = match existing_identity {
-        Some((identity_id, user_id)) => (identity_id, user_id),
-        None => {
-            execute_candidate(
-                transaction,
-                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
-                params![candidate.user_id, now_ms as i64],
-            )?;
-            insert_email_code_identity(
-                transaction,
-                &candidate.identity_id,
-                &candidate.user_id,
-                address.as_str(),
-                now_ms,
-            )?;
-            (candidate.identity_id.clone(), candidate.user_id.clone())
+#[allow(dead_code)]
+fn attempt_planned_password_change(
+    database: &mut LocalDatabase,
+    plan: &ProviderPasswordChangeCommitPlan,
+) -> AuthTransactionAttempt<PlannedPasswordChangeCommit> {
+    let catalog_plan = plan.catalog_plan();
+    let (attempt, body_outcome) = database
+        .auth_catalog()
+        .attempt_password_change(&catalog_plan);
+    let attempt = match attempt {
+        AuthTransactionAttempt::Committed(outcome) => AuthTransactionAttempt::Committed(
+            planned_password_change_from_catalog(outcome),
+        ),
+        AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
+        AuthTransactionAttempt::CommitUncertain(error) => {
+            AuthTransactionAttempt::CommitUncertain(error)
         }
     };
-
-    let committed_revocation = enforce_session_cap(transaction, &user_id, now_ms)?;
-    let expires_at_ms = checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?;
-    let absolute_expires_at_ms =
-        checked_time_add_snapback(now_ms, AUTH_SESSION_ABSOLUTE_WINDOW_MS)?;
-    insert_identity_session(
-        transaction,
-        &candidate.session_id,
-        &user_id,
-        &identity_id,
-        &candidate.authority_instance_id,
-        candidate.token_hash.as_bytes(),
-        now_ms,
-        expires_at_ms,
-        absolute_expires_at_ms,
-    )?;
-
-    Ok(ExchangeOutcome::Issued {
-        session: SessionResponse {
-            id: candidate.session_id.clone(),
-            user_id,
-            provider: "email-code".to_owned(),
-            created_at: now_ms,
-            expires_at: expires_at_ms,
-            absolute_expires_at: absolute_expires_at_ms,
-            authority_instance_id: candidate.authority_instance_id.clone(),
-            generation: 1,
-        },
-        committed_revocation,
-    })
-}
-
-#[cfg(test)]
-pub(crate) fn mint_session_transaction(
-    transaction: &Transaction<'_>,
-    address: &CanonicalAddress,
-    candidate: &SessionCandidate,
-    now_ms: u64,
-) -> SnapbackResult<(SessionResponse, Option<SessionRevocation>)> {
-    let existing_identity = transaction
-        .query_row(
-            "SELECT id, user_id FROM _auth_identities
-             WHERE provider = 'email-code' AND subject = ?1",
-            params![address.as_str()],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
-        )
-        .optional()?;
-    let (identity_id, user_id) = match existing_identity {
-        Some(identity) => identity,
-        None => {
-            execute_candidate(
-                transaction,
-                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
-                params![candidate.user_id, now_ms as i64],
-            )?;
-            insert_email_code_identity(
-                transaction,
-                &candidate.identity_id,
-                &candidate.user_id,
-                address.as_str(),
-                now_ms,
-            )?;
-            (candidate.identity_id.clone(), candidate.user_id.clone())
+    let body_outcome = body_outcome.map(planned_password_change_from_catalog);
+    let AuthTransactionAttempt::CommitUncertain(commit_error) = attempt else {
+        return attempt;
+    };
+    let Some(body_outcome) = body_outcome else {
+        return AuthTransactionAttempt::CommitUncertain(commit_error);
+    };
+    match body_outcome {
+        PlannedPasswordChangeCommit::CandidateCollision
+        | PlannedPasswordChangeCommit::PredecessorChanged
+        | PlannedPasswordChangeCommit::CredentialThrottled => {
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::PredecessorChanged)
         }
-    };
-    let committed_revocation = enforce_session_cap(transaction, &user_id, now_ms)?;
-    let expires_at_ms = checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?;
-    let absolute_expires_at_ms =
-        checked_time_add_snapback(now_ms, AUTH_SESSION_ABSOLUTE_WINDOW_MS)?;
-    insert_identity_session(
-        transaction,
-        &candidate.session_id,
-        &user_id,
-        &identity_id,
-        &candidate.authority_instance_id,
-        candidate.token_hash.as_bytes(),
-        now_ms,
-        expires_at_ms,
-        absolute_expires_at_ms,
-    )?;
-    Ok((
-        SessionResponse {
-            id: candidate.session_id.clone(),
-            user_id,
-            provider: "email-code".to_owned(),
-            created_at: now_ms,
-            expires_at: expires_at_ms,
-            absolute_expires_at: absolute_expires_at_ms,
-            authority_instance_id: candidate.authority_instance_id.clone(),
-            generation: 1,
-        },
-        committed_revocation,
-    ))
-}
-
-pub(crate) fn plan_session_issuance_read(
-    connection: &Connection,
-    address: &CanonicalAddress,
-    candidate: &SessionCandidate,
-    now_ms: u64,
-) -> SnapbackResult<(PlannedIdentityState, Option<ProviderRevocationPlan>)> {
-    let existing_identity: Option<(String, String)> = connection
-        .query_row(
-            "SELECT id, user_id FROM _auth_identities
-             WHERE provider = 'email-code' AND subject = ?1",
-            params![address.as_str()],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .optional()?;
-    let identity = match existing_identity {
-        Some((identity_id, user_id)) => PlannedIdentityState::Existing {
-            identity_id,
-            user_id,
-        },
-        None => PlannedIdentityState::Create {
-            identity_id: candidate.identity_id.clone(),
-            user_id: candidate.user_id.clone(),
-        },
-    };
-    let user_id = match &identity {
-        PlannedIdentityState::Existing { user_id, .. }
-        | PlannedIdentityState::Create { user_id, .. } => user_id,
-    };
-    let eviction = plan_session_cap_read(connection, user_id, now_ms)?;
-    Ok((identity, eviction))
-}
-
-pub(crate) fn plan_session_cap_read(
-    connection: &Connection,
-    user_id: &str,
-    now_ms: u64,
-) -> SnapbackResult<Option<ProviderRevocationPlan>> {
-    let count: i64 = connection.query_row(
-        "SELECT COUNT(*) FROM _auth_sessions
-         WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms",
-        params![user_id, now_ms as i64],
-        |row| row.get(0),
-    )?;
-    if count > AUTH_SESSION_LIVE_LIMIT as i64 {
-        return Err(internal_state_snapback());
+        PlannedPasswordChangeCommit::CredentialInvalid { committed_attempt } => {
+            let committed = committed_attempt.as_ref().is_none_or(|expected| {
+                database
+                    .password_attempt_matches(&plan.mutation.canonical_identifier, expected)
+                    .unwrap_or(false)
+            });
+            if committed {
+                AuthTransactionAttempt::Committed(
+                    PlannedPasswordChangeCommit::CredentialInvalid { committed_attempt },
+                )
+            } else {
+                AuthTransactionAttempt::RolledBack(commit_error)
+            }
+        }
+        PlannedPasswordChangeCommit::Committed { .. } => {
+            match database
+                .auth_catalog_read()
+                .reconcile_password_change(&catalog_plan)
+            {
+                Ok(CatalogPasswordChangeReconcile::ExactSuccessor {
+                    session,
+                    committed_revocations,
+                }) => AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::Committed {
+                    session: session.into(),
+                    committed_revocations,
+                }),
+                Ok(CatalogPasswordChangeReconcile::ExactPredecessor) => {
+                    AuthTransactionAttempt::RolledBack(commit_error)
+                }
+                Ok(CatalogPasswordChangeReconcile::DifferentValid) => {
+                    AuthTransactionAttempt::Committed(
+                        PlannedPasswordChangeCommit::PredecessorChanged,
+                    )
+                }
+                Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
+            }
+        }
     }
-    let eviction = if count == AUTH_SESSION_LIVE_LIMIT as i64 {
-        let (session_id, generation, token_hash): (String, i64, Vec<u8>) = connection.query_row(
-            "SELECT id, generation, token_hash FROM _auth_sessions
-             WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms
-             ORDER BY created_at_ms, id LIMIT 1",
-            params![user_id, now_ms as i64],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )?;
-        let expected_generation = u64::try_from(generation)
-            .ok()
-            .filter(|generation| *generation != 0 && *generation < MAX_SAFE_TIMESTAMP)
-            .ok_or_else(internal_state_snapback)?;
-        Some(ProviderRevocationPlan {
-            session_id,
-            expected_generation,
-            presented_digest: TokenDigest::from_slice(&token_hash)
-                .map_err(|_| internal_state_snapback())?,
-            source: PlannedTokenSource::Current,
-            reason: RevocationReason::CapEviction,
-        })
-    } else {
-        None
-    };
-    Ok(eviction)
-}
-
-pub(crate) fn plan_user_session_revocations_read(
-    connection: &Connection,
-    user_id: &str,
-    excluded_session_id: Option<&str>,
-    identity_id: Option<&str>,
-    now_ms: u64,
-) -> SnapbackResult<Vec<ProviderRevocationPlan>> {
-    let mut statement = connection.prepare(
-        "SELECT id,generation,token_hash
-         FROM _auth_sessions
-         WHERE user_id=?1
-           AND (?2 IS NULL OR id<>?2)
-           AND (?3 IS NULL OR identity_id=?3)
-           AND revoked_at_ms IS NULL
-           AND ?4 < expires_at_ms
-         ORDER BY id",
-    )?;
-    let rows = statement.query_map(
-        params![user_id, excluded_session_id, identity_id, now_ms as i64],
-        |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, Vec<u8>>(2)?,
-            ))
-        },
-    )?;
-    let mut plans = Vec::new();
-    for row in rows {
-        let (session_id, generation, token_hash) = row?;
-        let expected_generation = u64::try_from(generation)
-            .ok()
-            .filter(|generation| *generation != 0 && *generation < MAX_SAFE_TIMESTAMP)
-            .ok_or_else(internal_state_snapback)?;
-        plans.push(ProviderRevocationPlan {
-            session_id,
-            expected_generation,
-            presented_digest: TokenDigest::from_slice(&token_hash)
-                .map_err(|_| internal_state_snapback())?,
-            source: PlannedTokenSource::Current,
-            reason: RevocationReason::DurableRevocation,
-        });
-    }
-    Ok(plans)
 }
 
 fn attempt_planned_session_issuance(
@@ -5121,9 +3686,20 @@ fn attempt_planned_session_issuance(
     plan: &ProviderSessionIssuanceCommitPlan,
     exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
 ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
+    let catalog_plan = plan.catalog_plan();
     let (attempt, body_outcome) = database
         .auth_catalog()
-        .attempt_planned_session_issuance(plan, exchange_proof);
+        .attempt_planned_session_issuance(&catalog_plan, exchange_proof);
+    let attempt = match attempt {
+        AuthTransactionAttempt::Committed(outcome) => {
+            AuthTransactionAttempt::Committed(planned_issuance_from_catalog(outcome))
+        }
+        AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
+        AuthTransactionAttempt::CommitUncertain(error) => {
+            AuthTransactionAttempt::CommitUncertain(error)
+        }
+    };
+    let body_outcome = body_outcome.map(planned_issuance_from_catalog);
     let AuthTransactionAttempt::CommitUncertain(commit_error) = attempt else {
         return attempt;
     };
@@ -5142,7 +3718,7 @@ fn attempt_planned_session_issuance(
         rejected @ (PlannedIssuanceCommit::CodeInvalid | PlannedIssuanceCommit::CodeLocked) => {
             match database
                 .auth_catalog_read()
-                .reconcile_rejected_issuance(plan)
+                .reconcile_rejected_issuance(&catalog_plan)
             {
                 Ok(DurableRejectedIssuanceReconcile::ExactSuccessor) => {
                     AuthTransactionAttempt::Committed(rejected)
@@ -5179,7 +3755,7 @@ fn attempt_planned_session_issuance(
             // committed witness.
             match database
                 .auth_catalog_read()
-                .sender_key_bound_successor(plan)
+                .sender_key_bound_successor(&catalog_plan)
             {
                 Ok(true) => {
                     AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound)
@@ -5191,19 +3767,19 @@ fn attempt_planned_session_issuance(
         PlannedIssuanceCommit::Committed { .. } => {
             match database
                 .auth_catalog_read()
-                .reconcile_planned_issuance(plan)
+                .reconcile_planned_issuance(&catalog_plan)
             {
-                Ok(DurableIssuanceReconcile::ExactSuccessor {
+                Ok(CatalogIssuanceReconcile::ExactSuccessor {
                     session,
                     committed_revocations,
                 }) => AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-                    session,
+                    session: session.into(),
                     committed_revocations,
                 }),
-                Ok(DurableIssuanceReconcile::ExactPredecessor) => {
+                Ok(CatalogIssuanceReconcile::ExactPredecessor) => {
                     AuthTransactionAttempt::RolledBack(commit_error)
                 }
-                Ok(DurableIssuanceReconcile::DifferentValid) => {
+                Ok(CatalogIssuanceReconcile::DifferentValid) => {
                     AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged)
                 }
                 Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
@@ -5218,989 +3794,30 @@ fn attempt_planned_session_issuance(
     }
 }
 
-pub(crate) fn planned_session_issuance_transaction(
-    transaction: &Transaction<'_>,
-    plan: &ProviderSessionIssuanceCommitPlan,
-    exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
-) -> SnapbackResult<PlannedIssuanceCommit> {
-    let mut prepared_rehearsal = None;
-    if let Some(challenge) = &plan.challenge {
-        let Some((key, submitted_code)) = exchange_proof else {
-            return Err(internal_state_snapback());
-        };
-        let durable = transaction
-            .query_row(
-                "SELECT canonical_address, code_digest, key_id, attempts,
-                        max_attempts, expires_at_ms, consumed_at_ms IS NOT NULL,
-                        superseded_by IS NOT NULL
-                 FROM _auth_verification_codes WHERE challenge_id = ?1",
-                params![challenge.challenge_id],
-                |row| {
-                    Ok(ChallengeTransactionRow {
-                        address: row.get(0)?,
-                        code_digest: Zeroizing::new(row.get(1)?),
-                        key_id: row.get(2)?,
-                        attempts: row.get(3)?,
-                        max_attempts: row.get(4)?,
-                        expires_at_ms: row.get(5)?,
-                        consumed: row.get(6)?,
-                        superseded: row.get(7)?,
-                    })
-                },
-            )
-            .optional()?;
-        let Some(durable) = durable else {
-            return Ok(PlannedIssuanceCommit::PredecessorChanged);
-        };
-        if durable.address != plan.address.as_str()
-            || durable.code_digest.as_slice() != challenge.code_digest
-            || durable.key_id != challenge.key_id
-            || u32::try_from(durable.attempts).ok() != Some(challenge.expected_attempts)
-            || u32::try_from(durable.max_attempts).ok() != Some(challenge.max_attempts)
-            || u64::try_from(durable.expires_at_ms).ok() != Some(challenge.expires_at_ms)
-            || durable.consumed
-            || durable.superseded
-            || plan.now_ms >= challenge.expires_at_ms
-            || challenge.expected_attempts >= challenge.max_attempts
-        {
-            return Ok(PlannedIssuanceCommit::PredecessorChanged);
-        }
-        let challenge_id =
-            ChallengeId::parse(&challenge.challenge_id).map_err(|_| internal_state_snapback())?;
-        if let Some(exercise) = &plan.rehearsal_exercise {
-            match crate::storage::auth_rehearsal::prepare_rehearsal_atomic_effect_in(
-                transaction,
-                exercise,
-            )? {
-                crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Admitted(
-                    prepared,
-                ) => prepared_rehearsal = Some(prepared),
-                crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Replay(value) => {
-                    return Ok(PlannedIssuanceCommit::RehearsalReplay(value));
-                }
-                crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Denied(error) => {
-                    return Ok(PlannedIssuanceCommit::RehearsalDenied(error));
-                }
-            }
-        }
-        let submitted = CodeDigest::compute(key, &challenge_id, &plan.address, submitted_code);
-        if !submitted.verify(&challenge.code_digest) {
-            let next_attempts = challenge
-                .expected_attempts
-                .checked_add(1)
-                .ok_or_else(internal_state_snapback)?;
-            let changed = transaction.execute(
-                "UPDATE _auth_verification_codes
-                 SET attempts = ?1
-                 WHERE challenge_id = ?2 AND attempts = ?3
-                   AND code_digest = ?4 AND key_id = ?5
-                   AND expires_at_ms = ?6
-                   AND consumed_at_ms IS NULL AND superseded_by IS NULL",
-                params![
-                    next_attempts as i64,
-                    challenge.challenge_id,
-                    challenge.expected_attempts as i64,
-                    challenge.code_digest.as_slice(),
-                    challenge.key_id,
-                    challenge.expires_at_ms as i64,
-                ],
-            )?;
-            if changed != 1 {
-                return Err(internal_state_snapback());
-            }
-            if let Some(sender_issuance) = &plan.sender_issuance {
-                sender_issuance
-                    .consume_rejected_outcome(transaction)
-                    .map_err(|_| internal_state_snapback())?;
-            }
-            if let (Some(exercise), Some(prepared)) =
-                (&plan.rehearsal_exercise, prepared_rehearsal.take())
-            {
-                let denial = if next_attempts == challenge.max_attempts {
-                    code_locked().into_snapback_error()
-                } else {
-                    code_invalid().into_snapback_error()
-                };
-                crate::storage::auth_rehearsal::finish_rehearsal_atomic_effect_denial_in(
-                    transaction,
-                    exercise,
-                    prepared,
-                    denial,
-                )?;
-            }
-            return Ok(if next_attempts == challenge.max_attempts {
-                PlannedIssuanceCommit::CodeLocked
-            } else {
-                PlannedIssuanceCommit::CodeInvalid
-            });
-        }
-    } else if exchange_proof.is_some() {
-        return Err(internal_state_snapback());
-    }
-    if prepared_rehearsal.is_none()
-        && let Some(exercise) = &plan.rehearsal_exercise
-    {
-        match crate::storage::auth_rehearsal::prepare_rehearsal_atomic_effect_in(
-            transaction,
-            exercise,
-        )? {
-            crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Admitted(prepared) => {
-                prepared_rehearsal = Some(prepared)
-            }
-            crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Replay(value) => {
-                return Ok(PlannedIssuanceCommit::RehearsalReplay(value));
-            }
-            crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Denied(error) => {
-                return Ok(PlannedIssuanceCommit::RehearsalDenied(error));
-            }
-        }
-    }
-    if let Some(sender_issuance) = &plan.sender_issuance
-        && sender_issuance
-            .thumbprint_has_live_family(transaction)
-            .map_err(|_| internal_state_snapback())?
-    {
-        // The code was correct, so no attempt is charged and the challenge
-        // stays live for a retry under a fresh key; the valid proof still
-        // consumes its `jti` (the LLP 0077 issuance-outcome rule). This check
-        // and `install`'s nonce insert run under the same immediate write
-        // transaction, so a concurrent same-key exchange serializes here
-        // rather than surfacing the nonce-table constraint as a 500.
-        sender_issuance
-            .consume_rejected_outcome(transaction)
-            .map_err(|_| internal_state_snapback())?;
-        return Ok(PlannedIssuanceCommit::SenderKeyBound);
-    }
-    let (identity_id, user_id, create_identity) = if let Some(password) = &plan.password {
-        let Some(profile) = plan.password_profile else {
-            return Err(internal_state_snapback());
-        };
-        match crate::storage::auth_identity::admit_password_issuance_in(
-            transaction,
-            password,
-            plan.now_ms,
-            profile,
-        )? {
-            crate::storage::auth_identity::PasswordIssuanceAdmission::Proceed {
-                create_principal,
-            } => (
-                password.identity_id.clone(),
-                password.user_id.clone(),
-                create_principal,
-            ),
-            crate::storage::auth_identity::PasswordIssuanceAdmission::Invalid {
-                committed_attempt,
-            } => {
-                return Ok(PlannedIssuanceCommit::CredentialInvalid { committed_attempt });
-            }
-            crate::storage::auth_identity::PasswordIssuanceAdmission::LedgerCapacityExhausted => {
-                return Ok(PlannedIssuanceCommit::CredentialThrottled);
-            }
-            crate::storage::auth_identity::PasswordIssuanceAdmission::PredecessorChanged => {
-                return Ok(PlannedIssuanceCommit::PredecessorChanged);
-            }
-        }
-    } else {
-        let durable_identity: Option<(String, String)> = transaction
-            .query_row(
-                "SELECT id, user_id FROM _auth_identities
-                 WHERE provider = 'email-code' AND subject = ?1",
-                params![plan.address.as_str()],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .optional()?;
-        match (&plan.identity, durable_identity) {
-            (
-                PlannedIdentityState::Existing {
-                    identity_id,
-                    user_id,
-                },
-                Some((durable_identity_id, durable_user_id)),
-            ) if identity_id == &durable_identity_id && user_id == &durable_user_id => {
-                (identity_id.clone(), user_id.clone(), false)
-            }
-            (
-                PlannedIdentityState::Create {
-                    identity_id,
-                    user_id,
-                },
-                None,
-            ) => (identity_id.clone(), user_id.clone(), true),
-            _ => return Ok(PlannedIssuanceCommit::PredecessorChanged),
-        }
-    };
-    let derived_identity: bool = transaction.query_row(
-        "SELECT EXISTS(SELECT 1 FROM _snapback_auth_rehearsal_identities WHERE identity_id = ?1)",
-        params![identity_id],
-        |row| row.get(0),
-    ).unwrap_or(false);
-    if derived_identity && plan.projected.rehearsal_provenance.is_none() {
-        // @ref LLP 0213#derived-identities — retained rehearsal identities are
-        //   inert on ordinary mint paths; only a newly authorized rehearsal
-        //   effect may use one under a new governor.
-        return Ok(PlannedIssuanceCommit::PredecessorChanged);
-    }
-    if plan.projected.user_id != user_id || plan.projected.generation != 1 {
-        return Err(internal_state_snapback());
-    }
-    let token_exists: bool = transaction.query_row(
-        "SELECT EXISTS(SELECT 1 FROM _auth_sessions WHERE token_hash = ?1)
-                OR EXISTS(SELECT 1 FROM _auth_session_tokens WHERE token_hash = ?1)",
-        params![plan.projected.token_digest.as_bytes().as_slice()],
-        |row| row.get(0),
-    )?;
-    if token_exists {
-        // This branch precedes identity creation, cap eviction, challenge
-        // consumption, and session insertion. The caller can therefore
-        // discard this plaintext candidate and retry without changing any
-        // durable predecessor fact.
-        return Ok(PlannedIssuanceCommit::CandidateCollision);
-    }
-    let live_count: i64 = transaction.query_row(
-        "SELECT COUNT(*) FROM _auth_sessions
-         WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms",
-        params![user_id, plan.now_ms as i64],
-        |row| row.get(0),
-    )?;
-    if !planned_revocation_set_is_exact_predecessor(transaction, &plan.revocations, plan.now_ms)? {
-        return Ok(PlannedIssuanceCommit::PredecessorChanged);
-    }
-    let mut projected_user_revocations = 0_i64;
-    for (index, revocation) in plan.revocations.iter().enumerate() {
-        if plan.revocations[..index]
-            .iter()
-            .any(|earlier| earlier.session_id == revocation.session_id)
-        {
-            return Err(internal_state_snapback());
-        }
-        let revoked_user: String = transaction.query_row(
-            "SELECT user_id FROM _auth_sessions WHERE id=?1",
-            [&revocation.session_id],
-            |row| row.get(0),
-        )?;
-        if revoked_user == user_id {
-            projected_user_revocations += 1;
-        }
-    }
-    if let Some(eviction) = plan.eviction() {
-        if live_count != AUTH_SESSION_LIVE_LIMIT as i64 {
-            return Ok(PlannedIssuanceCommit::PredecessorChanged);
-        }
-        let oldest: Option<(String, i64, Vec<u8>)> = transaction
-            .query_row(
-                "SELECT id, generation, token_hash FROM _auth_sessions
-                 WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms
-                 ORDER BY created_at_ms, id LIMIT 1",
-                params![user_id, plan.now_ms as i64],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()?;
-        let Some((session_id, generation, token_hash)) = oldest else {
-            return Ok(PlannedIssuanceCommit::PredecessorChanged);
-        };
-        if session_id != eviction.session_id
-            || u64::try_from(generation).ok() != Some(eviction.expected_generation)
-            || token_hash.as_slice() != eviction.presented_digest.as_bytes().as_slice()
-        {
-            return Ok(PlannedIssuanceCommit::PredecessorChanged);
-        }
-    } else if live_count.saturating_sub(projected_user_revocations)
-        >= AUTH_SESSION_LIVE_LIMIT as i64
-    {
-        return Ok(PlannedIssuanceCommit::PredecessorChanged);
-    }
-
-    if let Some(password) = &plan.password {
-        crate::storage::auth_identity::apply_password_issuance_in(
-            transaction,
-            password,
-            plan.now_ms,
-        )?;
-    } else if create_identity {
-        execute_candidate(
-            transaction,
-            "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
-            params![user_id, plan.now_ms as i64],
-        )?;
-        insert_email_code_identity(
-            transaction,
-            &identity_id,
-            &user_id,
-            plan.address.as_str(),
-            plan.now_ms,
-        )?;
-    }
-
-    let committed_revocations =
-        commit_planned_revocation_set(transaction, &plan.revocations, plan.now_ms)?;
-
-    insert_identity_session(
-        transaction,
-        &plan.projected.session_id,
-        &user_id,
-        &identity_id,
-        &plan.projected.authority_instance_id,
-        plan.projected.token_digest.as_bytes(),
-        plan.now_ms,
-        plan.projected.expires_at_ms,
-        plan.projected.absolute_expires_at_ms,
-    )?;
-    if let Some(password) = &plan.password {
-        crate::storage::auth_identity::finish_password_session_in(
-            transaction,
-            password,
-            &plan.projected.session_id,
-            plan.now_ms,
-        )?;
-    }
-    if let Some(provenance) = &plan.projected.rehearsal_provenance {
-        let governing_not_after_ms = plan
-            .projected
-            .expires_at_ms
-            .min(plan.projected.absolute_expires_at_ms);
-        crate::storage::auth_rehearsal::insert_rehearsal_session_provenance_in(
-            transaction,
-            &plan.projected.session_id,
-            provenance,
-            governing_not_after_ms,
-            plan.now_ms,
-        )?;
-        if create_identity {
-            crate::storage::auth_rehearsal::insert_rehearsal_identity_provenance_for_provider_in(
-                transaction,
-                &identity_id,
-                provenance,
-                governing_not_after_ms,
-                plan.now_ms,
-            )?;
-        }
-    }
-    if let Some(sender_issuance) = &plan.sender_issuance {
-        // @ref LLP 0077#issuance-refresh-and-recovery — family key binding,
-        // issuance-proof consumption, and the initial nonce are one atomic cut
-        // with session creation. There is no post-hoc bearer upgrade.
-        sender_issuance
-            .install(transaction, &plan.projected.session_id)
-            .map_err(|_| internal_state_snapback())?;
-    }
-    if let Some(challenge) = &plan.challenge {
-        let next_attempts = challenge
-            .expected_attempts
-            .checked_add(1)
-            .ok_or_else(internal_state_snapback)?;
-        let changed = transaction.execute(
-            "UPDATE _auth_verification_codes
-             SET attempts = ?1, consumed_at_ms = ?2
-             WHERE challenge_id = ?3 AND attempts = ?4
-               AND code_digest = ?5 AND key_id = ?6
-               AND expires_at_ms = ?7
-               AND consumed_at_ms IS NULL AND superseded_by IS NULL",
-            params![
-                next_attempts as i64,
-                plan.now_ms as i64,
-                challenge.challenge_id,
-                challenge.expected_attempts as i64,
-                challenge.code_digest.as_slice(),
-                challenge.key_id,
-                challenge.expires_at_ms as i64,
-            ],
-        )?;
-        if changed != 1 {
-            return Err(internal_state_snapback());
-        }
-    }
-    if let (Some(exercise), Some(prepared)) = (&plan.rehearsal_exercise, prepared_rehearsal) {
-        crate::storage::auth_rehearsal::finish_rehearsal_atomic_effect_success_in(
-            transaction,
-            exercise,
-            prepared,
-            exercise.outcome.clone(),
-        )?;
-    }
-    Ok(PlannedIssuanceCommit::Committed {
-        session: SessionResponse {
-            id: plan.projected.session_id.clone(),
-            user_id,
-            provider: plan.projected.provider.clone(),
-            created_at: plan.projected.created_at_ms,
-            expires_at: plan.projected.expires_at_ms,
-            absolute_expires_at: plan.projected.absolute_expires_at_ms,
-            authority_instance_id: plan.projected.authority_instance_id.clone(),
-            generation: plan.projected.generation,
-        },
-        committed_revocations,
-    })
-}
-
-pub(crate) enum DurableIssuanceReconcile {
-    ExactPredecessor,
-    ExactSuccessor {
-        session: SessionResponse,
-        committed_revocations: Vec<SessionRevocation>,
-    },
-    DifferentValid,
-}
-
-pub(crate) enum DurableRejectedIssuanceReconcile {
-    ExactPredecessor,
-    ExactSuccessor,
-    DifferentValid,
-}
-
-struct DurableChallengeSnapshot {
-    address: String,
-    code_digest: Vec<u8>,
-    key_id: String,
-    attempts: u32,
-    max_attempts: u32,
-    expires_at_ms: u64,
-    consumed_at_ms: Option<u64>,
-    superseded: bool,
-}
-
-fn lookup_planned_challenge(
-    connection: &Connection,
-    challenge: &PlannedChallengeConsumption,
-) -> SnapbackResult<Option<DurableChallengeSnapshot>> {
-    connection
-        .query_row(
-            "SELECT canonical_address, code_digest, key_id, attempts,
-                    max_attempts, expires_at_ms, consumed_at_ms, superseded_by IS NOT NULL
-             FROM _auth_verification_codes WHERE challenge_id = ?1",
-            params![challenge.challenge_id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, Vec<u8>>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, i64>(3)?,
-                    row.get::<_, i64>(4)?,
-                    row.get::<_, i64>(5)?,
-                    row.get::<_, Option<i64>>(6)?,
-                    row.get::<_, bool>(7)?,
-                ))
-            },
-        )
-        .optional()?
-        .map(
-            |(
-                address,
-                code_digest,
-                key_id,
-                attempts,
-                max_attempts,
-                expires,
-                consumed,
-                superseded,
-            )| {
-                Ok(DurableChallengeSnapshot {
-                    address,
-                    code_digest,
-                    key_id,
-                    attempts: u32::try_from(attempts).map_err(|_| internal_state_snapback())?,
-                    max_attempts: u32::try_from(max_attempts)
-                        .map_err(|_| internal_state_snapback())?,
-                    expires_at_ms: checked_stored_time(expires)?,
-                    consumed_at_ms: consumed.map(checked_stored_time).transpose()?,
-                    superseded,
-                })
-            },
-        )
-        .transpose()
-}
-
-fn challenge_base_matches(
-    durable: &DurableChallengeSnapshot,
-    plan: &ProviderSessionIssuanceCommitPlan,
-    challenge: &PlannedChallengeConsumption,
-) -> bool {
-    durable.address == plan.address.as_str()
-        && durable.code_digest.as_slice() == challenge.code_digest
-        && durable.key_id == challenge.key_id
-        && durable.max_attempts == challenge.max_attempts
-        && durable.expires_at_ms == challenge.expires_at_ms
-        && !durable.superseded
-}
-
-fn challenge_is_exact_predecessor(
-    connection: &Connection,
-    plan: &ProviderSessionIssuanceCommitPlan,
-) -> SnapbackResult<bool> {
-    let Some(challenge) = &plan.challenge else {
-        return Ok(true);
-    };
-    let Some(durable) = lookup_planned_challenge(connection, challenge)? else {
-        return Ok(false);
-    };
-    Ok(challenge_base_matches(&durable, plan, challenge)
-        && durable.attempts == challenge.expected_attempts
-        && durable.consumed_at_ms.is_none())
-}
-
-fn challenge_is_exact_successor(
-    connection: &Connection,
-    plan: &ProviderSessionIssuanceCommitPlan,
-    consumed: bool,
-) -> SnapbackResult<bool> {
-    let Some(challenge) = &plan.challenge else {
-        return Ok(true);
-    };
-    let Some(durable) = lookup_planned_challenge(connection, challenge)? else {
-        return Ok(false);
-    };
-    let next_attempts = challenge
-        .expected_attempts
-        .checked_add(1)
-        .ok_or_else(internal_state_snapback)?;
-    Ok(challenge_base_matches(&durable, plan, challenge)
-        && durable.attempts == next_attempts
-        && durable.consumed_at_ms == consumed.then_some(plan.now_ms))
-}
-
-fn issuance_identity_is_exact_predecessor(
-    connection: &Connection,
-    plan: &ProviderSessionIssuanceCommitPlan,
-) -> SnapbackResult<bool> {
-    if let Some(password) = &plan.password {
-        return crate::storage::auth_identity::password_issuance_is_exact_predecessor_on(
-            connection, password,
-        );
-    }
-    let by_address: Option<(String, String)> = connection
-        .query_row(
-            "SELECT id, user_id FROM _auth_identities
-             WHERE provider = 'email-code' AND subject = ?1",
-            params![plan.address.as_str()],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .optional()?;
-    Ok(match &plan.identity {
-        PlannedIdentityState::Existing {
-            identity_id,
-            user_id,
-        } => by_address.as_ref() == Some(&(identity_id.clone(), user_id.clone())),
-        PlannedIdentityState::Create {
-            identity_id,
-            user_id,
-        } => {
-            if by_address.is_some() {
-                return Ok(false);
-            }
-            let collisions: bool = connection.query_row(
-                "SELECT EXISTS(SELECT 1 FROM _auth_users WHERE id = ?1)
-                     OR EXISTS(SELECT 1 FROM _auth_identities WHERE id = ?2)",
-                params![user_id, identity_id],
-                |row| row.get(0),
-            )?;
-            !collisions
-        }
-    })
-}
-
-fn issuance_identity_is_exact_successor(
-    connection: &Connection,
-    plan: &ProviderSessionIssuanceCommitPlan,
-) -> SnapbackResult<bool> {
-    if let Some(password) = &plan.password {
-        return crate::storage::auth_identity::password_issuance_is_exact_successor_on(
-            connection,
-            password,
-            plan.now_ms,
-        );
-    }
-    let durable: Option<(String, String, String, String, i64, i64)> = connection
-        .query_row(
-            "SELECT identity.id, identity.user_id, identity.provider,
-                    identity.subject, identity.verified_at_ms, user.created_at_ms
-             FROM _auth_identities AS identity
-             JOIN _auth_users AS user ON user.id = identity.user_id
-             WHERE identity.provider = 'email-code' AND identity.subject = ?1",
-            params![plan.address.as_str()],
-            |row| {
-                Ok((
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                    row.get(5)?,
-                ))
-            },
-        )
-        .optional()?;
-    let Some((identity_id, user_id, provider, subject, verified_at, user_created_at)) = durable
-    else {
-        return Ok(false);
-    };
-    let _ = checked_stored_time(verified_at)?;
-    let _ = checked_stored_time(user_created_at)?;
-    let ids_match = match &plan.identity {
-        PlannedIdentityState::Existing {
-            identity_id: expected_identity,
-            user_id: expected_user,
-        } => identity_id == *expected_identity && user_id == *expected_user,
-        PlannedIdentityState::Create {
-            identity_id: expected_identity,
-            user_id: expected_user,
-        } => {
-            identity_id == *expected_identity
-                && user_id == *expected_user
-                && u64::try_from(verified_at).ok() == Some(plan.now_ms)
-                && u64::try_from(user_created_at).ok() == Some(plan.now_ms)
-        }
-    };
-    Ok(ids_match && provider == "email-code" && subject == plan.address.as_str())
-}
-
-fn issuance_cap_is_exact_predecessor(
-    connection: &Connection,
-    plan: &ProviderSessionIssuanceCommitPlan,
-) -> SnapbackResult<bool> {
-    let user_id = &plan.projected.user_id;
-    let count: i64 = connection.query_row(
-        "SELECT COUNT(*) FROM _auth_sessions
-         WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms",
-        params![user_id, plan.now_ms as i64],
-        |row| row.get(0),
-    )?;
-    let mut projected_user_revocations = 0_i64;
-    for revocation in &plan.revocations {
-        if !matches!(
-            reconcile_planned_revocation(connection, revocation, plan.now_ms)?,
-            DurableRevocationReconcile::ExactPredecessor
-        ) {
-            return Ok(false);
-        }
-        let Some(snapshot) = lookup_session_snapshot(connection, &revocation.session_id)? else {
-            return Ok(false);
-        };
-        if snapshot.record.session.user_id == *user_id {
-            projected_user_revocations += 1;
-        }
-    }
-    Ok(match plan.eviction() {
-        None => count.saturating_sub(projected_user_revocations) < AUTH_SESSION_LIVE_LIMIT as i64,
-        Some(eviction) if count == AUTH_SESSION_LIVE_LIMIT as i64 => {
-            let oldest: Option<(String, i64, Vec<u8>)> = connection
-                .query_row(
-                    "SELECT id, generation, token_hash FROM _auth_sessions
-                     WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms
-                     ORDER BY created_at_ms, id LIMIT 1",
-                    params![user_id, plan.now_ms as i64],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-                )
-                .optional()?;
-            oldest.is_some_and(|(session_id, generation, digest)| {
-                session_id == eviction.session_id
-                    && u64::try_from(generation).ok() == Some(eviction.expected_generation)
-                    && digest.as_slice() == eviction.presented_digest.as_bytes().as_slice()
-            })
-        }
-        Some(_) => false,
-    })
-}
-
-fn issuance_revocations_are_exact_successors(
-    connection: &Connection,
-    plan: &ProviderSessionIssuanceCommitPlan,
-) -> SnapbackResult<Vec<SessionRevocation>> {
-    let mut committed = Vec::with_capacity(plan.revocations.len());
-    for revocation in &plan.revocations {
-        let Some(snapshot) = lookup_session_snapshot(connection, &revocation.session_id)? else {
-            return Err(internal_state_snapback());
-        };
-        let generation = revocation.committed_generation()?;
-        if snapshot.record.session.generation != generation
-            || !snapshot.record.revoked
-            || snapshot.revoked_at_ms != Some(plan.now_ms)
-            || snapshot.current_digest != revocation.presented_digest
-            || !crate::storage::auth::session_terminal_cause_matches_on(
-                connection,
-                &revocation.session_id,
-                generation,
-                plan.now_ms,
-                revocation.reason,
-            )?
-        {
-            return Err(internal_state_snapback());
-        }
-        committed.push(SessionRevocation {
-            session_id: revocation.session_id.clone(),
-            generation,
-        });
-    }
-    Ok(committed)
-}
-
-pub(crate) fn reconcile_rejected_issuance(
-    connection: &Connection,
-    plan: &ProviderSessionIssuanceCommitPlan,
-) -> SnapbackResult<DurableRejectedIssuanceReconcile> {
-    if lookup_session_snapshot(connection, &plan.projected.session_id)?.is_some() {
-        return Err(internal_state_snapback());
-    }
-    let sender_successor = match &plan.sender_issuance {
-        Some(sender) => sender
-            .is_rejected_successor(connection, &plan.projected.session_id)
-            .map_err(|_| internal_state_snapback())?,
-        None => true,
-    };
-    if challenge_is_exact_successor(connection, plan, false)? && sender_successor {
-        return Ok(DurableRejectedIssuanceReconcile::ExactSuccessor);
-    }
-    let sender_predecessor = match &plan.sender_issuance {
-        Some(sender) => sender
-            .is_exact_predecessor(connection, &plan.projected.session_id)
-            .map_err(|_| internal_state_snapback())?,
-        None => true,
-    };
-    if challenge_is_exact_predecessor(connection, plan)? && sender_predecessor {
-        return Ok(DurableRejectedIssuanceReconcile::ExactPredecessor);
-    }
-    Ok(DurableRejectedIssuanceReconcile::DifferentValid)
-}
-
-pub(crate) fn reconcile_planned_issuance(
-    connection: &Connection,
-    plan: &ProviderSessionIssuanceCommitPlan,
-) -> SnapbackResult<DurableIssuanceReconcile> {
-    if let Some(snapshot) = lookup_session_snapshot(connection, &plan.projected.session_id)? {
-        let expected_identity_id = match &plan.identity {
-            PlannedIdentityState::Existing { identity_id, .. }
-            | PlannedIdentityState::Create { identity_id, .. } => identity_id,
-        };
-        let session = &snapshot.record.session;
-        if session.session_id != plan.projected.session_id
-            || session.user_id != plan.projected.user_id
-            || session.identity_id != *expected_identity_id
-            || session.provider != plan.projected.provider
-            || session.generation != plan.projected.generation
-            || session.authority_instance_id != plan.projected.authority_instance_id
-            || session.created_at_ms != plan.projected.created_at_ms
-            || snapshot.last_used_at_ms != plan.projected.created_at_ms
-            || session.expires_at_ms != plan.projected.expires_at_ms
-            || session.absolute_expires_at_ms != plan.projected.absolute_expires_at_ms
-            || snapshot.record.revoked
-            || snapshot.revoked_at_ms.is_some()
-            || snapshot.current_digest != plan.projected.token_digest
-            || !issuance_identity_is_exact_successor(connection, plan)?
-            || !challenge_is_exact_successor(connection, plan, true)?
-            || match &plan.sender_issuance {
-                Some(sender) => !sender
-                    .is_exact_successor(connection, &plan.projected.session_id)
-                    .map_err(|_| internal_state_snapback())?,
-                None => false,
-            }
-        {
-            return Err(internal_state_snapback());
-        }
-        let committed_revocations = issuance_revocations_are_exact_successors(connection, plan)?;
-        return Ok(DurableIssuanceReconcile::ExactSuccessor {
-            session: SessionResponse {
-                id: session.session_id.clone(),
-                user_id: session.user_id.clone(),
-                provider: session.provider.clone(),
-                created_at: session.created_at_ms,
-                expires_at: session.expires_at_ms,
-                absolute_expires_at: session.absolute_expires_at_ms,
-                authority_instance_id: session.authority_instance_id.clone(),
-                generation: session.generation,
-            },
+fn planned_issuance_from_catalog(outcome: CatalogIssuanceCommit) -> PlannedIssuanceCommit {
+    match outcome {
+        CatalogIssuanceCommit::Committed {
+            session,
             committed_revocations,
-        });
-    }
-
-    let identity_predecessor = issuance_identity_is_exact_predecessor(connection, plan)?;
-    let cap_predecessor = issuance_cap_is_exact_predecessor(connection, plan)?;
-    let challenge_predecessor = challenge_is_exact_predecessor(connection, plan)?;
-    let sender_predecessor = match &plan.sender_issuance {
-        Some(sender) => sender
-            .is_exact_predecessor(connection, &plan.projected.session_id)
-            .map_err(|_| internal_state_snapback())?,
-        None => true,
-    };
-    if identity_predecessor && cap_predecessor && challenge_predecessor && sender_predecessor {
-        return Ok(DurableIssuanceReconcile::ExactPredecessor);
-    }
-    if plan.eviction().is_some() && !cap_predecessor {
-        // This carrier owns an existing authority leaf. It is unsafe to unmark
-        // unless that leaf is still exactly the planned predecessor.
-        return Err(internal_state_snapback());
-    }
-    Ok(DurableIssuanceReconcile::DifferentValid)
-}
-
-struct ChallengeTransactionRow {
-    address: String,
-    code_digest: Zeroizing<Vec<u8>>,
-    key_id: String,
-    attempts: i64,
-    max_attempts: i64,
-    expires_at_ms: i64,
-    consumed: bool,
-    superseded: bool,
-}
-
-#[cfg(test)]
-fn enforce_session_cap(
-    transaction: &Transaction<'_>,
-    user_id: &str,
-    now_ms: u64,
-) -> SnapbackResult<Option<SessionRevocation>> {
-    let count: i64 = transaction.query_row(
-        "SELECT COUNT(*) FROM _auth_sessions
-         WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms",
-        params![user_id, now_ms as i64],
-        |row| row.get(0),
-    )?;
-    if count < AUTH_SESSION_LIVE_LIMIT as i64 {
-        return Ok(None);
-    }
-    if count > AUTH_SESSION_LIVE_LIMIT as i64 {
-        return Err(internal_state_snapback());
-    }
-    let (session_id, generation): (String, i64) = transaction.query_row(
-        "SELECT id, generation FROM _auth_sessions
-         WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms
-         ORDER BY created_at_ms, id LIMIT 1",
-        params![user_id, now_ms as i64],
-        |row| Ok((row.get(0)?, row.get(1)?)),
-    )?;
-    let generation = u64::try_from(generation)
-        .ok()
-        .and_then(|generation| generation.checked_add(1))
-        .filter(|generation| *generation <= MAX_SAFE_TIMESTAMP)
-        .ok_or_else(internal_state_snapback)?;
-    let changed = transaction.execute(
-        "UPDATE _auth_sessions SET revoked_at_ms = ?1, generation = ?2
-         WHERE id = ?3 AND revoked_at_ms IS NULL AND ?1 < expires_at_ms",
-        params![now_ms as i64, generation as i64, session_id],
-    )?;
-    if changed != 1 {
-        return Err(internal_state_snapback());
-    }
-    crate::storage::auth::write_session_terminal_cause_in(
-        transaction,
-        &session_id,
-        generation,
-        now_ms,
-        RevocationReason::CapEviction,
-    )?;
-    Ok(Some(SessionRevocation {
-        session_id,
-        generation,
-    }))
-}
-
-fn perform_dummy_hmac(
-    provider: &AuthProvider,
-    challenge_id: &ChallengeId,
-    code: &VerificationCode,
-) {
-    let digest = CodeDigest::compute(
-        &provider.dummy_key,
-        challenge_id,
-        &provider.dummy_address,
-        code,
-    );
-    let _ = digest.verify(&[0_u8; 32]);
-}
-
-fn transaction_uses_identity_core_v3(transaction: &Transaction<'_>) -> SnapbackResult<bool> {
-    transaction
-        .query_row(
-            "SELECT EXISTS(
-               SELECT 1 FROM pragma_table_info('_auth_sessions')
-               WHERE name = 'authn_source'
-             )",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(Into::into)
-}
-
-/// Keep the LLP 0057 email-code provider operational on every recognized
-/// catalog while writing the expanded v3 identity/session descriptors only
-/// when the marked catalog actually carries them.
-///
-/// @ref LLP 0214#31-version-policy — v1/v2 behavior is retained without rewriting
-/// predecessor rows; fresh v3 uses explicit identity provenance columns.
-fn insert_email_code_identity(
-    transaction: &Transaction<'_>,
-    identity_id: &str,
-    user_id: &str,
-    address: &str,
-    now_ms: u64,
-) -> SnapbackResult<()> {
-    let sql = if transaction_uses_identity_core_v3(transaction)? {
-        "INSERT INTO _auth_identities(
-           id, user_id, kind, provider, issuer, subject, canonical_value,
-           created_at_ms, verified_at_ms, disabled_at_ms
-         ) VALUES(?1, ?2, 'email', 'email-code', NULL, ?3, ?3, ?4, ?4, NULL)"
-    } else {
-        "INSERT INTO _auth_identities(
-           id, user_id, provider, subject, verified_at_ms
-         ) VALUES(?1, ?2, 'email-code', ?3, ?4)"
-    };
-    execute_candidate(
-        transaction,
-        sql,
-        params![identity_id, user_id, address, now_ms as i64],
-    )?;
-    Ok(())
-}
-
-#[allow(clippy::too_many_arguments)]
-fn insert_identity_session(
-    transaction: &Transaction<'_>,
-    session_id: &str,
-    user_id: &str,
-    identity_id: &str,
-    authority_instance_id: &str,
-    token_hash: &[u8; 32],
-    now_ms: u64,
-    expires_at_ms: u64,
-    absolute_expires_at_ms: u64,
-) -> SnapbackResult<()> {
-    let sql = if transaction_uses_identity_core_v3(transaction)? {
-        "INSERT INTO _auth_sessions(
-           id, user_id, identity_id, credential_id, authn_source,
-           authority_instance_id, token_hash, generation, created_at_ms,
-           last_used_at_ms, expires_at_ms, absolute_expires_at_ms, revoked_at_ms
-         ) VALUES(?1, ?2, ?3, NULL, 'identity', ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)"
-    } else {
-        "INSERT INTO _auth_sessions(
-           id, user_id, identity_id, authority_instance_id, token_hash,
-           generation, created_at_ms, last_used_at_ms, expires_at_ms,
-           absolute_expires_at_ms, revoked_at_ms
-         ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)"
-    };
-    execute_candidate(
-        transaction,
-        sql,
-        params![
-            session_id,
-            user_id,
-            identity_id,
-            authority_instance_id,
-            token_hash.as_slice(),
-            now_ms as i64,
-            expires_at_ms as i64,
-            absolute_expires_at_ms as i64,
-        ],
-    )?;
-    Ok(())
-}
-
-fn execute_candidate(
-    transaction: &Transaction<'_>,
-    sql: &str,
-    parameters: impl rusqlite::Params,
-) -> SnapbackResult<usize> {
-    match transaction.execute(sql, parameters) {
-        Ok(changed) => Ok(changed),
-        Err(error) if is_constraint_error(&error) => Err(internal_collision_snapback()),
-        Err(error) => Err(error.into()),
+        } => PlannedIssuanceCommit::Committed {
+            session: session.into(),
+            committed_revocations,
+        },
+        CatalogIssuanceCommit::CodeInvalid => PlannedIssuanceCommit::CodeInvalid,
+        CatalogIssuanceCommit::CodeLocked => PlannedIssuanceCommit::CodeLocked,
+        CatalogIssuanceCommit::CredentialInvalid { committed_attempt } => {
+            PlannedIssuanceCommit::CredentialInvalid { committed_attempt }
+        }
+        CatalogIssuanceCommit::CredentialThrottled => PlannedIssuanceCommit::CredentialThrottled,
+        CatalogIssuanceCommit::SenderKeyBound => PlannedIssuanceCommit::SenderKeyBound,
+        CatalogIssuanceCommit::CandidateCollision => PlannedIssuanceCommit::CandidateCollision,
+        CatalogIssuanceCommit::PredecessorChanged => PlannedIssuanceCommit::PredecessorChanged,
+        CatalogIssuanceCommit::RehearsalReplay(value) => {
+            PlannedIssuanceCommit::RehearsalReplay(value)
+        }
+        CatalogIssuanceCommit::RehearsalDenied(error) => {
+            PlannedIssuanceCommit::RehearsalDenied(error)
+        }
     }
 }
 
@@ -6407,38 +4024,6 @@ fn mailbox_entry_not_found() -> ProviderError {
         "auth-mailbox",
         "capture mailbox entry was not found",
     ))
-}
-
-pub(crate) fn throttled_snapback(refusal: AuthBudgetRefusal) -> SnapbackError {
-    refusal.legacy_error(
-        "SNAPBACK_AUTH_THROTTLED",
-        "auth",
-        "authentication request rate limit exceeded",
-    )
-}
-
-pub(crate) fn internal_collision_snapback() -> SnapbackError {
-    SnapbackError::error(
-        INTERNAL_AUTH_COLLISION,
-        "auth",
-        "authentication credential candidate collided",
-    )
-}
-
-pub(crate) fn internal_state_snapback() -> SnapbackError {
-    SnapbackError::error(
-        "INTERNAL_AUTH_STATE",
-        "auth",
-        "authentication state invariant failed",
-    )
-}
-
-pub(crate) fn is_constraint_error(error: &rusqlite::Error) -> bool {
-    matches!(
-        error,
-        rusqlite::Error::SqliteFailure(sqlite, _)
-            if sqlite.code == rusqlite::ErrorCode::ConstraintViolation
-    )
 }
 
 fn validate_now(now_ms: u64) -> ProviderResult<()> {
@@ -8408,9 +5993,9 @@ mod tests {
         assert!(matches!(
             database
                 .auth_catalog_read()
-                .reconcile_planned_issuance(&commit_plan)
+                .reconcile_planned_issuance(&commit_plan.catalog_plan())
                 .expect("predecessor reconciliation"),
-            DurableIssuanceReconcile::ExactPredecessor
+            CatalogIssuanceReconcile::ExactPredecessor
         ));
         assert!(matches!(
             admission.commit_planned_issuance(&mut database, &commit_plan),
@@ -8422,10 +6007,10 @@ mod tests {
         assert!(matches!(
             database
                 .auth_catalog_read()
-                .reconcile_planned_issuance(&commit_plan)
+                .reconcile_planned_issuance(&commit_plan.catalog_plan())
                 .expect("successor reconciliation"),
-            DurableIssuanceReconcile::ExactSuccessor {
-                committed_revocations,
+            CatalogIssuanceReconcile::ExactSuccessor {
+                ref committed_revocations,
                 ..
             } if committed_revocations.is_empty()
         ));
@@ -8462,9 +6047,9 @@ mod tests {
         assert!(matches!(
             database
                 .auth_catalog_read()
-                .reconcile_planned_issuance(&commit_plan)
+                .reconcile_planned_issuance(&commit_plan.catalog_plan())
                 .expect("sender predecessor reconciliation"),
-            DurableIssuanceReconcile::ExactPredecessor
+            CatalogIssuanceReconcile::ExactPredecessor
         ));
         assert!(matches!(
             admission.commit_planned_issuance(&mut database, &commit_plan),
@@ -8473,9 +6058,9 @@ mod tests {
         assert!(matches!(
             database
                 .auth_catalog_read()
-                .reconcile_planned_issuance(&commit_plan)
+                .reconcile_planned_issuance(&commit_plan.catalog_plan())
                 .expect("sender successor reconciliation"),
-            DurableIssuanceReconcile::ExactSuccessor { .. }
+            CatalogIssuanceReconcile::ExactSuccessor { .. }
         ));
         let facts: (i64, i64, i64, String) = database
             .auth_catalog_read()
@@ -8633,7 +6218,7 @@ mod tests {
         assert!(matches!(
             database
                 .auth_catalog_read()
-                .reconcile_rejected_issuance(&commit_plan)
+                .reconcile_rejected_issuance(&commit_plan.catalog_plan())
                 .expect("rejected successor reconciliation"),
             DurableRejectedIssuanceReconcile::ExactSuccessor
         ));
@@ -8723,10 +6308,10 @@ mod tests {
         assert!(matches!(
             database
                 .auth_catalog_read()
-                .reconcile_planned_issuance(&commit_plan)
+                .reconcile_planned_issuance(&commit_plan.catalog_plan())
                 .expect("cap successor reconciliation"),
-            DurableIssuanceReconcile::ExactSuccessor {
-                committed_revocations,
+            CatalogIssuanceReconcile::ExactSuccessor {
+                ref committed_revocations,
                 ..
             } if committed_revocations.len() == 1 && committed_revocations[0].generation == 2
         ));

@@ -35,6 +35,8 @@ value shapes to the leaf; the remaining item-3 edges raised as an ownership ques
 **Revised:** 2026-08-11 (r — §4 records item-3 stage A3: the sender-proof
 direction inverted through typed kernel operations, the first worked example of
 the §2 inversion the ruling asks for)
+**Revised:** 2026-08-11 (s — §4 records item-3 stage A2: the provider session
+lifecycle inverted to typed kernel operations; item 3 closed)
 **Revised:** 2026-08-11 (q — §4 records item-3 stage A1: the provider plan and
 deployment-profile shapes down, two kernel→sync edges inverted)
 **Revised:** 2026-08-11 (p — §4 records the OQ-C inert-until-reload recovery
@@ -827,6 +829,78 @@ byte-identical to the merge-base with identical pass counts (449/0, 696/2,
 the merge-base and are identical there — 28 passed / 4 failed both sides — so
 they are pre-existing main reds, not this slice's.
 
+### Item-3 stage A2 — the provider session lifecycle inverted (executed)
+
+Landed 2026-08-11. The last kernel→provider edge is gone and the direction is
+now sync→kernel:
+`src/storage/auth_catalog_ops.rs → src/auth/provider.rs`. **With A1, A3 and A2
+landed, ratchet worklist item 3 is closed.**
+
+Measured on `src/auth/provider.rs`, before → after:
+
+| | before | after |
+| --- | ---: | ---: |
+| lines | 9,606 | 7,191 |
+| connection/transaction-taking functions | 45 | **0** |
+| SQL operation sites | 51 | **0** |
+
+`src/storage/auth_catalog_ops.rs` no longer names `crate::auth::provider`.
+
+A2 applies A3's typed-operation pattern at ~4× the scale. The kernel owns the
+durable operations for presented-session current/tombstone lookup; planned
+revocation, family alarm and rotation; revocation and rotation reconciliation;
+authenticated-use row lookup and the exact expiry-extension CAS; exchange
+challenge and issuance fact reads; rejected exchange and its reconciliation;
+session issuance and issuance reconciliation; and step-up proof consumption and
+reconciliation. Each receives already-decided bounds and exact
+predecessor/successor views; no raw `Connection` or `Transaction` crosses
+upward.
+
+The three mixed read-and-classify functions were split explicitly, which is the
+part §2 forces and the part that makes this a semantic slice:
+
+- `plan_exchange_read` → kernel `exchange_challenge_fact` + sync
+  `classify_exchange_challenge`
+- `plan_session_issuance_read` → kernel `session_issuance_facts` + sync
+  `classify_session_issuance`
+- `record_authenticated_use_transaction` → kernel row read and exact update +
+  sync liveness, coalescing and sliding-expiry decisions
+
+Every decision stayed sync-owned: current-versus-retained-predecessor
+acceptance and supersession grace; logout/refresh/family-alarm actionability;
+challenge consumed/superseded/expired/exhausted classification; identity
+`Create` versus `Existing`; live-session-cap eviction choice; sliding expiry and
+authenticated-use coalescing; candidate-collision retry; and durable-error and
+commit-uncertainty interpretation.
+
+**The regression this slice caught is worth recording, because it is the
+characteristic hazard of the whole program.** The first verified run turned
+`auth` from 709/2 into 708/3 with one new failure —
+`guest_claim_and_recovery_consume_use_shared_issuance_finalization`, panicking
+`guest claim must commit, got PredecessorChanged`. Cause: the relocated kernel
+lookup had changed a guest-aware `LEFT JOIN` into an inner `_auth_identities`
+join. Guest sessions have no identity row, so the kernel's re-read returned
+"absent" and reconciliation classified an exact predecessor as changed. Moving
+SQL across an owner boundary can silently change the *shape* of a read even
+when the surrounding logic is faithfully preserved; the fix restored the
+guest-aware projection (`COALESCE`, guest provider fallback, `LEFT JOIN`) across
+the relocated lookup family. This is why the envelope is a byte-identical
+failing **name set** rather than a pass count.
+
+Characterization envelope: `storage`/`auth`/`server` failure name sets
+byte-identical to the merge-base with identical pass counts (451/0, 709/2,
+287/2).
+
+**Baseline note — the count is 346 → 346, not 345, and that is provenance, not
+growth.** The regeneration removed A2's target fingerprint and in the same pass
+recorded a *previously unrecorded* pre-existing edge,
+`src/storage/auth_identity.rs → src/auth/sender_proof.rs`. That edge was
+introduced by `ef936353f`, which added the call without regenerating the
+baseline; A2 does not touch that call site. It is recorded and routed to its
+landing author in
+`issues/20260811-main-unrecorded-kernel-sync-auth-identity-sender-proof-edge.md`
+per §2's requirement that every baseline growth event carry stated provenance.
+
 ### Continuing sequence (order of intent, not a schedule)
 
 1. **Kernel typed-operation slices** (co-sequenced with owner 1 per 0199
@@ -1184,3 +1258,19 @@ so slices can follow product priorities.
   kernel and transport passes a narrow authority handle into sync. 1 frozen
   forbidden edge removed, none added, 347 → 346, no waiver. This is the worked
   example of the inversion A2 needs at larger scale.
+- **2026-08-11 (s).** §4 records item-3 stage A2, closing ratchet worklist
+  item 3. The last kernel→provider edge is inverted to sync→kernel:
+  `src/auth/provider.rs` goes 9,606 → 7,191 lines with its 45
+  connection/transaction-taking functions and 51 SQL sites both reduced to
+  **zero**, and `src/storage/auth_catalog_ops.rs` no longer names the provider.
+  The three mixed read-and-classify functions were split so the kernel returns
+  durable facts and sync classifies them. A verified regression is recorded
+  with the slice because it is the program's characteristic hazard: relocating
+  a lookup turned a guest-aware `LEFT JOIN` into an inner join, so guest
+  sessions read as absent and an exact predecessor was classified as changed —
+  caught only by the byte-identical failing-name-set envelope, not by pass
+  counts. The frozen count is 346 → 346 rather than 345 because the
+  regeneration also recorded a previously unrecorded pre-existing edge
+  (`storage/auth_identity → auth/sender_proof`, introduced by `ef936353f`
+  without a baseline regeneration and not touched by A2), ticketed with
+  provenance and routed to its landing author per §2.

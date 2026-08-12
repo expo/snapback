@@ -12,7 +12,7 @@
 use crate::auth::crypto::TokenHash;
 use crate::contract_types::{
     AuthorizationStreamIncarnation, PersistedSessionTerminalReason, RevocationReason,
-    SESSION_TERMINAL_CAUSE_META_PREFIX, SessionTerminalCauseRecord,
+    SESSION_TERMINAL_CAUSE_META_PREFIX, SessionTerminalCauseRecord, TokenDigest,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use serde::{Deserialize, Serialize};
@@ -256,29 +256,16 @@ pub(crate) struct ProjectionTokenRow {
     pub superseded_at_ms: i64,
 }
 
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct TokenDigest([u8; 32]);
-
 impl TokenDigest {
     pub(crate) fn from_slice(bytes: &[u8]) -> SnapbackResult<Self> {
         let digest: [u8; 32] = bytes.try_into().map_err(|_| {
             projection_corrupt("a projected token digest does not contain exactly 32 bytes")
         })?;
-        Ok(Self(digest))
+        Ok(Self::from_bytes(digest))
     }
 
     pub(crate) fn from_token_hash(token_hash: &TokenHash) -> Self {
-        Self(*token_hash.as_bytes())
-    }
-
-    pub(crate) fn as_bytes(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl fmt::Debug for TokenDigest {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("TokenDigest([REDACTED])")
+        Self::from_bytes(*token_hash.as_bytes())
     }
 }
 

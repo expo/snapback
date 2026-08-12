@@ -292,7 +292,9 @@ impl LocalDatabase {
         let attempt = self.attempt_auth_transaction(|tx| {
             advance_agent_clock_on(tx, now_ms)?;
             require_human_user_on(tx, user_id)?;
-            if proof.consume_on(tx, now_ms)? != StepUpConsumption::Verified {
+            if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
+                != StepUpConsumption::Verified
+            {
                 return Err(step_up_required_error());
             }
             let live: i64 = tx.query_row(

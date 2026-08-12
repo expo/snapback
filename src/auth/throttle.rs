@@ -710,6 +710,14 @@ pub(crate) fn code_locked() -> crate::diagnostic::SnapbackError {
     )
 }
 
+pub(crate) fn throttled_snapback(refusal: AuthBudgetRefusal) -> crate::diagnostic::SnapbackError {
+    refusal.legacy_error(
+        "SNAPBACK_AUTH_THROTTLED",
+        "auth",
+        "authentication request rate limit exceeded",
+    )
+}
+
 /// Complete normalized request material required to bind an idempotency key.
 /// Secret-bearing semantic inputs enter only as protocol-owned,
 /// domain-separated keyed digests.

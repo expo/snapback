@@ -464,7 +464,9 @@ impl LocalDatabase {
                     body_outcome = Some(Err(()));
                     return Ok(Err(()));
                 };
-                if proof.consume_on(tx, now_ms)? != StepUpConsumption::Verified {
+                if super::auth_catalog_ops::consume_step_up_proof_on(tx, proof, now_ms)?
+                    != StepUpConsumption::Verified
+                {
                     body_outcome = Some(Err(()));
                     return Ok(Err(()));
                 }
@@ -1531,7 +1533,7 @@ fn reconcile_created_grant_approval(
         return Err(grant_commit_uncertain());
     }
     if let Some(proof) = proof
-        && !proof.reconcile_consumed_on(connection)?
+        && !super::auth_catalog_ops::reconcile_step_up_consumed_on(connection, proof)?
     {
         return Err(grant_commit_uncertain());
     }
@@ -1560,7 +1562,7 @@ fn reconcile_rejected_grant_approval(
         return Err(grant_commit_uncertain());
     }
     if let Some(proof) = proof
-        && !proof.reconcile_unconsumed_on(connection)?
+        && !super::auth_catalog_ops::reconcile_step_up_unconsumed_on(connection, proof)?
     {
         return Err(grant_commit_uncertain());
     }
