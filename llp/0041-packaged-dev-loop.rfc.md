@@ -1265,6 +1265,48 @@ the latter now closed by the bootstrap-lineage decision below) are
 untouched by this decision and still gate the ceremony machinery whenever
 it next runs.
 
+### 0.1.20 (2026-08-12) — third completed qualified promotion
+
+The eleven-package closure at candidate revision `13d72ba6d61e` (tag
+`bakeoff-0-1-20-13d72ba6d61e`) was promoted to `latest` and closed at
+publication epoch 25, operation `release-0.1.20-20260811-r8`
+(00:53:56Z–01:02:34Z). Staged qualification ran the eight-job EAS
+workflow green on the release branch; the candidate published and
+byte-verified under the holding tag before any lease was requested.
+Telemetry currentness was satisfied by the retained in-tree receipt
+minted for 0.1.19's close (`HISTORICAL_VALID`/`CURRENT` at the
+candidate: zero changed source inputs, age 8.7 h inside the 24 h
+window) — a fresh branch-ref mint was also retained on the release
+branch as `tests/acceptance/telemetry-phase1-evidence.v1.json`.
+Promotion receipt and post-promotion ledger are retained in
+`tests/acceptance/publication/`.
+
+The ceremony took eight lease rounds across two supervisors, and the
+failures are the operational evidence LLP 0233 anticipates:
+
+- r1, r6: the fresh two-platform GitHub proof exceeded the
+  publication-lease wait budget — evening macOS runner-queue latency
+  (morning proofs started instantly and ran ~6 min; these queued
+  5–10 min before starting).
+- r2: a machine-wide process kill wave killed the promote **after**
+  the tag flip, before proof and close; its receipt is retained with
+  `status: running`. The prior vector was manually restored to 0.1.19
+  (the exact mirror of the promote's own rollback path) before the
+  next round — recorded here as the incident's durable trace.
+- r4, r5: `gh workflow run` dispatch began failing
+  (`unknown: undefined`); fixed by a pass-through shim translating to
+  the REST dispatches API, and permanently by the two `ci(release)`
+  commits landed with this close-out that move the proof matrix to an
+  available arm64 macOS runner pool.
+- r7: the proof run was cancelled mid-flight by supervisor
+  coordination error (two concurrent sessions each treating the
+  other's runs as orphans). The coordination note pattern in the
+  candidate ledger directory is the mitigation of record.
+
+No unreleased fences were pending; guide install pins advanced to
+0.1.20. The 0.1.20 closure predates the auth catalog v4 landing
+(`b180492e9`), which remains unpublished surface for the next cut.
+
 ### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
 
 The eleven-package closure published fast-path to `latest` from clean main
