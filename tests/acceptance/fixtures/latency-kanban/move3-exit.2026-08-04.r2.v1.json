@@ -7,7 +7,7 @@
     "LLP 0051 D5"
   ],
   "source": {
-    "revision": "e3e477aa2616e00889ad7ba9fc5b5ff4e20686a1",
+    "revision": "c6a8be9699e6a8ca5b8f89eed14316588a963945",
     "dirty": true,
     "files": [
       {
@@ -28,11 +28,11 @@
       },
       {
         "path": "demos/latency-kanban/snapback/trusted-composition-activation.json",
-        "sha256": "ebf4728070c3eb8d71043b27b42672189a8cb00800b0509b5db61e4afc45851c"
+        "sha256": "ee491e03477a75921c7566b4fa3054bfa71350ffabd6f20765187f72f20486fa"
       },
       {
         "path": "demos/latency-kanban/snapback/generated/artifacts.json",
-        "sha256": "ac6a1f3e161d6ef782c90976132e88aeb0045c11f6f1762b71edf2ba99920602"
+        "sha256": "a7dc93a71890e84ffd9182dd80763d82262071f15d2acbca4439786065bab609"
       },
       {
         "path": "demos/latency-kanban/src/App.tsx",
@@ -44,7 +44,7 @@
       },
       {
         "path": "packages/snapback-codegen/index.mjs",
-        "sha256": "f98cdf48dd1797ee8a4277d37a9107ec161317b21a2f965473514726b99a722f"
+        "sha256": "e7f52b46d8ec86c1503d825b7a89acb4ed52100b71bf47ca3b2a43a292039cde"
       }
     ]
   },
@@ -52,12 +52,12 @@
     "status": "PASS",
     "activation": {
       "format": "snapback.composition-activation-preparation.v1",
-      "activationHash": "sha256:6ba59aac00558ac67e7e2e5bcc9915109aeaee7757ffcfb096680fa27cb56f41",
+      "activationHash": "sha256:5458680d282bec953031b6790483b15cfa55e2fc9cfebe0d488612e6c082df0b",
       "deploymentId": "latency-kanban-move3-exit"
     },
     "runtime": {
       "serverBinary": "target/debug/snapback",
-      "serverBinarySha256": "1a78079276f17d22fd81d1562727024402b8f133c3ebb67b3a5067a4a1eff440",
+      "serverBinarySha256": "9ffdeb303cfab181284ef242d8089ed172763f0429f3b3b9f8f312e2641e3727",
       "launchRung": "configured"
     }
   },
@@ -69,15 +69,15 @@
           "createCard": {
             "functionId": "latency-kanban:createCard",
             "implementationHash": "sha256:f03e995e3d12c5ad56ae6f9e25748385b6ad457295dd3489b8ab1cedf3deb237",
-            "operationHash": "sha256:da1a719c2f2705adeba67255d9058925503e228ae9076f0283e33bb8901897e1",
+            "operationHash": "sha256:6dcfc5ba76d9ca2de43557a2e00e26a495c6bdd9820cd96040b8b150ab7a81c6",
             "activation": {
               "appId": "latency-kanban",
-              "bundleHash": "sha256:c24a5cc556970ae0",
-              "inputsHash": "8245a511dfdf47922edb1dd00bc8d528a6a6a0d6137bc2540cdc15cac88b6e92",
-              "schemaHash": "sha256:429c415678a63bd5",
+              "bundleHash": "sha256:f9876755a7b66ff4",
+              "inputsHash": "c04d1b2d02966e2431f39e4bfb9f3c65e5a9fc1eb21f9794a9b54ee0a303b17c",
+              "schemaHash": "sha256:83b6e0494c823e8c",
               "schemaVersion": "snapback.v0"
             },
-            "authoredSourceHash": "sha256:6833286d50b4a44c653acef1d48eac3781c73ba42ad759967e80dbffad18cbc3",
+            "authoredSourceHash": "sha256:254e2c3c5dfbe98c5caf2dc5f26b2b75ac2fcee99c75467085185eb40ac177f8",
             "steps": [
               "Insert"
             ],
@@ -88,15 +88,15 @@
           "editCard": {
             "functionId": "latency-kanban:editCard",
             "implementationHash": "sha256:1e074ed6da2974b0ff55b4f3d1bcf3968539c1c629250fbac891b8be45be262e",
-            "operationHash": "sha256:170e0409a64ca2994e6190a9e35cb97f8af449d085f4ac7b1c2e6cc53b2a77e9",
+            "operationHash": "sha256:c8c2d582cd16c9c8062cf4442711742ee9466f8ae15ce0d5a434764013e24635",
             "activation": {
               "appId": "latency-kanban",
-              "bundleHash": "sha256:c24a5cc556970ae0",
-              "inputsHash": "8245a511dfdf47922edb1dd00bc8d528a6a6a0d6137bc2540cdc15cac88b6e92",
-              "schemaHash": "sha256:429c415678a63bd5",
+              "bundleHash": "sha256:f9876755a7b66ff4",
+              "inputsHash": "c04d1b2d02966e2431f39e4bfb9f3c65e5a9fc1eb21f9794a9b54ee0a303b17c",
+              "schemaHash": "sha256:83b6e0494c823e8c",
               "schemaVersion": "snapback.v0"
             },
-            "authoredSourceHash": "sha256:6833286d50b4a44c653acef1d48eac3781c73ba42ad759967e80dbffad18cbc3",
+            "authoredSourceHash": "sha256:254e2c3c5dfbe98c5caf2dc5f26b2b75ac2fcee99c75467085185eb40ac177f8",
             "steps": [
               "Get",
               "Guard",
@@ -111,15 +111,15 @@
           "assignCard": {
             "functionId": "latency-kanban:assignCard",
             "implementationHash": "sha256:f270b8b7c3513a55460013685e03cfafea8c0551bfa3286033d667359fac3015",
-            "operationHash": "sha256:f3ae91955ae5100509175287857dccd237d0563bf8602949e9eb4da1c3154ce9",
+            "operationHash": "sha256:8bf64a67ddf13fd505ebeb7d93e50d82c48ad2d743441dbe6d2c28902bc4d599",
             "activation": {
               "appId": "latency-kanban",
-              "bundleHash": "sha256:c24a5cc556970ae0",
-              "inputsHash": "8245a511dfdf47922edb1dd00bc8d528a6a6a0d6137bc2540cdc15cac88b6e92",
-              "schemaHash": "sha256:429c415678a63bd5",
+              "bundleHash": "sha256:f9876755a7b66ff4",
+              "inputsHash": "c04d1b2d02966e2431f39e4bfb9f3c65e5a9fc1eb21f9794a9b54ee0a303b17c",
+              "schemaHash": "sha256:83b6e0494c823e8c",
               "schemaVersion": "snapback.v0"
             },
-            "authoredSourceHash": "sha256:6833286d50b4a44c653acef1d48eac3781c73ba42ad759967e80dbffad18cbc3",
+            "authoredSourceHash": "sha256:254e2c3c5dfbe98c5caf2dc5f26b2b75ac2fcee99c75467085185eb40ac177f8",
             "steps": [
               "Get",
               "Guard",
@@ -134,15 +134,15 @@
           "archiveCard": {
             "functionId": "latency-kanban:archiveCard",
             "implementationHash": "sha256:3a59d0ca596a41e7d6e1a97034bc5e27f7d293820c20c1fe270afaaa37b9ca8c",
-            "operationHash": "sha256:bbf5444c77c632e8ff2941ac1c0804954933e0bcd1d2bcd0801a05e7f20c56bd",
+            "operationHash": "sha256:017e77bf4ab0a1bd5a55ee18ccef283c0ef9534c18fc39214b8561748022b913",
             "activation": {
               "appId": "latency-kanban",
-              "bundleHash": "sha256:c24a5cc556970ae0",
-              "inputsHash": "8245a511dfdf47922edb1dd00bc8d528a6a6a0d6137bc2540cdc15cac88b6e92",
-              "schemaHash": "sha256:429c415678a63bd5",
+              "bundleHash": "sha256:f9876755a7b66ff4",
+              "inputsHash": "c04d1b2d02966e2431f39e4bfb9f3c65e5a9fc1eb21f9794a9b54ee0a303b17c",
+              "schemaHash": "sha256:83b6e0494c823e8c",
               "schemaVersion": "snapback.v0"
             },
-            "authoredSourceHash": "sha256:6833286d50b4a44c653acef1d48eac3781c73ba42ad759967e80dbffad18cbc3",
+            "authoredSourceHash": "sha256:254e2c3c5dfbe98c5caf2dc5f26b2b75ac2fcee99c75467085185eb40ac177f8",
             "steps": [
               "Get",
               "Guard",
@@ -157,15 +157,15 @@
           "reorderCard": {
             "functionId": "latency-kanban:reorderCard",
             "implementationHash": "sha256:432cb52a691537944d1b9c0765bce61701268709f71c0221ce340218ad974ee1",
-            "operationHash": "sha256:419bdebfd97701b8fbfcdb90cab524b61c6eb34394901328387bce641c617b6c",
+            "operationHash": "sha256:ac9cfbf36c1315da906663c0496c2338909a282394e26e402f613c4de2efbaa9",
             "activation": {
               "appId": "latency-kanban",
-              "bundleHash": "sha256:c24a5cc556970ae0",
-              "inputsHash": "8245a511dfdf47922edb1dd00bc8d528a6a6a0d6137bc2540cdc15cac88b6e92",
-              "schemaHash": "sha256:429c415678a63bd5",
+              "bundleHash": "sha256:f9876755a7b66ff4",
+              "inputsHash": "c04d1b2d02966e2431f39e4bfb9f3c65e5a9fc1eb21f9794a9b54ee0a303b17c",
+              "schemaHash": "sha256:83b6e0494c823e8c",
               "schemaVersion": "snapback.v0"
             },
-            "authoredSourceHash": "sha256:6833286d50b4a44c653acef1d48eac3781c73ba42ad759967e80dbffad18cbc3",
+            "authoredSourceHash": "sha256:254e2c3c5dfbe98c5caf2dc5f26b2b75ac2fcee99c75467085185eb40ac177f8",
             "steps": [
               "Get",
               "Guard",
@@ -186,16 +186,16 @@
       "evidence": {
         "allFivePaintedFromIr": true,
         "latencyMs": {
-          "create": 20.855,
-          "edit": 12.035,
-          "assign": 21.003,
-          "archive": 20.129,
-          "reorder": 20.928
+          "create": 20.554,
+          "edit": 11.792,
+          "assign": 10.756,
+          "archive": 21.246,
+          "reorder": 20.552
         },
-        "lockedRefusalLocalMs": 17.06,
+        "lockedRefusalLocalMs": 11.654,
         "rapidMoves": {
           "count": 20,
-          "stackPaintMs": 227.94,
+          "stackPaintMs": 212.167,
           "peakLayers": 20,
           "visibleRowsBefore": 2,
           "visibleRowsAfter": 2
@@ -208,66 +208,66 @@
         "settlements": [
           {
             "verb": "create",
-            "clientMutationId": "mut_01kzvfrpfceh5srwrh0v7nst4j",
-            "operationHash": "sha256:da1a719c2f2705adeba67255d9058925503e228ae9076f0283e33bb8901897e1",
+            "clientMutationId": "mut_01kzvq6b56epjagxv2c0k05ymd",
+            "operationHash": "sha256:6dcfc5ba76d9ca2de43557a2e00e26a495c6bdd9820cd96040b8b150ab7a81c6",
             "retiredLayer": true
           },
           {
             "verb": "edit",
-            "clientMutationId": "mut_01kzvfrpggegz9pknsb2p4s9qq",
-            "operationHash": "sha256:170e0409a64ca2994e6190a9e35cb97f8af449d085f4ac7b1c2e6cc53b2a77e9",
+            "clientMutationId": "mut_01kzvq6b66e1kvnq9644pz8vmj",
+            "operationHash": "sha256:c8c2d582cd16c9c8062cf4442711742ee9466f8ae15ce0d5a434764013e24635",
             "retiredLayer": true
           },
           {
             "verb": "assign",
-            "clientMutationId": "mut_01kzvfrphgez8v8pk72gg2rp3h",
-            "operationHash": "sha256:f3ae91955ae5100509175287857dccd237d0563bf8602949e9eb4da1c3154ce9",
+            "clientMutationId": "mut_01kzvq6b72fk4bma9c1hcmjcjm",
+            "operationHash": "sha256:8bf64a67ddf13fd505ebeb7d93e50d82c48ad2d743441dbe6d2c28902bc4d599",
             "retiredLayer": true
           },
           {
             "verb": "reorder",
-            "clientMutationId": "mut_01kzvfrpjefkjahd9q4qnx564d",
-            "operationHash": "sha256:419bdebfd97701b8fbfcdb90cab524b61c6eb34394901328387bce641c617b6c",
+            "clientMutationId": "mut_01kzvq6b7zeh0ahysmxn3sss7b",
+            "operationHash": "sha256:ac9cfbf36c1315da906663c0496c2338909a282394e26e402f613c4de2efbaa9",
             "retiredLayer": true
           },
           {
             "verb": "archive",
-            "clientMutationId": "mut_01kzvfrpkdeasr9ehbd0bxjww5",
-            "operationHash": "sha256:bbf5444c77c632e8ff2941ac1c0804954933e0bcd1d2bcd0801a05e7f20c56bd",
+            "clientMutationId": "mut_01kzvq6b90fv599q28kv0dvd9m",
+            "operationHash": "sha256:017e77bf4ab0a1bd5a55ee18ccef283c0ef9534c18fc39214b8561748022b913",
             "retiredLayer": true
           },
           {
             "verb": "create-locked",
-            "clientMutationId": "mut_01kzvfrpmdex8tprvezagmrbtf",
-            "operationHash": "sha256:da1a719c2f2705adeba67255d9058925503e228ae9076f0283e33bb8901897e1",
+            "clientMutationId": "mut_01kzvq6b9yfx8v3avcbt18k4r0",
+            "operationHash": "sha256:6dcfc5ba76d9ca2de43557a2e00e26a495c6bdd9820cd96040b8b150ab7a81c6",
             "retiredLayer": true
           }
         ],
         "rapidSettlementIdentities": [
-          "mut_01kzvfrpn7ejj98kwdpaqb234a",
-          "mut_01kzvfrpn7fdxaq073tqr2v2e8",
-          "mut_01kzvfrpn8exmb5ps1sez4vdr7",
-          "mut_01kzvfrpn8fk4v146rcsyf25jr",
-          "mut_01kzvfrpn8fa1vhssqn3qtv67k",
-          "mut_01kzvfrpn8e29t192tdgxksxd5",
-          "mut_01kzvfrpn8f7tasbe8grqcmnpf",
-          "mut_01kzvfrpn8ebcbs1e4w1mbb7ra",
-          "mut_01kzvfrpn8edcvtvwj8gbabcws",
-          "mut_01kzvfrpn8frn9d2fk06r6bdkc",
-          "mut_01kzvfrpn8epga91qjjzh9fx3b",
-          "mut_01kzvfrpn9e25sjhc0xnkkgyyy",
-          "mut_01kzvfrpn9fa8b6703k5hdzhag",
-          "mut_01kzvfrpn9ehq9pnxbksz7ag2e",
-          "mut_01kzvfrpn9f6e80va38rer6w0w",
-          "mut_01kzvfrpn9eces6ta4tr04aw8c",
-          "mut_01kzvfrpn9e2xv2bmwk8ywxcbd",
-          "mut_01kzvfrpn9e3vbn2y2v3t6ewaw",
-          "mut_01kzvfrpn9e31tczf8q38nxhya",
-          "mut_01kzvfrpnaf0bbwfb98n063mxw"
+          "mut_01kzvq6base7n9mn1g5gqqpj36",
+          "mut_01kzvq6bate4bag3mk29xr0x1r",
+          "mut_01kzvq6batfkf8bm9s90518vrq",
+          "mut_01kzvq6bateafv4canhkbnd4qt",
+          "mut_01kzvq6batewv9wx7kkaq1jamd",
+          "mut_01kzvq6bate5f873mz2zmb7vp1",
+          "mut_01kzvq6batfmqb28er5z5mnm8f",
+          "mut_01kzvq6baven4r4b09bkjhk8gb",
+          "mut_01kzvq6bavef7tczkz8qjz4xcp",
+          "mut_01kzvq6bavecjtnz2s2gt236eg",
+          "mut_01kzvq6baveyhr4rw4f9mj0d0r",
+          "mut_01kzvq6bavf4gtxzp0v11ydjbd",
+          "mut_01kzvq6bawehkb192s73femv94",
+          "mut_01kzvq6bawehwtqgxae5pwezdw",
+          "mut_01kzvq6bawf7dt9kn0emapr4g5",
+          "mut_01kzvq6bawexa8fnp5fnnvrjbt",
+          "mut_01kzvq6bawfbqr5qm5n5bp24ep",
+          "mut_01kzvq6bawf4kt93k929p76jhs",
+          "mut_01kzvq6baxf6fvfpxz1qa8y8vk",
+          "mut_01kzvq6baxfq1vfgxa7r5bg65y"
         ],
         "concurrentSettlementIdentities": [
-          "mut_01kzvfrqwves080j8888zt62mg",
-          "mut_01kzvfrqwvetcatff8yj2ecypq"
+          "mut_01kzvq6cexeydt8y450dj6yz9d",
+          "mut_01kzvq6ceyf16r97xrcx77gq03"
         ],
         "refusal": {
           "code": "KANBAN_CARD_LOCKED",
@@ -284,11 +284,11 @@
         "concurrentMoves": {
           "count": 2,
           "finalCard": {
-            "_id": "cards_01kzvfrpfweegtzpp531ph4vdx",
+            "_id": "cards_01kzvq6b5pfj1rxt2v0wnc66gg",
             "_version": 29,
-            "_createdAt": 1786555161084,
-            "_updatedAt": 1786555162548,
-            "boardId": "boards_01kzvfrp2rebraye9t0mm5rt1m",
+            "_createdAt": 1786562948278,
+            "_updatedAt": 1786562949621,
+            "boardId": "boards_01kzvq6aqafd8rj8vf9vzbrwvt",
             "title": "Edited in IR",
             "column": "ready",
             "rank": 800,
@@ -304,7 +304,7 @@
       "status": "PASS",
       "evidence": {
         "processKilledWith": "SIGKILL",
-        "queuedIdentity": "mut_01kzvfrr12en1rmxr0e0135y99",
+        "queuedIdentity": "mut_01kzvq6ck3fb6ba6txs1gfxkch",
         "preKillLayers": 1,
         "relaunchLayers": 1,
         "postIntentRowsBeforeNetwork": 1,

@@ -2,28 +2,28 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v2",
-    "databaseId": "019ff6fc-546e-7641-a93f-e9d4c38b44ba",
+    "databaseId": "019ff773-25c6-7c10-9b2e-b7f56a63cca4",
     "deploymentId": "latency-kanban-move3-exit",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "dev",
-    "authoredSourceHash": "sha256:6833286d50b4a44c653acef1d48eac3781c73ba42ad759967e80dbffad18cbc3",
+    "authoredSourceHash": "sha256:254e2c3c5dfbe98c5caf2dc5f26b2b75ac2fcee99c75467085185eb40ac177f8",
     "mintedGeneration": {
       "schemaVersion": "snapback.v0",
       "appId": "latency-kanban",
-      "schemaHash": "sha256:429c415678a63bd5",
-      "bundleHash": "sha256:c24a5cc556970ae0",
-      "inputsHash": "8245a511dfdf47922edb1dd00bc8d528a6a6a0d6137bc2540cdc15cac88b6e92"
+      "schemaHash": "sha256:83b6e0494c823e8c",
+      "bundleHash": "sha256:f9876755a7b66ff4",
+      "inputsHash": "c04d1b2d02966e2431f39e4bfb9f3c65e5a9fc1eb21f9794a9b54ee0a303b17c"
     },
-    "proofKeyManifestDigest": "sha256:8e2073ba2790be687c49e742a122a0244c58bd78b3704e1685a7ab9466243cd5"
+    "proofKeyManifestDigest": "sha256:8277b1ace19a6058495ad0d4946b4c86c2f47768c27772fe83a2378d8a09604a"
   },
-  "activationHash": "sha256:6ba59aac00558ac67e7e2e5bcc9915109aeaee7757ffcfb096680fa27cb56f41",
+  "activationHash": "sha256:5458680d282bec953031b6790483b15cfa55e2fc9cfebe0d488612e6c082df0b",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.rEI6Gq6_L3p7VOZS6RRhrg",
+        "proofKeyId": "sbpk1.rEiD0b7QuuuP8Q5jFRVoJA",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "pTfHvWpr577sE2JRQz5Vbs67YW5wh1GC5NG9thYDYeg"
+        "publicKeyBase64url": "E3nQn2FBF6sQ8DsawPsB_tNIdYfwBKe4MCRYEKvRLoA"
       }
     ]
   }

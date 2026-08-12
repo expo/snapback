@@ -13,9 +13,9 @@
     "src/local/inspection.rs": "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679",
     "src/local/live_protocol.rs": "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
-    "src/local/tests.rs": "sha256:a4671fb1ff1beb69853170324c6166ec5c7902d8b8d9b11f0afa221031789dc2",
-    "src/runtime.rs": "sha256:e1fd83c9decab217105c0c6bd215be02a16ce263150a883dcb4cc3f5f9dcfe20",
-    "src/storage.rs": "sha256:43988584e60a0bf41bf5c9588bf5b19e309f0a6a5ecd5313eb23fa65541404ce",
+    "src/local/tests.rs": "sha256:8e6ddb8ad1c5832ae81c81643fd9e3a047dae75f252fc88bcf35babc80cc42af",
+    "src/runtime.rs": "sha256:a5a1b9d055fc3c758afea35d8e685e3c7be6eaf8581877ee3c590ed99a367926",
+    "src/storage.rs": "sha256:d82c8be2a7ce84d9011fd15c8a2dd8a54edc9a733417562bab2526f407d56ef3",
     "src/storage/auth.rs": "sha256:78858db489a1062b75e3d18ac5331edd9bb1cc23d88f9e8e21b52f06e4de6ceb",
     "src/storage/auth_agent_credentials.rs": "sha256:d2c5f512a26fd2afca8df6202743b51077d15cde9e0fbd1aed48c555f34dbf3e",
     "src/storage/auth_agents.rs": "sha256:621b8add7b15c7124dd47cfd74961411ec7be2155579f304753ad972a58367f4",
@@ -36,11 +36,11 @@
     "src/storage/migration_scan.rs": "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d",
     "src/storage/projection_rebuild.rs": "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996",
     "src/storage/schema_transition.rs": "sha256:c91c85ef764082865c95059dc2ba755f23ea3eabc88b6260a2f08f8705957952",
-    "src/storage/tests.rs": "sha256:9b5f417636757a621affb55ceb7783673a0e13fcdbbea9a41a25c8c7a3281b37",
+    "src/storage/tests.rs": "sha256:04879a93d8e24a70bb0a95136641b7b88fedf3b6d00f32a5980409d4d501a3d3",
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/define.mjs": "sha256:31fd5d1e1b7834efe3ded6a06c06d2a13d8fae3f47651bdead424b56209cdec4"
+    "packages/snapback-codegen/define.mjs": "sha256:cb1d358d45c23dc6e21ccd7854baf95170d2b831c01a2829a810d7c7a18c05dd"
   },
   "clientSourceSha256": {
     "packages/snapback-contract/derived-overlay.mjs": "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32",

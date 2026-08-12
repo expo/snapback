@@ -1,7 +1,7 @@
 {
   "appId": "contention-calendar",
   "artifactKind": "clientLifecycleManifest",
-  "authoredSourceHash": "sha256:3f77cfa334c9928647bc906b407a02308839ad52e2cea69ddc27e5de64766245",
+  "authoredSourceHash": "sha256:07061cce23aea39a9351d9a626b8628920314f3f2bc4068159a0f7c4e16b1288",
   "commands": [],
   "compatibilityAliases": [
     {
@@ -60,7 +60,7 @@
       ]
     }
   },
-  "inputsHash": "0774ed444da2f6eee3cd1eee12c231b33ad0d792c8c1ee5f78f7878d9090eb6d",
+  "inputsHash": "5766925b15166061a6dbf43aead7f2d60e6a84012e82b70d79f581cc269fd2f7",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
