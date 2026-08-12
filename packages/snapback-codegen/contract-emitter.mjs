@@ -24,6 +24,41 @@ export function jsonLiteral(value) {
 }
 
 /**
+ * Whether an emitted module takes a dependency on an Exact package.
+ *
+ * Output-mode selection deliberately classifies rendered source rather than
+ * filenames or directories: Contract-neutral runtime links and binding
+ * modules share a directory with Exact-dependent metadata sidecars.
+ *
+ * Every module-level form that makes `@exact/*` a resolvable dependency counts,
+ * not just the `import ... from` spelling the sidecars happen to use today:
+ * a re-export (`export { x } from '@exact/contract'`) and a dynamic
+ * `import('@exact/contract')` both fail an npm-only install just as hard.
+ * Only the first is emitted-shaped today and neither is currently emitted, so
+ * this is a guard against future template drift rather than live behavior.
+ *
+ * The bias is deliberate. A false negative puts an Exact-importing module back
+ * into the neutral default set and reopens the npm-only typecheck defect this
+ * classification exists to close; a false positive merely withholds a module
+ * from the neutral set, which surfaces loudly as a missing artifact. When in
+ * doubt, match.
+ */
+export function importsExactPackage(source) {
+  const specifier = String.raw`['"]@exact(?:\/[^'"]*)?['"]`;
+  return new RegExp(
+    [
+      // import x from '@exact/…' | import '@exact/…' | import type { T } from '@exact/…'
+      String.raw`(?:^|\n)\s*import\s+(?:[^'"\n]*?\s+from\s+)?${specifier}\s*;?`,
+      // export { x } from '@exact/…' | export * from '@exact/…'
+      String.raw`(?:^|\n)\s*export\s+[^'"\n]*?\s+from\s+${specifier}\s*;?`,
+      // import('@exact/…'), including `await import(...)`
+      String.raw`\bimport\s*\(\s*${specifier}\s*\)`,
+    ].join('|'),
+    'u',
+  ).test(source);
+}
+
+/**
  * The runtime-links registry module: the typed link interface plus the
  * configure/reset/get triple every generated binding delegates through.
  * `entries`: [{ name, argsType }] with argsType already rendered.

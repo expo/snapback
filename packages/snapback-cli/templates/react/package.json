@@ -11,6 +11,7 @@
     "carry:headless": "node carrier.mjs headless",
     "carry:web-browser": "node carrier.mjs web-browser",
     "carry:self-check": "node carrier.mjs --self-check --json",
+    "lint": "oxlint .",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "prove": "snapback verify snapback --config ./snapback.verify.config.mjs --receipt ./.snapback/verify-receipt.json --json",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/react-dom": "^19.0.0",
+    "oxlint": "^1.75.0"
   }
 }

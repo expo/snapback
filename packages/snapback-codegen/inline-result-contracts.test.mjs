@@ -22,6 +22,11 @@ const backend = () => {
       }).sync(),
     });
   `);
+  writeFileSync(join(dir, 'codegen.policy.json'), JSON.stringify({
+    schemaVersion: 'snapback.codegen-policy.v1',
+    committedProjections: [],
+    contractMetadata: 'exact',
+  }, null, 2));
   return dir;
 };
 

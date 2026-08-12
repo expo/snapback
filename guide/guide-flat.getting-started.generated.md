@@ -834,13 +834,13 @@ id: getting-started.generated-artifacts
 order: 3
 audience: agent-first
 capabilities: [backend.codegen]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0037-schema-source-of-truth.decision.md, llp/0041-packaged-dev-loop.rfc.md, packages/snapback-codegen/review-surface.mjs, packages/snapback-codegen/review-manifest.schema.json, packages/snapback-codegen/codegen-policy.schema.json]
-examples: [packages/snapback-codegen/review-surface.test.mjs, packages/snapback-cli/templates/todo-contract]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0037-schema-source-of-truth.decision.md, llp/0041-packaged-dev-loop.rfc.md, packages/snapback-codegen/review-surface.mjs, packages/snapback-codegen/review-manifest.schema.json, packages/snapback-codegen/codegen-policy.schema.json]
+examples: [packages/snapback-codegen/review-surface.test.mjs, packages/snapback-codegen/contract-output-mode.test.mjs, packages/snapback-cli/templates/react, demos/todo-v2/snapback/codegen.policy.json]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-11
+reviewed-commit: ef936353ffdc540dedd4d5760e51c78eb6e38f72
 ---
 
 # Generated artifact custody and review
@@ -870,6 +870,53 @@ limited to pre-v2 manifests and explicitly declared `consumer-committed`
 projections. It is not an exception for new repository-owned demos. The admin
 UI's separately generated bindings remain under their existing dedicated
 generator and CI gate because they are not a Snapback backend graph.
+
+<!-- since: 0.1.21 unreleased -->
+
+> **Unreleased.** Explicit Exact metadata output is not present in the newest
+> published closure, 0.1.20. Until a newer closure is published, use the
+> temporary TypeScript exclusion below for npm-only apps.
+
+## Choose Exact metadata output explicitly
+
+Ordinary React, Expo, and headless generation is Contract-neutral. It still
+emits `contract-data.manifest.json`, generated function references, callable
+modules under `generated/contract/`, and `contract/runtime-links.ts`; none of
+those imports Exact. It omits only rendered modules that import an `@exact/*`
+package, currently the `.contract-meta.ts` sidecars.
+
+If the project compiles `.contract` files against those sidecars, opt in with a
+committed `snapback/codegen.policy.json`:
+
+```json fragment reason="minimal codegen policy; applications preserve any existing committed projections"
+{
+  "schemaVersion": "snapback.codegen-policy.v1",
+  "committedProjections": [],
+  "contractMetadata": "exact"
+}
+```
+
+Keep any existing `committedProjections` instead of replacing them. Commit the
+policy and regenerate. The policy is part of the complete input hash, so its
+Exact-enabled graph has a different freshness identity and artifact inventory
+from the neutral graph. Installing `@exact/contract` does not enable the output
+implicitly; package-presence probing would make generation irreproducible.
+
+For published Snapback 0.1.20 and earlier, an npm-only app that does **not**
+consume Contract can temporarily keep the unavailable Exact sidecars out of a
+broad TypeScript program:
+
+```json fragment reason="temporary tsconfig mitigation for published generators before explicit output selection"
+{
+  "exclude": ["snapback/generated/contract"]
+}
+```
+
+That exclusion hides neutral bindings too, so it is mitigation for older
+published generators, not the desired steady state. After upgrading to a
+closure with explicit output selection, regenerate without the opt-in and
+remove the exclusion; broad `tsc --noEmit` and lint should include the generated
+TypeScript normally.
 
 ## Regenerate one complete graph
 

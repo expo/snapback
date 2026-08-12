@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, Client integration, Developer experience, Testing, Packaging, Admin console, Runtime
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-22 (LLP 0074 public-package checkpoint: a live npm probe found `@snapback/cli@3.0.1` is an unrelated product and the current environment has no `@snapback` publication authority. The first public distribution therefore uses the existing `ccheever` publication preset, mapping source/import names such as `@snapback/contract` to registry names such as `@ccheever/snapback-contract`; immutable staged manifests preserve the mapping and rewrite internal dependencies with npm aliases. The source namespace remains stable, and a future organization-owned brand scope may replace only the public alias). 2026-07-12 (ENG-24374: Exact package-export probing/import now rejects malformed or traversing targets and symlink escapes by lexical plus realpath containment). 2026-07-05 (admin-console serving language caught up with LLP 0017's single-UI model: no-dist is now a missing-dist diagnostic, and stale/browser-only dists still fail native Exact artifact requests with structured diagnostics. Earlier: 2026-07-01 linked LLP 0030 as the managed Snapback/Vite dev lifecycle RFC; earlier review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
+**Revised:** 2026-08-11 (Exact-dependent generated metadata became an explicit, identity-bearing codegen-policy output; the default graph remains Contract-neutral and never probes installed packages). 2026-07-22 (LLP 0074 public-package checkpoint: a live npm probe found `@snapback/cli@3.0.1` is an unrelated product and the current environment has no `@snapback` publication authority. The first public distribution therefore uses the existing `ccheever` publication preset, mapping source/import names such as `@snapback/contract` to registry names such as `@ccheever/snapback-contract`; immutable staged manifests preserve the mapping and rewrite internal dependencies with npm aliases. The source namespace remains stable, and a future organization-owned brand scope may replace only the public alias). 2026-07-12 (ENG-24374: Exact package-export probing/import now rejects malformed or traversing targets and symlink escapes by lexical plus realpath containment). 2026-07-05 (admin-console serving language caught up with LLP 0017's single-UI model: no-dist is now a missing-dist diagnostic, and stale/browser-only dists still fail native Exact artifact requests with structured diagnostics. Earlier: 2026-07-01 linked LLP 0030 as the managed Snapback/Vite dev lifecycle RFC; earlier review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
 **Related:** LLP 0005, LLP 0012, LLP 0016, LLP 0017, LLP 0020, LLP 0023, LLP 0030, Diary 0001, Diary 0002, Diary 0003, Valet LLP 0088 (retired prior-art), Exact 0263, Exact 0265, Exact 0268
 
 ## Summary
@@ -125,6 +125,29 @@ offline queueing, deterministic replay, and rebase-on-reconnect exist.
 Core server tests, generated artifact tests, and headless clients must not
 require Exact. Missing or stale Exact capabilities should produce structured
 diagnostics for Contract surfaces, not break ordinary Snapback development.
+
+### Implementation note — Exact-dependent generated metadata is opt-in (2026-08-11)
+
+Ordinary codegen now emits the Contract-neutral portion of the shared artifact
+graph: `contract-data.manifest.json`, per-function and ephemeral callable
+modules, generated function references, and `contract/runtime-links.ts`.
+Exact-dependent `.contract-meta.ts` sidecars join that graph only when the
+committed `snapback/codegen.policy.json` record declares
+`"contractMetadata": "exact"`.
+
+The implementation classifies each rendered module by whether its source has a
+static import from an `@exact/*` package. It does not infer dependency from the
+`generated/contract/` directory or from a filename. Most importantly, codegen
+must never probe `node_modules` or package resolution to select this output:
+installing or removing `@exact/contract` with identical authored declarations
+cannot change the emitted file set.
+
+The policy bytes are already a complete codegen input, so opting in rotates the
+input/freshness identity and review-manifest inventory together with the
+additional sidecars. Existing Contract-enabled projects migrate by adding the
+field to their closed v1 policy record (creating that record with
+`committedProjections: []` when they had none), committing it, and regenerating.
+Core React, Expo, and headless projects leave the field absent.
 
 ## Change Program
 

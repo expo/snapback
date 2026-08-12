@@ -9,13 +9,13 @@ id: clients.contract-adapter
 order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs]
-examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs]
+examples: [demos/todo-v2/snapback/codegen.policy.json, demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-11
+reviewed-commit: ef936353ffdc540dedd4d5760e51c78eb6e38f72
 ---
 
 # The Contract adapter
@@ -32,6 +32,36 @@ what it uses, and everything between it and the server is generated or
 product code. (Contract *authoring* itself — language, components, styling
 — is the Exact guide's territory; this page covers the Snapback side of
 the seam.)
+
+<!-- since: 0.1.21 unreleased -->
+
+> **Unreleased.** Explicit Exact metadata output is not present in the newest
+> published closure, 0.1.20. The generated-artifact guide documents the
+> temporary npm-only workaround for earlier releases.
+
+## Opt in to Exact metadata before compiling Contract
+
+Add `"contractMetadata": "exact"` to the committed
+`snapback/codegen.policy.json`, preserving its existing
+`committedProjections`, then run `snapback generate snapback`. If the project
+had no policy, start with:
+
+```json fragment reason="minimal codegen policy; applications preserve any existing committed projections"
+{
+  "schemaVersion": "snapback.codegen-policy.v1",
+  "committedProjections": [],
+  "contractMetadata": "exact"
+}
+```
+
+That declaration deterministically adds the `.contract-meta.ts` modules Exact
+discovers beside the callable query, mutation, and ephemeral modules. Merely
+installing `@exact/contract` never changes generated output. Projects that do
+not compile Contract leave the field absent and keep the neutral callable and
+runtime-link artifacts. See [generated artifact custody and
+review](../getting-started/generated-artifacts.md#choose-exact-metadata-output-explicitly)
+for the output split and the temporary TypeScript exclusion for older published
+versions.
 
 ## Bind functions in the .contract file
 

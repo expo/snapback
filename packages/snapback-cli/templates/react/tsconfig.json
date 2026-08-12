@@ -9,5 +9,5 @@
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "include": ["src"]
+  "include": ["src", "snapback/generated/**/*.ts", "vite.config.ts"]
 }

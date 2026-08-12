@@ -75,6 +75,27 @@ import { stopOwnedProcessTree } from './lib/process-tree.mjs';
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
 const DEFAULT_BROWSER_SOURCE_REVISION = '0'.repeat(40);
 
+test('React cold-install fixture broadly typechecks generated TypeScript without Exact', () => {
+  const templateRoot = fileURLToPath(
+    new URL('../packages/snapback-cli/templates/react/', import.meta.url),
+  );
+  const manifest = JSON.parse(readFileSync(join(templateRoot, 'package.json'), 'utf8'));
+  const tsconfig = JSON.parse(readFileSync(join(templateRoot, 'tsconfig.json'), 'utf8'));
+  assert.equal(manifest.scripts?.typecheck, 'tsc --noEmit');
+  assert.equal(manifest.scripts?.lint, 'oxlint .');
+  assert.equal(typeof manifest.devDependencies?.oxlint, 'string');
+  assert.equal(Object.hasOwn(manifest.dependencies ?? {}, '@exact/contract'), false);
+  assert.equal(Object.hasOwn(manifest.devDependencies ?? {}, '@exact/contract'), false);
+  assert(tsconfig.include.includes('snapback/generated/**/*.ts'));
+  assert.equal(Object.hasOwn(tsconfig, 'exclude'), false);
+
+  const harness = readFileSync(script, 'utf8');
+  assert.match(harness, /node_modules', '@exact', 'contract'/u);
+  assert.match(harness, /endsWith\('\.contract-meta\.ts'\)/u);
+  assert.match(harness, /\['run', 'typecheck'\]/u);
+  assert.match(harness, /\['run', 'lint'\]/u);
+});
+
 const packagedAgentDigest = ({ appId = 'partitime-external', functions = ['createEvent'] } = {}) => ({
   artifactKind: 'agentDigest',
   formatVersion: 'snapback.agent-digest.v1',

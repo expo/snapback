@@ -508,6 +508,21 @@ ordinary variant was unsupported and built host glue around a paved path.
     Route terms: "keyedQueryScopes",
     "SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED", "forceEphemeralState".
 
+Case 47 absorbs the npm-only generated-typecheck gap recorded in
+`issues/closed/20260811-guide-gap-npm-generated-contract-typecheck.md`.
+
+47. **Npm-only generated Contract imports:** "Codegen succeeds in my React or
+    Expo app, but broad strict `tsc --noEmit` cannot resolve
+    `@exact/contract/exports` from generated `.contract-meta.ts` files." The
+    run fails if the plan installs a private/unavailable Exact package, probes
+    package presence to select output, permanently excludes all generated
+    Contract files on a current release, or omits the committed
+    `contractMetadata: "exact"` opt-in for a real Contract project.
+    Expected pages: `getting-started/generated-artifacts.md` or
+    `clients/contract-adapter.md`.
+    Route terms: "@exact/contract unavailable", "npm-only typecheck",
+    "contractMetadata", "contract-meta".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

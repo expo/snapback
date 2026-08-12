@@ -431,7 +431,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
 | backend.versioned-seed | Experimental local stream-scoped seed identity, pure matched observation, idempotent install/reset receipts, read-only preview, and explicit clear without legacy fallback. Hosted compiled-seed custody remains a GAP. | seed version, seed identity, reset-install, fixture drift | local | partial | tests/conformance/versioned-seed-v1.manifest.json | llp/0103 | backend/versioned-seeds.md |
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
-| backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
+| backend.codegen | Generate digest-verified artifacts, neutral Contract bindings, and opt-in Exact metadata | codegen, artifacts, custody, contractMetadata, npm-only typecheck, @exact/contract unavailable | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0021, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense `ctx.sequence.allocate` with replay/contention/exhaustion evidence; contributor-source local only | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public/hosted qualification; owner: Charlie, review: 2026-09-30; issue: issues/20260808-main-drift-sequence-allocation-publication.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
@@ -479,7 +479,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.external-store | Shared current-value/subscription store | external store | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
 | clients.framework-bindings | React/Contract bindings | bindings | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
 | clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, stable two-section `agentDigest.v1` introspection, and an experimental app-bound Ibex one-file build qualified on macOS arm64 and Linux x86_64 GLIBC 2.35. Public inspection still lacks row-count magnitudes and D1 verdicts; hosted targets remain a GAP. | app cli, code mode, introspect, agent digest, changed since, digest cursor, one-file executable | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs + scripts/build-app-bound-executable + packages/snapback-app-cli/code-mode-ibex.test.mjs + GitHub Actions run 30999145126 | llp/0062, llp/0146 | clients/app-cli.md |
-| clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
+| clients.contract | Contract adapter; metadata opt-in; bindings; boot | contract, exact, ui bindings, contractMetadata exact | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0021, llp/0034 | clients/contract-adapter.md |
 | clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Settlements; settled/queued union; Exact three-fact projection; non-consuming `mutationStatus`/`subscribeMutation` observation | mutation state, timeout, retry, receipt, ambiguity, queued mutation union, mutation disposition, subscribeMutation, dispatch outcome | local | shipped | packages/snapback-client/outbox-store.test.mjs | llp/0043, llp/0063, llp/0218 | clients/contract-adapter.md |
@@ -1546,6 +1546,21 @@ ordinary variant was unsupported and built host glue around a paved path.
     Expected pages: `clients/contract-adapter.md`.
     Route terms: "keyedQueryScopes",
     "SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED", "forceEphemeralState".
+
+Case 47 absorbs the npm-only generated-typecheck gap recorded in
+`issues/closed/20260811-guide-gap-npm-generated-contract-typecheck.md`.
+
+47. **Npm-only generated Contract imports:** "Codegen succeeds in my React or
+    Expo app, but broad strict `tsc --noEmit` cannot resolve
+    `@exact/contract/exports` from generated `.contract-meta.ts` files." The
+    run fails if the plan installs a private/unavailable Exact package, probes
+    package presence to select output, permanently excludes all generated
+    Contract files on a current release, or omits the committed
+    `contractMetadata: "exact"` opt-in for a real Contract project.
+    Expected pages: `getting-started/generated-artifacts.md` or
+    `clients/contract-adapter.md`.
+    Route terms: "@exact/contract unavailable", "npm-only typecheck",
+    "contractMetadata", "contract-meta".
 
 ## Static routing check
 

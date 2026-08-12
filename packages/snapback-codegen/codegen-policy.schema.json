@@ -14,6 +14,10 @@
         "minLength": 1,
         "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.{1,2})(?:/|$))(?!.*\\\\).+$"
       }
+    },
+    "contractMetadata": {
+      "const": "exact",
+      "description": "Emit Exact-dependent .contract-meta.ts sidecars in addition to Contract-neutral bindings."
     }
   },
   "additionalProperties": false

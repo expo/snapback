@@ -3,5 +3,6 @@
   "committedProjections": [
     "functions.manifest.json",
     "schema.manifest.json"
-  ]
+  ],
+  "contractMetadata": "exact"
 }

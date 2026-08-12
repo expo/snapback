@@ -45,6 +45,7 @@ import {
 import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '@expo/snapback-contract/capabilities';
 import {
   generatedByHeader,
+  importsExactPackage,
   jsonLiteral,
   pascal,
   renderBindingModule,
@@ -5366,7 +5367,21 @@ async function generateInProcessLocked({
     return { ok: false, diagnostics };
   }
   const providerBindingTypes = renderProviderBindingTypes(providerBindingMetadata);
-  const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
+  const renderedContractModules = renderContractModules(
+    contractManifest,
+    functionManifest.functions,
+    functionsModule,
+    ephemeralCollections,
+    schemaDef,
+  );
+  // @ref LLP 0021#implementation-note--exact-dependent-generated-metadata-is-opt-in-2026-08-11
+  // — the committed codegen policy, never installed-package presence, selects
+  // whether Exact-importing sidecars join the default Contract-neutral set.
+  // Classify the emitted source itself because neutral and dependent modules
+  // deliberately share generated/contract/.
+  const contractModules = codegenPolicy.contractMetadata === 'exact'
+    ? renderedContractModules
+    : renderedContractModules.filter(({ source }) => !importsExactPackage(source));
   const operationSchemas = renderOperationSchemas(appId, functionManifest.functions, functionsModule);
   // @ref LLP 0204#d1--the-exposure-declaration-keystone — codegen filters
   // both operation schemas and declaration bindings from the same compiled
@@ -12645,7 +12660,9 @@ function readDemoAppMetadata(backendDir, diagnostics) {
 
 function readCodegenPolicy(backendRoot, diagnostics) {
   const path = join(backendRoot, 'codegen.policy.json');
-  if (!existsSync(path)) return { source: null, committedProjections: [] };
+  if (!existsSync(path)) {
+    return { source: null, committedProjections: [], contractMetadata: null };
+  }
   let source;
   let policy;
   try {
@@ -12663,16 +12680,23 @@ function readCodegenPolicy(backendRoot, diagnostics) {
       message: `codegen policy ${path} could not be read as JSON: ${cause.message}`,
       path,
     });
-    return { source: source ?? null, committedProjections: [] };
+    return { source: source ?? null, committedProjections: [], contractMetadata: null };
   }
-  const expectedKeys = ['committedProjections', 'schemaVersion'];
+  const requiredKeys = ['committedProjections', 'schemaVersion'];
+  const allowedKeys = [...requiredKeys, 'contractMetadata'];
+  const actualKeys = policy && typeof policy === 'object' && !Array.isArray(policy)
+    ? Object.keys(policy).sort()
+    : [];
   const committed = policy?.committedProjections;
+  const contractMetadata = policy?.contractMetadata;
   if (
     !policy
     || typeof policy !== 'object'
     || Array.isArray(policy)
     || policy.schemaVersion !== 'snapback.codegen-policy.v1'
-    || JSON.stringify(Object.keys(policy).sort()) !== JSON.stringify(expectedKeys)
+    || requiredKeys.some((key) => !actualKeys.includes(key))
+    || actualKeys.some((key) => !allowedKeys.includes(key))
+    || (contractMetadata !== undefined && contractMetadata !== 'exact')
     || !Array.isArray(committed)
     || new Set(committed).size !== committed.length
     || committed.some((entry) => (
@@ -12687,12 +12711,16 @@ function readCodegenPolicy(backendRoot, diagnostics) {
       code: 'CODEGEN_POLICY_INVALID',
       severity: 'error',
       subsystem: 'codegen',
-      message: `codegen policy ${path} must be a closed snapback.codegen-policy.v1 record with unique portable committedProjections`,
+      message: `codegen policy ${path} must be a closed snapback.codegen-policy.v1 record with unique portable committedProjections and optional contractMetadata: "exact"`,
       path,
     });
-    return { source, committedProjections: [] };
+    return { source, committedProjections: [], contractMetadata: null };
   }
-  return { source, committedProjections: [...committed].sort(compareCodeUnits) };
+  return {
+    source,
+    committedProjections: [...committed].sort(compareCodeUnits),
+    contractMetadata: contractMetadata ?? null,
+  };
 }
 
 function readString(value) {

@@ -57,7 +57,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "fe60ccdd52d88dd754d63041b160cd1ab2672d56258be9d9fc49b7675c73e996",
+    "inputsHash": "d3b1ddee8f0d5af10198998c164a6cd4072b76a7ac8529e1aeebf6a76d6710e0",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

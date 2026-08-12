@@ -21,11 +21,24 @@ function fixture(name) {
   return { root, backend };
 }
 
-function writeBackend(backend, { schema, functions, handler = null, demo = null }) {
+function writeBackend(backend, {
+  schema,
+  functions,
+  handler = null,
+  demo = null,
+  contractMetadata = null,
+}) {
   writeFileSync(join(backend, 'schema.mjs'), schema);
   writeFileSync(join(backend, 'functions.mjs'), functions);
   if (handler !== null) writeFileSync(join(backend, 'handlers.mjs'), handler);
   if (demo !== null) writeFileSync(join(backend, '..', 'demo.snapback.json'), JSON.stringify(demo, null, 2));
+  if (contractMetadata !== null) {
+    writeFileSync(join(backend, 'codegen.policy.json'), JSON.stringify({
+      schemaVersion: 'snapback.codegen-policy.v1',
+      committedProjections: [],
+      contractMetadata,
+    }, null, 2));
+  }
 }
 
 const baseSchema = `
@@ -43,6 +56,7 @@ try {
     const { backend } = fixture('optional');
     writeBackend(backend, {
       schema: baseSchema,
+      contractMetadata: 'exact',
       functions: `
 import { argOpt, defineLiveQuery, eq, v } from '../../_kit/define.mjs';
 export const listThings = defineLiveQuery({
@@ -76,6 +90,7 @@ export const listThings = defineLiveQuery({
     const { backend } = fixture('js-mutation');
     writeBackend(backend, {
       schema: baseSchema,
+      contractMetadata: 'exact',
       functions: `
 import { defineJsMutation, v } from '../../_kit/define.mjs';
 export const saveThing = defineJsMutation({

@@ -6,7 +6,7 @@
   "appId": "todo-v2",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:a81c09e241f14a80a53a3662e6d59cfca9a4c3227894575ea7b72503e140b4f4",
+  "authoredSourceHash": "sha256:39e86953ea48fa6084f0a5c9750ef3ae2d03f0b962ad56011893eee7c5bd4229",
   "ephemeralCollections": [
     {
       "burst": 40,
@@ -65,7 +65,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "796c318f3654f95606fa8df9a349113daba107d1045511ef638896dacfda004c",
+  "inputsHash": "1b766bbb90569d4010e51ddd6d9bc34c37bff56f7648dd2822439082106ab8a8",
   "portabilityFlags": [],
   "schemaHash": "sha256:67a37e12950ae893",
   "schemaVersion": "snapback.v0",

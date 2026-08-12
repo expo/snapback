@@ -35,6 +35,11 @@ export const listTodos = defineJsLiveQuery({
 export const listTodosPlan = defineLiveQuery({ table: 'todos', args: {} });
 `);
 writeFileSync(join(dir, 'handlers.mjs'), 'globalThis.__snapbackHandlers = { async listTodos(ctx) { return []; } };\n');
+writeFileSync(join(dir, 'codegen.policy.json'), JSON.stringify({
+  schemaVersion: 'snapback.codegen-policy.v1',
+  committedProjections: [],
+  contractMetadata: 'exact',
+}, null, 2));
 
 const result = await generate(dir);
 assert.equal(result.ok, true, `expected clean generation, got: ${JSON.stringify(result.diagnostics)}`);

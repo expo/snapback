@@ -2851,7 +2851,41 @@ await build({
     ['generate', 'snapback', '--json'],
     { cwd: reactScaffoldRoot, env: { ...process.env, npm_config_offline: 'true' } },
   );
+  const reactManifestAfterInstall = JSON.parse(
+    readFileSync(join(reactScaffoldRoot, 'package.json'), 'utf8'),
+  );
+  if (
+    Object.hasOwn(reactManifestAfterInstall.dependencies ?? {}, '@exact/contract')
+    || Object.hasOwn(reactManifestAfterInstall.devDependencies ?? {}, '@exact/contract')
+    || existsSync(join(reactScaffoldRoot, 'node_modules', '@exact', 'contract'))
+  ) {
+    fail('React npm-only fixture unexpectedly installed the unavailable @exact/contract package');
+  }
+  const reactGeneratedRoot = join(reactScaffoldRoot, 'snapback', 'generated');
+  const reactArtifactIndex = JSON.parse(
+    readFileSync(join(reactGeneratedRoot, 'artifacts.json'), 'utf8'),
+  );
+  const reactGeneratedTypeScript = reactArtifactIndex.files
+    .map(({ path }) => path)
+    .filter((path) => path.endsWith('.ts'));
+  const exactImportingGeneratedFiles = reactGeneratedTypeScript.filter((path) => (
+    /(?:^|\n)\s*import\s+(?:[^'"\n]*?\s+from\s+)?['"]@exact(?:\/[^'"]*)?['"]/u.test(
+      readFileSync(join(reactGeneratedRoot, path), 'utf8'),
+    )
+  ));
+  if (
+    reactGeneratedTypeScript.some((path) => path.endsWith('.contract-meta.ts'))
+    || exactImportingGeneratedFiles.length > 0
+    || !reactGeneratedTypeScript.includes('contract/runtime-links.ts')
+    || !reactGeneratedTypeScript.includes('contract/listTodos.query.ts')
+  ) {
+    fail(`React npm-only fixture emitted the wrong Contract output set: ${JSON.stringify({
+      exactImportingGeneratedFiles,
+      reactGeneratedTypeScript,
+    })}`);
+  }
   run('npm', ['run', 'typecheck'], { cwd: reactScaffoldRoot });
+  run('npm', ['run', 'lint'], { cwd: reactScaffoldRoot });
   run('npm', ['run', 'test:static'], { cwd: reactScaffoldRoot });
   const browserSecretCanary = `snapback-cold-canary-${randomBytes(24).toString('hex')}`;
   run('npm', ['run', 'build'], {
@@ -3178,6 +3212,7 @@ await build({
       packagedDeployBuildAndVerify: true,
       packagedManagedDevReadyAttachWatchAndStop: true,
       packedReactWebTypecheckTestBuildAndLiveAcceptance: true,
+      packedReactNpmOnlyGeneratedTypecheckAndLint: true,
       packedReactOneCommandBackendViteJourney:
         managedStarter.relativeBasePath === '/__snapback',
       packedReactRealBrowserSeedLiveReload: true,

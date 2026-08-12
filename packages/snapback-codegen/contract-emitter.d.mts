@@ -9,6 +9,9 @@ export function pascal(value: string): string;
 
 export function jsonLiteral(value: unknown): string;
 
+/** True when rendered module source statically imports an Exact package. */
+export function importsExactPackage(source: string): boolean;
+
 /**
  * The runtime-links registry module: the typed link interface plus the
  * configure/reset/get triple every generated binding delegates through.

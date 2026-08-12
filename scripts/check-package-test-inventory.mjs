@@ -271,6 +271,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'auth-crypto-vectors.test.mjs',
       'authoring-validation.test.mjs',
       'contract-binding-reads.test.mjs',
+      'contract-output-mode.test.mjs',
       'data-tier-corpus.test.mjs',
       'dependency-graph.test.mjs',
       'effect-ceiling.test.mjs',
@@ -464,7 +465,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 253,
+  expectedTotal = 254,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -797,6 +798,9 @@ export function checkPackageTestInventories(options = {}) {
 // 252 -> 253 (2026-08-11, LLP 0231 D1/D2 warn phase):
 // @expo/snapback-codegen gains the table visibility union, strict declaration
 // refusals, implicit-policy warning/remediation, and summary projection suite.
+// 253 -> 254 (2026-08-11, LLP 0021 Exact-optional implementation note):
+// @expo/snapback-codegen gains deterministic neutral-versus-Exact metadata
+// output, artifact-inventory/hash rotation, and no-package-probing coverage.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

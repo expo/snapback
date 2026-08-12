@@ -2,12 +2,12 @@
   "appId": "react",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:27f524b64df9fcb3cb612f40875bf19339d414ef05004ebd590afc61f78896ea",
+  "authoredSourceHash": "sha256:04b71a28cfc667dd2bc235b476fb5dde2be923e303582257baff58e6d7abb360",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "1030a81b1fccb497819a5df5b5c88ae0810cd4e0432f0a1b6ce704fc5f161c96",
+  "inputsHash": "a44b06f644cdb0d900be683665c36b52808c0af03283c3a1b3f717070eac3845",
   "portabilityFlags": [],
-  "schemaHash": "sha256:935b8d0c96cfa05e",
+  "schemaHash": "sha256:be0175f2216a5d41",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
