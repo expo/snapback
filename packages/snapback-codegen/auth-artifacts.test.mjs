@@ -117,6 +117,20 @@ assert.throws(
 );
 
 assert.throws(
+  () => defineAuth({
+    version: 1,
+    mechanisms: {
+      usernamePassword: { kind: 'password', identifier: 'username', provider: 'builtIn', recovery: 'recoveryCodes' },
+      emailPassword: { kind: 'password', identifier: 'email', provider: 'builtIn', recovery: 'recoveryCodes' },
+    },
+    assuranceRequirements: {},
+    guestPolicy: { enabled: false },
+    secretReferences: {},
+  }),
+  (error) => error?.code === 'SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_CONFLICT',
+);
+
+assert.throws(
   () => defineSchema({
     drafts: defineTable({ ownerId: v.principal() }),
   }, {
@@ -138,6 +152,25 @@ assert.throws(
   }),
   (error) => error?.code === 'SNAPBACK_AUTH_GUEST_CLEANUP_UNCLASSIFIED',
 );
+
+{
+  const emailPasswordSchema = `
+import { defineAuth, defineSchema, defineTable, v } from '${defineUrl}';
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: { password: { kind: 'password', identifier: 'email', provider: 'builtIn', recovery: 'recoveryCodes' } },
+  assuranceRequirements: {},
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
+export default defineSchema({ ${tables} }, { auth: { mode: 'sessions' }, authProgram });
+`;
+  const dir = backend(emailPasswordSchema, ordinaryFunctions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = readJson(join(dir, 'generated', 'schema.manifest.json'));
+  assert.equal(manifest.auth.passwordIdentifierMode, 'email-v1');
+}
 
 {
   const oldOrForeignTarget = {

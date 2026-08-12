@@ -689,6 +689,20 @@ impl AuthMode {
     }
 }
 
+/// App-declared canonicalization contract for local-password identities.
+/// The catalog stores the versioned value on first activation and refuses a
+/// contradictory declaration thereafter.
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
+)]
+pub enum AuthPasswordIdentifierMode {
+    #[default]
+    #[serde(rename = "username-v1")]
+    UsernameV1,
+    #[serde(rename = "email-v1")]
+    EmailV1,
+}
+
 /// Closed schema-manifest auth declaration. Unknown members are rejected so a
 /// future authority-changing field cannot be silently ignored by this parser.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -697,6 +711,12 @@ pub struct AuthManifest {
     pub mode: AuthMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agents: Option<AgentsManifest>,
+    #[serde(
+        default,
+        rename = "passwordIdentifierMode",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub password_identifier_mode: Option<AuthPasswordIdentifierMode>,
 }
 
 /// App-owned declaration of the outward-facing function surface. Absence (or

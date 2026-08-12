@@ -65,8 +65,8 @@ use crate::storage::auth_catalog_ops::{
     CatalogChallengeConsumption, CatalogFamilyAlarmPlan, CatalogIssuanceCommit,
     CatalogPasswordChangeCommit, CatalogPasswordChangePlan, CatalogPasswordChangeReconcile,
     CatalogProjectedSession, CatalogRejectedExchangePlan, CatalogRevocationPlan,
-    CatalogRotationPlan, CatalogSessionIssuancePlan, CatalogStepUpBinding,
-    INTERNAL_AUTH_COLLISION, internal_state_snapback,
+    CatalogRotationPlan, CatalogSessionIssuancePlan, CatalogStepUpBinding, INTERNAL_AUTH_COLLISION,
+    internal_state_snapback,
 };
 
 pub const AUTH_ADDRESS_STRIPES: usize = 256;
@@ -755,12 +755,24 @@ impl fmt::Debug for PasswordChangePreparation {
     }
 }
 
+impl PasswordChangePreparation {
+    pub(crate) fn canonical_identifier(&self) -> &str {
+        &self.planning.canonical_identifier
+    }
+}
+
 impl fmt::Debug for PasswordResetPreparation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ChallengeRejected => formatter.write_str("PasswordResetPreparation::ChallengeRejected"),
-            Self::PrincipalInvalid => formatter.write_str("PasswordResetPreparation::PrincipalInvalid"),
-            Self::Ready { .. } => formatter.write_str("PasswordResetPreparation::Ready([REDACTED])"),
+            Self::ChallengeRejected => {
+                formatter.write_str("PasswordResetPreparation::ChallengeRejected")
+            }
+            Self::PrincipalInvalid => {
+                formatter.write_str("PasswordResetPreparation::PrincipalInvalid")
+            }
+            Self::Ready { .. } => {
+                formatter.write_str("PasswordResetPreparation::Ready([REDACTED])")
+            }
         }
     }
 }
@@ -1491,15 +1503,8 @@ impl AuthProvider {
                 )
             })
             .map_err(|_| provider_unavailable().into_snapback_error())?;
-        self.finish_password_registration(
-            preparation,
-            password,
-            now_ms,
-            &key_id,
-            &key,
-            custody,
-        )
-        .await
+        self.finish_password_registration(preparation, password, now_ms, &key_id, &key, custody)
+            .await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1549,15 +1554,15 @@ impl AuthProvider {
         })?;
         let predecessor = database.password_authentication_predecessor(&canonical, mode)?;
         let revocations = match predecessor.credential.as_ref() {
-            Some(snapshot) => classify_session_cap(
-                database.auth_catalog_read().session_cap_facts(
+            Some(snapshot) => {
+                classify_session_cap(database.auth_catalog_read().session_cap_facts(
                     &snapshot.user_id,
                     now_ms,
                     AUTH_SESSION_LIVE_LIMIT as u64,
-                )?,
-            )?
-            .into_iter()
-            .collect(),
+                )?)?
+                .into_iter()
+                .collect()
+            }
             None => Vec::new(),
         };
         Ok(PasswordAuthenticationPreparation {
@@ -2126,13 +2131,8 @@ impl AuthProvider {
             )?;
         let candidate =
             SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
-        let revocations = plan_user_session_revocations(
-            database,
-            &predecessor.user_id,
-            None,
-            None,
-            now_ms,
-        )?;
+        let revocations =
+            plan_user_session_revocations(database, &predecessor.user_id, None, None, now_ms)?;
         let projected = ProjectedSessionInsert {
             session_id: candidate.session_id.clone(),
             user_id: predecessor.user_id.clone(),
@@ -2278,13 +2278,12 @@ impl AuthProvider {
                 user_id,
                 operation:
                     crate::storage::auth_identity::PasswordIssuanceOperation::RecoveryRotate {
-                        predecessor:
-                            crate::storage::auth_identity::RecoveryRotatePredecessor {
-                                acting_session_id: planning.acting_session_id,
-                                acting_generation: planning.acting_generation,
-                                acting_token_digest: planning.acting_token_digest,
-                                credential: planning.credential,
-                            },
+                        predecessor: crate::storage::auth_identity::RecoveryRotatePredecessor {
+                            acting_session_id: planning.acting_session_id,
+                            acting_generation: planning.acting_generation,
+                            acting_token_digest: planning.acting_token_digest,
+                            credential: planning.credential,
+                        },
                         successor_credential_id: opaque_catalog_component("recovery"),
                         successor_recovery,
                     },
@@ -2538,8 +2537,8 @@ impl AuthAdmission {
         } else {
             catalog.step_up_address(&binding.catalog_binding(), now_ms)
         }
-            .map_err(|_| provider_unavailable())?
-            .ok_or_else(auth_required)?;
+        .map_err(|_| provider_unavailable())?
+        .ok_or_else(auth_required)?;
         CanonicalAddress::parse(&address).map_err(|_| provider_unavailable())
     }
 
@@ -3254,14 +3253,9 @@ impl ExchangeAdmission {
         if !email_plan_matches {
             return Ok(PasswordResetPreparation::PrincipalInvalid);
         }
-        plan.revocations = plan_user_session_revocations(
-            database,
-            &credential.user_id,
-            None,
-            None,
-            now_ms,
-        )
-        .map_err(|_| provider_unavailable())?;
+        plan.revocations =
+            plan_user_session_revocations(database, &credential.user_id, None, None, now_ms)
+                .map_err(|_| provider_unavailable())?;
         Ok(PasswordResetPreparation::Ready {
             plan,
             email_identity_id,
@@ -3418,6 +3412,29 @@ impl AddressAdmission {
 
     fn provider(&self) -> &AuthProvider {
         &self.admission.provider
+    }
+
+    /// Re-read both the password predecessor and the user-scoped revocation
+    /// set only after this identifier's issuance stripe is held. Sign-in owns
+    /// the same stripe through its session insert, so the returned plan cannot
+    /// omit a session minted between address discovery and password change.
+    ///
+    /// @ref LLP 0227#principal-binding-same-sessions-no-parallel-identity — password change
+    ///   revokes every other session for the user in its linearized cut.
+    pub(crate) fn prepare_password_change(
+        &self,
+        database: &LocalDatabase,
+        acting: &SessionBearer,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<PasswordChangePreparation> {
+        let preparation = self
+            .provider()
+            .prepare_password_change(database, acting, now_ms, custody)?;
+        if preparation.canonical_identifier() != self.address.as_str() {
+            return Err(internal_state_snapback());
+        }
+        Ok(preparation)
     }
 
     /// Mint one five-minute, operation-bound challenge. The plaintext is
@@ -4129,9 +4146,9 @@ fn attempt_planned_password_change(
         .auth_catalog()
         .attempt_password_change(&catalog_plan);
     let attempt = match attempt {
-        AuthTransactionAttempt::Committed(outcome) => AuthTransactionAttempt::Committed(
-            planned_password_change_from_catalog(outcome),
-        ),
+        AuthTransactionAttempt::Committed(outcome) => {
+            AuthTransactionAttempt::Committed(planned_password_change_from_catalog(outcome))
+        }
         AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
         AuthTransactionAttempt::CommitUncertain(error) => {
             AuthTransactionAttempt::CommitUncertain(error)
@@ -4157,9 +4174,9 @@ fn attempt_planned_password_change(
                     .unwrap_or(false)
             });
             if committed {
-                AuthTransactionAttempt::Committed(
-                    PlannedPasswordChangeCommit::CredentialInvalid { committed_attempt },
-                )
+                AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::CredentialInvalid {
+                    committed_attempt,
+                })
             } else {
                 AuthTransactionAttempt::RolledBack(commit_error)
             }
@@ -7124,6 +7141,117 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn password_change_replans_sessions_after_identifier_admission() {
+        let now_ms = 4_500_000;
+        let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
+        let acting = register_password_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "change-race@example.com",
+            "a-strong-password-123",
+            now_ms,
+        )
+        .await;
+
+        // Phase 1 is the old broken cut: change discovered the credential and
+        // planned the then-current revocation set before a racing sign-in
+        // inserted its session.
+        let discovery = provider
+            .prepare_password_change(
+                &database,
+                acting.response().token(),
+                now_ms + 1,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("password change discovery");
+        let identifier = discovery.canonical_identifier().to_owned();
+        let (racing_finish, _) = password_signin_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            &identifier,
+            "a-strong-password-123",
+            now_ms + 2,
+        )
+        .await;
+        let IssuanceFinish::Committed {
+            issue: racing_issue,
+            ..
+        } = racing_finish
+        else {
+            panic!("racing predecessor-password sign-in must commit before change");
+        };
+        let racing_session_id = racing_issue.response().session.id.clone();
+        let racing_bearer = issue_token(&racing_issue);
+        assert!(
+            discovery
+                .revocations
+                .iter()
+                .all(|target| target.session_id() != racing_session_id),
+            "the pre-race discovery must reproduce the stale revocation snapshot"
+        );
+
+        // Phase 2 is the production repair: acquire the identifier stripe and
+        // re-plan while sign-in issuance is excluded. The raced-in session is
+        // therefore part of this exact change transaction's revocation set.
+        let admission = provider
+            .admit_email(&identifier)
+            .await
+            .expect("password identifier admission");
+        let preparation = admission
+            .prepare_password_change(
+                &database,
+                acting.response().token(),
+                now_ms + 3,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("password change re-plan");
+        let plan = provider
+            .finish_password_change(
+                preparation,
+                PasswordSecret::new("a-strong-password-123".to_owned()),
+                PasswordSecret::new("replacement-password-456".to_owned()),
+                now_ms + 3,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("password change plan");
+        let commit_plan = plan.commit_plan();
+        let carrier = coordinator
+            .premark_password_change(plan)
+            .await
+            .expect("premark password change");
+        let attempt = provider.commit_password_change(&mut database, &commit_plan);
+        let (finish, targets) = coordinator
+            .finish_password_change(carrier, attempt)
+            .into_parts();
+        drop(admission);
+
+        assert!(matches!(
+            finish.expect("finish password change"),
+            PasswordChangeFinish::Committed(_)
+        ));
+        assert!(
+            targets
+                .iter()
+                .any(|target| target.session_id() == racing_session_id),
+            "fresh planning under the identifier stripe must include the raced-in session"
+        );
+        assert!(
+            coordinator
+                .resolve_required_bearer(&racing_bearer, now_ms + 3, provider.monotonic_now(),)
+                .is_err(),
+            "the predecessor-password session must be terminal after change"
+        );
+        assert_eq!(
+            projected_terminal_reason_after_restart(&mut database, &racing_bearer, now_ms + 3,),
+            RevocationReason::DurableRevocation,
+            "the raced-in session must also be durably terminal"
+        );
+    }
+
+    #[tokio::test]
     async fn password_lockout_is_uniform_resets_decays_and_expires() {
         let now_ms = 5_000_000;
         let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
@@ -7737,8 +7865,7 @@ mod tests {
         )
         .await;
         let IssuanceFinish::Committed {
-            issue: recovered,
-            ..
+            issue: recovered, ..
         } = recovery_finish
         else {
             panic!("recovery consume must commit");

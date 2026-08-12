@@ -105,30 +105,56 @@ try {
   }
   assert.deepEqual(lockedCorrect.bytes, stillMissing.bytes);
 
+  const lockedProjection = await rawPasswordRequest(
+    server.baseUrl,
+    '/_snapback/api/auth/password/attempt',
+    { email },
+    { 'x-snapback-admin-token': server.adminToken },
+  );
+  assert.equal(lockedProjection.status, 200);
+  assert.equal(lockedProjection.body.failureThreshold, 10);
+  assert.equal(lockedProjection.body.failureWindowMs, 15 * 60 * 1_000);
+  assert.equal(lockedProjection.body.lockDurationMs, 15 * 60 * 1_000);
+  assert.equal(lockedProjection.body.attempt.canonicalIdentifier, email);
+  assert.equal(lockedProjection.body.attempt.failedCount, lockedProjection.body.failureThreshold);
+  assert.equal(lockedProjection.body.attempt.locked, true);
+  assert(Number.isSafeInteger(lockedProjection.body.attempt.windowStartMs));
+  assert(Number.isSafeInteger(lockedProjection.body.attempt.lockedUntilMs));
+  assert(
+    lockedProjection.body.attempt.lockedUntilMs > lockedProjection.body.attempt.windowStartMs,
+  );
+
   const existingUnlock = await runUnlock(server.baseUrl, server.adminToken, email);
   const missingUnlock = await runUnlock(server.baseUrl, server.adminToken, missing);
   assert.equal(existingUnlock.unlocked, true);
   assert.equal(missingUnlock.unlocked, true);
+  const clearedProjection = await rawPasswordRequest(
+    server.baseUrl,
+    '/_snapback/api/auth/password/attempt',
+    { email },
+    { 'x-snapback-admin-token': server.adminToken },
+  );
+  assert.equal(clearedProjection.status, 200);
+  assert.equal(clearedProjection.body.attempt, null);
   const afterUnlock = publicClient(server.baseUrl, 'password-lockout-after-unlock');
   clients.push(afterUnlock);
   assertCredentialProjection(await afterUnlock.client.authPasswordSignIn({ email, password }));
 
   process.stdout.write(`${JSON.stringify({
+    ok: true,
     row: 10,
-    acceptanceComplete: false,
-    witness: 'public-wire-and-unlock-subset',
+    acceptanceComplete: true,
+    witness: 'public-wire-admin-projection-and-unlock',
     failuresPerIdentifier: 12,
     publicRoundsUniform: true,
     dynamicDateHeaderValidatedButNotByteCompared: true,
     correctPasswordWhileLockedUniform: true,
+    adminAttemptProjection: lockedProjection.body,
     adminUnlockVerb: { existing: existingUnlock, missing: missingUnlock },
+    adminProjectionClearedAfterUnlock: true,
     signinAfterUnlock: true,
     timingsMs: rounds,
-    limitation: 'No authenticated password-attempt admin read projection is routed. The public surface can prove uniform wire behavior and the AdminWrite unlock, but cannot observe lock existence, failed-count threshold, or expiry as the commission requires.',
   })}\n`);
-  throw new Error(
-    'SNAPBACK_ACCEPTANCE_LOCKOUT_ADMIN_PROJECTION_UNAVAILABLE: row 10 is incomplete because no authenticated public projection exposes lock existence, threshold/count, or expiry',
-  );
 } finally {
   await closeClients(clients);
   if (server) await server.stop();

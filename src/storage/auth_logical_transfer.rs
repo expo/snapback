@@ -24,7 +24,6 @@ const AUTH_LOGICAL_TABLES_V2: &[&str] = &[
     "_auth_grant_tokens",
     "_auth_agent_invitations",
     "_auth_pairing_requests",
-    "_auth_scope_bases",
 ];
 
 const AUTH_LOGICAL_TABLES_V3_EXTRA: &[&str] = &[
@@ -217,7 +216,7 @@ impl LocalDatabase {
                 "logical auth import requires an exact catalog version 2, 3, or 4",
             ));
         }
-        require_empty_auth_target(&tx, target_catalog)?;
+        require_empty_auth_target(&tx, target_catalog, &artifact.scope_bases)?;
 
         let target_password_identifier_mode = match target_catalog {
             AuthCatalogState::ReadyV4 => super::auth::require_password_identifier_mode_on(&tx)?,
@@ -354,7 +353,8 @@ impl LocalDatabase {
             tx.execute(
                 "INSERT INTO _auth_scope_bases(
                    function_id, kind, generation, present, authority_creating
-                 ) VALUES(?1, ?2, ?3, ?4, ?5)",
+                 ) VALUES(?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(function_id) DO NOTHING",
                 params![
                     scope.function_id,
                     scope.kind,
@@ -417,6 +417,7 @@ fn format_one_identity_descriptor<'a>(
 fn require_empty_auth_target(
     conn: &rusqlite::Connection,
     catalog: AuthCatalogState,
+    incoming_scope_bases: &[AuthLogicalScopeBaseV1],
 ) -> SnapbackResult<()> {
     for table in AUTH_LOGICAL_TABLES_V2
         .iter()
@@ -477,6 +478,35 @@ fn require_empty_auth_target(
         .optional()?
         .is_some();
     if terminal_cause_present {
+        return Err(logical_target_not_empty());
+    }
+
+    // Normal sessions-mode activation seeds the current app's scope bases
+    // before an operator can stop the fresh target and run this offline
+    // import. Those rows are schema authority, not spendable caller
+    // authority. Admit them only when every target row is an exact member of
+    // the artifact; the later conflict-free inserts then retain the matching
+    // rows while importing any source tombstones the fresh target lacks.
+    let target_scope_bases = conn
+        .prepare(
+            "SELECT function_id, kind, generation, present, authority_creating
+             FROM _auth_scope_bases ORDER BY function_id",
+        )?
+        .query_map([], |row| {
+            Ok(AuthLogicalScopeBaseV1 {
+                function_id: row.get(0)?,
+                kind: row.get(1)?,
+                generation: row.get(2)?,
+                present: row.get(3)?,
+                authority_creating: row.get(4)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    if target_scope_bases.iter().any(|target| {
+        !incoming_scope_bases
+            .iter()
+            .any(|incoming| incoming == target)
+    }) {
         return Err(logical_target_not_empty());
     }
     Ok(())
@@ -685,7 +715,39 @@ mod tests {
         }
 
         let parsed = AuthLogicalExportV1::parse(&bytes).unwrap();
+        let mut mismatched_target = ready_database();
+        mismatched_target
+            .with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_scope_bases(
+                       function_id, kind, generation, present, authority_creating
+                     ) VALUES('fn:write', 'mutation', 6, 1, 1)",
+                    [],
+                )?;
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(
+            mismatched_target
+                .auth_logical_import(&parsed)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_LOGICAL_IMPORT_TARGET_NOT_EMPTY",
+            "activation scope bases are admissible only as exact incoming schema facts",
+        );
         let mut target = ready_database();
+        target
+            .with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_scope_bases(
+                       function_id, kind, generation, present, authority_creating
+                     ) VALUES('fn:write', 'mutation', 7, 1, 1)",
+                    [],
+                )?;
+                Ok(())
+            })
+            .unwrap();
         let target_before = target.authorization_version().unwrap();
         let outcome = target.auth_logical_import(&parsed).unwrap();
         assert_ne!(outcome.authorization_incarnation, target_before.incarnation);

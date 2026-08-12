@@ -5,7 +5,12 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-11 (catalog-v3 reconciliation: closed-v1 logical auth
+**Revised:** 2026-08-12 (macOS descriptor-copy reconciliation: SQLite online
+backup now materializes its complete quiesced snapshot in a private in-memory
+database, sanitizes export-excluded custody there, and serializes the finished
+image through the already pinned staging descriptor; declared restore rebases
+catalog-v4 password-attempt timestamps by only an artificial clock-floor jump
+so physical lockout state is not aged out by future authority deadlines.) 2026-08-11 (catalog-v3 reconciliation: closed-v1 logical auth
 transfer now accepts exact v2/v3 source and empty-target catalogs, records the
 source catalog version, reconstructs only the v3 identity descriptors the
 format implies exactly, and refuses lossy descriptor mappings.) 2026-08-10 (implementation reconciliation: first-class closed-v1
@@ -1383,18 +1388,20 @@ The backup algorithm is:
    `backup.json`) through that directory descriptor with `O_CREAT | O_EXCL |
    O_NOFOLLOW`, retaining the exact descriptor-created child inode before any
    byte is written.
-4. Run SQLite's online backup API from the locked live connection into the
-   database member **bound to its exact open descriptor**, never reopened by
-   pathname. The descriptor-bound copy journals in memory, so no `-journal` or
-   `-wal` sidecar is created or read; this folds all committed database and WAL
-   state into the destination while copying a source `-wal` file is neither
-   necessary nor permitted. The completed image's format-version header is
-   normalized to rollback mode directly through the pinned descriptor and then
-   re-opened read-only through that same descriptor to prove it is a standalone
-   exact catalog matching the manifest version. A staging path that a local
-   principal has replaced or symlinked between creation and the copy fails an
-   identity revalidation before any source page is copied, so no catalog byte
-   can reach a substituted inode.
+4. Run SQLite's online backup API from the locked live connection into a
+   private in-memory destination. The private copy journals in memory, so no
+   `-journal` or `-wal` sidecar is created or read; this folds all committed
+   database and WAL state into the destination while copying a source `-wal`
+   file is neither necessary nor permitted. Apply any export-only sanitization
+   before bytes escape that destination, serialize the completed image, and
+   write it only through the exact retained descriptor-created database member
+   (never through a pathname). Normalize the image's format-version header to
+   rollback mode in that descriptor stream and re-open the same descriptor
+   read-only to prove it is a standalone exact catalog matching the manifest
+   version. This indirection is required on hosts such as macOS where SQLite
+   cannot pager-write the `/dev/fd/N` alias of an otherwise writable retained
+   descriptor. A staging path that a local principal has replaced or symlinked
+   still cannot receive a source byte.
 5. Write the captured keyring bytes to `auth-keyring.json` mode `0600` and the
    closed `backup.json` (format version `1`, creation time, catalog version,
    database SHA-256, keyring SHA-256, source database basename; no key ids or
@@ -1480,6 +1487,14 @@ file. Before bind, one auth transaction compares
   below `created_at_ms` and fail the DDL `CHECK`;
 - deletes every verification challenge; and
 - writes this declaration id as the final statement.
+
+For catalog v4, a future restored authority deadline can move the durable clock
+above the wall-clock sample solely to make terminal session timestamps
+representable. That **artificial difference only** is added to the restored
+password-attempt window and lock deadline in the same declaration transaction.
+Natural elapsed time between backup and restore still ages the attempt ledger;
+the fail-closed session frontier therefore cannot accidentally erase the
+physical backup's lockout state.
 
 Before computing that frontier, restore validates **every non-null value** in
 every inventoried v1 timestamp column and, for `ReadyV2`, every additional v2

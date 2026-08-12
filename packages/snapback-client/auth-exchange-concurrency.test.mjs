@@ -221,6 +221,7 @@ test('authExchange terminates across interleaved internal authSession custody ch
         authorizationStreamIncarnation: INCARNATION_B,
         sessionId: EXCHANGED_SESSION,
         userId: EXCHANGED_USER,
+        isAuthenticated: true,
       });
     } finally {
       await fixture.close();
@@ -269,6 +270,7 @@ test('authExchange terminates across interleaved internal authSession custody ch
         kind: 'anonymous',
         authMode: 'sessions',
         authorizationStreamIncarnation: INCARNATION_B,
+        isAuthenticated: false,
       });
     } finally {
       releaseBarrier.resolve();
@@ -301,7 +303,10 @@ test('authExchange terminates across interleaved internal authSession custody ch
         assert.equal(error?.code, 'SNAPBACK_CLIENT_AUTHORITY_STALE');
         return true;
       }), 'authExchange authenticated stale-authority rejection');
-      assert.deepEqual(fixture.coordinator.authority, otherAuthority);
+      assert.deepEqual(fixture.coordinator.authority, {
+        ...otherAuthority,
+        isAuthenticated: true,
+      });
     } finally {
       await fixture.close();
     }

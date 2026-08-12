@@ -124,7 +124,17 @@ try {
     password,
   });
   assert.equal(lockedCorrect.status, tenth.status);
-  assert.deepEqual(lockedCorrect.headers, tenth.headers);
+  // `Date` is a dynamic per-response timestamp. These two requests are Argon2-padded
+  // and land seconds apart, so byte-equal `Date` would be false HTTP metadata rather
+  // than evidence of uniformity. Validate it is a well-formed HTTP date and compare
+  // every OTHER header byte-for-byte — the same treatment password-auth-uniformity.mjs
+  // applies. The uniformity claim lives in the static headers and the body.
+  for (const observation of [tenth, lockedCorrect]) {
+    const date = new Map(observation.headers).get('date');
+    assert(Number.isFinite(Date.parse(date)), 'response carried an invalid HTTP Date header');
+  }
+  const staticHeaders = ({ headers }) => headers.filter(([name]) => name !== 'date');
+  assert.deepEqual(staticHeaders(lockedCorrect), staticHeaders(tenth));
   assert.deepEqual(lockedCorrect.bytes, tenth.bytes);
   const unlock = await rawPasswordRequest(
     server.baseUrl,

@@ -77,3 +77,47 @@ Passing component rows are not a first-class email+password launch claim. The
 email-v1 activation precondition, stale-predecessor race, CLI signup, physical
 backup, logical export, authenticated lock-state projection, and real-browser
 run remain explicit blockers.
+
+## 2026-08-12 repair pass
+
+The product repairs turned several vague end-to-end failures into precise
+cross-layer lessons:
+
+- The signin transaction's exact credential-generation fence was already
+  correct. The broken interleaving was earlier: password change snapshotted the
+  user's sessions before its KDF while signin could mint a new predecessor-
+  password session outside that snapshot. Sharing the canonical-identifier
+  admission stripe and replanning after admission made the two legal outcomes
+  explicit: signin commits first and the fresh change plan revokes it, or the
+  change commits first and signin sees only the successor password.
+- Password CLI verbs shared a good stdin carrier but missed the protocol offer
+  required by their own public routes. Adding the auth-client protocol header
+  at the common HTTP helper repaired all six public password/recovery verbs;
+  the seventh, admin unlock, correctly remains on the AdminWrite protocol.
+- `defineAuth` was already the right authoring seam. Allowing
+  `identifier: 'email'` there and carrying `email-v1` into the generated schema
+  kept the choice declarative and made catalog immutability a deployment check,
+  not a runtime surprise.
+- macOS SQLite cannot pager-write the `/dev/fd/N` alias of a retained writable
+  descriptor once a real multi-page backup starts. A private in-memory online
+  backup followed by serialization through that descriptor preserved inode
+  pinning without relying on a pathname alias. Declared restore also needed to
+  distinguish real elapsed time from the artificial clock jump forced by a
+  restored future session deadline; otherwise that jump silently aged the
+  physically preserved password-attempt window out.
+- Logical transfer had two independent seams hidden behind its async-worker
+  panic: the CLI needed the sanctioned blocking lane, and an ordinarily
+  activated empty target legitimately contained matching scope-base schema
+  facts. Exact subset matching admits that fresh state without turning import
+  into a merge.
+- The lockout ledger already had a correctly bounded storage projection, but
+  no route. A body-carried AdminRead projection now reports the active profile
+  thresholds and optional ledger record without putting the identifier in an
+  URL or leaking any of those facts through the public password response.
+
+The client acceptance also exposed two projection papercuts adjacent to the
+four server defects: a server-authoritative snapshot did not advance freshness
+unless a retention adapter was present, and the public authority view omitted
+the derived `isAuthenticated` convenience bit even though the durable custody
+record was correct. Fixing those at their projection boundaries was markedly
+cleaner than teaching the demo about internal custody shapes.

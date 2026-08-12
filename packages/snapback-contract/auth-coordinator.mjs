@@ -1012,9 +1012,15 @@ export class AuthCoordinator {
   get phase() { return this.#counterExhaustionError ? 'exhausted' : (this.#record?.phase ?? 'blank'); }
 
   get authority() {
-    return !this.#counterExhaustionError && this.#record?.phase === 'settled'
-      ? clone(this.#record.authority)
-      : null;
+    if (this.#counterExhaustionError || this.#record?.phase !== 'settled') return null;
+    // The durable authority is deliberately a smaller, exact record than the
+    // public projection. Derive the convenience authentication fact at this
+    // read boundary so custody written by older clients remains valid and an
+    // anonymous transition (including logout) is unambiguous to app code.
+    return {
+      ...clone(this.#record.authority),
+      isAuthenticated: this.#record.authority.kind === 'session',
+    };
   }
 
   capture() {

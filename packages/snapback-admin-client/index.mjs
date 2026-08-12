@@ -535,6 +535,10 @@ export class AdminClient {
     return this.#req('GET', '/auth/integrations');
   }
 
+  passwordAttempt(email) {
+    return this.#req('POST', '/auth/password/attempt', { email });
+  }
+
   telemetryEvents(filter = {}) {
     return this.#req(
       'GET',

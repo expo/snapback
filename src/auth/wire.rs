@@ -160,6 +160,40 @@ pub struct PasswordUnlockResponse {
     pub unlocked: bool,
 }
 
+#[derive(Clone, Debug, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordAttemptAdminRecord {
+    pub canonical_identifier: String,
+    pub window_start_ms: u64,
+    pub failed_count: u64,
+    pub locked_until_ms: Option<u64>,
+    pub locked: bool,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordAttemptAdminRequest {
+    pub email: String,
+}
+
+impl fmt::Debug for PasswordAttemptAdminRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PasswordAttemptAdminRequest")
+            .field("email", &"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordAttemptAdminResponse {
+    pub attempt: Option<PasswordAttemptAdminRecord>,
+    pub failure_threshold: u64,
+    pub failure_window_ms: u64,
+    pub lock_duration_ms: u64,
+}
+
 #[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RequestCodeRequest {

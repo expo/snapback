@@ -27,6 +27,7 @@ impl LocalDatabase {
         self.schema.auth = Some(crate::manifest::AuthManifest {
             mode: crate::manifest::AuthMode::Sessions,
             agents: None,
+            password_identifier_mode: None,
         });
         self.schema.push_seam = Some(declaration);
         Ok(())

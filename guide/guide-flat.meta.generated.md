@@ -572,6 +572,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/app/seed/preview-v1 | backend.versioned-seed |
 | /_snapback/api/app/seed/reset-install-v1 | backend.versioned-seed |
 | /_snapback/api/auth/mailbox | auth.sessions |
+| /_snapback/api/auth/password/attempt | auth.passwords |
 | /_snapback/api/auth/password/unlock | auth.passwords |
 | /_snapback/api/auth/declared-clients | auth.agent-principals |
 | /_snapback/api/auth/declared-clients/bless | auth.agent-principals |

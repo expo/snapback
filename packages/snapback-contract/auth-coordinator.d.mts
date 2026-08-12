@@ -23,6 +23,10 @@ export type SnapbackClientAuthority =
       userId: string;
     };
 
+export type SnapbackClientAuthorityView = SnapbackClientAuthority & {
+  readonly isAuthenticated: boolean;
+};
+
 export interface SnapbackSenderPublicJwk {
   crv: 'P-256';
   kty: 'EC';
@@ -192,7 +196,7 @@ export class AuthCoordinator {
 
   get appId(): string;
   get phase(): SnapbackAuthCustodyPhase | 'blank';
-  get authority(): SnapbackClientAuthority | null;
+  get authority(): SnapbackClientAuthorityView | null;
 
   capture(): SnapbackAuthorityCapture;
   isCurrent(capture: SnapbackAuthorityCapture | null | undefined): boolean;

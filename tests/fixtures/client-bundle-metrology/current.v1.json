@@ -616,15 +616,15 @@
       "package": "@expo/snapback-client/app-data",
       "fixtureSha256": "affa880d29923ab0e75ae51a65250f5c4a93587cd9041352590e1b1f35f929e6",
       "externals": [],
-      "minifiedBytes": 432945,
-      "gzipBytes": 121371,
-      "brotliBytes": 100056,
-      "outputSha256": "5030684ee1c39e4a175d3b52ed6c6ab372b6f4bc55b01c0c9c24817928462cb8",
+      "minifiedBytes": 432935,
+      "gzipBytes": 121370,
+      "brotliBytes": 100083,
+      "outputSha256": "cc53aaa9ab55bcafc76c7674ea00e7f8e389fadb387be3e417992cee29301977",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 390478
+            "bytes": 390468
           },
           {
             "name": "@expo/snapback-contract",
@@ -639,7 +639,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 228308
+            "bytes": 228298
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -850,7 +850,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -1223,7 +1223,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -1301,7 +1301,7 @@
           }
         },
         "output": {
-          "bytes": 432945,
+          "bytes": 432935,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/app-data-operation-live.fixture.mjs",
           "imports": [
             {
@@ -1348,7 +1348,7 @@
               "bytesInOutput": 12022
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 228308
+              "bytesInOutput": 228298
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -1417,9 +1417,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 17980,
-        "gzipBytes": 4512,
-        "brotliBytes": 3815
+        "minifiedBytes": 17990,
+        "gzipBytes": 4513,
+        "brotliBytes": 3788
       }
     },
     {
@@ -1617,7 +1617,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -1990,7 +1990,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -2274,15 +2274,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "84aa869b18e72ffaf028cd00cf1ef39aa07ceea3334ffc34aff6c3784eb0cdee",
       "externals": [],
-      "minifiedBytes": 430653,
-      "gzipBytes": 120621,
-      "brotliBytes": 99451,
-      "outputSha256": "7f6effc5f627ea7cece4728fe67746cb307ba0482a1696403a7950898361de0d",
+      "minifiedBytes": 430643,
+      "gzipBytes": 120620,
+      "brotliBytes": 99433,
+      "outputSha256": "3fc891bc087cc577b10cc56313fa16ef8103de4c9c9269a543edf5a99c21a344",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 388174
+            "bytes": 388164
           },
           {
             "name": "@expo/snapback-contract",
@@ -2297,7 +2297,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 228308
+            "bytes": 228298
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -2493,7 +2493,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -2866,7 +2866,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -2944,7 +2944,7 @@
           }
         },
         "output": {
-          "bytes": 430653,
+          "bytes": 430643,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/full-operation-call.fixture.mjs",
           "imports": [
             {
@@ -2988,7 +2988,7 @@
               "bytesInOutput": 12022
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 228308
+              "bytesInOutput": 228298
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -3057,9 +3057,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 18177,
-        "gzipBytes": 4598,
-        "brotliBytes": 3924
+        "minifiedBytes": 18187,
+        "gzipBytes": 4599,
+        "brotliBytes": 3942
       }
     },
     {
@@ -3067,15 +3067,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "0eebc000eaa9d8065d155ed1af5d46a64e1257498e4280266999022435be0dd6",
       "externals": [],
-      "minifiedBytes": 430683,
-      "gzipBytes": 120627,
-      "brotliBytes": 99479,
-      "outputSha256": "f626a9349cd1c518cef5c6dec1ec73836f2c81d011ae335d13840cf7182d6a47",
+      "minifiedBytes": 430673,
+      "gzipBytes": 120626,
+      "brotliBytes": 99454,
+      "outputSha256": "400f761c3e5de103472fbb987b54b3822b46cbd999e577d731b3781a016f7195",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 388174
+            "bytes": 388164
           },
           {
             "name": "@expo/snapback-contract",
@@ -3090,7 +3090,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 228308
+            "bytes": 228298
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -3286,7 +3286,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -3659,7 +3659,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -3737,7 +3737,7 @@
           }
         },
         "output": {
-          "bytes": 430683,
+          "bytes": 430673,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/full-operation-live.fixture.mjs",
           "imports": [
             {
@@ -3781,7 +3781,7 @@
               "bytesInOutput": 12022
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 228308
+              "bytesInOutput": 228298
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -3850,9 +3850,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 18177,
-        "gzipBytes": 4602,
-        "brotliBytes": 3908
+        "minifiedBytes": 18187,
+        "gzipBytes": 4603,
+        "brotliBytes": 3933
       }
     },
     {
@@ -3860,15 +3860,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "6c5d046533faa7d9794a2a001d88c1fb961f4d29b594c7aa4efa221572e59d83",
       "externals": [],
-      "minifiedBytes": 533941,
-      "gzipBytes": 147998,
-      "brotliBytes": 120846,
-      "outputSha256": "dd8ca56f017485e01f956afe76cea4fb799c961dff604dcd0a6075f1a0bf2002",
+      "minifiedBytes": 533931,
+      "gzipBytes": 147996,
+      "brotliBytes": 120991,
+      "outputSha256": "467db9afa4875830bc3de93c4d724f2baf7d7f22a1deb37885bbb2d1c73ce4b1",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 488716
+            "bytes": 488706
           },
           {
             "name": "@expo/snapback-contract",
@@ -3883,7 +3883,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 232730
+            "bytes": 232720
           },
           {
             "module": "packages/snapback-client/agent-authority.mjs",
@@ -4094,7 +4094,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -4467,7 +4467,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -4545,7 +4545,7 @@
           }
         },
         "output": {
-          "bytes": 533941,
+          "bytes": 533931,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/full-public-surface.fixture.mjs",
           "imports": [
             {
@@ -4600,7 +4600,7 @@
               "bytesInOutput": 8955
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 232730
+              "bytesInOutput": 232720
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -4672,9 +4672,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 23808,
-        "gzipBytes": 6390,
-        "brotliBytes": 4816
+        "minifiedBytes": 23818,
+        "gzipBytes": 6392,
+        "brotliBytes": 4671
       }
     },
     {
@@ -4682,15 +4682,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "4e318bff7882378e69ee33376f5eed5ae87362d549c6fd3f3fe5b2364b072dcb",
       "externals": [],
-      "minifiedBytes": 431092,
-      "gzipBytes": 120721,
-      "brotliBytes": 99550,
-      "outputSha256": "5a7cfec71390b484ff85d105348b7846fe640134ddd91233367009c217703113",
+      "minifiedBytes": 431082,
+      "gzipBytes": 120720,
+      "brotliBytes": 99539,
+      "outputSha256": "74b41e94d348c7adae842c4c915bafe1f95ab648c55d54ff6890c64716a6462d",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 388635
+            "bytes": 388625
           },
           {
             "name": "@expo/snapback-contract",
@@ -4705,7 +4705,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 228769
+            "bytes": 228759
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -4901,7 +4901,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -5274,7 +5274,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -5352,7 +5352,7 @@
           }
         },
         "output": {
-          "bytes": 431092,
+          "bytes": 431082,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/full-sessions.fixture.mjs",
           "imports": [
             {
@@ -5396,7 +5396,7 @@
               "bytesInOutput": 12022
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 228769
+              "bytesInOutput": 228759
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -5465,9 +5465,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 18177,
-        "gzipBytes": 4597,
-        "brotliBytes": 3809
+        "minifiedBytes": 18187,
+        "gzipBytes": 4598,
+        "brotliBytes": 3820
       }
     },
     {
@@ -5801,15 +5801,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "53cbbb1e7343c133423222271946153ad9c5c0e005895a7ab9c75883e14a421f",
       "externals": [],
-      "minifiedBytes": 534103,
-      "gzipBytes": 148113,
-      "brotliBytes": 120990,
-      "outputSha256": "603ba916f6cc22256e24948c1c8d47a80663152d1b735eb269e2750556fc33ba",
+      "minifiedBytes": 534093,
+      "gzipBytes": 148111,
+      "brotliBytes": 120970,
+      "outputSha256": "2d32b4a57f43df4c6edfa73db9af46ea48e9573ab402be5de4ca1a5aa6dd7793",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 488824
+            "bytes": 488814
           },
           {
             "name": "@expo/snapback-contract",
@@ -5824,7 +5824,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 232730
+            "bytes": 232720
           },
           {
             "module": "packages/snapback-client/agent-authority.mjs",
@@ -6040,7 +6040,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -6423,7 +6423,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -6506,7 +6506,7 @@
           }
         },
         "output": {
-          "bytes": 534103,
+          "bytes": 534093,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/micro-root-negative.fixture.mjs",
           "imports": [
             {
@@ -6561,7 +6561,7 @@
               "bytesInOutput": 8955
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 232730
+              "bytesInOutput": 232720
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -6636,9 +6636,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 23808,
-        "gzipBytes": 6392,
-        "brotliBytes": 4702
+        "minifiedBytes": 23818,
+        "gzipBytes": 6394,
+        "brotliBytes": 4722
       }
     },
     {
@@ -6646,15 +6646,15 @@
       "package": "@expo/snapback-client/online",
       "fixtureSha256": "021cff3497a2cee86d3ca8cf778a0313b30a1567b9fb3714a0bed2673d768daf",
       "externals": [],
-      "minifiedBytes": 430685,
-      "gzipBytes": 120630,
-      "brotliBytes": 99427,
-      "outputSha256": "642a95f4eca6a51c213e3ba3a72dbf6a4ae912ca33c1208b5a9ca6d9a93b85c0",
+      "minifiedBytes": 430675,
+      "gzipBytes": 120629,
+      "brotliBytes": 99429,
+      "outputSha256": "0793e711626a8f46970bbe65971c98fdb367aa3f2ffae6306c1b5402621e2f24",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 388174
+            "bytes": 388164
           },
           {
             "name": "@expo/snapback-contract",
@@ -6669,7 +6669,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 228308
+            "bytes": 228298
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -6870,7 +6870,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -7253,7 +7253,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -7331,7 +7331,7 @@
           }
         },
         "output": {
-          "bytes": 430685,
+          "bytes": 430675,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/online-operation-live.fixture.mjs",
           "imports": [
             {
@@ -7375,7 +7375,7 @@
               "bytesInOutput": 12022
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 228308
+              "bytesInOutput": 228298
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -7447,9 +7447,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 18177,
-        "gzipBytes": 4598,
-        "brotliBytes": 3901
+        "minifiedBytes": 18187,
+        "gzipBytes": 4599,
+        "brotliBytes": 3899
       }
     },
     {
@@ -7531,7 +7531,7 @@
             ]
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -7589,15 +7589,15 @@
       "package": "@expo/snapback-client/app-data",
       "fixtureSha256": "dc9cd2dba7e807de4104f8a707a3cc8ab2e98358d29f6c53c5efcea76ed498e9",
       "externals": [],
-      "minifiedBytes": 436058,
-      "gzipBytes": 122460,
-      "brotliBytes": 100786,
-      "outputSha256": "3498ca69b94cde22a1911af4841b7c73ffb93182f66ca06b24a8341258928b11",
+      "minifiedBytes": 436048,
+      "gzipBytes": 122459,
+      "brotliBytes": 100644,
+      "outputSha256": "03cd95f33b34a9e2703170ec3da06a14ba834dd1b31907e05d70cf51c82e8b80",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 393519
+            "bytes": 393509
           },
           {
             "name": "@expo/snapback-contract",
@@ -7612,7 +7612,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 228308
+            "bytes": 228298
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -7823,7 +7823,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -8196,7 +8196,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -8274,7 +8274,7 @@
           }
         },
         "output": {
-          "bytes": 436058,
+          "bytes": 436048,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-app-data.fixture.mjs",
           "imports": [
             {
@@ -8321,7 +8321,7 @@
               "bytesInOutput": 12022
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 228308
+              "bytesInOutput": 228298
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -8390,9 +8390,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 17980,
-        "gzipBytes": 4515,
-        "brotliBytes": 3722
+        "minifiedBytes": 17990,
+        "gzipBytes": 4516,
+        "brotliBytes": 3864
       }
     },
     {
@@ -8838,15 +8838,15 @@
       "package": "@expo/snapback-client/hosted-browser",
       "fixtureSha256": "cac007ca30751dde93db15febdfaf51b00f114adfed031e92f3f91daeb975fe1",
       "externals": [],
-      "minifiedBytes": 432001,
-      "gzipBytes": 121079,
+      "minifiedBytes": 431991,
+      "gzipBytes": 121078,
       "brotliBytes": 99797,
-      "outputSha256": "b673fc63f26a12db305616963b986c2b73c7123b548d1b1e9c82dc01b42d4ead",
+      "outputSha256": "41b83dc03dee4cc4c21a5969b7f6b427c560ac031bcf366981afc53885c7616e",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 389456
+            "bytes": 389446
           },
           {
             "name": "@expo/snapback-contract",
@@ -8861,7 +8861,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 228308
+            "bytes": 228298
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -9072,7 +9072,7 @@
             ]
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -9445,7 +9445,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -9523,7 +9523,7 @@
           }
         },
         "output": {
-          "bytes": 432001,
+          "bytes": 431991,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-hosted-browser.fixture.mjs",
           "imports": [
             {
@@ -9570,7 +9570,7 @@
               "bytesInOutput": 1282
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 228308
+              "bytesInOutput": 228298
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -9639,8 +9639,8 @@
         }
       },
       "savings": {
-        "minifiedBytes": 18177,
-        "gzipBytes": 4583,
+        "minifiedBytes": 18187,
+        "gzipBytes": 4584,
         "brotliBytes": 3851
       }
     },
@@ -9744,7 +9744,7 @@
             ]
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -10225,7 +10225,7 @@
             ]
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -10950,15 +10950,15 @@
       "package": "@expo/snapback-client/online",
       "fixtureSha256": "5dc8b4d7b09913de130602cdddac3d082b7da2bf83ba25786cfa9dd8cd501a70",
       "externals": [],
-      "minifiedBytes": 432087,
-      "gzipBytes": 121153,
-      "brotliBytes": 99708,
-      "outputSha256": "39df71696e083bf58bc6173c6538cda19f711220ea4b86b8f4f107d178cab841",
+      "minifiedBytes": 432077,
+      "gzipBytes": 121152,
+      "brotliBytes": 99837,
+      "outputSha256": "3110805005ae612472698415be2241f428f925a365f8952d3d29750d07cc63f5",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 389550
+            "bytes": 389540
           },
           {
             "name": "@expo/snapback-contract",
@@ -10973,7 +10973,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 229576
+            "bytes": 229566
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -11174,7 +11174,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -11557,7 +11557,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -11635,7 +11635,7 @@
           }
         },
         "output": {
-          "bytes": 432087,
+          "bytes": 432077,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-online.fixture.mjs",
           "imports": [
             {
@@ -11679,7 +11679,7 @@
               "bytesInOutput": 12022
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 229576
+              "bytesInOutput": 229566
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -11751,9 +11751,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 18177,
-        "gzipBytes": 4550,
-        "brotliBytes": 4072
+        "minifiedBytes": 18187,
+        "gzipBytes": 4551,
+        "brotliBytes": 3943
       }
     },
     {
@@ -11910,7 +11910,7 @@
             ]
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -12364,15 +12364,15 @@
       "package": "@expo/snapback-client/push-registry",
       "fixtureSha256": "5dad135cbf5fc5bc6be7012b2b5ee40e9149eca502854b3e3c1be2374a0d3735",
       "externals": [],
-      "minifiedBytes": 434640,
-      "gzipBytes": 122013,
-      "brotliBytes": 100255,
-      "outputSha256": "4ea2c686e15eb8fe29a59e6f5b188962d44c5e90d0eb57db955fd4addde699a5",
+      "minifiedBytes": 434630,
+      "gzipBytes": 122012,
+      "brotliBytes": 100302,
+      "outputSha256": "99d870aac0f439b028b7e3e8f19fa0c84a7f541b6abd0a22e7a469b90981d8d4",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 392096
+            "bytes": 392086
           },
           {
             "name": "@expo/snapback-contract",
@@ -12387,7 +12387,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 228308
+            "bytes": 228298
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -12588,7 +12588,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -12976,7 +12976,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -13054,7 +13054,7 @@
           }
         },
         "output": {
-          "bytes": 434640,
+          "bytes": 434630,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-push-registry.fixture.mjs",
           "imports": [
             {
@@ -13098,7 +13098,7 @@
               "bytesInOutput": 12022
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 228308
+              "bytesInOutput": 228298
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -13170,9 +13170,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 18177,
-        "gzipBytes": 4564,
-        "brotliBytes": 3829
+        "minifiedBytes": 18187,
+        "gzipBytes": 4565,
+        "brotliBytes": 3782
       }
     },
     {
@@ -13532,15 +13532,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "0b8aca9f63994d2f44a8bc47a6f21226dff5d6a13bb73742eb1e55ed2a4e260f",
       "externals": [],
-      "minifiedBytes": 533941,
-      "gzipBytes": 148004,
-      "brotliBytes": 120944,
-      "outputSha256": "c7615f514850e304a9123562d9b319e98bd54c02060441566cc6f17d54d43fc2",
+      "minifiedBytes": 533931,
+      "gzipBytes": 148003,
+      "brotliBytes": 120881,
+      "outputSha256": "dcbf6a14f689b8022dbea77d8cd2fd28d8839dbfa72a6e7c50fc462589011aca",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 488716
+            "bytes": 488706
           },
           {
             "name": "@expo/snapback-contract",
@@ -13555,7 +13555,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 232730
+            "bytes": 232720
           },
           {
             "module": "packages/snapback-client/agent-authority.mjs",
@@ -13766,7 +13766,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -14139,7 +14139,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -14217,7 +14217,7 @@
           }
         },
         "output": {
-          "bytes": 533941,
+          "bytes": 533931,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-root.fixture.mjs",
           "imports": [
             {
@@ -14272,7 +14272,7 @@
               "bytesInOutput": 8955
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 232730
+              "bytesInOutput": 232720
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -14344,9 +14344,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 23808,
-        "gzipBytes": 6388,
-        "brotliBytes": 4645
+        "minifiedBytes": 23818,
+        "gzipBytes": 6389,
+        "brotliBytes": 4708
       }
     },
     {
@@ -15700,15 +15700,15 @@
       "package": "@expo/snapback-client/vector-search",
       "fixtureSha256": "a246801156b965b742e04ded577c363b50941c57547ac7486509c1e7bb5330e6",
       "externals": [],
-      "minifiedBytes": 430759,
-      "gzipBytes": 120707,
-      "brotliBytes": 99544,
-      "outputSha256": "9a6026c53fefab283afc90b05a75d2b96b24776e361cbb546e016d2ad539f258",
+      "minifiedBytes": 430749,
+      "gzipBytes": 120706,
+      "brotliBytes": 99463,
+      "outputSha256": "1b7f17ab394adf7d324f40cba1c81207b3e541258630305704e702deafcb6d97",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 388215
+            "bytes": 388205
           },
           {
             "name": "@expo/snapback-contract",
@@ -15723,7 +15723,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 228308
+            "bytes": 228298
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -15924,7 +15924,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -16307,7 +16307,7 @@
             ]
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -16385,7 +16385,7 @@
           }
         },
         "output": {
-          "bytes": 430759,
+          "bytes": 430749,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-vector-search.fixture.mjs",
           "imports": [
             {
@@ -16429,7 +16429,7 @@
               "bytesInOutput": 12022
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 228308
+              "bytesInOutput": 228298
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -16501,9 +16501,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 18177,
-        "gzipBytes": 4597,
-        "brotliBytes": 3880
+        "minifiedBytes": 18187,
+        "gzipBytes": 4598,
+        "brotliBytes": 3961
       }
     },
     {
@@ -16511,15 +16511,15 @@
       "package": "@expo/snapback-client/push-registry",
       "fixtureSha256": "82c87d382e3a6cc932897930fe351ca82915e6842c124163364f7252ab0ddabe",
       "externals": [],
-      "minifiedBytes": 434661,
-      "gzipBytes": 121948,
-      "brotliBytes": 100263,
-      "outputSha256": "67c6cc649426f757d0ee63a38bd175730b3ef35bac949e926613cceb338e34cf",
+      "minifiedBytes": 434651,
+      "gzipBytes": 121947,
+      "brotliBytes": 100238,
+      "outputSha256": "b2e61f33e374a7d5ab39d93b875e7ddef2598f998cedab281518abfc982e937d",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 392022
+            "bytes": 392012
           },
           {
             "name": "@expo/snapback-contract",
@@ -16534,7 +16534,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 228308
+            "bytes": 228298
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -16735,7 +16735,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -17123,7 +17123,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -17206,7 +17206,7 @@
           }
         },
         "output": {
-          "bytes": 434661,
+          "bytes": 434651,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/push-registry-attach.fixture.mjs",
           "imports": [
             {
@@ -17250,7 +17250,7 @@
               "bytesInOutput": 12022
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 228308
+              "bytesInOutput": 228298
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -17322,9 +17322,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 18177,
-        "gzipBytes": 4572,
-        "brotliBytes": 3910
+        "minifiedBytes": 18187,
+        "gzipBytes": 4573,
+        "brotliBytes": 3935
       }
     },
     {
@@ -17332,15 +17332,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "42aa5b177ef3541023072161237d1e35f59324d92e546915faf74601cc4b72f1",
       "externals": [],
-      "minifiedBytes": 534559,
-      "gzipBytes": 148217,
-      "brotliBytes": 121204,
-      "outputSha256": "ef47da329510b26e137f656bb4398974e25a14fed5f5d7f5b7326e7b5875ae1a",
+      "minifiedBytes": 534549,
+      "gzipBytes": 148216,
+      "brotliBytes": 120971,
+      "outputSha256": "733cfe926850e31741945c14a573f0a8bb19faaf6fad1572c580d4ec46314e92",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 488716
+            "bytes": 488706
           },
           {
             "name": "@expo/snapback-contract",
@@ -17355,7 +17355,7 @@
           {
             "module": "packages/snapback-client/index.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 232730
+            "bytes": 232720
           },
           {
             "module": "packages/snapback-client/agent-authority.mjs",
@@ -17566,7 +17566,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -17939,7 +17939,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -18017,7 +18017,7 @@
           }
         },
         "output": {
-          "bytes": 534559,
+          "bytes": 534549,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/push-registry-root-negative.fixture.mjs",
           "imports": [
             {
@@ -18072,7 +18072,7 @@
               "bytesInOutput": 8955
             },
             "packages/snapback-client/index.mjs": {
-              "bytesInOutput": 232730
+              "bytesInOutput": 232720
             },
             "packages/snapback-client/live-wire-core.mjs": {
               "bytesInOutput": 246
@@ -18144,9 +18144,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 23808,
-        "gzipBytes": 6366,
-        "brotliBytes": 4557
+        "minifiedBytes": 23818,
+        "gzipBytes": 6367,
+        "brotliBytes": 4790
       }
     },
     {
@@ -19190,7 +19190,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -19563,7 +19563,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -20042,7 +20042,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 614943,
+            "bytes": 615064,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -20415,7 +20415,7 @@
             "imports": []
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",
@@ -20757,7 +20757,7 @@
             ]
           },
           "packages/snapback-contract/auth-coordinator.mjs": {
-            "bytes": 133248,
+            "bytes": 133640,
             "imports": [
               {
                 "path": "packages/snapback-contract/ids.mjs",

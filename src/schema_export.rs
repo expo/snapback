@@ -32,9 +32,10 @@ use crate::auth::rehearsal::{
 };
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
-    MailboxResponse, MintSessionRequest, PasswordChangeRequest, PasswordCredentialRequest,
-    PasswordResetRequest, PasswordUnlockRequest, PasswordUnlockResponse, RecoveryConsumeRequest,
-    RequestCodeRequest, RequestCodeResponse, RescueCollidingTableRequest,
+    MailboxResponse, MintSessionRequest, PasswordAttemptAdminRequest, PasswordAttemptAdminResponse,
+    PasswordChangeRequest, PasswordCredentialRequest, PasswordResetRequest, PasswordUnlockRequest,
+    PasswordUnlockResponse, RecoveryConsumeRequest, RequestCodeRequest, RequestCodeResponse,
+    RescueCollidingTableRequest,
 };
 use crate::commit_envelope::{
     ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1, OperationCoverageActivationRequestV1,
@@ -904,6 +905,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(PasswordUnlockResponse),
         ),
         finish(
+            "auth.password-attempt-admin.input.schema.json",
+            schemars::schema_for!(PasswordAttemptAdminRequest),
+        ),
+        finish(
+            "auth.password-attempt-admin.output.schema.json",
+            schemars::schema_for!(PasswordAttemptAdminResponse),
+        ),
+        finish(
             "auth.credential.output.schema.json",
             schemars::schema_for!(CredentialResponse),
         ),
@@ -1427,6 +1436,10 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
         ("POST", "/_snapback/api/auth/password/unlock") => (
             Some("auth.password-unlock.input.schema.json"),
             Some("auth.password-unlock.output.schema.json"),
+        ),
+        ("POST", "/_snapback/api/auth/password/attempt") => (
+            Some("auth.password-attempt-admin.input.schema.json"),
+            Some("auth.password-attempt-admin.output.schema.json"),
         ),
         // LLP 0204 S2 Landing A uses handler-owned closed DTOs; no committed
         // standalone schema artifacts exist yet, so null is honest.

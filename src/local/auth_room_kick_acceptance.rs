@@ -1011,6 +1011,7 @@ fn game_schema() -> SchemaManifest {
         auth: Some(AuthManifest {
             mode: AuthMode::Sessions,
             agents: None,
+            password_identifier_mode: None,
         }),
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         schema_hash: Some(game_schema_hash()),

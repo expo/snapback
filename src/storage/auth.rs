@@ -13,14 +13,14 @@ use crate::contract_types::{
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{
-    Connection, OpenFlags, OptionalExtension, Transaction, TransactionBehavior, params,
+    Connection, DatabaseName, OpenFlags, OptionalExtension, Transaction, TransactionBehavior,
+    params,
 };
 use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::path::Path;
 use std::sync::OnceLock;
-use std::time::Duration;
 
 /// The catalog version this binary creates. Password-identifier activation
 /// moves fresh stores to v4 while exact v1/v2/v3 stores remain recognized
@@ -195,6 +195,15 @@ impl PasswordIdentifierMode {
         match self {
             Self::UsernameV1 => "username",
             Self::EmailV1 => "email",
+        }
+    }
+}
+
+impl From<crate::manifest::AuthPasswordIdentifierMode> for PasswordIdentifierMode {
+    fn from(mode: crate::manifest::AuthPasswordIdentifierMode) -> Self {
+        match mode {
+            crate::manifest::AuthPasswordIdentifierMode::UsernameV1 => Self::UsernameV1,
+            crate::manifest::AuthPasswordIdentifierMode::EmailV1 => Self::EmailV1,
         }
     }
 }
@@ -1610,6 +1619,21 @@ impl LocalDatabase {
             .optional()?)
     }
 
+    #[cfg(test)]
+    pub(crate) fn insert_large_backup_fixture_for_test(&mut self) -> SnapbackResult<()> {
+        self.with_auth_transaction(|tx| {
+            tx.execute_batch(
+                "CREATE TABLE backup_large_app_fixture(
+                   id INTEGER PRIMARY KEY,
+                   payload BLOB NOT NULL
+                 );
+                 INSERT INTO backup_large_app_fixture(payload)
+                   VALUES(zeroblob(1048576));",
+            )?;
+            Ok(())
+        })
+    }
+
     /// Run a read through the protected lane. No raw connection accessor is
     /// exposed; callers must cross an exact recognized-catalog check for every
     /// operation.
@@ -1918,9 +1942,19 @@ impl LocalDatabase {
         // or above every restored durable auth timestamp, not merely session
         // creation time, before it writes terminal state or reseeds the floor.
         let restored_catalog_frontier = restored_auth_timestamp_frontier_on(&tx, catalog)?;
-        let restore_now_ms = read_session_clock_floor_on(&tx)?
-            .max(now_ms)
-            .max(restored_catalog_frontier);
+        let sampled_restore_now_ms = read_session_clock_floor_on(&tx)?.max(now_ms);
+        let restore_now_ms = sampled_restore_now_ms.max(restored_catalog_frontier);
+        // A future restored authority deadline can deliberately move the
+        // durable clock ahead of the real elapsed time so session revocation
+        // remains representable. Preserve v4's physically backed-up lockout
+        // state across only that artificial jump: natural time between backup
+        // and restore still ages the window normally.
+        // @ref LLP 0214#21-amendment-2026-08-11-catalog-v4-and-what-the-reconciliation-actually-cost — physical backup carries the password-attempt ledger.
+        rebase_password_attempts_for_restore_in(
+            &tx,
+            catalog,
+            restore_now_ms - sampled_restore_now_ms,
+        )?;
         advance_session_clock_floor_on(&tx, restore_now_ms)?;
 
         let sessions_revoked =
@@ -2031,8 +2065,10 @@ impl LocalDatabase {
     /// a caller-created staging descriptor. The caller owns the exclusive
     /// maintenance boundary, the retained keyring bytes, and the pinned
     /// staging identities; SQLite binds to the exact descriptor-created inode
-    /// and never reopens the staging pathname, so a swapped or symlinked
-    /// staging path can never receive source pages.
+    /// and never reopens the staging pathname. SQLite builds the snapshot in
+    /// a private memory database and serialization writes it only through the
+    /// retained staging descriptor, so a swapped or symlinked path can never
+    /// receive source pages.
     ///
     /// @ref LLP 0057#consistent-backup — the staged image stays the exact
     /// secure unit created by the command; no page is copied through a
@@ -2057,22 +2093,30 @@ impl LocalDatabase {
             [],
             |row| row.get(0),
         )?;
-        // A descriptor-bound connection has no usable sibling pathname, so
-        // the copy journals in memory: no `-journal`/`-wal` sidecar is ever
-        // created or read, which also removes the hot-journal/WAL injection
+        // The copy journals in private memory: no `-journal`/`-wal` sidecar is
+        // ever created or read, which removes the hot-journal/WAL injection
         // surface a swapped staging directory would otherwise offer. A failed
-        // copy discards the staged inode; artifact durability comes from the
-        // explicit fsync and publication rename, not a rollback journal.
+        // copy never writes the staged inode; artifact durability comes from
+        // the explicit descriptor fsync and publication rename.
         //
         // `sqlite3_backup_init` can exceptionally return NULL while leaving
         // only the destination connection's stale "not an error" state. That
         // was observed after earlier suite operations even though the exact
         // same backup passed in isolation. No page has moved when init fails,
-        // so close that connection and make one bounded attempt from a fresh
-        // descriptor-bound connection. Step/copy failures are never retried.
-        let mut copy_completed = false;
+        // so discard it and make one bounded attempt from a fresh private
+        // connection. Step/copy failures are never retried.
+        let source_page_size: i64 = self
+            .conn
+            .query_row("PRAGMA page_size", [], |row| row.get(0))?;
+        let mut copied = None;
         for initialization_attempt in 0..2 {
-            let mut output = open_backup_image_connection(image, false)?;
+            // macOS exposes a retained file as `/dev/fd/N`, but SQLite opens
+            // that alias read-only for pager writes. Copy into a private
+            // memory database first, then serialize its completed snapshot
+            // directly to the caller's pinned descriptor. No replaceable
+            // pathname ever receives a source page.
+            let mut output = Connection::open_in_memory()?;
+            output.pragma_update(None, "page_size", source_page_size)?;
             let journal_mode: String =
                 output.query_row("PRAGMA journal_mode = MEMORY", [], |row| row.get(0))?;
             if !journal_mode.eq_ignore_ascii_case("memory") {
@@ -2080,58 +2124,37 @@ impl LocalDatabase {
                     "backup database image could not be made self-contained",
                 ));
             }
-
             if force_first_initialization_failure {
                 force_first_initialization_failure = false;
-                output.close().map_err(|(_, error)| error)?;
-                image
-                    .set_len(0)
-                    .map_err(|_| backup_invalid("could not reset the backup database image"))?;
                 continue;
             }
 
             match copy_backup_pages(&self.conn, &mut output) {
                 Ok(()) => {
-                    output.close().map_err(|(_, error)| error)?;
-                    copy_completed = true;
+                    copied = Some(output);
                     break;
                 }
                 Err(BackupCopyFailure::Initialization(_error)) if initialization_attempt == 0 => {
-                    output.close().map_err(|(_, error)| error)?;
-                    // `PRAGMA journal_mode` initialized an empty SQLite image.
-                    // Restore the still-pinned inode to the pristine state the
-                    // online-backup API expects before reopening it.
-                    image
-                        .set_len(0)
-                        .map_err(|_| backup_invalid("could not reset the backup database image"))?;
+                    // No page has moved; discard the private destination and
+                    // make one bounded initialization attempt from a fresh DB.
                 }
                 Err(BackupCopyFailure::Initialization(error))
                 | Err(BackupCopyFailure::Copy(error)) => return Err(error.into()),
+                Err(BackupCopyFailure::Incomplete) => {
+                    return Err(backup_invalid(
+                        "backup database image copy did not complete",
+                    ));
+                }
             }
         }
-        if !copy_completed {
-            return Err(backup_invalid(
-                "backup database image initialization did not complete",
-            ));
-        }
-        // A WAL-mode header copied from the source would make the standalone
-        // image try to create a fresh sidecar merely to open, and SQLite
-        // cannot rewrite that header through a descriptor-bound connection
-        // (leaving WAL mode requires opening the sidecar it cannot name).
-        // Normalize the completed image's format-version bytes to rollback
-        // mode directly through the pinned descriptor; all committed WAL
-        // pages are already folded into the image by the online backup.
-        normalize_backup_image_format(image).map_err(|_| {
-            backup_invalid("backup database image could not be made self-contained")
+        let output = copied.ok_or_else(|| {
+            backup_invalid("backup database image initialization did not complete")
         })?;
         // @ref LLP 0143#d1-device-token-custody — auth backup is an export
         // surface; the staged copy retains registry schema but never custody
-        // rows or provider token bytes. Sanitize only after the copied WAL
-        // header is normalized: querying or writing the descriptor-bound
-        // image before then would make SQLite look for a forbidden `-wal`
-        // sibling beside `/dev/fd`.
+        // rows or provider token bytes. Sanitize the completed private copy
+        // before any bytes reach the staged descriptor.
         if scrub_push_registry {
-            let output = open_backup_image_connection(image, false)?;
             let journal_mode: String =
                 output.query_row("PRAGMA journal_mode = MEMORY", [], |row| row.get(0))?;
             if !journal_mode.eq_ignore_ascii_case("memory") {
@@ -2166,14 +2189,30 @@ impl LocalDatabase {
                     output.execute(&format!("DELETE FROM {table}"), [])?;
                 }
             }
-            output.close().map_err(|(_, error)| error)?;
-            normalize_backup_image_format(image).map_err(|_| {
-                backup_invalid("backup database image could not be made self-contained")
-            })?;
         }
-        image
-            .sync_all()
-            .map_err(|_| backup_invalid("could not sync the backup database image"))?;
+        let serialized = output.serialize(DatabaseName::Main)?;
+        let header_versions = serialized.get(18..20).ok_or_else(|| {
+            backup_invalid("backup database image could not be made self-contained")
+        })?;
+        if !matches!(header_versions, [1, 1] | [2, 2]) {
+            return Err(backup_invalid(
+                "backup database image could not be made self-contained",
+            ));
+        }
+        use std::io::{Seek as _, Write as _};
+        let mut image_writer = image
+            .try_clone()
+            .map_err(|_| backup_invalid("backup database descriptor could not be retained"))?;
+        image_writer
+            .set_len(0)
+            .and_then(|_| image_writer.seek(std::io::SeekFrom::Start(0)).map(|_| ()))
+            .and_then(|_| {
+                image_writer.write_all(&serialized[..18])?;
+                image_writer.write_all(&[1, 1])?;
+                image_writer.write_all(&serialized[20..])
+            })
+            .and_then(|_| image_writer.sync_all())
+            .map_err(|_| backup_invalid("could not write the backup database image"))?;
         // Prove the normalized image reopens standalone and reads its own
         // schema, again without touching any pathname. Catalog-shape claims
         // belong to the callers that actually make them.
@@ -2335,6 +2374,7 @@ fn open_backup_image_connection(_image: &File, _read_only: bool) -> SnapbackResu
 enum BackupCopyFailure {
     Initialization(rusqlite::Error),
     Copy(rusqlite::Error),
+    Incomplete,
 }
 
 fn copy_backup_pages(
@@ -2343,37 +2383,13 @@ fn copy_backup_pages(
 ) -> Result<(), BackupCopyFailure> {
     let backup = rusqlite::backup::Backup::new(source, destination)
         .map_err(BackupCopyFailure::Initialization)?;
-    backup
-        .run_to_completion(128, Duration::from_millis(1), None)
-        .map_err(BackupCopyFailure::Copy)
-}
-
-/// Rewrite the image's read/write format-version bytes from WAL (2) to
-/// rollback (1) through the pinned descriptor. This performs exactly the
-/// header edit `PRAGMA journal_mode = DELETE` would apply when leaving WAL
-/// mode; the image has no WAL sidecar, so no checkpoint content exists.
-#[cfg(unix)]
-fn normalize_backup_image_format(image: &File) -> std::io::Result<()> {
-    use std::os::unix::fs::FileExt as _;
-
-    let mut versions = [0_u8; 2];
-    image.read_exact_at(&mut versions, 18)?;
-    match versions {
-        [1, 1] => Ok(()),
-        [2, 2] => image.write_all_at(&[1, 1], 18),
-        _ => Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "backup image carries an unrecognized format version",
-        )),
+    match backup.step(-1).map_err(BackupCopyFailure::Copy)? {
+        rusqlite::backup::StepResult::Done => Ok(()),
+        rusqlite::backup::StepResult::More
+        | rusqlite::backup::StepResult::Busy
+        | rusqlite::backup::StepResult::Locked => Err(BackupCopyFailure::Incomplete),
+        _ => Err(BackupCopyFailure::Incomplete),
     }
-}
-
-#[cfg(not(unix))]
-fn normalize_backup_image_format(_image: &File) -> std::io::Result<()> {
-    Err(std::io::Error::new(
-        std::io::ErrorKind::Unsupported,
-        "descriptor-bound backup images are unsupported on this host",
-    ))
 }
 
 /// Install the current catalog inside a caller-owned transaction. The caller
@@ -2438,6 +2454,32 @@ pub(super) fn activate_current_auth_catalog_with_password_identifier_mode_in(
     )?;
     activation_step_completed(activation_step)?;
     require_ready_on(tx)
+}
+
+pub(super) fn require_password_identifier_mode_declaration_on(
+    connection: &Connection,
+    mode: PasswordIdentifierMode,
+    explicitly_declared: bool,
+) -> SnapbackResult<()> {
+    match inspect_auth_catalog_on(connection)? {
+        AuthCatalogState::ReadyV4 if explicitly_declared => {
+            if read_password_identifier_mode_on(connection)? == mode {
+                Ok(())
+            } else {
+                Err(password_identifier_mode_immutable())
+            }
+        }
+        AuthCatalogState::ReadyV4 => Ok(()),
+        AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3
+            if explicitly_declared =>
+        {
+            Err(password_requires_v4())
+        }
+        AuthCatalogState::ReadyV1
+        | AuthCatalogState::ReadyV2
+        | AuthCatalogState::ReadyV3
+        | AuthCatalogState::Uninitialized => Ok(()),
+    }
 }
 
 /// Install the exact frozen version-1 catalog for compatibility fixtures.
@@ -2759,6 +2801,41 @@ fn restored_auth_timestamp_frontier_on(
         }
     }
     Ok(frontier)
+}
+
+fn rebase_password_attempts_for_restore_in(
+    tx: &Transaction<'_>,
+    catalog: AuthCatalogState,
+    artificial_clock_advance_ms: u64,
+) -> SnapbackResult<()> {
+    if catalog != AuthCatalogState::ReadyV4 || artificial_clock_advance_ms == 0 {
+        return Ok(());
+    }
+    let maximum_predecessor = MAX_SAFE_TIMESTAMP_MS - artificial_clock_advance_ms;
+    let would_overflow: bool = tx.query_row(
+        "SELECT EXISTS(
+           SELECT 1 FROM _auth_password_attempts
+           WHERE window_start_ms > ?1
+              OR (locked_until_ms IS NOT NULL AND locked_until_ms > ?1)
+         )",
+        params![maximum_predecessor as i64],
+        |row| row.get(0),
+    )?;
+    if would_overflow {
+        return Err(corrupt(
+            "restored password-attempt time cannot be rebased within the portable range",
+        ));
+    }
+    tx.execute(
+        "UPDATE _auth_password_attempts
+         SET window_start_ms = window_start_ms + ?1,
+             locked_until_ms = CASE
+               WHEN locked_until_ms IS NULL THEN NULL
+               ELSE locked_until_ms + ?1
+             END",
+        params![artificial_clock_advance_ms as i64],
+    )?;
+    Ok(())
 }
 
 /// Terminate bearer and pending-consent authority without deleting agent
@@ -4144,6 +4221,8 @@ mod tests {
             Ok(())
         })
         .unwrap();
+        db.insert_password_attempt_for_test("restore-clock@example.com", 90, 9, None)
+            .unwrap();
         assert_eq!(
             crate::auth::sender_proof::sender_constraint_for_presented_token(
                 &db.conn,
@@ -4167,6 +4246,12 @@ mod tests {
             .unwrap();
         assert_eq!(revoked_at, 1100);
         assert_eq!(db.auth_session_clock_floor().unwrap(), 1100);
+        assert_eq!(
+            db.password_attempt_for_test("restore-clock@example.com")
+                .unwrap(),
+            Some((1090, 9, None)),
+            "the artificial restore-floor jump must not age out physical lockout state",
+        );
         assert_eq!(
             crate::auth::sender_proof::sender_constraint_for_presented_token(
                 &db.conn,

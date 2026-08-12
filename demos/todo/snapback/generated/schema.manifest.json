@@ -6,12 +6,12 @@
   "appId": "todo",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:7205b084562780fd7378c1143b4270cb70fb248745dadbd8bda8ae54d873888a",
+  "authoredSourceHash": "sha256:bb90399548d6e1b056cf01642b47364ce1defa40890ba0ad95fa2fb6e96139cf",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "3c56103fa9119af71133f12fd9a376484c758838974d4dcee2aa6906aa2d90f4",
+  "inputsHash": "582cf6146b7878faa16098f02d43c5e4c47c30ed3036546edf384c41a3e1e04c",
   "portabilityFlags": [],
-  "schemaHash": "sha256:7f48d432679abb9d",
+  "schemaHash": "sha256:954c86a400959327",
   "schemaVersion": "snapback.v0",
   "tables": [
     {

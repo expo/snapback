@@ -11002,17 +11002,16 @@ export class SnapbackClient {
           handle.rows = event.rows;
           handle.version = event.version;
           handle.authorizationDisposition = 'retain';
-          if (preparedMaterialization) {
-            handle.answerClass = 'authoritative';
-            handle.freshness = 'current';
-          }
+          // An authorization-fenced snapshot is authoritative whether or not
+          // this client installed an optional durable materialization adapter.
+          // Freshness describes the server answer, not its retention owner.
+          handle.answerClass = 'authoritative';
+          handle.freshness = 'current';
         } else if (event.kind === 'quarantine' || event.kind === 'delete') {
           handle.rows = [];
           handle.authorizationDisposition = event.kind;
-          if (preparedMaterialization) {
-            handle.answerClass = 'unknown';
-            handle.freshness = null;
-          }
+          handle.answerClass = 'unknown';
+          handle.freshness = null;
         } else if (event.kind === 'retain') {
           handle.authorizationDisposition = 'retain';
         } else {

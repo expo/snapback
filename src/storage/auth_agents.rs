@@ -1412,6 +1412,7 @@ mod tests {
         manifest.auth = Some(crate::manifest::AuthManifest {
             mode: AuthMode::Sessions,
             agents: None,
+            password_identifier_mode: None,
         });
         create_agent(&mut db, "agent-a", None);
         seat(&db, "agent-a", "event-1", "host");

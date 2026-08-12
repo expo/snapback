@@ -2074,6 +2074,7 @@ mod tests {
         database
             .insert_password_attempt_for_test("backup-ledger@example.com", 20, 4, Some(120))
             .unwrap();
+        database.insert_large_backup_fixture_for_test().unwrap();
         let backup_directory = fixture.parent().join("backup");
         let outcome = create_backup(
             &fixture.database,
@@ -2239,6 +2240,17 @@ mod tests {
                 )
                 .unwrap(),
             ("backup-ledger@example.com".to_owned(), 20, 4, Some(120))
+        );
+        assert_eq!(
+            restored_rows
+                .query_row(
+                    "SELECT length(payload) FROM backup_large_app_fixture",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .unwrap(),
+            1_048_576,
+            "the descriptor-safe backup must retain real multi-page app data",
         );
     }
 
