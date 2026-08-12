@@ -101,10 +101,10 @@ export function deriveHoldingTag(version, revision) {
 
 export function parseArguments(argv) {
   const subcommand = argv[0];
-  if (!['stage', 'release'].includes(subcommand)) {
+  if (!['stage', 'release', 'preflight'].includes(subcommand)) {
     throw codedError(
       'SNAPBACK_FASTPATH_ARGUMENT_INVALID',
-      'first argument must be stage or release',
+      'first argument must be stage, release, or preflight',
     );
   }
   const options = {
@@ -116,6 +116,7 @@ export function parseArguments(argv) {
     retainLedger: null,
     publish: false,
     otp: null,
+    isolateWorktree: subcommand !== 'preflight',
     help: false,
   };
   const seen = new Set();
@@ -123,6 +124,20 @@ export function parseArguments(argv) {
     const argument = argv[index];
     if (argument === '--help' || argument === '-h') {
       options.help = true;
+      continue;
+    }
+    if (argument === '--isolate-worktree' || argument === '--no-isolate-worktree') {
+      if (subcommand === 'preflight') {
+        throw codedError(
+          'SNAPBACK_FASTPATH_ARGUMENT_INVALID',
+          `${argument} is not valid for preflight`,
+        );
+      }
+      if (seen.has('isolate-worktree')) {
+        throw codedError('SNAPBACK_FASTPATH_ARGUMENT_INVALID', `duplicate ${argument}`);
+      }
+      seen.add('isolate-worktree');
+      options.isolateWorktree = argument === '--isolate-worktree';
       continue;
     }
     if (argument === '--publish') {
@@ -164,6 +179,23 @@ export function parseArguments(argv) {
     throw codedError('SNAPBACK_FASTPATH_ARGUMENT_INVALID', `unrecognized argument: ${argument}`);
   }
   if (!options.help) {
+    if (subcommand === 'preflight') {
+      if (
+        options.version
+        || seen.has('--out')
+        || seen.has('--runtime-platforms')
+        || options.publish
+        || options.receipts.size > 0
+        || options.retainLedger
+        || options.otp
+      ) {
+        throw codedError(
+          'SNAPBACK_FASTPATH_ARGUMENT_INVALID',
+          'preflight inspects cleanliness and HEAD only',
+        );
+      }
+      return options;
+    }
     if (!exactSemver(options.version ?? '')) {
       throw codedError(
         'SNAPBACK_FASTPATH_ARGUMENT_INVALID',
@@ -201,8 +233,8 @@ function run(command, args, options = {}) {
   });
 }
 
-function runOrThrow(command, args, { code, message, ...options }) {
-  const result = run(command, args, options);
+function runOrThrow(command, args, { code, message, run: runCommand = run, ...options }) {
+  const result = runCommand(command, args, options);
   if (result.error || result.status !== 0) {
     throw codedError(
       code,
@@ -216,24 +248,285 @@ function runOrThrow(command, args, { code, message, ...options }) {
   return result;
 }
 
-function assertCleanTree() {
+function gitPorcelain({ cwd = ROOT, run: runCommand = run } = {}) {
   const status = runOrThrow('git', ['status', '--porcelain'], {
     code: 'SNAPBACK_FASTPATH_DIRTY_TREE',
     message: 'could not inspect source tree',
+    cwd,
+    run: runCommand,
   });
-  if (status.stdout.trim().length > 0) {
+  return {
+    dirty: status.stdout.trim().length > 0,
+    porcelain: status.stdout,
+  };
+}
+
+export function headRevision({ cwd = ROOT, run: runCommand = run } = {}) {
+  return runOrThrow('git', ['rev-parse', 'HEAD'], {
+    code: 'SNAPBACK_FASTPATH_LEDGER_INVALID',
+    message: 'could not resolve the source revision',
+    cwd,
+    run: runCommand,
+  }).stdout.trim();
+}
+
+export function inspectSourceTree(options = {}) {
+  const status = gitPorcelain(options);
+  return {
+    ...status,
+    revision: headRevision(options),
+  };
+}
+
+export function assertCleanTree(options = {}) {
+  const status = gitPorcelain(options);
+  if (status.dirty) {
     throw codedError(
       'SNAPBACK_FASTPATH_DIRTY_TREE',
       'fast-path release requires a clean source tree',
     );
   }
+  return status;
 }
 
-function headRevision() {
-  return runOrThrow('git', ['rev-parse', 'HEAD'], {
-    code: 'SNAPBACK_FASTPATH_LEDGER_INVALID',
-    message: 'could not resolve the source revision',
-  }).stdout.trim();
+export function preflight(options = {}, deps = {}) {
+  const tree = inspectSourceTree({
+    cwd: options.cwd ?? deps.cwd ?? ROOT,
+    run: deps.run ?? run,
+  });
+  if (tree.dirty) {
+    throw codedError(
+      'SNAPBACK_FASTPATH_DIRTY_TREE',
+      'fast-path release requires a clean source tree',
+      { revision: tree.revision, porcelain: tree.porcelain },
+    );
+  }
+  return {
+    schemaVersion: 'snapback.fastpath-preflight.v1',
+    ok: true,
+    revision: tree.revision,
+    dirty: false,
+  };
+}
+
+function retainedWorktreeDiagnostic(worktree) {
+  return {
+    code: 'SNAPBACK_FASTPATH_ISOLATED_WORKTREE_RETAINED',
+    severity: 'error',
+    subsystem: 'publish',
+    message: `isolated worktree retained at ${worktree.path}; remove with: git worktree remove --force ${JSON.stringify(worktree.path)}`,
+  };
+}
+
+export function ceremonyArgv(options) {
+  const argv = [options.subcommand, '--version', options.version, '--out', options.out];
+  if (options.subcommand === 'stage') {
+    argv.push('--runtime-platforms', options.runtimePlatforms ?? 'all');
+  } else {
+    for (const [platform, path] of options.receipts ?? []) {
+      argv.push('--receipt', `${platform}=${path}`);
+    }
+    if (options.retainLedger) argv.push('--retain-ledger', options.retainLedger);
+    if (options.publish) argv.push('--publish');
+    if (options.otp) argv.push('--otp', options.otp);
+  }
+  argv.push('--no-isolate-worktree');
+  return argv;
+}
+
+export function provisionIsolatedWorktree({
+  revision,
+  cwd = ROOT,
+  tmpDir = tmpdir(),
+  run: runCommand = run,
+} = {}) {
+  if (!/^[0-9a-f]{7,64}$/i.test(revision ?? '')) {
+    throw codedError(
+      'SNAPBACK_FASTPATH_WORKTREE_PROVISION_FAILED',
+      `isolated worktree requires a hexadecimal HEAD revision, observed ${revision ?? 'absent'}`,
+    );
+  }
+  const directory = mkdtempSync(join(tmpDir, 'snapback-fastpath-'));
+  rmSync(directory, { recursive: true, force: true });
+  try {
+    // @ref LLP 0041#isolated-worktrees-2026-08-12 — never bootstrap or
+    // qualify against the invoking checkout; the shared primary tree is
+    // routinely dirty and that dirt is not the release bytes.
+    runOrThrow('git', [
+      '-c', 'core.hooksPath=/dev/null',
+      'worktree', 'add', '--detach', '--quiet', directory, revision,
+    ], {
+      code: 'SNAPBACK_FASTPATH_WORKTREE_PROVISION_FAILED',
+      message: `could not provision an isolated worktree at ${revision}`,
+      cwd,
+      run: runCommand,
+    });
+  } catch (error) {
+    rmSync(directory, { recursive: true, force: true });
+    throw error;
+  }
+  const isolated = inspectSourceTree({ cwd: directory, run: runCommand });
+  if (isolated.dirty || isolated.revision !== revision) {
+    throw codedError(
+      'SNAPBACK_FASTPATH_WORKTREE_PROVISION_FAILED',
+      `isolated worktree at ${directory} is not a clean checkout of ${revision}`,
+      { isolated, path: directory },
+    );
+  }
+  return { path: directory, revision };
+}
+
+export function teardownIsolatedWorktree({
+  path,
+  cwd = ROOT,
+  run: runCommand = run,
+} = {}) {
+  try {
+    runOrThrow('git', ['worktree', 'remove', '--force', path], {
+      code: 'SNAPBACK_FASTPATH_WORKTREE_TEARDOWN_FAILED',
+      message: `could not remove isolated worktree at ${path}`,
+      cwd,
+      run: runCommand,
+    });
+  } finally {
+    rmSync(path, { recursive: true, force: true });
+  }
+}
+
+function splitTrailingJson(stdout) {
+  const lines = String(stdout ?? '').split(/\r?\n/u);
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index].trim();
+    if (!line) continue;
+    try {
+      return { prefix: lines.slice(0, index).join('\n'), value: JSON.parse(line) };
+    } catch {
+      // keep scanning; ceremony children may chatter on stdout
+    }
+  }
+  return { prefix: stdout ?? '', value: null };
+}
+
+export function defaultContinueInWorktree({
+  worktree,
+  options,
+  execPath = process.execPath,
+  spawn = spawnSync,
+} = {}) {
+  const script = join(worktree.path, 'scripts', 'snapback-fastpath-release.mjs');
+  const result = spawn(execPath, [script, ...ceremonyArgv(options)], {
+    cwd: worktree.path,
+    env: { ...process.env, SNAPBACK_FASTPATH_ISOLATED_WORKTREE: worktree.path },
+    encoding: 'utf8',
+    maxBuffer: MAX_COMMAND_OUTPUT_BYTES,
+    timeout: 7_200_000,
+  });
+  const split = splitTrailingJson(result.stdout);
+  if (split.prefix) {
+    process.stdout.write(split.prefix.endsWith('\n') ? split.prefix : `${split.prefix}\n`);
+  }
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (result.error || (result.status !== 0 && split.value == null)) {
+    throw codedError(
+      'SNAPBACK_FASTPATH_ISOLATE_FAILED',
+      `isolated ceremony failed (${result.signal ?? result.status ?? result.error?.message})`,
+      {
+        stdout: result.stdout?.slice(-32_768),
+        stderr: result.stderr?.slice(-32_768),
+        isolatedWorktree: { path: worktree.path, revision: worktree.revision, retained: true },
+      },
+    );
+  }
+  const parsed = split.value ?? { ok: result.status === 0 };
+  return {
+    ...parsed,
+    ok: parsed.ok === true && result.status === 0,
+  };
+}
+
+function retainWorktreeResult(result, worktree) {
+  const isolatedWorktree = { path: worktree.path, revision: worktree.revision, retained: true };
+  const diagnostic = retainedWorktreeDiagnostic(worktree);
+  if (result && typeof result === 'object') {
+    return {
+      ...result,
+      ok: false,
+      isolatedWorktree,
+      diagnostics: [...(result.diagnostics ?? []), diagnostic],
+    };
+  }
+  return { ok: false, isolatedWorktree, diagnostics: [diagnostic] };
+}
+
+export async function runCeremony(options, deps = {}) {
+  const cwd = deps.cwd ?? ROOT;
+  const runCommand = deps.run ?? run;
+  const isolateWorktree = options.isolateWorktree !== false;
+
+  // Cleanliness is the first side-effecting check. Isolate may proceed
+  // from a dirty invoking tree; --no-isolate-worktree still refuses here
+  // before any publish, qualification, or bootstrap spawn.
+  const status = gitPorcelain({ cwd, run: runCommand });
+  if (status.dirty && !isolateWorktree) {
+    throw codedError(
+      'SNAPBACK_FASTPATH_DIRTY_TREE',
+      'fast-path release requires a clean source tree',
+    );
+  }
+
+  if (!isolateWorktree) {
+    return options.subcommand === 'release'
+      ? releasePass(options, { cwd, run: runCommand })
+      : stagePass(options, { cwd, run: runCommand });
+  }
+
+  const revision = (deps.headRevision ?? headRevision)({ cwd, run: runCommand });
+  const worktree = (deps.provisionIsolatedWorktree ?? provisionIsolatedWorktree)({
+    revision,
+    cwd,
+    run: runCommand,
+  });
+  try {
+    const result = await (deps.continueInWorktree ?? defaultContinueInWorktree)({
+      worktree,
+      options,
+      invoking: { cwd, dirty: status.dirty, revision },
+    });
+    if (result?.ok === true) {
+      try {
+        (deps.teardownIsolatedWorktree ?? teardownIsolatedWorktree)({
+          path: worktree.path,
+          cwd,
+          run: runCommand,
+        });
+        return {
+          ...result,
+          isolatedWorktree: { path: worktree.path, revision: worktree.revision, retained: false },
+        };
+      } catch (error) {
+        return {
+          ...result,
+          isolatedWorktree: { path: worktree.path, revision: worktree.revision, retained: true },
+          diagnostics: [
+            ...(result.diagnostics ?? []),
+            {
+              code: error?.code ?? 'SNAPBACK_FASTPATH_WORKTREE_TEARDOWN_FAILED',
+              severity: 'warning',
+              subsystem: 'publish',
+              message: error?.message ?? String(error),
+            },
+          ],
+        };
+      }
+    }
+    return retainWorktreeResult(result, worktree);
+  } catch (error) {
+    error.details = {
+      ...(error.details ?? {}),
+      isolatedWorktree: { path: worktree.path, revision: worktree.revision, retained: true },
+    };
+    throw error;
+  }
 }
 
 function readBoundedJson(path, label) {
@@ -283,8 +576,8 @@ function publicationEnvironment(receipts = null, { allowMissing = false } = {}) 
   return environment;
 }
 
-async function stagePass(options) {
-  assertCleanTree();
+export async function stagePass(options, deps = {}) {
+  assertCleanTree({ cwd: deps.cwd ?? ROOT, run: deps.run ?? run });
   const pass1 = `${options.out}-pass1`;
   const receiptsRoot = `${options.out}-receipts`;
   mkdirSync(pass1, { recursive: true });
@@ -495,8 +788,8 @@ function writeCeremony(out, ceremony) {
   return path;
 }
 
-async function releasePass(options) {
-  assertCleanTree();
+export async function releasePass(options, deps = {}) {
+  assertCleanTree({ cwd: deps.cwd ?? ROOT, run: deps.run ?? run });
   for (const [platform, path] of options.receipts) {
     if (!existsSync(path) || !statSync(path).isFile()) {
       throw codedError(
@@ -686,8 +979,9 @@ async function releasePass(options) {
 
 function usage() {
   return `usage:
-  node scripts/snapback-fastpath-release.mjs stage --version <v> [--out <dir>] [--runtime-platforms all]
-  node scripts/snapback-fastpath-release.mjs release --version <v> [--out <dir>] --receipt <platform>=<path> [--receipt ...] [--retain-ledger <path>] [--publish] [--otp <code>]
+  node scripts/snapback-fastpath-release.mjs preflight
+  node scripts/snapback-fastpath-release.mjs stage --version <v> [--out <dir>] [--runtime-platforms all] [--isolate-worktree|--no-isolate-worktree]
+  node scripts/snapback-fastpath-release.mjs release --version <v> [--out <dir>] --receipt <platform>=<path> [--receipt ...] [--retain-ledger <path>] [--publish] [--otp <code>] [--isolate-worktree|--no-isolate-worktree]
 `;
 }
 
@@ -698,10 +992,11 @@ if (invoked) {
     const options = parseArguments(process.argv.slice(2));
     if (options.help) {
       process.stdout.write(usage());
+    } else if (options.subcommand === 'preflight') {
+      const result = preflight(options);
+      console.log(JSON.stringify(result));
     } else {
-      const result = options.subcommand === 'stage'
-        ? await stagePass(options)
-        : await releasePass(options);
+      const result = await runCeremony(options);
       console.log(JSON.stringify(result));
       if (result.ok !== true) process.exitCode = 1;
     }

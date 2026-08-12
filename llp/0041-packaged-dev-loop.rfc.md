@@ -6,6 +6,12 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (fast-path isolate worktree):** 2026-08-12 (`stage`/`release` default
+to an ephemeral detached worktree at HEAD so a dirty shared checkout cannot
+burn Ibex bootstrap then die on `SNAPBACK_FASTPATH_DIRTY_TREE`; `preflight` is
+the first-class seconds-scale cleanliness+HEAD gate. See §The fast path is now
+`scripts/snapback-fastpath-release.mjs`.)
+
 **Revised (explicit linked-source custody):** 2026-08-12 (external-workspace consumers of
 the source CLI select an identity-matched, receipt-qualified checkout release
 binary without weakening or imitating the published runtime package seal; see
@@ -1525,10 +1531,15 @@ procedure. It is a coin flip. This amendment replaces it.
 
 ### The fast path is now `scripts/snapback-fastpath-release.mjs`
 
-Two subcommands, replacing the hand-run
+Three subcommands, replacing the hand-run
 `snapback-publish.mjs` + loop-of-`npm publish` recipe described under
 "Fast-path pre-consumer release (2026-08-01)":
 
+- **`preflight`** inspects source cleanliness and `HEAD` only, and exits in
+  seconds. Wrappers that used to run `scripts/bootstrap-ibex-runtime` first
+  must call this (or import `preflight` / `assertCleanTree`) before any
+  bootstrap or handler-VM qualification. It is the gate that cannot be skipped
+  by a wrapper that bootstraps first.
 - **`stage`** performs pass one into `<out>-pass1` with
   `SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS=1`, mints the **host** platform's
   receipt from that exact staged closure via
@@ -1544,6 +1555,26 @@ Two subcommands, replacing the hand-run
 
 `latest` is no longer the tag a fast-path publish writes. It is a promotion
 that a passing smoke earns.
+
+### Isolated worktrees (2026-08-12)
+
+The 0.1.20 fast-path attempt from the shared primary checkout
+(`/Users/ccheever/projects/snapback`) burned full Ibex bootstrap and
+handler-VM qualification, then died on `SNAPBACK_FASTPATH_DIRTY_TREE`. The
+clean-tree gate is correct — releases must not embed uncommitted state — but
+that checkout is shared by concurrent sessions and is effectively always
+dirty. Operators must **not** bootstrap the shared primary checkout as a
+prelude to this script.
+
+`stage` and `release` default to `--isolate-worktree`. They record `HEAD`,
+create an ephemeral detached worktree at `$TMPDIR/snapback-fastpath-*`, and
+re-exec the ceremony there so bootstrap and qualification never run against
+the invoking checkout. Success removes the worktree; failure leaves it and
+prints the path. A dirty invoking tree is therefore not a refusal when isolate
+is on — isolate is the paved path. `--no-isolate-worktree` restores the old
+contract: `SNAPBACK_FASTPATH_DIRTY_TREE` is the first side-effecting check and
+refuses before any publish, qualification, or bootstrap spawn. 0.1.20 later
+shipped via the qualified ceremony, not this failed fast-path run.
 
 ### The gate: `scripts/publication-store-qualification-gate.mjs`
 
