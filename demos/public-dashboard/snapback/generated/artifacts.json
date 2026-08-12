@@ -27,15 +27,10 @@
     "operations/setMetricValue.args.schema.json",
     "contract/runtime-links.ts",
     "contract/dashboardMetrics.query.ts",
-    "contract/dashboardMetrics.query.contract-meta.ts",
     "contract/dashboardMetricsByContext.query.ts",
-    "contract/dashboardMetricsByContext.query.contract-meta.ts",
     "contract/metricsFeed.query.ts",
-    "contract/metricsFeed.query.contract-meta.ts",
     "contract/recordMetric.mutation.ts",
-    "contract/recordMetric.mutation.contract-meta.ts",
-    "contract/setMetricValue.mutation.ts",
-    "contract/setMetricValue.mutation.contract-meta.ts"
+    "contract/setMetricValue.mutation.ts"
   ],
   "authoredSourceHash": "sha256:9cf39f0fa486063188422c777bdd1c1ad49e12b0be937b6f88650f99a1ea9060",
   "bundleHash": "sha256:44a73c12da4d1e88",
@@ -48,7 +43,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 34,
+    "regenerable-cache": 29,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -186,18 +181,6 @@
       "sha256": "sha256:8c2fa49df4e2cd98dd90dbe854b8ceba666a8ef242e31eeda9b9fc59aa8685d0"
     },
     {
-      "bytes": 628,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/dashboardMetrics.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:cdc0ffe1136ee824d752686b6306dbe866d8ae885adf88d0cfa92fa05daa6d1f"
-    },
-    {
       "bytes": 545,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -208,18 +191,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:0944fc6601dcdc18309cdd8bd80693df6b7faf9489e7bff85f49730f3dada452"
-    },
-    {
-      "bytes": 664,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/dashboardMetricsByContext.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:bced1b83daa9c3a6d54888913b1c372ea1cff1e09ac3a25611c5e0946a9a8fb0"
     },
     {
       "bytes": 686,
@@ -234,18 +205,6 @@
       "sha256": "sha256:2fb3629e38aeefb5da167682e91aa144abf3f6437468b55b165a220d8b49ce52"
     },
     {
-      "bytes": 608,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/metricsFeed.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:e7f2e98cc7f9f43e05cb44b00c842066bbe203fc2aec7bcfb8067d28f5e6a5cd"
-    },
-    {
       "bytes": 515,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -256,18 +215,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:60b2429285e38bbb9f1302df96bf3561aae27a7ef06c14c97170744d6511021f"
-    },
-    {
-      "bytes": 292,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/recordMetric.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:c8eaae30c1ede4148a22c266e0d5331a10652391509d9c260dad6044bf8b9a8d"
     },
     {
       "bytes": 554,
@@ -292,18 +239,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:60a07a438d5f986d5bf62ba4504809a7545a134e8d95ea65d98f976824a3c161"
-    },
-    {
-      "bytes": 296,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/setMetricValue.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:9680e3e1dbb1069fc2523200312ed720608dd51102fa85e20cb7598fa8e827cf"
     },
     {
       "bytes": 542,
@@ -504,9 +439,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 34,
+        "regenerableCache": 29,
         "reviewManifest": 1,
-        "total": 35
+        "total": 30
       },
       "degradedResults": 2,
       "ephemeralCollections": 0,

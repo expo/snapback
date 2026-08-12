@@ -24,11 +24,8 @@
     "operations/booksWithPublisher.args.schema.json",
     "contract/runtime-links.ts",
     "contract/addBook.mutation.ts",
-    "contract/addBook.mutation.contract-meta.ts",
     "contract/addPublisher.mutation.ts",
-    "contract/addPublisher.mutation.contract-meta.ts",
-    "contract/booksWithPublisher.query.ts",
-    "contract/booksWithPublisher.query.contract-meta.ts"
+    "contract/booksWithPublisher.query.ts"
   ],
   "authoredSourceHash": "sha256:38abedd37843112a06b8fdc5131cd4875860e39a9ea510fdaecbf8524855f1ff",
   "bundleHash": "sha256:71c1ec2b50fe7174",
@@ -41,7 +38,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 27,
+    "regenerable-cache": 24,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -179,18 +176,6 @@
       "sha256": "sha256:e9c34db0df311086347d38a5a917b90712a39e18ec8709168f54168fbb8410d9"
     },
     {
-      "bytes": 278,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/addBook.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:01b623213ca1d9f29feaacab65aadc9915c84d105d01eb233a54cced6fa699d3"
-    },
-    {
       "bytes": 521,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -203,18 +188,6 @@
       "sha256": "sha256:1e42395982c1ffc0a8b2603d811a62783356b9124f0b8bdfd321ea260d4fbbc4"
     },
     {
-      "bytes": 298,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/addPublisher.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:0f68ccc0b66a9dc3ed6c63aedb8942b1fd2893c35f28366650c0426098600fa8"
-    },
-    {
       "bytes": 544,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -225,18 +198,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:d659ee4b05a03f377880381468072055b92440ede1e7fc6eea66fe4354fab9e0"
-    },
-    {
-      "bytes": 634,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/booksWithPublisher.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:d59120c5af6e1307c26527f52da89dba2d54d598ae2cd4872f18ed40f8f8ba86"
     },
     {
       "bytes": 549,
@@ -403,9 +364,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 27,
+        "regenerableCache": 24,
         "reviewManifest": 1,
-        "total": 28
+        "total": 25
       },
       "degradedResults": 2,
       "ephemeralCollections": 0,

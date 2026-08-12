@@ -24,11 +24,8 @@
     "operations/reportIncident.args.schema.json",
     "contract/runtime-links.ts",
     "contract/listAuditEntries.query.ts",
-    "contract/listAuditEntries.query.contract-meta.ts",
     "contract/listIncidents.query.ts",
-    "contract/listIncidents.query.contract-meta.ts",
-    "contract/reportIncident.mutation.ts",
-    "contract/reportIncident.mutation.contract-meta.ts"
+    "contract/reportIncident.mutation.ts"
   ],
   "authoredSourceHash": "sha256:0c5af631d9f3407186887c7912fc350b5b19b7780b5be4cc0027e992c98013ba",
   "bundleHash": "sha256:60024169fc6542b8",
@@ -41,7 +38,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 27,
+    "regenerable-cache": 24,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -179,18 +176,6 @@
       "sha256": "sha256:f783a65a96fb5592ac56c33643f399586f59d0c32db11fa81f03f413c9d827fd"
     },
     {
-      "bytes": 679,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/listAuditEntries.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:5a292500afb074568112c3f555d774e47885e4a097e12397c40b3e21202641bc"
-    },
-    {
       "bytes": 542,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -203,18 +188,6 @@
       "sha256": "sha256:f032fda45941fefef5f2757301d87aeb6427ecdaaefdee0e3b009da2c32c660f"
     },
     {
-      "bytes": 658,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/listIncidents.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:2fea839002d02a07c8a4509fd0293f8cd4df902b34e79adc5579463fbbe0a064"
-    },
-    {
       "bytes": 523,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -225,18 +198,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:2d03807beedb03ad6f16410f734f4aadc0060b6dac1395ae2a6ad2364590f59e"
-    },
-    {
-      "bytes": 336,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/reportIncident.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:f2f96d885b796e37969371176b4647a9bbba3e676c123fea683172c0a73147cd"
     },
     {
       "bytes": 528,
@@ -403,9 +364,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 27,
+        "regenerableCache": 24,
         "reviewManifest": 1,
-        "total": 28
+        "total": 25
       },
       "degradedResults": 1,
       "ephemeralCollections": 0,

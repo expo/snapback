@@ -27,15 +27,10 @@
     "operations/toggleLike.args.schema.json",
     "contract/runtime-links.ts",
     "contract/createPost.mutation.ts",
-    "contract/createPost.mutation.contract-meta.ts",
     "contract/profilePosts.query.ts",
-    "contract/profilePosts.query.contract-meta.ts",
     "contract/profiles.query.ts",
-    "contract/profiles.query.contract-meta.ts",
     "contract/timeline.query.ts",
-    "contract/timeline.query.contract-meta.ts",
-    "contract/toggleLike.mutation.ts",
-    "contract/toggleLike.mutation.contract-meta.ts"
+    "contract/toggleLike.mutation.ts"
   ],
   "authoredSourceHash": "sha256:fc9d07a498c0fc77ae8531aab4347ea6e3a3863b923f7e3b5a30e3bf8f6bb808",
   "bundleHash": "sha256:c96b4e005e9665d9",
@@ -48,7 +43,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 34,
+    "regenerable-cache": 29,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -186,18 +181,6 @@
       "sha256": "sha256:b8393ab26959d1d2ec170881fc1834d48ee5491fcae32d7ba7ca6de6350932ea"
     },
     {
-      "bytes": 284,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/createPost.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:5066bad1eaab9f17e1c98619ce629d49c25aa3e38246150617e4c812e7319a67"
-    },
-    {
       "bytes": 536,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -210,18 +193,6 @@
       "sha256": "sha256:0386f7f7e22c2a6582bda858b2de157b3d44311661bc9dae29b5fc20ea7c084c"
     },
     {
-      "bytes": 739,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/profilePosts.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:5ee0706c05aabef988a3f0454d6e183a5cf200358dfa9e7aa169eb5283aa525b"
-    },
-    {
       "bytes": 527,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -232,18 +203,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:5dc99644dbdd8f31e7a7a8b7cc183654cba05ff052e40853796f5639bc33e180"
-    },
-    {
-      "bytes": 660,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/profiles.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:fbbf29bbaf91f0cce911f801611d5226762331c69286393aafb1857e933bfaba"
     },
     {
       "bytes": 484,
@@ -270,18 +229,6 @@
       "sha256": "sha256:ce47feef2630fccb8b1f75e69b4781bd1553a1bcf51ccc444c96ed1cbf5647fd"
     },
     {
-      "bytes": 723,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/timeline.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:9cbcee871fc27f476d25b4fe809d53269f3c15d32dbf383569c1196da30d6319"
-    },
-    {
       "bytes": 502,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -292,18 +239,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:c390bb9c9cb09b21ff080b704de4aba007c628de29ef737975db25b131e972fc"
-    },
-    {
-      "bytes": 306,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/toggleLike.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:cbec9d6151614834aec14c8acde9558abb69eb5b3b6c32c818fe118740eed41c"
     },
     {
       "bytes": 516,
@@ -509,9 +444,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 34,
+        "regenerableCache": 29,
         "reviewManifest": 1,
-        "total": 35
+        "total": 30
       },
       "degradedResults": 0,
       "ephemeralCollections": 0,

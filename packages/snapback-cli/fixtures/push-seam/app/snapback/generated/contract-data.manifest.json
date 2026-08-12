@@ -16,7 +16,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:2f3a8d5f243e9d15e14ae1990b4a410b7ca9e383d1625cb07720a88e7eac5b6e",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:35a1b3812dba0407cdcdb45468b0839d754f1827763475c4fa98529d11f5e23d",
   "manifestVersion": 2,
   "mutations": {
     "joinAsHost": {

@@ -28,19 +28,12 @@
     "operations/rsvp.args.schema.json",
     "contract/runtime-links.ts",
     "contract/createEvent.mutation.ts",
-    "contract/createEvent.mutation.contract-meta.ts",
     "contract/eventDetails.query.ts",
-    "contract/eventDetails.query.contract-meta.ts",
     "contract/eventWall.query.ts",
-    "contract/eventWall.query.contract-meta.ts",
     "contract/guestList.query.ts",
-    "contract/guestList.query.contract-meta.ts",
     "contract/listEvents.query.ts",
-    "contract/listEvents.query.contract-meta.ts",
     "contract/postMessage.mutation.ts",
-    "contract/postMessage.mutation.contract-meta.ts",
-    "contract/rsvp.mutation.ts",
-    "contract/rsvp.mutation.contract-meta.ts"
+    "contract/rsvp.mutation.ts"
   ],
   "authoredSourceHash": "sha256:0b20d01de55311cbe36960348a9c6af0f8fbd9e5ce3ae457413cf20506d69dfc",
   "bundleHash": "sha256:37c3cac2f9f22975",
@@ -53,7 +46,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 1,
-    "regenerable-cache": 38,
+    "regenerable-cache": 31,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -191,18 +184,6 @@
       "sha256": "sha256:81e250e86c04fa3100b6068a34a32d317c2659bab126c52b2cb130c099bcc967"
     },
     {
-      "bytes": 310,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/createEvent.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:d0e713278072b419013a4805ab8f3355c3c9a071813fb54ec0cdbc58859de6ca"
-    },
-    {
       "bytes": 617,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -213,18 +194,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:0f8c388490002bd89a5af7aaa6cd9daf38290e573b86b4bcc1f87dea7debaade"
-    },
-    {
-      "bytes": 706,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/eventDetails.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:b7cfa6793f1f633f1296e96baa19f677e3361802f39ef0de5bbf597b08dc269d"
     },
     {
       "bytes": 516,
@@ -239,18 +208,6 @@
       "sha256": "sha256:7ab06f9d34f9dd31d09cbfdbe268edc173baf3c3049a2325000507676995ba6f"
     },
     {
-      "bytes": 640,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/eventWall.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:d93b8baecc0a11c6ce6168cdadbda0c7f7b45b27e7d1a8d83a27964a8da9bdda"
-    },
-    {
       "bytes": 498,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -261,18 +218,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:b42b519c28ec6aef32419c115cc926955eb128612a833f22b82cf7d825d34949"
-    },
-    {
-      "bytes": 615,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/guestList.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:6efef102f91148045b8ca4b600aa12efa6b763c02791584a75c6b2ad045d193a"
     },
     {
       "bytes": 498,
@@ -287,18 +232,6 @@
       "sha256": "sha256:0dd06a6228085c9bff7231108251aa8f4720a3c12164de35309221b912d3ed61"
     },
     {
-      "bytes": 698,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/listEvents.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:c245204f52ee0f03ead9c95e151ade7035097877df3851e8d83d64a682e9dde0"
-    },
-    {
       "bytes": 506,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -311,18 +244,6 @@
       "sha256": "sha256:c6d609591cc3f5aef727bf95a485d2c8aa913606f9cb071b82caea282f98f578"
     },
     {
-      "bytes": 286,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/postMessage.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:2f6e0e794469da042f0149a140cdf45ca761d1f1727c41ac46aab6985d6a4992"
-    },
-    {
       "bytes": 550,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -333,18 +254,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:93620d1572f25be9b9c5f9b41a99eb39739d216dbd3c9cd8f87f1bbe23e59501"
-    },
-    {
-      "bytes": 272,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/rsvp.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:afd264e17175fd2c1d50898f2f2a79470030000993d35013794ebd96b3345a6e"
     },
     {
       "bytes": 506,
@@ -579,9 +488,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 1,
-        "regenerableCache": 38,
+        "regenerableCache": 31,
         "reviewManifest": 1,
-        "total": 40
+        "total": 33
       },
       "degradedResults": 3,
       "ephemeralCollections": 0,

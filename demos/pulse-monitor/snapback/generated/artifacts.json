@@ -24,9 +24,7 @@
     "operations/probeServices.args.schema.json",
     "contract/runtime-links.ts",
     "contract/applyProbe.mutation.ts",
-    "contract/applyProbe.mutation.contract-meta.ts",
-    "contract/liveServices.query.ts",
-    "contract/liveServices.query.contract-meta.ts"
+    "contract/liveServices.query.ts"
   ],
   "authoredSourceHash": "sha256:c36cf3adbcecdacd3ed7509111e71998e8cf66606393d98e61256116337019af",
   "bundleHash": "sha256:a13686cd17ca1bcb",
@@ -45,7 +43,7 @@
   ],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 25,
+    "regenerable-cache": 23,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -183,18 +181,6 @@
       "sha256": "sha256:8491d1b517a945374fd6a24d2177d51618445f2cf69be70c87c395d0279219a3"
     },
     {
-      "bytes": 298,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/applyProbe.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:7dbd725e197ba5cba9cb9de090fa47f590d33cd8d863ea51f35dd5a8beac3595"
-    },
-    {
       "bytes": 507,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -205,18 +191,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:25325408420f3c28a85f42e1758d42857ec4bd5b309a2fc42fb21c382f95a268"
-    },
-    {
-      "bytes": 650,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/liveServices.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:d00bbbb53003d830d1650e8eae49236f9fb427ebcc47f36f94bbe7bad307d204"
     },
     {
       "bytes": 516,
@@ -383,9 +357,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 25,
+        "regenerableCache": 23,
         "reviewManifest": 1,
-        "total": 26
+        "total": 24
       },
       "degradedResults": 2,
       "ephemeralCollections": 0,

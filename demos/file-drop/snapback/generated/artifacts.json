@@ -24,9 +24,7 @@
     "operations/listPhotos.args.schema.json",
     "contract/runtime-links.ts",
     "contract/createPhoto.mutation.ts",
-    "contract/createPhoto.mutation.contract-meta.ts",
-    "contract/listPhotos.query.ts",
-    "contract/listPhotos.query.contract-meta.ts"
+    "contract/listPhotos.query.ts"
   ],
   "authoredSourceHash": "sha256:0af237ddbc2937cd51b3a741183228dcce777688839127c0413a4b9b60e34d2b",
   "bundleHash": "snapback.v1:sessions:function:sha256:07d8d6709e2094fa44232d4b1fd01ca11a2e902c74e40c0930188235223c5e8c",
@@ -39,7 +37,7 @@
   "cronJobs": [],
   "custody": {
     "consumer-committed": 0,
-    "regenerable-cache": 25,
+    "regenerable-cache": 23,
     "review-manifest": 1
   },
   "ephemeralCollections": [],
@@ -177,18 +175,6 @@
       "sha256": "sha256:1e7018611da146e9339a568e0273346b1699be135104d4c6db86083b3934eb17"
     },
     {
-      "bytes": 288,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/createPhoto.mutation.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:ae0eabfbef39f0281b970e5b4e577af028becded59e50e38e7244596c46a6dbf"
-    },
-    {
       "bytes": 522,
       "consumer": "contract",
       "custody": "regenerable-cache",
@@ -199,18 +185,6 @@
         "rule": "complete-inputs-hash"
       },
       "sha256": "sha256:c5870adfdf67afff827808dcbd950f165bd5ddf3d5840f6d315bc440d7aab95c"
-    },
-    {
-      "bytes": 598,
-      "consumer": "contract",
-      "custody": "regenerable-cache",
-      "logicalKind": "contract-projection",
-      "path": "contract/listPhotos.query.contract-meta.ts",
-      "regeneration": {
-        "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
-        "rule": "complete-inputs-hash"
-      },
-      "sha256": "sha256:bbac434c326ae7b0a627f0160961e14b7452a2af09327a9a0f5e658aa8854755"
     },
     {
       "bytes": 500,
@@ -377,9 +351,9 @@
     "counts": {
       "custody": {
         "consumerCommitted": 0,
-        "regenerableCache": 25,
+        "regenerableCache": 23,
         "reviewManifest": 1,
-        "total": 26
+        "total": 24
       },
       "degradedResults": 0,
       "ephemeralCollections": 0,
