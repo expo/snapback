@@ -21,7 +21,13 @@ import { generate } from '../../../../packages/snapback-codegen/index.mjs';
 import { asUser } from '../../../_kit/as-user.mjs';
 import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import { assert as suiteAssert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
+import {
+  assert as suiteAssert,
+  assertEqual,
+  createSuite,
+  eventually,
+  runAcceptance,
+} from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -265,7 +271,18 @@ await runAcceptance(suite, async () => {
       authorName: 'Ada',
       assetId: photoAssetId,
     });
-    const rows = await wall.poll();
+    // @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work — served
+    // fan-out runs after mutation settlement, so one immediate drain races the
+    // scheduler. Poll until the authorization-backed replacement is ready.
+    const rows = await eventually(async () => {
+      const polled = await wall.poll();
+      assertEqual(
+        polled.map((r) => [r.caption, r.photo]),
+        [['Balloons up!', photoAssetId]],
+        'live wall row',
+      );
+      return polled;
+    }, 'party-wall live replacement');
     assertEqual(rows.map((r) => [r.caption, r.photo]), [['Balloons up!', photoAssetId]], 'live wall row');
   });
 

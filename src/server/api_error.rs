@@ -341,7 +341,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN"
         | "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH"
         | "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN"
-        | "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_TYPE_MISMATCH" => StatusCode::BAD_REQUEST,
+        | "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_TYPE_MISMATCH"
+        | "SNAPBACK_FIELD_BOUNDARY_CONDITION_INVALID"
+        | "SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID"
+        | "SNAPBACK_FIELD_BOUNDARY_FIELD_UNKNOWN"
+        | "SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID" => StatusCode::BAD_REQUEST,
         "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION"
         | "SNAPBACK_AUTH_IDENTITY_COLLISION"
         | "SNAPBACK_AUTH_LAST_AUTHENTICATOR"
@@ -805,6 +809,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_HANDLER_INVOCATION_EPOCH_EXHAUSTED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
+        | "SNAPBACK_CONNECTED_CLIENT_CAPACITY"
         | "SNAPBACK_LIVE_STAGE_CAPACITY"
         | "SNAPBACK_LIVE_STAGE_UNAVAILABLE"
         | "SNAPBACK_READ_LANE_UNAVAILABLE"
@@ -1258,6 +1263,15 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_FUNCTION_HANDLER_FORM_INVALID"
         | "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH"
         | "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID"
+        // @ref LLP 0224#app-readiness — these four validate the caller's own
+        // app.readiness.v1 request body, so they are caller input, not a
+        // server fault. They ride the HTTP-200 host-operation envelope today;
+        // this is the classification if one ever reaches ApiError.
+        // FACTS_UNAVAILABLE stays 500: it is a server-held-state failure.
+        | "SNAPBACK_APP_READINESS_DECLARATION_INVALID"
+        | "SNAPBACK_APP_READINESS_MIGRATION_UNRESOLVED"
+        | "SNAPBACK_APP_READINESS_OBLIGATIONS_DIGEST_MISMATCH"
+        | "SNAPBACK_APP_READINESS_SEED_NOT_IDEMPOTENT"
         | "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION"
         // @ref LLP 0131#runtime-ingress-validation — a malformed argument
         // descriptor is author input, and an args-contract violation is a
@@ -1374,6 +1388,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ADMIN_REACHABILITY_SESSION_INVALID" => StatusCode::NOT_FOUND,
         "SNAPBACK_ADMIN_RELAY_HOST_REFUSED" => StatusCode::MISDIRECTED_REQUEST,
         "SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE" => StatusCode::NOT_IMPLEMENTED,
+        // @ref LLP 0222#capability-refusal — realtime.hasFreshClient requires
+        // a session-auth application; absence is permanent for that app, so
+        // this is 501 rather than a retryable 503.
+        "SNAPBACK_CONNECTED_CLIENT_PREDICATE_UNAVAILABLE" => StatusCode::NOT_IMPLEMENTED,
         "SNAPBACK_ADMIN_RELAY_UPSTREAM_FAILED" | "SNAPBACK_ADMIN_RELAY_UPSTREAM_INVALID" => {
             StatusCode::BAD_GATEWAY
         }

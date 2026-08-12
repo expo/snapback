@@ -11157,7 +11157,17 @@ fn same_mode_sessions_activation_projects_live_successor_before_reopening() {
         predecessor_authorization.epoch + 1
     );
 
-    let frames = drain_live_stream_through_test_sink(&mut snapback, "activation-live");
+    // @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
+    // retained authorization truth is projected at the delivery boundary;
+    // the physical outbox intentionally carries no duplicate snapshot.
+    let successor_admission = controller
+        .admit_for_mode(AuthMode::Sessions)
+        .expect("successor admission projects retained authorization truth");
+    let frames = project_authorization_frames_through_test_sink(
+        &mut snapback,
+        "activation-live",
+        &successor_admission,
+    );
     let successor = frames
         .iter()
         .filter_map(|frame| serde_json::from_str::<Value>(frame).ok())
@@ -11938,7 +11948,17 @@ fn data_only_same_mode_seed_refreshes_auth_scoped_live_before_reopening() {
         predecessor_authorization,
         "ordinary seed rows do not fabricate an authorization epoch"
     );
-    let frames = drain_live_stream_through_test_sink(&mut snapback, "activation-data-seed");
+    // @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
+    // the data-only successor snapshot is retained projection truth, not a
+    // second physical outbox copy.
+    let successor_admission = controller
+        .admit_for_mode(AuthMode::Sessions)
+        .expect("successor admission projects the seeded snapshot");
+    let frames = project_authorization_frames_through_test_sink(
+        &mut snapback,
+        "activation-data-seed",
+        &successor_admission,
+    );
     assert!(frames.iter().any(|frame| {
         serde_json::from_str::<Value>(frame).is_ok_and(|frame| {
             frame["kind"] == "authorization_invalidation"
@@ -23618,13 +23638,18 @@ fn quarantined_resubscribe_stays_fail_closed_until_accepted_authority_proof() {
         )
         .expect("manual retry resolves repaired input");
     assert_eq!(retry.outcome, "resolved");
-    let resolution = drain_live_stream_through_test_sink(&mut snapback, "quarantine-resubscribe")
-        .into_iter()
-        .filter_map(|frame| serde_json::from_str::<Value>(&frame).ok())
-        .find(|frame| {
-            frame["kind"] == "authorization_invalidation" && frame.get("snapshot").is_some()
-        })
-        .expect("accepted resolution snapshot");
+    // @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
+    // manual retry wakes the retained obligation; the accepted snapshot is
+    // projected directly instead of duplicated into the physical outbox.
+    let resolution = project_authorization_frames_through_test_sink(
+        &mut snapback,
+        "quarantine-resubscribe",
+        &admission,
+    )
+    .into_iter()
+    .filter_map(|frame| serde_json::from_str::<Value>(&frame).ok())
+    .find(|frame| frame["kind"] == "authorization_invalidation" && frame.get("snapshot").is_some())
+    .expect("accepted resolution snapshot");
     assert_eq!(resolution["snapshot"]["rows"].as_array().unwrap().len(), 2);
     let ack_token = resolution["resolution"]["ackToken"]
         .as_str()

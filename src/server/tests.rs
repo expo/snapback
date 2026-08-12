@@ -19891,6 +19891,18 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "CLI-local control-catalog lookup diagnostic; never emitted by the Snapback HTTP server",
     ),
     (
+        "SNAPBACK_WAIT_RECEIPT_INVALID",
+        "CLI-local host.wait receipt validation diagnostic; never emitted by the Snapback HTTP server",
+    ),
+    (
+        "SNAPBACK_WAIT_TIMEOUT",
+        "CLI-local host.wait timeout diagnostic; never emitted by the Snapback HTTP server",
+    ),
+    (
+        "SNAPBACK_WAIT_UNVERIFIABLE",
+        "CLI-local host.wait observation diagnostic; never emitted by the Snapback HTTP server",
+    ),
+    (
         "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
         "CLI-local composed-restart authority diagnostic; never emitted by the Snapback HTTP server",
     ),
@@ -19909,6 +19921,10 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
         "SNAPBACK_HOST_RESTART_STOP_TIMEOUT",
         "CLI-local verified-stop timeout diagnostic; never emitted by the Snapback HTTP server",
+    ),
+    (
+        "SNAPBACK_FORK_SERVER_RENEWAL_OBSERVED",
+        "stderr-only fork-watchdog observation marker; never emitted as an HTTP diagnostic",
     ),
     // @ref LLP 0184#product-contract-what-agent-accessible-means — the
     // config.set value carrier and its transport remain CLI-only in v1.
@@ -20420,6 +20436,14 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
 ];
 
 const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
+    // Validated from the caller-supplied app.readiness.v1 request body
+    // (src/operational_readiness.rs validate_expected_activation_target,
+    // reached via EnsureAppInput::validate_artifacts). Carried in the
+    // HTTP-200 host-operation envelope today; 400 if one reaches ApiError.
+    "SNAPBACK_APP_READINESS_DECLARATION_INVALID",
+    "SNAPBACK_APP_READINESS_MIGRATION_UNRESOLVED",
+    "SNAPBACK_APP_READINESS_OBLIGATIONS_DIGEST_MISMATCH",
+    "SNAPBACK_APP_READINESS_SEED_NOT_IDEMPOTENT",
     "SNAPBACK_EFFECT_INPUT_INVALID",
     "SNAPBACK_REMEDIATION_INPUT_INVALID",
     "SNAPBACK_API_APPROVAL_QUERY_INVALID",
@@ -20442,6 +20466,10 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_PASSWORD_POLICY",
     "SNAPBACK_AUTH_PROVISIONING_INVALID",
     "SNAPBACK_AUTH_USERNAME_INVALID",
+    "SNAPBACK_FIELD_BOUNDARY_CONDITION_INVALID",
+    "SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID",
+    "SNAPBACK_FIELD_BOUNDARY_FIELD_UNKNOWN",
+    "SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID",
     "SNAPBACK_API_BUDGETS_INVALID",
     "SNAPBACK_API_ASK_BUDGETS_INVALID",
     "SNAPBACK_API_ASK_BUDGETS_REQUIRED",
@@ -21449,6 +21477,10 @@ const BAD_GATEWAY_DIAGNOSTICS: &[&str] = &[
 
 const MISDIRECTED_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_HOST_REFUSED"];
 const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &[
+    // Capability absence, not transient load: realtime.hasFreshClient
+    // requires a session-auth application and never succeeds on retry for
+    // one that is not. Matches ADMIN_RELAY_WEBSOCKET_UNAVAILABLE below.
+    "SNAPBACK_CONNECTED_CLIENT_PREDICATE_UNAVAILABLE",
     "SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE",
     "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED",
     "SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED",
@@ -21456,6 +21488,7 @@ const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &[
 
 const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_FUNCTION_GENERATION_AWAITING_RELOAD",
+    "SNAPBACK_CONNECTED_CLIENT_CAPACITY",
     "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE",
     "SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE",
     "SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE",
@@ -21572,6 +21605,13 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
 // diagnostics that never normally become an `ApiError`. If one does reach
 // that boundary, the fail-safe class is still 500 rather than a false 4xx.
 const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+    // LLP 0224 host-operation refusals travel inside the HTTP-200 operation
+    // envelope, so this row is a fail-safe rather than a live status. Only
+    // FACTS_UNAVAILABLE is a server-owned fact: it is a serialization or
+    // canonical-hash failure over state the server holds. The other four
+    // app-readiness refusals validate the caller's own app.readiness.v1 body
+    // and are classified 400 below.
+    "SNAPBACK_APP_READINESS_FACTS_UNAVAILABLE",
     "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
     "SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID",
     "SNAPBACK_EFFECT_CATALOG_CORRUPT",
@@ -21990,9 +22030,6 @@ const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_HANDLER_REJECTION_INSPECTION_INVALID",
     "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR",
     "SNAPBACK_HOST_STOP_UNVERIFIABLE",
-    // Retired compatibility vocabulary: passive external-CLI absence is now
-    // an inspectable capability fact, but historical records retain this code.
-    "SNAPBACK_IBEX_CLI_UNAVAILABLE",
     "SNAPBACK_IBEX_FUNCTIONS_LOADED",
     "SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE",
     "SNAPBACK_INVOCATION_FUNCTION_MISMATCH",
