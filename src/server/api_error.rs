@@ -315,6 +315,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_AUTH_LOGICAL_IMPORT_INVALID"
         | "SNAPBACK_AUTH_LOGICAL_IMPORT_FORMAT_UNSUPPORTED"
         | "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_AUTH_PASSWORD_SET_AUTHORITY_INVALID" => StatusCode::FORBIDDEN,
+        "SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED" => {
+            StatusCode::NOT_IMPLEMENTED
+        }
         "SNAPBACK_AUTH_LOGICAL_IMPORT_TARGET_NOT_EMPTY"
         | "SNAPBACK_AUTH_LOGICAL_IMPORT_IDENTITY_COLLISION"
         | "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE" => StatusCode::CONFLICT,
@@ -613,6 +617,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_SESSION_EXPIRED"
         | "SNAPBACK_AUTH_STREAM_RESET"
         | "SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED"
+        | "SNAPBACK_AUTH_CREDENTIAL_INVALID"
         // @ref LLP 0055#credentials-and-tokens — a credential of one class
         //   presented on another class's surface is a typed mismatch, never an
         //   anonymous fall-through.

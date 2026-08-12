@@ -21,7 +21,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, OptionalExtension as _, Transaction, params};
 use tokio::sync::{
     Mutex as AsyncMutex, OwnedMutexGuard, OwnedRwLockReadGuard, OwnedRwLockWriteGuard,
-    RwLock as AsyncRwLock,
+    RwLock as AsyncRwLock, Semaphore,
 };
 use uuid::Uuid;
 use zeroize::{Zeroize as _, Zeroizing};
@@ -470,6 +470,7 @@ impl ExchangeCoordination {
 pub struct CredentialIssue {
     response: CredentialResponse,
     committed_revocation: Option<SessionRevocation>,
+    recovery_codes: Option<crate::auth::identity_core::RecoveryCodes>,
 }
 
 impl CredentialIssue {
@@ -477,6 +478,7 @@ impl CredentialIssue {
         Self {
             response,
             committed_revocation,
+            recovery_codes: None,
         }
     }
 
@@ -487,6 +489,19 @@ impl CredentialIssue {
     pub fn into_parts(self) -> (CredentialResponse, Option<SessionRevocation>) {
         (self.response, self.committed_revocation)
     }
+
+    pub(crate) fn with_recovery_codes(
+        mut self,
+        recovery_codes: Option<crate::auth::identity_core::RecoveryCodes>,
+    ) -> Self {
+        self.recovery_codes = recovery_codes;
+        self
+    }
+
+    #[allow(dead_code)] // Staged first-class password routes consume this payload next.
+    pub(crate) fn recovery_codes(&self) -> Option<&crate::auth::identity_core::RecoveryCodes> {
+        self.recovery_codes.as_ref()
+    }
 }
 
 impl fmt::Debug for CredentialIssue {
@@ -495,6 +510,7 @@ impl fmt::Debug for CredentialIssue {
             .debug_struct("CredentialIssue")
             .field("response", &self.response)
             .field("committed_revocation", &self.committed_revocation)
+            .field("recovery_codes", &self.recovery_codes)
             .finish()
     }
 }
@@ -602,6 +618,13 @@ impl From<SnapbackError> for ProviderError {
 }
 
 pub type ProviderResult<T> = Result<T, ProviderError>;
+
+#[allow(dead_code)] // Staged first-class password routes select custody next.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PasswordIssuanceCustody {
+    Bearer,
+    SenderConstrained,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RequestInsertOutcome {
@@ -835,6 +858,68 @@ impl fmt::Debug for ProviderTokenRotationPlan {
     }
 }
 
+#[allow(dead_code)] // Staged first-class password change route consumes this carrier next.
+pub(crate) struct ProviderPasswordChangePlan {
+    mutation: crate::storage::auth_identity::PasswordChangeCommitPlan,
+    rotation: ProviderTokenRotationPlan,
+    revocations: Vec<ProviderRevocationPlan>,
+    password_profile: crate::storage::auth_identity::PasswordSecurityProfile,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProviderPasswordChangeCommitPlan {
+    mutation: crate::storage::auth_identity::PasswordChangeCommitPlan,
+    rotation: ProviderTokenRotationCommitPlan,
+    revocations: Vec<ProviderRevocationPlan>,
+    password_profile: crate::storage::auth_identity::PasswordSecurityProfile,
+}
+
+impl fmt::Debug for ProviderPasswordChangePlan {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ProviderPasswordChangePlan([REDACTED])")
+    }
+}
+
+#[allow(dead_code)]
+impl ProviderPasswordChangePlan {
+    pub(crate) fn rotation(&self) -> &ProviderTokenRotationPlan {
+        &self.rotation
+    }
+
+    pub(crate) fn revocations(&self) -> &[ProviderRevocationPlan] {
+        &self.revocations
+    }
+
+    pub(crate) fn commit_plan(&self) -> ProviderPasswordChangeCommitPlan {
+        ProviderPasswordChangeCommitPlan {
+            mutation: self.mutation.clone(),
+            rotation: self.rotation.commit_plan(),
+            revocations: self.revocations.clone(),
+            password_profile: self.password_profile,
+        }
+    }
+
+    pub(crate) fn into_issue(self, session: SessionResponse) -> CredentialIssue {
+        self.rotation.into_issue(session)
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug)]
+pub(crate) enum PlannedPasswordChangeCommit {
+    Committed {
+        session: SessionResponse,
+        committed_revocations: Vec<SessionRevocation>,
+    },
+    CredentialInvalid {
+        committed_attempt: Option<crate::storage::auth_identity::PasswordAttemptState>,
+    },
+    CredentialThrottled,
+    CandidateCollision,
+    PredecessorChanged,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum PlannedLogout {
     AuthRequired,
@@ -912,7 +997,10 @@ pub(crate) struct ProviderSessionIssuancePlan {
     identity: PlannedIdentityState,
     candidate: SessionCandidate,
     projected: ProjectedSessionInsert,
-    eviction: Option<ProviderRevocationPlan>,
+    revocations: Vec<ProviderRevocationPlan>,
+    password: Option<crate::storage::auth_identity::PasswordIssuanceCommitPlan>,
+    password_profile: Option<crate::storage::auth_identity::PasswordSecurityProfile>,
+    recovery_codes: Option<crate::auth::identity_core::RecoveryCodes>,
     challenge: Option<PlannedChallengeConsumption>,
     sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
     rehearsal_exercise: Option<crate::storage::auth_rehearsal::RehearsalExercisePlan>,
@@ -930,7 +1018,9 @@ pub(crate) struct ProviderSessionIssuanceCommitPlan {
     now_ms: u64,
     identity: PlannedIdentityState,
     pub(crate) projected: ProjectedSessionInsert,
-    eviction: Option<ProviderRevocationPlan>,
+    revocations: Vec<ProviderRevocationPlan>,
+    password: Option<crate::storage::auth_identity::PasswordIssuanceCommitPlan>,
+    password_profile: Option<crate::storage::auth_identity::PasswordSecurityProfile>,
     challenge: Option<PlannedChallengeConsumption>,
     pub(crate) sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
     rehearsal_exercise: Option<crate::storage::auth_rehearsal::RehearsalExercisePlan>,
@@ -939,6 +1029,14 @@ pub(crate) struct ProviderSessionIssuanceCommitPlan {
 impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("ProviderSessionIssuanceCommitPlan([REDACTED])")
+    }
+}
+
+impl ProviderSessionIssuanceCommitPlan {
+    fn eviction(&self) -> Option<&ProviderRevocationPlan> {
+        self.revocations
+            .iter()
+            .find(|revocation| revocation.reason() == RevocationReason::CapEviction)
     }
 }
 
@@ -954,18 +1052,13 @@ impl ProviderSessionIssuancePlan {
         provenance: crate::auth::rehearsal::AuthRehearsalProvenanceV1,
         governing_not_after_ms: u64,
     ) -> ProviderResult<()> {
-        provenance
-            .validate()
-            .map_err(ProviderError::from)?;
-        if governing_not_after_ms <= self.now_ms
-            || self.projected.rehearsal_provenance.is_some()
-        {
-            return Err(ProviderError::from(crate::auth::rehearsal::authority_ended()));
+        provenance.validate().map_err(ProviderError::from)?;
+        if governing_not_after_ms <= self.now_ms || self.projected.rehearsal_provenance.is_some() {
+            return Err(ProviderError::from(
+                crate::auth::rehearsal::authority_ended(),
+            ));
         }
-        self.projected.expires_at_ms = self
-            .projected
-            .expires_at_ms
-            .min(governing_not_after_ms);
+        self.projected.expires_at_ms = self.projected.expires_at_ms.min(governing_not_after_ms);
         self.projected.absolute_expires_at_ms = self
             .projected
             .absolute_expires_at_ms
@@ -981,7 +1074,9 @@ impl ProviderSessionIssuancePlan {
         if self.projected.rehearsal_provenance.is_none()
             || self.rehearsal_exercise.replace(exercise).is_some()
         {
-            return Err(ProviderError::from(crate::auth::rehearsal::authority_ended()));
+            return Err(ProviderError::from(
+                crate::auth::rehearsal::authority_ended(),
+            ));
         }
         Ok(())
     }
@@ -1022,7 +1117,13 @@ impl ProviderSessionIssuancePlan {
     }
 
     pub(crate) fn eviction(&self) -> Option<&ProviderRevocationPlan> {
-        self.eviction.as_ref()
+        self.revocations
+            .iter()
+            .find(|revocation| revocation.reason() == RevocationReason::CapEviction)
+    }
+
+    pub(crate) fn revocations(&self) -> &[ProviderRevocationPlan] {
+        &self.revocations
     }
 
     pub(crate) fn commit_plan(&self) -> ProviderSessionIssuanceCommitPlan {
@@ -1031,7 +1132,9 @@ impl ProviderSessionIssuancePlan {
             now_ms: self.now_ms,
             identity: self.identity.clone(),
             projected: self.projected.clone(),
-            eviction: self.eviction.clone(),
+            revocations: self.revocations.clone(),
+            password: self.password.clone(),
+            password_profile: self.password_profile,
             challenge: self.challenge.clone(),
             sender_issuance: self.sender_issuance.clone(),
             rehearsal_exercise: self.rehearsal_exercise.clone(),
@@ -1065,7 +1168,10 @@ impl ProviderSessionIssuancePlan {
             },
             candidate,
             projected,
-            eviction: None,
+            revocations: Vec::new(),
+            password: None,
+            password_profile: None,
+            recovery_codes: None,
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
@@ -1075,7 +1181,7 @@ impl ProviderSessionIssuancePlan {
     pub(crate) fn into_issue(
         mut self,
         session: SessionResponse,
-        committed_revocation: Option<SessionRevocation>,
+        committed_revocations: Vec<SessionRevocation>,
     ) -> CredentialIssue {
         let bearer = self
             .candidate
@@ -1088,10 +1194,17 @@ impl ProviderSessionIssuancePlan {
             .unwrap_or(MAX_SAFE_TIMESTAMP)
             .min(session.expires_at)
             .min(session.absolute_expires_at);
+        let cap_revocation = self.eviction().and_then(|eviction| {
+            committed_revocations
+                .iter()
+                .find(|revocation| revocation.session_id == eviction.session_id())
+                .cloned()
+        });
         CredentialIssue::new(
             CredentialResponse::new(bearer, refresh_after, session),
-            committed_revocation,
+            cap_revocation,
         )
+        .with_recovery_codes(self.recovery_codes.take())
     }
 }
 
@@ -1099,10 +1212,14 @@ impl ProviderSessionIssuancePlan {
 pub(crate) enum PlannedIssuanceCommit {
     Committed {
         session: SessionResponse,
-        committed_revocation: Option<SessionRevocation>,
+        committed_revocations: Vec<SessionRevocation>,
     },
     CodeInvalid,
     CodeLocked,
+    CredentialInvalid {
+        committed_attempt: Option<crate::storage::auth_identity::PasswordAttemptState>,
+    },
+    CredentialThrottled,
     // @ref LLP 0077#issuance-refresh-and-recovery — one live family per
     // thumbprint: a valid proof over an already-bound key consumes its proof
     // id and refuses without touching the challenge, session, or nonce state.
@@ -1164,6 +1281,10 @@ pub struct AuthProvider {
     maintenance: Arc<AsyncRwLock<()>>,
     address_stripes: Vec<Arc<AsyncMutex<()>>>,
     address_hasher: RandomState,
+    #[allow(dead_code)] // Password route registration lands in the adjacent lane.
+    password_security: crate::storage::auth_identity::PasswordSecurityProfile,
+    #[allow(dead_code)]
+    password_kdf_permits: Arc<Semaphore>,
 }
 
 impl fmt::Debug for AuthProvider {
@@ -1177,6 +1298,7 @@ impl fmt::Debug for AuthProvider {
     }
 }
 
+#[allow(dead_code)] // Password route integration consumes the staged core methods next.
 impl AuthProvider {
     pub fn new(
         profile: AuthProviderProfile,
@@ -1215,6 +1337,8 @@ impl AuthProvider {
             Arc::new(move || mailbox_clock.monotonic_now()),
             budgets.mailbox().limit as usize,
         );
+        let password_security =
+            crate::storage::auth_identity::PasswordSecurityProfile::for_provider(profile);
         Ok(Self {
             profile,
             budgets,
@@ -1231,6 +1355,8 @@ impl AuthProvider {
                 .map(|_| Arc::new(AsyncMutex::new(())))
                 .collect(),
             address_hasher: RandomState::new(),
+            password_security,
+            password_kdf_permits: Arc::new(Semaphore::new(password_security.kdf_concurrency)),
         })
     }
 
@@ -1240,6 +1366,599 @@ impl AuthProvider {
 
     pub(crate) fn budget_policy(&self) -> ResolvedCompatibilityAuthBudgetPolicy {
         self.budgets
+    }
+
+    pub(crate) const fn password_security_profile(
+        &self,
+    ) -> crate::storage::auth_identity::PasswordSecurityProfile {
+        self.password_security
+    }
+
+    /// Run one password creation hash on the bounded blocking pool. Admission
+    /// is non-queueing: resource exhaustion is a typed throttle refusal, so an
+    /// attacker cannot turn the async executor into an unbounded 19-MiB/hash
+    /// memory queue.
+    ///
+    /// @ref LLP 0214#73-password-processing-outside-the-storage-lock — no
+    ///   SQLite guard is held while Argon2id runs.
+    pub(crate) async fn hash_password_bounded(
+        &self,
+        secret: crate::auth::identity_core::PasswordSecret,
+    ) -> SnapbackResult<crate::storage::auth_identity::PreparedPasswordHash> {
+        let permit = Arc::clone(&self.password_kdf_permits)
+            .try_acquire_owned()
+            .map_err(|_| password_kdf_throttled())?;
+        let random = Arc::clone(&self.random);
+        tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            crate::storage::auth_identity::hash_password_on_blocking_pool(&secret, random.as_ref())
+        })
+        .await
+        .map_err(|_| provider_unavailable().into_snapback_error())?
+    }
+
+    /// Verify a real or dummy predecessor and, when necessary, prepare the
+    /// upgrade hash inside the same bounded blocking job. The caller supplies
+    /// only a snapshot string read before this call; the writer transaction is
+    /// opened later and must still enforce the exact credential generation.
+    pub(crate) async fn verify_password_bounded(
+        &self,
+        secret: crate::auth::identity_core::PasswordSecret,
+        hash_phc: String,
+        prepare_upgrade: bool,
+    ) -> SnapbackResult<crate::storage::auth_identity::PreparedPasswordVerification> {
+        let permit = Arc::clone(&self.password_kdf_permits)
+            .try_acquire_owned()
+            .map_err(|_| password_kdf_throttled())?;
+        let random = Arc::clone(&self.random);
+        let verification_floor =
+            Duration::from_millis(self.password_security.verification_floor_ms);
+        tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            let started = Instant::now();
+            let result = crate::storage::auth_identity::verify_password_on_blocking_pool(
+                &secret,
+                &hash_phc,
+                prepare_upgrade,
+                random.as_ref(),
+            );
+            if let Some(remaining) = verification_floor.checked_sub(started.elapsed()) {
+                std::thread::sleep(remaining);
+            }
+            result
+        })
+        .await
+        .map_err(|_| provider_unavailable().into_snapback_error())?
+    }
+
+    /// Prepare first-class local-password signup without opening the writer
+    /// transaction. The returned carrier enters the same projection and
+    /// durable issuance protocol as email-code exchange.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn plan_password_registration(
+        &self,
+        database: &LocalDatabase,
+        identifier: &str,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        recovery_key_id: &str,
+        recovery_key: &[u8; 32],
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
+        let mode = database.auth_password_identifier_mode()?;
+        let canonical =
+            crate::storage::auth_identity::canonical_password_identifier_value(mode, identifier)?;
+        let address = CanonicalAddress::parse(&canonical).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
+                "auth",
+                "password identifier does not satisfy the declared mode",
+            )
+        })?;
+        let password = self.hash_password_bounded(password).await?;
+        let (recovery_codes, recovery) = crate::storage::auth_identity::prepare_recovery_set(
+            self.random.as_ref(),
+            recovery_key_id,
+            recovery_key,
+        )?;
+        let candidate =
+            SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
+        let identity = PlannedIdentityState::Create {
+            identity_id: candidate.identity_id.clone(),
+            user_id: candidate.user_id.clone(),
+        };
+        let projected = ProjectedSessionInsert {
+            session_id: candidate.session_id.clone(),
+            user_id: candidate.user_id.clone(),
+            provider: "local-password".to_owned(),
+            authority_instance_id: candidate.authority_instance_id.clone(),
+            generation: 1,
+            token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
+            created_at_ms: now_ms,
+            expires_at_ms: checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?,
+            absolute_expires_at_ms: checked_time_add_snapback(
+                now_ms,
+                AUTH_SESSION_ABSOLUTE_WINDOW_MS,
+            )?,
+            rehearsal_provenance: None,
+        };
+        let password = crate::storage::auth_identity::PasswordIssuanceCommitPlan {
+            canonical_identifier: canonical,
+            identifier_mode: mode,
+            identity_id: candidate.identity_id.clone(),
+            user_id: candidate.user_id.clone(),
+            operation: crate::storage::auth_identity::PasswordIssuanceOperation::Register {
+                credential_id: opaque_catalog_component("credential"),
+                password,
+                recovery,
+            },
+        };
+        Ok(ProviderSessionIssuancePlan {
+            address,
+            now_ms,
+            identity,
+            candidate,
+            projected,
+            revocations: Vec::new(),
+            password: Some(password),
+            password_profile: Some(self.password_security),
+            recovery_codes: Some(recovery_codes),
+            challenge: None,
+            sender_issuance: None,
+            rehearsal_exercise: None,
+        })
+    }
+
+    /// Snapshot, spend exactly one real-or-dummy KDF outside SQLite, then
+    /// prepare a credential-fenced issuance. A missing account and a real
+    /// predecessor have the same KDF and candidate-allocation envelope.
+    pub(crate) async fn plan_password_authentication(
+        &self,
+        database: &LocalDatabase,
+        identifier: &str,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
+        let mode = database.auth_password_identifier_mode()?;
+        let canonical =
+            crate::storage::auth_identity::canonical_password_identifier_value(mode, identifier)?;
+        let address = CanonicalAddress::parse(&canonical).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
+                "auth",
+                "password identifier does not satisfy the declared mode",
+            )
+        })?;
+        let predecessor = database.password_authentication_predecessor(&canonical, mode)?;
+        // Admission observes lock state but never returns from this branch:
+        // a live lock still spends the same real KDF before the serialized
+        // transaction re-reads the authoritative ledger predecessor.
+        let _lock_observed_at_admission = predecessor
+            .ledger
+            .as_ref()
+            .and_then(|attempt| attempt.locked_until_ms)
+            .is_some_and(|until| now_ms < until);
+        let credential = predecessor.credential;
+        let hash_phc = credential.as_ref().map_or_else(
+            || crate::storage::auth_identity::dummy_password_phc().to_owned(),
+            |snapshot| snapshot.hash_phc.clone(),
+        );
+        let verification = self
+            .verify_password_bounded(password, hash_phc, credential.is_some())
+            .await?;
+        let candidate =
+            SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
+        let (identity, revocations) = match &credential {
+            Some(snapshot) => (
+                PlannedIdentityState::Existing {
+                    identity_id: snapshot.identity_id.clone(),
+                    user_id: snapshot.user_id.clone(),
+                },
+                database
+                    .plan_password_session_cap(&snapshot.user_id, now_ms)?
+                    .into_iter()
+                    .collect(),
+            ),
+            None => (
+                PlannedIdentityState::Create {
+                    identity_id: candidate.identity_id.clone(),
+                    user_id: candidate.user_id.clone(),
+                },
+                Vec::new(),
+            ),
+        };
+        let (user_id, identity_id) = match &identity {
+            PlannedIdentityState::Existing {
+                identity_id,
+                user_id,
+            }
+            | PlannedIdentityState::Create {
+                identity_id,
+                user_id,
+            } => (user_id.clone(), identity_id.clone()),
+        };
+        let projected = ProjectedSessionInsert {
+            session_id: candidate.session_id.clone(),
+            user_id: user_id.clone(),
+            provider: "local-password".to_owned(),
+            authority_instance_id: candidate.authority_instance_id.clone(),
+            generation: 1,
+            token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
+            created_at_ms: now_ms,
+            expires_at_ms: checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?,
+            absolute_expires_at_ms: checked_time_add_snapback(
+                now_ms,
+                AUTH_SESSION_ABSOLUTE_WINDOW_MS,
+            )?,
+            rehearsal_provenance: None,
+        };
+        Ok(ProviderSessionIssuancePlan {
+            address,
+            now_ms,
+            identity,
+            candidate,
+            projected,
+            revocations,
+            password: Some(crate::storage::auth_identity::PasswordIssuanceCommitPlan {
+                canonical_identifier: canonical,
+                identifier_mode: mode,
+                identity_id,
+                user_id,
+                operation: crate::storage::auth_identity::PasswordIssuanceOperation::Authenticate {
+                    credential,
+                    admission_ledger: predecessor.ledger,
+                    verified: verification.verified,
+                    replacement: verification.replacement,
+                },
+            }),
+            password_profile: Some(self.password_security),
+            recovery_codes: None,
+            challenge: None,
+            sender_issuance: None,
+            rehearsal_exercise: None,
+        })
+    }
+
+    pub(crate) fn commit_password_issuance(
+        &self,
+        database: &mut LocalDatabase,
+        plan: &ProviderSessionIssuanceCommitPlan,
+    ) -> AuthTransactionAttempt<PlannedIssuanceCommit> {
+        if plan.password.is_none() || plan.challenge.is_some() || plan.sender_issuance.is_some() {
+            return AuthTransactionAttempt::RolledBack(internal_state_snapback());
+        }
+        attempt_planned_session_issuance(database, plan, None)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn plan_password_set(
+        &self,
+        database: &LocalDatabase,
+        acting: &SessionBearer,
+        email_identity_id: &str,
+        identifier: &str,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        recovery_key_id: &str,
+        recovery_key: &[u8; 32],
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
+        let mode = database.auth_password_identifier_mode()?;
+        let canonical =
+            crate::storage::auth_identity::canonical_password_identifier_value(mode, identifier)?;
+        let address = CanonicalAddress::parse(&canonical).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
+                "auth",
+                "password identifier does not satisfy the declared mode",
+            )
+        })?;
+        let planning =
+            database.password_set_planning(acting, email_identity_id, &canonical, now_ms)?;
+        let password = self.hash_password_bounded(password).await?;
+        let (recovery_codes, recovery) = crate::storage::auth_identity::prepare_recovery_set(
+            self.random.as_ref(),
+            recovery_key_id,
+            recovery_key,
+        )?;
+        let candidate =
+            SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
+        let mut revocations = database.plan_user_session_revocations(
+            &planning.predecessor.acting_user_id,
+            None,
+            None,
+            now_ms,
+        )?;
+        if let Some(displaced) = &planning.displaced {
+            for revocation in database.plan_user_session_revocations(
+                &displaced.user_id,
+                None,
+                Some(&displaced.identity_id),
+                now_ms,
+            )? {
+                if !revocations
+                    .iter()
+                    .any(|existing| existing.session_id() == revocation.session_id())
+                {
+                    revocations.push(revocation);
+                }
+            }
+        }
+        let user_id = planning.predecessor.acting_user_id.clone();
+        let identity_id = candidate.identity_id.clone();
+        let projected = ProjectedSessionInsert {
+            session_id: candidate.session_id.clone(),
+            user_id: user_id.clone(),
+            provider: "local-password".to_owned(),
+            authority_instance_id: candidate.authority_instance_id.clone(),
+            generation: 1,
+            token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
+            created_at_ms: now_ms,
+            expires_at_ms: checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?,
+            absolute_expires_at_ms: checked_time_add_snapback(
+                now_ms,
+                AUTH_SESSION_ABSOLUTE_WINDOW_MS,
+            )?,
+            rehearsal_provenance: None,
+        };
+        let password = crate::storage::auth_identity::PasswordIssuanceCommitPlan {
+            canonical_identifier: canonical,
+            identifier_mode: mode,
+            identity_id: identity_id.clone(),
+            user_id: user_id.clone(),
+            operation: crate::storage::auth_identity::PasswordIssuanceOperation::Set {
+                predecessor: planning.predecessor,
+                displaced: planning.displaced,
+                credential_id: opaque_catalog_component("credential"),
+                password,
+                recovery,
+            },
+        };
+        Ok(ProviderSessionIssuancePlan {
+            address,
+            now_ms,
+            identity: PlannedIdentityState::Create {
+                identity_id,
+                user_id,
+            },
+            candidate,
+            projected,
+            revocations,
+            password: Some(password),
+            password_profile: Some(self.password_security),
+            recovery_codes: Some(recovery_codes),
+            challenge: None,
+            sender_issuance: None,
+            rehearsal_exercise: None,
+        })
+    }
+
+    pub(crate) async fn plan_password_change(
+        &self,
+        database: &LocalDatabase,
+        acting: &SessionBearer,
+        current: crate::auth::identity_core::PasswordSecret,
+        replacement: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderPasswordChangePlan> {
+        require_password_bearer_custody(custody)?;
+        validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
+        let planning = database.password_change_planning(acting, now_ms)?;
+        if planning.sender_constrained {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED",
+                "auth",
+                "password authentication does not support sender-constrained custody",
+            ));
+        }
+        let verification = self
+            .verify_password_bounded(current, planning.credential.hash_phc.clone(), false)
+            .await?;
+        let replacement = self.hash_password_bounded(replacement).await?;
+        let successor =
+            BearerCandidate::generate(self).map_err(ProviderError::into_snapback_error)?;
+        let rotation = ProviderTokenRotationPlan {
+            session_id: planning.acting_session_id.clone(),
+            expected_generation: planning.acting_generation,
+            predecessor_digest: planning.acting_token_digest,
+            successor_digest: TokenDigest::from_token_hash(&successor.token_hash),
+            superseded_at_ms: now_ms,
+            successor,
+        };
+        let revocations = database.plan_user_session_revocations(
+            &planning.credential.user_id,
+            Some(&planning.acting_session_id),
+            None,
+            now_ms,
+        )?;
+        Ok(ProviderPasswordChangePlan {
+            mutation: crate::storage::auth_identity::PasswordChangeCommitPlan {
+                credential: planning.credential,
+                canonical_identifier: planning.canonical_identifier,
+                verified: verification.verified,
+                replacement,
+            },
+            rotation,
+            revocations,
+            password_profile: self.password_security,
+        })
+    }
+
+    pub(crate) fn commit_password_change(
+        &self,
+        database: &mut LocalDatabase,
+        plan: &ProviderPasswordChangeCommitPlan,
+    ) -> AuthTransactionAttempt<PlannedPasswordChangeCommit> {
+        attempt_planned_password_change(database, plan)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn plan_guest_claim_password(
+        &self,
+        database: &LocalDatabase,
+        guest: &SessionBearer,
+        identifier: &str,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        recovery_key_id: &str,
+        recovery_key: &[u8; 32],
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        let mode = database.auth_password_identifier_mode()?;
+        let canonical =
+            crate::storage::auth_identity::canonical_password_identifier_value(mode, identifier)?;
+        let address = CanonicalAddress::parse(&canonical).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
+                "auth",
+                "password identifier does not satisfy the declared mode",
+            )
+        })?;
+        let predecessor = database.guest_claim_predecessor(guest, now_ms)?;
+        let password = self.hash_password_bounded(password).await?;
+        let (recovery_codes, recovery) = crate::storage::auth_identity::prepare_recovery_set(
+            self.random.as_ref(),
+            recovery_key_id,
+            recovery_key,
+        )?;
+        let candidate =
+            SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
+        let user_id = predecessor.user_id.clone();
+        let identity_id = candidate.identity_id.clone();
+        let revocations = database.plan_user_session_revocations(&user_id, None, None, now_ms)?;
+        let projected = ProjectedSessionInsert {
+            session_id: candidate.session_id.clone(),
+            user_id: user_id.clone(),
+            provider: "local-password".to_owned(),
+            authority_instance_id: candidate.authority_instance_id.clone(),
+            generation: 1,
+            token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
+            created_at_ms: now_ms,
+            expires_at_ms: checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?,
+            absolute_expires_at_ms: checked_time_add_snapback(
+                now_ms,
+                AUTH_SESSION_ABSOLUTE_WINDOW_MS,
+            )?,
+            rehearsal_provenance: None,
+        };
+        Ok(ProviderSessionIssuancePlan {
+            address,
+            now_ms,
+            identity: PlannedIdentityState::Create {
+                identity_id: identity_id.clone(),
+                user_id: user_id.clone(),
+            },
+            candidate,
+            projected,
+            revocations,
+            password: Some(crate::storage::auth_identity::PasswordIssuanceCommitPlan {
+                canonical_identifier: canonical,
+                identifier_mode: mode,
+                identity_id,
+                user_id,
+                operation: crate::storage::auth_identity::PasswordIssuanceOperation::GuestClaim {
+                    predecessor,
+                    credential_id: opaque_catalog_component("credential"),
+                    password,
+                    recovery,
+                },
+            }),
+            password_profile: Some(self.password_security),
+            recovery_codes: Some(recovery_codes),
+            challenge: None,
+            sender_issuance: None,
+            rehearsal_exercise: None,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)] // Recovery proof, replacement set, and custody cross one fence.
+    pub(crate) fn plan_password_recovery_consume(
+        &self,
+        database: &LocalDatabase,
+        identifier: &str,
+        code: &str,
+        now_ms: u64,
+        recovery_key_id: &str,
+        recovery_key: &[u8; 32],
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        let mode = database.auth_password_identifier_mode()?;
+        let canonical =
+            crate::storage::auth_identity::canonical_password_identifier_value(mode, identifier)?;
+        let address = CanonicalAddress::parse(&canonical).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
+                "auth",
+                "password identifier does not satisfy the declared mode",
+            )
+        })?;
+        let predecessor =
+            database.recovery_code_predecessor(&canonical, code, recovery_key_id, recovery_key)?;
+        let (recovery_codes, successor_recovery) =
+            crate::storage::auth_identity::prepare_recovery_set(
+                self.random.as_ref(),
+                recovery_key_id,
+                recovery_key,
+            )?;
+        let candidate =
+            SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
+        let revocations =
+            database.plan_user_session_revocations(&predecessor.user_id, None, None, now_ms)?;
+        let projected = ProjectedSessionInsert {
+            session_id: candidate.session_id.clone(),
+            user_id: predecessor.user_id.clone(),
+            provider: "local-password".to_owned(),
+            authority_instance_id: candidate.authority_instance_id.clone(),
+            generation: 1,
+            token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
+            created_at_ms: now_ms,
+            expires_at_ms: checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?,
+            absolute_expires_at_ms: checked_time_add_snapback(
+                now_ms,
+                AUTH_SESSION_ABSOLUTE_WINDOW_MS,
+            )?,
+            rehearsal_provenance: None,
+        };
+        let identity_id = predecessor.identity_id.clone();
+        let user_id = predecessor.user_id.clone();
+        Ok(ProviderSessionIssuancePlan {
+            address,
+            now_ms,
+            identity: PlannedIdentityState::Existing {
+                identity_id: identity_id.clone(),
+                user_id: user_id.clone(),
+            },
+            candidate,
+            projected,
+            revocations,
+            password: Some(crate::storage::auth_identity::PasswordIssuanceCommitPlan {
+                canonical_identifier: canonical,
+                identifier_mode: mode,
+                identity_id,
+                user_id,
+                operation:
+                    crate::storage::auth_identity::PasswordIssuanceOperation::RecoveryConsume {
+                        predecessor,
+                        successor_credential_id: opaque_catalog_component("recovery"),
+                        successor_recovery,
+                    },
+            }),
+            password_profile: Some(self.password_security),
+            recovery_codes: Some(recovery_codes),
+            challenge: None,
+            sender_issuance: None,
+            rehearsal_exercise: None,
+        })
     }
 
     /// CSPRNG dependency shared with the agent-secret storage transactions.
@@ -2562,7 +3281,10 @@ impl AddressAdmission {
             identity,
             candidate,
             projected,
-            eviction,
+            revocations: eviction.into_iter().collect(),
+            password: None,
+            password_profile: None,
+            recovery_codes: None,
             challenge: None,
             sender_issuance: None,
             rehearsal_exercise: None,
@@ -2835,13 +3557,16 @@ fn lookup_current_session(
 ) -> SnapbackResult<Option<SessionRecord>> {
     let raw = connection
         .query_row(
-            "SELECT session.id, session.user_id, session.identity_id,
-                    identity.provider, session.generation,
+            "SELECT session.id, session.user_id,
+                    COALESCE(session.identity_id,session.id),
+                    CASE WHEN session.authn_source='guest'
+                         THEN 'guest' ELSE identity.provider END,
+                    session.generation,
                     session.authority_instance_id, session.created_at_ms,
                     session.last_used_at_ms, session.expires_at_ms,
                     session.absolute_expires_at_ms, session.revoked_at_ms
              FROM _auth_sessions AS session
-             JOIN _auth_identities AS identity
+             LEFT JOIN _auth_identities AS identity
                ON identity.id = session.identity_id AND identity.user_id = session.user_id
              WHERE session.token_hash = ?1",
             params![token_hash.as_bytes().as_slice()],
@@ -2857,8 +3582,11 @@ fn lookup_tombstone_session(
 ) -> SnapbackResult<Option<(SessionRecord, u64)>> {
     let raw = connection
         .query_row(
-            "SELECT session.id, session.user_id, session.identity_id,
-                    identity.provider, session.generation,
+            "SELECT session.id, session.user_id,
+                    COALESCE(session.identity_id,session.id),
+                    CASE WHEN session.authn_source='guest'
+                         THEN 'guest' ELSE identity.provider END,
+                    session.generation,
                     session.authority_instance_id, session.created_at_ms,
                     session.last_used_at_ms, session.expires_at_ms,
                     session.absolute_expires_at_ms, session.revoked_at_ms,
@@ -2951,14 +3679,17 @@ fn lookup_session_snapshot(
 ) -> SnapbackResult<Option<DurableSessionSnapshot>> {
     let raw = connection
         .query_row(
-            "SELECT session.id, session.user_id, session.identity_id,
-                    identity.provider, session.generation,
+            "SELECT session.id, session.user_id,
+                    COALESCE(session.identity_id,session.id),
+                    CASE WHEN session.authn_source='guest'
+                         THEN 'guest' ELSE identity.provider END,
+                    session.generation,
                     session.authority_instance_id, session.created_at_ms,
                     session.last_used_at_ms, session.expires_at_ms,
                     session.absolute_expires_at_ms, session.revoked_at_ms,
                     session.token_hash
              FROM _auth_sessions AS session
-             JOIN _auth_identities AS identity
+             LEFT JOIN _auth_identities AS identity
                ON identity.id = session.identity_id AND identity.user_id = session.user_id
              WHERE session.id = ?1",
             params![session_id],
@@ -3314,6 +4045,233 @@ pub(crate) fn planned_rotation_transaction(
         return Err(internal_state_snapback());
     }
     Ok(PlannedRotationTransaction::Refreshed(current.response()))
+}
+
+fn planned_revocation_set_is_exact_predecessor(
+    connection: &Connection,
+    revocations: &[ProviderRevocationPlan],
+    now_ms: u64,
+) -> SnapbackResult<bool> {
+    for revocation in revocations {
+        if !matches!(
+            reconcile_planned_revocation(connection, revocation, now_ms)?,
+            DurableRevocationReconcile::ExactPredecessor
+        ) {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn commit_planned_revocation_set(
+    transaction: &Transaction<'_>,
+    revocations: &[ProviderRevocationPlan],
+    now_ms: u64,
+) -> SnapbackResult<Vec<SessionRevocation>> {
+    let mut committed = Vec::with_capacity(revocations.len());
+    for revocation in revocations {
+        let generation = revocation.committed_generation()?;
+        let changed = transaction.execute(
+            "UPDATE _auth_sessions
+             SET revoked_at_ms=?1,generation=?2
+             WHERE id=?3 AND generation=?4 AND token_hash=?5
+               AND revoked_at_ms IS NULL AND ?1<expires_at_ms",
+            params![
+                now_ms as i64,
+                generation as i64,
+                revocation.session_id,
+                revocation.expected_generation as i64,
+                revocation.presented_digest.as_bytes().as_slice(),
+            ],
+        )?;
+        if changed != 1 {
+            return Err(internal_state_snapback());
+        }
+        crate::storage::auth::write_session_terminal_cause_in(
+            transaction,
+            &revocation.session_id,
+            generation,
+            now_ms,
+            revocation.reason,
+        )?;
+        committed.push(SessionRevocation {
+            session_id: revocation.session_id.clone(),
+            generation,
+        });
+    }
+    Ok(committed)
+}
+
+#[allow(dead_code)]
+pub(crate) fn planned_password_change_transaction(
+    transaction: &Transaction<'_>,
+    plan: &ProviderPasswordChangeCommitPlan,
+) -> SnapbackResult<PlannedPasswordChangeCommit> {
+    match crate::storage::auth_identity::admit_password_change_in(
+        transaction,
+        &plan.mutation,
+        plan.rotation.superseded_at_ms,
+        plan.password_profile,
+    )? {
+        crate::storage::auth_identity::PasswordIssuanceAdmission::Proceed { .. } => {}
+        crate::storage::auth_identity::PasswordIssuanceAdmission::Invalid { committed_attempt } => {
+            return Ok(PlannedPasswordChangeCommit::CredentialInvalid { committed_attempt });
+        }
+        crate::storage::auth_identity::PasswordIssuanceAdmission::LedgerCapacityExhausted => {
+            return Ok(PlannedPasswordChangeCommit::CredentialThrottled);
+        }
+        crate::storage::auth_identity::PasswordIssuanceAdmission::PredecessorChanged => {
+            return Ok(PlannedPasswordChangeCommit::PredecessorChanged);
+        }
+    }
+    if !planned_revocation_set_is_exact_predecessor(
+        transaction,
+        &plan.revocations,
+        plan.rotation.superseded_at_ms,
+    )? {
+        return Ok(PlannedPasswordChangeCommit::PredecessorChanged);
+    }
+    let session = match planned_rotation_transaction(transaction, &plan.rotation)? {
+        PlannedRotationTransaction::Refreshed(session) => session,
+        PlannedRotationTransaction::CandidateCollision => {
+            return Ok(PlannedPasswordChangeCommit::CandidateCollision);
+        }
+        PlannedRotationTransaction::PredecessorChanged => {
+            return Ok(PlannedPasswordChangeCommit::PredecessorChanged);
+        }
+    };
+    crate::storage::auth_identity::apply_password_change_in(
+        transaction,
+        &plan.mutation,
+        plan.rotation.superseded_at_ms,
+    )?;
+    let committed_revocations = commit_planned_revocation_set(
+        transaction,
+        &plan.revocations,
+        plan.rotation.superseded_at_ms,
+    )?;
+    Ok(PlannedPasswordChangeCommit::Committed {
+        session,
+        committed_revocations,
+    })
+}
+
+#[allow(dead_code)]
+pub(crate) enum DurablePasswordChangeReconcile {
+    ExactPredecessor,
+    ExactSuccessor {
+        session: SessionResponse,
+        committed_revocations: Vec<SessionRevocation>,
+    },
+    DifferentValid,
+}
+
+#[allow(dead_code)]
+pub(crate) fn reconcile_password_change(
+    connection: &Connection,
+    plan: &ProviderPasswordChangeCommitPlan,
+) -> SnapbackResult<DurablePasswordChangeReconcile> {
+    let rotation = reconcile_planned_rotation(connection, &plan.rotation)?;
+    let mutation_successor = crate::storage::auth_identity::password_change_is_exact_successor_on(
+        connection,
+        &plan.mutation,
+        plan.rotation.superseded_at_ms,
+    )?;
+    let mutation_predecessor =
+        crate::storage::auth_identity::password_change_is_exact_predecessor_on(
+            connection,
+            &plan.mutation,
+        )?;
+    let mut revocation_successors = Vec::with_capacity(plan.revocations.len());
+    let mut all_revocation_successors = true;
+    let mut all_revocation_predecessors = true;
+    for revocation in &plan.revocations {
+        match reconcile_planned_revocation(connection, revocation, plan.rotation.superseded_at_ms)?
+        {
+            DurableRevocationReconcile::ExactSuccessor(committed) => {
+                revocation_successors.push(committed);
+                all_revocation_predecessors = false;
+            }
+            DurableRevocationReconcile::ExactPredecessor => {
+                all_revocation_successors = false;
+            }
+            DurableRevocationReconcile::DifferentValid => {
+                all_revocation_successors = false;
+                all_revocation_predecessors = false;
+            }
+        }
+    }
+    match rotation {
+        DurableRotationReconcile::ExactSuccessor(session)
+            if mutation_successor && all_revocation_successors =>
+        {
+            Ok(DurablePasswordChangeReconcile::ExactSuccessor {
+                session,
+                committed_revocations: revocation_successors,
+            })
+        }
+        DurableRotationReconcile::ExactPredecessor
+            if mutation_predecessor && all_revocation_predecessors =>
+        {
+            Ok(DurablePasswordChangeReconcile::ExactPredecessor)
+        }
+        _ => Ok(DurablePasswordChangeReconcile::DifferentValid),
+    }
+}
+
+#[allow(dead_code)]
+fn attempt_planned_password_change(
+    database: &mut LocalDatabase,
+    plan: &ProviderPasswordChangeCommitPlan,
+) -> AuthTransactionAttempt<PlannedPasswordChangeCommit> {
+    let (attempt, body_outcome) = database.auth_catalog().attempt_password_change(plan);
+    let AuthTransactionAttempt::CommitUncertain(commit_error) = attempt else {
+        return attempt;
+    };
+    let Some(body_outcome) = body_outcome else {
+        return AuthTransactionAttempt::CommitUncertain(commit_error);
+    };
+    match body_outcome {
+        PlannedPasswordChangeCommit::CandidateCollision
+        | PlannedPasswordChangeCommit::PredecessorChanged
+        | PlannedPasswordChangeCommit::CredentialThrottled => {
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::PredecessorChanged)
+        }
+        PlannedPasswordChangeCommit::CredentialInvalid { committed_attempt } => {
+            let committed = committed_attempt.as_ref().is_none_or(|expected| {
+                database
+                    .password_attempt_matches(&plan.mutation.canonical_identifier, expected)
+                    .unwrap_or(false)
+            });
+            if committed {
+                AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::CredentialInvalid {
+                    committed_attempt,
+                })
+            } else {
+                AuthTransactionAttempt::RolledBack(commit_error)
+            }
+        }
+        PlannedPasswordChangeCommit::Committed { .. } => {
+            match database.auth_catalog_read().reconcile_password_change(plan) {
+                Ok(DurablePasswordChangeReconcile::ExactSuccessor {
+                    session,
+                    committed_revocations,
+                }) => AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::Committed {
+                    session,
+                    committed_revocations,
+                }),
+                Ok(DurablePasswordChangeReconcile::ExactPredecessor) => {
+                    AuthTransactionAttempt::RolledBack(commit_error)
+                }
+                Ok(DurablePasswordChangeReconcile::DifferentValid) => {
+                    AuthTransactionAttempt::Committed(
+                        PlannedPasswordChangeCommit::PredecessorChanged,
+                    )
+                }
+                Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -3683,7 +4641,10 @@ pub(crate) fn plan_exchange_read(
         identity,
         candidate,
         projected,
-        eviction,
+        revocations: eviction.into_iter().collect(),
+        password: None,
+        password_profile: None,
+        recovery_codes: None,
         challenge: Some(PlannedChallengeConsumption {
             challenge_id: coordination.challenge_id.as_str().to_owned(),
             key_id: coordination.key_id.as_str().to_owned(),
@@ -4065,6 +5026,15 @@ pub(crate) fn plan_session_issuance_read(
         PlannedIdentityState::Existing { user_id, .. }
         | PlannedIdentityState::Create { user_id, .. } => user_id,
     };
+    let eviction = plan_session_cap_read(connection, user_id, now_ms)?;
+    Ok((identity, eviction))
+}
+
+pub(crate) fn plan_session_cap_read(
+    connection: &Connection,
+    user_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<Option<ProviderRevocationPlan>> {
     let count: i64 = connection.query_row(
         "SELECT COUNT(*) FROM _auth_sessions
          WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms",
@@ -4097,7 +5067,53 @@ pub(crate) fn plan_session_issuance_read(
     } else {
         None
     };
-    Ok((identity, eviction))
+    Ok(eviction)
+}
+
+pub(crate) fn plan_user_session_revocations_read(
+    connection: &Connection,
+    user_id: &str,
+    excluded_session_id: Option<&str>,
+    identity_id: Option<&str>,
+    now_ms: u64,
+) -> SnapbackResult<Vec<ProviderRevocationPlan>> {
+    let mut statement = connection.prepare(
+        "SELECT id,generation,token_hash
+         FROM _auth_sessions
+         WHERE user_id=?1
+           AND (?2 IS NULL OR id<>?2)
+           AND (?3 IS NULL OR identity_id=?3)
+           AND revoked_at_ms IS NULL
+           AND ?4 < expires_at_ms
+         ORDER BY id",
+    )?;
+    let rows = statement.query_map(
+        params![user_id, excluded_session_id, identity_id, now_ms as i64],
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, Vec<u8>>(2)?,
+            ))
+        },
+    )?;
+    let mut plans = Vec::new();
+    for row in rows {
+        let (session_id, generation, token_hash) = row?;
+        let expected_generation = u64::try_from(generation)
+            .ok()
+            .filter(|generation| *generation != 0 && *generation < MAX_SAFE_TIMESTAMP)
+            .ok_or_else(internal_state_snapback)?;
+        plans.push(ProviderRevocationPlan {
+            session_id,
+            expected_generation,
+            presented_digest: TokenDigest::from_slice(&token_hash)
+                .map_err(|_| internal_state_snapback())?,
+            source: PlannedTokenSource::Current,
+            reason: RevocationReason::DurableRevocation,
+        });
+    }
+    Ok(plans)
 }
 
 fn attempt_planned_session_issuance(
@@ -4115,7 +5131,9 @@ fn attempt_planned_session_issuance(
         return AuthTransactionAttempt::CommitUncertain(commit_error);
     };
     match body_outcome {
-        PlannedIssuanceCommit::CandidateCollision | PlannedIssuanceCommit::PredecessorChanged => {
+        PlannedIssuanceCommit::CandidateCollision
+        | PlannedIssuanceCommit::PredecessorChanged
+        | PlannedIssuanceCommit::CredentialThrottled => {
             // The transaction performs no write before this outcome. Authority
             // therefore remained at the projection predecessor even if the
             // final COMMIT acknowledgement was lost.
@@ -4136,6 +5154,22 @@ fn attempt_planned_session_issuance(
                     AuthTransactionAttempt::Committed(PlannedIssuanceCommit::PredecessorChanged)
                 }
                 Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
+            }
+        }
+        PlannedIssuanceCommit::CredentialInvalid { committed_attempt } => {
+            let committed = match (plan.password.as_ref(), committed_attempt.as_ref()) {
+                (Some(password), Some(expected)) => database
+                    .password_attempt_matches(&password.canonical_identifier, expected)
+                    .unwrap_or(false),
+                (Some(_), None) => true,
+                _ => false,
+            };
+            if committed {
+                AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CredentialInvalid {
+                    committed_attempt,
+                })
+            } else {
+                AuthTransactionAttempt::RolledBack(commit_error)
             }
         }
         PlannedIssuanceCommit::SenderKeyBound => {
@@ -4161,10 +5195,10 @@ fn attempt_planned_session_issuance(
             {
                 Ok(DurableIssuanceReconcile::ExactSuccessor {
                     session,
-                    committed_revocation,
+                    committed_revocations,
                 }) => AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
                     session,
-                    committed_revocation,
+                    committed_revocations,
                 }),
                 Ok(DurableIssuanceReconcile::ExactPredecessor) => {
                     AuthTransactionAttempt::RolledBack(commit_error)
@@ -4175,8 +5209,7 @@ fn attempt_planned_session_issuance(
                 Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
             }
         }
-        PlannedIssuanceCommit::RehearsalReplay(_)
-        | PlannedIssuanceCommit::RehearsalDenied(_) => {
+        PlannedIssuanceCommit::RehearsalReplay(_) | PlannedIssuanceCommit::RehearsalDenied(_) => {
             // Rehearsal accounting may have committed without a session.
             // Its request-bound receipt cannot prove COMMIT certainty through
             // the provider catalog, so retain the conservative uncertainty.
@@ -4338,32 +5371,63 @@ pub(crate) fn planned_session_issuance_transaction(
             .map_err(|_| internal_state_snapback())?;
         return Ok(PlannedIssuanceCommit::SenderKeyBound);
     }
-    let durable_identity: Option<(String, String)> = transaction
-        .query_row(
-            "SELECT id, user_id FROM _auth_identities
-             WHERE provider = 'email-code' AND subject = ?1",
-            params![plan.address.as_str()],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .optional()?;
-    let (identity_id, user_id, create_identity) = match (&plan.identity, durable_identity) {
-        (
-            PlannedIdentityState::Existing {
-                identity_id,
-                user_id,
-            },
-            Some((durable_identity_id, durable_user_id)),
-        ) if identity_id == &durable_identity_id && user_id == &durable_user_id => {
-            (identity_id.clone(), user_id.clone(), false)
+    let (identity_id, user_id, create_identity) = if let Some(password) = &plan.password {
+        let Some(profile) = plan.password_profile else {
+            return Err(internal_state_snapback());
+        };
+        match crate::storage::auth_identity::admit_password_issuance_in(
+            transaction,
+            password,
+            plan.now_ms,
+            profile,
+        )? {
+            crate::storage::auth_identity::PasswordIssuanceAdmission::Proceed {
+                create_principal,
+            } => (
+                password.identity_id.clone(),
+                password.user_id.clone(),
+                create_principal,
+            ),
+            crate::storage::auth_identity::PasswordIssuanceAdmission::Invalid {
+                committed_attempt,
+            } => {
+                return Ok(PlannedIssuanceCommit::CredentialInvalid { committed_attempt });
+            }
+            crate::storage::auth_identity::PasswordIssuanceAdmission::LedgerCapacityExhausted => {
+                return Ok(PlannedIssuanceCommit::CredentialThrottled);
+            }
+            crate::storage::auth_identity::PasswordIssuanceAdmission::PredecessorChanged => {
+                return Ok(PlannedIssuanceCommit::PredecessorChanged);
+            }
         }
-        (
-            PlannedIdentityState::Create {
-                identity_id,
-                user_id,
-            },
-            None,
-        ) => (identity_id.clone(), user_id.clone(), true),
-        _ => return Ok(PlannedIssuanceCommit::PredecessorChanged),
+    } else {
+        let durable_identity: Option<(String, String)> = transaction
+            .query_row(
+                "SELECT id, user_id FROM _auth_identities
+                 WHERE provider = 'email-code' AND subject = ?1",
+                params![plan.address.as_str()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        match (&plan.identity, durable_identity) {
+            (
+                PlannedIdentityState::Existing {
+                    identity_id,
+                    user_id,
+                },
+                Some((durable_identity_id, durable_user_id)),
+            ) if identity_id == &durable_identity_id && user_id == &durable_user_id => {
+                (identity_id.clone(), user_id.clone(), false)
+            }
+            (
+                PlannedIdentityState::Create {
+                    identity_id,
+                    user_id,
+                },
+                None,
+            ) => (identity_id.clone(), user_id.clone(), true),
+            _ => return Ok(PlannedIssuanceCommit::PredecessorChanged),
+        }
     };
     let derived_identity: bool = transaction.query_row(
         "SELECT EXISTS(SELECT 1 FROM _snapback_auth_rehearsal_identities WHERE identity_id = ?1)",
@@ -4398,32 +5462,61 @@ pub(crate) fn planned_session_issuance_transaction(
         params![user_id, plan.now_ms as i64],
         |row| row.get(0),
     )?;
-    match &plan.eviction {
-        None if live_count < AUTH_SESSION_LIVE_LIMIT as i64 => {}
-        Some(eviction) if live_count == AUTH_SESSION_LIVE_LIMIT as i64 => {
-            let oldest: Option<(String, i64, Vec<u8>)> = transaction
-                .query_row(
-                    "SELECT id, generation, token_hash FROM _auth_sessions
-                     WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms
-                     ORDER BY created_at_ms, id LIMIT 1",
-                    params![user_id, plan.now_ms as i64],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-                )
-                .optional()?;
-            let Some((session_id, generation, token_hash)) = oldest else {
-                return Ok(PlannedIssuanceCommit::PredecessorChanged);
-            };
-            if session_id != eviction.session_id
-                || u64::try_from(generation).ok() != Some(eviction.expected_generation)
-                || token_hash.as_slice() != eviction.presented_digest.as_bytes().as_slice()
-            {
-                return Ok(PlannedIssuanceCommit::PredecessorChanged);
-            }
+    if !planned_revocation_set_is_exact_predecessor(transaction, &plan.revocations, plan.now_ms)? {
+        return Ok(PlannedIssuanceCommit::PredecessorChanged);
+    }
+    let mut projected_user_revocations = 0_i64;
+    for (index, revocation) in plan.revocations.iter().enumerate() {
+        if plan.revocations[..index]
+            .iter()
+            .any(|earlier| earlier.session_id == revocation.session_id)
+        {
+            return Err(internal_state_snapback());
         }
-        _ => return Ok(PlannedIssuanceCommit::PredecessorChanged),
+        let revoked_user: String = transaction.query_row(
+            "SELECT user_id FROM _auth_sessions WHERE id=?1",
+            [&revocation.session_id],
+            |row| row.get(0),
+        )?;
+        if revoked_user == user_id {
+            projected_user_revocations += 1;
+        }
+    }
+    if let Some(eviction) = plan.eviction() {
+        if live_count != AUTH_SESSION_LIVE_LIMIT as i64 {
+            return Ok(PlannedIssuanceCommit::PredecessorChanged);
+        }
+        let oldest: Option<(String, i64, Vec<u8>)> = transaction
+            .query_row(
+                "SELECT id, generation, token_hash FROM _auth_sessions
+                 WHERE user_id = ?1 AND revoked_at_ms IS NULL AND ?2 < expires_at_ms
+                 ORDER BY created_at_ms, id LIMIT 1",
+                params![user_id, plan.now_ms as i64],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?;
+        let Some((session_id, generation, token_hash)) = oldest else {
+            return Ok(PlannedIssuanceCommit::PredecessorChanged);
+        };
+        if session_id != eviction.session_id
+            || u64::try_from(generation).ok() != Some(eviction.expected_generation)
+            || token_hash.as_slice() != eviction.presented_digest.as_bytes().as_slice()
+        {
+            return Ok(PlannedIssuanceCommit::PredecessorChanged);
+        }
+    } else if live_count.saturating_sub(projected_user_revocations)
+        >= AUTH_SESSION_LIVE_LIMIT as i64
+    {
+        return Ok(PlannedIssuanceCommit::PredecessorChanged);
     }
 
-    if create_identity {
+    if let Some(password) = &plan.password {
+        crate::storage::auth_identity::apply_password_issuance_in(
+            transaction,
+            password,
+            plan.now_ms,
+        )?;
+    } else if create_identity {
         execute_candidate(
             transaction,
             "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
@@ -4438,39 +5531,8 @@ pub(crate) fn planned_session_issuance_transaction(
         )?;
     }
 
-    let committed_revocation = match &plan.eviction {
-        Some(eviction) => {
-            let generation = eviction.committed_generation()?;
-            let changed = transaction.execute(
-                "UPDATE _auth_sessions
-                 SET revoked_at_ms = ?1, generation = ?2
-                 WHERE id = ?3 AND generation = ?4 AND token_hash = ?5
-                   AND revoked_at_ms IS NULL AND ?1 < expires_at_ms",
-                params![
-                    plan.now_ms as i64,
-                    generation as i64,
-                    eviction.session_id,
-                    eviction.expected_generation as i64,
-                    eviction.presented_digest.as_bytes().as_slice(),
-                ],
-            )?;
-            if changed != 1 {
-                return Err(internal_state_snapback());
-            }
-            crate::storage::auth::write_session_terminal_cause_in(
-                transaction,
-                &eviction.session_id,
-                generation,
-                plan.now_ms,
-                RevocationReason::CapEviction,
-            )?;
-            Some(SessionRevocation {
-                session_id: eviction.session_id.clone(),
-                generation,
-            })
-        }
-        None => None,
-    };
+    let committed_revocations =
+        commit_planned_revocation_set(transaction, &plan.revocations, plan.now_ms)?;
 
     insert_identity_session(
         transaction,
@@ -4483,6 +5545,14 @@ pub(crate) fn planned_session_issuance_transaction(
         plan.projected.expires_at_ms,
         plan.projected.absolute_expires_at_ms,
     )?;
+    if let Some(password) = &plan.password {
+        crate::storage::auth_identity::finish_password_session_in(
+            transaction,
+            password,
+            &plan.projected.session_id,
+            plan.now_ms,
+        )?;
+    }
     if let Some(provenance) = &plan.projected.rehearsal_provenance {
         let governing_not_after_ms = plan
             .projected
@@ -4539,9 +5609,7 @@ pub(crate) fn planned_session_issuance_transaction(
             return Err(internal_state_snapback());
         }
     }
-    if let (Some(exercise), Some(prepared)) =
-        (&plan.rehearsal_exercise, prepared_rehearsal)
-    {
+    if let (Some(exercise), Some(prepared)) = (&plan.rehearsal_exercise, prepared_rehearsal) {
         crate::storage::auth_rehearsal::finish_rehearsal_atomic_effect_success_in(
             transaction,
             exercise,
@@ -4560,7 +5628,7 @@ pub(crate) fn planned_session_issuance_transaction(
             authority_instance_id: plan.projected.authority_instance_id.clone(),
             generation: plan.projected.generation,
         },
-        committed_revocation,
+        committed_revocations,
     })
 }
 
@@ -4568,7 +5636,7 @@ pub(crate) enum DurableIssuanceReconcile {
     ExactPredecessor,
     ExactSuccessor {
         session: SessionResponse,
-        committed_revocation: Option<SessionRevocation>,
+        committed_revocations: Vec<SessionRevocation>,
     },
     DifferentValid,
 }
@@ -4693,6 +5761,11 @@ fn issuance_identity_is_exact_predecessor(
     connection: &Connection,
     plan: &ProviderSessionIssuanceCommitPlan,
 ) -> SnapbackResult<bool> {
+    if let Some(password) = &plan.password {
+        return crate::storage::auth_identity::password_issuance_is_exact_predecessor_on(
+            connection, password,
+        );
+    }
     let by_address: Option<(String, String)> = connection
         .query_row(
             "SELECT id, user_id FROM _auth_identities
@@ -4728,6 +5801,13 @@ fn issuance_identity_is_exact_successor(
     connection: &Connection,
     plan: &ProviderSessionIssuanceCommitPlan,
 ) -> SnapbackResult<bool> {
+    if let Some(password) = &plan.password {
+        return crate::storage::auth_identity::password_issuance_is_exact_successor_on(
+            connection,
+            password,
+            plan.now_ms,
+        );
+    }
     let durable: Option<(String, String, String, String, i64, i64)> = connection
         .query_row(
             "SELECT identity.id, identity.user_id, identity.provider,
@@ -4783,8 +5863,23 @@ fn issuance_cap_is_exact_predecessor(
         params![user_id, plan.now_ms as i64],
         |row| row.get(0),
     )?;
-    Ok(match &plan.eviction {
-        None => count < AUTH_SESSION_LIVE_LIMIT as i64,
+    let mut projected_user_revocations = 0_i64;
+    for revocation in &plan.revocations {
+        if !matches!(
+            reconcile_planned_revocation(connection, revocation, plan.now_ms)?,
+            DurableRevocationReconcile::ExactPredecessor
+        ) {
+            return Ok(false);
+        }
+        let Some(snapshot) = lookup_session_snapshot(connection, &revocation.session_id)? else {
+            return Ok(false);
+        };
+        if snapshot.record.session.user_id == *user_id {
+            projected_user_revocations += 1;
+        }
+    }
+    Ok(match plan.eviction() {
+        None => count.saturating_sub(projected_user_revocations) < AUTH_SESSION_LIVE_LIMIT as i64,
         Some(eviction) if count == AUTH_SESSION_LIVE_LIMIT as i64 => {
             let oldest: Option<(String, i64, Vec<u8>)> = connection
                 .query_row(
@@ -4805,35 +5900,36 @@ fn issuance_cap_is_exact_predecessor(
     })
 }
 
-fn issuance_eviction_is_exact_successor(
+fn issuance_revocations_are_exact_successors(
     connection: &Connection,
     plan: &ProviderSessionIssuanceCommitPlan,
-) -> SnapbackResult<Option<SessionRevocation>> {
-    let Some(eviction) = &plan.eviction else {
-        return Ok(None);
-    };
-    let Some(snapshot) = lookup_session_snapshot(connection, &eviction.session_id)? else {
-        return Err(internal_state_snapback());
-    };
-    let generation = eviction.committed_generation()?;
-    if snapshot.record.session.generation != generation
-        || !snapshot.record.revoked
-        || snapshot.revoked_at_ms != Some(plan.now_ms)
-        || snapshot.current_digest != eviction.presented_digest
-        || !crate::storage::auth::session_terminal_cause_matches_on(
-            connection,
-            &eviction.session_id,
+) -> SnapbackResult<Vec<SessionRevocation>> {
+    let mut committed = Vec::with_capacity(plan.revocations.len());
+    for revocation in &plan.revocations {
+        let Some(snapshot) = lookup_session_snapshot(connection, &revocation.session_id)? else {
+            return Err(internal_state_snapback());
+        };
+        let generation = revocation.committed_generation()?;
+        if snapshot.record.session.generation != generation
+            || !snapshot.record.revoked
+            || snapshot.revoked_at_ms != Some(plan.now_ms)
+            || snapshot.current_digest != revocation.presented_digest
+            || !crate::storage::auth::session_terminal_cause_matches_on(
+                connection,
+                &revocation.session_id,
+                generation,
+                plan.now_ms,
+                revocation.reason,
+            )?
+        {
+            return Err(internal_state_snapback());
+        }
+        committed.push(SessionRevocation {
+            session_id: revocation.session_id.clone(),
             generation,
-            plan.now_ms,
-            RevocationReason::CapEviction,
-        )?
-    {
-        return Err(internal_state_snapback());
+        });
     }
-    Ok(Some(SessionRevocation {
-        session_id: eviction.session_id.clone(),
-        generation,
-    }))
+    Ok(committed)
 }
 
 pub(crate) fn reconcile_rejected_issuance(
@@ -4898,7 +5994,7 @@ pub(crate) fn reconcile_planned_issuance(
         {
             return Err(internal_state_snapback());
         }
-        let committed_revocation = issuance_eviction_is_exact_successor(connection, plan)?;
+        let committed_revocations = issuance_revocations_are_exact_successors(connection, plan)?;
         return Ok(DurableIssuanceReconcile::ExactSuccessor {
             session: SessionResponse {
                 id: session.session_id.clone(),
@@ -4910,7 +6006,7 @@ pub(crate) fn reconcile_planned_issuance(
                 authority_instance_id: session.authority_instance_id.clone(),
                 generation: session.generation,
             },
-            committed_revocation,
+            committed_revocations,
         });
     }
 
@@ -4926,7 +6022,7 @@ pub(crate) fn reconcile_planned_issuance(
     if identity_predecessor && cap_predecessor && challenge_predecessor && sender_predecessor {
         return Ok(DurableIssuanceReconcile::ExactPredecessor);
     }
-    if plan.eviction.is_some() && !cap_predecessor {
+    if plan.eviction().is_some() && !cap_predecessor {
         // This carrier owns an existing authority leaf. It is unsafe to unmark
         // unless that leaf is still exactly the planned predecessor.
         return Err(internal_state_snapback());
@@ -5171,6 +6267,11 @@ fn fill_random_or_unavailable(
     Ok(())
 }
 
+#[allow(dead_code)]
+fn opaque_catalog_component(prefix: &str) -> String {
+    format!("{prefix}_{}", Uuid::new_v4().simple())
+}
+
 fn request_invalid() -> ProviderError {
     ProviderError::new(SnapbackError::error(
         "SNAPBACK_AUTH_REQUEST_INVALID",
@@ -5185,6 +6286,27 @@ fn provider_unavailable() -> ProviderError {
         "auth",
         "authentication provider is unavailable",
     ))
+}
+
+#[allow(dead_code)]
+fn password_kdf_throttled() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_THROTTLED",
+        "auth",
+        "authentication request rate limit exceeded",
+    )
+}
+
+#[allow(dead_code)]
+fn require_password_bearer_custody(custody: PasswordIssuanceCustody) -> SnapbackResult<()> {
+    match custody {
+        PasswordIssuanceCustody::Bearer => Ok(()),
+        PasswordIssuanceCustody::SenderConstrained => Err(SnapbackError::error(
+            "SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED",
+            "auth",
+            "password authentication does not support sender-constrained custody",
+        )),
+    }
 }
 
 fn step_up_delivery_unavailable() -> ProviderError {
@@ -5205,6 +6327,17 @@ fn authorized_lease_key_unavailable() -> SnapbackError {
 
 pub(crate) fn code_invalid() -> ProviderError {
     ProviderError::new(super::throttle::code_invalid())
+}
+
+/// The one public credential refusal for absent, wrong, stale, and locked
+/// password predecessors. Routes must not attach lock or account-existence
+/// detail to this diagnostic.
+pub(crate) fn credential_invalid() -> ProviderError {
+    ProviderError::new(SnapbackError::error(
+        "SNAPBACK_AUTH_CREDENTIAL_INVALID",
+        "auth",
+        "credential is invalid",
+    ))
 }
 
 // @ref LLP 0077#diagnostics-and-redaction — the public refusal set is closed;
@@ -5369,6 +6502,11 @@ fn _snapback<T>(result: SnapbackResult<T>) -> ProviderResult<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::coordinator::{
+        AuthCoordinator, CommittedRevocationTarget, IssuanceFinish, PasswordChangeFinish,
+        RotationFinish,
+    };
+    use crate::auth::identity_core::{AssuranceKind, PasswordSecret};
     use crate::auth::sender_proof::{SenderIssuanceCommitment, VerifiedSenderIssuance};
     use crate::auth::session_projection::{
         ProjectedTokenResolution, SessionProjection, TerminalAuthorityDisposition,
@@ -5472,6 +6610,176 @@ mod tests {
 
     fn provider_database(now_ms: u64) -> (Arc<AuthProvider>, LocalDatabase) {
         provider_database_for_profile(now_ms, AuthProviderProfile::Test)
+    }
+
+    fn password_provider_database_coordinator(
+        now_ms: u64,
+    ) -> (Arc<AuthProvider>, LocalDatabase, Arc<AuthCoordinator>) {
+        let mut database = LocalDatabase::memory().expect("memory database");
+        database
+            .activate_current_auth_catalog_with_password_identifier_mode(
+                crate::storage::auth::PasswordIdentifierMode::EmailV1,
+            )
+            .expect("activate catalog v4");
+        database
+            .ensure_authorization_stream_incarnation()
+            .expect("authorization stream");
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(now_ms, &OsRandom)
+            .expect("initial keyring");
+        let provider =
+            Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).expect("auth provider"));
+        let projection = SessionProjection::rebuild_with_fresh_startup_id(
+            database
+                .session_projection_source()
+                .expect("projection source"),
+            now_ms,
+            provider.monotonic_now(),
+        )
+        .expect("session projection");
+        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        (provider, database, coordinator)
+    }
+
+    async fn commit_password_issuance_for_test(
+        provider: &Arc<AuthProvider>,
+        database: &mut LocalDatabase,
+        coordinator: &Arc<AuthCoordinator>,
+        plan: ProviderSessionIssuancePlan,
+        now_ms: u64,
+    ) -> (
+        IssuanceFinish,
+        Vec<crate::auth::coordinator::CommittedRevocationTarget>,
+    ) {
+        let carrier = coordinator
+            .premark_issuance(plan)
+            .await
+            .expect("premark password issuance");
+        let commit_plan = carrier.plan().commit_plan();
+        let attempt = provider.commit_password_issuance(database, &commit_plan);
+        let (outcome, targets) = coordinator
+            .finish_issuance(carrier, attempt, now_ms, provider.monotonic_now())
+            .into_parts();
+        (outcome.expect("finish issuance"), targets)
+    }
+
+    async fn register_password_for_test(
+        provider: &Arc<AuthProvider>,
+        database: &mut LocalDatabase,
+        coordinator: &Arc<AuthCoordinator>,
+        identifier: &str,
+        password: &str,
+        now_ms: u64,
+    ) -> CredentialIssue {
+        let plan = provider
+            .plan_password_registration(
+                database,
+                identifier,
+                PasswordSecret::new(password.to_owned()),
+                now_ms,
+                "recovery-key-1",
+                &[7; 32],
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("password registration plan");
+        let (finish, targets) =
+            commit_password_issuance_for_test(provider, database, coordinator, plan, now_ms).await;
+        assert!(targets.is_empty());
+        let IssuanceFinish::Committed(issue) = finish else {
+            panic!("password registration must commit");
+        };
+        issue
+    }
+
+    async fn password_signin_for_test(
+        provider: &Arc<AuthProvider>,
+        database: &mut LocalDatabase,
+        coordinator: &Arc<AuthCoordinator>,
+        identifier: &str,
+        password: &str,
+        now_ms: u64,
+    ) -> (
+        IssuanceFinish,
+        Vec<crate::auth::coordinator::CommittedRevocationTarget>,
+    ) {
+        let plan = provider
+            .plan_password_authentication(
+                database,
+                identifier,
+                PasswordSecret::new(password.to_owned()),
+                now_ms,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("password signin plan");
+        commit_password_issuance_for_test(provider, database, coordinator, plan, now_ms).await
+    }
+
+    async fn email_issue_for_test(
+        provider: &Arc<AuthProvider>,
+        database: &mut LocalDatabase,
+        coordinator: &Arc<AuthCoordinator>,
+        address: &str,
+        now_ms: u64,
+    ) -> CredentialIssue {
+        let admission = provider
+            .admit_email(address)
+            .await
+            .expect("email issuance admission");
+        let plan = admission
+            .plan_mint_session(database, now_ms)
+            .expect("email issuance plan");
+        let commit_plan = plan.commit_plan();
+        let carrier = coordinator
+            .premark_issuance(plan)
+            .await
+            .expect("premark email issuance");
+        let attempt = admission.commit_planned_issuance(database, &commit_plan);
+        let (finish, targets) = coordinator
+            .finish_issuance(carrier, attempt, now_ms, provider.monotonic_now())
+            .into_parts();
+        assert!(targets.is_empty());
+        let IssuanceFinish::Committed(issue) = finish.expect("finish email issuance") else {
+            panic!("email issuance must commit");
+        };
+        issue
+    }
+
+    async fn password_change_for_test(
+        provider: &Arc<AuthProvider>,
+        database: &mut LocalDatabase,
+        coordinator: &Arc<AuthCoordinator>,
+        acting: &SessionBearer,
+        current: &str,
+        replacement: &str,
+        now_ms: u64,
+    ) -> (
+        PasswordChangeFinish,
+        Vec<crate::auth::coordinator::CommittedRevocationTarget>,
+    ) {
+        let plan = provider
+            .plan_password_change(
+                database,
+                acting,
+                PasswordSecret::new(current.to_owned()),
+                PasswordSecret::new(replacement.to_owned()),
+                now_ms,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("password change plan");
+        let commit_plan = plan.commit_plan();
+        let carrier = coordinator
+            .premark_password_change(plan)
+            .await
+            .expect("premark password change");
+        let attempt = provider.commit_password_change(database, &commit_plan);
+        let (finish, targets) = coordinator
+            .finish_password_change(carrier, attempt)
+            .into_parts();
+        (finish.expect("finish password change"), targets)
     }
 
     fn projected_terminal_reason_after_restart(
@@ -7107,9 +8415,9 @@ mod tests {
         assert!(matches!(
             admission.commit_planned_issuance(&mut database, &commit_plan),
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-                committed_revocation: None,
+                committed_revocations,
                 ..
-            })
+            }) if committed_revocations.is_empty()
         ));
         assert!(matches!(
             database
@@ -7117,9 +8425,9 @@ mod tests {
                 .reconcile_planned_issuance(&commit_plan)
                 .expect("successor reconciliation"),
             DurableIssuanceReconcile::ExactSuccessor {
-                committed_revocation: None,
+                committed_revocations,
                 ..
-            }
+            } if committed_revocations.is_empty()
         ));
     }
 
@@ -7392,14 +8700,15 @@ mod tests {
         );
         let commit_plan = plan.commit_plan();
         let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-            committed_revocation: Some(revocation),
+            committed_revocations,
             ..
         }) = admission.commit_planned_issuance(&mut database, &commit_plan)
         else {
             panic!("twenty-first issuance must commit exact cap eviction");
         };
-        assert_eq!(revocation.session_id, oldest);
-        assert_eq!(revocation.generation, 2);
+        assert_eq!(committed_revocations.len(), 1);
+        assert_eq!(committed_revocations[0].session_id, oldest);
+        assert_eq!(committed_revocations[0].generation, 2);
         assert!(matches!(
             logout_admission.commit_planned_revocation(
                 &mut database,
@@ -7417,14 +8726,881 @@ mod tests {
                 .reconcile_planned_issuance(&commit_plan)
                 .expect("cap successor reconciliation"),
             DurableIssuanceReconcile::ExactSuccessor {
-                committed_revocation: Some(SessionRevocation { generation: 2, .. }),
+                committed_revocations,
                 ..
-            }
+            } if committed_revocations.len() == 1 && committed_revocations[0].generation == 2
         ));
         let live: i64 = database
             .auth_catalog_read()
             .live_session_count_for_test()
             .expect("live session count");
         assert_eq!(live, AUTH_SESSION_LIVE_LIMIT as i64);
+    }
+
+    #[tokio::test]
+    async fn password_issuance_finalizes_projection_and_returns_complete_typed_session() {
+        let now_ms = 1_000_000;
+        let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
+        let plan = provider
+            .plan_password_registration(
+                &database,
+                "Person@Example.com",
+                PasswordSecret::new("a-strong-password-123".to_owned()),
+                now_ms,
+                "recovery-key-1",
+                &[7; 32],
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("password registration plan");
+        let (finish, terminal_targets) =
+            commit_password_issuance_for_test(&provider, &mut database, &coordinator, plan, now_ms)
+                .await;
+        assert!(terminal_targets.is_empty());
+        let IssuanceFinish::Committed(issue) = finish else {
+            panic!("password registration must commit");
+        };
+        let response = issue.response();
+        assert_eq!(response.session.provider, "local-password");
+        assert!(response.session.authority_instance_id.starts_with("aut_"));
+        assert!(response.session.id.starts_with("ses_"));
+        assert_eq!(response.session.generation, 1);
+        assert_eq!(response.session.created_at, now_ms);
+        assert!(response.session.expires_at > now_ms);
+        assert!(response.session.absolute_expires_at > response.session.expires_at);
+        assert_eq!(
+            response.authority_descriptor.authority_instance_id,
+            response.session.authority_instance_id
+        );
+        assert!(issue.recovery_codes().is_some());
+        coordinator
+            .resolve_required_bearer(
+                response.token().expose_secret(),
+                now_ms,
+                provider.monotonic_now(),
+            )
+            .expect("password bearer resolves immediately without rebuild");
+        let claims = database
+            .identity_claims(&response.session.id, now_ms)
+            .expect("password claims");
+        assert!(
+            claims
+                .assurances
+                .iter()
+                .all(|assurance| assurance.kind != AssuranceKind::EmailVerified),
+            "password possession never confers email-verified assurance"
+        );
+
+        let admission = provider.admit().await;
+        let PlannedRefresh::Rotate(rotation) = admission
+            .plan_refresh(&database, response.token().expose_secret(), now_ms + 1)
+            .expect("plan password-session refresh")
+        else {
+            panic!("fresh password session must rotate");
+        };
+        let commit_plan = rotation.commit_plan();
+        let carrier = coordinator
+            .premark_rotation(rotation)
+            .await
+            .expect("premark password-session refresh");
+        let attempt = admission.commit_planned_rotation(&mut database, &commit_plan);
+        let RotationFinish::Committed(refreshed) = coordinator
+            .finish_rotation(carrier, attempt)
+            .expect("finalize password-session refresh")
+        else {
+            panic!("password-session refresh must commit");
+        };
+        assert_eq!(refreshed.response().session.provider, "local-password");
+        assert_eq!(
+            refreshed
+                .response()
+                .authority_descriptor
+                .authority_instance_id,
+            response.authority_descriptor.authority_instance_id,
+            "refresh preserves the password authority descriptor"
+        );
+    }
+
+    #[tokio::test]
+    async fn password_session_cap_evicts_oldest_with_terminal_cause() {
+        let start_ms = 2_000_000;
+        let (provider, mut database, coordinator) =
+            password_provider_database_coordinator(start_ms);
+        let first = register_password_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "cap@example.com",
+            "a-strong-password-123",
+            start_ms,
+        )
+        .await;
+        let oldest = first.response().session.id.clone();
+        let oldest_bearer = issue_token(&first);
+        let mut cap_targets = Vec::new();
+        for offset in 1..=AUTH_SESSION_LIVE_LIMIT {
+            let (finish, targets) = password_signin_for_test(
+                &provider,
+                &mut database,
+                &coordinator,
+                "cap@example.com",
+                "a-strong-password-123",
+                start_ms + offset as u64,
+            )
+            .await;
+            assert!(matches!(finish, IssuanceFinish::Committed(_)));
+            cap_targets = targets;
+        }
+        assert_eq!(cap_targets.len(), 1);
+        assert_eq!(cap_targets[0].session_id(), oldest);
+        assert!(
+            coordinator
+                .resolve_required_bearer(
+                    &oldest_bearer,
+                    start_ms + AUTH_SESSION_LIVE_LIMIT as u64,
+                    provider.monotonic_now(),
+                )
+                .is_err()
+        );
+        assert_eq!(
+            projected_terminal_reason_after_restart(
+                &mut database,
+                &oldest_bearer,
+                start_ms + AUTH_SESSION_LIVE_LIMIT as u64,
+            ),
+            RevocationReason::CapEviction
+        );
+    }
+
+    #[tokio::test]
+    async fn password_change_rotates_same_authority_and_revokes_only_same_user_others() {
+        let now_ms = 3_000_000;
+        let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
+        let acting = register_password_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "actor@example.com",
+            "a-strong-password-123",
+            now_ms,
+        )
+        .await;
+        let acting_session = acting.response().session.id.clone();
+        let acting_authority = acting
+            .response()
+            .authority_descriptor
+            .authority_instance_id
+            .clone();
+        let (other_finish, _) = password_signin_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "actor@example.com",
+            "a-strong-password-123",
+            now_ms + 1,
+        )
+        .await;
+        let IssuanceFinish::Committed(other) = other_finish else {
+            panic!("second actor session must issue");
+        };
+        let other_bearer = issue_token(&other);
+        let bystander = register_password_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "bystander@example.com",
+            "another-strong-password-456",
+            now_ms + 2,
+        )
+        .await;
+        let bystander_bearer = issue_token(&bystander);
+        let (finish, targets) = password_change_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            acting.response().token(),
+            "a-strong-password-123",
+            "replacement-password-456",
+            now_ms + 3,
+        )
+        .await;
+        let PasswordChangeFinish::Committed(changed) = finish else {
+            panic!("password change must commit");
+        };
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].session_id(), other.response().session.id);
+        assert_eq!(changed.response().session.id, acting_session);
+        assert_eq!(
+            changed
+                .response()
+                .authority_descriptor
+                .authority_instance_id,
+            acting_authority,
+            "same-authority credential rotation must preserve authority identity"
+        );
+        assert_ne!(issue_token(&changed), issue_token(&acting));
+        assert_eq!(changed.response().session.provider, "local-password");
+        assert!(
+            coordinator
+                .resolve_required_bearer(
+                    changed.response().token().expose_secret(),
+                    now_ms + 3,
+                    provider.monotonic_now(),
+                )
+                .is_ok()
+        );
+        assert!(
+            coordinator
+                .resolve_required_bearer(&other_bearer, now_ms + 3, provider.monotonic_now(),)
+                .is_err()
+        );
+        assert_eq!(
+            projected_terminal_reason_after_restart(&mut database, &other_bearer, now_ms + 3),
+            RevocationReason::DurableRevocation,
+            "credential change records the durable-delete terminal cause"
+        );
+        assert!(
+            coordinator
+                .resolve_required_bearer(&bystander_bearer, now_ms + 3, provider.monotonic_now(),)
+                .is_ok(),
+            "another principal's session must survive user-scoped revocation"
+        );
+    }
+
+    #[tokio::test]
+    async fn stale_password_proof_is_uniform_invalid_without_failure_accounting() {
+        let now_ms = 4_000_000;
+        let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
+        let acting = register_password_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "fence@example.com",
+            "a-strong-password-123",
+            now_ms,
+        )
+        .await;
+        let stale = provider
+            .plan_password_authentication(
+                &database,
+                "fence@example.com",
+                PasswordSecret::new("a-strong-password-123".to_owned()),
+                now_ms + 1,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("stale KDF plan");
+        let (changed, _) = password_change_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            acting.response().token(),
+            "a-strong-password-123",
+            "replacement-password-456",
+            now_ms + 2,
+        )
+        .await;
+        assert!(matches!(changed, PasswordChangeFinish::Committed(_)));
+        let (finish, _) = commit_password_issuance_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            stale,
+            now_ms + 1,
+        )
+        .await;
+        assert!(matches!(finish, IssuanceFinish::CredentialInvalid));
+        assert!(
+            database
+                .password_attempt_admin_projection("fence@example.com", now_ms + 2)
+                .expect("admin projection")
+                .is_none(),
+            "stale proof must not penalize the credential ledger"
+        );
+    }
+
+    #[tokio::test]
+    async fn password_lockout_is_uniform_resets_decays_and_expires() {
+        let now_ms = 5_000_000;
+        let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
+        register_password_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "locked@example.com",
+            "a-strong-password-123",
+            now_ms,
+        )
+        .await;
+        for offset in 1..=10 {
+            let (finish, targets) = password_signin_for_test(
+                &provider,
+                &mut database,
+                &coordinator,
+                "locked@example.com",
+                "wrong-password-123",
+                now_ms + offset,
+            )
+            .await;
+            assert!(matches!(finish, IssuanceFinish::CredentialInvalid));
+            assert!(targets.is_empty());
+        }
+        let locked = database
+            .password_attempt_admin_projection("locked@example.com", now_ms + 10)
+            .expect("admin lock projection")
+            .expect("attempt row");
+        assert_eq!(locked.failed_count, 10);
+        assert!(locked.locked);
+        let locked_until = locked.locked_until_ms.expect("lock deadline");
+        let locked_started = Instant::now();
+        let (locked_finish, _) = password_signin_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "locked@example.com",
+            "a-strong-password-123",
+            now_ms + 11,
+        )
+        .await;
+        let locked_elapsed = locked_started.elapsed();
+        assert!(matches!(locked_finish, IssuanceFinish::CredentialInvalid));
+
+        let missing_started = Instant::now();
+        let (missing_finish, _) = password_signin_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "missing@example.com",
+            "a-strong-password-123",
+            now_ms + 11,
+        )
+        .await;
+        let missing_elapsed = missing_started.elapsed();
+        assert!(matches!(missing_finish, IssuanceFinish::CredentialInvalid));
+        let timing_delta = locked_elapsed.abs_diff(missing_elapsed);
+        assert!(
+            timing_delta <= Duration::from_millis(250),
+            "real locked and nonexistent KDF paths exceeded the declared 250ms test envelope: {locked_elapsed:?} vs {missing_elapsed:?}"
+        );
+        register_password_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "wrong@example.com",
+            "another-strong-password-456",
+            now_ms + 12,
+        )
+        .await;
+        let wrong_started = Instant::now();
+        let (wrong_finish, _) = password_signin_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "wrong@example.com",
+            "a-strong-password-123",
+            now_ms + 13,
+        )
+        .await;
+        let wrong_elapsed = wrong_started.elapsed();
+        assert!(matches!(wrong_finish, IssuanceFinish::CredentialInvalid));
+        assert_eq!(
+            credential_invalid().diagnostic().code,
+            "SNAPBACK_AUTH_CREDENTIAL_INVALID",
+            "every internal invalid outcome maps to the one public credential code"
+        );
+        assert!(
+            wrong_elapsed.abs_diff(missing_elapsed) <= Duration::from_millis(250),
+            "wrong-account and nonexistent KDF paths exceeded the declared 250ms test envelope: {wrong_elapsed:?} vs {missing_elapsed:?}"
+        );
+
+        let (reopened, _) = password_signin_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "locked@example.com",
+            "a-strong-password-123",
+            locked_until,
+        )
+        .await;
+        assert!(matches!(reopened, IssuanceFinish::Committed(_)));
+        assert!(
+            database
+                .password_attempt_admin_projection("locked@example.com", locked_until)
+                .expect("success reset")
+                .is_none()
+        );
+
+        for offset in 0..3 {
+            let (finish, _) = password_signin_for_test(
+                &provider,
+                &mut database,
+                &coordinator,
+                "locked@example.com",
+                "wrong-password-123",
+                locked_until + 1 + offset,
+            )
+            .await;
+            assert!(matches!(finish, IssuanceFinish::CredentialInvalid));
+        }
+        let rolled_at = locked_until + provider.password_security.failure_window_ms + 2;
+        let (rolled, _) = password_signin_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "locked@example.com",
+            "wrong-password-123",
+            rolled_at,
+        )
+        .await;
+        assert!(matches!(rolled, IssuanceFinish::CredentialInvalid));
+        assert_eq!(
+            database
+                .password_attempt_admin_projection("locked@example.com", rolled_at)
+                .expect("rolled admin state")
+                .expect("rolled row")
+                .failed_count,
+            1
+        );
+
+        let (owner_success, _) = password_signin_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "locked@example.com",
+            "a-strong-password-123",
+            rolled_at + 1,
+        )
+        .await;
+        assert!(matches!(owner_success, IssuanceFinish::Committed(_)));
+        assert!(
+            database
+                .password_attempt_admin_projection("locked@example.com", rolled_at + 1)
+                .expect("owner reset")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn lock_acquired_while_kdf_is_in_flight_blocks_the_precomputed_success() {
+        let now_ms = 5_500_000;
+        let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
+        register_password_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "ledger-fence@example.com",
+            "a-strong-password-123",
+            now_ms,
+        )
+        .await;
+        for offset in 1..=9 {
+            let (finish, _) = password_signin_for_test(
+                &provider,
+                &mut database,
+                &coordinator,
+                "ledger-fence@example.com",
+                "wrong-password-123",
+                now_ms + offset,
+            )
+            .await;
+            assert!(matches!(finish, IssuanceFinish::CredentialInvalid));
+        }
+        let precomputed_success = provider
+            .plan_password_authentication(
+                &database,
+                "ledger-fence@example.com",
+                PasswordSecret::new("a-strong-password-123".to_owned()),
+                now_ms + 10,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("success proof computed outside writer");
+        let (tenth, _) = password_signin_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "ledger-fence@example.com",
+            "wrong-password-123",
+            now_ms + 10,
+        )
+        .await;
+        assert!(matches!(tenth, IssuanceFinish::CredentialInvalid));
+        let (blocked, _) = commit_password_issuance_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            precomputed_success,
+            now_ms + 10,
+        )
+        .await;
+        assert!(matches!(blocked, IssuanceFinish::CredentialInvalid));
+        let locked = database
+            .password_attempt_admin_projection("ledger-fence@example.com", now_ms + 10)
+            .expect("admin projection")
+            .expect("ledger row");
+        assert_eq!(locked.failed_count, 10);
+        assert!(locked.locked);
+    }
+
+    #[tokio::test]
+    async fn password_kdf_cap_and_sender_custody_refuse_with_typed_codes() {
+        let now_ms = 6_000_000;
+        let (provider, database, _) = password_provider_database_coordinator(now_ms);
+        let permits = Arc::clone(&provider.password_kdf_permits)
+            .try_acquire_many_owned(provider.password_security.kdf_concurrency as u32)
+            .expect("hold entire password KDF capacity");
+        let throttled = provider
+            .hash_password_bounded(PasswordSecret::new("a-strong-password-123".to_owned()))
+            .await
+            .expect_err("KDF saturation must not queue");
+        assert_eq!(throttled.diagnostic.code, "SNAPBACK_AUTH_THROTTLED");
+        drop(permits);
+        let refused = provider
+            .plan_password_registration(
+                &database,
+                "sender@example.com",
+                PasswordSecret::new("a-strong-password-123".to_owned()),
+                now_ms,
+                "recovery-key-1",
+                &[7; 32],
+                PasswordIssuanceCustody::SenderConstrained,
+            )
+            .await
+            .expect_err("sender-constrained password issuance is typed-refused");
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED"
+        );
+    }
+
+    #[tokio::test]
+    async fn imported_hash_upgrades_by_generation_cas_and_lost_race_does_not_overwrite() {
+        let now_ms = 7_000_000;
+        let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
+        register_password_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "upgrade@example.com",
+            "a-strong-password-123",
+            now_ms,
+        )
+        .await;
+        let imported = bcrypt::hash("a-strong-password-123", 4).expect("bcrypt fixture");
+        database
+            .install_imported_password_hash_for_test("upgrade@example.com", "bcrypt", &imported)
+            .expect("install imported hash");
+        let first = provider
+            .plan_password_authentication(
+                &database,
+                "upgrade@example.com",
+                PasswordSecret::new("a-strong-password-123".to_owned()),
+                now_ms + 1,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("first upgrade plan");
+        let losing = provider
+            .plan_password_authentication(
+                &database,
+                "upgrade@example.com",
+                PasswordSecret::new("a-strong-password-123".to_owned()),
+                now_ms + 2,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("racing upgrade plan");
+        let (winner, _) = commit_password_issuance_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            first,
+            now_ms + 1,
+        )
+        .await;
+        assert!(matches!(winner, IssuanceFinish::Committed(_)));
+        let (generation, algorithm, phc) = database
+            .password_hash_facts_for_test("upgrade@example.com")
+            .expect("upgraded hash facts");
+        assert_eq!(generation, 2);
+        assert_eq!(algorithm, "argon2id");
+        assert!(phc.starts_with("$argon2id$"));
+        let (loser, _) = commit_password_issuance_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            losing,
+            now_ms + 2,
+        )
+        .await;
+        assert!(matches!(loser, IssuanceFinish::CredentialInvalid));
+        assert_eq!(
+            database
+                .password_hash_facts_for_test("upgrade@example.com")
+                .expect("winner remains authoritative")
+                .0,
+            2
+        );
+        assert!(
+            database
+                .password_attempt_admin_projection("upgrade@example.com", now_ms + 2)
+                .expect("lost upgrade ledger")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn password_set_displaces_only_local_password_identity_sessions() {
+        let now_ms = 8_000_000;
+        let (provider, mut database, coordinator) = password_provider_database_coordinator(now_ms);
+        let squatter = register_password_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "claimed@example.com",
+            "a-strong-password-123",
+            now_ms,
+        )
+        .await;
+        let squatter_password_bearer = issue_token(&squatter);
+        let squatter_user = squatter.response().session.user_id.clone();
+        let displaced = database
+            .password_snapshot("claimed@example.com")
+            .expect("password snapshot")
+            .expect("displaced credential");
+        let (_, _, squatter_other_bearer) = database
+            .insert_other_identity_session_for_test(
+                &squatter_user,
+                "other@example.com",
+                now_ms + 1,
+                provider.random.as_ref(),
+            )
+            .expect("other-identity session fixture");
+        let actor = email_issue_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            "claimed@example.com",
+            now_ms + 2,
+        )
+        .await;
+        let actor_old_bearer = issue_token(&actor);
+        let actor_identity = database
+            .identity_id_for_provider_subject_for_test("email-code", "claimed@example.com")
+            .expect("actor email identity");
+
+        // Pull the test-only fixture session into the same memory-only
+        // projection before exercising exact displacement finalization.
+        let projection = SessionProjection::rebuild_with_fresh_startup_id(
+            database
+                .session_projection_source()
+                .expect("projection source"),
+            now_ms + 2,
+            provider.monotonic_now(),
+        )
+        .expect("rebuilt projection");
+        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        let plan = provider
+            .plan_password_set(
+                &database,
+                actor.response().token(),
+                &actor_identity,
+                "claimed@example.com",
+                PasswordSecret::new("rightful-password-456".to_owned()),
+                now_ms + 3,
+                "recovery-key-1",
+                &[7; 32],
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("displacing password-set plan");
+        let (finish, targets) = commit_password_issuance_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            plan,
+            now_ms + 3,
+        )
+        .await;
+        let IssuanceFinish::Committed(new_password) = finish else {
+            panic!("password set must commit");
+        };
+        assert_eq!(targets.len(), 2);
+        let terminated_session_ids = targets
+            .iter()
+            .map(CommittedRevocationTarget::session_id)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            terminated_session_ids,
+            [
+                squatter.response().session.id.as_str(),
+                actor.response().session.id.as_str(),
+            ]
+            .into_iter()
+            .collect(),
+            "displacement terminates exactly the displaced password session and actor predecessor"
+        );
+        assert!(
+            coordinator
+                .resolve_required_bearer(
+                    &squatter_password_bearer,
+                    now_ms + 3,
+                    provider.monotonic_now(),
+                )
+                .is_err(),
+            "session minted through displaced password identity must terminate"
+        );
+        assert!(
+            coordinator
+                .resolve_required_bearer(
+                    squatter_other_bearer.expose_secret(),
+                    now_ms + 3,
+                    provider.monotonic_now(),
+                )
+                .is_ok(),
+            "displaced principal's other-identity session must survive"
+        );
+        assert!(
+            coordinator
+                .resolve_required_bearer(&actor_old_bearer, now_ms + 3, provider.monotonic_now(),)
+                .is_err(),
+            "password set rotates the authenticated actor to the new issuance"
+        );
+        assert_eq!(
+            projected_terminal_reason_after_restart(
+                &mut database,
+                &squatter_password_bearer,
+                now_ms + 3,
+            ),
+            RevocationReason::DurableRevocation,
+            "displaced password authority carries durable-delete terminal semantics"
+        );
+        assert!(
+            coordinator
+                .resolve_required_bearer(
+                    new_password.response().token().expose_secret(),
+                    now_ms + 3,
+                    provider.monotonic_now(),
+                )
+                .is_ok()
+        );
+        assert_eq!(
+            database
+                .displacement_facts_for_test(
+                    &displaced.identity_id,
+                    &displaced.credential_id,
+                    &squatter_user,
+                )
+                .expect("displacement facts"),
+            (true, true, true),
+            "credential and identity retire without deleting the principal"
+        );
+        let claims = database
+            .identity_claims(&new_password.response().session.id, now_ms + 3)
+            .expect("new password claims");
+        assert!(
+            claims
+                .assurances
+                .iter()
+                .all(|assurance| assurance.kind != AssuranceKind::EmailVerified)
+        );
+    }
+
+    #[tokio::test]
+    async fn guest_claim_and_recovery_consume_use_shared_issuance_finalization() {
+        let now_ms = 9_000_000;
+        let (provider, mut database, _) = password_provider_database_coordinator(now_ms);
+        let guest = database
+            .insert_typed_guest_session_for_test(now_ms + 60_000, now_ms, provider.random.as_ref())
+            .expect("guest fixture");
+        let projection = SessionProjection::rebuild_with_fresh_startup_id(
+            database
+                .session_projection_source()
+                .expect("guest projection source"),
+            now_ms,
+            provider.monotonic_now(),
+        )
+        .expect("guest projection");
+        let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
+        let claim = provider
+            .plan_guest_claim_password(
+                &database,
+                &guest.bearer,
+                "guest@example.com",
+                PasswordSecret::new("a-strong-password-123".to_owned()),
+                now_ms + 1,
+                "recovery-key-1",
+                &[7; 32],
+                PasswordIssuanceCustody::Bearer,
+            )
+            .await
+            .expect("guest password claim plan");
+        let (claim_finish, claim_targets) = commit_password_issuance_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            claim,
+            now_ms + 1,
+        )
+        .await;
+        let claimed = match claim_finish {
+            IssuanceFinish::Committed(claimed) => claimed,
+            other => panic!("guest claim must commit, got {other:?}"),
+        };
+        assert_eq!(claim_targets.len(), 1);
+        assert_eq!(claimed.response().session.user_id, guest.user_id);
+        assert!(
+            coordinator
+                .resolve_required_bearer(
+                    guest.bearer.expose_secret(),
+                    now_ms + 1,
+                    provider.monotonic_now(),
+                )
+                .is_err()
+        );
+        let recovery_code = claimed
+            .recovery_codes()
+            .expect("initial recovery codes")
+            .expose_once()[0]
+            .clone();
+        let recovery = provider
+            .plan_password_recovery_consume(
+                &database,
+                "guest@example.com",
+                &recovery_code,
+                now_ms + 2,
+                "recovery-key-1",
+                &[7; 32],
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("recovery consume plan");
+        let claimed_bearer = issue_token(&claimed);
+        let (recovery_finish, recovery_targets) = commit_password_issuance_for_test(
+            &provider,
+            &mut database,
+            &coordinator,
+            recovery,
+            now_ms + 2,
+        )
+        .await;
+        let IssuanceFinish::Committed(recovered) = recovery_finish else {
+            panic!("recovery consume must commit");
+        };
+        assert_eq!(recovery_targets.len(), 1);
+        assert!(recovered.recovery_codes().is_some());
+        assert!(
+            coordinator
+                .resolve_required_bearer(&claimed_bearer, now_ms + 2, provider.monotonic_now(),)
+                .is_err()
+        );
+        assert!(
+            coordinator
+                .resolve_required_bearer(
+                    recovered.response().token().expose_secret(),
+                    now_ms + 2,
+                    provider.monotonic_now(),
+                )
+                .is_ok()
+        );
     }
 }

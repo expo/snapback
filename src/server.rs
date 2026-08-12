@@ -15123,8 +15123,8 @@ fn finish_auth_with_terminal_propagation<T>(
     finish: AuthFinish<T>,
     authority_disposition: crate::live_wire::LiveAuthorityDisposition,
 ) -> SnapbackResult<T> {
-    let (outcome, committed_revocation) = finish.into_parts();
-    if let Some(committed_revocation) = committed_revocation {
+    let (outcome, committed_revocations) = finish.into_parts();
+    for committed_revocation in committed_revocations {
         propagate_committed_revocation(
             runtime,
             provider,
@@ -15253,9 +15253,13 @@ async fn coordinated_mint_session(
             IssuanceFinish::Committed(issue) => return Ok(issue),
             IssuanceFinish::CodeInvalid
             | IssuanceFinish::CodeLocked
+            | IssuanceFinish::CredentialThrottled
             | IssuanceFinish::SenderKeyBound
             | IssuanceFinish::RehearsalReplay(_) => {
                 return Err(auth_provider_unavailable_error());
+            }
+            IssuanceFinish::CredentialInvalid => {
+                return Err(crate::auth::provider::credential_invalid().into_snapback_error());
             }
             IssuanceFinish::RehearsalDenied(error) => return Err(error),
             IssuanceFinish::CandidateCollision => continue,
@@ -15411,6 +15415,12 @@ async fn coordinated_exchange_session(
                     }
                     IssuanceFinish::SenderKeyBound => {
                         return Err(crate::auth::provider::sender_key_bound());
+                    }
+                    IssuanceFinish::CredentialInvalid => {
+                        return Err(crate::auth::provider::credential_invalid());
+                    }
+                    IssuanceFinish::CredentialThrottled => {
+                        return Err(ProviderError::from(auth_provider_unavailable_error()));
                     }
                     IssuanceFinish::RehearsalReplay(_) => {
                         return Err(ProviderError::from(

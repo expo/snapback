@@ -17,6 +17,7 @@ use hmac::{Hmac, Mac as _};
 use rusqlite::{OptionalExtension, Transaction, params};
 use sha2::Sha256;
 use std::collections::BTreeSet;
+use std::fmt;
 use subtle::ConstantTimeEq as _;
 use unicode_normalization::UnicodeNormalization as _;
 use uuid::Uuid;
@@ -36,10 +37,14 @@ const COMMON_PASSWORDS: &[&str] = &[
 const RECOVERY_DOMAIN: &[u8] = b"snapback.auth.recovery-code.v1";
 const DUMMY_PASSWORD_PHC: &str = "$argon2id$v=19$m=19456,t=2,p=1$HyAhIiMkJSYnKCkqKywtLg$Kwc47BIKhIV7UTbl8eAZf0EL/mFlTXkkO6rPuplXNLc";
 
+pub(crate) const fn dummy_password_phc() -> &'static str {
+    DUMMY_PASSWORD_PHC
+}
+
 /// Versioned policy authority for newly stored password hashes. PHC strings
 /// describe individual stored hashes but never choose the active policy.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct PasswordHashPolicy {
+pub(crate) struct PasswordHashPolicy {
     version: u64,
     memory_kib: u32,
     iterations: u32,
@@ -58,6 +63,104 @@ const PASSWORD_HASH_POLICY_V1: PasswordHashPolicy = PasswordHashPolicy {
     tag_bytes: 32,
     common_password_list_version: COMMON_PASSWORD_LIST_VERSION,
 };
+
+/// Every password security threshold is selected from sealed server profile
+/// state. Non-production profiles deliberately retain generous *finite*
+/// resource bounds so conformance and benchmark suites can exercise the
+/// ten-attempt lock boundary without tripping an unrelated budget first.
+///
+/// @ref LLP 0227#lockout-and-rate-posture-a-declared-testable-contract —
+///   lockout, ledger custody, and KDF occupancy are declared profile terms.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct PasswordSecurityProfile {
+    pub(crate) failure_threshold: u64,
+    pub(crate) failure_window_ms: u64,
+    pub(crate) lock_duration_ms: u64,
+    pub(crate) ledger_max_rows: u64,
+    pub(crate) kdf_concurrency: usize,
+    pub(crate) verification_floor_ms: u64,
+}
+
+impl PasswordSecurityProfile {
+    pub(crate) const fn for_provider(profile: crate::contract_types::AuthProviderProfile) -> Self {
+        use crate::contract_types::AuthProviderProfile;
+        match profile {
+            AuthProviderProfile::Dev | AuthProviderProfile::Test => Self {
+                failure_threshold: 10,
+                failure_window_ms: 15 * 60 * 1_000,
+                lock_duration_ms: 15 * 60 * 1_000,
+                ledger_max_rows: 100_000,
+                kdf_concurrency: 8,
+                // Debug-build Argon2 under the parallel acceptance runner can
+                // exceed 900ms. Keep all invalid classes inside one padded
+                // envelope instead of making test-host contention an oracle.
+                verification_floor_ms: 1_250,
+            },
+            AuthProviderProfile::Demo => Self {
+                failure_threshold: 10,
+                failure_window_ms: 15 * 60 * 1_000,
+                lock_duration_ms: 15 * 60 * 1_000,
+                ledger_max_rows: 50_000,
+                kdf_concurrency: 4,
+                verification_floor_ms: 350,
+            },
+            AuthProviderProfile::Prod => Self {
+                failure_threshold: 10,
+                failure_window_ms: 15 * 60 * 1_000,
+                lock_duration_ms: 15 * 60 * 1_000,
+                ledger_max_rows: 100_000,
+                kdf_concurrency: 4,
+                verification_floor_ms: 500,
+            },
+        }
+    }
+}
+
+/// A PHC value may enter a writer plan only after the bounded KDF pool has
+/// completed. Its ordinary Debug representation is permanently redacted.
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) struct PreparedPasswordHash {
+    phc: String,
+    algorithm: &'static str,
+}
+
+impl fmt::Debug for PreparedPasswordHash {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PreparedPasswordHash([REDACTED])")
+    }
+}
+
+impl PreparedPasswordHash {
+    pub(crate) fn phc(&self) -> &str {
+        &self.phc
+    }
+
+    pub(crate) const fn algorithm(&self) -> &'static str {
+        self.algorithm
+    }
+}
+
+/// Result of one real-or-dummy verification performed on the bounded blocking
+/// pool. A replacement is computed in the same blocking job, while plaintext
+/// is still in its zeroizing owner, and can only be installed by generation
+/// CAS in the later writer transaction.
+pub(crate) struct PreparedPasswordVerification {
+    pub(crate) verified: bool,
+    pub(crate) replacement: Option<PreparedPasswordHash>,
+}
+
+impl fmt::Debug for PreparedPasswordVerification {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PreparedPasswordVerification")
+            .field("verified", &self.verified)
+            .field(
+                "replacement",
+                &self.replacement.as_ref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
+}
 
 impl PasswordHashPolicy {
     fn argon2(self) -> Argon2<'static> {
@@ -103,14 +206,274 @@ pub(crate) struct IdentitySession {
     pub recovery_codes: Option<RecoveryCodes>,
 }
 
-#[derive(Clone)]
-struct PasswordSnapshot {
-    user_id: String,
-    identity_id: String,
-    credential_id: String,
-    generation: u64,
-    hash_phc: String,
-    identifier_mode: PasswordIdentifierMode,
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) struct PasswordSnapshot {
+    pub(crate) user_id: String,
+    pub(crate) identity_id: String,
+    pub(crate) credential_id: String,
+    pub(crate) generation: u64,
+    pub(crate) hash_phc: String,
+    pub(crate) identifier_mode: PasswordIdentifierMode,
+}
+
+impl fmt::Debug for PasswordSnapshot {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PasswordSnapshot")
+            .field("user_id", &self.user_id)
+            .field("identity_id", &self.identity_id)
+            .field("credential_id", &self.credential_id)
+            .field("generation", &self.generation)
+            .field("hash_phc", &"[REDACTED]")
+            .field("identifier_mode", &self.identifier_mode)
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PasswordAttemptState {
+    pub(crate) window_start_ms: u64,
+    pub(crate) failed_count: u64,
+    pub(crate) locked_until_ms: Option<u64>,
+}
+
+/// Internal-only view of the account-existence-blind password-attempt ledger.
+/// A route may expose this value only after the admin authentication gate; no
+/// password endpoint is allowed to serialize it or vary its refusal by it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PasswordAttemptAdminProjection {
+    pub(crate) canonical_identifier: String,
+    pub(crate) window_start_ms: u64,
+    pub(crate) failed_count: u64,
+    pub(crate) locked_until_ms: Option<u64>,
+    pub(crate) locked: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PasswordAuthenticationPredecessor {
+    pub(crate) credential: Option<PasswordSnapshot>,
+    pub(crate) ledger: Option<PasswordAttemptState>,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) struct PreparedRecoverySet {
+    key_id: String,
+    digests: Vec<[u8; 32]>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PasswordSetPredecessor {
+    pub(crate) acting_session_id: String,
+    pub(crate) acting_user_id: String,
+    pub(crate) acting_generation: u64,
+    pub(crate) acting_token_digest: crate::auth::session_projection::TokenDigest,
+    pub(crate) email_identity_id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct DisplacedPasswordPredecessor {
+    pub(crate) identity_id: String,
+    pub(crate) user_id: String,
+    pub(crate) credential_id: String,
+    pub(crate) credential_generation: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PasswordSetPlanning {
+    pub(crate) predecessor: PasswordSetPredecessor,
+    pub(crate) displaced: Option<DisplacedPasswordPredecessor>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PasswordChangePlanning {
+    pub(crate) credential: PasswordSnapshot,
+    pub(crate) canonical_identifier: String,
+    pub(crate) acting_session_id: String,
+    pub(crate) acting_generation: u64,
+    pub(crate) acting_token_digest: crate::auth::session_projection::TokenDigest,
+    pub(crate) authority_instance_id: String,
+    pub(crate) sender_constrained: bool,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) struct PasswordChangeCommitPlan {
+    pub(crate) credential: PasswordSnapshot,
+    pub(crate) canonical_identifier: String,
+    pub(crate) verified: bool,
+    pub(crate) replacement: PreparedPasswordHash,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct GuestClaimPredecessor {
+    pub(crate) session_id: String,
+    pub(crate) user_id: String,
+    pub(crate) generation: u64,
+    pub(crate) token_digest: crate::auth::session_projection::TokenDigest,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RecoveryCodePredecessor {
+    pub(crate) user_id: String,
+    pub(crate) identity_id: String,
+    pub(crate) set_credential_id: String,
+    pub(crate) ordinal: u64,
+    pub(crate) digest: [u8; 32],
+}
+
+impl fmt::Debug for PasswordChangeCommitPlan {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PasswordChangeCommitPlan")
+            .field("credential", &self.credential)
+            .field("canonical_identifier", &self.canonical_identifier)
+            .field("verified", &self.verified)
+            .field("replacement", &"[REDACTED]")
+            .finish()
+    }
+}
+
+impl fmt::Debug for PreparedRecoverySet {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PreparedRecoverySet")
+            .field("key_id", &self.key_id)
+            .field(
+                "digests",
+                &format_args!("[REDACTED; {}]", self.digests.len()),
+            )
+            .finish()
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) enum PasswordIssuanceOperation {
+    Register {
+        credential_id: String,
+        password: PreparedPasswordHash,
+        recovery: PreparedRecoverySet,
+    },
+    Authenticate {
+        credential: Option<PasswordSnapshot>,
+        admission_ledger: Option<PasswordAttemptState>,
+        verified: bool,
+        replacement: Option<PreparedPasswordHash>,
+    },
+    Set {
+        predecessor: PasswordSetPredecessor,
+        displaced: Option<DisplacedPasswordPredecessor>,
+        credential_id: String,
+        password: PreparedPasswordHash,
+        recovery: PreparedRecoverySet,
+    },
+    GuestClaim {
+        predecessor: GuestClaimPredecessor,
+        credential_id: String,
+        password: PreparedPasswordHash,
+        recovery: PreparedRecoverySet,
+    },
+    RecoveryConsume {
+        predecessor: RecoveryCodePredecessor,
+        successor_credential_id: String,
+        successor_recovery: PreparedRecoverySet,
+    },
+}
+
+impl fmt::Debug for PasswordIssuanceOperation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Register {
+                credential_id,
+                recovery,
+                ..
+            } => formatter
+                .debug_struct("Register")
+                .field("credential_id", credential_id)
+                .field("password", &"[REDACTED]")
+                .field("recovery", recovery)
+                .finish(),
+            Self::Authenticate {
+                credential,
+                admission_ledger,
+                verified,
+                replacement,
+            } => formatter
+                .debug_struct("Authenticate")
+                .field("credential", credential)
+                .field("admission_ledger", admission_ledger)
+                .field("verified", verified)
+                .field("replacement", &replacement.as_ref().map(|_| "[REDACTED]"))
+                .finish(),
+            Self::Set {
+                predecessor,
+                displaced,
+                credential_id,
+                recovery,
+                ..
+            } => formatter
+                .debug_struct("Set")
+                .field("predecessor", predecessor)
+                .field("displaced", displaced)
+                .field("credential_id", credential_id)
+                .field("password", &"[REDACTED]")
+                .field("recovery", recovery)
+                .finish(),
+            Self::GuestClaim {
+                predecessor,
+                credential_id,
+                recovery,
+                ..
+            } => formatter
+                .debug_struct("GuestClaim")
+                .field("predecessor", predecessor)
+                .field("credential_id", credential_id)
+                .field("password", &"[REDACTED]")
+                .field("recovery", recovery)
+                .finish(),
+            Self::RecoveryConsume {
+                predecessor,
+                successor_credential_id,
+                successor_recovery,
+            } => formatter
+                .debug_struct("RecoveryConsume")
+                .field("predecessor", predecessor)
+                .field("successor_credential_id", successor_credential_id)
+                .field("successor_recovery", successor_recovery)
+                .finish(),
+        }
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+pub(crate) struct PasswordIssuanceCommitPlan {
+    pub(crate) canonical_identifier: String,
+    pub(crate) identifier_mode: PasswordIdentifierMode,
+    pub(crate) identity_id: String,
+    pub(crate) user_id: String,
+    pub(crate) operation: PasswordIssuanceOperation,
+}
+
+impl fmt::Debug for PasswordIssuanceCommitPlan {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PasswordIssuanceCommitPlan")
+            .field("canonical_identifier", &self.canonical_identifier)
+            .field("identifier_mode", &self.identifier_mode)
+            .field("identity_id", &self.identity_id)
+            .field("user_id", &self.user_id)
+            .field("operation", &self.operation)
+            .finish()
+    }
+}
+
+pub(crate) enum PasswordIssuanceAdmission {
+    Proceed {
+        create_principal: bool,
+    },
+    Invalid {
+        committed_attempt: Option<PasswordAttemptState>,
+    },
+    LedgerCapacityExhausted,
+    PredecessorChanged,
 }
 
 struct PasswordIdentifier {
@@ -258,7 +621,7 @@ fn canonical_password_identifier(
     })
 }
 
-pub(super) fn canonical_password_identifier_value(
+pub(crate) fn canonical_password_identifier_value(
     mode: PasswordIdentifierMode,
     value: &str,
 ) -> SnapbackResult<String> {
@@ -295,7 +658,10 @@ fn require_same_password_identifier_mode(
     ))
 }
 
-fn hash_password(secret: &PasswordSecret, random: &dyn RandomSource) -> SnapbackResult<String> {
+pub(crate) fn hash_password_on_blocking_pool(
+    secret: &PasswordSecret,
+    random: &dyn RandomSource,
+) -> SnapbackResult<PreparedPasswordHash> {
     let password = secret.expose_secret();
     if password.len() < 12
         || password.len() > 1_024
@@ -318,7 +684,10 @@ fn hash_password(secret: &PasswordSecret, random: &dyn RandomSource) -> Snapback
     PASSWORD_HASH_POLICY_V1
         .argon2()
         .hash_password_with_salt(password.as_bytes(), &salt)
-        .map(|hash| hash.to_string())
+        .map(|hash| PreparedPasswordHash {
+            phc: hash.to_string(),
+            algorithm: "argon2id",
+        })
         .map_err(|_| {
             auth_error(
                 "SNAPBACK_AUTH_PASSWORD_HASH_UNAVAILABLE",
@@ -327,12 +696,122 @@ fn hash_password(secret: &PasswordSecret, random: &dyn RandomSource) -> Snapback
         })
 }
 
+// Transitional storage-floor helper. First-class request paths enter through
+// `AuthProvider::hash_password_bounded`; the direct floor remains only for
+// catalog fixtures until every fixture is migrated to prepared plans.
+fn hash_password(secret: &PasswordSecret, random: &dyn RandomSource) -> SnapbackResult<String> {
+    Ok(hash_password_on_blocking_pool(secret, random)?.phc)
+}
+
+/// Declared cost ceilings for any stored hash we are willing to *verify*.
+///
+/// @ref LLP 0227#migration-and-import-of-existing-hashes — "Foreign hashes are
+///   bounded, not just allowlisted: … every cost parameter … validate against
+///   declared caps before storage, so an imported PHC string cannot demand
+///   pathological KDF work."
+///
+/// These bind at verification, not only at import. A PHC string carries its own
+/// cost parameters and PHC verification necessarily re-derives from *those*, not
+/// from [`PASSWORD_HASH_POLICY_V1`] — so passing a policy-configured `Argon2` to
+/// `verify_password` pins hashing, not verifying. Without this gate a single
+/// stored hash declaring, say, 4 GiB of Argon2 memory or a bcrypt cost of 31
+/// would burn that per attempt. The KDF concurrency permit bounds how *many*
+/// verifications run at once; it cannot bound how expensive one of them is.
+///
+/// Ceilings sit comfortably above the pinned v1 policy (m=19456, t=2, p=1) so
+/// legitimately imported credentials still verify once and upgrade on success.
+const IMPORTED_HASH_MAX_ARGON2_MEMORY_KIB: u32 = 262_144; // 256 MiB
+const IMPORTED_HASH_MAX_ARGON2_ITERATIONS: u32 = 16;
+const IMPORTED_HASH_MAX_ARGON2_PARALLELISM: u32 = 8;
+const IMPORTED_HASH_MAX_SCRYPT_LOG_N: u8 = 17; // N = 131_072
+const IMPORTED_HASH_MAX_SCRYPT_R: u32 = 16;
+const IMPORTED_HASH_MAX_SCRYPT_P: u32 = 8;
+const IMPORTED_HASH_MAX_BCRYPT_COST: u32 = 13;
+const IMPORTED_HASH_MAX_ENCODED_BYTES: usize = 1_024;
+
+/// A bcrypt modular-crypt string is `$2<variant>$<cost>$<53 chars>`; the cost is
+/// the second `$`-delimited field. Returns `None` when it is not parseable,
+/// which callers treat as refusal.
+fn bcrypt_declared_cost(hash_phc: &str) -> Option<u32> {
+    hash_phc.split('$').nth(2)?.parse::<u32>().ok()
+}
+
+/// Fail-closed: an unparseable or over-budget hash is refused rather than
+/// verified. Refusing here cannot become an oracle — the caller answers with the
+/// same uniform invalid code it uses for every other failure class.
+fn phc_cost_within_declared_caps(hash_phc: &str) -> bool {
+    if hash_phc.len() > IMPORTED_HASH_MAX_ENCODED_BYTES {
+        return false;
+    }
+    if hash_phc.starts_with("$2a$")
+        || hash_phc.starts_with("$2b$")
+        || hash_phc.starts_with("$2x$")
+        || hash_phc.starts_with("$2y$")
+    {
+        return bcrypt_declared_cost(hash_phc)
+            .is_some_and(|cost| cost <= IMPORTED_HASH_MAX_BCRYPT_COST);
+    }
+    let Ok(hash) = PasswordHash::new(hash_phc) else {
+        return false;
+    };
+    match hash.algorithm.as_str() {
+        "argon2id" | "argon2i" | "argon2d" => Params::try_from(&hash).is_ok_and(|params| {
+            params.m_cost() <= IMPORTED_HASH_MAX_ARGON2_MEMORY_KIB
+                && params.t_cost() <= IMPORTED_HASH_MAX_ARGON2_ITERATIONS
+                && params.p_cost() <= IMPORTED_HASH_MAX_ARGON2_PARALLELISM
+        }),
+        "scrypt" => scrypt::Params::try_from(&hash).is_ok_and(|params| {
+            params.log_n() <= IMPORTED_HASH_MAX_SCRYPT_LOG_N
+                && params.r() <= IMPORTED_HASH_MAX_SCRYPT_R
+                && params.p() <= IMPORTED_HASH_MAX_SCRYPT_P
+        }),
+        _ => false,
+    }
+}
+
 fn verify_password(secret: &PasswordSecret, hash_phc: &str) -> bool {
-    PasswordHash::new(hash_phc).is_ok_and(|hash| {
-        PASSWORD_HASH_POLICY_V1
+    // Bound the work *before* committing to it. See the caps above.
+    if !phc_cost_within_declared_caps(hash_phc) {
+        return false;
+    }
+    let plaintext = secret.expose_secret();
+    if hash_phc.starts_with("$2a$")
+        || hash_phc.starts_with("$2b$")
+        || hash_phc.starts_with("$2x$")
+        || hash_phc.starts_with("$2y$")
+    {
+        return bcrypt::verify(plaintext, hash_phc).unwrap_or(false);
+    }
+    let Ok(hash) = PasswordHash::new(hash_phc) else {
+        return false;
+    };
+    match hash.algorithm.as_str() {
+        "argon2id" | "argon2i" | "argon2d" => PASSWORD_HASH_POLICY_V1
             .argon2()
-            .verify_password(secret.expose_secret().as_bytes(), &hash)
-            .is_ok()
+            .verify_password(plaintext.as_bytes(), &hash)
+            .is_ok(),
+        "scrypt" => scrypt::Scrypt::new()
+            .verify_password(plaintext.as_bytes(), &hash)
+            .is_ok(),
+        _ => false,
+    }
+}
+
+pub(crate) fn verify_password_on_blocking_pool(
+    secret: &PasswordSecret,
+    hash_phc: &str,
+    prepare_upgrade: bool,
+    random: &dyn RandomSource,
+) -> SnapbackResult<PreparedPasswordVerification> {
+    let verified = verify_password(secret, hash_phc);
+    let replacement = if verified && prepare_upgrade && password_hash_needs_upgrade(hash_phc) {
+        Some(hash_password_on_blocking_pool(secret, random)?)
+    } else {
+        None
+    };
+    Ok(PreparedPasswordVerification {
+        verified,
+        replacement,
     })
 }
 
@@ -370,6 +849,21 @@ fn generate_recovery(
     Ok((RecoveryCodes::new(codes), digests))
 }
 
+pub(crate) fn prepare_recovery_set(
+    random: &dyn RandomSource,
+    key_id: &str,
+    key: &[u8; 32],
+) -> SnapbackResult<(RecoveryCodes, PreparedRecoverySet)> {
+    let (codes, digests) = generate_recovery(random, key)?;
+    Ok((
+        codes,
+        PreparedRecoverySet {
+            key_id: key_id.to_owned(),
+            digests,
+        },
+    ))
+}
+
 fn mint_session(random: &dyn RandomSource) -> SnapbackResult<(String, String, SessionBearer)> {
     let bearer = SessionBearer::generate(random).map_err(|_| {
         auth_error(
@@ -377,7 +871,14 @@ fn mint_session(random: &dyn RandomSource) -> SnapbackResult<(String, String, Se
             "secure randomness is unavailable",
         )
     })?;
-    Ok((opaque_id("session"), opaque_id("authority"), bearer))
+    // The legacy fixture/floor path still obeys the canonical authority-id
+    // registry. First-class password request paths bypass this helper and use
+    // the projection-coordinated provider issuance kernel.
+    Ok((
+        opaque_id("session"),
+        crate::ids::mint_time_ordered(crate::ids::Kind::AuthorityInstance),
+        bearer,
+    ))
 }
 
 fn insert_session(
@@ -420,19 +921,1583 @@ fn insert_recovery_set(
     reason: &str,
     now: u64,
 ) -> SnapbackResult<String> {
+    insert_recovery_set_with_id(
+        tx,
+        user,
+        &opaque_id("recovery"),
+        key_id,
+        digests,
+        reason,
+        now,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn insert_recovery_set_with_id(
+    tx: &Transaction<'_>,
+    user: &str,
+    id: &str,
+    key_id: &str,
+    digests: &[[u8; 32]],
+    reason: &str,
+    now: u64,
+) -> SnapbackResult<String> {
     let generation: u64 = tx.query_row("SELECT COALESCE(MAX(set_generation),0)+1 FROM _auth_recovery_code_sets r JOIN _auth_credentials c ON c.id=r.credential_id WHERE c.user_id=?1", [user], |row| row.get(0))?;
     tx.execute("UPDATE _auth_credentials SET revoked_at_ms=?2 WHERE user_id=?1 AND kind='recovery-code-set' AND revoked_at_ms IS NULL", params![user, now])?;
     tx.execute("UPDATE _auth_recovery_code_sets SET replaced_at_ms=?2 WHERE credential_id IN (SELECT id FROM _auth_credentials WHERE user_id=?1 AND kind='recovery-code-set') AND replaced_at_ms IS NULL", params![user, now])?;
-    let id = opaque_id("recovery");
     tx.execute("INSERT INTO _auth_credentials(id,user_id,kind,generation,created_at_ms) VALUES(?1,?2,'recovery-code-set',?3,?4)", params![id, user, generation, now])?;
     tx.execute("INSERT INTO _auth_recovery_code_sets(credential_id,set_generation,reason,issued_at_ms) VALUES(?1,?2,?3,?4)", params![id, generation, reason, now])?;
     for (ordinal, digest) in digests.iter().enumerate() {
         tx.execute("INSERT INTO _auth_recovery_codes(set_credential_id,ordinal,code_digest,key_id) VALUES(?1,?2,?3,?4)", params![id, ordinal as u64, digest.as_slice(), key_id])?;
     }
-    Ok(id)
+    Ok(id.to_owned())
+}
+
+fn read_password_attempt_on(
+    connection: &rusqlite::Connection,
+    canonical_identifier: &str,
+) -> SnapbackResult<Option<PasswordAttemptState>> {
+    connection
+        .query_row(
+            "SELECT window_start_ms, failed_count, locked_until_ms
+             FROM _auth_password_attempts WHERE address = ?1",
+            [canonical_identifier],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Option<i64>>(2)?,
+                ))
+            },
+        )
+        .optional()?
+        .map(|(window, failures, locked)| {
+            Ok(PasswordAttemptState {
+                window_start_ms: u64::try_from(window).map_err(|_| {
+                    auth_error(
+                        "INTERNAL_AUTH_STATE",
+                        "authentication state invariant failed",
+                    )
+                })?,
+                failed_count: u64::try_from(failures).map_err(|_| {
+                    auth_error(
+                        "INTERNAL_AUTH_STATE",
+                        "authentication state invariant failed",
+                    )
+                })?,
+                locked_until_ms: locked.map(u64::try_from).transpose().map_err(|_| {
+                    auth_error(
+                        "INTERNAL_AUTH_STATE",
+                        "authentication state invariant failed",
+                    )
+                })?,
+            })
+        })
+        .transpose()
+}
+
+fn password_snapshot_on(
+    connection: &rusqlite::Connection,
+    canonical_identifier: &str,
+    identifier_mode: PasswordIdentifierMode,
+) -> SnapbackResult<Option<PasswordSnapshot>> {
+    connection
+        .query_row(
+            "SELECT i.user_id,i.id,c.id,c.generation,p.hash_phc
+             FROM _auth_identities i
+             JOIN _auth_credentials c
+               ON c.user_id=i.user_id
+              AND c.kind='password'
+              AND c.revoked_at_ms IS NULL
+             JOIN _auth_password_credentials p ON p.credential_id=c.id
+             JOIN _auth_users u ON u.id=i.user_id
+             WHERE i.provider='local-password'
+               AND i.subject=?1
+               AND i.disabled_at_ms IS NULL
+               AND u.deactivated_at_ms IS NULL",
+            [canonical_identifier],
+            |row| {
+                Ok(PasswordSnapshot {
+                    user_id: row.get(0)?,
+                    identity_id: row.get(1)?,
+                    credential_id: row.get(2)?,
+                    generation: row.get(3)?,
+                    hash_phc: row.get(4)?,
+                    identifier_mode,
+                })
+            },
+        )
+        .optional()
+        .map_err(Into::into)
+}
+
+fn normalize_attempt_window(
+    state: Option<PasswordAttemptState>,
+    now_ms: u64,
+    profile: PasswordSecurityProfile,
+) -> PasswordAttemptState {
+    let Some(state) = state else {
+        return PasswordAttemptState {
+            window_start_ms: now_ms,
+            failed_count: 0,
+            locked_until_ms: None,
+        };
+    };
+    let lock_live = state.locked_until_ms.is_some_and(|until| now_ms < until);
+    let window_live = now_ms
+        < state
+            .window_start_ms
+            .saturating_add(profile.failure_window_ms);
+    if lock_live || window_live {
+        state
+    } else {
+        PasswordAttemptState {
+            window_start_ms: now_ms,
+            failed_count: 0,
+            locked_until_ms: None,
+        }
+    }
+}
+
+fn record_password_failure_in(
+    transaction: &Transaction<'_>,
+    canonical_identifier: &str,
+    current: Option<PasswordAttemptState>,
+    now_ms: u64,
+    profile: PasswordSecurityProfile,
+) -> SnapbackResult<Result<PasswordAttemptState, ()>> {
+    let exists = current.is_some();
+    if !exists {
+        transaction.execute(
+            "DELETE FROM _auth_password_attempts
+             WHERE (locked_until_ms IS NULL OR locked_until_ms <= ?1)
+               AND window_start_ms <= ?2",
+            params![
+                now_ms as i64,
+                now_ms.saturating_sub(profile.failure_window_ms) as i64
+            ],
+        )?;
+        let rows: i64 =
+            transaction.query_row("SELECT COUNT(*) FROM _auth_password_attempts", [], |row| {
+                row.get(0)
+            })?;
+        if u64::try_from(rows)
+            .ok()
+            .is_none_or(|rows| rows >= profile.ledger_max_rows)
+        {
+            return Ok(Err(()));
+        }
+    }
+    let mut successor = normalize_attempt_window(current, now_ms, profile);
+    successor.failed_count = successor.failed_count.checked_add(1).ok_or_else(|| {
+        auth_error(
+            "INTERNAL_AUTH_STATE",
+            "authentication state invariant failed",
+        )
+    })?;
+    if successor.failed_count >= profile.failure_threshold {
+        successor.locked_until_ms = Some(now_ms.checked_add(profile.lock_duration_ms).ok_or_else(
+            || {
+                auth_error(
+                    "INTERNAL_AUTH_STATE",
+                    "authentication state invariant failed",
+                )
+            },
+        )?);
+    }
+    transaction.execute(
+        "INSERT INTO _auth_password_attempts(
+           address, window_start_ms, failed_count, locked_until_ms
+         ) VALUES(?1, ?2, ?3, ?4)
+         ON CONFLICT(address) DO UPDATE SET
+           window_start_ms=excluded.window_start_ms,
+           failed_count=excluded.failed_count,
+           locked_until_ms=excluded.locked_until_ms",
+        params![
+            canonical_identifier,
+            successor.window_start_ms as i64,
+            successor.failed_count as i64,
+            successor.locked_until_ms.map(|value| value as i64),
+        ],
+    )?;
+    Ok(Ok(successor))
+}
+
+/// Recheck the exact credential predecessor and the current ledger under the
+/// writer serialization point. This function performs no successful issuance
+/// mutation; it may only commit account-existence-blind failure accounting.
+///
+/// @ref LLP 0227#principal-binding-same-sessions-no-parallel-identity — a stale proof neither
+///   authorizes nor penalizes, while a lock acquired during KDF is honored.
+pub(crate) fn admit_password_issuance_in(
+    transaction: &Transaction<'_>,
+    plan: &PasswordIssuanceCommitPlan,
+    now_ms: u64,
+    profile: PasswordSecurityProfile,
+) -> SnapbackResult<PasswordIssuanceAdmission> {
+    super::auth::require_password_identifier_mode_on(transaction)?;
+    require_same_password_identifier_mode(transaction, plan.identifier_mode)?;
+    match &plan.operation {
+        PasswordIssuanceOperation::Register { .. } => {
+            let collision: bool = transaction.query_row(
+                "SELECT EXISTS(
+                   SELECT 1 FROM _auth_identities
+                   WHERE subject=?1 AND disabled_at_ms IS NULL
+                 )",
+                [&plan.canonical_identifier],
+                |row| row.get(0),
+            )?;
+            if collision {
+                return Ok(PasswordIssuanceAdmission::PredecessorChanged);
+            }
+            let id_collision: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_users WHERE id=?1)
+                     OR EXISTS(SELECT 1 FROM _auth_identities WHERE id=?2)",
+                params![plan.user_id, plan.identity_id],
+                |row| row.get(0),
+            )?;
+            Ok(if id_collision {
+                PasswordIssuanceAdmission::PredecessorChanged
+            } else {
+                PasswordIssuanceAdmission::Proceed {
+                    create_principal: true,
+                }
+            })
+        }
+        PasswordIssuanceOperation::Authenticate {
+            credential,
+            verified,
+            ..
+        } => {
+            let durable = password_snapshot_on(
+                transaction,
+                &plan.canonical_identifier,
+                plan.identifier_mode,
+            )?;
+            if durable != *credential {
+                // The KDF proof was computed against a credential generation
+                // that is no longer authoritative.  This is deliberately the
+                // same public result as every other bad credential, and it
+                // performs no ledger write.
+                return Ok(PasswordIssuanceAdmission::Invalid {
+                    committed_attempt: None,
+                });
+            }
+            let ledger = read_password_attempt_on(transaction, &plan.canonical_identifier)?;
+            let normalized = normalize_attempt_window(ledger.clone(), now_ms, profile);
+            if normalized
+                .locked_until_ms
+                .is_some_and(|until| now_ms < until)
+            {
+                return Ok(PasswordIssuanceAdmission::Invalid {
+                    committed_attempt: None,
+                });
+            }
+            if !*verified || credential.is_none() {
+                return match record_password_failure_in(
+                    transaction,
+                    &plan.canonical_identifier,
+                    ledger,
+                    now_ms,
+                    profile,
+                )? {
+                    Ok(committed_attempt) => Ok(PasswordIssuanceAdmission::Invalid {
+                        committed_attempt: Some(committed_attempt),
+                    }),
+                    Err(()) => Ok(PasswordIssuanceAdmission::LedgerCapacityExhausted),
+                };
+            }
+            Ok(PasswordIssuanceAdmission::Proceed {
+                create_principal: false,
+            })
+        }
+        PasswordIssuanceOperation::Set {
+            predecessor,
+            displaced,
+            ..
+        } => {
+            let acting: Option<(String, i64, Vec<u8>)> = transaction
+                .query_row(
+                    "SELECT user_id,generation,token_hash FROM _auth_sessions
+                     WHERE id=?1 AND revoked_at_ms IS NULL AND ?2<expires_at_ms",
+                    params![predecessor.acting_session_id, now_ms],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+            if !acting.is_some_and(|(user, generation, digest)| {
+                user == predecessor.acting_user_id
+                    && u64::try_from(generation).ok() == Some(predecessor.acting_generation)
+                    && digest.as_slice() == predecessor.acting_token_digest.as_bytes().as_slice()
+            }) {
+                return Ok(PasswordIssuanceAdmission::PredecessorChanged);
+            }
+            let email_owner: Option<(String, String, String)> = transaction
+                .query_row(
+                    "SELECT user_id,provider,subject FROM _auth_identities
+                     WHERE id=?1 AND disabled_at_ms IS NULL",
+                    [&predecessor.email_identity_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+            if email_owner
+                != Some((
+                    predecessor.acting_user_id.clone(),
+                    "email-code".to_owned(),
+                    plan.canonical_identifier.clone(),
+                ))
+            {
+                return Ok(PasswordIssuanceAdmission::PredecessorChanged);
+            }
+            let live_passwords: i64 = transaction.query_row(
+                "SELECT COUNT(*) FROM _auth_credentials
+                 WHERE user_id=?1 AND kind='password' AND revoked_at_ms IS NULL",
+                [&predecessor.acting_user_id],
+                |row| row.get(0),
+            )?;
+            if live_passwords != 0 {
+                return Ok(PasswordIssuanceAdmission::PredecessorChanged);
+            }
+            let durable_displaced: Option<(String, String, String, i64)> = transaction
+                .query_row(
+                    "SELECT i.id,i.user_id,c.id,c.generation
+                     FROM _auth_identities i
+                     JOIN _auth_credentials c
+                       ON c.user_id=i.user_id
+                      AND c.kind='password'
+                      AND c.revoked_at_ms IS NULL
+                     WHERE i.provider='local-password'
+                       AND i.subject=?1 AND i.disabled_at_ms IS NULL",
+                    [&plan.canonical_identifier],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                )
+                .optional()?;
+            let expected_displaced = displaced.as_ref().map(|value| {
+                (
+                    value.identity_id.clone(),
+                    value.user_id.clone(),
+                    value.credential_id.clone(),
+                    value.credential_generation as i64,
+                )
+            });
+            if durable_displaced != expected_displaced {
+                return Ok(PasswordIssuanceAdmission::PredecessorChanged);
+            }
+            Ok(PasswordIssuanceAdmission::Proceed {
+                create_principal: false,
+            })
+        }
+        PasswordIssuanceOperation::GuestClaim { predecessor, .. } => {
+            let guest: Option<(String, i64, Vec<u8>)> = transaction
+                .query_row(
+                    "SELECT s.user_id,s.generation,s.token_hash
+                     FROM _auth_sessions s
+                     JOIN _auth_users u ON u.id=s.user_id
+                     WHERE s.id=?1 AND s.revoked_at_ms IS NULL
+                       AND ?2<s.expires_at_ms AND s.authn_source='guest'
+                       AND u.guest_state='active'",
+                    params![predecessor.session_id, now_ms],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+            let exact = guest.is_some_and(|(user, generation, digest)| {
+                user == predecessor.user_id
+                    && u64::try_from(generation).ok() == Some(predecessor.generation)
+                    && digest.as_slice() == predecessor.token_digest.as_bytes().as_slice()
+            });
+            let collision: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_identities
+                 WHERE provider='local-password' AND subject=?1
+                   AND disabled_at_ms IS NULL)",
+                [&plan.canonical_identifier],
+                |row| row.get(0),
+            )?;
+            Ok(if exact && !collision {
+                PasswordIssuanceAdmission::Proceed {
+                    create_principal: false,
+                }
+            } else {
+                PasswordIssuanceAdmission::PredecessorChanged
+            })
+        }
+        PasswordIssuanceOperation::RecoveryConsume { predecessor, .. } => {
+            let exact: bool = transaction.query_row(
+                "SELECT EXISTS(
+                   SELECT 1 FROM _auth_recovery_codes r
+                   JOIN _auth_recovery_code_sets s
+                     ON s.credential_id=r.set_credential_id
+                    AND s.replaced_at_ms IS NULL
+                   JOIN _auth_credentials c
+                     ON c.id=r.set_credential_id
+                    AND c.revoked_at_ms IS NULL
+                   JOIN _auth_identities i
+                     ON i.user_id=c.user_id
+                    AND i.id=?5
+                    AND i.provider='local-password'
+                    AND i.disabled_at_ms IS NULL
+                   WHERE r.set_credential_id=?1 AND r.ordinal=?2
+                     AND r.code_digest=?3 AND r.consumed_at_ms IS NULL
+                     AND c.user_id=?4
+                 )",
+                params![
+                    predecessor.set_credential_id,
+                    predecessor.ordinal,
+                    predecessor.digest.as_slice(),
+                    predecessor.user_id,
+                    predecessor.identity_id,
+                ],
+                |row| row.get(0),
+            )?;
+            Ok(if exact {
+                PasswordIssuanceAdmission::Proceed {
+                    create_principal: false,
+                }
+            } else {
+                PasswordIssuanceAdmission::PredecessorChanged
+            })
+        }
+    }
+}
+
+/// Apply the successful credential transition only after candidate-collision
+/// and exact cap admission have succeeded in the shared issuance transaction.
+pub(crate) fn apply_password_issuance_in(
+    transaction: &Transaction<'_>,
+    plan: &PasswordIssuanceCommitPlan,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    match &plan.operation {
+        PasswordIssuanceOperation::Register {
+            credential_id,
+            password,
+            recovery,
+        } => {
+            transaction.execute(
+                "INSERT INTO _auth_users(id,created_at_ms,kind,guest_state)
+                 VALUES(?1,?2,'human','never')",
+                params![plan.user_id, now_ms],
+            )?;
+            transaction.execute(
+                "INSERT INTO _auth_identities(
+                   id,user_id,kind,provider,subject,canonical_value,
+                   created_at_ms,verified_at_ms
+                 ) VALUES(?1,?2,?3,'local-password',?4,?4,?5,?5)",
+                params![
+                    plan.identity_id,
+                    plan.user_id,
+                    plan.identifier_mode.identity_kind(),
+                    plan.canonical_identifier,
+                    now_ms
+                ],
+            )?;
+            transaction.execute(
+                "INSERT INTO _auth_credentials(id,user_id,kind,created_at_ms)
+                 VALUES(?1,?2,'password',?3)",
+                params![credential_id, plan.user_id, now_ms],
+            )?;
+            transaction.execute(
+                "INSERT INTO _auth_password_credentials(
+                   credential_id,algorithm,hash_phc,policy_version,
+                   common_password_list_version,changed_at_ms
+                 ) VALUES(?1,?2,?3,?4,?5,?6)",
+                params![
+                    credential_id,
+                    password.algorithm(),
+                    password.phc(),
+                    PASSWORD_HASH_POLICY_V1.version,
+                    PASSWORD_HASH_POLICY_V1.common_password_list_version,
+                    now_ms
+                ],
+            )?;
+            insert_recovery_set(
+                transaction,
+                &plan.user_id,
+                &recovery.key_id,
+                &recovery.digests,
+                "initial",
+                now_ms,
+            )?;
+        }
+        PasswordIssuanceOperation::Authenticate {
+            credential: Some(credential),
+            replacement,
+            ..
+        } => {
+            if let Some(replacement) = replacement {
+                let swapped = transaction.execute(
+                    "UPDATE _auth_password_credentials
+                     SET algorithm=?2,hash_phc=?3,policy_version=?4,
+                         common_password_list_version=?5,changed_at_ms=?6
+                     WHERE credential_id=?1
+                       AND EXISTS(
+                         SELECT 1 FROM _auth_credentials
+                         WHERE id=?1 AND generation=?7 AND revoked_at_ms IS NULL
+                       )",
+                    params![
+                        credential.credential_id,
+                        replacement.algorithm(),
+                        replacement.phc(),
+                        PASSWORD_HASH_POLICY_V1.version,
+                        PASSWORD_HASH_POLICY_V1.common_password_list_version,
+                        now_ms,
+                        credential.generation,
+                    ],
+                )?;
+                if swapped == 1 {
+                    let generation_swapped = transaction.execute(
+                        "UPDATE _auth_credentials
+                         SET generation=generation+1,last_used_at_ms=?2
+                         WHERE id=?1 AND generation=?3",
+                        params![credential.credential_id, now_ms, credential.generation],
+                    )?;
+                    if generation_swapped != 1 {
+                        return Err(auth_error(
+                            "INTERNAL_AUTH_STATE",
+                            "authentication state invariant failed",
+                        ));
+                    }
+                } else {
+                    return Err(auth_error(
+                        "INTERNAL_AUTH_STATE",
+                        "authentication state invariant failed",
+                    ));
+                }
+            } else {
+                let used = transaction.execute(
+                    "UPDATE _auth_credentials SET last_used_at_ms=?2
+                     WHERE id=?1 AND generation=?3",
+                    params![credential.credential_id, now_ms, credential.generation],
+                )?;
+                if used != 1 {
+                    return Err(auth_error(
+                        "INTERNAL_AUTH_STATE",
+                        "authentication state invariant failed",
+                    ));
+                }
+            }
+            transaction.execute(
+                "DELETE FROM _auth_password_attempts WHERE address=?1",
+                [&plan.canonical_identifier],
+            )?;
+        }
+        PasswordIssuanceOperation::Authenticate {
+            credential: None, ..
+        } => {
+            return Err(auth_error(
+                "INTERNAL_AUTH_STATE",
+                "authentication state invariant failed",
+            ));
+        }
+        PasswordIssuanceOperation::Set {
+            predecessor,
+            displaced,
+            credential_id,
+            password,
+            recovery,
+        } => {
+            if let Some(displaced) = displaced {
+                let retired = transaction.execute(
+                    "UPDATE _auth_credentials
+                     SET revoked_at_ms=?2,generation=generation+1
+                     WHERE id=?1 AND user_id=?3 AND generation=?4
+                       AND revoked_at_ms IS NULL",
+                    params![
+                        displaced.credential_id,
+                        now_ms,
+                        displaced.user_id,
+                        displaced.credential_generation,
+                    ],
+                )?;
+                if retired != 1 {
+                    return Err(auth_error(
+                        "INTERNAL_AUTH_STATE",
+                        "authentication state invariant failed",
+                    ));
+                }
+                let retired_subject = format!(
+                    "retired:{}:{}",
+                    displaced.identity_id, plan.canonical_identifier
+                );
+                let identity_retired = transaction.execute(
+                    "UPDATE _auth_identities
+                     SET disabled_at_ms=?2,subject=?3,canonical_value=NULL
+                     WHERE id=?1 AND user_id=?4 AND disabled_at_ms IS NULL",
+                    params![
+                        displaced.identity_id,
+                        now_ms,
+                        retired_subject,
+                        displaced.user_id
+                    ],
+                )?;
+                if identity_retired != 1 {
+                    return Err(auth_error(
+                        "INTERNAL_AUTH_STATE",
+                        "authentication state invariant failed",
+                    ));
+                }
+            }
+            transaction.execute(
+                "INSERT INTO _auth_identities(
+                   id,user_id,kind,provider,subject,canonical_value,
+                   created_at_ms,verified_at_ms
+                 ) VALUES(?1,?2,?3,'local-password',?4,?4,?5,?5)",
+                params![
+                    plan.identity_id,
+                    predecessor.acting_user_id,
+                    plan.identifier_mode.identity_kind(),
+                    plan.canonical_identifier,
+                    now_ms
+                ],
+            )?;
+            transaction.execute(
+                "INSERT INTO _auth_credentials(id,user_id,kind,created_at_ms)
+                 VALUES(?1,?2,'password',?3)",
+                params![credential_id, predecessor.acting_user_id, now_ms],
+            )?;
+            transaction.execute(
+                "INSERT INTO _auth_password_credentials(
+                   credential_id,algorithm,hash_phc,policy_version,
+                   common_password_list_version,changed_at_ms
+                 ) VALUES(?1,?2,?3,?4,?5,?6)",
+                params![
+                    credential_id,
+                    password.algorithm(),
+                    password.phc(),
+                    PASSWORD_HASH_POLICY_V1.version,
+                    PASSWORD_HASH_POLICY_V1.common_password_list_version,
+                    now_ms
+                ],
+            )?;
+            insert_recovery_set(
+                transaction,
+                &predecessor.acting_user_id,
+                &recovery.key_id,
+                &recovery.digests,
+                "initial",
+                now_ms,
+            )?;
+        }
+        PasswordIssuanceOperation::GuestClaim {
+            predecessor,
+            credential_id,
+            password,
+            recovery,
+        } => {
+            transaction.execute(
+                "INSERT INTO _auth_identities(
+                   id,user_id,kind,provider,subject,canonical_value,
+                   created_at_ms,verified_at_ms
+                 ) VALUES(?1,?2,?3,'local-password',?4,?4,?5,?5)",
+                params![
+                    plan.identity_id,
+                    predecessor.user_id,
+                    plan.identifier_mode.identity_kind(),
+                    plan.canonical_identifier,
+                    now_ms
+                ],
+            )?;
+            transaction.execute(
+                "INSERT INTO _auth_credentials(id,user_id,kind,created_at_ms)
+                 VALUES(?1,?2,'password',?3)",
+                params![credential_id, predecessor.user_id, now_ms],
+            )?;
+            transaction.execute(
+                "INSERT INTO _auth_password_credentials(
+                   credential_id,algorithm,hash_phc,policy_version,
+                   common_password_list_version,changed_at_ms
+                 ) VALUES(?1,?2,?3,?4,?5,?6)",
+                params![
+                    credential_id,
+                    password.algorithm(),
+                    password.phc(),
+                    PASSWORD_HASH_POLICY_V1.version,
+                    PASSWORD_HASH_POLICY_V1.common_password_list_version,
+                    now_ms
+                ],
+            )?;
+            insert_recovery_set(
+                transaction,
+                &predecessor.user_id,
+                &recovery.key_id,
+                &recovery.digests,
+                "initial",
+                now_ms,
+            )?;
+            let claimed = transaction.execute(
+                "UPDATE _auth_users
+                 SET guest_state='claimed',guest_expires_at_ms=NULL,
+                     guest_claimed_at_ms=?2
+                 WHERE id=?1 AND guest_state='active'",
+                params![predecessor.user_id, now_ms],
+            )?;
+            if claimed != 1 {
+                return Err(auth_error(
+                    "INTERNAL_AUTH_STATE",
+                    "authentication state invariant failed",
+                ));
+            }
+        }
+        PasswordIssuanceOperation::RecoveryConsume {
+            predecessor,
+            successor_credential_id,
+            successor_recovery,
+        } => {
+            let consumed = transaction.execute(
+                "UPDATE _auth_recovery_codes SET consumed_at_ms=?4
+                 WHERE set_credential_id=?1 AND ordinal=?2 AND code_digest=?3
+                   AND consumed_at_ms IS NULL",
+                params![
+                    predecessor.set_credential_id,
+                    predecessor.ordinal,
+                    predecessor.digest.as_slice(),
+                    now_ms
+                ],
+            )?;
+            if consumed != 1 {
+                return Err(auth_error(
+                    "INTERNAL_AUTH_STATE",
+                    "authentication state invariant failed",
+                ));
+            }
+            insert_recovery_set_with_id(
+                transaction,
+                &predecessor.user_id,
+                successor_credential_id,
+                &successor_recovery.key_id,
+                &successor_recovery.digests,
+                "after-use",
+                now_ms,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn finish_password_session_in(
+    transaction: &Transaction<'_>,
+    plan: &PasswordIssuanceCommitPlan,
+    session_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let credential_id = match &plan.operation {
+        PasswordIssuanceOperation::Register { credential_id, .. } => credential_id,
+        PasswordIssuanceOperation::Authenticate {
+            credential: Some(credential),
+            ..
+        } => &credential.credential_id,
+        PasswordIssuanceOperation::Authenticate {
+            credential: None, ..
+        } => {
+            return Err(auth_error(
+                "INTERNAL_AUTH_STATE",
+                "authentication state invariant failed",
+            ));
+        }
+        PasswordIssuanceOperation::Set { credential_id, .. } => credential_id,
+        PasswordIssuanceOperation::GuestClaim { credential_id, .. } => credential_id,
+        PasswordIssuanceOperation::RecoveryConsume {
+            successor_credential_id,
+            ..
+        } => successor_credential_id,
+    };
+    insert_assurance(
+        transaction,
+        &plan.user_id,
+        session_id,
+        Some(credential_id.as_str()),
+        "authenticated",
+        now_ms,
+        Some(now_ms + SESSION_IDLE_MS),
+    )?;
+    insert_assurance(
+        transaction,
+        &plan.user_id,
+        session_id,
+        Some(credential_id.as_str()),
+        "recent_auth",
+        now_ms,
+        Some(now_ms + 10 * 60 * 1_000),
+    )?;
+    journal(
+        transaction,
+        &plan.user_id,
+        match plan.operation {
+            PasswordIssuanceOperation::Register { .. } => "password.account-created",
+            PasswordIssuanceOperation::Authenticate { .. } => "password.authenticated",
+            PasswordIssuanceOperation::Set { .. } => "password.set",
+            PasswordIssuanceOperation::GuestClaim { .. } => "guest.claimed",
+            PasswordIssuanceOperation::RecoveryConsume { .. } => "recovery-code.used",
+        },
+        now_ms,
+    )?;
+    Ok(())
+}
+
+pub(crate) fn password_attempt_matches_on(
+    connection: &rusqlite::Connection,
+    canonical_identifier: &str,
+    expected: &PasswordAttemptState,
+) -> SnapbackResult<bool> {
+    Ok(read_password_attempt_on(connection, canonical_identifier)?.as_ref() == Some(expected))
+}
+
+pub(crate) fn password_issuance_is_exact_predecessor_on(
+    connection: &rusqlite::Connection,
+    plan: &PasswordIssuanceCommitPlan,
+) -> SnapbackResult<bool> {
+    match &plan.operation {
+        PasswordIssuanceOperation::Register { credential_id, .. } => {
+            let collisions: bool = connection.query_row(
+                "SELECT EXISTS(
+                   SELECT 1 FROM _auth_identities
+                   WHERE subject=?1 AND disabled_at_ms IS NULL
+                 ) OR EXISTS(SELECT 1 FROM _auth_users WHERE id=?2)
+                   OR EXISTS(SELECT 1 FROM _auth_identities WHERE id=?3)
+                   OR EXISTS(SELECT 1 FROM _auth_credentials WHERE id=?4)",
+                params![
+                    plan.canonical_identifier,
+                    plan.user_id,
+                    plan.identity_id,
+                    credential_id
+                ],
+                |row| row.get(0),
+            )?;
+            Ok(!collisions)
+        }
+        PasswordIssuanceOperation::Authenticate { credential, .. } => Ok(password_snapshot_on(
+            connection,
+            &plan.canonical_identifier,
+            plan.identifier_mode,
+        )? == *credential),
+        PasswordIssuanceOperation::Set {
+            predecessor,
+            displaced,
+            credential_id,
+            ..
+        } => {
+            let acting: Option<(String, i64, Vec<u8>)> = connection
+                .query_row(
+                    "SELECT user_id,generation,token_hash FROM _auth_sessions
+                     WHERE id=?1 AND revoked_at_ms IS NULL",
+                    [&predecessor.acting_session_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+            let actor_matches = acting.is_some_and(|(user, generation, digest)| {
+                user == predecessor.acting_user_id
+                    && u64::try_from(generation).ok() == Some(predecessor.acting_generation)
+                    && digest.as_slice() == predecessor.acting_token_digest.as_bytes().as_slice()
+            });
+            let candidate_exists: bool = connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_identities WHERE id=?1)
+                     OR EXISTS(SELECT 1 FROM _auth_credentials WHERE id=?2)",
+                params![plan.identity_id, credential_id],
+                |row| row.get(0),
+            )?;
+            let displaced_matches = match displaced {
+                Some(displaced) => connection.query_row(
+                    "SELECT EXISTS(
+                       SELECT 1 FROM _auth_identities i
+                       JOIN _auth_credentials c ON c.user_id=i.user_id
+                       WHERE i.id=?1 AND i.user_id=?2 AND i.subject=?3
+                         AND i.disabled_at_ms IS NULL
+                         AND c.id=?4 AND c.generation=?5
+                         AND c.revoked_at_ms IS NULL
+                     )",
+                    params![
+                        displaced.identity_id,
+                        displaced.user_id,
+                        plan.canonical_identifier,
+                        displaced.credential_id,
+                        displaced.credential_generation,
+                    ],
+                    |row| row.get(0),
+                )?,
+                None => !connection.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM _auth_identities
+                     WHERE provider='local-password' AND subject=?1
+                       AND disabled_at_ms IS NULL)",
+                    [&plan.canonical_identifier],
+                    |row| row.get::<_, bool>(0),
+                )?,
+            };
+            Ok(actor_matches && !candidate_exists && displaced_matches)
+        }
+        PasswordIssuanceOperation::GuestClaim {
+            predecessor,
+            credential_id,
+            ..
+        } => {
+            let exact: bool = connection.query_row(
+                "SELECT EXISTS(
+                   SELECT 1 FROM _auth_sessions s
+                   JOIN _auth_users u ON u.id=s.user_id
+                   WHERE s.id=?1 AND s.user_id=?2 AND s.generation=?3
+                     AND s.token_hash=?4 AND s.revoked_at_ms IS NULL
+                     AND s.authn_source='guest' AND u.guest_state='active'
+                 )",
+                params![
+                    predecessor.session_id,
+                    predecessor.user_id,
+                    predecessor.generation,
+                    predecessor.token_digest.as_bytes().as_slice(),
+                ],
+                |row| row.get(0),
+            )?;
+            let candidates_exist: bool = connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_identities WHERE id=?1)
+                     OR EXISTS(SELECT 1 FROM _auth_credentials WHERE id=?2)",
+                params![plan.identity_id, credential_id],
+                |row| row.get(0),
+            )?;
+            Ok(exact && !candidates_exist)
+        }
+        PasswordIssuanceOperation::RecoveryConsume { predecessor, .. } => connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_recovery_codes
+                 WHERE set_credential_id=?1 AND ordinal=?2 AND code_digest=?3
+                   AND consumed_at_ms IS NULL)",
+                params![
+                    predecessor.set_credential_id,
+                    predecessor.ordinal,
+                    predecessor.digest.as_slice(),
+                ],
+                |row| row.get(0),
+            )
+            .map_err(Into::into),
+    }
+}
+
+pub(crate) fn password_issuance_is_exact_successor_on(
+    connection: &rusqlite::Connection,
+    plan: &PasswordIssuanceCommitPlan,
+    now_ms: u64,
+) -> SnapbackResult<bool> {
+    let identity: Option<(String, String, String, i64)> = connection
+        .query_row(
+            "SELECT id,user_id,provider,verified_at_ms
+             FROM _auth_identities
+             WHERE id=?1 AND subject=?2 AND disabled_at_ms IS NULL",
+            params![plan.identity_id, plan.canonical_identifier],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .optional()?;
+    if !identity.is_some_and(|(identity_id, user_id, provider, _)| {
+        identity_id == plan.identity_id && user_id == plan.user_id && provider == "local-password"
+    }) {
+        return Ok(false);
+    }
+    match &plan.operation {
+        PasswordIssuanceOperation::Register {
+            credential_id,
+            password,
+            ..
+        } => {
+            let credential: Option<(String, i64, String, String)> = connection
+                .query_row(
+                    "SELECT c.user_id,c.generation,p.algorithm,p.hash_phc
+                     FROM _auth_credentials c
+                     JOIN _auth_password_credentials p ON p.credential_id=c.id
+                     WHERE c.id=?1 AND c.revoked_at_ms IS NULL",
+                    [credential_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                )
+                .optional()?;
+            Ok(
+                credential.is_some_and(|(user, generation, algorithm, phc)| {
+                    user == plan.user_id
+                        && generation == 1
+                        && algorithm == password.algorithm()
+                        && phc == password.phc()
+                }),
+            )
+        }
+        PasswordIssuanceOperation::Authenticate {
+            credential: Some(predecessor),
+            replacement,
+            ..
+        } => {
+            let durable: Option<(i64, String, Option<i64>)> = connection
+                .query_row(
+                    "SELECT c.generation,p.hash_phc,c.last_used_at_ms
+                     FROM _auth_credentials c
+                     JOIN _auth_password_credentials p ON p.credential_id=c.id
+                     WHERE c.id=?1 AND c.user_id=?2 AND c.revoked_at_ms IS NULL",
+                    params![predecessor.credential_id, predecessor.user_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+            let matches = durable.is_some_and(|(generation, phc, last_used)| {
+                let expected_generation = predecessor.generation + u64::from(replacement.is_some());
+                u64::try_from(generation).ok() == Some(expected_generation)
+                    && phc
+                        == replacement
+                            .as_ref()
+                            .map_or(predecessor.hash_phc.as_str(), PreparedPasswordHash::phc)
+                    && last_used.and_then(|value| u64::try_from(value).ok()) == Some(now_ms)
+            });
+            Ok(matches
+                && read_password_attempt_on(connection, &plan.canonical_identifier)?.is_none())
+        }
+        PasswordIssuanceOperation::Authenticate {
+            credential: None, ..
+        } => Ok(false),
+        PasswordIssuanceOperation::Set {
+            displaced,
+            credential_id,
+            password,
+            ..
+        } => {
+            let credential: Option<(String, i64, String)> = connection
+                .query_row(
+                    "SELECT c.user_id,c.generation,p.hash_phc
+                     FROM _auth_credentials c
+                     JOIN _auth_password_credentials p ON p.credential_id=c.id
+                     WHERE c.id=?1 AND c.revoked_at_ms IS NULL",
+                    [credential_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+            let new_matches = credential.is_some_and(|(user, generation, phc)| {
+                user == plan.user_id && generation == 1 && phc == password.phc()
+            });
+            let displaced_retired = match displaced {
+                Some(displaced) => connection.query_row(
+                    "SELECT EXISTS(
+                       SELECT 1 FROM _auth_identities i
+                       JOIN _auth_credentials c ON c.id=?2
+                       WHERE i.id=?1 AND i.disabled_at_ms=?3
+                         AND c.revoked_at_ms=?3
+                     )",
+                    params![displaced.identity_id, displaced.credential_id, now_ms],
+                    |row| row.get(0),
+                )?,
+                None => true,
+            };
+            Ok(new_matches && displaced_retired)
+        }
+        PasswordIssuanceOperation::GuestClaim {
+            credential_id,
+            password,
+            predecessor,
+            ..
+        } => {
+            let durable: Option<(String, i64, String, String)> = connection
+                .query_row(
+                    "SELECT c.user_id,c.generation,p.hash_phc,u.guest_state
+                     FROM _auth_credentials c
+                     JOIN _auth_password_credentials p ON p.credential_id=c.id
+                     JOIN _auth_users u ON u.id=c.user_id
+                     WHERE c.id=?1 AND c.revoked_at_ms IS NULL",
+                    [credential_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                )
+                .optional()?;
+            Ok(durable.is_some_and(|(user, generation, phc, guest_state)| {
+                user == predecessor.user_id
+                    && generation == 1
+                    && phc == password.phc()
+                    && guest_state == "claimed"
+            }))
+        }
+        PasswordIssuanceOperation::RecoveryConsume {
+            predecessor,
+            successor_credential_id,
+            ..
+        } => {
+            let consumed: Option<Option<i64>> = connection
+                .query_row(
+                    "SELECT consumed_at_ms FROM _auth_recovery_codes
+                     WHERE set_credential_id=?1 AND ordinal=?2 AND code_digest=?3",
+                    params![
+                        predecessor.set_credential_id,
+                        predecessor.ordinal,
+                        predecessor.digest.as_slice(),
+                    ],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            let successor_live: bool = connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_credentials c
+                 JOIN _auth_recovery_code_sets s ON s.credential_id=c.id
+                 WHERE c.id=?1 AND c.user_id=?2 AND c.revoked_at_ms IS NULL
+                   AND s.replaced_at_ms IS NULL)",
+                params![successor_credential_id, predecessor.user_id],
+                |row| row.get(0),
+            )?;
+            Ok(consumed
+                .flatten()
+                .and_then(|value| u64::try_from(value).ok())
+                == Some(now_ms)
+                && successor_live)
+        }
+    }
+}
+
+pub(crate) fn admit_password_change_in(
+    transaction: &Transaction<'_>,
+    plan: &PasswordChangeCommitPlan,
+    now_ms: u64,
+    profile: PasswordSecurityProfile,
+) -> SnapbackResult<PasswordIssuanceAdmission> {
+    let durable = password_snapshot_on(
+        transaction,
+        &plan.canonical_identifier,
+        plan.credential.identifier_mode,
+    )?;
+    if durable.as_ref() != Some(&plan.credential) {
+        return Ok(PasswordIssuanceAdmission::Invalid {
+            committed_attempt: None,
+        });
+    }
+    let ledger = read_password_attempt_on(transaction, &plan.canonical_identifier)?;
+    let normalized = normalize_attempt_window(ledger.clone(), now_ms, profile);
+    if normalized
+        .locked_until_ms
+        .is_some_and(|until| now_ms < until)
+    {
+        return Ok(PasswordIssuanceAdmission::Invalid {
+            committed_attempt: None,
+        });
+    }
+    if !plan.verified {
+        return match record_password_failure_in(
+            transaction,
+            &plan.canonical_identifier,
+            ledger,
+            now_ms,
+            profile,
+        )? {
+            Ok(committed_attempt) => Ok(PasswordIssuanceAdmission::Invalid {
+                committed_attempt: Some(committed_attempt),
+            }),
+            Err(()) => Ok(PasswordIssuanceAdmission::LedgerCapacityExhausted),
+        };
+    }
+    Ok(PasswordIssuanceAdmission::Proceed {
+        create_principal: false,
+    })
+}
+
+pub(crate) fn apply_password_change_in(
+    transaction: &Transaction<'_>,
+    plan: &PasswordChangeCommitPlan,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let changed = transaction.execute(
+        "UPDATE _auth_password_credentials
+         SET algorithm=?2,hash_phc=?3,policy_version=?4,
+             common_password_list_version=?5,changed_at_ms=?6
+         WHERE credential_id=?1 AND hash_phc=?7",
+        params![
+            plan.credential.credential_id,
+            plan.replacement.algorithm(),
+            plan.replacement.phc(),
+            PASSWORD_HASH_POLICY_V1.version,
+            PASSWORD_HASH_POLICY_V1.common_password_list_version,
+            now_ms,
+            plan.credential.hash_phc,
+        ],
+    )?;
+    let generation_changed = transaction.execute(
+        "UPDATE _auth_credentials
+         SET generation=generation+1,last_used_at_ms=?2
+         WHERE id=?1 AND generation=?3 AND revoked_at_ms IS NULL",
+        params![
+            plan.credential.credential_id,
+            now_ms,
+            plan.credential.generation,
+        ],
+    )?;
+    if changed != 1 || generation_changed != 1 {
+        return Err(auth_error(
+            "INTERNAL_AUTH_STATE",
+            "authentication state invariant failed",
+        ));
+    }
+    transaction.execute(
+        "DELETE FROM _auth_password_attempts WHERE address=?1",
+        [&plan.canonical_identifier],
+    )?;
+    journal(
+        transaction,
+        &plan.credential.user_id,
+        "password.changed",
+        now_ms,
+    )?;
+    Ok(())
+}
+
+pub(crate) fn password_change_is_exact_predecessor_on(
+    connection: &rusqlite::Connection,
+    plan: &PasswordChangeCommitPlan,
+) -> SnapbackResult<bool> {
+    Ok(password_snapshot_on(
+        connection,
+        &plan.canonical_identifier,
+        plan.credential.identifier_mode,
+    )?
+    .as_ref()
+        == Some(&plan.credential))
+}
+
+pub(crate) fn password_change_is_exact_successor_on(
+    connection: &rusqlite::Connection,
+    plan: &PasswordChangeCommitPlan,
+    now_ms: u64,
+) -> SnapbackResult<bool> {
+    let durable: Option<(i64, String, Option<i64>)> = connection
+        .query_row(
+            "SELECT c.generation,p.hash_phc,c.last_used_at_ms
+             FROM _auth_credentials c
+             JOIN _auth_password_credentials p ON p.credential_id=c.id
+             WHERE c.id=?1 AND c.user_id=?2 AND c.revoked_at_ms IS NULL",
+            params![plan.credential.credential_id, plan.credential.user_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    Ok(durable.is_some_and(|(generation, phc, last_used)| {
+        u64::try_from(generation).ok() == plan.credential.generation.checked_add(1)
+            && phc == plan.replacement.phc()
+            && last_used.and_then(|value| u64::try_from(value).ok()) == Some(now_ms)
+    }) && read_password_attempt_on(connection, &plan.canonical_identifier)?.is_none())
 }
 
 impl LocalDatabase {
+    pub(crate) fn plan_password_session_cap(
+        &self,
+        user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<crate::auth::provider::ProviderRevocationPlan>> {
+        self.with_auth_read(|connection| {
+            crate::auth::provider::plan_session_cap_read(connection, user_id, now_ms)
+        })
+    }
+
+    pub(crate) fn password_attempt_matches(
+        &self,
+        canonical_identifier: &str,
+        expected: &PasswordAttemptState,
+    ) -> SnapbackResult<bool> {
+        self.with_auth_read(|connection| {
+            password_attempt_matches_on(connection, canonical_identifier, expected)
+        })
+    }
+
+    pub(crate) fn plan_user_session_revocations(
+        &self,
+        user_id: &str,
+        excluded_session_id: Option<&str>,
+        identity_id: Option<&str>,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<crate::auth::provider::ProviderRevocationPlan>> {
+        self.with_auth_read(|connection| {
+            crate::auth::provider::plan_user_session_revocations_read(
+                connection,
+                user_id,
+                excluded_session_id,
+                identity_id,
+                now_ms,
+            )
+        })
+    }
+
+    pub(crate) fn password_set_planning(
+        &self,
+        acting: &SessionBearer,
+        email_identity_id: &str,
+        canonical_identifier: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<PasswordSetPlanning> {
+        self.with_auth_read(|connection| {
+            let mode = super::auth::require_password_identifier_mode_on(connection)?;
+            if mode != PasswordIdentifierMode::EmailV1 {
+                return Err(auth_error(
+                    "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
+                    "password identifier does not satisfy the declared mode",
+                ));
+            }
+            let acting_row: Option<(String, String, i64, Vec<u8>)> = connection
+                .query_row(
+                    "SELECT s.id,s.user_id,s.generation,s.token_hash
+                     FROM _auth_sessions s
+                     JOIN _auth_users u ON u.id=s.user_id
+                     WHERE s.token_hash=?1 AND s.revoked_at_ms IS NULL
+                       AND ?2<s.expires_at_ms AND u.deactivated_at_ms IS NULL",
+                    params![acting.token_hash().as_bytes().as_slice(), now_ms],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                )
+                .optional()?;
+            let (acting_session_id, acting_user_id, acting_generation, acting_digest) = acting_row
+                .ok_or_else(|| auth_error("SNAPBACK_AUTH_SESSION_INVALID", "session is invalid"))?;
+            let target: Option<(String, String)> = connection
+                .query_row(
+                    "SELECT user_id,subject FROM _auth_identities
+                     WHERE id=?1 AND provider='email-code' AND disabled_at_ms IS NULL",
+                    [email_identity_id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()?;
+            if target != Some((acting_user_id.clone(), canonical_identifier.to_owned())) {
+                return Err(auth_error(
+                    "SNAPBACK_AUTH_PASSWORD_SET_AUTHORITY_INVALID",
+                    "password set authority is invalid",
+                ));
+            }
+            let displaced = connection
+                .query_row(
+                    "SELECT i.id,i.user_id,c.id,c.generation
+                     FROM _auth_identities i
+                     JOIN _auth_credentials c
+                       ON c.user_id=i.user_id
+                      AND c.kind='password'
+                      AND c.revoked_at_ms IS NULL
+                     WHERE i.provider='local-password' AND i.subject=?1
+                       AND i.disabled_at_ms IS NULL",
+                    [canonical_identifier],
+                    |row| {
+                        Ok(DisplacedPasswordPredecessor {
+                            identity_id: row.get(0)?,
+                            user_id: row.get(1)?,
+                            credential_id: row.get(2)?,
+                            credential_generation: row.get(3)?,
+                        })
+                    },
+                )
+                .optional()?;
+            Ok(PasswordSetPlanning {
+                predecessor: PasswordSetPredecessor {
+                    acting_session_id,
+                    acting_user_id,
+                    acting_generation: u64::try_from(acting_generation).map_err(|_| {
+                        auth_error(
+                            "INTERNAL_AUTH_STATE",
+                            "authentication state invariant failed",
+                        )
+                    })?,
+                    acting_token_digest: crate::auth::session_projection::TokenDigest::from_slice(
+                        &acting_digest,
+                    )
+                    .map_err(|_| {
+                        auth_error(
+                            "INTERNAL_AUTH_STATE",
+                            "authentication state invariant failed",
+                        )
+                    })?,
+                    email_identity_id: email_identity_id.to_owned(),
+                },
+                displaced,
+            })
+        })
+    }
+
+    pub(crate) fn password_change_planning(
+        &self,
+        acting: &SessionBearer,
+        now_ms: u64,
+    ) -> SnapbackResult<PasswordChangePlanning> {
+        self.with_auth_read(|connection| {
+            let mode = super::auth::require_password_identifier_mode_on(connection)?;
+            let row: Option<(String, String, String, i64, Vec<u8>, String)> = connection
+                .query_row(
+                    "SELECT s.id,s.user_id,s.identity_id,s.generation,s.token_hash,
+                            s.authority_instance_id
+                     FROM _auth_sessions s
+                     JOIN _auth_identities i ON i.id=s.identity_id
+                     JOIN _auth_users u ON u.id=s.user_id
+                     WHERE s.token_hash=?1 AND s.revoked_at_ms IS NULL
+                       AND ?2<s.expires_at_ms
+                       AND i.provider='local-password'
+                       AND i.disabled_at_ms IS NULL
+                       AND u.deactivated_at_ms IS NULL",
+                    params![acting.token_hash().as_bytes().as_slice(), now_ms],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                        ))
+                    },
+                )
+                .optional()?;
+            let (session_id, user_id, identity_id, generation, token_digest, authority) = row
+                .ok_or_else(|| auth_error("SNAPBACK_AUTH_SESSION_INVALID", "session is invalid"))?;
+            let (canonical_identifier, credential_id, credential_generation, hash_phc): (
+                String,
+                String,
+                i64,
+                String,
+            ) = connection.query_row(
+                "SELECT i.subject,c.id,c.generation,p.hash_phc
+                 FROM _auth_identities i
+                 JOIN _auth_credentials c
+                   ON c.user_id=i.user_id
+                  AND c.kind='password'
+                  AND c.revoked_at_ms IS NULL
+                 JOIN _auth_password_credentials p ON p.credential_id=c.id
+                 WHERE i.id=?1 AND i.user_id=?2",
+                params![identity_id, user_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )?;
+            let sender_constrained =
+                crate::auth::sender_proof::presented_token_has_sender_family_binding(
+                    connection,
+                    acting.token_hash().as_bytes(),
+                )
+                .map_err(|_| {
+                    auth_error(
+                        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                        "authentication provider is unavailable",
+                    )
+                })?;
+            Ok(PasswordChangePlanning {
+                credential: PasswordSnapshot {
+                    user_id,
+                    identity_id,
+                    credential_id,
+                    generation: u64::try_from(credential_generation).map_err(|_| {
+                        auth_error(
+                            "INTERNAL_AUTH_STATE",
+                            "authentication state invariant failed",
+                        )
+                    })?,
+                    hash_phc,
+                    identifier_mode: mode,
+                },
+                canonical_identifier,
+                acting_session_id: session_id,
+                acting_generation: u64::try_from(generation).map_err(|_| {
+                    auth_error(
+                        "INTERNAL_AUTH_STATE",
+                        "authentication state invariant failed",
+                    )
+                })?,
+                acting_token_digest: crate::auth::session_projection::TokenDigest::from_slice(
+                    &token_digest,
+                )
+                .map_err(|_| {
+                    auth_error(
+                        "INTERNAL_AUTH_STATE",
+                        "authentication state invariant failed",
+                    )
+                })?,
+                authority_instance_id: authority,
+                sender_constrained,
+            })
+        })
+    }
+
+    pub(crate) fn guest_claim_predecessor(
+        &self,
+        guest: &SessionBearer,
+        now_ms: u64,
+    ) -> SnapbackResult<GuestClaimPredecessor> {
+        self.with_auth_read(|connection| {
+            let row: Option<(String, String, i64, Vec<u8>)> = connection
+                .query_row(
+                    "SELECT s.id,s.user_id,s.generation,s.token_hash
+                     FROM _auth_sessions s
+                     JOIN _auth_users u ON u.id=s.user_id
+                     WHERE s.token_hash=?1 AND s.revoked_at_ms IS NULL
+                       AND ?2<s.expires_at_ms AND s.authn_source='guest'
+                       AND u.guest_state='active'",
+                    params![guest.token_hash().as_bytes().as_slice(), now_ms],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                )
+                .optional()?;
+            let (session_id, user_id, generation, digest) = row.ok_or_else(|| {
+                auth_error(
+                    "SNAPBACK_AUTH_GUEST_SESSION_INVALID",
+                    "guest session is invalid",
+                )
+            })?;
+            Ok(GuestClaimPredecessor {
+                session_id,
+                user_id,
+                generation: u64::try_from(generation).map_err(|_| {
+                    auth_error(
+                        "INTERNAL_AUTH_STATE",
+                        "authentication state invariant failed",
+                    )
+                })?,
+                token_digest: crate::auth::session_projection::TokenDigest::from_slice(&digest)
+                    .map_err(|_| {
+                        auth_error(
+                            "INTERNAL_AUTH_STATE",
+                            "authentication state invariant failed",
+                        )
+                    })?,
+            })
+        })
+    }
+
+    pub(crate) fn recovery_code_predecessor(
+        &self,
+        identifier: &str,
+        code: &str,
+        key_id: &str,
+        key: &[u8; 32],
+    ) -> SnapbackResult<RecoveryCodePredecessor> {
+        let mode = self.auth_password_identifier_mode()?;
+        let canonical = canonical_password_identifier_value(mode, identifier)?;
+        let digest = recovery_digest(key, code);
+        let candidates = self.with_auth_read(|connection| {
+            let mut statement = connection.prepare(
+                "SELECT i.user_id,i.id,r.set_credential_id,r.ordinal,r.code_digest
+                 FROM _auth_identities i
+                 JOIN _auth_credentials c
+                   ON c.user_id=i.user_id
+                  AND c.kind='recovery-code-set'
+                  AND c.revoked_at_ms IS NULL
+                 JOIN _auth_recovery_codes r ON r.set_credential_id=c.id
+                 JOIN _auth_recovery_code_sets s
+                   ON s.credential_id=c.id AND s.replaced_at_ms IS NULL
+                 WHERE i.provider='local-password' AND i.subject=?1
+                   AND i.disabled_at_ms IS NULL
+                   AND r.key_id=?2 AND r.consumed_at_ms IS NULL
+                 ORDER BY r.ordinal",
+            )?;
+            statement
+                .query_map(params![canonical, key_id], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, u64>(3)?,
+                        row.get::<_, Vec<u8>>(4)?,
+                    ))
+                })?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(Into::into)
+        })?;
+        let mut matched = None;
+        let mut compared = false;
+        for (user_id, identity_id, set_credential_id, ordinal, stored) in candidates {
+            compared = true;
+            let candidate = <[u8; 32]>::try_from(stored.as_slice()).unwrap_or([0; 32]);
+            if bool::from(candidate.ct_eq(&digest)) {
+                matched = Some(RecoveryCodePredecessor {
+                    user_id,
+                    identity_id,
+                    set_credential_id,
+                    ordinal,
+                    digest,
+                });
+            }
+        }
+        if !compared {
+            let _ = bool::from(<[u8; 32]>::default().ct_eq(&digest));
+        }
+        matched.ok_or_else(|| {
+            auth_error(
+                "SNAPBACK_AUTH_RECOVERY_CODE_INVALID",
+                "recovery code is invalid",
+            )
+        })
+    }
+
     /// @ref LLP 0214#53-sealed-invocation-authority — declared app inserts and the
     /// protected idempotency receipt commit in one host-only transaction.
     pub(crate) fn execute_verified_provisioning(
@@ -506,6 +2571,7 @@ impl LocalDatabase {
 
     /// Local-password claiming preserves the guest user id and refuses an
     /// existing username without merging or switching principals.
+    #[cfg(test)]
     pub(crate) fn identity_guest_claim_password(
         &mut self,
         guest: &SessionBearer,
@@ -541,6 +2607,7 @@ impl LocalDatabase {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn identity_password_register(
         &mut self,
         username: &str,
@@ -571,6 +2638,7 @@ impl LocalDatabase {
         })
     }
 
+    #[cfg(test)]
     pub(crate) fn identity_password_set(
         &mut self,
         acting: &SessionBearer,
@@ -625,7 +2693,10 @@ impl LocalDatabase {
         })
     }
 
-    fn password_snapshot(&self, username: &str) -> SnapbackResult<Option<PasswordSnapshot>> {
+    pub(crate) fn password_snapshot(
+        &self,
+        username: &str,
+    ) -> SnapbackResult<Option<PasswordSnapshot>> {
         let identifier = canonical_password_identifier(
             self.identity_floor_password_identifier_mode()?,
             username,
@@ -633,6 +2704,249 @@ impl LocalDatabase {
         self.with_auth_read(|conn| { super::auth::require_identity_core_v3_on(conn)?; require_same_password_identifier_mode(conn, identifier.mode)?; Ok(conn.query_row("SELECT i.user_id,i.id,c.id,c.generation,p.hash_phc FROM _auth_identities i JOIN _auth_credentials c ON c.user_id=i.user_id AND c.kind='password' AND c.revoked_at_ms IS NULL JOIN _auth_password_credentials p ON p.credential_id=c.id JOIN _auth_users u ON u.id=i.user_id WHERE i.provider='local-password' AND i.subject=?1 AND i.disabled_at_ms IS NULL AND u.deactivated_at_ms IS NULL",[identifier.canonical],|r|Ok(PasswordSnapshot{user_id:r.get(0)?,identity_id:r.get(1)?,credential_id:r.get(2)?,generation:r.get(3)?,hash_phc:r.get(4)?,identifier_mode:identifier.mode})).optional()?) })
     }
 
+    pub(crate) fn password_authentication_predecessor(
+        &self,
+        canonical_identifier: &str,
+        identifier_mode: PasswordIdentifierMode,
+    ) -> SnapbackResult<PasswordAuthenticationPredecessor> {
+        self.with_auth_read(|connection| {
+            super::auth::require_password_identifier_mode_on(connection)?;
+            require_same_password_identifier_mode(connection, identifier_mode)?;
+            Ok(PasswordAuthenticationPredecessor {
+                credential: password_snapshot_on(
+                    connection,
+                    canonical_identifier,
+                    identifier_mode,
+                )?,
+                ledger: read_password_attempt_on(connection, canonical_identifier)?,
+            })
+        })
+    }
+
+    /// Storage seam for the authenticated admin/readiness projection. Public
+    /// credential flows deliberately receive only the uniform invalid result.
+    pub(crate) fn password_attempt_admin_projection(
+        &self,
+        username: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<PasswordAttemptAdminProjection>> {
+        let identifier = canonical_password_identifier(
+            self.identity_floor_password_identifier_mode()?,
+            username,
+        )?;
+        self.with_auth_read(|connection| {
+            super::auth::require_password_identifier_mode_on(connection)?;
+            require_same_password_identifier_mode(connection, identifier.mode)?;
+            Ok(
+                read_password_attempt_on(connection, &identifier.canonical)?.map(|attempt| {
+                    PasswordAttemptAdminProjection {
+                        canonical_identifier: identifier.canonical,
+                        window_start_ms: attempt.window_start_ms,
+                        failed_count: attempt.failed_count,
+                        locked_until_ms: attempt.locked_until_ms,
+                        locked: attempt.locked_until_ms.is_some_and(|until| now_ms < until),
+                    }
+                }),
+            )
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_imported_password_hash_for_test(
+        &mut self,
+        username: &str,
+        _algorithm: &str,
+        hash_phc: &str,
+    ) -> SnapbackResult<()> {
+        let identifier = canonical_password_identifier(
+            self.identity_floor_password_identifier_mode()?,
+            username,
+        )?;
+        self.with_auth_transaction(|transaction| {
+            let changed = transaction.execute(
+                "UPDATE _auth_password_credentials
+                 SET hash_phc=?2
+                 WHERE credential_id=(
+                   SELECT c.id FROM _auth_credentials c
+                   JOIN _auth_identities i ON i.user_id=c.user_id
+                   WHERE i.provider='local-password' AND i.subject=?1
+                     AND i.disabled_at_ms IS NULL
+                     AND c.kind='password' AND c.revoked_at_ms IS NULL
+                 )",
+                params![identifier.canonical, hash_phc],
+            )?;
+            if changed == 1 {
+                Ok(())
+            } else {
+                Err(auth_error(
+                    "INTERNAL_AUTH_STATE",
+                    "authentication state invariant failed",
+                ))
+            }
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn password_hash_facts_for_test(
+        &self,
+        username: &str,
+    ) -> SnapbackResult<(u64, String, String)> {
+        let snapshot = self
+            .password_snapshot(username)?
+            .ok_or_else(|| auth_error("INTERNAL_AUTH_STATE", "missing password fixture"))?;
+        self.with_auth_read(|connection| {
+            let algorithm: String = connection.query_row(
+                "SELECT algorithm FROM _auth_password_credentials WHERE credential_id=?1",
+                [&snapshot.credential_id],
+                |row| row.get(0),
+            )?;
+            Ok((snapshot.generation, algorithm, snapshot.hash_phc))
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn identity_id_for_provider_subject_for_test(
+        &self,
+        provider: &str,
+        subject: &str,
+    ) -> SnapbackResult<String> {
+        self.with_auth_read(|connection| {
+            connection
+                .query_row(
+                    "SELECT id FROM _auth_identities
+                     WHERE provider=?1 AND subject=?2 AND disabled_at_ms IS NULL",
+                    params![provider, subject],
+                    |row| row.get(0),
+                )
+                .map_err(Into::into)
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn insert_other_identity_session_for_test(
+        &mut self,
+        user_id: &str,
+        subject: &str,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<(String, String, SessionBearer)> {
+        let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
+        let session_id = crate::ids::mint_time_ordered(crate::ids::Kind::Session);
+        let authority_instance_id =
+            crate::ids::mint_time_ordered(crate::ids::Kind::AuthorityInstance);
+        let bearer = SessionBearer::generate(random).map_err(|_| {
+            auth_error(
+                "SNAPBACK_AUTH_RANDOM_UNAVAILABLE",
+                "secure randomness is unavailable",
+            )
+        })?;
+        self.with_auth_transaction(|transaction| {
+            transaction.execute(
+                "INSERT INTO _auth_identities(
+                   id,user_id,kind,provider,subject,canonical_value,
+                   created_at_ms,verified_at_ms
+                 ) VALUES(?1,?2,'email','email-code',?3,?3,?4,?4)",
+                params![identity_id, user_id, subject, now_ms],
+            )?;
+            transaction.execute(
+                "INSERT INTO _auth_sessions(
+                   id,user_id,identity_id,credential_id,authn_source,
+                   authority_instance_id,token_hash,generation,created_at_ms,
+                   last_used_at_ms,expires_at_ms,absolute_expires_at_ms,revoked_at_ms
+                 ) VALUES(?1,?2,?3,NULL,'identity',?4,?5,1,?6,?6,?7,?8,NULL)",
+                params![
+                    session_id,
+                    user_id,
+                    identity_id,
+                    authority_instance_id,
+                    bearer.token_hash().as_bytes().as_slice(),
+                    now_ms,
+                    now_ms + SESSION_IDLE_MS,
+                    now_ms + SESSION_ABSOLUTE_MS,
+                ],
+            )?;
+            Ok(())
+        })?;
+        Ok((identity_id, session_id, bearer))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn insert_typed_guest_session_for_test(
+        &mut self,
+        expires_at_ms: u64,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IdentitySession> {
+        let user_id = crate::ids::mint(crate::ids::Kind::User)?;
+        let session_id = crate::ids::mint_time_ordered(crate::ids::Kind::Session);
+        let authority_instance_id =
+            crate::ids::mint_time_ordered(crate::ids::Kind::AuthorityInstance);
+        let bearer = SessionBearer::generate(random).map_err(|_| {
+            auth_error(
+                "SNAPBACK_AUTH_RANDOM_UNAVAILABLE",
+                "secure randomness is unavailable",
+            )
+        })?;
+        self.with_auth_transaction(|transaction| {
+            transaction.execute(
+                "INSERT INTO _auth_users(
+                   id,created_at_ms,kind,guest_state,guest_expires_at_ms
+                 ) VALUES(?1,?2,'human','active',?3)",
+                params![user_id, now_ms, expires_at_ms],
+            )?;
+            transaction.execute(
+                "INSERT INTO _auth_sessions(
+                   id,user_id,identity_id,credential_id,authn_source,
+                   authority_instance_id,token_hash,generation,created_at_ms,
+                   last_used_at_ms,expires_at_ms,absolute_expires_at_ms,revoked_at_ms
+                 ) VALUES(?1,?2,NULL,NULL,'guest',?3,?4,1,?5,?5,?6,?6,NULL)",
+                params![
+                    session_id,
+                    user_id,
+                    authority_instance_id,
+                    bearer.token_hash().as_bytes().as_slice(),
+                    now_ms,
+                    expires_at_ms,
+                ],
+            )?;
+            Ok(())
+        })?;
+        Ok(IdentitySession {
+            user_id,
+            session_id,
+            bearer,
+            recovery_codes: None,
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn displacement_facts_for_test(
+        &self,
+        identity_id: &str,
+        credential_id: &str,
+        user_id: &str,
+    ) -> SnapbackResult<(bool, bool, bool)> {
+        self.with_auth_read(|connection| {
+            let identity_retired: bool = connection.query_row(
+                "SELECT disabled_at_ms IS NOT NULL FROM _auth_identities WHERE id=?1",
+                [identity_id],
+                |row| row.get(0),
+            )?;
+            let credential_retired: bool = connection.query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_credentials WHERE id=?1",
+                [credential_id],
+                |row| row.get(0),
+            )?;
+            let user_survives: bool = connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM _auth_users WHERE id=?1)",
+                [user_id],
+                |row| row.get(0),
+            )?;
+            Ok((identity_retired, credential_retired, user_survives))
+        })
+    }
+
+    #[cfg(test)]
     pub(crate) fn identity_password_authenticate(
         &mut self,
         username: &str,
@@ -661,6 +2975,7 @@ impl LocalDatabase {
         self.with_auth_transaction(|tx| { super::auth::require_identity_core_v3_on(tx)?; require_same_password_identifier_mode(tx, s.identifier_mode)?; let current:Option<(u64,String)>=tx.query_row("SELECT c.generation,p.hash_phc FROM _auth_credentials c JOIN _auth_password_credentials p ON p.credential_id=c.id WHERE c.id=?1 AND c.user_id=?2 AND c.revoked_at_ms IS NULL",params![s.credential_id,s.user_id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?; if current.as_ref()!=Some(&(s.generation,s.hash_phc.clone())) { return Err(auth_error("SNAPBACK_AUTH_CREDENTIAL_INVALID","credential is invalid")); } let(session,bearer)=insert_session(tx,&s.user_id,None,Some(&s.credential_id),"credential",now,random)?; tx.execute("UPDATE _auth_credentials SET last_used_at_ms=?2 WHERE id=?1",params![s.credential_id,now])?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"authenticated",now,Some(now+SESSION_IDLE_MS))?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"recent_auth",now,Some(now+600_000))?; journal(tx,&s.user_id,"password.authenticated",now)?; Ok(IdentitySession{user_id:s.user_id,session_id:session,bearer,recovery_codes:None}) })
     }
 
+    #[cfg(test)]
     pub(crate) fn identity_password_change(
         &mut self,
         username: &str,
@@ -696,6 +3011,7 @@ impl LocalDatabase {
         self.with_auth_transaction(|tx|{super::auth::require_identity_core_v3_on(tx)?;insert_recovery_set(tx,user,key_id,&digests,"suspected-disclosure",now)?;tx.execute("UPDATE _auth_sessions SET revoked_at_ms=?2,generation=generation+1 WHERE user_id=?1 AND revoked_at_ms IS NULL",params![user,now])?;journal(tx,user,"recovery-codes.rotated",now)?;Ok(codes)})
     }
 
+    #[cfg(test)]
     pub(crate) fn identity_recovery_consume(
         &mut self,
         username: &str,
@@ -809,6 +3125,58 @@ mod tests {
     }
     fn password(value: &str) -> PasswordSecret {
         PasswordSecret::new(value.into())
+    }
+
+    /// @ref LLP 0227#migration-and-import-of-existing-hashes — cost parameters
+    ///   are bounded before any KDF work, at verification and not only at
+    ///   import. The concurrency permit bounds how many verifications run; only
+    ///   this bounds how expensive one is.
+    #[test]
+    fn stored_hash_cost_parameters_are_bounded_before_any_kdf_work() {
+        // The uniform-timing dummy MUST stay admissible. If it ever fell outside
+        // the caps, a nonexistent-identifier signin would refuse early and fast
+        // while a real one spent full KDF — reintroducing exactly the
+        // enumeration oracle the dummy exists to close.
+        assert!(
+            phc_cost_within_declared_caps(dummy_password_phc()),
+            "the dummy PHC must remain within caps or it becomes a timing oracle"
+        );
+
+        // A credential written under the pinned policy verifies normally.
+        let pinned =
+            hash_password_on_blocking_pool(&password("a-strong-password-123"), &CounterRandom::new())
+                .expect("pinned policy hash")
+                .phc;
+        assert!(phc_cost_within_declared_caps(&pinned));
+        assert!(verify_password(&password("a-strong-password-123"), &pinned));
+
+        // Over-budget hashes are refused rather than verified, per algorithm.
+        // Each of these is a well-formed hash whose declared cost is hostile.
+        let hostile_argon2 =
+            "$argon2id$v=19$m=4194304,t=2,p=1$HyAhIiMkJSYnKCkqKywtLg$Kwc47BIKhIV7UTbl8eAZf0EL/mFlTXkkO6rPuplXNLc";
+        assert!(
+            !phc_cost_within_declared_caps(hostile_argon2),
+            "4 GiB argon2 memory must be refused"
+        );
+        assert!(!verify_password(&password("a-strong-password-123"), hostile_argon2));
+
+        assert!(
+            !phc_cost_within_declared_caps("$2b$31$abcdefghijklmnopqrstuuLYQoZLnCLpYLnCLpYLnCLpYLnCLpY"),
+            "bcrypt cost 31 must be refused"
+        );
+
+        // A bcrypt hash at an admissible cost is still accepted, so importing a
+        // real foreign credential keeps working.
+        let admissible_bcrypt = bcrypt::hash("a-strong-password-123", 4).expect("bcrypt fixture");
+        assert!(phc_cost_within_declared_caps(&admissible_bcrypt));
+        assert!(verify_password(&password("a-strong-password-123"), &admissible_bcrypt));
+
+        // Unparseable and unknown-algorithm inputs fail closed.
+        assert!(!phc_cost_within_declared_caps("not-a-hash"));
+        assert!(!phc_cost_within_declared_caps("$2b$notanumber$xxxx"));
+        assert!(!phc_cost_within_declared_caps(&"x".repeat(
+            IMPORTED_HASH_MAX_ENCODED_BYTES + 1
+        )));
     }
 
     #[test]

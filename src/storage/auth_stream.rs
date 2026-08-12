@@ -11,9 +11,7 @@ use crate::auth::session_projection::{
     AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamRecord, ProjectionIdentityRow,
     ProjectionSessionRow, ProjectionSource, ProjectionTokenRow, ProjectionUserRow,
 };
-use crate::contract_types::{
-    AuthorizationStreamIncarnation, SESSION_TERMINAL_CAUSE_META_PREFIX,
-};
+use crate::contract_types::{AuthorizationStreamIncarnation, SESSION_TERMINAL_CAUSE_META_PREFIX};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use std::collections::BTreeMap;
@@ -130,7 +128,7 @@ impl LocalDatabase {
                 })?
                 .collect::<Result<Vec<_>, _>>()?
         };
-        let identities = {
+        let mut identities = {
             let mut statement = tx.prepare(
                 "SELECT id, user_id, provider, verified_at_ms
                  FROM _auth_identities ORDER BY id",
@@ -146,6 +144,30 @@ impl LocalDatabase {
                 })?
                 .collect::<Result<Vec<_>, _>>()?
         };
+        // Guest sessions deliberately have no durable identity row, but the
+        // memory-only resolver's uniform session shape needs a provider-bearing
+        // projection node. Use the already-unique session id as a synthetic,
+        // projection-only identity key; no catalog identity is fabricated.
+        //
+        // @ref LLP 0214#62-projection-rules — guest claims project no
+        //   identities while their public session provider is `guest`.
+        {
+            let mut statement = tx.prepare(
+                "SELECT id,user_id,created_at_ms FROM _auth_sessions
+                 WHERE authn_source='guest' ORDER BY id",
+            )?;
+            let guest_identities = statement
+                .query_map([], |row| {
+                    Ok(ProjectionIdentityRow {
+                        id: row.get(0)?,
+                        user_id: row.get(1)?,
+                        provider: "guest".to_owned(),
+                        verified_at_ms: row.get(2)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            identities.extend(guest_identities);
+        }
         let mut terminal_causes = {
             let mut statement = tx.prepare(
                 "SELECT key, typeof(value), CAST(value AS BLOB)
@@ -190,7 +212,7 @@ impl LocalDatabase {
             super::auth_rehearsal::rehearsal_session_provenance_by_id(&tx)?;
         let sessions = {
             let mut statement = tx.prepare(
-                "SELECT id, user_id, identity_id, authority_instance_id,
+                "SELECT id, user_id, COALESCE(identity_id,id), authority_instance_id,
                         token_hash, generation, created_at_ms, last_used_at_ms,
                         expires_at_ms, absolute_expires_at_ms, revoked_at_ms
                  FROM _auth_sessions ORDER BY id",
@@ -210,7 +232,8 @@ impl LocalDatabase {
                         absolute_expires_at_ms: row.get(9)?,
                         revoked_at_ms: row.get(10)?,
                         terminal_cause: None,
-                        rehearsal_provenance: rehearsal_provenance.remove(&row.get::<_, String>(0)?),
+                        rehearsal_provenance: rehearsal_provenance
+                            .remove(&row.get::<_, String>(0)?),
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;

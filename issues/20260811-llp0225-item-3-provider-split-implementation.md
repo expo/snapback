@@ -200,3 +200,39 @@ corrected above:*
 - The 2 inherited-outstanding jobs edges
   (`issues/20260810-main-module-ownership-red-jobs-edges.md`) belong to other
   landing authors. Do not fix them and do not mistake them for a regression.
+
+## Three additional edges from the password-auth surface (2026-08-11)
+
+The first-class email+password work (`llp/0227`, LLP 0214 §20) routes password,
+guest-claim, and recovery-consume session minting through the real provider
+issuance core instead of the LLP 0214 floor's raw `_auth_sessions` INSERT. That
+was required for correctness — the floor's bearer did not resolve as a required
+session until a projection rebuild — but it makes `src/storage/auth_identity.rs`
+(storage-migration-kernel) reference three sync-owned modules.
+
+These are **the same call-up class this ticket already owns**, not a new
+problem: the kernel is calling up into plan composition that LLP 0225 §4's
+item-3 ruling (revision (n)) places in `src/auth/provider.rs`. Under that
+ruling the correct end state is that sync composes the plan and passes typed
+input **down**, and the kernel returns durable facts that sync classifies.
+
+What is already cleared rather than waived: the `AuthProviderProfile` edge was
+removed outright by repointing the written path at
+`crate::contract_types::AuthProviderProfile`, which `provider.rs` merely
+re-exports — the zero-code-motion re-export lever.
+
+What remains, and why it is waived rather than fixed here:
+
+- `TokenDigest` is a pure value shape and belongs at the contract leaf under the
+  ruling, but it has 252 consumer files. Moving it inside this program would be
+  a repo-wide mechanical sweep landing against a main that moves every few
+  minutes — high revert risk, and disproportionate to the password surface.
+- `plan_session_cap_read`, `plan_user_session_revocations_read`, and
+  `presented_token_has_sender_family_binding` are genuine call-ups whose
+  inversion is precisely the A1/A2/A3 provider split this ticket tracks.
+  Inverting them ad hoc, outside that sequence, is how the split gets done
+  twice and inconsistently.
+
+<!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_identity.rs (storage-migration-kernel) → src/auth/provider.rs (sync-realtime-engine)","disposition":"time-bounded-waiver","observationRevision":"13602b33636b1afc366da13a34deb6a1f2be5189","provenance":"Password/guest-claim/recovery session minting was rerouted onto the provider issuance core (LLP 0227; LLP 0214 §20) because the LLP 0214 floor's raw _auth_sessions INSERT produced a bearer absent from the memory-only resolver. The residual kernel->sync references are plan_session_cap_read and plan_user_session_revocations_read, whose inversion is exactly the A1/A2/A3 provider split this worklist owns under the LLP 0225 §4 item-3 ruling (revision (n)).","inversionOwner":"sync-realtime-engine","deadline":"2026-09-15"} -->
+<!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_identity.rs (storage-migration-kernel) → src/auth/sender_proof.rs (sync-realtime-engine)","disposition":"time-bounded-waiver","observationRevision":"13602b33636b1afc366da13a34deb6a1f2be5189","provenance":"presented_token_has_sender_family_binding is consulted so password issuance refuses with a typed code under sender-constrained custody rather than silently downgrading to bearer-only custody (LLP 0227 sender-constrained custody rule). Same call-up class as the provider edge; inverts with the A1/A2/A3 split.","inversionOwner":"sync-realtime-engine","deadline":"2026-09-15"} -->
+<!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_identity.rs (storage-migration-kernel) → src/auth/session_projection.rs (sync-realtime-engine)","disposition":"time-bounded-waiver","observationRevision":"13602b33636b1afc366da13a34deb6a1f2be5189","provenance":"TokenDigest only. It is a pure 32-byte value shape and belongs at the shared contract leaf under the item-3 ruling's shape-down rule, but it has 252 consumer files; the repo-wide move is deliberately sequenced with this worklist rather than attempted inside the password-auth surface.","inversionOwner":"sync-realtime-engine","deadline":"2026-09-15"} -->

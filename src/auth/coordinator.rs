@@ -10,16 +10,15 @@ use super::crypto::SessionBearer;
 use super::invocation::ResolvedAppAuthority;
 use super::provider::{
     AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_SUPERSESSION_GRACE_MS, AuthenticatedUse,
-    CredentialIssue, PlannedIssuanceCommit, PlannedRevocationCommit, PlannedRotationCommit,
-    ProviderRevocationPlan, ProviderSessionIssuancePlan, ProviderTokenRotationPlan,
-    SessionRevocation,
+    CredentialIssue, PlannedIssuanceCommit, PlannedPasswordChangeCommit, PlannedRevocationCommit,
+    PlannedRotationCommit, ProviderPasswordChangePlan, ProviderRevocationPlan,
+    ProviderSessionIssuancePlan, ProviderTokenRotationPlan, SessionRevocation,
 };
 use super::session_projection::{
     AUTH_LOCK_RANK_TOPOLOGY, AuthorityWorkDrain, BoundConnectionSessionIdentity, DueExpiryBatch,
     DueExpiryFinalization, FencedPublication, MutationTicket, PendingMutationKind,
-    ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution,
-    ProjectedSessionAuthority, ProjectedTokenResolution, RankedMutexGuard, SessionProjection,
-    TokenDigest, ranked_mutex_lock,
+    ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution, ProjectedSessionAuthority,
+    ProjectedTokenResolution, RankedMutexGuard, SessionProjection, TokenDigest, ranked_mutex_lock,
 };
 use crate::contract_types::{AuthorizationStreamIncarnation, RevocationReason};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -48,7 +47,12 @@ enum PendingDrainCleanup {
     Issuance {
         issuance_ticket: MutationTicket,
         session_id: String,
-        eviction: Option<(MutationTicket, String)>,
+        revocations: Vec<(MutationTicket, String)>,
+    },
+    PasswordChange {
+        rotation_ticket: MutationTicket,
+        rotation_session_id: String,
+        revocations: Vec<(MutationTicket, String)>,
     },
     Stream {
         ticket: MutationTicket,
@@ -125,8 +129,15 @@ pub(crate) struct PremarkedRotation {
 pub(crate) struct PremarkedIssuance {
     plan: ProviderSessionIssuancePlan,
     issuance_ticket: MutationTicket,
-    eviction_ticket: Option<MutationTicket>,
-    eviction_terminal_target: Option<CommittedRevocationTarget>,
+    revocation_tickets: Vec<MutationTicket>,
+    revocation_terminal_targets: Vec<CommittedRevocationTarget>,
+}
+
+pub(crate) struct PremarkedPasswordChange {
+    plan: ProviderPasswordChangePlan,
+    rotation_ticket: MutationTicket,
+    revocation_tickets: Vec<MutationTicket>,
+    revocation_terminal_targets: Vec<CommittedRevocationTarget>,
 }
 
 pub(crate) struct PremarkedStreamReset {
@@ -266,11 +277,23 @@ pub(crate) enum IssuanceFinish {
     Committed(CredentialIssue),
     CodeInvalid,
     CodeLocked,
+    CredentialInvalid,
+    CredentialThrottled,
     SenderKeyBound,
     CandidateCollision,
     PredecessorChanged,
     RehearsalReplay(serde_json::Value),
     RehearsalDenied(SnapbackError),
+}
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug)]
+pub(crate) enum PasswordChangeFinish {
+    Committed(CredentialIssue),
+    CredentialInvalid,
+    CredentialThrottled,
+    CandidateCollision,
+    PredecessorChanged,
 }
 
 /// Exact predecessor authority that must be terminalized after a known
@@ -304,22 +327,22 @@ impl CommittedRevocationTarget {
 #[must_use = "known-committed revocations require terminal propagation"]
 pub(crate) struct AuthFinish<T> {
     outcome: SnapbackResult<T>,
-    committed_revocation: Option<CommittedRevocationTarget>,
+    committed_revocations: Vec<CommittedRevocationTarget>,
 }
 
 impl<T> AuthFinish<T> {
     fn new(
         outcome: SnapbackResult<T>,
-        committed_revocation: Option<CommittedRevocationTarget>,
+        committed_revocations: Vec<CommittedRevocationTarget>,
     ) -> Self {
         Self {
             outcome,
-            committed_revocation,
+            committed_revocations,
         }
     }
 
-    pub(crate) fn into_parts(self) -> (SnapbackResult<T>, Option<CommittedRevocationTarget>) {
-        (self.outcome, self.committed_revocation)
+    pub(crate) fn into_parts(self) -> (SnapbackResult<T>, Vec<CommittedRevocationTarget>) {
+        (self.outcome, self.committed_revocations)
     }
 
     #[cfg(test)]
@@ -440,19 +463,37 @@ impl AuthCoordinator {
             PendingDrainCleanup::Issuance {
                 issuance_ticket,
                 session_id,
-                eviction,
+                revocations,
             } => {
-                let eviction_cleaned = eviction.is_none_or(|(ticket, eviction_session_id)| {
-                    topology
+                let mut revocations_cleaned = true;
+                for (ticket, revoked_session_id) in revocations {
+                    revocations_cleaned &= topology
                         .projection
-                        .compare_unmark_session(&ticket, &eviction_session_id)
-                        .unwrap_or(false)
-                });
+                        .compare_unmark_session(&ticket, &revoked_session_id)
+                        .unwrap_or(false);
+                }
                 let issuance_cleaned = topology
                     .projection
                     .compare_unmark_issuance(&issuance_ticket, &session_id)
                     .unwrap_or(false);
-                eviction_cleaned && issuance_cleaned
+                revocations_cleaned && issuance_cleaned
+            }
+            PendingDrainCleanup::PasswordChange {
+                rotation_ticket,
+                rotation_session_id,
+                revocations,
+            } => {
+                let mut cleaned = topology
+                    .projection
+                    .compare_unmark_session(&rotation_ticket, &rotation_session_id)
+                    .unwrap_or(false);
+                for (ticket, session_id) in revocations {
+                    cleaned &= topology
+                        .projection
+                        .compare_unmark_session(&ticket, &session_id)
+                        .unwrap_or(false);
+                }
+                cleaned
             }
             PendingDrainCleanup::Stream { ticket } => topology
                 .projection
@@ -555,50 +596,64 @@ impl AuthCoordinator {
         self: &Arc<Self>,
         plan: ProviderSessionIssuancePlan,
     ) -> SnapbackResult<PremarkedIssuance> {
-        let (issuance_ticket, eviction_ticket, eviction_drain, eviction_terminal_target) = {
+        let (issuance_ticket, revocation_tickets, revocation_drains, revocation_terminal_targets) = {
             let mut topology = self.lock_topology()?;
             if topology.global_rebuild_required {
                 return Err(projection_unavailable());
             }
-            if let Some(eviction) = plan.eviction() {
-                topology.require_session_available(eviction.session_id())?;
+            for revocation in plan.revocations() {
+                topology.require_session_available(revocation.session_id())?;
             }
-            let eviction_terminal_target =
-                plan.eviction().map(|eviction| CommittedRevocationTarget {
+            let revocation_terminal_targets = plan
+                .revocations()
+                .iter()
+                .map(|revocation| CommittedRevocationTarget {
                     authorization_stream_incarnation: topology
                         .projection
                         .incarnation()
                         .as_str()
                         .to_owned(),
-                    session_id: eviction.session_id().to_owned(),
-                    predecessor_generation: eviction.expected_generation(),
-                });
+                    session_id: revocation.session_id().to_owned(),
+                    predecessor_generation: revocation.expected_generation(),
+                })
+                .collect::<Vec<_>>();
             let insert = plan.projected_insert();
             let issuance_ticket = topology.projection.begin_issuance(insert)?;
-            let (eviction_ticket, eviction_drain) = match plan.eviction() {
-                Some(eviction) => match topology.projection.begin_session_mutation(
-                    eviction.session_id(),
-                    eviction.expected_generation(),
+            let mut revocation_tickets = Vec::with_capacity(plan.revocations().len());
+            let mut revocation_drains = Vec::with_capacity(plan.revocations().len());
+            for revocation in plan.revocations() {
+                match topology.projection.begin_session_mutation(
+                    revocation.session_id(),
+                    revocation.expected_generation(),
                     PendingMutationKind::Revoke {
-                        reason: RevocationReason::CapEviction,
+                        reason: revocation.reason(),
                     },
                 ) {
-                    Ok(premarked) => (Some(premarked.ticket), Some(premarked.drain)),
+                    Ok(premarked) => {
+                        revocation_tickets.push(premarked.ticket);
+                        revocation_drains.push(premarked.drain);
+                    }
                     Err(error) => {
+                        for (ticket, earlier) in
+                            revocation_tickets.iter().zip(plan.revocations().iter())
+                        {
+                            let _ = topology
+                                .projection
+                                .compare_unmark_session(ticket, earlier.session_id());
+                        }
                         let _ = topology.projection.compare_unmark_issuance(
                             &issuance_ticket,
                             &plan.projected_insert().session_id,
                         );
                         return Err(error);
                     }
-                },
-                None => (None, None),
-            };
+                }
+            }
             (
                 issuance_ticket,
-                eviction_ticket,
-                eviction_drain,
-                eviction_terminal_target,
+                revocation_tickets,
+                revocation_drains,
+                revocation_terminal_targets,
             )
         };
         let mut rollback = PendingDrainRollback::new(
@@ -606,21 +661,121 @@ impl AuthCoordinator {
             PendingDrainCleanup::Issuance {
                 issuance_ticket: issuance_ticket.clone(),
                 session_id: plan.projected_insert().session_id,
-                eviction: eviction_ticket
-                    .as_ref()
-                    .zip(plan.eviction())
-                    .map(|(ticket, eviction)| (ticket.clone(), eviction.session_id().to_owned())),
+                revocations: revocation_tickets
+                    .iter()
+                    .zip(plan.revocations())
+                    .map(|(ticket, revocation)| {
+                        (ticket.clone(), revocation.session_id().to_owned())
+                    })
+                    .collect(),
             },
         );
-        if let Some(drain) = eviction_drain {
+        for drain in revocation_drains {
             drain.wait().await;
         }
         rollback.disarm();
         Ok(PremarkedIssuance {
             plan,
             issuance_ticket,
-            eviction_ticket,
-            eviction_terminal_target,
+            revocation_tickets,
+            revocation_terminal_targets,
+        })
+    }
+
+    pub(crate) async fn premark_password_change(
+        self: &Arc<Self>,
+        plan: ProviderPasswordChangePlan,
+    ) -> SnapbackResult<PremarkedPasswordChange> {
+        let (rotation_ticket, rotation_drain, revocation_tickets, revocation_drains, targets) = {
+            let mut topology = self.lock_topology()?;
+            if topology.global_rebuild_required {
+                return Err(projection_unavailable());
+            }
+            topology.require_session_available(plan.rotation().session_id())?;
+            for revocation in plan.revocations() {
+                topology.require_session_available(revocation.session_id())?;
+            }
+            let rotation = topology.projection.begin_session_mutation(
+                plan.rotation().session_id(),
+                plan.rotation().expected_generation(),
+                PendingMutationKind::TokenSupersede {
+                    predecessor: plan.rotation().predecessor_digest(),
+                    successor: plan.rotation().successor_digest(),
+                    superseded_at_ms: plan.rotation().superseded_at_ms(),
+                },
+            )?;
+            let mut revocation_tickets = Vec::with_capacity(plan.revocations().len());
+            let mut revocation_drains = Vec::with_capacity(plan.revocations().len());
+            for revocation in plan.revocations() {
+                match topology.projection.begin_session_mutation(
+                    revocation.session_id(),
+                    revocation.expected_generation(),
+                    PendingMutationKind::Revoke {
+                        reason: revocation.reason(),
+                    },
+                ) {
+                    Ok(premarked) => {
+                        revocation_tickets.push(premarked.ticket);
+                        revocation_drains.push(premarked.drain);
+                    }
+                    Err(error) => {
+                        for (ticket, earlier) in revocation_tickets.iter().zip(plan.revocations()) {
+                            let _ = topology
+                                .projection
+                                .compare_unmark_session(ticket, earlier.session_id());
+                        }
+                        let _ = topology
+                            .projection
+                            .compare_unmark_session(&rotation.ticket, plan.rotation().session_id());
+                        return Err(error);
+                    }
+                }
+            }
+            let targets = plan
+                .revocations()
+                .iter()
+                .map(|revocation| CommittedRevocationTarget {
+                    authorization_stream_incarnation: topology
+                        .projection
+                        .incarnation()
+                        .as_str()
+                        .to_owned(),
+                    session_id: revocation.session_id().to_owned(),
+                    predecessor_generation: revocation.expected_generation(),
+                })
+                .collect();
+            (
+                rotation.ticket,
+                rotation.drain,
+                revocation_tickets,
+                revocation_drains,
+                targets,
+            )
+        };
+        let mut rollback = PendingDrainRollback::new(
+            Arc::clone(self),
+            PendingDrainCleanup::PasswordChange {
+                rotation_ticket: rotation_ticket.clone(),
+                rotation_session_id: plan.rotation().session_id().to_owned(),
+                revocations: revocation_tickets
+                    .iter()
+                    .zip(plan.revocations())
+                    .map(|(ticket, revocation)| {
+                        (ticket.clone(), revocation.session_id().to_owned())
+                    })
+                    .collect(),
+            },
+        );
+        rotation_drain.wait().await;
+        for drain in revocation_drains {
+            drain.wait().await;
+        }
+        rollback.disarm();
+        Ok(PremarkedPasswordChange {
+            plan,
+            rotation_ticket,
+            revocation_tickets,
+            revocation_terminal_targets: targets,
         })
     }
 
@@ -734,7 +889,8 @@ impl AuthCoordinator {
             &attempt,
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(_))
         )
-        .then(|| carrier.terminal_target.clone());
+        .then(|| vec![carrier.terminal_target.clone()])
+        .unwrap_or_default();
         let outcome = self.finish_revocation_outcome(carrier, attempt);
         AuthFinish::new(outcome, committed_revocation)
     }
@@ -886,17 +1042,17 @@ impl AuthCoordinator {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> AuthFinish<IssuanceFinish> {
-        let committed_revocation = matches!(
-            &attempt,
+        let committed_revocations = match &attempt {
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
-                committed_revocation: Some(_),
+                committed_revocations,
                 ..
-            })
-        )
-        .then(|| carrier.eviction_terminal_target.clone())
-        .flatten();
+            }) if committed_revocations.len() == carrier.revocation_terminal_targets.len() => {
+                carrier.revocation_terminal_targets.clone()
+            }
+            _ => Vec::new(),
+        };
         let outcome = self.finish_issuance_outcome(carrier, attempt, epoch_now_ms, monotonic_now);
-        AuthFinish::new(outcome, committed_revocation)
+        AuthFinish::new(outcome, committed_revocations)
     }
 
     fn finish_issuance_outcome(
@@ -933,6 +1089,16 @@ impl AuthCoordinator {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::CodeLocked)
             }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CredentialInvalid {
+                ..
+            }) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::CredentialInvalid)
+            }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CredentialThrottled) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::CredentialThrottled)
+            }
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::SenderKeyBound) => {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::SenderKeyBound)
@@ -947,31 +1113,35 @@ impl AuthCoordinator {
             }
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
                 session,
-                committed_revocation,
+                committed_revocations,
             }) => {
-                if session.id != session_id
-                    || committed_revocation
-                        .as_ref()
-                        .map(|value| (value.session_id.as_str(), value.generation))
-                        != carrier.plan.eviction().map(|eviction| {
-                            (
-                                eviction.session_id(),
-                                eviction.expected_generation().saturating_add(1),
-                            )
-                        })
-                {
+                let revocations_match = committed_revocations.len()
+                    == carrier.plan.revocations().len()
+                    && committed_revocations
+                        .iter()
+                        .zip(carrier.plan.revocations())
+                        .all(|(committed, planned)| {
+                            committed.session_id == planned.session_id()
+                                && committed.generation
+                                    == planned.expected_generation().saturating_add(1)
+                        });
+                if session.id != session_id || !revocations_match {
                     fail_issuance_closed(&mut topology, &carrier);
                     return Err(projection_unavailable());
                 }
-                if let (Some(ticket), Some(revocation)) =
-                    (&carrier.eviction_ticket, committed_revocation.as_ref())
-                    && topology
+                for (ticket, revocation) in carrier
+                    .revocation_tickets
+                    .iter()
+                    .zip(&committed_revocations)
+                {
+                    if topology
                         .projection
                         .finalize_revocation(ticket, &revocation.session_id, revocation.generation)
                         .is_err()
-                {
-                    fail_issuance_closed(&mut topology, &carrier);
-                    return Err(projection_unavailable());
+                    {
+                        fail_issuance_closed(&mut topology, &carrier);
+                        return Err(projection_unavailable());
+                    }
                 }
                 if self.take_finalize_failpoint()
                     || topology
@@ -988,7 +1158,109 @@ impl AuthCoordinator {
                     return Err(projection_unavailable());
                 }
                 Ok(IssuanceFinish::Committed(
-                    carrier.plan.into_issue(session, committed_revocation),
+                    carrier.plan.into_issue(session, committed_revocations),
+                ))
+            }
+        }
+    }
+
+    pub(crate) fn finish_password_change(
+        &self,
+        carrier: PremarkedPasswordChange,
+        attempt: AuthTransactionAttempt<PlannedPasswordChangeCommit>,
+    ) -> AuthFinish<PasswordChangeFinish> {
+        let terminal_targets = match &attempt {
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::Committed {
+                committed_revocations,
+                ..
+            }) if committed_revocations.len() == carrier.revocation_terminal_targets.len() => {
+                carrier.revocation_terminal_targets.clone()
+            }
+            _ => Vec::new(),
+        };
+        let outcome = self.finish_password_change_outcome(carrier, attempt);
+        AuthFinish::new(outcome, terminal_targets)
+    }
+
+    fn finish_password_change_outcome(
+        &self,
+        carrier: PremarkedPasswordChange,
+        attempt: AuthTransactionAttempt<PlannedPasswordChangeCommit>,
+    ) -> SnapbackResult<PasswordChangeFinish> {
+        let mut topology = self.lock_topology()?;
+        match attempt {
+            AuthTransactionAttempt::RolledBack(error) => {
+                exact_unmark_password_change(&mut topology, &carrier)?;
+                Err(error)
+            }
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                fail_password_change_closed(&mut topology, &carrier);
+                Err(revocation_uncertain())
+            }
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::PredecessorChanged) => {
+                exact_unmark_password_change(&mut topology, &carrier)?;
+                Ok(PasswordChangeFinish::PredecessorChanged)
+            }
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::CandidateCollision) => {
+                exact_unmark_password_change(&mut topology, &carrier)?;
+                Ok(PasswordChangeFinish::CandidateCollision)
+            }
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::CredentialInvalid {
+                ..
+            }) => {
+                exact_unmark_password_change(&mut topology, &carrier)?;
+                Ok(PasswordChangeFinish::CredentialInvalid)
+            }
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::CredentialThrottled) => {
+                exact_unmark_password_change(&mut topology, &carrier)?;
+                Ok(PasswordChangeFinish::CredentialThrottled)
+            }
+            AuthTransactionAttempt::Committed(PlannedPasswordChangeCommit::Committed {
+                session,
+                committed_revocations,
+            }) => {
+                let revocations_match = committed_revocations.len()
+                    == carrier.plan.revocations().len()
+                    && committed_revocations
+                        .iter()
+                        .zip(carrier.plan.revocations())
+                        .all(|(committed, planned)| {
+                            committed.session_id == planned.session_id()
+                                && committed.generation
+                                    == planned.expected_generation().saturating_add(1)
+                        });
+                if session.id != carrier.plan.rotation().session_id() || !revocations_match {
+                    fail_password_change_closed(&mut topology, &carrier);
+                    return Err(projection_unavailable());
+                }
+                for (ticket, revocation) in carrier
+                    .revocation_tickets
+                    .iter()
+                    .zip(&committed_revocations)
+                {
+                    if topology
+                        .projection
+                        .finalize_revocation(ticket, &revocation.session_id, revocation.generation)
+                        .is_err()
+                    {
+                        fail_password_change_closed(&mut topology, &carrier);
+                        return Err(projection_unavailable());
+                    }
+                }
+                if self.take_finalize_failpoint()
+                    || topology
+                        .projection
+                        .finalize_token_rotation(
+                            &carrier.rotation_ticket,
+                            carrier.plan.rotation().session_id(),
+                        )
+                        .is_err()
+                {
+                    fail_password_change_closed(&mut topology, &carrier);
+                    return Err(projection_unavailable());
+                }
+                Ok(PasswordChangeFinish::Committed(
+                    carrier.plan.into_issue(session),
                 ))
             }
         }
@@ -1473,16 +1745,20 @@ fn exact_unmark_issuance(
     topology: &mut CoordinatorTopology,
     carrier: &PremarkedIssuance,
 ) -> SnapbackResult<()> {
-    if let (Some(ticket), Some(eviction)) = (&carrier.eviction_ticket, carrier.plan.eviction())
-        && !matches!(
+    for (ticket, revocation) in carrier
+        .revocation_tickets
+        .iter()
+        .zip(carrier.plan.revocations())
+    {
+        if !matches!(
             topology
                 .projection
-                .compare_unmark_session(ticket, eviction.session_id()),
+                .compare_unmark_session(ticket, revocation.session_id()),
             Ok(true)
-        )
-    {
-        topology.global_rebuild_required = true;
-        return Err(projection_unavailable());
+        ) {
+            topology.global_rebuild_required = true;
+            return Err(projection_unavailable());
+        }
     }
     let session_id = carrier.plan.projected_insert().session_id;
     match topology
@@ -1497,13 +1773,75 @@ fn exact_unmark_issuance(
     }
 }
 
-fn fail_issuance_closed(topology: &mut CoordinatorTopology, carrier: &PremarkedIssuance) {
-    if let (Some(ticket), Some(eviction)) = (&carrier.eviction_ticket, carrier.plan.eviction()) {
+fn exact_unmark_password_change(
+    topology: &mut CoordinatorTopology,
+    carrier: &PremarkedPasswordChange,
+) -> SnapbackResult<()> {
+    for (ticket, revocation) in carrier
+        .revocation_tickets
+        .iter()
+        .zip(carrier.plan.revocations())
+    {
+        if !matches!(
+            topology
+                .projection
+                .compare_unmark_session(ticket, revocation.session_id()),
+            Ok(true)
+        ) {
+            topology.global_rebuild_required = true;
+            return Err(projection_unavailable());
+        }
+    }
+    if matches!(
+        topology.projection.compare_unmark_session(
+            &carrier.rotation_ticket,
+            carrier.plan.rotation().session_id(),
+        ),
+        Ok(true)
+    ) {
+        Ok(())
+    } else {
+        topology.global_rebuild_required = true;
+        Err(projection_unavailable())
+    }
+}
+
+fn fail_password_change_closed(
+    topology: &mut CoordinatorTopology,
+    carrier: &PremarkedPasswordChange,
+) {
+    for (ticket, revocation) in carrier
+        .revocation_tickets
+        .iter()
+        .zip(carrier.plan.revocations())
+    {
         fail_session_closed(
             topology,
             ticket,
-            eviction.session_id(),
-            eviction.expected_generation().checked_add(1),
+            revocation.session_id(),
+            revocation.expected_generation().checked_add(1),
+        );
+    }
+    fail_session_closed(
+        topology,
+        &carrier.rotation_ticket,
+        carrier.plan.rotation().session_id(),
+        Some(carrier.plan.rotation().expected_generation()),
+    );
+    topology.global_rebuild_required = true;
+}
+
+fn fail_issuance_closed(topology: &mut CoordinatorTopology, carrier: &PremarkedIssuance) {
+    for (ticket, revocation) in carrier
+        .revocation_tickets
+        .iter()
+        .zip(carrier.plan.revocations())
+    {
+        fail_session_closed(
+            topology,
+            ticket,
+            revocation.session_id(),
+            revocation.expected_generation().checked_add(1),
         );
     }
     let session_id = carrier.plan.projected_insert().session_id;
@@ -1582,9 +1920,6 @@ fn session_expired(reason: RevocationReason) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contract_types::{
-        AuthorizationStreamIncarnation, RevocationReason, ServerProfile,
-    };
     use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::auth::invocation::{InvocationGate, InvocationSource, WireAuthorityFields};
     use crate::auth::provider::PlannedTokenSource;
@@ -1592,6 +1927,7 @@ mod tests {
         AuthorizationStreamRecord, ProjectedSessionInsert, ProjectionIdentityRow,
         ProjectionSessionRow, ProjectionSource, ProjectionUserRow,
     };
+    use crate::contract_types::{AuthorizationStreamIncarnation, RevocationReason, ServerProfile};
     use crate::local::LocalSnapback;
     use crate::manifest::AuthMode;
     use crate::server::{SharedSnapback, spawn_owned_auth_transaction, with_snapback};
@@ -2382,11 +2718,11 @@ mod tests {
         );
         assert_eq!(
             terminal_target,
-            Some(CommittedRevocationTarget {
+            vec![CommittedRevocationTarget {
                 authorization_stream_incarnation: fixture.incarnation.clone(),
                 session_id: fixture.session_id.clone(),
                 predecessor_generation: 1,
-            }),
+            }],
             "known durable commit retains its exact predecessor terminal target"
         );
         assert!(

@@ -5,9 +5,10 @@ use crate::auth::crypto::{
 };
 use crate::auth::provider::{
     AuthProvider, AuthenticatedUse, AuthenticatedUseRow, DurableIssuanceReconcile,
-    DurableRejectedIssuanceReconcile, DurableRevocationReconcile, DurableRotationReconcile,
-    ExchangeCoordination, PlannedExchange, PlannedFamilyAlarmCommit, PlannedIssuanceCommit,
-    PlannedRevocationCommit, PlannedRotationTransaction, ProviderFamilyAlarmPlan,
+    DurablePasswordChangeReconcile, DurableRejectedIssuanceReconcile, DurableRevocationReconcile,
+    DurableRotationReconcile, ExchangeCoordination, PlannedExchange, PlannedFamilyAlarmCommit,
+    PlannedIssuanceCommit, PlannedPasswordChangeCommit, PlannedRevocationCommit,
+    PlannedRotationTransaction, ProviderFamilyAlarmPlan, ProviderPasswordChangeCommitPlan,
     ProviderRevocationPlan, ProviderSessionIssuanceCommitPlan, ProviderTokenRotationCommitPlan,
     RejectedExchangeOutcome, RequestInsertOutcome, SessionCandidate, StepUpBinding,
 };
@@ -591,6 +592,34 @@ impl LocalDatabase {
             Ok(outcome)
         });
         (attempt, body_outcome)
+    }
+
+    #[allow(dead_code)] // Staged password route invokes this kernel next.
+    pub(super) fn auth_attempt_password_change(
+        &mut self,
+        plan: &ProviderPasswordChangeCommitPlan,
+    ) -> (
+        super::auth::AuthTransactionAttempt<PlannedPasswordChangeCommit>,
+        Option<PlannedPasswordChangeCommit>,
+    ) {
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction(|transaction| {
+            let outcome =
+                crate::auth::provider::planned_password_change_transaction(transaction, plan)?;
+            body_outcome = Some(outcome.clone());
+            Ok(outcome)
+        });
+        (attempt, body_outcome)
+    }
+
+    #[allow(dead_code)]
+    pub(super) fn auth_reconcile_password_change(
+        &self,
+        plan: &ProviderPasswordChangeCommitPlan,
+    ) -> SnapbackResult<DurablePasswordChangeReconcile> {
+        self.with_auth_read(|connection| {
+            crate::auth::provider::reconcile_password_change(connection, plan)
+        })
     }
 
     pub(super) fn auth_reconcile_rejected_issuance(
@@ -1225,11 +1254,9 @@ impl LocalDatabase {
         self.with_auth_transaction(|transaction| {
             transaction.execute(
                 "DELETE FROM _snapback_meta WHERE key = ?1",
-                params![
-                    crate::contract_types::SessionTerminalCauseRecord::meta_key(
-                        session_id
-                    )?
-                ],
+                params![crate::contract_types::SessionTerminalCauseRecord::meta_key(
+                    session_id
+                )?],
             )?;
             Ok(())
         })
@@ -2217,6 +2244,25 @@ impl<'a> AuthCatalogKernel<'a> {
     ) {
         self.write_db()
             .auth_attempt_planned_session_issuance(plan, exchange_proof)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn attempt_password_change(
+        &mut self,
+        plan: &ProviderPasswordChangeCommitPlan,
+    ) -> (
+        super::auth::AuthTransactionAttempt<PlannedPasswordChangeCommit>,
+        Option<PlannedPasswordChangeCommit>,
+    ) {
+        self.write_db().auth_attempt_password_change(plan)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn reconcile_password_change(
+        &self,
+        plan: &ProviderPasswordChangeCommitPlan,
+    ) -> SnapbackResult<DurablePasswordChangeReconcile> {
+        self.read_db().auth_reconcile_password_change(plan)
     }
 
     pub fn reconcile_rejected_issuance(

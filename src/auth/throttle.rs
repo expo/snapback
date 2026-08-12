@@ -48,6 +48,39 @@ pub(crate) enum AuthBudgetName {
     OauthCallback,
 }
 
+#[allow(dead_code)] // Staged password routes bind these effects next.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PasswordAuthEffect {
+    Signup,
+    Signin,
+}
+
+#[allow(dead_code)]
+impl PasswordAuthEffect {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Signup => "auth.password.signup",
+            Self::Signin => "auth.password.signin",
+        }
+    }
+
+    pub(crate) const fn budgets(self) -> &'static [AuthBudgetName] {
+        match self {
+            Self::Signup => &[
+                AuthBudgetName::Enumeration,
+                AuthBudgetName::HashCpu,
+                AuthBudgetName::SessionMint,
+            ],
+            Self::Signin => &[
+                AuthBudgetName::Guessing,
+                AuthBudgetName::Enumeration,
+                AuthBudgetName::HashCpu,
+                AuthBudgetName::SessionMint,
+            ],
+        }
+    }
+}
+
 impl AuthBudgetName {
     pub(crate) const fn as_str(self) -> &'static str {
         match self {
@@ -110,7 +143,9 @@ pub(crate) enum AuthBudgetChargeAxis {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AuthBudgetChargeTiming {
     ObservationBoundary,
+    KdfAdmission,
     ChallengeTransactionCommit,
+    SessionTransactionCommit,
     MailboxReservation,
 }
 
@@ -165,6 +200,19 @@ const CHALLENGE_CREDENTIAL_AXES: &[AuthBudgetChargeAxis] = &[
     AuthBudgetChargeAxis::App,
     AuthBudgetChargeAxis::Deployment,
 ];
+const PASSWORD_IDENTIFIER_AXES: &[AuthBudgetChargeAxis] = &[
+    AuthBudgetChargeAxis::Recipient,
+    AuthBudgetChargeAxis::Source,
+    AuthBudgetChargeAxis::Provider,
+    AuthBudgetChargeAxis::App,
+    AuthBudgetChargeAxis::Deployment,
+];
+const PASSWORD_RESOURCE_AXES: &[AuthBudgetChargeAxis] = &[
+    AuthBudgetChargeAxis::Source,
+    AuthBudgetChargeAxis::Provider,
+    AuthBudgetChargeAxis::App,
+    AuthBudgetChargeAxis::Deployment,
+];
 
 const DELIVERY_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
     id: "request-code-recipient",
@@ -189,11 +237,41 @@ const CHALLENGE_ALLOCATION_RULES: &[AuthBudgetRuleDefinition] = &[
         missing_axis: MissingAxisPolicy::Refuse,
     },
 ];
-const GUESSING_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
-    id: "challenge-credential-total",
-    axes: CHALLENGE_CREDENTIAL_AXES,
-    strategy: AuthBudgetCounterStrategy::FixedTotal,
+const GUESSING_RULES: &[AuthBudgetRuleDefinition] = &[
+    AuthBudgetRuleDefinition {
+        id: "challenge-credential-total",
+        axes: CHALLENGE_CREDENTIAL_AXES,
+        strategy: AuthBudgetCounterStrategy::FixedTotal,
+        charge_timing: AuthBudgetChargeTiming::ObservationBoundary,
+        missing_axis: MissingAxisPolicy::Refuse,
+    },
+    AuthBudgetRuleDefinition {
+        id: "password-signin-identifier-source",
+        axes: PASSWORD_IDENTIFIER_AXES,
+        strategy: AuthBudgetCounterStrategy::RollingWindow,
+        charge_timing: AuthBudgetChargeTiming::KdfAdmission,
+        missing_axis: MissingAxisPolicy::Refuse,
+    },
+];
+const ENUMERATION_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
+    id: "password-identifier-source",
+    axes: PASSWORD_IDENTIFIER_AXES,
+    strategy: AuthBudgetCounterStrategy::RollingWindow,
     charge_timing: AuthBudgetChargeTiming::ObservationBoundary,
+    missing_axis: MissingAxisPolicy::Refuse,
+}];
+const HASH_CPU_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
+    id: "password-kdf-source",
+    axes: PASSWORD_RESOURCE_AXES,
+    strategy: AuthBudgetCounterStrategy::RollingWindow,
+    charge_timing: AuthBudgetChargeTiming::KdfAdmission,
+    missing_axis: MissingAxisPolicy::Refuse,
+}];
+const SESSION_MINT_RULES: &[AuthBudgetRuleDefinition] = &[AuthBudgetRuleDefinition {
+    id: "password-session-mint",
+    axes: PASSWORD_IDENTIFIER_AXES,
+    strategy: AuthBudgetCounterStrategy::RollingWindow,
+    charge_timing: AuthBudgetChargeTiming::SessionTransactionCommit,
     missing_axis: MissingAxisPolicy::Refuse,
 }];
 
@@ -216,9 +294,33 @@ pub(crate) const AUTH_CHALLENGE_ALLOCATION_BUDGET: AuthBudgetDefinition = AuthBu
 pub(crate) const AUTH_GUESSING_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
     name: AuthBudgetName::Guessing,
     harms: &[AuthBudgetHarm::Guessing],
-    effects: &["auth.challenge.exchange"],
+    effects: &["auth.challenge.exchange", "auth.password.signin"],
     counter_class: AuthBudgetCounterClass::Attempt,
     rules: GUESSING_RULES,
+    public_non_enumerating: true,
+};
+pub(crate) const AUTH_ENUMERATION_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
+    name: AuthBudgetName::Enumeration,
+    harms: &[AuthBudgetHarm::Enumeration],
+    effects: &["auth.password.signup", "auth.password.signin"],
+    counter_class: AuthBudgetCounterClass::Attempt,
+    rules: ENUMERATION_RULES,
+    public_non_enumerating: true,
+};
+pub(crate) const AUTH_HASH_CPU_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
+    name: AuthBudgetName::HashCpu,
+    harms: &[AuthBudgetHarm::HashCpu],
+    effects: &["auth.password.signup", "auth.password.signin"],
+    counter_class: AuthBudgetCounterClass::Attempt,
+    rules: HASH_CPU_RULES,
+    public_non_enumerating: true,
+};
+pub(crate) const AUTH_SESSION_MINT_BUDGET: AuthBudgetDefinition = AuthBudgetDefinition {
+    name: AuthBudgetName::SessionMint,
+    harms: &[AuthBudgetHarm::SessionMinting],
+    effects: &["auth.password.signup", "auth.password.signin"],
+    counter_class: AuthBudgetCounterClass::SuccessfulEffect,
+    rules: SESSION_MINT_RULES,
     public_non_enumerating: true,
 };
 
@@ -226,10 +328,13 @@ pub(crate) const AUTH_COMPATIBILITY_BUDGETS: &[AuthBudgetDefinition] = &[
     AUTH_DELIVERY_BUDGET,
     AUTH_CHALLENGE_ALLOCATION_BUDGET,
     AUTH_GUESSING_BUDGET,
+    AUTH_ENUMERATION_BUDGET,
+    AUTH_HASH_CPU_BUDGET,
+    AUTH_SESSION_MINT_BUDGET,
 ];
 
 fn compatibility_registry_is_closed() -> bool {
-    AUTH_COMPATIBILITY_BUDGETS.len() == 3
+    AUTH_COMPATIBILITY_BUDGETS.len() == 6
         && AUTH_COMPATIBILITY_BUDGETS.iter().all(|budget| {
             !budget.harms.is_empty()
                 && !budget.effects.is_empty()
@@ -239,29 +344,28 @@ fn compatibility_registry_is_closed() -> bool {
                     budget.counter_class,
                     AuthBudgetCounterClass::Attempt | AuthBudgetCounterClass::SuccessfulEffect
                 )
-                && budget
-                    .rules
-                    .iter()
-                    .all(|rule| {
-                        !rule.id.is_empty()
-                            && !rule.axes.is_empty()
-                            && matches!(
-                                rule.strategy,
-                                AuthBudgetCounterStrategy::RollingWindow
-                                    | AuthBudgetCounterStrategy::FixedTotal
-                                    | AuthBudgetCounterStrategy::Occupancy
-                            )
-                            && matches!(
-                                rule.charge_timing,
-                                AuthBudgetChargeTiming::ObservationBoundary
-                                    | AuthBudgetChargeTiming::ChallengeTransactionCommit
-                                    | AuthBudgetChargeTiming::MailboxReservation
-                            )
-                            && matches!(
-                                rule.missing_axis,
-                                MissingAxisPolicy::OmitByDeclaration | MissingAxisPolicy::Refuse
-                            )
-                    })
+                && budget.rules.iter().all(|rule| {
+                    !rule.id.is_empty()
+                        && !rule.axes.is_empty()
+                        && matches!(
+                            rule.strategy,
+                            AuthBudgetCounterStrategy::RollingWindow
+                                | AuthBudgetCounterStrategy::FixedTotal
+                                | AuthBudgetCounterStrategy::Occupancy
+                        )
+                        && matches!(
+                            rule.charge_timing,
+                            AuthBudgetChargeTiming::ObservationBoundary
+                                | AuthBudgetChargeTiming::KdfAdmission
+                                | AuthBudgetChargeTiming::ChallengeTransactionCommit
+                                | AuthBudgetChargeTiming::SessionTransactionCommit
+                                | AuthBudgetChargeTiming::MailboxReservation
+                        )
+                        && matches!(
+                            rule.missing_axis,
+                            MissingAxisPolicy::OmitByDeclaration | MissingAxisPolicy::Refuse
+                        )
+                })
         })
         && AUTH_COMPATIBILITY_BUDGETS
             .iter()
@@ -272,6 +376,15 @@ fn compatibility_registry_is_closed() -> bool {
         && AUTH_COMPATIBILITY_BUDGETS
             .iter()
             .any(|budget| budget.name == AuthBudgetName::Guessing)
+        && AUTH_COMPATIBILITY_BUDGETS
+            .iter()
+            .any(|budget| budget.name == AuthBudgetName::Enumeration)
+        && AUTH_COMPATIBILITY_BUDGETS
+            .iter()
+            .any(|budget| budget.name == AuthBudgetName::HashCpu)
+        && AUTH_COMPATIBILITY_BUDGETS
+            .iter()
+            .any(|budget| budget.name == AuthBudgetName::SessionMint)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -887,6 +1000,45 @@ impl SharedAuthenticationThrottleConfig {
             policy.validate()?;
         }
         Ok(())
+    }
+}
+
+/// Finite password-effect terms selected exclusively from the verified server
+/// profile. Dev/test are intentionally generous enough for lockout and race
+/// acceptance suites; production retains bounded debt and key custody.
+#[allow(dead_code)] // Consumed by the staged storage adapter and adjacent route lane.
+pub(crate) fn password_budget_config(
+    profile: AuthBudgetDeploymentProfile,
+    budget: AuthBudgetName,
+) -> SharedAuthenticationThrottleConfig {
+    fn policy(interval_ms: u64, burst: u64, debt: u64) -> AuthenticationBucketPolicy {
+        AuthenticationBucketPolicy {
+            interval_ms,
+            burst,
+            maximum_denial_debt_attempts: debt,
+        }
+    }
+    let (interval_ms, burst, debt, maximum_key_count) = match profile {
+        AuthBudgetDeploymentProfile::Dev | AuthBudgetDeploymentProfile::Test => {
+            (1, 100_000, 100_000, 1_000_000)
+        }
+        AuthBudgetDeploymentProfile::Demo => (10, 10_000, 10_000, 250_000),
+        AuthBudgetDeploymentProfile::Prod => match budget {
+            AuthBudgetName::HashCpu => (1_000, 4, 32, 1_000_000),
+            AuthBudgetName::Guessing => (1_000, 10, 100, 1_000_000),
+            AuthBudgetName::Enumeration => (250, 20, 200, 1_000_000),
+            AuthBudgetName::SessionMint => (1_000, 10, 100, 1_000_000),
+            _ => (1_000, 10, 100, 1_000_000),
+        },
+    };
+    SharedAuthenticationThrottleConfig {
+        retention_ms: 24 * 60 * 60 * 1_000,
+        maximum_key_count,
+        global: policy(interval_ms, burst, debt),
+        source: policy(interval_ms, burst, debt),
+        subject: policy(interval_ms, burst, debt),
+        source_subject: policy(interval_ms, burst, debt),
+        family: policy(interval_ms, burst, debt),
     }
 }
 
@@ -1596,7 +1748,7 @@ mod tests {
                 serde_json::json!("auth.oauth-callback"),
             ]
         );
-        assert_eq!(AUTH_COMPATIBILITY_BUDGETS.len(), 3);
+        assert_eq!(AUTH_COMPATIBILITY_BUDGETS.len(), 6);
 
         assert_eq!(AUTH_DELIVERY_BUDGET.name, AuthBudgetName::Delivery);
         assert_eq!(AUTH_DELIVERY_BUDGET.harms, &[AuthBudgetHarm::DeliveryCost]);
@@ -1642,11 +1794,74 @@ mod tests {
             GUESSING_RULES[0].charge_timing,
             AuthBudgetChargeTiming::ObservationBoundary
         );
+        assert_eq!(
+            GUESSING_RULES[1].charge_timing,
+            AuthBudgetChargeTiming::KdfAdmission
+        );
+        assert_eq!(
+            AUTH_ENUMERATION_BUDGET.effects,
+            &["auth.password.signup", "auth.password.signin"]
+        );
+        assert_eq!(ENUMERATION_RULES[0].missing_axis, MissingAxisPolicy::Refuse);
+        assert_eq!(
+            HASH_CPU_RULES[0].charge_timing,
+            AuthBudgetChargeTiming::KdfAdmission
+        );
+        assert_eq!(
+            SESSION_MINT_RULES[0].charge_timing,
+            AuthBudgetChargeTiming::SessionTransactionCommit
+        );
         assert!(
             AUTH_COMPATIBILITY_BUDGETS
                 .iter()
                 .all(|budget| budget.public_non_enumerating && !budget.effects.is_empty())
         );
+    }
+
+    #[test]
+    fn password_effect_bindings_and_every_profile_term_are_finite() {
+        assert_eq!(PasswordAuthEffect::Signup.as_str(), "auth.password.signup");
+        assert_eq!(
+            PasswordAuthEffect::Signup.budgets(),
+            &[
+                AuthBudgetName::Enumeration,
+                AuthBudgetName::HashCpu,
+                AuthBudgetName::SessionMint,
+            ]
+        );
+        assert_eq!(PasswordAuthEffect::Signin.as_str(), "auth.password.signin");
+        assert_eq!(
+            PasswordAuthEffect::Signin.budgets(),
+            &[
+                AuthBudgetName::Guessing,
+                AuthBudgetName::Enumeration,
+                AuthBudgetName::HashCpu,
+                AuthBudgetName::SessionMint,
+            ]
+        );
+        for profile in [
+            AuthBudgetDeploymentProfile::Dev,
+            AuthBudgetDeploymentProfile::Test,
+            AuthBudgetDeploymentProfile::Demo,
+            AuthBudgetDeploymentProfile::Prod,
+        ] {
+            for budget in PasswordAuthEffect::Signin.budgets() {
+                let terms = password_budget_config(profile, *budget);
+                terms.validate().expect("finite password budget terms");
+                assert!(terms.retention_ms > 0);
+                assert!(terms.maximum_key_count < i64::MAX as u64);
+            }
+        }
+        for profile in [
+            AuthBudgetDeploymentProfile::Dev,
+            AuthBudgetDeploymentProfile::Test,
+        ] {
+            let terms = password_budget_config(profile, AuthBudgetName::Guessing);
+            assert!(
+                terms.source_subject.burst >= 10,
+                "acceptance profiles must reach the declared lock boundary"
+            );
+        }
     }
 
     #[test]
