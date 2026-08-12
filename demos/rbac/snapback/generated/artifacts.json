@@ -487,6 +487,17 @@
     }
   ],
   "generatedAt": 0,
+  "identities": {
+    "bundleId": "sha256:6b8c27bb3a3e2ac2bd573d2837511112c7f05c8f82d44fc9ae9e37a131735605",
+    "evidenceId": "sha256:3440aab9cef11dec6ae9dd1f24c67b12e33c42655af558d3450b2dcccdd2bf95",
+    "executableId": "sha256:4f257e63ac0af8113f5063108550226a192a5a693fd9188d244ba438e3b2c3d4",
+    "executableIdsByTarget": {
+      "local-dev-sqlite-ibex": "sha256:4f257e63ac0af8113f5063108550226a192a5a693fd9188d244ba438e3b2c3d4"
+    },
+    "generationId": "sha256:73534cb1d7bfacd8a854faf7d05bb7f2656e547f57fe49d304e67902e25375ab",
+    "schemaVersion": "snapback.semantic-identity.v1",
+    "semanticId": "sha256:213dfa235123f8d6493e30c92928765deb9eadd19772fbdeafd6b973df4a6378"
+  },
   "inputsHash": "snapback.v1:sessions:inputs:sha256:04280ed4e7b7700393355c0745bf20f0e0b10a4b7eca2e47c5de047ad61a1678",
   "manifestVersion": 2,
   "reviewManifest": {

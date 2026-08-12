@@ -308,6 +308,8 @@ export const PACKAGE_TEST_INVENTORIES = [
       'schema-reference-type-flow.test.mjs',
       'search-ast-fixtures.test.mjs',
       'search-result-contracts.test.mjs',
+      'semantic-generation-golden.test.mjs',
+      'semantic-generation-rotation.test.mjs',
       'sequence-authoring.test.mjs',
       'seed-artifact.test.mjs',
       'seed-asset-fixtures.test.mjs',
@@ -469,7 +471,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 258,
+  expectedTotal = 260,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -815,6 +817,8 @@ export function checkPackageTestInventories(options = {}) {
 // 257 -> 258 (2026-08-12, LLP 0237 rollout 2): @expo/snapback-codegen gains
 // the same-file graph representation byte-parity, identity, refusal, and demo
 // golden corpus.
+// 258 -> 260 (2026-08-12, LLP 0241 rollout 1): @expo/snapback-codegen gains
+// semantic-generation golden/no-self-hash and rotation/envelope coverage.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

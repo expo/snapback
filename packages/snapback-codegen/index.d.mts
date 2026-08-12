@@ -381,6 +381,15 @@ export interface GenerateSuccess {
   readonly diagnostics: readonly CodegenDiagnostic[];
   readonly inputsHash: string;
   readonly authoredSourceHash: string;
+  readonly identities: Readonly<{
+    schemaVersion: 'snapback.semantic-identity.v1';
+    semanticId: `sha256:${string}`;
+    executableId: `sha256:${string}`;
+    executableIdsByTarget: Readonly<Record<string, `sha256:${string}`>>;
+    evidenceId: `sha256:${string}`;
+    bundleId: `sha256:${string}`;
+    generationId: `sha256:${string}`;
+  }>;
   readonly outDir: string;
   readonly schemaManifest: Readonly<Record<string, unknown>>;
   readonly functionManifest: Readonly<{
@@ -397,6 +406,8 @@ export interface GenerateSuccess {
   readonly checked: boolean;
   readonly emitted: boolean;
   readonly cacheGraphRoot: string | null;
+  /** Gitignored immutable Rollout-1 envelope; null for `--check`. */
+  readonly generationEnvelopeRoot: string | null;
   /** Present only when a source-controlled `micro.profile.json` was selected. */
   readonly microProfile?: Readonly<Record<string, unknown>>;
 }

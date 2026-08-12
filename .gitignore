@@ -2,6 +2,9 @@
 /.snapback/
 /.llp/ship-runs/
 **/.snapback/codegen-cache/
+# LLP 0241 R1 immutable generation envelopes are regenerable local build
+# custody, not reviewed source or a current-generation activation pointer.
+**/.snapback/generations/
 **/.snapback/instance-fork-app-identity.v1.json
 /.snapback.snapback.restore.lock
 node_modules/

@@ -20,6 +20,32 @@
       "type": "string",
       "pattern": "^(?:[0-9a-f]{16,64}|snapback\\.v[0-9]+:[a-z0-9][a-z0-9-]*:inputs:sha256:[0-9a-f]{64})$"
     },
+    "identities": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "semanticId",
+        "executableId",
+        "executableIdsByTarget",
+        "evidenceId",
+        "bundleId",
+        "generationId"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "snapback.semantic-identity.v1" },
+        "semanticId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "executableId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "executableIdsByTarget": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+        },
+        "evidenceId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "bundleId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "generationId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "additionalProperties": false
+    },
     "reviewManifest": {
       "type": "object",
       "required": ["path", "custody", "authority"],

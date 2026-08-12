@@ -39,6 +39,7 @@ export const listTodos = defineQuery({ table: 'todos', args: {} });
     const generated = spawnSync(process.execPath, [cli, 'generate', root, '--json'], { encoding: 'utf8' });
     assert.equal(generated.status, 0, generated.stderr || generated.stdout);
     const before = digest(join(root, 'generated'));
+    const envelopeBefore = digest(join(root, '.snapback', 'generations'));
     const checked = spawnSync(process.execPath, [cli, 'generate', root, '--check', '--json'], { encoding: 'utf8' });
     assert.equal(checked.status, 0, checked.stderr || checked.stdout);
     const result = JSON.parse(checked.stdout);
@@ -47,6 +48,11 @@ export const listTodos = defineQuery({ table: 'todos', args: {} });
     assert.equal(result.checked, true);
     assert.equal(result.emitted, false);
     assert.equal(digest(join(root, 'generated')), before);
+    assert.equal(
+      digest(join(root, '.snapback', 'generations')),
+      envelopeBefore,
+      '--check changed immutable generation envelopes or latest-emitted metadata',
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -79,6 +85,7 @@ export const listTodos = defineJsQuery({
       ({ code }) => code === 'SNAPBACK_INLINE_HELPER_CYCLE',
     ));
     assert.equal(existsSync(join(refusalRoot, 'generated')), false);
+    assert.equal(existsSync(join(refusalRoot, '.snapback', 'generations')), false);
   } finally {
     rmSync(refusalRoot, { recursive: true, force: true });
   }

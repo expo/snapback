@@ -66,11 +66,13 @@ import {
   validateSnapbackIntrospectionSource,
 } from './provider-introspection.mjs';
 import {
+  artifactSha256,
   codegenCacheGraphRoot,
   codegenProjectRoot,
   createArtifactFileRecords,
   createReviewManifest,
   publishGeneratedGraph,
+  stableArtifactJson,
 } from './review-surface.mjs';
 import {
   buildSeedAssetFixturesV1,
@@ -89,6 +91,18 @@ import {
   CLOSED_SCRIPT_HANDLER_RULES,
   handlerDiagnosticDetails,
 } from './handler-runtime-profile.mjs';
+import {
+  APPLICATION_GENERATION_SCHEMA_VERSION,
+  SEMANTIC_IDENTITY_SCHEMA_VERSION,
+  buildSemanticGenerationInputs,
+  completeGenerationIdentities,
+  computeBundleId,
+  computeGenerationContentIdentities,
+  generationAddressNeutralProjection,
+  generationDomainHash,
+  publishGenerationEnvelope,
+  recordLatestEmittedGeneration,
+} from './semantic-generation.mjs';
 
 const AUTH_ASSURANCE_KINDS = new Set([
   'authenticated', 'email_verified', 'phone_verified', 'recent_auth',
@@ -5332,6 +5346,47 @@ async function generateInProcessLocked({
   // target declaration, drift-gated by tests/capability_v0.rs, and embedded
   // verbatim.
   const capabilityManifest = canonicalCapability.manifest;
+  const dataIdentity = trustedCompositionActivation?.activation?.databaseId
+    ? {
+        kind: 'trusted-composition-database',
+        databaseId: trustedCompositionActivation.activation.databaseId,
+        deploymentId: trustedCompositionActivation.activation.deploymentId,
+      }
+    : {
+        kind: 'unbound-codegen-data-contract',
+        schemaHash,
+      };
+  // @ref LLP 0241#d1-split-identity-by-what-changed — Rollout 1 computes the
+  // additive semantic/executable/evidence roots from explicit closed input
+  // projections while leaving every legacy hash preimage untouched.
+  // @ref LLP 0237#d4-runtime-and-implementation-identity — the S2 normalized
+  // graph records (targets + topology, without spans/raw evidence) are direct
+  // semantic and executable inputs; codegen does not infer body equivalence.
+  const generationIdentityInputs = buildSemanticGenerationInputs({
+    artifactVersion,
+    authMode,
+    appId,
+    appIdentity,
+    dataIdentity,
+    targetProfile,
+    schemaManifest,
+    functionManifest,
+    handlerRuntimeProfile,
+    capabilityManifest,
+    routesManifest,
+    authoredSourceItems,
+    sourceSpans: functionDefinitionSourceSpans,
+    schemaFieldSpans: schemaPropertySourceSpans,
+    generationLog: {
+      generatedAt,
+      diagnostics: [...diagnostics, ...infoDiagnostics]
+        .map(({ code, severity }) => ({ code, severity }))
+        .sort((left, right) => compareCodeUnits(left.code, right.code)),
+    },
+  });
+  const generationContentIdentities = computeGenerationContentIdentities(
+    generationIdentityInputs,
+  );
   // Exact LLP 0329 E-B: IR-tier mutations embed their plan, so the adapter
   // can derive default optimistic overlays from the generated artifact alone
   // — the flags below claim exactly that and nothing more.
@@ -5734,6 +5789,8 @@ async function generateInProcessLocked({
   let artifactIndex;
   let summary;
   let verifiedGraph;
+  let splitIdentities;
+  let generationEnvelope = null;
   try {
     writeGeneratedOutput(tmpOutDir, {
       schemaManifest,
@@ -5783,19 +5840,100 @@ async function generateInProcessLocked({
       seedArtifact,
       seedRowCount,
     });
-    artifactIndex = createReviewManifest({
-      legacyIndex: legacyArtifactIndex,
+    const currentExecutableId = generationContentIdentities
+      .executableIdsByTarget[targetProfile];
+    const addressNeutralIdentities = {
+      schemaVersion: SEMANTIC_IDENTITY_SCHEMA_VERSION,
+      ...generationContentIdentities,
+      executableId: currentExecutableId,
+    };
+    const addressNeutralReviewManifest = createReviewManifest({
+      legacyIndex: {
+        ...legacyArtifactIndex,
+        identities: addressNeutralIdentities,
+      },
       backendRoot,
       outputDirectory: targetConfig.outputDirectory,
       files,
       summary,
     });
+    const bundleMembers = files.map(({
+      path,
+      sha256: memberSha256,
+      bytes,
+      logicalKind,
+      custody,
+      consumer,
+    }) => ({ path, sha256: memberSha256, bytes, logicalKind, custody, consumer }));
+    const addressNeutralReviewMember = {
+      path: 'artifacts.json',
+      projectionSha256: generationDomainHash(
+        'snapback:application-generation:address-neutral-review-manifest:v1',
+        addressNeutralReviewManifest,
+      ),
+      logicalKind: 'review-manifest',
+      custody: 'review-manifest',
+      consumer: 'review-tooling',
+    };
+    const addressNeutralMembers = [...bundleMembers, addressNeutralReviewMember]
+      .sort((left, right) => compareCodeUnits(left.path, right.path));
+    const generationProjection = generationAddressNeutralProjection({
+      appIdentity: generationIdentityInputs.appIdentity,
+      dataIdentity: generationIdentityInputs.dataIdentity,
+      targetIdentity: generationIdentityInputs.targetIdentity,
+      members: addressNeutralMembers,
+      identities: addressNeutralIdentities,
+    });
+    const bundleId = computeBundleId({
+      schemaVersion: APPLICATION_GENERATION_SCHEMA_VERSION,
+      members: addressNeutralMembers,
+      reviewManifest: addressNeutralReviewManifest,
+      generationEnvelope: generationProjection,
+    });
+    splitIdentities = completeGenerationIdentities({
+      contentIdentities: generationContentIdentities,
+      bundleId,
+      appIdentity: generationIdentityInputs.appIdentity,
+      dataIdentity: generationIdentityInputs.dataIdentity,
+      targetIdentity: generationIdentityInputs.targetIdentity,
+    });
+    artifactIndex = {
+      ...addressNeutralReviewManifest,
+      identities: splitIdentities,
+    };
+    const artifactIndexBytes = Buffer.from(`${stableArtifactJson(artifactIndex)}\n`, 'utf8');
+    const envelopeMembers = [
+      ...bundleMembers,
+      {
+        path: 'artifacts.json',
+        sha256: artifactSha256(artifactIndexBytes),
+        bytes: artifactIndexBytes.byteLength,
+        logicalKind: 'review-manifest',
+        custody: 'review-manifest',
+        consumer: 'review-tooling',
+      },
+    ].sort((left, right) => compareCodeUnits(left.path, right.path));
     if (checkOnly) {
       // The complete candidate graph above has already been rendered,
       // inventoried, hashed, and contract-checked. Preflight discards only
-      // that temporary candidate and never enters graph publication.
+      // that temporary candidate and never enters graph or generation-
+      // envelope publication.
       rmSync(tmpOutDir, { recursive: true, force: true });
     } else {
+      // @ref LLP 0241#d2-one-application-generation-envelope — publish the
+      // immutable content-addressed envelope from a temp directory before
+      // materialization. It has no current pointer or activation authority;
+      // latest-emitted is updated only after the ordinary graph publication
+      // succeeds and is explicitly non-authoritative build metadata.
+      generationEnvelope = publishGenerationEnvelope({
+        backendRoot,
+        identities: splitIdentities,
+        appIdentity: generationIdentityInputs.appIdentity,
+        dataIdentity: generationIdentityInputs.dataIdentity,
+        targetIdentity: generationIdentityInputs.targetIdentity,
+        members: envelopeMembers,
+        testHooks: testHooks?.generationEnvelope,
+      });
       verifiedGraph = publishGeneratedGraph({
         temporaryGraphRoot: tmpOutDir,
         cacheGraphRoot: codegenCacheGraphRoot(backendRoot, inputsHash),
@@ -5803,6 +5941,7 @@ async function generateInProcessLocked({
         reviewManifest: artifactIndex,
         testHooks: testHooks?.publication,
       });
+      recordLatestEmittedGeneration(generationEnvelope);
     }
   } catch (error) {
     rmSync(tmpOutDir, { recursive: true, force: true });
@@ -5820,6 +5959,7 @@ async function generateInProcessLocked({
     diagnostics,
     inputsHash,
     authoredSourceHash,
+    identities: splitIdentities,
     outDir,
     schemaManifest,
     functionManifest,
@@ -5836,6 +5976,7 @@ async function generateInProcessLocked({
     checked: checkOnly,
     emitted: !checkOnly,
     cacheGraphRoot: verifiedGraph?.graphRoot ?? null,
+    generationEnvelopeRoot: generationEnvelope?.envelopeRoot ?? null,
   };
 
   // Cache and hash by the fd-attested target's canonical backend-relative POSIX
