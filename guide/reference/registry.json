@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "commit": "92352f51e2bfc1f5f543233a52e2ddf845f27929",
+    "commit": "bcde6984d9cc02daaeba1d02929296c544340aa4",
     "sourceDigest": "sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08",
     "publishedClosureVersion": "0.1.20",
     "packageVersions": {
@@ -7482,7 +7482,7 @@
     },
     {
       "identity": "npm:@expo/snapback-client#compileResultContractValidator",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-contract/result-contract-validator.d.mts#compileResultContractValidator",
+      "originIdentity": "packages/snapback-contract/result-contract-validator.d.mts#compileResultContractValidator",
       "anchor": "symbol-compileresultcontractvalidator-103973bc4a",
       "name": "compileResultContractValidator",
       "package": "@expo/snapback-client",
@@ -7506,14 +7506,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-contract/result-contract-validator.d.mts",
+        "file": "packages/snapback-contract/result-contract-validator.d.mts",
         "line": 63,
         "column": 1,
         "endLine": 65
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-contract/result-contract-validator.d.mts",
+          "file": "packages/snapback-contract/result-contract-validator.d.mts",
           "line": 63,
           "column": 1,
           "endLine": 65
@@ -18279,7 +18279,7 @@
     },
     {
       "identity": "npm:@expo/snapback-client#RESULT_CONTRACT_LIMITS_V1",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-contract/result-contract-validator.d.mts#RESULT_CONTRACT_LIMITS_V1",
+      "originIdentity": "packages/snapback-contract/result-contract-validator.d.mts#RESULT_CONTRACT_LIMITS_V1",
       "anchor": "symbol-result-contract-limits-v1-17fea70521",
       "name": "RESULT_CONTRACT_LIMITS_V1",
       "package": "@expo/snapback-client",
@@ -18303,14 +18303,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-contract/result-contract-validator.d.mts",
+        "file": "packages/snapback-contract/result-contract-validator.d.mts",
         "line": 1,
         "column": 14,
         "endLine": 10
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-contract/result-contract-validator.d.mts",
+          "file": "packages/snapback-contract/result-contract-validator.d.mts",
           "line": 1,
           "column": 14,
           "endLine": 10
@@ -71330,7 +71330,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#AssetBearingCommandDescriptorV1",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#AssetBearingCommandDescriptorV1",
+      "originIdentity": "packages/snapback-client/commands.d.mts#AssetBearingCommandDescriptorV1",
       "anchor": "symbol-assetbearingcommanddescriptorv1-0689d71f54",
       "name": "AssetBearingCommandDescriptorV1",
       "package": "@expo/snapback-react",
@@ -71357,7 +71357,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 33,
               "column": 3,
               "endLine": 33
@@ -71376,7 +71376,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 34,
               "column": 3,
               "endLine": 34
@@ -71395,7 +71395,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 35,
               "column": 3,
               "endLine": 40
@@ -71414,7 +71414,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 41,
               "column": 3,
               "endLine": 41
@@ -71433,7 +71433,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 42,
               "column": 3,
               "endLine": 42
@@ -71452,7 +71452,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 43,
               "column": 3,
               "endLine": 43
@@ -71465,14 +71465,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 26,
         "column": 1,
         "endLine": 44
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 26,
           "column": 1,
           "endLine": 44
@@ -71489,7 +71489,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#AssetBearingCommandReferenceV1",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#AssetBearingCommandReferenceV1",
+      "originIdentity": "packages/snapback-client/commands.d.mts#AssetBearingCommandReferenceV1",
       "anchor": "symbol-assetbearingcommandreferencev1-80020a1624",
       "name": "AssetBearingCommandReferenceV1",
       "package": "@expo/snapback-react",
@@ -71509,14 +71509,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 45,
         "column": 1,
         "endLine": 48
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 45,
           "column": 1,
           "endLine": 48
@@ -71533,7 +71533,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#AssetDiagnostic",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetDiagnostic",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetDiagnostic",
       "anchor": "symbol-assetdiagnostic-eaa3ea8bbf",
       "name": "AssetDiagnostic",
       "package": "@expo/snapback-react",
@@ -71560,7 +71560,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 31,
               "column": 3,
               "endLine": 31
@@ -71579,7 +71579,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 32,
               "column": 3,
               "endLine": 32
@@ -71598,7 +71598,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 33,
               "column": 3,
               "endLine": 33
@@ -71617,7 +71617,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 34,
               "column": 3,
               "endLine": 34
@@ -71636,7 +71636,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 35,
               "column": 3,
               "endLine": 35
@@ -71655,7 +71655,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 36,
               "column": 3,
               "endLine": 36
@@ -71668,14 +71668,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 30,
         "column": 1,
         "endLine": 37
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 30,
           "column": 1,
           "endLine": 37
@@ -71692,7 +71692,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#AssetFileLike",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetFileLike",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetFileLike",
       "anchor": "symbol-assetfilelike-c82941084b",
       "name": "AssetFileLike",
       "package": "@expo/snapback-react",
@@ -71719,7 +71719,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 53,
               "column": 3,
               "endLine": 53
@@ -71738,7 +71738,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 54,
               "column": 3,
               "endLine": 54
@@ -71757,7 +71757,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 55,
               "column": 3,
               "endLine": 55
@@ -71776,7 +71776,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 56,
               "column": 3,
               "endLine": 56
@@ -71789,14 +71789,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 52,
         "column": 1,
         "endLine": 57
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 52,
           "column": 1,
           "endLine": 57
@@ -72079,7 +72079,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#AssetIssuedUrlSnapshot",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetIssuedUrlSnapshot",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetIssuedUrlSnapshot",
       "anchor": "symbol-assetissuedurlsnapshot-5f1d009cfb",
       "name": "AssetIssuedUrlSnapshot",
       "package": "@expo/snapback-react",
@@ -72106,7 +72106,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 87,
               "column": 3,
               "endLine": 87
@@ -72125,7 +72125,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 88,
               "column": 3,
               "endLine": 88
@@ -72144,7 +72144,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 89,
               "column": 3,
               "endLine": 89
@@ -72157,14 +72157,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 86,
         "column": 1,
         "endLine": 90
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 86,
           "column": 1,
           "endLine": 90
@@ -72181,7 +72181,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#AssetSignedUrlOptions",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetSignedUrlOptions",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetSignedUrlOptions",
       "anchor": "symbol-assetsignedurloptions-ae08bb6c38",
       "name": "AssetSignedUrlOptions",
       "package": "@expo/snapback-react",
@@ -72208,7 +72208,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 68,
               "column": 3,
               "endLine": 68
@@ -72227,7 +72227,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 69,
               "column": 3,
               "endLine": 69
@@ -72246,7 +72246,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 70,
               "column": 3,
               "endLine": 70
@@ -72259,14 +72259,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 67,
         "column": 1,
         "endLine": 71
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 67,
           "column": 1,
           "endLine": 71
@@ -72283,7 +72283,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#AssetTaskSnapshot",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetTaskSnapshot",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetTaskSnapshot",
       "anchor": "symbol-assettasksnapshot-a9141af5be",
       "name": "AssetTaskSnapshot",
       "package": "@expo/snapback-react",
@@ -72310,7 +72310,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 40,
               "column": 3,
               "endLine": 40
@@ -72329,7 +72329,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 41,
               "column": 3,
               "endLine": 41
@@ -72348,7 +72348,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 42,
               "column": 3,
               "endLine": 42
@@ -72367,7 +72367,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 43,
               "column": 3,
               "endLine": 43
@@ -72386,7 +72386,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 44,
               "column": 3,
               "endLine": 44
@@ -72405,7 +72405,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 45,
               "column": 3,
               "endLine": 45
@@ -72424,7 +72424,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 46,
               "column": 3,
               "endLine": 46
@@ -72443,7 +72443,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 47,
               "column": 3,
               "endLine": 47
@@ -72462,7 +72462,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 48,
               "column": 3,
               "endLine": 48
@@ -72481,7 +72481,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 49,
               "column": 3,
               "endLine": 49
@@ -72494,14 +72494,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 39,
         "column": 1,
         "endLine": 50
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 39,
           "column": 1,
           "endLine": 50
@@ -72784,7 +72784,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#AssetUploadTask",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetUploadTask",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetUploadTask",
       "anchor": "symbol-assetuploadtask-a3867462ec",
       "name": "AssetUploadTask",
       "package": "@expo/snapback-react",
@@ -72811,7 +72811,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 107,
               "column": 3,
               "endLine": 107
@@ -72830,7 +72830,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 108,
               "column": 3,
               "endLine": 108
@@ -72849,7 +72849,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 109,
               "column": 3,
               "endLine": 109
@@ -72868,7 +72868,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 110,
               "column": 3,
               "endLine": 110
@@ -72887,7 +72887,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 111,
               "column": 3,
               "endLine": 111
@@ -72906,7 +72906,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 112,
               "column": 3,
               "endLine": 112
@@ -72925,7 +72925,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 113,
               "column": 3,
               "endLine": 113
@@ -72938,14 +72938,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 106,
         "column": 1,
         "endLine": 114
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 106,
           "column": 1,
           "endLine": 114
@@ -73376,7 +73376,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#CommandArgs",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandArgs",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandArgs",
       "anchor": "symbol-commandargs-875f19d9c5",
       "name": "CommandArgs",
       "package": "@expo/snapback-react",
@@ -73396,14 +73396,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 50,
         "column": 1,
         "endLine": 50
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 50,
           "column": 1,
           "endLine": 50
@@ -73420,7 +73420,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#CommandOutcome",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandOutcome",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandOutcome",
       "anchor": "symbol-commandoutcome-825821dcfd",
       "name": "CommandOutcome",
       "package": "@expo/snapback-react",
@@ -73440,14 +73440,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 94,
         "column": 1,
         "endLine": 99
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 94,
           "column": 1,
           "endLine": 99
@@ -73464,7 +73464,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#CommandResidue",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandResidue",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandResidue",
       "anchor": "symbol-commandresidue-4fe9660fec",
       "name": "CommandResidue",
       "package": "@expo/snapback-react",
@@ -73491,7 +73491,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 69,
               "column": 3,
               "endLine": 69
@@ -73510,7 +73510,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 70,
               "column": 3,
               "endLine": 70
@@ -73529,7 +73529,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 71,
               "column": 3,
               "endLine": 71
@@ -73548,7 +73548,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 72,
               "column": 3,
               "endLine": 72
@@ -73561,14 +73561,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 68,
         "column": 1,
         "endLine": 73
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 68,
           "column": 1,
           "endLine": 73
@@ -73585,7 +73585,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#CommandResult",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandResult",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandResult",
       "anchor": "symbol-commandresult-3b5b3a3f79",
       "name": "CommandResult",
       "package": "@expo/snapback-react",
@@ -73605,14 +73605,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 51,
         "column": 1,
         "endLine": 51
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 51,
           "column": 1,
           "endLine": 51
@@ -73629,7 +73629,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#CommandTask",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandTask",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandTask",
       "anchor": "symbol-commandtask-f15670fe62",
       "name": "CommandTask",
       "package": "@expo/snapback-react",
@@ -73656,7 +73656,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 101,
               "column": 3,
               "endLine": 101
@@ -73675,7 +73675,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 102,
               "column": 3,
               "endLine": 102
@@ -73694,7 +73694,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 103,
               "column": 3,
               "endLine": 103
@@ -73713,7 +73713,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 104,
               "column": 3,
               "endLine": 104
@@ -73732,7 +73732,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 105,
               "column": 3,
               "endLine": 105
@@ -73751,7 +73751,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 106,
               "column": 3,
               "endLine": 106
@@ -73770,7 +73770,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 107,
               "column": 3,
               "endLine": 107
@@ -73783,14 +73783,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 100,
         "column": 1,
         "endLine": 108
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 100,
           "column": 1,
           "endLine": 108
@@ -73807,7 +73807,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#CommandTaskSnapshot",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandTaskSnapshot",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandTaskSnapshot",
       "anchor": "symbol-commandtasksnapshot-110dd1dcaa",
       "name": "CommandTaskSnapshot",
       "package": "@expo/snapback-react",
@@ -73827,14 +73827,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 81,
         "column": 1,
         "endLine": 93
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 81,
           "column": 1,
           "endLine": 93
@@ -74048,7 +74048,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#MutationAttemptSnapshot",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#MutationAttemptSnapshot",
+      "originIdentity": "packages/snapback-client/commands.d.mts#MutationAttemptSnapshot",
       "anchor": "symbol-mutationattemptsnapshot-d89e1d1061",
       "name": "MutationAttemptSnapshot",
       "package": "@expo/snapback-react",
@@ -74075,7 +74075,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 75,
               "column": 3,
               "endLine": 75
@@ -74094,7 +74094,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 76,
               "column": 3,
               "endLine": 76
@@ -74113,7 +74113,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 77,
               "column": 3,
               "endLine": 77
@@ -74132,7 +74132,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 78,
               "column": 3,
               "endLine": 78
@@ -74151,7 +74151,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 79,
               "column": 3,
               "endLine": 79
@@ -74164,14 +74164,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 74,
         "column": 1,
         "endLine": 80
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 74,
           "column": 1,
           "endLine": 80
@@ -75297,7 +75297,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#SnapbackCommandDiagnostic",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#SnapbackCommandDiagnostic",
+      "originIdentity": "packages/snapback-client/commands.d.mts#SnapbackCommandDiagnostic",
       "anchor": "symbol-snapbackcommanddiagnostic-c77e94301d",
       "name": "SnapbackCommandDiagnostic",
       "package": "@expo/snapback-react",
@@ -75317,14 +75317,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 53,
         "column": 1,
         "endLine": 59
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 53,
           "column": 1,
           "endLine": 59
@@ -77848,7 +77848,7 @@
     },
     {
       "identity": "npm:@expo/snapback-react#TypedRemediation",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#TypedRemediation",
+      "originIdentity": "packages/snapback-client/commands.d.mts#TypedRemediation",
       "anchor": "symbol-typedremediation-b930caa9ab",
       "name": "TypedRemediation",
       "package": "@expo/snapback-react",
@@ -77875,7 +77875,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 61,
               "column": 3,
               "endLine": 61
@@ -77894,7 +77894,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 62,
               "column": 3,
               "endLine": 62
@@ -77913,7 +77913,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 63,
               "column": 3,
               "endLine": 63
@@ -77932,7 +77932,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 64,
               "column": 3,
               "endLine": 64
@@ -77951,7 +77951,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 65,
               "column": 3,
               "endLine": 65
@@ -77970,7 +77970,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 66,
               "column": 3,
               "endLine": 66
@@ -77983,14 +77983,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 60,
         "column": 1,
         "endLine": 67
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 60,
           "column": 1,
           "endLine": 67
@@ -82699,7 +82699,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetBearingCommandDescriptorV1",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#AssetBearingCommandDescriptorV1",
+      "originIdentity": "packages/snapback-client/commands.d.mts#AssetBearingCommandDescriptorV1",
       "anchor": "symbol-assetbearingcommanddescriptorv1-77ce6acad4",
       "name": "AssetBearingCommandDescriptorV1",
       "package": "@expo/snapback-expo",
@@ -82726,7 +82726,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 33,
               "column": 3,
               "endLine": 33
@@ -82745,7 +82745,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 34,
               "column": 3,
               "endLine": 34
@@ -82764,7 +82764,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 35,
               "column": 3,
               "endLine": 40
@@ -82783,7 +82783,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 41,
               "column": 3,
               "endLine": 41
@@ -82802,7 +82802,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 42,
               "column": 3,
               "endLine": 42
@@ -82821,7 +82821,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 43,
               "column": 3,
               "endLine": 43
@@ -82834,14 +82834,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 26,
         "column": 1,
         "endLine": 44
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 26,
           "column": 1,
           "endLine": 44
@@ -82858,7 +82858,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetBearingCommandReferenceV1",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#AssetBearingCommandReferenceV1",
+      "originIdentity": "packages/snapback-client/commands.d.mts#AssetBearingCommandReferenceV1",
       "anchor": "symbol-assetbearingcommandreferencev1-e5ab1eb108",
       "name": "AssetBearingCommandReferenceV1",
       "package": "@expo/snapback-expo",
@@ -82878,14 +82878,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 45,
         "column": 1,
         "endLine": 48
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 45,
           "column": 1,
           "endLine": 48
@@ -82902,7 +82902,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetDiagnostic",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetDiagnostic",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetDiagnostic",
       "anchor": "symbol-assetdiagnostic-ed0f157c68",
       "name": "AssetDiagnostic",
       "package": "@expo/snapback-expo",
@@ -82929,7 +82929,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 31,
               "column": 3,
               "endLine": 31
@@ -82948,7 +82948,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 32,
               "column": 3,
               "endLine": 32
@@ -82967,7 +82967,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 33,
               "column": 3,
               "endLine": 33
@@ -82986,7 +82986,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 34,
               "column": 3,
               "endLine": 34
@@ -83005,7 +83005,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 35,
               "column": 3,
               "endLine": 35
@@ -83024,7 +83024,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 36,
               "column": 3,
               "endLine": 36
@@ -83037,14 +83037,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 30,
         "column": 1,
         "endLine": 37
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 30,
           "column": 1,
           "endLine": 37
@@ -83061,7 +83061,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetFileLike",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetFileLike",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetFileLike",
       "anchor": "symbol-assetfilelike-2c1902f2bc",
       "name": "AssetFileLike",
       "package": "@expo/snapback-expo",
@@ -83088,7 +83088,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 53,
               "column": 3,
               "endLine": 53
@@ -83107,7 +83107,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 54,
               "column": 3,
               "endLine": 54
@@ -83126,7 +83126,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 55,
               "column": 3,
               "endLine": 55
@@ -83145,7 +83145,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 56,
               "column": 3,
               "endLine": 56
@@ -83158,14 +83158,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 52,
         "column": 1,
         "endLine": 57
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 52,
           "column": 1,
           "endLine": 57
@@ -83182,7 +83182,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetImageDelivery",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#AssetImageDelivery",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetImageDelivery",
       "anchor": "symbol-assetimagedelivery-deb74dc8ed",
       "name": "AssetImageDelivery",
       "package": "@expo/snapback-expo",
@@ -83202,14 +83202,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 930,
         "column": 1,
         "endLine": 930
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 930,
           "column": 1,
           "endLine": 930
@@ -83226,7 +83226,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetImagePhase",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#AssetImagePhase",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetImagePhase",
       "anchor": "symbol-assetimagephase-bba46d83b3",
       "name": "AssetImagePhase",
       "package": "@expo/snapback-expo",
@@ -83246,14 +83246,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 929,
         "column": 1,
         "endLine": 929
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 929,
           "column": 1,
           "endLine": 929
@@ -83270,7 +83270,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetImageState",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#AssetImageState",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetImageState",
       "anchor": "symbol-assetimagestate-056f5c5a8d",
       "name": "AssetImageState",
       "package": "@expo/snapback-expo",
@@ -83297,7 +83297,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 933,
               "column": 3,
               "endLine": 933
@@ -83316,7 +83316,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 934,
               "column": 3,
               "endLine": 934
@@ -83335,7 +83335,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 935,
               "column": 3,
               "endLine": 935
@@ -83354,7 +83354,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 936,
               "column": 3,
               "endLine": 936
@@ -83373,7 +83373,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 937,
               "column": 3,
               "endLine": 937
@@ -83392,7 +83392,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 938,
               "column": 3,
               "endLine": 938
@@ -83411,7 +83411,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 939,
               "column": 3,
               "endLine": 939
@@ -83424,14 +83424,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 932,
         "column": 1,
         "endLine": 940
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 932,
           "column": 1,
           "endLine": 940
@@ -83448,7 +83448,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetIssuedUrlSnapshot",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetIssuedUrlSnapshot",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetIssuedUrlSnapshot",
       "anchor": "symbol-assetissuedurlsnapshot-04a8496b6a",
       "name": "AssetIssuedUrlSnapshot",
       "package": "@expo/snapback-expo",
@@ -83475,7 +83475,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 87,
               "column": 3,
               "endLine": 87
@@ -83494,7 +83494,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 88,
               "column": 3,
               "endLine": 88
@@ -83513,7 +83513,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 89,
               "column": 3,
               "endLine": 89
@@ -83526,14 +83526,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 86,
         "column": 1,
         "endLine": 90
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 86,
           "column": 1,
           "endLine": 90
@@ -83550,7 +83550,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetSignedUrlOptions",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetSignedUrlOptions",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetSignedUrlOptions",
       "anchor": "symbol-assetsignedurloptions-ed2e27b436",
       "name": "AssetSignedUrlOptions",
       "package": "@expo/snapback-expo",
@@ -83577,7 +83577,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 68,
               "column": 3,
               "endLine": 68
@@ -83596,7 +83596,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 69,
               "column": 3,
               "endLine": 69
@@ -83615,7 +83615,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 70,
               "column": 3,
               "endLine": 70
@@ -83628,14 +83628,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 67,
         "column": 1,
         "endLine": 71
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 67,
           "column": 1,
           "endLine": 71
@@ -83652,7 +83652,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetTaskSnapshot",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetTaskSnapshot",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetTaskSnapshot",
       "anchor": "symbol-assettasksnapshot-f1088ee38f",
       "name": "AssetTaskSnapshot",
       "package": "@expo/snapback-expo",
@@ -83679,7 +83679,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 40,
               "column": 3,
               "endLine": 40
@@ -83698,7 +83698,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 41,
               "column": 3,
               "endLine": 41
@@ -83717,7 +83717,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 42,
               "column": 3,
               "endLine": 42
@@ -83736,7 +83736,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 43,
               "column": 3,
               "endLine": 43
@@ -83755,7 +83755,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 44,
               "column": 3,
               "endLine": 44
@@ -83774,7 +83774,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 45,
               "column": 3,
               "endLine": 45
@@ -83793,7 +83793,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 46,
               "column": 3,
               "endLine": 46
@@ -83812,7 +83812,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 47,
               "column": 3,
               "endLine": 47
@@ -83831,7 +83831,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 48,
               "column": 3,
               "endLine": 48
@@ -83850,7 +83850,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 49,
               "column": 3,
               "endLine": 49
@@ -83863,14 +83863,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 39,
         "column": 1,
         "endLine": 50
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 39,
           "column": 1,
           "endLine": 50
@@ -83887,7 +83887,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetUploadHook",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#AssetUploadHook",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetUploadHook",
       "anchor": "symbol-assetuploadhook-9e23b27374",
       "name": "AssetUploadHook",
       "package": "@expo/snapback-expo",
@@ -83914,7 +83914,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 903,
               "column": 3,
               "endLine": 903
@@ -83933,7 +83933,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 904,
               "column": 3,
               "endLine": 913
@@ -83952,7 +83952,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 914,
               "column": 3,
               "endLine": 918
@@ -83971,7 +83971,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 919,
               "column": 3,
               "endLine": 919
@@ -83990,7 +83990,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 920,
               "column": 3,
               "endLine": 920
@@ -84009,7 +84009,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 921,
               "column": 3,
               "endLine": 921
@@ -84028,7 +84028,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 922,
               "column": 3,
               "endLine": 922
@@ -84041,14 +84041,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 902,
         "column": 1,
         "endLine": 923
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 902,
           "column": 1,
           "endLine": 923
@@ -84065,7 +84065,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetUploadHookState",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#AssetUploadHookState",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetUploadHookState",
       "anchor": "symbol-assetuploadhookstate-0649b01db4",
       "name": "AssetUploadHookState",
       "package": "@expo/snapback-expo",
@@ -84085,14 +84085,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 895,
         "column": 1,
         "endLine": 900
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 895,
           "column": 1,
           "endLine": 900
@@ -84109,7 +84109,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetUploadHookStatus",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#AssetUploadHookStatus",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetUploadHookStatus",
       "anchor": "symbol-assetuploadhookstatus-e2eb248a8e",
       "name": "AssetUploadHookStatus",
       "package": "@expo/snapback-expo",
@@ -84129,14 +84129,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 873,
         "column": 1,
         "endLine": 883
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 873,
           "column": 1,
           "endLine": 883
@@ -84153,7 +84153,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetUploadTask",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts#AssetUploadTask",
+      "originIdentity": "packages/snapback-client/assets.d.mts#AssetUploadTask",
       "anchor": "symbol-assetuploadtask-f86f01bf3f",
       "name": "AssetUploadTask",
       "package": "@expo/snapback-expo",
@@ -84180,7 +84180,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 107,
               "column": 3,
               "endLine": 107
@@ -84199,7 +84199,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 108,
               "column": 3,
               "endLine": 108
@@ -84218,7 +84218,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 109,
               "column": 3,
               "endLine": 109
@@ -84237,7 +84237,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 110,
               "column": 3,
               "endLine": 110
@@ -84256,7 +84256,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 111,
               "column": 3,
               "endLine": 111
@@ -84275,7 +84275,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 112,
               "column": 3,
               "endLine": 112
@@ -84294,7 +84294,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+              "file": "packages/snapback-client/assets.d.mts",
               "line": 113,
               "column": 3,
               "endLine": 113
@@ -84307,14 +84307,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+        "file": "packages/snapback-client/assets.d.mts",
         "line": 106,
         "column": 1,
         "endLine": 114
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/assets.d.mts",
+          "file": "packages/snapback-client/assets.d.mts",
           "line": 106,
           "column": 1,
           "endLine": 114
@@ -84331,7 +84331,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#AssetUrlState",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#AssetUrlState",
+      "originIdentity": "packages/snapback-react/index.d.mts#AssetUrlState",
       "anchor": "symbol-asseturlstate-c3ca1b83b2",
       "name": "AssetUrlState",
       "package": "@expo/snapback-expo",
@@ -84358,7 +84358,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 886,
               "column": 3,
               "endLine": 886
@@ -84377,7 +84377,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 887,
               "column": 3,
               "endLine": 887
@@ -84390,14 +84390,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 885,
         "column": 1,
         "endLine": 888
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 885,
           "column": 1,
           "endLine": 888
@@ -84458,7 +84458,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#bindSnapbackAppLifecycle",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#bindSnapbackAppLifecycle",
+      "originIdentity": "packages/snapback-react/index.d.mts#bindSnapbackAppLifecycle",
       "anchor": "symbol-bindsnapbackapplifecycle-1325be244f",
       "name": "bindSnapbackAppLifecycle",
       "package": "@expo/snapback-expo",
@@ -84483,14 +84483,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 859,
         "column": 1,
         "endLine": 869
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 859,
           "column": 1,
           "endLine": 869
@@ -84507,7 +84507,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#bindSnapbackSurface",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#bindSnapbackSurface",
+      "originIdentity": "packages/snapback-react/index.d.mts#bindSnapbackSurface",
       "anchor": "symbol-bindsnapbacksurface-de8788d084",
       "name": "bindSnapbackSurface",
       "package": "@expo/snapback-expo",
@@ -84532,14 +84532,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 529,
         "column": 1,
         "endLine": 534
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 529,
           "column": 1,
           "endLine": 534
@@ -84556,7 +84556,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#BoundSnapbackSurface",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#BoundSnapbackSurface",
+      "originIdentity": "packages/snapback-react/index.d.mts#BoundSnapbackSurface",
       "anchor": "symbol-boundsnapbacksurface-d158477691",
       "name": "BoundSnapbackSurface",
       "package": "@expo/snapback-expo",
@@ -84583,7 +84583,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 513,
               "column": 3,
               "endLine": 513
@@ -84602,7 +84602,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 514,
               "column": 3,
               "endLine": 514
@@ -84621,7 +84621,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 515,
               "column": 3,
               "endLine": 520
@@ -84640,7 +84640,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 521,
               "column": 3,
               "endLine": 521
@@ -84659,7 +84659,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 522,
               "column": 3,
               "endLine": 522
@@ -84678,7 +84678,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 523,
               "column": 3,
               "endLine": 523
@@ -84697,7 +84697,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 524,
               "column": 3,
               "endLine": 524
@@ -84716,7 +84716,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 525,
               "column": 3,
               "endLine": 525
@@ -84735,7 +84735,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 526,
               "column": 3,
               "endLine": 526
@@ -84754,7 +84754,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 527,
               "column": 3,
               "endLine": 527
@@ -84767,14 +84767,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 512,
         "column": 1,
         "endLine": 528
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 512,
           "column": 1,
           "endLine": 528
@@ -84835,7 +84835,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#CommandArgs",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandArgs",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandArgs",
       "anchor": "symbol-commandargs-a433e44bce",
       "name": "CommandArgs",
       "package": "@expo/snapback-expo",
@@ -84855,14 +84855,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 50,
         "column": 1,
         "endLine": 50
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 50,
           "column": 1,
           "endLine": 50
@@ -84879,7 +84879,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#CommandOutcome",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandOutcome",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandOutcome",
       "anchor": "symbol-commandoutcome-3be1131775",
       "name": "CommandOutcome",
       "package": "@expo/snapback-expo",
@@ -84899,14 +84899,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 94,
         "column": 1,
         "endLine": 99
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 94,
           "column": 1,
           "endLine": 99
@@ -84923,7 +84923,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#CommandResidue",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandResidue",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandResidue",
       "anchor": "symbol-commandresidue-e01d983cbb",
       "name": "CommandResidue",
       "package": "@expo/snapback-expo",
@@ -84950,7 +84950,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 69,
               "column": 3,
               "endLine": 69
@@ -84969,7 +84969,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 70,
               "column": 3,
               "endLine": 70
@@ -84988,7 +84988,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 71,
               "column": 3,
               "endLine": 71
@@ -85007,7 +85007,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 72,
               "column": 3,
               "endLine": 72
@@ -85020,14 +85020,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 68,
         "column": 1,
         "endLine": 73
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 68,
           "column": 1,
           "endLine": 73
@@ -85044,7 +85044,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#CommandResult",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandResult",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandResult",
       "anchor": "symbol-commandresult-efba03c25d",
       "name": "CommandResult",
       "package": "@expo/snapback-expo",
@@ -85064,14 +85064,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 51,
         "column": 1,
         "endLine": 51
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 51,
           "column": 1,
           "endLine": 51
@@ -85088,7 +85088,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#CommandTask",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandTask",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandTask",
       "anchor": "symbol-commandtask-69c371e6a0",
       "name": "CommandTask",
       "package": "@expo/snapback-expo",
@@ -85115,7 +85115,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 101,
               "column": 3,
               "endLine": 101
@@ -85134,7 +85134,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 102,
               "column": 3,
               "endLine": 102
@@ -85153,7 +85153,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 103,
               "column": 3,
               "endLine": 103
@@ -85172,7 +85172,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 104,
               "column": 3,
               "endLine": 104
@@ -85191,7 +85191,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 105,
               "column": 3,
               "endLine": 105
@@ -85210,7 +85210,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 106,
               "column": 3,
               "endLine": 106
@@ -85229,7 +85229,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 107,
               "column": 3,
               "endLine": 107
@@ -85242,14 +85242,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 100,
         "column": 1,
         "endLine": 108
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 100,
           "column": 1,
           "endLine": 108
@@ -85266,7 +85266,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#CommandTaskSnapshot",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#CommandTaskSnapshot",
+      "originIdentity": "packages/snapback-client/commands.d.mts#CommandTaskSnapshot",
       "anchor": "symbol-commandtasksnapshot-2ae419bd33",
       "name": "CommandTaskSnapshot",
       "package": "@expo/snapback-expo",
@@ -85286,14 +85286,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 81,
         "column": 1,
         "endLine": 93
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 81,
           "column": 1,
           "endLine": 93
@@ -85310,7 +85310,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#ConnectionEphemeralCollectionReference",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#ConnectionEphemeralCollectionReference",
+      "originIdentity": "packages/snapback-react/index.d.mts#ConnectionEphemeralCollectionReference",
       "anchor": "symbol-connectionephemeralcollectionreference-fcfb30c3e7",
       "name": "ConnectionEphemeralCollectionReference",
       "package": "@expo/snapback-expo",
@@ -85330,14 +85330,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 184,
         "column": 1,
         "endLine": 188
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 184,
           "column": 1,
           "endLine": 188
@@ -85452,7 +85452,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#createSnapbackReactProvider",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#createSnapbackReactProvider",
+      "originIdentity": "packages/snapback-react/index.d.mts#createSnapbackReactProvider",
       "anchor": "symbol-createsnapbackreactprovider-887ad8f0a7",
       "name": "createSnapbackReactProvider",
       "package": "@expo/snapback-expo",
@@ -85477,14 +85477,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 325,
         "column": 1,
         "endLine": 353
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 325,
           "column": 1,
           "endLine": 353
@@ -85876,7 +85876,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#invokeSnapbackCommand",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#invokeSnapbackCommand",
+      "originIdentity": "packages/snapback-react/index.d.mts#invokeSnapbackCommand",
       "anchor": "symbol-invokesnapbackcommand-3b8545d73c",
       "name": "invokeSnapbackCommand",
       "package": "@expo/snapback-expo",
@@ -85901,14 +85901,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 853,
         "column": 1,
         "endLine": 857
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 853,
           "column": 1,
           "endLine": 857
@@ -85925,7 +85925,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#invokeSnapbackMutation",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#invokeSnapbackMutation",
+      "originIdentity": "packages/snapback-react/index.d.mts#invokeSnapbackMutation",
       "anchor": "symbol-invokesnapbackmutation-7f46ef2d30",
       "name": "invokeSnapbackMutation",
       "package": "@expo/snapback-expo",
@@ -85953,20 +85953,20 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 835,
         "column": 1,
         "endLine": 843
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 835,
           "column": 1,
           "endLine": 843
         },
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 844,
           "column": 1,
           "endLine": 852
@@ -86081,7 +86081,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#MutationAttemptSnapshot",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#MutationAttemptSnapshot",
+      "originIdentity": "packages/snapback-client/commands.d.mts#MutationAttemptSnapshot",
       "anchor": "symbol-mutationattemptsnapshot-c47dee6c2e",
       "name": "MutationAttemptSnapshot",
       "package": "@expo/snapback-expo",
@@ -86108,7 +86108,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 75,
               "column": 3,
               "endLine": 75
@@ -86127,7 +86127,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 76,
               "column": 3,
               "endLine": 76
@@ -86146,7 +86146,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 77,
               "column": 3,
               "endLine": 77
@@ -86165,7 +86165,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 78,
               "column": 3,
               "endLine": 78
@@ -86184,7 +86184,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+              "file": "packages/snapback-client/commands.d.mts",
               "line": 79,
               "column": 3,
               "endLine": 79
@@ -86197,14 +86197,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 74,
         "column": 1,
         "endLine": 80
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 74,
           "column": 1,
           "endLine": 80
@@ -86221,7 +86221,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#MutationReference",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#MutationReference",
+      "originIdentity": "packages/snapback-react/index.d.mts#MutationReference",
       "anchor": "symbol-mutationreference-074f7e9904",
       "name": "MutationReference",
       "package": "@expo/snapback-expo",
@@ -86241,14 +86241,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 150,
         "column": 1,
         "endLine": 154
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 150,
           "column": 1,
           "endLine": 154
@@ -86265,7 +86265,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#observeSnapbackDiagnostics",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#observeSnapbackDiagnostics",
+      "originIdentity": "packages/snapback-react/index.d.mts#observeSnapbackDiagnostics",
       "anchor": "symbol-observesnapbackdiagnostics-96ee3eb2dc",
       "name": "observeSnapbackDiagnostics",
       "package": "@expo/snapback-expo",
@@ -86290,14 +86290,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 761,
         "column": 1,
         "endLine": 764
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 761,
           "column": 1,
           "endLine": 764
@@ -86314,7 +86314,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#observeSnapbackOptimisticCreate",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#observeSnapbackOptimisticCreate",
+      "originIdentity": "packages/snapback-react/index.d.mts#observeSnapbackOptimisticCreate",
       "anchor": "symbol-observesnapbackoptimisticcreate-1889f94b66",
       "name": "observeSnapbackOptimisticCreate",
       "package": "@expo/snapback-expo",
@@ -86339,14 +86339,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 821,
         "column": 1,
         "endLine": 834
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 821,
           "column": 1,
           "endLine": 834
@@ -86363,7 +86363,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#observeSnapbackOutbox",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#observeSnapbackOutbox",
+      "originIdentity": "packages/snapback-react/index.d.mts#observeSnapbackOutbox",
       "anchor": "symbol-observesnapbackoutbox-7bd7654ea2",
       "name": "observeSnapbackOutbox",
       "package": "@expo/snapback-expo",
@@ -86388,14 +86388,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 749,
         "column": 1,
         "endLine": 752
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 749,
           "column": 1,
           "endLine": 752
@@ -86412,7 +86412,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#observeSnapbackPresence",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#observeSnapbackPresence",
+      "originIdentity": "packages/snapback-react/index.d.mts#observeSnapbackPresence",
       "anchor": "symbol-observesnapbackpresence-6c16505a29",
       "name": "observeSnapbackPresence",
       "package": "@expo/snapback-expo",
@@ -86437,14 +86437,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 795,
         "column": 1,
         "endLine": 806
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 795,
           "column": 1,
           "endLine": 806
@@ -86461,7 +86461,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#observeSnapbackQueries",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#observeSnapbackQueries",
+      "originIdentity": "packages/snapback-react/index.d.mts#observeSnapbackQueries",
       "anchor": "symbol-observesnapbackqueries-fdbc87215e",
       "name": "observeSnapbackQueries",
       "package": "@expo/snapback-expo",
@@ -86489,20 +86489,20 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 807,
         "column": 1,
         "endLine": 811
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 807,
           "column": 1,
           "endLine": 811
         },
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 812,
           "column": 1,
           "endLine": 820
@@ -86519,7 +86519,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#observeSnapbackSurface",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#observeSnapbackSurface",
+      "originIdentity": "packages/snapback-react/index.d.mts#observeSnapbackSurface",
       "anchor": "symbol-observesnapbacksurface-2f5abec9ae",
       "name": "observeSnapbackSurface",
       "package": "@expo/snapback-expo",
@@ -86544,14 +86544,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 535,
         "column": 1,
         "endLine": 549
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 535,
           "column": 1,
           "endLine": 549
@@ -86568,7 +86568,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#OptimisticCreateEntity",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#OptimisticCreateEntity",
+      "originIdentity": "packages/snapback-react/index.d.mts#OptimisticCreateEntity",
       "anchor": "symbol-optimisticcreateentity-01a3ae8c93",
       "name": "OptimisticCreateEntity",
       "package": "@expo/snapback-expo",
@@ -86588,14 +86588,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 165,
         "column": 1,
         "endLine": 182
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 165,
           "column": 1,
           "endLine": 182
@@ -86612,7 +86612,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#OptimisticCreateProvisionalFields",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#OptimisticCreateProvisionalFields",
+      "originIdentity": "packages/snapback-react/index.d.mts#OptimisticCreateProvisionalFields",
       "anchor": "symbol-optimisticcreateprovisionalfields-e02c1df228",
       "name": "OptimisticCreateProvisionalFields",
       "package": "@expo/snapback-expo",
@@ -86632,14 +86632,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 161,
         "column": 1,
         "endLine": 164
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 161,
           "column": 1,
           "endLine": 164
@@ -86656,7 +86656,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#placeholderToDataURL",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#placeholderToDataURL",
+      "originIdentity": "packages/snapback-react/index.d.mts#placeholderToDataURL",
       "anchor": "symbol-placeholdertodataurl-06cb512fa4",
       "name": "placeholderToDataURL",
       "package": "@expo/snapback-expo",
@@ -86681,14 +86681,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 968,
         "column": 1,
         "endLine": 968
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 968,
           "column": 1,
           "endLine": 968
@@ -86705,7 +86705,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#PresenceActions",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#PresenceActions",
+      "originIdentity": "packages/snapback-react/index.d.mts#PresenceActions",
       "anchor": "symbol-presenceactions-cd33af20c8",
       "name": "PresenceActions",
       "package": "@expo/snapback-expo",
@@ -86725,14 +86725,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 379,
         "column": 1,
         "endLine": 383
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 379,
           "column": 1,
           "endLine": 383
@@ -86749,7 +86749,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#PresenceEntry",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#PresenceEntry",
+      "originIdentity": "packages/snapback-react/index.d.mts#PresenceEntry",
       "anchor": "symbol-presenceentry-36129062fc",
       "name": "PresenceEntry",
       "package": "@expo/snapback-expo",
@@ -86769,14 +86769,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 368,
         "column": 1,
         "endLine": 375
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 368,
           "column": 1,
           "endLine": 375
@@ -86793,7 +86793,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#PresenceState",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#PresenceState",
+      "originIdentity": "packages/snapback-react/index.d.mts#PresenceState",
       "anchor": "symbol-presencestate-331376078f",
       "name": "PresenceState",
       "package": "@expo/snapback-expo",
@@ -86813,14 +86813,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 384,
         "column": 1,
         "endLine": 405
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 384,
           "column": 1,
           "endLine": 405
@@ -86837,7 +86837,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#projectRecordFields",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#projectRecordFields",
+      "originIdentity": "packages/snapback-react/index.d.mts#projectRecordFields",
       "anchor": "symbol-projectrecordfields-7880e2661f",
       "name": "projectRecordFields",
       "package": "@expo/snapback-expo",
@@ -86862,14 +86862,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 609,
         "column": 1,
         "endLine": 616
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 609,
           "column": 1,
           "endLine": 616
@@ -87023,7 +87023,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#PublisherState",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#PublisherState",
+      "originIdentity": "packages/snapback-react/index.d.mts#PublisherState",
       "anchor": "symbol-publisherstate-e189eaf8b3",
       "name": "PublisherState",
       "package": "@expo/snapback-expo",
@@ -87043,14 +87043,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 376,
         "column": 1,
         "endLine": 378
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 376,
           "column": 1,
           "endLine": 378
@@ -87067,7 +87067,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#QueryEntry",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#QueryEntry",
+      "originIdentity": "packages/snapback-react/index.d.mts#QueryEntry",
       "anchor": "symbol-queryentry-594c7cb93d",
       "name": "QueryEntry",
       "package": "@expo/snapback-expo",
@@ -87087,14 +87087,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 556,
         "column": 1,
         "endLine": 559
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 556,
           "column": 1,
           "endLine": 559
@@ -87111,7 +87111,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#QueryEntryMap",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#QueryEntryMap",
+      "originIdentity": "packages/snapback-react/index.d.mts#QueryEntryMap",
       "anchor": "symbol-queryentrymap-43686aabf2",
       "name": "QueryEntryMap",
       "package": "@expo/snapback-expo",
@@ -87131,14 +87131,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 561,
         "column": 1,
         "endLine": 561
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 561,
           "column": 1,
           "endLine": 561
@@ -87155,7 +87155,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#QueryGroupState",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#QueryGroupState",
+      "originIdentity": "packages/snapback-react/index.d.mts#QueryGroupState",
       "anchor": "symbol-querygroupstate-5b8a83e7bd",
       "name": "QueryGroupState",
       "package": "@expo/snapback-expo",
@@ -87175,14 +87175,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 573,
         "column": 1,
         "endLine": 584
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 573,
           "column": 1,
           "endLine": 584
@@ -87199,7 +87199,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#QueryReference",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#QueryReference",
+      "originIdentity": "packages/snapback-react/index.d.mts#QueryReference",
       "anchor": "symbol-queryreference-656283eb7a",
       "name": "QueryReference",
       "package": "@expo/snapback-expo",
@@ -87219,14 +87219,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 144,
         "column": 1,
         "endLine": 148
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 144,
           "column": 1,
           "endLine": 148
@@ -87243,7 +87243,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#QueryState",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#QueryState",
+      "originIdentity": "packages/snapback-react/index.d.mts#QueryState",
       "anchor": "symbol-querystate-706f7a3d62",
       "name": "QueryState",
       "package": "@expo/snapback-expo",
@@ -87263,14 +87263,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 137,
         "column": 1,
         "endLine": 142
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 137,
           "column": 1,
           "endLine": 142
@@ -87287,7 +87287,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#QueryStates",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#QueryStates",
+      "originIdentity": "packages/snapback-react/index.d.mts#QueryStates",
       "anchor": "symbol-querystates-68eb7ded12",
       "name": "QueryStates",
       "package": "@expo/snapback-expo",
@@ -87307,14 +87307,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 569,
         "column": 1,
         "endLine": 571
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 569,
           "column": 1,
           "endLine": 571
@@ -87473,7 +87473,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#rgbaToDataURL",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#rgbaToDataURL",
+      "originIdentity": "packages/snapback-react/index.d.mts#rgbaToDataURL",
       "anchor": "symbol-rgbatodataurl-5b5ebfadb6",
       "name": "rgbaToDataURL",
       "package": "@expo/snapback-expo",
@@ -87498,14 +87498,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 966,
         "column": 1,
         "endLine": 966
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 966,
           "column": 1,
           "endLine": 966
@@ -87522,7 +87522,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#skip",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#skip",
+      "originIdentity": "packages/snapback-react/index.d.mts#skip",
       "anchor": "symbol-skip-c8c11a50f7",
       "name": "skip",
       "package": "@expo/snapback-expo",
@@ -87547,14 +87547,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 190,
         "column": 14,
         "endLine": 190
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 190,
           "column": 14,
           "endLine": 190
@@ -87620,7 +87620,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackAssetImage",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackAssetImage",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackAssetImage",
       "anchor": "symbol-snapbackassetimage-4ede42526f",
       "name": "SnapbackAssetImage",
       "package": "@expo/snapback-expo",
@@ -87645,14 +87645,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 950,
         "column": 1,
         "endLine": 958
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 950,
           "column": 1,
           "endLine": 958
@@ -87669,7 +87669,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackCommandDiagnostic",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts#SnapbackCommandDiagnostic",
+      "originIdentity": "packages/snapback-client/commands.d.mts#SnapbackCommandDiagnostic",
       "anchor": "symbol-snapbackcommanddiagnostic-b8c7830856",
       "name": "SnapbackCommandDiagnostic",
       "package": "@expo/snapback-expo",
@@ -87689,14 +87689,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+        "file": "packages/snapback-client/commands.d.mts",
         "line": 53,
         "column": 1,
         "endLine": 59
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-client/commands.d.mts",
+          "file": "packages/snapback-client/commands.d.mts",
           "line": 53,
           "column": 1,
           "endLine": 59
@@ -87713,7 +87713,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackConnection",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackConnection",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackConnection",
       "anchor": "symbol-snapbackconnection-f70d47f988",
       "name": "SnapbackConnection",
       "package": "@expo/snapback-expo",
@@ -87733,14 +87733,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 116,
         "column": 1,
         "endLine": 124
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 116,
           "column": 1,
           "endLine": 124
@@ -87757,7 +87757,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackConnectionState",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackConnectionState",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackConnectionState",
       "anchor": "symbol-snapbackconnectionstate-fc35562776",
       "name": "SnapbackConnectionState",
       "package": "@expo/snapback-expo",
@@ -87777,14 +87777,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 686,
         "column": 1,
         "endLine": 690
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 686,
           "column": 1,
           "endLine": 690
@@ -87801,7 +87801,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackDiagnostic",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackDiagnostic",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackDiagnostic",
       "anchor": "symbol-snapbackdiagnostic-362f0df443",
       "name": "SnapbackDiagnostic",
       "package": "@expo/snapback-expo",
@@ -87821,14 +87821,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 67,
         "column": 1,
         "endLine": 67
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 67,
           "column": 1,
           "endLine": 67
@@ -87845,7 +87845,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackDiagnosticsObserver",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackDiagnosticsObserver",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackDiagnosticsObserver",
       "anchor": "symbol-snapbackdiagnosticsobserver-be360f0c0d",
       "name": "SnapbackDiagnosticsObserver",
       "package": "@expo/snapback-expo",
@@ -87872,7 +87872,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 758,
               "column": 3,
               "endLine": 758
@@ -87891,7 +87891,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 759,
               "column": 3,
               "endLine": 759
@@ -87904,14 +87904,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 757,
         "column": 1,
         "endLine": 760
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 757,
           "column": 1,
           "endLine": 760
@@ -87928,7 +87928,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackDiagnosticsSnapshot",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackDiagnosticsSnapshot",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackDiagnosticsSnapshot",
       "anchor": "symbol-snapbackdiagnosticssnapshot-5fb544446c",
       "name": "SnapbackDiagnosticsSnapshot",
       "package": "@expo/snapback-expo",
@@ -87948,14 +87948,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 68,
         "column": 1,
         "endLine": 68
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 68,
           "column": 1,
           "endLine": 68
@@ -88377,7 +88377,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackFreshness",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackFreshness",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackFreshness",
       "anchor": "symbol-snapbackfreshness-677b2ad09b",
       "name": "SnapbackFreshness",
       "package": "@expo/snapback-expo",
@@ -88397,14 +88397,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 131,
         "column": 1,
         "endLine": 131
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 131,
           "column": 1,
           "endLine": 131
@@ -88421,7 +88421,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackMutationDispatchOutcome",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackMutationDispatchOutcome",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackMutationDispatchOutcome",
       "anchor": "symbol-snapbackmutationdispatchoutcome-5f65e1d14b",
       "name": "SnapbackMutationDispatchOutcome",
       "package": "@expo/snapback-expo",
@@ -88441,14 +88441,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 112,
         "column": 1,
         "endLine": 114
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 112,
           "column": 1,
           "endLine": 114
@@ -88465,7 +88465,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackMutationQueuedOutcome",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackMutationQueuedOutcome",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackMutationQueuedOutcome",
       "anchor": "symbol-snapbackmutationqueuedoutcome-2a6c9492f8",
       "name": "SnapbackMutationQueuedOutcome",
       "package": "@expo/snapback-expo",
@@ -88485,14 +88485,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 97,
         "column": 1,
         "endLine": 108
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 97,
           "column": 1,
           "endLine": 108
@@ -88509,7 +88509,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackOptimisticCreateObserver",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackOptimisticCreateObserver",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackOptimisticCreateObserver",
       "anchor": "symbol-snapbackoptimisticcreateobserver-d0703d2fb2",
       "name": "SnapbackOptimisticCreateObserver",
       "package": "@expo/snapback-expo",
@@ -88536,7 +88536,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 780,
               "column": 3,
               "endLine": 780
@@ -88555,7 +88555,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 781,
               "column": 3,
               "endLine": 781
@@ -88574,7 +88574,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 782,
               "column": 3,
               "endLine": 782
@@ -88587,14 +88587,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 779,
         "column": 1,
         "endLine": 783
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 779,
           "column": 1,
           "endLine": 783
@@ -88611,7 +88611,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackOptimisticMutationOptions",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackOptimisticMutationOptions",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackOptimisticMutationOptions",
       "anchor": "symbol-snapbackoptimisticmutationoptions-06a63c6140",
       "name": "SnapbackOptimisticMutationOptions",
       "package": "@expo/snapback-expo",
@@ -88631,14 +88631,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 618,
         "column": 1,
         "endLine": 634
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 618,
           "column": 1,
           "endLine": 634
@@ -88655,7 +88655,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackOutboxHandle",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackOutboxHandle",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackOutboxHandle",
       "anchor": "symbol-snapbackoutboxhandle-85f9dca494",
       "name": "SnapbackOutboxHandle",
       "package": "@expo/snapback-expo",
@@ -88675,14 +88675,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 712,
         "column": 1,
         "endLine": 731
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 712,
           "column": 1,
           "endLine": 731
@@ -88699,7 +88699,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackOutboxObserver",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackOutboxObserver",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackOutboxObserver",
       "anchor": "symbol-snapbackoutboxobserver-6e0aa8300c",
       "name": "SnapbackOutboxObserver",
       "package": "@expo/snapback-expo",
@@ -88726,7 +88726,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 736,
               "column": 3,
               "endLine": 736
@@ -88745,7 +88745,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 737,
               "column": 3,
               "endLine": 737
@@ -88769,7 +88769,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 739,
               "column": 3,
               "endLine": 739
@@ -88788,7 +88788,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 740,
               "column": 3,
               "endLine": 740
@@ -88807,7 +88807,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 741,
               "column": 3,
               "endLine": 741
@@ -88826,7 +88826,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 742,
               "column": 3,
               "endLine": 742
@@ -88845,7 +88845,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 743,
               "column": 3,
               "endLine": 743
@@ -88864,7 +88864,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 744,
               "column": 3,
               "endLine": 744
@@ -88883,7 +88883,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 745,
               "column": 3,
               "endLine": 745
@@ -88902,7 +88902,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 746,
               "column": 3,
               "endLine": 746
@@ -88921,7 +88921,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 747,
               "column": 3,
               "endLine": 747
@@ -88934,14 +88934,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 735,
         "column": 1,
         "endLine": 748
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 735,
           "column": 1,
           "endLine": 748
@@ -88958,7 +88958,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackOutboxState",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackOutboxState",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackOutboxState",
       "anchor": "symbol-snapbackoutboxstate-8942d0e47a",
       "name": "SnapbackOutboxState",
       "package": "@expo/snapback-expo",
@@ -88978,14 +88978,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 696,
         "column": 1,
         "endLine": 710
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 696,
           "column": 1,
           "endLine": 710
@@ -89002,7 +89002,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackPresenceObserver",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackPresenceObserver",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackPresenceObserver",
       "anchor": "symbol-snapbackpresenceobserver-a23b228218",
       "name": "SnapbackPresenceObserver",
       "package": "@expo/snapback-expo",
@@ -89029,7 +89029,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 785,
               "column": 3,
               "endLine": 789
@@ -89048,7 +89048,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 790,
               "column": 3,
               "endLine": 790
@@ -89067,7 +89067,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 791,
               "column": 3,
               "endLine": 791
@@ -89086,7 +89086,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 792,
               "column": 3,
               "endLine": 792
@@ -89105,7 +89105,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 793,
               "column": 3,
               "endLine": 793
@@ -89118,14 +89118,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 784,
         "column": 1,
         "endLine": 794
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 784,
           "column": 1,
           "endLine": 794
@@ -89142,7 +89142,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackProvider",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackProvider",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackProvider",
       "anchor": "symbol-snapbackprovider-4d745d969e",
       "name": "SnapbackProvider",
       "package": "@expo/snapback-expo",
@@ -89167,14 +89167,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 355,
         "column": 1,
         "endLine": 361
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 355,
           "column": 1,
           "endLine": 361
@@ -89191,7 +89191,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackQueryGroupObserver",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackQueryGroupObserver",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackQueryGroupObserver",
       "anchor": "symbol-snapbackquerygroupobserver-055ba1bafb",
       "name": "SnapbackQueryGroupObserver",
       "package": "@expo/snapback-expo",
@@ -89218,7 +89218,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 775,
               "column": 3,
               "endLine": 775
@@ -89237,7 +89237,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 776,
               "column": 3,
               "endLine": 776
@@ -89256,7 +89256,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 777,
               "column": 3,
               "endLine": 777
@@ -89269,14 +89269,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 774,
         "column": 1,
         "endLine": 778
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 774,
           "column": 1,
           "endLine": 778
@@ -89293,7 +89293,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackQueuedMutationError",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackQueuedMutationError",
       "anchor": "symbol-snapbackqueuedmutationerror-26914b891c",
       "name": "SnapbackQueuedMutationError",
       "package": "@expo/snapback-expo",
@@ -89325,7 +89325,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 73,
               "column": 3,
               "endLine": 79
@@ -89344,7 +89344,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 80,
               "column": 3,
               "endLine": 80
@@ -89363,7 +89363,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 81,
               "column": 3,
               "endLine": 81
@@ -89382,7 +89382,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 82,
               "column": 3,
               "endLine": 82
@@ -89401,7 +89401,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 83,
               "column": 3,
               "endLine": 83
@@ -89420,7 +89420,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 84,
               "column": 3,
               "endLine": 84
@@ -89439,7 +89439,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 85,
               "column": 3,
               "endLine": 85
@@ -89458,7 +89458,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 86,
               "column": 3,
               "endLine": 94
@@ -89476,14 +89476,14 @@
         ]
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 72,
         "column": 1,
         "endLine": 95
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 72,
           "column": 1,
           "endLine": 95
@@ -89500,7 +89500,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackReactCoreProvider",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackReactCoreProvider",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackReactCoreProvider",
       "anchor": "symbol-snapbackreactcoreprovider-c1c73c4903",
       "name": "SnapbackReactCoreProvider",
       "package": "@expo/snapback-expo",
@@ -89527,7 +89527,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 193,
               "column": 3,
               "endLine": 193
@@ -89546,7 +89546,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 194,
               "column": 3,
               "endLine": 194
@@ -89565,7 +89565,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 195,
               "column": 3,
               "endLine": 195
@@ -89584,7 +89584,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 197,
               "column": 3,
               "endLine": 197
@@ -89603,7 +89603,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 198,
               "column": 3,
               "endLine": 204
@@ -89622,7 +89622,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 206,
               "column": 3,
               "endLine": 206
@@ -89641,7 +89641,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 208,
               "column": 3,
               "endLine": 208
@@ -89660,7 +89660,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 209,
               "column": 3,
               "endLine": 246
@@ -89679,7 +89679,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 247,
               "column": 3,
               "endLine": 247
@@ -89692,14 +89692,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 192,
         "column": 1,
         "endLine": 248
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 192,
           "column": 1,
           "endLine": 248
@@ -89716,7 +89716,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackReactProvider",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackReactProvider",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackReactProvider",
       "anchor": "symbol-snapbackreactprovider-9ba0c62582",
       "name": "SnapbackReactProvider",
       "package": "@expo/snapback-expo",
@@ -89743,7 +89743,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 253,
               "column": 3,
               "endLine": 253
@@ -89762,7 +89762,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 254,
               "column": 3,
               "endLine": 254
@@ -89781,7 +89781,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 255,
               "column": 3,
               "endLine": 255
@@ -89800,7 +89800,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 256,
               "column": 3,
               "endLine": 256
@@ -89819,7 +89819,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 257,
               "column": 3,
               "endLine": 257
@@ -89838,7 +89838,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 259,
               "column": 3,
               "endLine": 259
@@ -89857,7 +89857,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 260,
               "column": 3,
               "endLine": 264
@@ -89876,7 +89876,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 265,
               "column": 3,
               "endLine": 271
@@ -89895,7 +89895,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 273,
               "column": 3,
               "endLine": 273
@@ -89914,7 +89914,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 275,
               "column": 3,
               "endLine": 275
@@ -89933,7 +89933,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 276,
               "column": 3,
               "endLine": 321
@@ -89952,7 +89952,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 322,
               "column": 3,
               "endLine": 322
@@ -89965,14 +89965,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 252,
         "column": 1,
         "endLine": 323
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 252,
           "column": 1,
           "endLine": 323
@@ -89989,7 +89989,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackRetention",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackRetention",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackRetention",
       "anchor": "symbol-snapbackretention-23897f930b",
       "name": "SnapbackRetention",
       "package": "@expo/snapback-expo",
@@ -90009,14 +90009,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 135,
         "column": 1,
         "endLine": 135
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 135,
           "column": 1,
           "endLine": 135
@@ -90033,7 +90033,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackSurfaceDescriptor",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackSurfaceDescriptor",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackSurfaceDescriptor",
       "anchor": "symbol-snapbacksurfacedescriptor-fe3b6a05fa",
       "name": "SnapbackSurfaceDescriptor",
       "package": "@expo/snapback-expo",
@@ -90060,7 +90060,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 442,
               "column": 3,
               "endLine": 442
@@ -90079,7 +90079,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 443,
               "column": 3,
               "endLine": 443
@@ -90098,7 +90098,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 444,
               "column": 3,
               "endLine": 444
@@ -90117,7 +90117,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 445,
               "column": 3,
               "endLine": 445
@@ -90136,7 +90136,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 446,
               "column": 3,
               "endLine": 446
@@ -90155,7 +90155,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 447,
               "column": 3,
               "endLine": 447
@@ -90174,7 +90174,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 448,
               "column": 3,
               "endLine": 448
@@ -90193,7 +90193,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 449,
               "column": 3,
               "endLine": 449
@@ -90212,7 +90212,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 450,
               "column": 3,
               "endLine": 450
@@ -90225,14 +90225,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 434,
         "column": 1,
         "endLine": 451
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 434,
           "column": 1,
           "endLine": 451
@@ -90249,7 +90249,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SnapbackSurfaceMember",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SnapbackSurfaceMember",
+      "originIdentity": "packages/snapback-react/index.d.mts#SnapbackSurfaceMember",
       "anchor": "symbol-snapbacksurfacemember-6cb44ba1de",
       "name": "SnapbackSurfaceMember",
       "package": "@expo/snapback-expo",
@@ -90276,7 +90276,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 430,
               "column": 3,
               "endLine": 430
@@ -90295,7 +90295,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 431,
               "column": 3,
               "endLine": 431
@@ -90314,7 +90314,7 @@
           },
           "sources": [
             {
-              "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+              "file": "packages/snapback-react/index.d.mts",
               "line": 432,
               "column": 3,
               "endLine": 432
@@ -90327,14 +90327,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 429,
         "column": 1,
         "endLine": 433
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 429,
           "column": 1,
           "endLine": 433
@@ -90747,7 +90747,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SurfaceOptions",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SurfaceOptions",
+      "originIdentity": "packages/snapback-react/index.d.mts#SurfaceOptions",
       "anchor": "symbol-surfaceoptions-ced6b564ff",
       "name": "SurfaceOptions",
       "package": "@expo/snapback-expo",
@@ -90767,14 +90767,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 462,
         "column": 1,
         "endLine": 468
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 462,
           "column": 1,
           "endLine": 468
@@ -90791,7 +90791,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SurfaceParams",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SurfaceParams",
+      "originIdentity": "packages/snapback-react/index.d.mts#SurfaceParams",
       "anchor": "symbol-surfaceparams-27d3916285",
       "name": "SurfaceParams",
       "package": "@expo/snapback-expo",
@@ -90811,14 +90811,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 452,
         "column": 1,
         "endLine": 454
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 452,
           "column": 1,
           "endLine": 454
@@ -90835,7 +90835,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#SurfaceResult",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#SurfaceResult",
+      "originIdentity": "packages/snapback-react/index.d.mts#SurfaceResult",
       "anchor": "symbol-surfaceresult-df3366d581",
       "name": "SurfaceResult",
       "package": "@expo/snapback-expo",
@@ -90855,14 +90855,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 469,
         "column": 1,
         "endLine": 511
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 469,
           "column": 1,
           "endLine": 511
@@ -90879,7 +90879,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#thumbHashToApproximateAspectRatio",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#thumbHashToApproximateAspectRatio",
+      "originIdentity": "packages/snapback-react/index.d.mts#thumbHashToApproximateAspectRatio",
       "anchor": "symbol-thumbhashtoapproximateaspectratio-31dbcbaf0c",
       "name": "thumbHashToApproximateAspectRatio",
       "package": "@expo/snapback-expo",
@@ -90904,14 +90904,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 965,
         "column": 1,
         "endLine": 965
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 965,
           "column": 1,
           "endLine": 965
@@ -90928,7 +90928,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#thumbHashToDataURL",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#thumbHashToDataURL",
+      "originIdentity": "packages/snapback-react/index.d.mts#thumbHashToDataURL",
       "anchor": "symbol-thumbhashtodataurl-124127d159",
       "name": "thumbHashToDataURL",
       "package": "@expo/snapback-expo",
@@ -90953,14 +90953,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 967,
         "column": 1,
         "endLine": 967
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 967,
           "column": 1,
           "endLine": 967
@@ -90977,7 +90977,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#thumbHashToRGBA",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#thumbHashToRGBA",
+      "originIdentity": "packages/snapback-react/index.d.mts#thumbHashToRGBA",
       "anchor": "symbol-thumbhashtorgba-6c20e6a05e",
       "name": "thumbHashToRGBA",
       "package": "@expo/snapback-expo",
@@ -91002,14 +91002,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 960,
         "column": 1,
         "endLine": 964
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 960,
           "column": 1,
           "endLine": 964
@@ -91070,7 +91070,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useEphemeralRepublisher",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useEphemeralRepublisher",
+      "originIdentity": "packages/snapback-react/index.d.mts#useEphemeralRepublisher",
       "anchor": "symbol-useephemeralrepublisher-92619b8fea",
       "name": "useEphemeralRepublisher",
       "package": "@expo/snapback-expo",
@@ -91095,14 +91095,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 766,
         "column": 1,
         "endLine": 772
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 766,
           "column": 1,
           "endLine": 772
@@ -91119,7 +91119,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackAssetImage",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackAssetImage",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackAssetImage",
       "anchor": "symbol-usesnapbackassetimage-ea4c335fba",
       "name": "useSnapbackAssetImage",
       "package": "@expo/snapback-expo",
@@ -91144,14 +91144,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 942,
         "column": 1,
         "endLine": 948
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 942,
           "column": 1,
           "endLine": 948
@@ -91168,7 +91168,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackAssetUpload",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackAssetUpload",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackAssetUpload",
       "anchor": "symbol-usesnapbackassetupload-b1c828d2ab",
       "name": "useSnapbackAssetUpload",
       "package": "@expo/snapback-expo",
@@ -91193,14 +91193,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 925,
         "column": 1,
         "endLine": 927
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 925,
           "column": 1,
           "endLine": 927
@@ -91217,7 +91217,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackAssetUrl",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackAssetUrl",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackAssetUrl",
       "anchor": "symbol-usesnapbackasseturl-a1e7bc1581",
       "name": "useSnapbackAssetUrl",
       "package": "@expo/snapback-expo",
@@ -91242,14 +91242,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 890,
         "column": 1,
         "endLine": 893
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 890,
           "column": 1,
           "endLine": 893
@@ -91266,7 +91266,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackCommand",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackCommand",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackCommand",
       "anchor": "symbol-usesnapbackcommand-710fa27062",
       "name": "useSnapbackCommand",
       "package": "@expo/snapback-expo",
@@ -91291,14 +91291,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 682,
         "column": 1,
         "endLine": 684
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 682,
           "column": 1,
           "endLine": 684
@@ -91315,7 +91315,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackConnection",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackConnection",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackConnection",
       "anchor": "symbol-usesnapbackconnection-39daa54fc9",
       "name": "useSnapbackConnection",
       "package": "@expo/snapback-expo",
@@ -91340,14 +91340,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 692,
         "column": 1,
         "endLine": 692
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 692,
           "column": 1,
           "endLine": 692
@@ -91364,7 +91364,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackDiagnostics",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackDiagnostics",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackDiagnostics",
       "anchor": "symbol-usesnapbackdiagnostics-ae360c7f18",
       "name": "useSnapbackDiagnostics",
       "package": "@expo/snapback-expo",
@@ -91389,14 +91389,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 755,
         "column": 1,
         "endLine": 755
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 755,
           "column": 1,
           "endLine": 755
@@ -91462,7 +91462,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackMutation",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackMutation",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackMutation",
       "anchor": "symbol-usesnapbackmutation-0a63eeeae3",
       "name": "useSnapbackMutation",
       "package": "@expo/snapback-expo",
@@ -91490,20 +91490,20 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 638,
         "column": 1,
         "endLine": 644
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 638,
           "column": 1,
           "endLine": 644
         },
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 646,
           "column": 1,
           "endLine": 652
@@ -91520,7 +91520,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackOptimisticCreate",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackOptimisticCreate",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackOptimisticCreate",
       "anchor": "symbol-usesnapbackoptimisticcreate-6ef980656c",
       "name": "useSnapbackOptimisticCreate",
       "package": "@expo/snapback-expo",
@@ -91545,14 +91545,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 667,
         "column": 1,
         "endLine": 681
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 667,
           "column": 1,
           "endLine": 681
@@ -91569,7 +91569,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackOutbox",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackOutbox",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackOutbox",
       "anchor": "symbol-usesnapbackoutbox-83a92b5c9d",
       "name": "useSnapbackOutbox",
       "package": "@expo/snapback-expo",
@@ -91594,14 +91594,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 733,
         "column": 1,
         "endLine": 733
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 733,
           "column": 1,
           "endLine": 733
@@ -91618,7 +91618,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackPresence",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackPresence",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackPresence",
       "anchor": "symbol-usesnapbackpresence-556e96b131",
       "name": "useSnapbackPresence",
       "package": "@expo/snapback-expo",
@@ -91643,14 +91643,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 418,
         "column": 1,
         "endLine": 427
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 418,
           "column": 1,
           "endLine": 427
@@ -91667,7 +91667,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackQueries",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackQueries",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackQueries",
       "anchor": "symbol-usesnapbackqueries-d24fee4125",
       "name": "useSnapbackQueries",
       "package": "@expo/snapback-expo",
@@ -91695,20 +91695,20 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 586,
         "column": 1,
         "endLine": 588
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 586,
           "column": 1,
           "endLine": 588
         },
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 596,
           "column": 1,
           "endLine": 600
@@ -91725,7 +91725,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackQuery",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackQuery",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackQuery",
       "anchor": "symbol-usesnapbackquery-fb87ac6de5",
       "name": "useSnapbackQuery",
       "package": "@expo/snapback-expo",
@@ -91750,14 +91750,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 363,
         "column": 1,
         "endLine": 366
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 363,
           "column": 1,
           "endLine": 366
@@ -91774,7 +91774,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSnapbackSettledMutation",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSnapbackSettledMutation",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSnapbackSettledMutation",
       "anchor": "symbol-usesnapbacksettledmutation-0bea709be1",
       "name": "useSnapbackSettledMutation",
       "package": "@expo/snapback-expo",
@@ -91799,14 +91799,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 656,
         "column": 1,
         "endLine": 662
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 656,
           "column": 1,
           "endLine": 662
@@ -91823,7 +91823,7 @@
     },
     {
       "identity": "npm:@expo/snapback-expo#useSurface",
-      "originIdentity": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts#useSurface",
+      "originIdentity": "packages/snapback-react/index.d.mts#useSurface",
       "anchor": "symbol-usesurface-d926c7be00",
       "name": "useSurface",
       "package": "@expo/snapback-expo",
@@ -91848,14 +91848,14 @@
         "tags": []
       },
       "source": {
-        "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+        "file": "packages/snapback-react/index.d.mts",
         "line": 550,
         "column": 1,
         "endLine": 554
       },
       "sources": [
         {
-          "file": "../../../../Users/ccheever/projects/snapback/packages/snapback-react/index.d.mts",
+          "file": "packages/snapback-react/index.d.mts",
           "line": 550,
           "column": 1,
           "endLine": 554
