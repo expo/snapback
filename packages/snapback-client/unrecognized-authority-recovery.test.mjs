@@ -246,6 +246,33 @@ test('health recovers a failed cold resume before making its exempt request', as
   }
 });
 
+test('currentAuthorizationScope is the signed-in whoami after exchange and anonymous after recovered reset', async () => {
+  const fixture = makeFixture();
+  const context = fixture.makeClient();
+  try {
+    await fixture.signIn(context.client);
+    const signedIn = await context.client.currentAuthorizationScope();
+    assert.equal(signedIn.principalScope.authMode, 'sessions');
+    assert.equal(signedIn.principalScope.userId, USER_ID);
+    const descriptor = await context.client.currentAuthorityDescriptor();
+    assert.deepEqual(descriptor, signedIn.authorityDescriptor);
+
+    const session = await context.client.authSession();
+    assert.equal(session.activeMode, 'sessions');
+    assert.equal(session.authority.isAuthenticated, true);
+    assert.equal(session.authority.userId, USER_ID);
+
+    fixture.resetServer();
+    const recovered = await context.client.authSession({ force: true });
+    assert.equal(recovered.authority.kind, 'anonymous');
+    const after = await context.client.currentAuthorizationScope();
+    assert.equal(after.principalScope.userId, null);
+    assert.equal(after.principalScope.authMode, 'sessions');
+  } finally {
+    await fixture.close(context);
+  }
+});
+
 test('warm client recovers once, then anonymous request-code, logout, and health succeed', async () => {
   const fixture = makeFixture();
   const context = fixture.makeClient();

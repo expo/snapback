@@ -3,12 +3,13 @@
 // seam; every session uses AuthCoordinator custody and sender-constrained
 // transport (LLP 0060 C1 / LLP 0077 browser custody).
 
+import type { AuthCoordinator } from '@expo/snapback-contract/auth-coordinator';
 import type { SnapbackClient } from './index.mjs';
 
 /** The only options the hosted constructor permits; any other key throws. */
 export interface HostedBrowserSnapbackClientOptions {
   /** Required: AuthCoordinator custody handle. */
-  readonly authCoordinator: unknown;
+  readonly authCoordinator: AuthCoordinator;
   readonly authClientProtocol?: number | null;
   readonly authInvalidationProtocol?: number | null;
   readonly authorityDescriptorProtocol?: number | null;
