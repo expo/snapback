@@ -299,9 +299,24 @@ unregisterExternalMaterialization();
     name: 'generationBound',
     expectedGeneration: generation,
   };
+  const generatedQueryRef = {
+    ...generatedRef,
+    kind: 'Query',
+  };
+  const generatedMutationRef = {
+    ...generatedRef,
+    kind: 'Mutation',
+  };
+  const generatedActionRef = {
+    ...generatedRef,
+    kind: 'Action',
+  };
   const generatedLiveRef = {
     ...generatedRef,
     kind: 'LiveQuery',
+  };
+  const generatedValidatedLiveRef = {
+    ...generatedLiveRef,
     argumentSchema: {
       type: 'object',
       additionalProperties: false,
@@ -331,10 +346,10 @@ unregisterExternalMaterialization();
   };
   try {
     const generationClient = new SnapbackClient('http://generation.test');
-    await generationClient.query(generatedRef);
-    await generationClient.action(generatedRef);
-    await generationClient.mutate(generatedRef, { queue: false });
-    await generationClient.authorizedLeaseQuery(generatedRef, {
+    await generationClient.query(generatedQueryRef);
+    await generationClient.action(generatedActionRef);
+    await generationClient.mutate(generatedMutationRef, { queue: false });
+    await generationClient.authorizedLeaseQuery(generatedQueryRef, {
       leaseRequestId: 'lease-generation-test',
       authorizationNamespace: {
         clientStoreId: 'generation-store',
@@ -342,12 +357,12 @@ unregisterExternalMaterialization();
         queryInstanceId: 1,
       },
     });
-    await generationClient.subscribeLive(generatedRef, {
+    await generationClient.subscribeLive(generatedLiveRef, {
       connectionId: 'generation-client-connection',
     });
     const requestCountBeforeInvalidLiveQuery = requests.length;
     await assert.rejects(
-      () => generationClient.liveQuery(generatedLiveRef, {
+      () => generationClient.liveQuery(generatedValidatedLiveRef, {
         connectionId: 'generation-invalid-live-query-connection',
         args: { forged: true },
         persistResume: false,
@@ -364,7 +379,7 @@ unregisterExternalMaterialization();
       'liveQuery validates a generated reference before network I/O',
     );
     const generatedLiveHandle = await generationClient.liveQuery(
-      generatedLiveRef,
+      generatedValidatedLiveRef,
       {
         connectionId: 'generation-live-query-connection',
         args: { requiredValue: 'valid' },
@@ -387,7 +402,7 @@ unregisterExternalMaterialization();
     );
     assert.throws(
       () => generationClient.query({
-        ...generatedRef,
+        ...generatedQueryRef,
         expectedGeneration: { ...generation, bundleHash: '' },
       }),
       /complete generated artifact identity/u,

@@ -46,6 +46,20 @@ const TEST_FRESH_SNAPSHOT_BARRIER = Object.freeze({
   kind: 'full-snapshot',
 });
 
+class GeneratedMutationReplayClientDouble extends SnapbackClient {
+  mutate(reference, options) {
+    const typedReference = (
+      reference !== null
+      && typeof reference === 'object'
+      && !Array.isArray(reference)
+      && !Object.hasOwn(reference, 'kind')
+    )
+      ? { ...reference, kind: 'Mutation' }
+      : reference;
+    return super.mutate(typedReference, options);
+  }
+}
+
 const adoptionInspection = (generation = TEST_ARTIFACT_GENERATION) => ({
   schema: {
     schemaVersion: generation.schemaVersion,
@@ -848,7 +862,7 @@ test('checked sidecar adoption drains one injected store against the candidate o
     delivered.push({ url: String(url), body });
     return Response.json({ result: { ok: true }, version: 7 });
   };
-  const candidate = new SnapbackClient('http://127.0.0.1:41002', {
+  const candidate = new GeneratedMutationReplayClientDouble('http://127.0.0.1:41002', {
     rqsStore: store,
     offlineQueue: true,
   });
@@ -989,7 +1003,7 @@ test('sidecar adoption keeps identity-divergent intent pending for rollback', as
       },
     }, { status: 409 });
   };
-  const candidate = new SnapbackClient('http://127.0.0.1:41005', {
+  const candidate = new GeneratedMutationReplayClientDouble('http://127.0.0.1:41005', {
     rqsStore: store,
     offlineQueue: true,
   });
@@ -1721,10 +1735,13 @@ test('queued generated mutation retains its call-time artifact generation throug
   };
   const ref = {
     artifactKind: 'functionReference',
+    kind: 'Mutation',
     name: 'generationBoundMutation',
     expectedGeneration,
   };
-  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  const client = new GeneratedMutationReplayClientDouble('http://127.0.0.1:9', {
+    rqsStore: store,
+  });
   globalThis.fetch = async () => { throw new TypeError('offline'); };
   await client.mutate(ref, { args: { value: 1 } });
   assert.deepEqual((await store.outboxPending())[0].expectedGeneration, expectedGeneration);
