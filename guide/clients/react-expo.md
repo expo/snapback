@@ -9,8 +9,8 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-12
+reviewed-commit: 27d3a9cd9b54f4b45b5c0ca50c8d85796dc06b59
 ---
 
 # React Expo Online clients
@@ -324,7 +324,7 @@ Use the generic arm for independently configured clients; use `--expo` whenever
 `SnapbackExpoProvider` should discover the supervisor without an app-authored
 origin.
 
-When Metro's file watching is inert — `CI` truthy in the effective Metro environment (the supervisor itself defaults `CI=1`), or the project under a watcher-blind root such as `/private/tmp` — the readiness stream carries one advisory `SNAPBACK_EXPO_METRO_WATCH_INERT` event naming the condition and the fix, so a stale bundle is not misread as an application bug.
+When Metro's file watching is inert — `CI` truthy in the effective Metro environment, or the project under a watcher-blind root such as `/private/tmp` — the supervised readiness stream carries one advisory `SNAPBACK_EXPO_METRO_WATCH_INERT` event naming the condition and the fix, so a stale bundle is not misread as an application bug. The same code is also printed as an advisory, not a refusal, on every `snapback dev` invocation when the CLI process itself has a truthy `CI`, including unsupervised `--client-command` launches: if you start Metro or Expo yourself, do not inherit `CI=1`; unset `CI` or pass `CI=0`.
 
 Metro receives only the credential-free rendezvous origin. At runtime the Expo
 facade performs a `GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`;

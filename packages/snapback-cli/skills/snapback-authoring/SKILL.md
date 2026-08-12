@@ -90,7 +90,7 @@ claim. Register real acceptance profiles with the headless-first discipline in
 [acceptance testing](../../guide/testing/acceptance.md); the receipt contract
 is in [verify](../../guide/testing/verify.md).
 
-## Top traps (verified against main, 2026-08-08)
+## Top traps (verified against main, 2026-08-12)
 
 1. **No `v.array()` on table fields.** Stored arrays/unions are a named GAP
    (`backend.structured-stored-fields`, design-only). Use `v.json()` for
@@ -156,6 +156,13 @@ is in [verify](../../guide/testing/verify.md).
 15. **`snapback dev --expo` supervises but never launches a device or
     simulator** — launching (Expo Go, a dev client, `expo run:ios|android`)
     is the author's job.
+16. **If you launch Metro/Expo yourself, do not inherit `CI=1`.** Expo/Metro
+    disable file watching under a truthy `CI`, so you will serve a stale
+    bundle. Prefer `snapback dev --expo`, or unset `CI` / pass `CI=0`.
+    `snapback dev` prints `SNAPBACK_EXPO_METRO_WATCH_INERT` as an advisory
+    when it can see that environment
+    ([react-expo](../../guide/clients/react-expo.md);
+    [the authoring loop](../../guide/getting-started/the-authoring-loop.md)).
 
 When anything refuses, read the code before searching: every `SNAPBACK_*`
 refusal an authoring agent can trigger is required to name the violated rule

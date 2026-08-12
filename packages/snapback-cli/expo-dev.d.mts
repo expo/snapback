@@ -25,6 +25,37 @@ export function assessMetroWatchInertness(options?: Readonly<{
   env?: Readonly<Record<string, string | undefined>>;
   directory?: string | null;
 }>): readonly MetroWatchAdvisory[];
+
+export interface CliMetroWatchInertAdvisory {
+  readonly code: 'SNAPBACK_EXPO_METRO_WATCH_INERT';
+  readonly severity: 'warning';
+  readonly subsystem: 'cli';
+  readonly condition: 'ci-environment';
+  readonly message: string;
+  readonly remediation: string;
+  readonly details: Readonly<{
+    readonly ci: string;
+    readonly defaulted: false;
+    readonly unsupervised: true;
+    readonly clientCommand: string | null;
+  }>;
+}
+
+/** Map a truthy process `CI` through `assessMetroWatchInertness` to the
+ * unsupervised CLI advisory. Returns null when CI is unset/empty/`0`/`false`. */
+export function cliMetroWatchInertAdvisory(options?: Readonly<{
+  env?: Readonly<Record<string, string | undefined>>;
+  clientCommand?: string | null;
+}>): CliMetroWatchInertAdvisory | null;
+
+/** Print the unsupervised Metro-watch advisory to stderr (or `write`).
+ * Advisory only — never refuses. */
+export function emitCliMetroWatchInertAdvisory(options?: Readonly<{
+  env?: Readonly<Record<string, string | undefined>>;
+  clientCommand?: string | null;
+  json?: boolean;
+  write?: (line: string) => void;
+}>): CliMetroWatchInertAdvisory | null;
 export const SUPERVISED_CONTROL_PATH: '/_snapback/expo/v1/control';
 
 export function admittedBrowserExchangeOrigin(originHeader: unknown): string | null;
