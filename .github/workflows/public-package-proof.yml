@@ -54,7 +54,7 @@ jobs:
       matrix:
         include:
           - id: darwin-arm64
-            runner: macos-15
+            runner: macos-15-xlarge
           - id: linux-x64
             runner: ubuntu-24.04
     runs-on: ${{ matrix.runner }}
