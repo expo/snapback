@@ -23,7 +23,7 @@ use tokio::sync::{
     RwLock as AsyncRwLock, Semaphore,
 };
 use uuid::Uuid;
-use zeroize::Zeroize as _;
+use zeroize::{Zeroize as _, Zeroizing};
 
 use super::crypto::{
     AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CodeDigest, OsRandom, RandomSource,
@@ -220,6 +220,23 @@ impl StepUpBinding {
         }
     }
 
+    pub(crate) fn password_set(
+        user_id: String,
+        session_id: String,
+        session_generation: u64,
+        authority_instance_id: String,
+        email_identity_id: String,
+    ) -> Self {
+        Self {
+            user_id,
+            session_id,
+            session_generation,
+            authority_instance_id,
+            operation: "passwordSet",
+            target_id: email_identity_id,
+        }
+    }
+
     /// Bind fresh authentication to approval of one exact pending effect.
     // @ref LLP 0204#d95--approval-gated-effects — authority-creating effects
     // reuse the existing operation-bound, single-use step-up ceremony.
@@ -276,6 +293,10 @@ impl StepUpProofAdmission {
     pub(crate) fn proof(&self) -> &StepUpProof {
         &self.proof
     }
+
+    pub(crate) fn address(&self) -> &CanonicalAddress {
+        &self.proof.address
+    }
 }
 
 impl fmt::Debug for StepUpProofAdmission {
@@ -302,7 +323,6 @@ impl ExchangeCoordination {
 pub struct CredentialIssue {
     response: CredentialResponse,
     committed_revocation: Option<SessionRevocation>,
-    recovery_codes: Option<crate::auth::identity_core::RecoveryCodes>,
 }
 
 impl CredentialIssue {
@@ -310,7 +330,6 @@ impl CredentialIssue {
         Self {
             response,
             committed_revocation,
-            recovery_codes: None,
         }
     }
 
@@ -326,13 +345,13 @@ impl CredentialIssue {
         mut self,
         recovery_codes: Option<crate::auth::identity_core::RecoveryCodes>,
     ) -> Self {
-        self.recovery_codes = recovery_codes;
+        self.response = self.response.with_recovery_codes(recovery_codes);
         self
     }
 
     #[allow(dead_code)] // Staged first-class password routes consume this payload next.
     pub(crate) fn recovery_codes(&self) -> Option<&crate::auth::identity_core::RecoveryCodes> {
-        self.recovery_codes.as_ref()
+        self.response.recovery_codes()
     }
 }
 
@@ -342,7 +361,6 @@ impl fmt::Debug for CredentialIssue {
             .debug_struct("CredentialIssue")
             .field("response", &self.response)
             .field("committed_revocation", &self.committed_revocation)
-            .field("recovery_codes", &self.recovery_codes)
             .finish()
     }
 }
@@ -673,6 +691,80 @@ pub(crate) struct ProviderPasswordChangePlan {
     password_profile: crate::storage::auth_identity::PasswordSecurityProfile,
 }
 
+/// Read-only password planning facts captured under the managed Local lane.
+/// These carriers contain no caller plaintext; Argon2 consumes them only
+/// after the Local guard has been released.
+pub(crate) struct PasswordRegistrationPreparation {
+    mode: crate::storage::auth::PasswordIdentifierMode,
+    canonical: String,
+    address: CanonicalAddress,
+}
+
+pub(crate) struct PasswordAuthenticationPreparation {
+    mode: crate::storage::auth::PasswordIdentifierMode,
+    canonical: String,
+    address: CanonicalAddress,
+    predecessor: crate::storage::auth_identity::PasswordAuthenticationPredecessor,
+    revocations: Vec<ProviderRevocationPlan>,
+}
+
+pub(crate) struct PasswordSetPreparation {
+    mode: crate::storage::auth::PasswordIdentifierMode,
+    canonical: String,
+    address: CanonicalAddress,
+    planning: crate::storage::auth_identity::PasswordSetPlanning,
+    revocations: Vec<ProviderRevocationPlan>,
+}
+
+pub(crate) struct PasswordChangePreparation {
+    planning: crate::storage::auth_identity::PasswordChangePlanning,
+    revocations: Vec<ProviderRevocationPlan>,
+}
+
+pub(crate) enum PasswordResetPreparation {
+    ChallengeRejected,
+    PrincipalInvalid,
+    Ready {
+        plan: ProviderSessionIssuancePlan,
+        email_identity_id: String,
+        credential: crate::storage::auth_identity::PasswordSnapshot,
+    },
+}
+
+impl fmt::Debug for PasswordRegistrationPreparation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PasswordRegistrationPreparation([REDACTED])")
+    }
+}
+
+impl fmt::Debug for PasswordAuthenticationPreparation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PasswordAuthenticationPreparation([REDACTED])")
+    }
+}
+
+impl fmt::Debug for PasswordSetPreparation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PasswordSetPreparation([REDACTED])")
+    }
+}
+
+impl fmt::Debug for PasswordChangePreparation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("PasswordChangePreparation([REDACTED])")
+    }
+}
+
+impl fmt::Debug for PasswordResetPreparation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ChallengeRejected => formatter.write_str("PasswordResetPreparation::ChallengeRejected"),
+            Self::PrincipalInvalid => formatter.write_str("PasswordResetPreparation::PrincipalInvalid"),
+            Self::Ready { .. } => formatter.write_str("PasswordResetPreparation::Ready([REDACTED])"),
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ProviderPasswordChangeCommitPlan {
@@ -848,14 +940,6 @@ pub(crate) struct ProviderSessionIssuanceCommitPlan {
 impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("ProviderSessionIssuanceCommitPlan([REDACTED])")
-    }
-}
-
-impl ProviderSessionIssuanceCommitPlan {
-    fn eviction(&self) -> Option<&ProviderRevocationPlan> {
-        self.revocations
-            .iter()
-            .find(|revocation| revocation.reason() == RevocationReason::CapEviction)
     }
 }
 
@@ -1296,19 +1380,13 @@ impl AuthProvider {
     /// Prepare first-class local-password signup without opening the writer
     /// transaction. The returned carrier enters the same projection and
     /// durable issuance protocol as email-code exchange.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn plan_password_registration(
+    pub(crate) fn prepare_password_registration(
         &self,
         database: &LocalDatabase,
         identifier: &str,
-        password: crate::auth::identity_core::PasswordSecret,
-        now_ms: u64,
-        recovery_key_id: &str,
-        recovery_key: &[u8; 32],
         custody: PasswordIssuanceCustody,
-    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+    ) -> SnapbackResult<PasswordRegistrationPreparation> {
         require_password_bearer_custody(custody)?;
-        validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
         let mode = database.auth_password_identifier_mode()?;
         let canonical =
             crate::storage::auth_identity::canonical_password_identifier_value(mode, identifier)?;
@@ -1319,6 +1397,30 @@ impl AuthProvider {
                 "password identifier does not satisfy the declared mode",
             )
         })?;
+        Ok(PasswordRegistrationPreparation {
+            mode,
+            canonical,
+            address,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn finish_password_registration(
+        &self,
+        preparation: PasswordRegistrationPreparation,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        recovery_key_id: &str,
+        recovery_key: &[u8; 32],
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
+        let PasswordRegistrationPreparation {
+            mode,
+            canonical,
+            address,
+        } = preparation;
         let password = self.hash_password_bounded(password).await?;
         let (recovery_codes, recovery) = crate::storage::auth_identity::prepare_recovery_set(
             self.random.as_ref(),
@@ -1373,17 +1475,66 @@ impl AuthProvider {
         })
     }
 
-    /// Snapshot, spend exactly one real-or-dummy KDF outside SQLite, then
-    /// prepare a credential-fenced issuance. A missing account and a real
-    /// predecessor have the same KDF and candidate-allocation envelope.
-    pub(crate) async fn plan_password_authentication(
+    pub(crate) async fn finish_password_registration_with_active_recovery_key(
+        &self,
+        preparation: PasswordRegistrationPreparation,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        let (key_id, key) = self
+            .keyring
+            .with_active_key(now_ms, self.random.as_ref(), |key_id, key| {
+                (
+                    key_id.as_str().to_owned(),
+                    Zeroizing::new(*key.expose_secret()),
+                )
+            })
+            .map_err(|_| provider_unavailable().into_snapback_error())?;
+        self.finish_password_registration(
+            preparation,
+            password,
+            now_ms,
+            &key_id,
+            &key,
+            custody,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn plan_password_registration(
         &self,
         database: &LocalDatabase,
         identifier: &str,
         password: crate::auth::identity_core::PasswordSecret,
         now_ms: u64,
+        recovery_key_id: &str,
+        recovery_key: &[u8; 32],
         custody: PasswordIssuanceCustody,
     ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        let preparation = self.prepare_password_registration(database, identifier, custody)?;
+        self.finish_password_registration(
+            preparation,
+            password,
+            now_ms,
+            recovery_key_id,
+            recovery_key,
+            custody,
+        )
+        .await
+    }
+
+    /// Snapshot, spend exactly one real-or-dummy KDF outside SQLite, then
+    /// prepare a credential-fenced issuance. A missing account and a real
+    /// predecessor have the same KDF and candidate-allocation envelope.
+    pub(crate) fn prepare_password_authentication(
+        &self,
+        database: &LocalDatabase,
+        identifier: &str,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<PasswordAuthenticationPreparation> {
         require_password_bearer_custody(custody)?;
         validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
         let mode = database.auth_password_identifier_mode()?;
@@ -1397,9 +1548,42 @@ impl AuthProvider {
             )
         })?;
         let predecessor = database.password_authentication_predecessor(&canonical, mode)?;
-        // Admission observes lock state but never returns from this branch:
-        // a live lock still spends the same real KDF before the serialized
-        // transaction re-reads the authoritative ledger predecessor.
+        let revocations = match predecessor.credential.as_ref() {
+            Some(snapshot) => classify_session_cap(
+                database.auth_catalog_read().session_cap_facts(
+                    &snapshot.user_id,
+                    now_ms,
+                    AUTH_SESSION_LIVE_LIMIT as u64,
+                )?,
+            )?
+            .into_iter()
+            .collect(),
+            None => Vec::new(),
+        };
+        Ok(PasswordAuthenticationPreparation {
+            mode,
+            canonical,
+            address,
+            predecessor,
+            revocations,
+        })
+    }
+
+    pub(crate) async fn finish_password_authentication(
+        &self,
+        preparation: PasswordAuthenticationPreparation,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        let PasswordAuthenticationPreparation {
+            mode,
+            canonical,
+            address,
+            predecessor,
+            revocations,
+        } = preparation;
         let _lock_observed_at_admission = predecessor
             .ledger
             .as_ref()
@@ -1415,29 +1599,15 @@ impl AuthProvider {
             .await?;
         let candidate =
             SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
-        let (identity, revocations) = match &credential {
-            Some(snapshot) => (
-                PlannedIdentityState::Existing {
-                    identity_id: snapshot.identity_id.clone(),
-                    user_id: snapshot.user_id.clone(),
-                },
-                classify_session_cap(
-                    database.auth_catalog_read().session_cap_facts(
-                        &snapshot.user_id,
-                        now_ms,
-                        AUTH_SESSION_LIVE_LIMIT as u64,
-                    )?,
-                )?
-                    .into_iter()
-                    .collect(),
-            ),
-            None => (
-                PlannedIdentityState::Create {
-                    identity_id: candidate.identity_id.clone(),
-                    user_id: candidate.user_id.clone(),
-                },
-                Vec::new(),
-            ),
+        let identity = match &credential {
+            Some(snapshot) => PlannedIdentityState::Existing {
+                identity_id: snapshot.identity_id.clone(),
+                user_id: snapshot.user_id.clone(),
+            },
+            None => PlannedIdentityState::Create {
+                identity_id: candidate.identity_id.clone(),
+                user_id: candidate.user_id.clone(),
+            },
         };
         let (user_id, identity_id) = match &identity {
             PlannedIdentityState::Existing {
@@ -1491,6 +1661,61 @@ impl AuthProvider {
         })
     }
 
+    pub(crate) async fn plan_password_authentication(
+        &self,
+        database: &LocalDatabase,
+        identifier: &str,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        let preparation =
+            self.prepare_password_authentication(database, identifier, now_ms, custody)?;
+        self.finish_password_authentication(preparation, password, now_ms, custody)
+            .await
+    }
+
+    pub(crate) async fn finish_password_reset(
+        &self,
+        preparation: PasswordResetPreparation,
+        replacement: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<Option<ProviderSessionIssuancePlan>> {
+        require_password_bearer_custody(custody)?;
+        let PasswordResetPreparation::Ready {
+            mut plan,
+            email_identity_id,
+            credential,
+        } = preparation
+        else {
+            return Ok(None);
+        };
+        let replacement = self.hash_password_bounded(replacement).await?;
+        let user_id = credential.user_id.clone();
+        let identity_id = credential.identity_id.clone();
+        plan.identity = PlannedIdentityState::Existing {
+            identity_id: identity_id.clone(),
+            user_id: user_id.clone(),
+        };
+        plan.projected.user_id = user_id.clone();
+        plan.projected.provider = "local-password".to_owned();
+        plan.password = Some(crate::storage::auth_identity::PasswordIssuanceCommitPlan {
+            canonical_identifier: plan.address.as_str().to_owned(),
+            identifier_mode: credential.identifier_mode,
+            identity_id,
+            user_id,
+            operation: crate::storage::auth_identity::PasswordIssuanceOperation::Reset {
+                email_identity_id,
+                credential,
+                replacement,
+            },
+        });
+        plan.password_profile = Some(self.password_security);
+        debug_assert_eq!(plan.now_ms, now_ms);
+        Ok(Some(plan))
+    }
+
     pub(crate) fn commit_password_issuance(
         &self,
         database: &mut LocalDatabase,
@@ -1502,19 +1727,15 @@ impl AuthProvider {
         attempt_planned_session_issuance(database, plan, None)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn plan_password_set(
+    pub(crate) fn prepare_password_set(
         &self,
         database: &LocalDatabase,
         acting: &SessionBearer,
         email_identity_id: &str,
         identifier: &str,
-        password: crate::auth::identity_core::PasswordSecret,
         now_ms: u64,
-        recovery_key_id: &str,
-        recovery_key: &[u8; 32],
         custody: PasswordIssuanceCustody,
-    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+    ) -> SnapbackResult<PasswordSetPreparation> {
         require_password_bearer_custody(custody)?;
         validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
         let mode = database.auth_password_identifier_mode()?;
@@ -1529,14 +1750,6 @@ impl AuthProvider {
         })?;
         let planning =
             database.password_set_planning(acting, email_identity_id, &canonical, now_ms)?;
-        let password = self.hash_password_bounded(password).await?;
-        let (recovery_codes, recovery) = crate::storage::auth_identity::prepare_recovery_set(
-            self.random.as_ref(),
-            recovery_key_id,
-            recovery_key,
-        )?;
-        let candidate =
-            SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
         let mut revocations = plan_user_session_revocations(
             database,
             &planning.predecessor.acting_user_id,
@@ -1560,6 +1773,42 @@ impl AuthProvider {
                 }
             }
         }
+        Ok(PasswordSetPreparation {
+            mode,
+            canonical,
+            address,
+            planning,
+            revocations,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn finish_password_set(
+        &self,
+        preparation: PasswordSetPreparation,
+        step_up: StepUpProof,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        recovery_key_id: &str,
+        recovery_key: &[u8; 32],
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        let PasswordSetPreparation {
+            mode,
+            canonical,
+            address,
+            planning,
+            revocations,
+        } = preparation;
+        let password = self.hash_password_bounded(password).await?;
+        let (recovery_codes, recovery) = crate::storage::auth_identity::prepare_recovery_set(
+            self.random.as_ref(),
+            recovery_key_id,
+            recovery_key,
+        )?;
+        let candidate =
+            SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
         let user_id = planning.predecessor.acting_user_id.clone();
         let identity_id = candidate.identity_id.clone();
         let projected = ProjectedSessionInsert {
@@ -1585,6 +1834,7 @@ impl AuthProvider {
             operation: crate::storage::auth_identity::PasswordIssuanceOperation::Set {
                 predecessor: planning.predecessor,
                 displaced: planning.displaced,
+                step_up,
                 credential_id: opaque_catalog_component("credential"),
                 password,
                 recovery,
@@ -1609,15 +1859,76 @@ impl AuthProvider {
         })
     }
 
-    pub(crate) async fn plan_password_change(
+    pub(crate) async fn finish_password_set_with_active_recovery_key(
+        &self,
+        preparation: PasswordSetPreparation,
+        step_up: StepUpProof,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        let (key_id, key) = self
+            .keyring
+            .with_active_key(now_ms, self.random.as_ref(), |key_id, key| {
+                (
+                    key_id.as_str().to_owned(),
+                    Zeroizing::new(*key.expose_secret()),
+                )
+            })
+            .map_err(|_| provider_unavailable().into_snapback_error())?;
+        self.finish_password_set(
+            preparation,
+            step_up,
+            password,
+            now_ms,
+            &key_id,
+            &key,
+            custody,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn plan_password_set(
         &self,
         database: &LocalDatabase,
         acting: &SessionBearer,
-        current: crate::auth::identity_core::PasswordSecret,
-        replacement: crate::auth::identity_core::PasswordSecret,
+        email_identity_id: &str,
+        step_up: StepUpProof,
+        identifier: &str,
+        password: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        recovery_key_id: &str,
+        recovery_key: &[u8; 32],
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        let preparation = self.prepare_password_set(
+            database,
+            acting,
+            email_identity_id,
+            identifier,
+            now_ms,
+            custody,
+        )?;
+        self.finish_password_set(
+            preparation,
+            step_up,
+            password,
+            now_ms,
+            recovery_key_id,
+            recovery_key,
+            custody,
+        )
+        .await
+    }
+
+    pub(crate) fn prepare_password_change(
+        &self,
+        database: &LocalDatabase,
+        acting: &SessionBearer,
         now_ms: u64,
         custody: PasswordIssuanceCustody,
-    ) -> SnapbackResult<ProviderPasswordChangePlan> {
+    ) -> SnapbackResult<PasswordChangePreparation> {
         require_password_bearer_custody(custody)?;
         validate_now(now_ms).map_err(ProviderError::into_snapback_error)?;
         let planning = database.password_change_planning(acting, now_ms)?;
@@ -1628,6 +1939,32 @@ impl AuthProvider {
                 "password authentication does not support sender-constrained custody",
             ));
         }
+        let revocations = plan_user_session_revocations(
+            database,
+            &planning.credential.user_id,
+            Some(&planning.acting_session_id),
+            None,
+            now_ms,
+        )?;
+        Ok(PasswordChangePreparation {
+            planning,
+            revocations,
+        })
+    }
+
+    pub(crate) async fn finish_password_change(
+        &self,
+        preparation: PasswordChangePreparation,
+        current: crate::auth::identity_core::PasswordSecret,
+        replacement: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderPasswordChangePlan> {
+        require_password_bearer_custody(custody)?;
+        let PasswordChangePreparation {
+            planning,
+            revocations,
+        } = preparation;
         let verification = self
             .verify_password_bounded(current, planning.credential.hash_phc.clone(), false)
             .await?;
@@ -1642,13 +1979,6 @@ impl AuthProvider {
             superseded_at_ms: now_ms,
             successor,
         };
-        let revocations = plan_user_session_revocations(
-            database,
-            &planning.credential.user_id,
-            Some(&planning.acting_session_id),
-            None,
-            now_ms,
-        )?;
         Ok(ProviderPasswordChangePlan {
             mutation: crate::storage::auth_identity::PasswordChangeCommitPlan {
                 credential: planning.credential,
@@ -1660,6 +1990,20 @@ impl AuthProvider {
             revocations,
             password_profile: self.password_security,
         })
+    }
+
+    pub(crate) async fn plan_password_change(
+        &self,
+        database: &LocalDatabase,
+        acting: &SessionBearer,
+        current: crate::auth::identity_core::PasswordSecret,
+        replacement: crate::auth::identity_core::PasswordSecret,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderPasswordChangePlan> {
+        let preparation = self.prepare_password_change(database, acting, now_ms, custody)?;
+        self.finish_password_change(preparation, current, replacement, now_ms, custody)
+            .await
     }
 
     pub(crate) fn commit_password_change(
@@ -1824,6 +2168,123 @@ impl AuthProvider {
                 operation:
                     crate::storage::auth_identity::PasswordIssuanceOperation::RecoveryConsume {
                         predecessor,
+                        successor_credential_id: opaque_catalog_component("recovery"),
+                        successor_recovery,
+                    },
+            }),
+            password_profile: Some(self.password_security),
+            recovery_codes: Some(recovery_codes),
+            challenge: None,
+            sender_issuance: None,
+            rehearsal_exercise: None,
+        })
+    }
+
+    pub(crate) fn plan_password_recovery_consume_with_active_key(
+        &self,
+        database: &LocalDatabase,
+        identifier: &str,
+        code: &str,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        self.keyring
+            .with_active_key(now_ms, self.random.as_ref(), |key_id, key| {
+                self.plan_password_recovery_consume(
+                    database,
+                    identifier,
+                    code,
+                    now_ms,
+                    key_id.as_str(),
+                    key.expose_secret(),
+                    custody,
+                )
+            })
+            .map_err(|_| provider_unavailable().into_snapback_error())?
+    }
+
+    pub(crate) fn plan_password_recovery_rotate_with_active_key(
+        &self,
+        database: &LocalDatabase,
+        acting: &SessionBearer,
+        now_ms: u64,
+        custody: PasswordIssuanceCustody,
+    ) -> SnapbackResult<ProviderSessionIssuancePlan> {
+        require_password_bearer_custody(custody)?;
+        let planning = database.password_change_planning(acting, now_ms)?;
+        if planning.sender_constrained {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED",
+                "auth",
+                "password authentication does not support sender-constrained custody",
+            ));
+        }
+        let (recovery_codes, successor_recovery) = self
+            .keyring
+            .with_active_key(now_ms, self.random.as_ref(), |key_id, key| {
+                crate::storage::auth_identity::prepare_recovery_set(
+                    self.random.as_ref(),
+                    key_id.as_str(),
+                    key.expose_secret(),
+                )
+            })
+            .map_err(|_| provider_unavailable().into_snapback_error())??;
+        let candidate =
+            SessionCandidate::generate(self, now_ms).map_err(ProviderError::into_snapback_error)?;
+        let revocations = plan_user_session_revocations(
+            database,
+            &planning.credential.user_id,
+            None,
+            None,
+            now_ms,
+        )?;
+        let user_id = planning.credential.user_id.clone();
+        let identity_id = planning.credential.identity_id.clone();
+        let projected = ProjectedSessionInsert {
+            session_id: candidate.session_id.clone(),
+            user_id: user_id.clone(),
+            provider: "local-password".to_owned(),
+            authority_instance_id: candidate.authority_instance_id.clone(),
+            generation: 1,
+            token_digest: TokenDigest::from_token_hash(&candidate.token_hash),
+            created_at_ms: now_ms,
+            expires_at_ms: checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?,
+            absolute_expires_at_ms: checked_time_add_snapback(
+                now_ms,
+                AUTH_SESSION_ABSOLUTE_WINDOW_MS,
+            )?,
+            rehearsal_provenance: None,
+        };
+        Ok(ProviderSessionIssuancePlan {
+            address: CanonicalAddress::parse(&planning.canonical_identifier).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
+                    "auth",
+                    "password identifier does not satisfy the declared mode",
+                )
+            })?,
+            now_ms,
+            identity: PlannedIdentityState::Existing {
+                identity_id: identity_id.clone(),
+                user_id: user_id.clone(),
+            },
+            candidate,
+            projected,
+            revocations,
+            password: Some(crate::storage::auth_identity::PasswordIssuanceCommitPlan {
+                canonical_identifier: planning.canonical_identifier,
+                identifier_mode: planning.credential.identifier_mode,
+                identity_id,
+                user_id,
+                operation:
+                    crate::storage::auth_identity::PasswordIssuanceOperation::RecoveryRotate {
+                        predecessor:
+                            crate::storage::auth_identity::RecoveryRotatePredecessor {
+                                acting_session_id: planning.acting_session_id,
+                                acting_generation: planning.acting_generation,
+                                acting_token_digest: planning.acting_token_digest,
+                                credential: planning.credential,
+                            },
                         successor_credential_id: opaque_catalog_component("recovery"),
                         successor_recovery,
                     },
@@ -2067,9 +2528,16 @@ impl AuthAdmission {
         now_ms: u64,
     ) -> ProviderResult<CanonicalAddress> {
         validate_now(now_ms)?;
-        let address = database
-            .auth_catalog_read()
-            .step_up_address(&binding.catalog_binding(), now_ms)
+        let catalog = database.auth_catalog_read();
+        let address = if binding.operation == "passwordSet" {
+            catalog.password_set_step_up_address(
+                &binding.catalog_binding(),
+                &binding.target_id,
+                now_ms,
+            )
+        } else {
+            catalog.step_up_address(&binding.catalog_binding(), now_ms)
+        }
             .map_err(|_| provider_unavailable())?
             .ok_or_else(auth_required)?;
         CanonicalAddress::parse(&address).map_err(|_| provider_unavailable())
@@ -2758,6 +3226,47 @@ impl ExchangeAdmission {
             })
             .map_err(|_| provider_unavailable())?
             .map_err(|_| provider_unavailable())
+    }
+
+    pub(crate) fn prepare_password_reset(
+        &self,
+        database: &LocalDatabase,
+        code: &str,
+        now_ms: u64,
+    ) -> ProviderResult<PasswordResetPreparation> {
+        let planned = self.plan_exchange(database, code, now_ms)?;
+        let PlannedExchange::Issue(mut plan) = planned else {
+            return Ok(PasswordResetPreparation::ChallengeRejected);
+        };
+        let Some((email_identity_id, credential)) = database
+            .password_reset_predecessor(self.coordination.address.as_str())
+            .map_err(|_| provider_unavailable())?
+        else {
+            return Ok(PasswordResetPreparation::PrincipalInvalid);
+        };
+        let email_plan_matches = matches!(
+            &plan.identity,
+            PlannedIdentityState::Existing {
+                identity_id,
+                user_id,
+            } if identity_id == &email_identity_id && user_id == &credential.user_id
+        );
+        if !email_plan_matches {
+            return Ok(PasswordResetPreparation::PrincipalInvalid);
+        }
+        plan.revocations = plan_user_session_revocations(
+            database,
+            &credential.user_id,
+            None,
+            None,
+            now_ms,
+        )
+        .map_err(|_| provider_unavailable())?;
+        Ok(PasswordResetPreparation::Ready {
+            plan,
+            email_identity_id,
+            credential,
+        })
     }
 
     pub(crate) fn commit_planned_issuance(
@@ -4213,8 +4722,18 @@ mod tests {
         keyring
             .load_or_mint_initial(now_ms, &OsRandom)
             .expect("initial keyring");
-        let provider =
-            Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).expect("auth provider"));
+        // Password-set tests mint their email step-up session two milliseconds
+        // after the fixture epoch. Keep provider-sampled challenge time in the
+        // same deterministic epoch instead of consulting the wall clock.
+        let provider = Arc::new(
+            AuthProvider::new_with_dependencies(
+                AuthProviderProfile::Test,
+                keyring,
+                Arc::new(OsRandom),
+                Arc::new(ManualClock::new(now_ms + 2)),
+            )
+            .expect("auth provider"),
+        );
         let projection = SessionProjection::rebuild_with_fresh_startup_id(
             database
                 .session_projection_source()
@@ -4272,7 +4791,7 @@ mod tests {
         let (finish, targets) =
             commit_password_issuance_for_test(provider, database, coordinator, plan, now_ms).await;
         assert!(targets.is_empty());
-        let IssuanceFinish::Committed(issue) = finish else {
+        let IssuanceFinish::Committed { issue, .. } = finish else {
             panic!("password registration must commit");
         };
         issue
@@ -4326,7 +4845,7 @@ mod tests {
             .finish_issuance(carrier, attempt, now_ms, provider.monotonic_now())
             .into_parts();
         assert!(targets.is_empty());
-        let IssuanceFinish::Committed(issue) = finish.expect("finish email issuance") else {
+        let IssuanceFinish::Committed { issue, .. } = finish.expect("finish email issuance") else {
             panic!("email issuance must commit");
         };
         issue
@@ -6342,7 +6861,7 @@ mod tests {
             commit_password_issuance_for_test(&provider, &mut database, &coordinator, plan, now_ms)
                 .await;
         assert!(terminal_targets.is_empty());
-        let IssuanceFinish::Committed(issue) = finish else {
+        let IssuanceFinish::Committed { issue, .. } = finish else {
             panic!("password registration must commit");
         };
         let response = issue.response();
@@ -6433,7 +6952,7 @@ mod tests {
                 start_ms + offset as u64,
             )
             .await;
-            assert!(matches!(finish, IssuanceFinish::Committed(_)));
+            assert!(matches!(finish, IssuanceFinish::Committed { .. }));
             cap_targets = targets;
         }
         assert_eq!(cap_targets.len(), 1);
@@ -6485,7 +7004,7 @@ mod tests {
             now_ms + 1,
         )
         .await;
-        let IssuanceFinish::Committed(other) = other_finish else {
+        let IssuanceFinish::Committed { issue: other, .. } = other_finish else {
             panic!("second actor session must issue");
         };
         let other_bearer = issue_token(&other);
@@ -6707,7 +7226,7 @@ mod tests {
             locked_until,
         )
         .await;
-        assert!(matches!(reopened, IssuanceFinish::Committed(_)));
+        assert!(matches!(reopened, IssuanceFinish::Committed { .. }));
         assert!(
             database
                 .password_attempt_admin_projection("locked@example.com", locked_until)
@@ -6756,7 +7275,7 @@ mod tests {
             rolled_at + 1,
         )
         .await;
-        assert!(matches!(owner_success, IssuanceFinish::Committed(_)));
+        assert!(matches!(owner_success, IssuanceFinish::Committed { .. }));
         assert!(
             database
                 .password_attempt_admin_projection("locked@example.com", rolled_at + 1)
@@ -6903,7 +7422,7 @@ mod tests {
             now_ms + 1,
         )
         .await;
-        assert!(matches!(winner, IssuanceFinish::Committed(_)));
+        assert!(matches!(winner, IssuanceFinish::Committed { .. }));
         let (generation, algorithm, phc) = database
             .password_hash_facts_for_test("upgrade@example.com")
             .expect("upgraded hash facts");
@@ -6973,6 +7492,43 @@ mod tests {
         let actor_identity = database
             .identity_id_for_provider_subject_for_test("email-code", "claimed@example.com")
             .expect("actor email identity");
+        let actor_session = &actor.response().session;
+        let password_set_binding = StepUpBinding::password_set(
+            actor_session.user_id.clone(),
+            actor_session.id.clone(),
+            actor_session.generation,
+            actor_session.authority_instance_id.clone(),
+            actor_identity.clone(),
+        );
+        let admission = provider.admit().await;
+        let step_up_address = admission
+            .step_up_address(&database, &password_set_binding, now_ms + 2)
+            .expect("password-set step-up address");
+        let step_up_request = admission
+            .for_address(step_up_address)
+            .await
+            .expect("password-set address admission")
+            .request_step_up(&mut database, &password_set_binding)
+            .expect("password-set step-up challenge");
+        let mailbox = serde_json::to_value(
+            provider
+                .mailbox_entry(&step_up_request.challenge_id)
+                .await
+                .expect("password-set step-up mailbox"),
+        )
+        .expect("serialize password-set step-up mailbox");
+        let step_up_code = mailbox["code"]
+            .as_str()
+            .expect("password-set step-up code")
+            .to_owned();
+        let admission = provider.admit().await;
+        let coordination = admission
+            .step_up_coordination(&database, &step_up_request.challenge_id)
+            .expect("password-set step-up coordination");
+        let step_up = admission
+            .for_step_up(coordination, password_set_binding, &step_up_code)
+            .await
+            .expect("password-set proof admission");
 
         // Pull the test-only fixture session into the same memory-only
         // projection before exercising exact displacement finalization.
@@ -6985,12 +7541,20 @@ mod tests {
         )
         .expect("rebuilt projection");
         let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
-        let plan = provider
-            .plan_password_set(
+        let preparation = provider
+            .prepare_password_set(
                 &database,
                 actor.response().token(),
                 &actor_identity,
                 "claimed@example.com",
+                now_ms + 3,
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("displacing password-set preparation");
+        let plan = provider
+            .finish_password_set(
+                preparation,
+                step_up.proof().clone(),
                 PasswordSecret::new("rightful-password-456".to_owned()),
                 now_ms + 3,
                 "recovery-key-1",
@@ -7007,7 +7571,11 @@ mod tests {
             now_ms + 3,
         )
         .await;
-        let IssuanceFinish::Committed(new_password) = finish else {
+        let IssuanceFinish::Committed {
+            issue: new_password,
+            ..
+        } = finish
+        else {
             panic!("password set must commit");
         };
         assert_eq!(targets.len(), 2);
@@ -7129,7 +7697,7 @@ mod tests {
         )
         .await;
         let claimed = match claim_finish {
-            IssuanceFinish::Committed(claimed) => claimed,
+            IssuanceFinish::Committed { issue: claimed, .. } => claimed,
             other => panic!("guest claim must commit, got {other:?}"),
         };
         assert_eq!(claim_targets.len(), 1);
@@ -7168,7 +7736,11 @@ mod tests {
             now_ms + 2,
         )
         .await;
-        let IssuanceFinish::Committed(recovered) = recovery_finish else {
+        let IssuanceFinish::Committed {
+            issue: recovered,
+            ..
+        } = recovery_finish
+        else {
             panic!("recovery consume must commit");
         };
         assert_eq!(recovery_targets.len(), 1);

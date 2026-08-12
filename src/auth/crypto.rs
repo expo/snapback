@@ -333,8 +333,10 @@ impl CodeDigest {
 /// The distinct domain makes ordinary login challenges and step-up challenges
 /// cryptographically non-interchangeable even though they share the bounded
 /// durable challenge table and process-local capture mailbox.
+#[derive(Clone, Eq, PartialEq)]
 pub(crate) struct StepUpDigest(Zeroizing<[u8; 32]>);
 
+#[derive(Clone, Eq, PartialEq)]
 pub(crate) struct StepUpProof {
     pub(crate) challenge_id: ChallengeId,
     pub(crate) address: CanonicalAddress,

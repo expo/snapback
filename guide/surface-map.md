@@ -42,6 +42,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/app/seed/preview-v1 | backend.versioned-seed |
 | /_snapback/api/app/seed/reset-install-v1 | backend.versioned-seed |
 | /_snapback/api/auth/mailbox | auth.sessions |
+| /_snapback/api/auth/password/unlock | auth.sessions |
 | /_snapback/api/auth/declared-clients | auth.agent-principals |
 | /_snapback/api/auth/declared-clients/bless | auth.agent-principals |
 | /_snapback/api/auth/declared-clients/delete | auth.agent-principals |
@@ -146,7 +147,13 @@ here (or listed here but gone from the code).
 | /auth/grants/{id} | auth.agent-principals |
 | /auth/logout | auth.sessions |
 | /auth/pairing-codes | auth.agent-principals |
+| /auth/password/change | auth.sessions |
+| /auth/password/reset | auth.sessions |
+| /auth/password/signin | auth.sessions |
+| /auth/password/signup | auth.sessions |
 | /auth/refresh | auth.sessions |
+| /auth/recovery/consume | auth.sessions |
+| /auth/recovery/rotate | auth.sessions |
 | /auth/request-code | auth.sessions |
 | /auth/session | auth.sessions |
 | /auth/step-up/request | auth.sessions |

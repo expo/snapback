@@ -274,6 +274,28 @@ What remains, and why it is waived rather than fixed here:
   Inverting them ad hoc, outside that sequence, is how the split gets done
   twice and inconsistently.
 
-<!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_identity.rs (storage-migration-kernel) → src/auth/provider.rs (sync-realtime-engine)","disposition":"time-bounded-waiver","observationRevision":"13602b33636b1afc366da13a34deb6a1f2be5189","provenance":"Password/guest-claim/recovery session minting was rerouted onto the provider issuance core (LLP 0227; LLP 0214 §20) because the LLP 0214 floor's raw _auth_sessions INSERT produced a bearer absent from the memory-only resolver. The residual kernel->sync references are plan_session_cap_read and plan_user_session_revocations_read, whose inversion is exactly the A1/A2/A3 provider split this worklist owns under the LLP 0225 §4 item-3 ruling (revision (n)).","inversionOwner":"sync-realtime-engine","deadline":"2026-09-15"} -->
 <!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_identity.rs (storage-migration-kernel) → src/auth/sender_proof.rs (sync-realtime-engine)","disposition":"time-bounded-waiver","observationRevision":"13602b33636b1afc366da13a34deb6a1f2be5189","provenance":"presented_token_has_sender_family_binding is consulted so password issuance refuses with a typed code under sender-constrained custody rather than silently downgrading to bearer-only custody (LLP 0227 sender-constrained custody rule). Same call-up class as the provider edge; inverts with the A1/A2/A3 split.","inversionOwner":"sync-realtime-engine","deadline":"2026-09-15"} -->
-<!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_identity.rs (storage-migration-kernel) → src/auth/session_projection.rs (sync-realtime-engine)","disposition":"time-bounded-waiver","observationRevision":"13602b33636b1afc366da13a34deb6a1f2be5189","provenance":"TokenDigest only. It is a pure 32-byte value shape and belongs at the shared contract leaf under the item-3 ruling's shape-down rule, but it has 252 consumer files; the repo-wide move is deliberately sequenced with this worklist rather than attempted inside the password-auth surface.","inversionOwner":"sync-realtime-engine","deadline":"2026-09-15"} -->
+
+### Two of the three password-auth waivers withdrawn (2026-08-12)
+
+The routes work was re-applied on top of `ad9125a54` (item-3 stage A2). Adopting
+main's inverted shapes removed two of the three edges outright rather than
+deferring them:
+
+- **`-> src/auth/provider.rs` — GONE.** A2 turned the planners into sync free
+  functions taking `database` and moved classification to sync
+  (`classify_session_cap` over `session_cap_facts`). The kernel no longer calls
+  up; sync composes and passes down, which is the end state the ruling
+  describes.
+- **`-> src/auth/session_projection.rs` — GONE.** `TokenDigest` is now consumed
+  from `crate::contract_types`, main's public contract-leaf shape. The
+  252-file move this waiver was deferring turned out not to be needed at all —
+  main had already landed the shape at the leaf.
+
+Cross-owner references in `src/storage/auth_identity.rs` went from 11 to 1.
+
+**Only `-> src/auth/sender_proof.rs` remains waived**, unchanged in substance:
+`presented_token_has_sender_family_binding` is consulted so password issuance
+refuses with a typed code under sender-constrained custody instead of silently
+downgrading to bearer-only custody. Its inversion still belongs to this
+worklist's A1/A2/A3 sequence.

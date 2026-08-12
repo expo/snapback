@@ -32,7 +32,7 @@ use snapback::manifest::{
 use snapback::server::{
     CredentialResolution, EffectPolicy, InvocationAuthority, LegacyBodyPolicy, OperationTransport,
     PolicyAuthMode, ResponseSensitivity, RouteClass, RoutePolicy, RouteSpec, app,
-    live_socket_operations, operation_registry, route_registry,
+    SessionModeOverlay, live_socket_operations, operation_registry, route_registry,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
@@ -214,6 +214,12 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/auth/session"),
         ("POST", "/auth/request-code"),
         ("POST", "/auth/exchange"),
+        ("POST", "/auth/password/signup"),
+        ("POST", "/auth/password/signin"),
+        ("POST", "/auth/password/change"),
+        ("POST", "/auth/password/reset"),
+        ("POST", "/auth/recovery/consume"),
+        ("POST", "/auth/recovery/rotate"),
         ("POST", "/auth/refresh"),
         ("POST", "/auth/logout"),
         ("POST", "/push/tokens/register"),
@@ -238,6 +244,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("DELETE", "/watches/{id}"),
         ("POST", "/watches/{id}/suspend"),
         ("POST", "/watches/{id}/resume"),
+        ("POST", "/watches/{id}/renew"),
+        ("GET", "/effects"),
+        ("POST", "/effects/{id}/approve"),
+        ("POST", "/effects/{id}/deny"),
         ("POST", "/auth/oauth/register"),
         ("GET", "/auth/oauth/authorize"),
         ("POST", "/auth/oauth/authorize"),
@@ -292,6 +302,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/ephemeral/delete"),
         ("POST", "/_snapback/api/schema/load"),
         ("GET", "/_snapback/api/auth/mailbox"),
+        ("POST", "/_snapback/api/auth/password/unlock"),
         ("GET", "/_snapback/api/auth/integrations"),
         ("POST", "/_snapback/api/auth/integrations/{id}/retire"),
         ("POST", "/_snapback/api/auth/integrations/{id}/suspend"),
@@ -606,13 +617,17 @@ fn durable_watch_rows_pin_the_session_only_policy_tuples() {
         .into_iter()
         .filter(|route| route.path.starts_with("/watches"))
         .collect::<Vec<_>>();
-    assert_eq!(routes.len(), 5);
+    assert_eq!(routes.len(), 6);
     for route in routes {
         assert_eq!(route.class, RouteClass::AppData);
         assert_eq!(route.path_policy, RoutePolicy::SessionAuth);
         assert_eq!(
             route.credential_resolution,
-            CredentialResolution::RequiredSessionBearer
+            if route.path == "/watches/{id}/renew" {
+                CredentialResolution::RequiredSessionBearer
+            } else {
+                CredentialResolution::RequiredSessionOrScopedToken
+            }
         );
         assert_eq!(
             route.invocation_authority,
@@ -904,7 +919,82 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         .filter(|route| route.path.starts_with("/auth/"))
         .map(|route| (route.path, *route))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(provider.len(), 26);
+    assert_eq!(provider.len(), 32);
+
+    let assert_complete_tuple =
+        |path: &str,
+         path_policy: RoutePolicy,
+         credential_resolution: CredentialResolution,
+         invocation_authority: InvocationAuthority,
+         legacy_body_policy: LegacyBodyPolicy| {
+            let route = provider[path];
+            assert_eq!(route.method, "POST", "{path}");
+            assert_eq!(route.class, RouteClass::AppData, "{path}");
+            assert_eq!(route.path_policy, path_policy, "{path}");
+            assert_eq!(route.credential_resolution, credential_resolution, "{path}");
+            assert_eq!(route.invocation_authority, invocation_authority, "{path}");
+            assert_eq!(route.legacy_body_policy, legacy_body_policy, "{path}");
+            assert_eq!(route.effect_policy, EffectPolicy::None, "{path}");
+            assert_eq!(
+                route.response_sensitivity,
+                ResponseSensitivity::CredentialSecret,
+                "{path}"
+            );
+            assert_eq!(route.session_overlay, SessionModeOverlay::NONE, "{path}");
+        };
+
+    for path in ["/auth/password/signup", "/auth/password/signin"] {
+        assert_complete_tuple(
+            path,
+            RoutePolicy::Public,
+            CredentialResolution::PasswordCredentialBody,
+            InvocationAuthority::None,
+            LegacyBodyPolicy::NotApplicable,
+        );
+    }
+    assert_complete_tuple(
+        "/auth/password/reset",
+        RoutePolicy::Public,
+        CredentialResolution::ChallengeProof,
+        InvocationAuthority::None,
+        LegacyBodyPolicy::NotApplicable,
+    );
+    assert_complete_tuple(
+        "/auth/recovery/consume",
+        RoutePolicy::Public,
+        CredentialResolution::PasswordRecoveryCodeBody,
+        InvocationAuthority::None,
+        LegacyBodyPolicy::NotApplicable,
+    );
+    for path in ["/auth/password/change", "/auth/recovery/rotate"] {
+        assert_complete_tuple(
+            path,
+            RoutePolicy::SessionAuth,
+            CredentialResolution::RequiredSessionBearer,
+            InvocationAuthority::ResolvedCaller,
+            LegacyBodyPolicy::Rejected,
+        );
+    }
+
+    let unlock = registry
+        .iter()
+        .find(|route| route.path == "/_snapback/api/auth/password/unlock")
+        .expect("registered password unlock route");
+    assert_eq!(unlock.method, "POST");
+    assert_eq!(unlock.class, RouteClass::SystemApi);
+    assert_eq!(unlock.path_policy, RoutePolicy::AdminWrite);
+    assert_eq!(
+        unlock.credential_resolution,
+        CredentialResolution::AdminCredential
+    );
+    assert_eq!(unlock.invocation_authority, InvocationAuthority::Operator);
+    assert_eq!(unlock.legacy_body_policy, LegacyBodyPolicy::NotApplicable);
+    assert_eq!(unlock.effect_policy, EffectPolicy::None);
+    assert_eq!(
+        unlock.response_sensitivity,
+        ResponseSensitivity::OperatorMetadata
+    );
+    assert_eq!(unlock.session_overlay, SessionModeOverlay::NONE);
 
     let handshake = provider["/auth/session"];
     assert_eq!(handshake.method, "GET");
@@ -1624,6 +1714,7 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
         BTreeSet::from([
             "host_ops.acceptance.run",
             "host_ops.app.inspect",
+            "host_ops.app.readiness.v1",
             "host_ops.asset.delete",
             "host_ops.asset.ensureSeedFixture",
             "host_ops.asset.gcSweep",
@@ -1677,6 +1768,7 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.host.restart",
             "host_ops.host.start",
             "host_ops.host.stop",
+            "host_ops.remediation.apply",
             "host_ops.schema.load",
             "host_ops.schema.reload",
             "host_ops.telemetry.events",
@@ -2258,6 +2350,38 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             },
         ),
         (
+            ("POST", "/watches/{id}/renew"),
+            SessionBodyProbe {
+                uri: "/watches/wtch_policy_probe/renew",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("GET", "/effects"),
+            SessionBodyProbe {
+                uri: "/effects",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/effects/{id}/approve"),
+            SessionBodyProbe {
+                uri: "/effects/effect_policy_probe/approve",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/effects/{id}/deny"),
+            SessionBodyProbe {
+                uri: "/effects/effect_policy_probe/deny",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
             ("DELETE", "/capability-links/{id}"),
             SessionBodyProbe {
                 uri: "/capability-links/cplk_policy_probe",
@@ -2490,6 +2614,22 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             ("POST", "/auth/refresh"),
             SessionBodyProbe {
                 uri: "/auth/refresh",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/auth/password/change"),
+            SessionBodyProbe {
+                uri: "/auth/password/change",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/auth/recovery/rotate"),
+            SessionBodyProbe {
+                uri: "/auth/recovery/rotate",
                 base: json!({}),
                 forbidden_fields: handler_fields(),
             },

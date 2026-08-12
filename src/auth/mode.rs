@@ -372,6 +372,10 @@ impl StartupArtifacts {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PasswordProviderReadiness {
     pub ready: bool,
+    /// Password sign-in can be ready while production sign-up remains
+    /// deliberately unavailable until blind-accept delivery exists.
+    pub production_signup_ready: bool,
+    pub production_signup_refusal_code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub catalog_version: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -381,11 +385,15 @@ pub struct PasswordProviderReadiness {
 }
 
 pub const PASSWORD_PROVIDER_REQUIRES_V4_CODE: &str = "SNAPBACK_AUTH_PASSWORD_REQUIRES_V4";
+pub const PASSWORD_PRODUCTION_SIGNUP_UNAVAILABLE_CODE: &str =
+    "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE";
 
 impl PasswordProviderReadiness {
     pub fn ready(identifier_mode: &str) -> Self {
         Self {
             ready: true,
+            production_signup_ready: false,
+            production_signup_refusal_code: PASSWORD_PRODUCTION_SIGNUP_UNAVAILABLE_CODE.to_owned(),
             catalog_version: Some(4),
             identifier_mode: Some(identifier_mode.to_owned()),
             refusal_code: None,
@@ -395,6 +403,8 @@ impl PasswordProviderReadiness {
     pub fn requires_v4(catalog_version: Option<u32>) -> Self {
         Self {
             ready: false,
+            production_signup_ready: false,
+            production_signup_refusal_code: PASSWORD_PRODUCTION_SIGNUP_UNAVAILABLE_CODE.to_owned(),
             catalog_version,
             identifier_mode: None,
             refusal_code: Some(PASSWORD_PROVIDER_REQUIRES_V4_CODE.to_owned()),
@@ -402,7 +412,9 @@ impl PasswordProviderReadiness {
     }
 
     fn validate(&self) -> SnapbackResult<()> {
-        let coherent = if self.ready {
+        let production_signup_coherent = !self.production_signup_ready
+            && self.production_signup_refusal_code == PASSWORD_PRODUCTION_SIGNUP_UNAVAILABLE_CODE;
+        let coherent = production_signup_coherent && if self.ready {
             self.catalog_version == Some(4)
                 && matches!(
                     self.identifier_mode.as_deref(),

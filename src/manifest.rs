@@ -10855,13 +10855,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:cf31936bf107ab897eb5acacf0ddf1fe6b8d975b820cecb25599325f019255d4";
+    "sha256:f11ea62438a77b9f04dcf14abf889c0fcc065c06c9f751686ab99b1cfa9e7490";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:d245c24d3820a80e4753c5b365b266de95731fa841d25b872372a4a66f6f1de1";
+    "sha256:d54b9c2fb6e818cdab55baf60c76558f2b7c6caa8babb456de905fccb158f7bd";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -11261,17 +11261,17 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:7598cf89692bf04e308a86629198e9ac6d07ef4c2216a372f996b9949bd69830"
+                    "sha256:9fc977e860049168c8d01aa74a97c02e9c1cb7aedd976a70dde4d82c1f6fa357"
                         .to_owned(),
                 ),
                 (
                     "src/local/auth_room_kick_acceptance.rs".to_owned(),
-                    "sha256:8d756f057cae42d67bf9d466aaf36bf4b449ff12fc05f28b0e56c4bbfd774374"
+                    "sha256:16f45268d34c11758bf83659c0f8ca20c6f7028f80a010a7440fc1fae1f9d394"
                         .to_owned(),
                 ),
                 (
                     "src/local/authorization_acceptance.rs".to_owned(),
-                    "sha256:d785824c0d4dbaa9463f9a10dd54014af9ec07793d9ac067ca3a562049d68a07"
+                    "sha256:00a25f3fae6756f8d06dc921366091d44cfc00be32ee0169adebd89427f6dd9c"
                         .to_owned(),
                 ),
                 (
@@ -11296,7 +11296,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:f45dc1fbf304410f6e76cfdf69184367c610bb4bbaad1de9dc885507f897d640"
+                    "sha256:74d048c113e17899e29e2eaca7e798d05c4d8bb1168e0c2c8b268ebaf823fa6a"
                         .to_owned(),
                 ),
                 (
@@ -11469,12 +11469,12 @@ fn local_sequence_allocation_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local/auth_room_kick_acceptance.rs".to_owned(),
-                    "sha256:8d756f057cae42d67bf9d466aaf36bf4b449ff12fc05f28b0e56c4bbfd774374"
+                    "sha256:16f45268d34c11758bf83659c0f8ca20c6f7028f80a010a7440fc1fae1f9d394"
                         .to_owned(),
                 ),
                 (
                     "src/local/authorization_acceptance.rs".to_owned(),
-                    "sha256:d785824c0d4dbaa9463f9a10dd54014af9ec07793d9ac067ca3a562049d68a07"
+                    "sha256:00a25f3fae6756f8d06dc921366091d44cfc00be32ee0169adebd89427f6dd9c"
                         .to_owned(),
                 ),
                 (
@@ -11499,12 +11499,12 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:f45dc1fbf304410f6e76cfdf69184367c610bb4bbaad1de9dc885507f897d640"
+                    "sha256:74d048c113e17899e29e2eaca7e798d05c4d8bb1168e0c2c8b268ebaf823fa6a"
                         .to_owned(),
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:316430f695fc2ae5a7d4f37a702ae4d820e0882b7138e7611e634d274f0440b5"
+                    "sha256:177fb6064d93a0404316651467eb98e12be258fcbac0dc5b42e99f88979ede06"
                         .to_owned(),
                 ),
                 (
@@ -11758,17 +11758,17 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:7598cf89692bf04e308a86629198e9ac6d07ef4c2216a372f996b9949bd69830"
+                    "sha256:9fc977e860049168c8d01aa74a97c02e9c1cb7aedd976a70dde4d82c1f6fa357"
                         .to_owned(),
                 ),
                 (
                     "src/local/auth_room_kick_acceptance.rs".to_owned(),
-                    "sha256:8d756f057cae42d67bf9d466aaf36bf4b449ff12fc05f28b0e56c4bbfd774374"
+                    "sha256:16f45268d34c11758bf83659c0f8ca20c6f7028f80a010a7440fc1fae1f9d394"
                         .to_owned(),
                 ),
                 (
                     "src/local/authorization_acceptance.rs".to_owned(),
-                    "sha256:d785824c0d4dbaa9463f9a10dd54014af9ec07793d9ac067ca3a562049d68a07"
+                    "sha256:00a25f3fae6756f8d06dc921366091d44cfc00be32ee0169adebd89427f6dd9c"
                         .to_owned(),
                 ),
                 (
@@ -11793,7 +11793,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:f45dc1fbf304410f6e76cfdf69184367c610bb4bbaad1de9dc885507f897d640"
+                    "sha256:74d048c113e17899e29e2eaca7e798d05c4d8bb1168e0c2c8b268ebaf823fa6a"
                         .to_owned(),
                 ),
                 (
@@ -11915,7 +11915,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:e408676afbb01cb323c8b84897e9d1b7c0b57a8e57636bea0d77b45ee38c5715"
+                "sha256:3861d6081f183e933a8e8cf9a82fd06feffdbba3b5065cad974a603d04e3ddce"
                     .to_owned(),
             )])
         && carrier.client_source_sha256

@@ -32,8 +32,9 @@ use crate::auth::rehearsal::{
 };
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
-    MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
-    RescueCollidingTableRequest,
+    MailboxResponse, MintSessionRequest, PasswordChangeRequest, PasswordCredentialRequest,
+    PasswordResetRequest, PasswordUnlockRequest, PasswordUnlockResponse, RecoveryConsumeRequest,
+    RequestCodeRequest, RequestCodeResponse, RescueCollidingTableRequest,
 };
 use crate::commit_envelope::{
     ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1, OperationCoverageActivationRequestV1,
@@ -879,6 +880,30 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(ExchangeRequest),
         ),
         finish(
+            "auth.password-credential.input.schema.json",
+            schemars::schema_for!(PasswordCredentialRequest),
+        ),
+        finish(
+            "auth.password-change.input.schema.json",
+            schemars::schema_for!(PasswordChangeRequest),
+        ),
+        finish(
+            "auth.password-reset.input.schema.json",
+            schemars::schema_for!(PasswordResetRequest),
+        ),
+        finish(
+            "auth.recovery-consume.input.schema.json",
+            schemars::schema_for!(RecoveryConsumeRequest),
+        ),
+        finish(
+            "auth.password-unlock.input.schema.json",
+            schemars::schema_for!(PasswordUnlockRequest),
+        ),
+        finish(
+            "auth.password-unlock.output.schema.json",
+            schemars::schema_for!(PasswordUnlockResponse),
+        ),
+        finish(
             "auth.credential.output.schema.json",
             schemars::schema_for!(CredentialResponse),
         ),
@@ -1378,6 +1403,30 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
         ("POST", "/auth/exchange") => (
             Some("auth.exchange.input.schema.json"),
             Some("auth.credential.output.schema.json"),
+        ),
+        ("POST", "/auth/password/signup" | "/auth/password/signin") => (
+            Some("auth.password-credential.input.schema.json"),
+            Some("auth.credential.output.schema.json"),
+        ),
+        ("POST", "/auth/password/change") => (
+            Some("auth.password-change.input.schema.json"),
+            Some("auth.credential.output.schema.json"),
+        ),
+        ("POST", "/auth/password/reset") => (
+            Some("auth.password-reset.input.schema.json"),
+            Some("auth.credential.output.schema.json"),
+        ),
+        ("POST", "/auth/recovery/consume") => (
+            Some("auth.recovery-consume.input.schema.json"),
+            Some("auth.credential.output.schema.json"),
+        ),
+        ("POST", "/auth/recovery/rotate") => (
+            Some("auth.empty.input.schema.json"),
+            Some("auth.credential.output.schema.json"),
+        ),
+        ("POST", "/_snapback/api/auth/password/unlock") => (
+            Some("auth.password-unlock.input.schema.json"),
+            Some("auth.password-unlock.output.schema.json"),
         ),
         // LLP 0204 S2 Landing A uses handler-owned closed DTOs; no committed
         // standalone schema artifacts exist yet, so null is honest.

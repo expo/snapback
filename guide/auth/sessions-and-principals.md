@@ -124,6 +124,36 @@ gated non-production session-mint host operation and the first-party client
 adopts the resulting bearer with exact protocol offers. Neither path is a
 hosted-production auth claim.
 
+## Sign in: email + password
+
+The local target also exposes first-class password credentials. Use
+`POST /auth/password/signup` with `{ email, password }` to create a principal,
+and `POST /auth/password/signin` with the same closed shape thereafter. Both
+return the ordinary credential response used by `/auth/exchange`; the session
+provider is `local-password`, including on later refreshes. Signup additionally
+returns the one-time recovery codes. Store them at that moment: they cannot be
+read back.
+
+Password change is session-authenticated. A password session rotates with
+`{ currentPassword, newPassword }`. An email-code session can set its first
+password only with `{ currentPassword: null, newPassword, stepUp }`, where the
+step-up challenge was minted for that exact email identity and operation. The
+server never accepts a caller-supplied `userId`.
+
+Recovery codes are the production-shaped recovery path. Send `{ email, code }`
+to `POST /auth/recovery/consume`; success consumes that code, revokes the old
+session family, mints a local-password session, and returns a replacement code
+set exactly once. A local-password session can proactively replace its codes
+with `POST /auth/recovery/rotate` and an empty `{}` body.
+
+`POST /auth/password/reset` is deliberately **capture-mailbox only**. It
+consumes an email-code challenge and changes a password only when the
+email-code and local-password identities already belong to the same principal.
+Production refuses with `SNAPBACK_AUTH_PASSWORD_RESET_UNAVAILABLE`; it is not a
+stand-in for mail delivery. Production signup is likewise reported unready in
+`authProgramReadiness.passwordProvider` and refuses with
+`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE` until blind-accept delivery exists.
+
 ### Mint a local session from a trusted server
 
 The paved local operation is

@@ -7,7 +7,8 @@ use crate::auth::admission::{AdmissionLease, AuthAdmissionController, ModeCommit
 use crate::auth::coordinator::{
     AuthCoordinator, AuthFinish, BoundSessionResolution, CommittedAuthOutcome,
     CommittedAuthResponseClass, CommittedRevocationTarget, ConnectionBearerResolution,
-    ConnectionSessionThrottleKey, IssuanceFinish, RevocationFinish, RotationFinish,
+    ConnectionSessionThrottleKey, IssuanceFinish, PasswordChangeFinish, RevocationFinish,
+    RotationFinish,
 };
 use crate::auth::crypto::{
     AgentCredential, CreationInvitation, CredentialClass, PairingCode, ScopedToken, SessionBearer,
@@ -27,7 +28,8 @@ use crate::auth::lease::{
 use crate::auth::provider::{
     AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
     PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout, PlannedRefresh,
-    PlannedRevocationCommit, ProviderError, StepUpBinding, auth_required as provider_auth_required,
+    PlannedRevocationCommit, ProviderError, ProviderSessionIssuancePlan, StepUpBinding,
+    PasswordIssuanceCustody, auth_required as provider_auth_required,
     credential_superseded as provider_credential_superseded,
     refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
     session_revoked as provider_session_revoked,
@@ -50,8 +52,9 @@ use crate::auth::session_projection::{
 };
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
-    MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
-    RescueCollidingTableRequest, SecretInput,
+    MailboxResponse, MintSessionRequest, PasswordChangeRequest, PasswordCredentialRequest,
+    PasswordResetRequest, PasswordUnlockRequest, PasswordUnlockResponse, RecoveryConsumeRequest,
+    RequestCodeRequest, RequestCodeResponse, RescueCollidingTableRequest, SecretInput,
 };
 use crate::cron::{CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
@@ -7371,6 +7374,8 @@ pub enum CredentialResolution {
     /// A closed email-code challenge body proves authority only to exchange
     /// that challenge for a fresh credential; it is never a caller identity.
     ChallengeProof,
+    PasswordCredentialBody,
+    PasswordRecoveryCodeBody,
     CreationInvitationBody,
     AgentCredentialBody,
     AgentFamilySecretBody,
@@ -7787,6 +7792,8 @@ impl RouteSpec {
                 self.credential_resolution,
                 CredentialResolution::None
                     | CredentialResolution::ChallengeProof
+                    | CredentialResolution::PasswordCredentialBody
+                    | CredentialResolution::PasswordRecoveryCodeBody
                     | CredentialResolution::CreationInvitationBody
                     | CredentialResolution::AgentCredentialBody
                     | CredentialResolution::AgentFamilySecretBody
@@ -7857,6 +7864,18 @@ impl RouteSpec {
         {
             return fail(
                 "challenge proof must be public, install no caller, and return only a credential-secret response",
+            );
+        }
+        if matches!(
+            self.credential_resolution,
+            CredentialResolution::PasswordCredentialBody
+                | CredentialResolution::PasswordRecoveryCodeBody
+        ) && (self.path_policy != RoutePolicy::Public
+            || self.invocation_authority != InvocationAuthority::None
+            || self.response_sensitivity != ResponseSensitivity::CredentialSecret)
+        {
+            return fail(
+                "password credential bodies must be public, install no caller, and return only a credential-secret response",
             );
         }
         if self.credential_resolution == CredentialResolution::RehearsalCapability
@@ -8037,6 +8056,8 @@ impl RouteSpec {
                 sessions.credential_resolution,
                 CredentialResolution::None
                     | CredentialResolution::ChallengeProof
+                    | CredentialResolution::PasswordCredentialBody
+                    | CredentialResolution::PasswordRecoveryCodeBody
                     | CredentialResolution::CreationInvitationBody
                     | CredentialResolution::AgentCredentialBody
                     | CredentialResolution::AgentFamilySecretBody
@@ -8491,6 +8512,84 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::CredentialSecret,
             ),
             post(auth_exchange).layer(DefaultBodyLimit::max(AUTH_EXCHANGE_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/password/signup",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::PasswordCredentialBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_password_signup).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/password/signin",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::PasswordCredentialBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_password_signin).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/password/change",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_password_change).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/password/reset",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::ChallengeProof,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_password_reset).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/recovery/consume",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::PasswordRecoveryCodeBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_recovery_consume).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/recovery/rotate",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_recovery_rotate).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -9423,6 +9522,13 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::OperatorMetadata,
             ),
             get(admin_integrations).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/auth/password/unlock",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_password_unlock).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             write(
@@ -10512,7 +10618,9 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         | "/watches/{id}/resume"
         | "/watches/{id}/renew" => Some(InvocationSource::WatchManagement),
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
-        "/auth/refresh" => Some(InvocationSource::AuthRefresh),
+        "/auth/refresh" | "/auth/password/change" | "/auth/recovery/rotate" => {
+            Some(InvocationSource::AuthRefresh)
+        }
         "/auth/logout" => Some(InvocationSource::AuthLogout),
         "/push/tokens/register" | "/push/tokens/unregister" => {
             Some(InvocationSource::PushTokenRegistry)
@@ -11083,6 +11191,7 @@ fn finish_registered_response(
             committed_outcome
                 .as_ref()
                 .and_then(|_| match controlled.status() {
+                    StatusCode::OK => Some(CommittedAuthResponseClass::CredentialSecret),
                     StatusCode::NO_CONTENT => Some(CommittedAuthResponseClass::LogoutNoContent),
                     StatusCode::ACCEPTED => Some(CommittedAuthResponseClass::FamilyAlarmAccepted),
                     _ => None,
@@ -13696,6 +13805,10 @@ enum StepUpRequest {
         #[serde(rename = "effectId")]
         effect_id: String,
     },
+    PasswordSet {
+        #[serde(rename = "identityId")]
+        identity_id: String,
+    },
 }
 
 struct PairingCodeSecretResponse {
@@ -13963,6 +14076,31 @@ fn effect_step_up_binding(
     ))
 }
 
+fn password_set_step_up_binding(
+    authority: &PreparedAuthority,
+    identity_id: String,
+    source: InvocationSource,
+) -> Result<StepUpBinding, ApiError> {
+    require_provider_session_authority(authority, source)?;
+    let ResolvedAppAuthority::Session {
+        user_id,
+        session_id,
+        generation,
+        authority_instance_id,
+        ..
+    } = authority.resolved()
+    else {
+        unreachable!("password-set source requires session authority");
+    };
+    Ok(StepUpBinding::password_set(
+        user_id.clone(),
+        session_id.clone(),
+        *generation,
+        authority_instance_id.clone(),
+        identity_id,
+    ))
+}
+
 /// Fresh-authentication requests derive their human address from the exact
 /// live session. The wire chooses only a closed operation and target; it can
 /// neither redirect delivery nor mint an unbound proof.
@@ -13984,6 +14122,13 @@ async fn auth_step_up_request(
         StepUpRequest::AgentInvitation {} => agent_invitation_step_up_binding(&authority)?,
         StepUpRequest::EffectApproval { effect_id } => {
             effect_step_up_binding(&authority, effect_id)?
+        }
+        StepUpRequest::PasswordSet { identity_id } => {
+            password_set_step_up_binding(
+                &authority,
+                identity_id,
+                InvocationSource::AgentGrantManagement,
+            )?
         }
     };
     let admission = provider.admit().await;
@@ -15250,7 +15395,7 @@ async fn coordinated_mint_session(
         });
         let outcome = await_owned_auth_transaction(transaction).await?;
         match outcome? {
-            IssuanceFinish::Committed(issue) => return Ok(issue),
+            IssuanceFinish::Committed { issue, .. } => return Ok(issue),
             IssuanceFinish::CodeInvalid
             | IssuanceFinish::CodeLocked
             | IssuanceFinish::CredentialThrottled
@@ -15267,6 +15412,176 @@ async fn coordinated_mint_session(
         }
     }
     Err(auth_provider_unavailable_error())
+}
+
+async fn commit_password_issuance_plan(
+    runtime: &AppState,
+    provider: &Arc<AuthProvider>,
+    plan: ProviderSessionIssuancePlan,
+    route_admission: &AdmissionLease,
+    effect: &'static str,
+) -> Result<IssuanceFinish, SnapbackError> {
+    let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable",
+        )
+    })?;
+    let carrier = coordinator.premark_issuance(plan).await?;
+    let commit_plan = carrier.plan().commit_plan();
+    let effect_admission = route_admission.clone();
+    let owned_state = runtime.clone();
+    let owned_provider = provider.clone();
+    let owned_coordinator = coordinator.clone();
+    let snapback = runtime.snapback.clone();
+    let transaction = spawn_owned_auth_transaction(async move {
+        let admission = owned_provider.admit().await;
+        let commit_provider = owned_provider.clone();
+        let attempt = with_snapback(&snapback, move |snapback| {
+            let _admission = admission;
+            match effect_admission.effect_guard(effect) {
+                Ok(_effect) => commit_provider
+                    .commit_password_issuance(snapback.auth_database_mut(), &commit_plan),
+                Err(error) => AuthTransactionAttempt::RolledBack(error),
+            }
+        })
+        .await;
+        let finish = owned_coordinator.finish_issuance(
+            carrier,
+            attempt,
+            owned_provider.now_ms(),
+            owned_provider.monotonic_now(),
+        );
+        finish_auth_with_terminal_propagation(
+            &owned_state,
+            &owned_provider,
+            finish,
+            crate::live_wire::LiveAuthorityDisposition::Carrier,
+        )
+    });
+    await_owned_auth_transaction(transaction).await?
+}
+
+async fn commit_session_password_issuance_plan(
+    runtime: &AppState,
+    provider: &Arc<AuthProvider>,
+    plan: ProviderSessionIssuancePlan,
+    authority: &PreparedAuthority,
+    effect: &'static str,
+) -> Result<IssuanceFinish, SnapbackError> {
+    let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable",
+        )
+    })?;
+    let carrier = coordinator.premark_issuance(plan).await?;
+    let commit_plan = carrier.plan().commit_plan();
+    let effect_authority = authority.clone();
+    let owned_state = runtime.clone();
+    let owned_provider = provider.clone();
+    let owned_coordinator = coordinator.clone();
+    let snapback = runtime.snapback.clone();
+    let transaction = spawn_owned_auth_transaction(async move {
+        let _admission = owned_provider.admit().await;
+        let commit_provider = owned_provider.clone();
+        let attempt = with_snapback(&snapback, move |snapback| {
+            match effect_authority.effect_guard(effect) {
+                Ok(_effect) => commit_provider
+                    .commit_password_issuance(snapback.auth_database_mut(), &commit_plan),
+                Err(error) => AuthTransactionAttempt::RolledBack(error),
+            }
+        })
+        .await;
+        let finish = owned_coordinator.finish_issuance(
+            carrier,
+            attempt,
+            owned_provider.now_ms(),
+            owned_provider.monotonic_now(),
+        );
+        finish_auth_with_terminal_propagation(
+            &owned_state,
+            &owned_provider,
+            finish,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+        )
+    });
+    await_owned_auth_transaction(transaction).await?
+}
+
+async fn commit_password_reset_plan(
+    runtime: &AppState,
+    provider: &Arc<AuthProvider>,
+    exchange: ExchangeAdmission,
+    plan: ProviderSessionIssuancePlan,
+    code: String,
+    route_admission: &AdmissionLease,
+) -> Result<IssuanceFinish, SnapbackError> {
+    let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable",
+        )
+    })?;
+    let coordination = exchange.reacquisition_key();
+    drop(exchange);
+    let carrier = coordinator.premark_issuance(plan).await?;
+    let commit_plan = carrier.plan().commit_plan();
+    let effect_admission = route_admission.clone();
+    let owned_state = runtime.clone();
+    let owned_provider = provider.clone();
+    let owned_coordinator = coordinator.clone();
+    let snapback = runtime.snapback.clone();
+    let cleanup_coordination = coordination.clone();
+    let transaction = spawn_owned_auth_transaction(async move {
+        let attempt = match owned_provider
+            .admit()
+            .await
+            .for_exchange(coordination)
+            .await
+        {
+            Ok(exchange) => {
+                with_snapback(&snapback, move |snapback| {
+                    match effect_admission.effect_guard("password reset transaction") {
+                        Ok(_effect) => exchange.commit_planned_issuance(
+                            snapback.auth_database_mut(),
+                            &commit_plan,
+                            &code,
+                        ),
+                        Err(error) => AuthTransactionAttempt::RolledBack(error),
+                    }
+                })
+                .await
+            }
+            Err(error) => AuthTransactionAttempt::RolledBack(error.into_snapback_error()),
+        };
+        let finish = owned_coordinator.finish_issuance(
+            carrier,
+            attempt,
+            owned_provider.now_ms(),
+            owned_provider.monotonic_now(),
+        );
+        finish_auth_with_terminal_propagation(
+            &owned_state,
+            &owned_provider,
+            finish,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+        )
+    });
+    let finish = await_owned_auth_transaction(transaction).await??;
+    if matches!(finish, IssuanceFinish::Committed { .. }) {
+        provider
+            .admit()
+            .await
+            .for_exchange(cleanup_coordination)
+            .await
+            .map_err(ProviderError::into_snapback_error)?
+            .finish_exchange_cleanup();
+    }
+    Ok(finish)
 }
 
 async fn coordinated_exchange_session(
@@ -15398,7 +15713,7 @@ async fn coordinated_exchange_session(
                     .await
                     .map_err(ProviderError::from)?;
                 match outcome.map_err(ProviderError::from)? {
-                    IssuanceFinish::Committed(issue) => {
+                    IssuanceFinish::Committed { issue, .. } => {
                         provider
                             .admit()
                             .await
@@ -15567,6 +15882,17 @@ fn parse_auth_json<T: serde::de::DeserializeOwned>(
         return Err(auth_request_invalid());
     }
     serde_json::from_slice(&body).map_err(|_| auth_request_invalid())
+}
+
+fn parse_optional_empty_auth_json(
+    headers: &HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<EmptyAuthRequest, ApiError> {
+    let body = body.map_err(|_| auth_request_invalid())?;
+    if body.is_empty() {
+        return Ok(EmptyAuthRequest::default());
+    }
+    parse_auth_json(headers, Ok(body))
 }
 
 /// Request-code admission (maintenance + address stripe) is acquired before
@@ -15752,6 +16078,466 @@ async fn auth_exchange(
         response_headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     }
     Ok((response_headers, Json(response)))
+}
+
+fn password_exists() -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_PASSWORD_EXISTS",
+        "auth",
+        "a password credential already exists for this identifier",
+    )
+    .into()
+}
+
+fn password_signup_unavailable() -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE",
+        "auth",
+        "production password signup requires the blind-accept delivery profile",
+    )
+    .into()
+}
+
+fn password_reset_unavailable() -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_PASSWORD_RESET_UNAVAILABLE",
+        "auth",
+        "password reset requires the local capture-mailbox profile",
+    )
+    .into()
+}
+
+fn password_credential_invalid() -> ApiError {
+    map_provider_error(crate::auth::provider::credential_invalid())
+}
+
+fn password_throttled() -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_THROTTLED",
+        "auth",
+        "authentication is temporarily unavailable",
+    )
+    .into()
+}
+
+fn password_issue_response(
+    finish: IssuanceFinish,
+    predecessor_changed: impl FnOnce() -> ApiError,
+) -> Result<Response, ApiError> {
+    match finish {
+        IssuanceFinish::Committed { issue, outcome } => {
+            let (response, _committed_revocation) = issue.into_parts();
+            let mut response = Json(response).into_response();
+            response.extensions_mut().insert(outcome);
+            Ok(response)
+        }
+        IssuanceFinish::CredentialInvalid => Err(password_credential_invalid()),
+        IssuanceFinish::CredentialThrottled => Err(password_throttled()),
+        IssuanceFinish::PredecessorChanged => Err(predecessor_changed()),
+        IssuanceFinish::CandidateCollision
+        | IssuanceFinish::CodeInvalid
+        | IssuanceFinish::CodeLocked
+        | IssuanceFinish::SenderKeyBound
+        | IssuanceFinish::RehearsalReplay(_)
+        | IssuanceFinish::RehearsalDenied(_) => Err(auth_provider_unavailable()),
+    }
+}
+
+async fn auth_password_signup(
+    State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let provider = installed_auth_provider(&runtime)?;
+    if provider.profile() == crate::contract_types::AuthProviderProfile::Prod {
+        return Err(password_signup_unavailable());
+    }
+    let request = parse_auth_json::<PasswordCredentialRequest>(&headers, body)?;
+    let address_admission = provider
+        .admit_email(&request.email)
+        .await
+        .map_err(map_provider_error)?;
+    let planning_provider = provider.clone();
+    let identifier = request.email.clone();
+    let (address_admission, preparation) =
+        with_snapback(&runtime.snapback, move |snapback| {
+            let preparation = planning_provider.prepare_password_registration(
+                snapback.auth_database_mut(),
+                &identifier,
+                PasswordIssuanceCustody::Bearer,
+            );
+            (address_admission, preparation)
+        })
+        .await;
+    let now_ms = provider.now_ms();
+    let plan = provider
+        .finish_password_registration_with_active_recovery_key(
+            preparation?,
+            crate::auth::identity_core::PasswordSecret::new(
+                request.password.as_str().to_owned(),
+            ),
+            now_ms,
+            PasswordIssuanceCustody::Bearer,
+        )
+        .await?;
+    let finish = commit_password_issuance_plan(
+        &runtime,
+        &provider,
+        plan,
+        &route_admission,
+        "password signup transaction",
+    )
+    .await?;
+    drop(address_admission);
+    password_issue_response(finish, password_exists)
+}
+
+async fn auth_password_signin(
+    State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let provider = installed_auth_provider(&runtime)?;
+    let request = parse_auth_json::<PasswordCredentialRequest>(&headers, body)?;
+    let address_admission = provider
+        .admit_email(&request.email)
+        .await
+        .map_err(map_provider_error)?;
+    let planning_provider = provider.clone();
+    let identifier = request.email.clone();
+    let now_ms = provider.now_ms();
+    let (address_admission, preparation) =
+        with_snapback(&runtime.snapback, move |snapback| {
+            let preparation = planning_provider.prepare_password_authentication(
+                snapback.auth_database_mut(),
+                &identifier,
+                now_ms,
+                PasswordIssuanceCustody::Bearer,
+            );
+            (address_admission, preparation)
+        })
+        .await;
+    let plan = provider
+        .finish_password_authentication(
+            preparation?,
+            crate::auth::identity_core::PasswordSecret::new(
+                request.password.as_str().to_owned(),
+            ),
+            now_ms,
+            PasswordIssuanceCustody::Bearer,
+        )
+        .await?;
+    let finish = commit_password_issuance_plan(
+        &runtime,
+        &provider,
+        plan,
+        &route_admission,
+        "password signin transaction",
+    )
+    .await?;
+    drop(address_admission);
+    password_issue_response(finish, password_credential_invalid)
+}
+
+async fn auth_password_reset(
+    State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let provider = installed_auth_provider(&runtime)?;
+    if !provider.profile().permits_capture() {
+        return Err(password_reset_unavailable());
+    }
+    let request = parse_auth_json::<PasswordResetRequest>(&headers, body)?;
+    let admission = provider.admit().await;
+    let challenge_id = request.challenge_id.clone();
+    let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
+        let coordination =
+            admission.exchange_coordination(snapback.auth_database_mut(), &challenge_id);
+        (admission, coordination)
+    })
+    .await;
+    let Some(coordination) = coordination.map_err(map_provider_error)? else {
+        return Err(password_credential_invalid());
+    };
+    let exchange = admission
+        .for_exchange(coordination)
+        .await
+        .map_err(map_provider_error)?;
+    let code = request.code.as_str().to_owned();
+    let plan_code = code.clone();
+    let now_ms = provider.now_ms();
+    let (exchange, preparation) = with_snapback(&runtime.snapback, move |snapback| {
+        let preparation =
+            exchange.prepare_password_reset(snapback.auth_database_mut(), &plan_code, now_ms);
+        (exchange, preparation)
+    })
+    .await;
+    let preparation = preparation.map_err(map_provider_error)?;
+    if matches!(
+        &preparation,
+        crate::auth::provider::PasswordResetPreparation::ChallengeRejected
+            | crate::auth::provider::PasswordResetPreparation::PrincipalInvalid
+    ) {
+        return Err(password_credential_invalid());
+    }
+    let plan = provider
+        .finish_password_reset(
+            preparation,
+            crate::auth::identity_core::PasswordSecret::new(
+                request.new_password.as_str().to_owned(),
+            ),
+            now_ms,
+            PasswordIssuanceCustody::Bearer,
+        )
+        .await?
+        .ok_or_else(password_credential_invalid)?;
+    let finish = commit_password_reset_plan(
+        &runtime,
+        &provider,
+        exchange,
+        plan,
+        code,
+        &route_admission,
+    )
+    .await?;
+    match finish {
+        IssuanceFinish::CodeInvalid
+        | IssuanceFinish::CodeLocked
+        | IssuanceFinish::CredentialInvalid
+        | IssuanceFinish::PredecessorChanged => Err(password_credential_invalid()),
+        other => password_issue_response(other, password_credential_invalid),
+    }
+}
+
+async fn auth_recovery_consume(
+    State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let provider = installed_auth_provider(&runtime)?;
+    let request = parse_auth_json::<RecoveryConsumeRequest>(&headers, body)?;
+    let address_admission = provider
+        .admit_email(&request.email)
+        .await
+        .map_err(map_provider_error)?;
+    let planning_provider = provider.clone();
+    let identifier = request.email.clone();
+    let code = request.code.as_str().to_owned();
+    let now_ms = provider.now_ms();
+    let (address_admission, plan) = with_snapback(&runtime.snapback, move |snapback| {
+        let plan = planning_provider.plan_password_recovery_consume_with_active_key(
+            snapback.auth_database_mut(),
+            &identifier,
+            &code,
+            now_ms,
+            PasswordIssuanceCustody::Bearer,
+        );
+        (address_admission, plan)
+    })
+    .await;
+    let plan = plan.map_err(|_| password_credential_invalid())?;
+    let finish = commit_password_issuance_plan(
+        &runtime,
+        &provider,
+        plan,
+        &route_admission,
+        "recovery-code consume transaction",
+    )
+    .await?;
+    drop(address_admission);
+    password_issue_response(finish, password_credential_invalid)
+}
+
+async fn commit_password_change_plan(
+    runtime: &AppState,
+    provider: &Arc<AuthProvider>,
+    plan: crate::auth::provider::ProviderPasswordChangePlan,
+    authority: &PreparedAuthority,
+) -> Result<PasswordChangeFinish, SnapbackError> {
+    let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authentication projection is unavailable",
+        )
+    })?;
+    let carrier = coordinator.premark_password_change(plan).await?;
+    let commit_plan = carrier.plan().commit_plan();
+    let effect_authority = authority.clone();
+    let owned_state = runtime.clone();
+    let owned_provider = provider.clone();
+    let owned_coordinator = coordinator.clone();
+    let snapback = runtime.snapback.clone();
+    let transaction = spawn_owned_auth_transaction(async move {
+        let _admission = owned_provider.admit().await;
+        let commit_provider = owned_provider.clone();
+        let attempt = with_snapback(&snapback, move |snapback| {
+            match effect_authority.effect_guard("password change transaction") {
+                Ok(_effect) => commit_provider
+                    .commit_password_change(snapback.auth_database_mut(), &commit_plan),
+                Err(error) => AuthTransactionAttempt::RolledBack(error),
+            }
+        })
+        .await;
+        let finish = owned_coordinator.finish_password_change(carrier, attempt);
+        finish_auth_with_terminal_propagation(
+            &owned_state,
+            &owned_provider,
+            finish,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+        )
+    });
+    await_owned_auth_transaction(transaction).await?
+}
+
+async fn auth_password_change(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::AuthRefresh)?;
+    let provider = installed_auth_provider(&runtime)?;
+    let request = parse_auth_json::<PasswordChangeRequest>(&headers, body)?;
+    let bearer = SessionBearer::parse_any_version(auth_bearer(&headers).unwrap_or_default())
+        .map_err(|_| password_credential_invalid())?;
+    let now_ms = provider.now_ms();
+    match request {
+        PasswordChangeRequest::Rotate(request) => {
+            let planning_provider = provider.clone();
+            let preparation = with_snapback(&runtime.snapback, move |snapback| {
+                planning_provider.prepare_password_change(
+                    snapback.auth_database_mut(),
+                    &bearer,
+                    now_ms,
+                    PasswordIssuanceCustody::Bearer,
+                )
+            })
+            .await?;
+            let plan = provider
+                .finish_password_change(
+                    preparation,
+                    crate::auth::identity_core::PasswordSecret::new(
+                        request.current_password.as_str().to_owned(),
+                    ),
+                    crate::auth::identity_core::PasswordSecret::new(
+                        request.new_password.as_str().to_owned(),
+                    ),
+                    now_ms,
+                    PasswordIssuanceCustody::Bearer,
+                )
+                .await?;
+            match commit_password_change_plan(&runtime, &provider, plan, &authority).await? {
+                PasswordChangeFinish::Committed(issue) => {
+                    let (response, _committed_revocation) = issue.into_parts();
+                    Ok(Json(response).into_response())
+                }
+                PasswordChangeFinish::CredentialInvalid
+                | PasswordChangeFinish::PredecessorChanged => {
+                    Err(password_credential_invalid())
+                }
+                PasswordChangeFinish::CredentialThrottled => Err(password_throttled()),
+                PasswordChangeFinish::CandidateCollision => Err(auth_provider_unavailable()),
+            }
+        }
+        PasswordChangeRequest::Set(request) => {
+            let binding = password_set_step_up_binding(
+                &authority,
+                request.step_up.identity_id.clone(),
+                InvocationSource::AuthRefresh,
+            )?;
+            let admission = provider.admit().await;
+            let challenge_id = request.step_up.challenge_id.clone();
+            let (admission, coordination) =
+                with_snapback(&runtime.snapback, move |snapback| {
+                    let coordination = admission
+                        .step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+                    (admission, coordination)
+                })
+                .await;
+            let proof_admission = admission
+                .for_step_up(
+                    coordination.map_err(map_provider_error)?,
+                    binding,
+                    request.step_up.code.as_str(),
+                )
+                .await
+                .map_err(map_provider_error)?;
+            let identifier = proof_admission.address().as_str().to_owned();
+            let identity_id = request.step_up.identity_id.clone();
+            let planning_provider = provider.clone();
+            let preparation = with_snapback(&runtime.snapback, move |snapback| {
+                planning_provider.prepare_password_set(
+                    snapback.auth_database_mut(),
+                    &bearer,
+                    &identity_id,
+                    &identifier,
+                    now_ms,
+                    PasswordIssuanceCustody::Bearer,
+                )
+            })
+            .await?;
+            let plan = provider
+                .finish_password_set_with_active_recovery_key(
+                    preparation,
+                    proof_admission.proof().clone(),
+                    crate::auth::identity_core::PasswordSecret::new(
+                        request.new_password.as_str().to_owned(),
+                    ),
+                    now_ms,
+                    PasswordIssuanceCustody::Bearer,
+                )
+                .await?;
+            let finish = commit_session_password_issuance_plan(
+                &runtime,
+                &provider,
+                plan,
+                &authority,
+                "password set transaction",
+            )
+            .await?;
+            drop(proof_admission);
+            password_issue_response(finish, password_credential_invalid)
+        }
+    }
+}
+
+async fn auth_recovery_rotate(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::AuthRefresh)?;
+    let _: EmptyAuthRequest = parse_optional_empty_auth_json(&headers, body)?;
+    let provider = installed_auth_provider(&runtime)?;
+    let bearer = SessionBearer::parse_any_version(auth_bearer(&headers).unwrap_or_default())
+        .map_err(|_| password_credential_invalid())?;
+    let planning_provider = provider.clone();
+    let now_ms = provider.now_ms();
+    let plan = with_snapback(&runtime.snapback, move |snapback| {
+        planning_provider.plan_password_recovery_rotate_with_active_key(
+            snapback.auth_database_mut(),
+            &bearer,
+            now_ms,
+            PasswordIssuanceCustody::Bearer,
+        )
+    })
+    .await?;
+    let finish = commit_session_password_issuance_plan(
+        &runtime,
+        &provider,
+        plan,
+        &authority,
+        "recovery-code rotation transaction",
+    )
+    .await?;
+    password_issue_response(finish, password_credential_invalid)
 }
 
 /// Rotate one exact bearer after central resolved-session authority admission.
@@ -16476,6 +17262,20 @@ async fn admin_integrations(State(runtime): State<AppState>) -> Result<Json<Valu
         })
         .collect::<Vec<_>>();
     Ok(Json(json!({ "integrations": rows })))
+}
+
+async fn admin_password_unlock(
+    State(runtime): State<AppState>,
+    input: Result<Json<PasswordUnlockRequest>, JsonRejection>,
+) -> Result<Json<PasswordUnlockResponse>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let unlocked = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .clear_password_lockout(&input.email)
+    })
+    .await?;
+    Ok(Json(PasswordUnlockResponse { unlocked }))
 }
 
 #[derive(Deserialize)]

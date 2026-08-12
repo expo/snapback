@@ -174,6 +174,12 @@ impl PremarkedIssuance {
     }
 }
 
+impl PremarkedPasswordChange {
+    pub(crate) fn plan(&self) -> &ProviderPasswordChangePlan {
+        &self.plan
+    }
+}
+
 impl std::fmt::Debug for PremarkedIssuance {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str("PremarkedIssuance([REDACTED])")
@@ -199,6 +205,7 @@ impl std::fmt::Debug for PremarkedRotation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum CommittedAuthResponseClass {
+    CredentialSecret,
     LogoutNoContent,
     FamilyAlarmAccepted,
     ProviderAuthError,
@@ -275,7 +282,10 @@ pub(crate) enum RotationFinish {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub(crate) enum IssuanceFinish {
-    Committed(CredentialIssue),
+    Committed {
+        issue: CredentialIssue,
+        outcome: CommittedAuthOutcome,
+    },
     CodeInvalid,
     CodeLocked,
     CredentialInvalid,
@@ -1158,9 +1168,17 @@ impl AuthCoordinator {
                     fail_issuance_closed(&mut topology, &carrier);
                     return Err(projection_unavailable());
                 }
-                Ok(IssuanceFinish::Committed(
-                    carrier.plan.into_issue(session, committed_revocations),
-                ))
+                let outcome = CommittedAuthOutcome {
+                    state: Arc::new(Mutex::new(Some(CommittedAuthOutcomeState {
+                        publication: topology.projection.anonymous_publication_fence(),
+                        ticket: carrier.issuance_ticket.clone(),
+                        response_class: CommittedAuthResponseClass::CredentialSecret,
+                    }))),
+                };
+                Ok(IssuanceFinish::Committed {
+                    issue: carrier.plan.into_issue(session, committed_revocations),
+                    outcome,
+                })
             }
         }
     }

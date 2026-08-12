@@ -17,6 +17,149 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 use zeroize::Zeroizing;
 
+/// Closed password-signup/signin request. The password carrier is neither
+/// serializable nor printable and is wiped when the request drops.
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordCredentialRequest {
+    pub email: String,
+    #[schemars(with = "String")]
+    pub(crate) password: SecretInput,
+}
+
+impl fmt::Debug for PasswordCredentialRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PasswordCredentialRequest")
+            .field("email", &"[REDACTED]")
+            .field("password", &"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordResetRequest {
+    pub challenge_id: String,
+    #[schemars(with = "String")]
+    pub(crate) code: SecretInput,
+    #[schemars(with = "String")]
+    pub(crate) new_password: SecretInput,
+}
+
+impl fmt::Debug for PasswordResetRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PasswordResetRequest")
+            .field("challenge_id", &self.challenge_id)
+            .field("code", &"[REDACTED]")
+            .field("new_password", &"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordSetStepUpRequest {
+    pub challenge_id: String,
+    #[schemars(with = "String")]
+    pub(crate) code: SecretInput,
+    pub identity_id: String,
+}
+
+impl fmt::Debug for PasswordSetStepUpRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PasswordSetStepUpRequest")
+            .field("challenge_id", &self.challenge_id)
+            .field("code", &"[REDACTED]")
+            .field("identity_id", &self.identity_id)
+            .finish()
+    }
+}
+
+/// The tag is the presence/null value of `currentPassword`: a string selects
+/// rotation, while an explicit null selects first-set and requires step-up.
+/// The custom visitor is provided by serde's untagged enum while each member
+/// remains independently closed.
+#[derive(Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum PasswordChangeRequest {
+    Rotate(PasswordRotateRequest),
+    Set(PasswordSetRequest),
+}
+
+impl fmt::Debug for PasswordChangeRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Rotate(_) => formatter.write_str("PasswordChangeRequest::Rotate([REDACTED])"),
+            Self::Set(request) => formatter
+                .debug_struct("PasswordChangeRequest::Set")
+                .field("identity_id", &request.step_up.identity_id)
+                .field("secrets", &"[REDACTED]")
+                .finish(),
+        }
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordRotateRequest {
+    #[schemars(with = "String")]
+    pub(crate) current_password: SecretInput,
+    #[schemars(with = "String")]
+    pub(crate) new_password: SecretInput,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordSetRequest {
+    /// Must be present and null; omission is rejected by serde.
+    pub current_password: (),
+    #[schemars(with = "String")]
+    pub(crate) new_password: SecretInput,
+    pub step_up: PasswordSetStepUpRequest,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RecoveryConsumeRequest {
+    pub email: String,
+    #[schemars(with = "String")]
+    pub(crate) code: SecretInput,
+}
+
+impl fmt::Debug for RecoveryConsumeRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RecoveryConsumeRequest")
+            .field("email", &"[REDACTED]")
+            .field("code", &"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordUnlockRequest {
+    pub email: String,
+}
+
+impl fmt::Debug for PasswordUnlockRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PasswordUnlockRequest")
+            .field("email", &"[REDACTED]")
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordUnlockResponse {
+    pub unlocked: bool,
+}
+
 #[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RequestCodeRequest {
@@ -205,6 +348,12 @@ pub struct CredentialResponse {
     pub session: SessionResponse,
     #[schemars(with = "CredentialAuthorityDescriptorSchema")]
     pub authority_descriptor: AuthorityDescriptor,
+    /// One-time recovery custody. Ordinary exchange/signin/reset/refresh
+    /// responses omit this member byte-for-byte; signup and recovery consume
+    /// attach it to this same credential DTO rather than minting a parallel
+    /// credential response shape.
+    #[schemars(with = "Option<Vec<String>>")]
+    recovery_codes: Option<crate::auth::identity_core::RecoveryCodes>,
 }
 
 impl CredentialResponse {
@@ -216,7 +365,22 @@ impl CredentialResponse {
             refresh_after,
             session,
             authority_descriptor,
+            recovery_codes: None,
         }
+    }
+
+    pub(crate) fn with_recovery_codes(
+        mut self,
+        recovery_codes: Option<crate::auth::identity_core::RecoveryCodes>,
+    ) -> Self {
+        self.recovery_codes = recovery_codes;
+        self
+    }
+
+    pub(crate) fn recovery_codes(
+        &self,
+    ) -> Option<&crate::auth::identity_core::RecoveryCodes> {
+        self.recovery_codes.as_ref()
     }
 
     #[allow(dead_code)] // Later session/client projection consumes this without serializing it.
@@ -234,6 +398,7 @@ impl fmt::Debug for CredentialResponse {
             .field("refresh_after", &self.refresh_after)
             .field("session", &self.session)
             .field("authority_descriptor", &self.authority_descriptor)
+            .field("recovery_codes", &self.recovery_codes)
             .finish()
     }
 }
@@ -243,12 +408,18 @@ impl Serialize for CredentialResponse {
     where
         S: Serializer,
     {
-        let mut output = serializer.serialize_struct("AuthCredentialResponse", 5)?;
+        let mut output = serializer.serialize_struct(
+            "AuthCredentialResponse",
+            if self.recovery_codes.is_some() { 6 } else { 5 },
+        )?;
         output.serialize_field("tokenType", &self.token_type)?;
         output.serialize_field("token", self.token.expose_secret())?;
         output.serialize_field("refreshAfter", &self.refresh_after)?;
         output.serialize_field("session", &self.session)?;
         output.serialize_field("authorityDescriptor", &self.authority_descriptor)?;
+        if let Some(recovery_codes) = &self.recovery_codes {
+            output.serialize_field("recoveryCodes", recovery_codes.expose_once())?;
+        }
         output.end()
     }
 }

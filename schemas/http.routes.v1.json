@@ -220,6 +220,19 @@
     {
       "class": "SystemApi",
       "credential_resolution": "AdminCredential",
+      "inputSchema": {
+        "$ref": "auth.password-unlock.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "auth.password-unlock.output.schema.json"
+      },
+      "path": "/_snapback/api/auth/password/unlock",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
       "inputSchema": null,
       "method": "POST",
       "outputSchema": null,
@@ -1167,6 +1180,84 @@
       "method": "POST",
       "outputSchema": null,
       "path": "/auth/pairing-codes",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": {
+        "$ref": "auth.password-change.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "auth.credential.output.schema.json"
+      },
+      "path": "/auth/password/change",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "ChallengeProof",
+      "inputSchema": {
+        "$ref": "auth.password-reset.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "auth.credential.output.schema.json"
+      },
+      "path": "/auth/password/reset",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "PasswordCredentialBody",
+      "inputSchema": {
+        "$ref": "auth.password-credential.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "auth.credential.output.schema.json"
+      },
+      "path": "/auth/password/signin",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "PasswordCredentialBody",
+      "inputSchema": {
+        "$ref": "auth.password-credential.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "auth.credential.output.schema.json"
+      },
+      "path": "/auth/password/signup",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "PasswordRecoveryCodeBody",
+      "inputSchema": {
+        "$ref": "auth.recovery-consume.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "auth.credential.output.schema.json"
+      },
+      "path": "/auth/recovery/consume",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": {
+        "$ref": "auth.empty.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "auth.credential.output.schema.json"
+      },
+      "path": "/auth/recovery/rotate",
       "path_policy": "SessionAuth"
     },
     {

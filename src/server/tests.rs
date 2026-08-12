@@ -430,6 +430,7 @@ use crate::auth::service_fence::{
     ServiceAuthorityCommitInterlock, ServiceAuthorityFenceRegistry,
     with_service_authority_terminal_gate,
 };
+use crate::storage::auth::PasswordIdentifierMode;
 use crate::contract_types::{AuthProviderProfile, RevocationReason, ServerProfile};
 use crate::cron::CronRunOutcome;
 use crate::diagnostic::SnapbackError;
@@ -3304,6 +3305,22 @@ fn sessions_activation_server_fixture_with_api(
     agents: Option<AgentsManifest>,
     api: Option<ApiManifest>,
 ) -> AppState {
+    sessions_activation_server_fixture_with_api_and_password_mode(
+        predecessor_functions,
+        clock,
+        agents,
+        api,
+        PasswordIdentifierMode::UsernameV1,
+    )
+}
+
+fn sessions_activation_server_fixture_with_api_and_password_mode(
+    predecessor_functions: FunctionManifest,
+    clock: Option<Arc<ManualServerAuthClock>>,
+    agents: Option<AgentsManifest>,
+    api: Option<ApiManifest>,
+    password_identifier_mode: PasswordIdentifierMode,
+) -> AppState {
     let activation_now_ms = clock
         .as_ref()
         .map_or_else(super::now_millis, |clock| clock.epoch_ms());
@@ -3419,6 +3436,12 @@ fn sessions_activation_server_fixture_with_api(
     keyring
         .load_or_mint_initial(activation_now_ms, &OsRandom)
         .expect("provision activation keyring before sessions consume");
+    if password_identifier_mode == PasswordIdentifierMode::EmailV1 {
+        snapback
+            .auth_database_mut()
+            .activate_current_auth_catalog_with_password_identifier_mode(password_identifier_mode)
+            .expect("activate declared password identifier mode");
+    }
     let settled = snapback
         .auth_database_mut()
         .consume_sessions_auth_mode(&readiness)
@@ -3504,6 +3527,21 @@ async fn sessions_activation_server_fixture_async() -> AppState {
     })
     .await
     .expect("construct activation fixture off the async workers")
+}
+
+async fn password_sessions_activation_server_fixture_async() -> AppState {
+    tokio::task::spawn_blocking(|| {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        sessions_activation_server_fixture_with_api_and_password_mode(
+            activation_functions('2', false),
+            None,
+            None,
+            None,
+            PasswordIdentifierMode::EmailV1,
+        )
+    })
+    .await
+    .expect("construct email-password activation fixture off the async workers")
 }
 
 async fn sessions_activation_server_fixture_with_agents_async(agents: AgentsManifest) -> AppState {
@@ -8051,6 +8089,57 @@ fn session_auth_http_request(uri: &str, body: Vec<u8>, bearer: &str) -> Request<
     request
 }
 
+fn password_auth_http_request(uri: &str, body: Value) -> Request<Body> {
+    let mut request = auth_http_request(
+        "POST",
+        uri,
+        serde_json::to_vec(&body).expect("password auth request body"),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut request);
+    request
+}
+
+fn assert_password_credential_shape(credential: &Value, recovery_codes: bool) {
+    let mut expected = BTreeSet::from([
+        "authorityDescriptor".to_owned(),
+        "refreshAfter".to_owned(),
+        "session".to_owned(),
+        "token".to_owned(),
+        "tokenType".to_owned(),
+    ]);
+    if recovery_codes {
+        expected.insert("recoveryCodes".to_owned());
+    }
+    assert_eq!(
+        credential
+            .as_object()
+            .expect("credential response object")
+            .keys()
+            .cloned()
+            .collect::<BTreeSet<_>>(),
+        expected,
+        "credential response shape: {credential}"
+    );
+    assert_eq!(credential["tokenType"], "Bearer");
+    assert_eq!(credential["session"]["provider"], "local-password");
+    assert_eq!(credential["authorityDescriptor"]["descriptorVersion"], 1);
+    assert!(
+        credential["authorityDescriptor"]["authorityInstanceId"]
+            .as_str()
+            .is_some_and(|value| value.starts_with("aut_"))
+    );
+    if recovery_codes {
+        assert!(
+            credential["recoveryCodes"]
+                .as_array()
+                .is_some_and(|codes| !codes.is_empty())
+        );
+    }
+}
+
 fn agent_registration_http_request(body: Value) -> Request<Body> {
     let mut request = auth_http_request(
         "POST",
@@ -8128,6 +8217,58 @@ async fn response_json(response: axum::response::Response) -> serde_json::Value 
         .await
         .expect("read auth HTTP response");
     serde_json::from_slice(&bytes).expect("auth HTTP JSON response")
+}
+
+async fn password_test_email_challenge(
+    router: &SnapbackApp,
+    provider: &Arc<AuthProvider>,
+    email: &str,
+) -> (String, String) {
+    let requested = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/request-code",
+            json!({ "email": email }),
+        ))
+        .await
+        .expect("request password-test email challenge");
+    assert_eq!(requested.status(), StatusCode::OK);
+    let challenge_id = response_json(requested).await["challengeId"]
+        .as_str()
+        .expect("password-test challenge id")
+        .to_owned();
+    let mailbox = serde_json::to_value(
+        provider
+            .mailbox_entry(&challenge_id)
+            .await
+            .expect("password-test capture mailbox"),
+    )
+    .expect("serialize password-test mailbox");
+    let code = mailbox["code"]
+        .as_str()
+        .expect("password-test email code")
+        .to_owned();
+    (challenge_id, code)
+}
+
+async fn password_test_email_exchange(
+    router: &SnapbackApp,
+    provider: &Arc<AuthProvider>,
+    email: &str,
+) -> Value {
+    let (challenge_id, code) = password_test_email_challenge(router, provider, email).await;
+    let exchanged = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/exchange",
+            json!({ "challengeId": challenge_id, "code": code }),
+        ))
+        .await
+        .expect("exchange password-test email challenge");
+    let status = exchanged.status();
+    let body = response_json(exchanged).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    body
 }
 
 async fn request_hosted_sender_challenge(
@@ -14781,6 +14922,520 @@ async fn auth_refresh_and_logout_routes_enforce_exact_carriers_and_statuses() {
     );
 }
 
+/// @ref LLP 0227#surface-routes-cli-verbs-client-methods — password signup/signin
+/// and recovery reuse the exact credential response and registered issuance path.
+#[tokio::test]
+async fn password_routes_signup_authorize_signin_and_recover_end_to_end() {
+    let state = password_sessions_activation_server_fixture_async().await;
+    let provider = state.auth_provider.clone().expect("password provider");
+    let router = app(state.clone());
+    let email = "password-http@example.com";
+    let password = "route-auth-password-123!";
+
+    let signup = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/signup",
+            json!({ "email": email, "password": password }),
+        ))
+        .await
+        .expect("password signup response");
+    assert_eq!(signup.status(), StatusCode::OK);
+    assert_eq!(signup.headers()[header::CACHE_CONTROL], "no-store, private");
+    let signup = response_json(signup).await;
+    assert_password_credential_shape(&signup, true);
+    let signup_token = signup["token"].as_str().unwrap().to_owned();
+    let recovery_code = signup["recoveryCodes"][0]
+        .as_str()
+        .expect("signup recovery code")
+        .to_owned();
+
+    let app_call = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/query/listItems",
+            br#"{"args":{}}"#.to_vec(),
+            &signup_token,
+        ))
+        .await
+        .expect("signup-authenticated app call");
+    assert_eq!(app_call.status(), StatusCode::OK);
+
+    let refreshed = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/refresh",
+            br#"{}"#.to_vec(),
+            &signup_token,
+        ))
+        .await
+        .expect("signup session authorizes SessionAuth refresh");
+    assert_eq!(refreshed.status(), StatusCode::OK);
+    let refreshed = response_json(refreshed).await;
+    assert_password_credential_shape(&refreshed, false);
+
+    let signin = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/signin",
+            json!({ "email": email, "password": password }),
+        ))
+        .await
+        .expect("password signin response");
+    assert_eq!(signin.status(), StatusCode::OK);
+    let signin = response_json(signin).await;
+    assert_password_credential_shape(&signin, false);
+
+    let recovered = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/recovery/consume",
+            json!({ "email": email, "code": recovery_code }),
+        ))
+        .await
+        .expect("recovery consume response");
+    assert_eq!(recovered.status(), StatusCode::OK);
+    let recovered = response_json(recovered).await;
+    assert_password_credential_shape(&recovered, true);
+    assert_ne!(recovered["recoveryCodes"], signup["recoveryCodes"]);
+
+    // The freshly recovered local-password session immediately authorizes
+    // another SessionAuth credential operation.
+    let recovered_token = recovered["token"].as_str().unwrap().to_owned();
+    let durable_token = recovered_token.clone();
+    let durable_now_ms = provider.now_ms();
+    let durable_admission = provider.admit().await;
+    let durable = with_snapback(&state.snapback, move |snapback| {
+        durable_admission.resolve_session(
+            snapback.auth_database_mut(),
+            &durable_token,
+            durable_now_ms,
+        )
+    })
+    .await;
+    assert!(durable.is_ok(), "recovery bearer missing durably: {durable:?}");
+    let projected = state
+        .auth_coordinator
+        .as_ref()
+        .expect("auth coordinator")
+        .resolve_family_bearer(
+            &recovered_token,
+            provider.now_ms(),
+            provider.monotonic_now(),
+        );
+    assert!(
+        projected.is_ok(),
+        "recovery bearer missing from projection: {projected:?}"
+    );
+    let session = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/recovery/rotate",
+            Vec::new(),
+            &recovered_token,
+        ))
+        .await
+        .expect("recovered session rotates recovery custody");
+    let session_status = session.status();
+    let session = response_json(session).await;
+    assert_eq!(session_status, StatusCode::OK, "{session}");
+    assert_password_credential_shape(&session, true);
+
+    let reused = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/recovery/consume",
+            json!({ "email": email, "code": recovery_code }),
+        ))
+        .await
+        .expect("reused recovery-code response");
+    assert_eq!(reused.status(), StatusCode::UNAUTHORIZED);
+    let reused = response_json(reused).await;
+    assert_eq!(
+        reused["diagnostic"]["code"],
+        "SNAPBACK_AUTH_CREDENTIAL_INVALID"
+    );
+
+    let duplicate = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/signup",
+            json!({ "email": email, "password": "another-route-password-456!" }),
+        ))
+        .await
+        .expect("duplicate signup response");
+    assert_eq!(duplicate.status(), StatusCode::CONFLICT);
+    assert_eq!(duplicate.headers()[header::CACHE_CONTROL], "no-store, private");
+    let duplicate = response_json(duplicate).await;
+    assert_eq!(
+        duplicate["diagnostic"]["code"],
+        "SNAPBACK_AUTH_PASSWORD_EXISTS"
+    );
+    let serialized = duplicate.to_string();
+    assert!(!serialized.contains(password));
+    assert!(!serialized.contains("another-route-password-456!"));
+
+    drop(provider);
+}
+
+#[tokio::test]
+async fn password_public_invalid_refusal_is_uniform_and_admin_unlock_clears_early_lockout() {
+    const HTTP_TIMING_ENVELOPE: Duration = Duration::from_millis(250);
+    let state = password_sessions_activation_server_fixture_async().await;
+    let provider = state.auth_provider.clone().expect("password provider");
+    let router = app(state.clone());
+    let password = "uniform-password-route-123!";
+    for email in ["wrong-password@example.com", "locked-password@example.com"] {
+        let response = router
+            .clone()
+            .oneshot(password_auth_http_request(
+                "/auth/password/signup",
+                json!({ "email": email, "password": password }),
+            ))
+            .await
+            .expect("uniform-refusal signup");
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+    let now_ms = provider.now_ms();
+    with_snapback(&state.snapback, move |snapback| {
+        snapback.auth_database_mut().insert_password_attempt_for_test(
+            "locked-password@example.com",
+            now_ms,
+            99,
+            Some(now_ms + 60_000),
+        )
+    })
+    .await
+    .expect("install early-unlock fixture");
+
+    let attempts = [
+        ("wrong-password@example.com", "definitely-wrong-password!"),
+        ("missing-password@example.com", "definitely-wrong-password!"),
+        ("locked-password@example.com", password),
+    ];
+    let mut observations = Vec::new();
+    for (email, presented) in attempts {
+        let started = Instant::now();
+        let response = router
+            .clone()
+            .oneshot(password_auth_http_request(
+                "/auth/password/signin",
+                json!({ "email": email, "password": presented }),
+            ))
+            .await
+            .expect("uniform password refusal");
+        let elapsed = started.elapsed();
+        let status = response.status();
+        let cache = response.headers()[header::CACHE_CONTROL].clone();
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("uniform refusal bytes");
+        observations.push((status, cache, body, elapsed));
+    }
+    let first = &observations[0];
+    for observation in &observations[1..] {
+        assert_eq!(observation.0, first.0);
+        assert_eq!(observation.1, first.1);
+        assert_eq!(observation.2, first.2);
+        assert!(
+            observation.3.abs_diff(first.3) <= HTTP_TIMING_ENVELOPE,
+            "public password refusals exceeded the declared {HTTP_TIMING_ENVELOPE:?} envelope: {:?}",
+            observations.iter().map(|entry| entry.3).collect::<Vec<_>>()
+        );
+    }
+    assert_eq!(first.0, StatusCode::UNAUTHORIZED);
+    assert_eq!(first.1, "no-store, private");
+    let body: Value = serde_json::from_slice(&first.2).unwrap();
+    assert_eq!(
+        body["diagnostic"]["code"],
+        "SNAPBACK_AUTH_CREDENTIAL_INVALID"
+    );
+    assert!(!body.to_string().contains("locked"));
+
+    let unlock = router
+        .clone()
+        .oneshot(auth_http_request(
+            "POST",
+            "/_snapback/api/auth/password/unlock",
+            serde_json::to_vec(&json!({ "email": "locked-password@example.com" })).unwrap(),
+            true,
+            Some("auth-http-admin"),
+            None,
+        ))
+        .await
+        .expect("admin password unlock");
+    assert_eq!(unlock.status(), StatusCode::OK);
+    assert_eq!(response_json(unlock).await["unlocked"], true);
+    let signin = router
+        .oneshot(password_auth_http_request(
+            "/auth/password/signin",
+            json!({ "email": "locked-password@example.com", "password": password }),
+        ))
+        .await
+        .expect("signin after admin unlock");
+    assert_eq!(signin.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set() {
+    let state = password_sessions_activation_server_fixture_async().await;
+    let provider = state.auth_provider.clone().expect("password provider");
+    let router = app(state.clone());
+    let rotate_email = "rotate-password@example.com";
+    let old_password = "rotate-route-password-123!";
+    let new_password = "rotate-route-password-456!";
+    let signup = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/signup",
+            json!({ "email": rotate_email, "password": old_password }),
+        ))
+        .await
+        .unwrap();
+    let signup = response_json(signup).await;
+    let signup_token = signup["token"].as_str().unwrap();
+
+    let wrong = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/password/change",
+            serde_json::to_vec(&json!({
+                "currentPassword": "wrong-current-password!",
+                "newPassword": new_password,
+            }))
+            .unwrap(),
+            signup_token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(wrong.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        response_json(wrong).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_CREDENTIAL_INVALID"
+    );
+
+    let changed = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/password/change",
+            serde_json::to_vec(&json!({
+                "currentPassword": old_password,
+                "newPassword": new_password,
+            }))
+            .unwrap(),
+            signup_token,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(changed.status(), StatusCode::OK);
+    assert_password_credential_shape(&response_json(changed).await, false);
+
+    let set_email = "set-first-password@example.com";
+    let email_credential = password_test_email_exchange(&router, &provider, set_email).await;
+    let email_bearer = email_credential["token"].as_str().unwrap().to_owned();
+    let email_identity_id = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .identity_id_for_provider_subject_for_test("email-code", set_email)
+    })
+    .await
+    .expect("email-code identity id");
+
+    let bearer_alone = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/password/change",
+            serde_json::to_vec(&json!({
+                "currentPassword": null,
+                "newPassword": "set-route-password-123!",
+            }))
+            .unwrap(),
+            &email_bearer,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(bearer_alone.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(bearer_alone).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_REQUEST_INVALID"
+    );
+
+    let step_up = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/step-up/request",
+            serde_json::to_vec(&json!({
+                "operation": "passwordSet",
+                "identityId": email_identity_id,
+            }))
+            .unwrap(),
+            &email_bearer,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(step_up.status(), StatusCode::OK);
+    let challenge_id = response_json(step_up).await["challengeId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let mailbox = serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap())
+        .unwrap();
+    let code = mailbox["code"].as_str().unwrap();
+    let set = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/password/change",
+            serde_json::to_vec(&json!({
+                "currentPassword": null,
+                "newPassword": "set-route-password-123!",
+                "stepUp": {
+                    "challengeId": challenge_id,
+                    "code": code,
+                    "identityId": email_identity_id,
+                }
+            }))
+            .unwrap(),
+            &email_bearer,
+        ))
+        .await
+        .unwrap();
+    let set_status = set.status();
+    let set = response_json(set).await;
+    assert_eq!(set_status, StatusCode::OK, "{set}");
+    assert_password_credential_shape(&set, true);
+
+    // The email-code and local-password identities now share one principal,
+    // so the capture-profile reset route may consume a fresh email challenge.
+    let (reset_challenge_id, reset_code) =
+        password_test_email_challenge(&router, &provider, set_email).await;
+    let reset = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/reset",
+            json!({
+                "challengeId": reset_challenge_id,
+                "code": reset_code,
+                "newPassword": "reset-route-password-456!",
+            }),
+        ))
+        .await
+        .expect("same-principal password reset");
+    let reset_status = reset.status();
+    let reset = response_json(reset).await;
+    assert_eq!(reset_status, StatusCode::OK, "{reset}");
+    assert_password_credential_shape(&reset, false);
+}
+
+#[tokio::test]
+async fn password_reset_refuses_password_only_email_only_and_two_principal_squat_uniformly() {
+    let state = password_sessions_activation_server_fixture_async().await;
+    let provider = state.auth_provider.clone().expect("password provider");
+    let router = app(state);
+
+    let password_only = "reset-password-only@example.com";
+    let response = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/signup",
+            json!({ "email": password_only, "password": "reset-only-password-123!" }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let email_only = "reset-email-only@example.com";
+    password_test_email_exchange(&router, &provider, email_only).await;
+
+    let squat = "reset-squat@example.com";
+    let response = router
+        .clone()
+        .oneshot(password_auth_http_request(
+            "/auth/password/signup",
+            json!({ "email": squat, "password": "reset-squat-password-123!" }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    password_test_email_exchange(&router, &provider, squat).await;
+
+    let mut refusal_body = None;
+    for email in [password_only, email_only, squat] {
+        let (challenge_id, code) =
+            password_test_email_challenge(&router, &provider, email).await;
+        let response = router
+            .clone()
+            .oneshot(password_auth_http_request(
+                "/auth/password/reset",
+                json!({
+                    "challengeId": challenge_id,
+                    "code": code,
+                    "newPassword": "reset-refused-password-456!",
+                }),
+            ))
+            .await
+            .expect("same-principal reset refusal");
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store, private");
+        let body = response_json(response).await;
+        assert_eq!(
+            body["diagnostic"]["code"],
+            "SNAPBACK_AUTH_CREDENTIAL_INVALID"
+        );
+        assert!(!body.to_string().contains(email));
+        match &refusal_body {
+            Some(expected) => assert_eq!(&body, expected),
+            None => refusal_body = Some(body),
+        }
+    }
+}
+
+#[tokio::test]
+async fn production_password_signup_and_capture_reset_are_typed_unready_boundaries() {
+    let state = password_sessions_activation_server_fixture_async().await;
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    keyring
+        .load_or_mint_initial(super::now_millis(), &OsRandom)
+        .unwrap();
+    let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Prod, keyring).unwrap());
+    let state = state
+        .try_with_auth_provider(provider)
+        .expect("production password provider");
+    let readiness = serde_json::to_value(state.auth_program_readiness()).unwrap();
+    assert_eq!(
+        readiness["passwordProvider"]["productionSignupReady"],
+        false
+    );
+    assert_eq!(
+        readiness["passwordProvider"]["productionSignupRefusalCode"],
+        "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE"
+    );
+    let router = app(state);
+    for (path, code) in [
+        (
+            "/auth/password/signup",
+            "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE",
+        ),
+        (
+            "/auth/password/reset",
+            "SNAPBACK_AUTH_PASSWORD_RESET_UNAVAILABLE",
+        ),
+    ] {
+        let response = router
+            .clone()
+            .oneshot(password_auth_http_request(
+                path,
+                json!({ "password": "must-never-be-observed" }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{path}");
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store, private");
+        let body = response_json(response).await;
+        assert_eq!(body["diagnostic"]["code"], code);
+        assert!(!body.to_string().contains("must-never-be-observed"));
+    }
+}
+
 #[tokio::test]
 async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owned() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
@@ -19753,9 +20408,13 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_REHEARSAL_REQUEST_INVALID",
     "SNAPBACK_AUTH_LOGICAL_IMPORT_FORMAT_UNSUPPORTED",
     "SNAPBACK_AUTH_LOGICAL_IMPORT_INVALID",
+    "SNAPBACK_AUTH_IDENTITY_INVALID",
     // LLP 0214 §20.3: an identifier that does not satisfy the app's immutable
     // username-v1/email-v1 declaration is malformed caller input.
     "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
+    "SNAPBACK_AUTH_PASSWORD_POLICY",
+    "SNAPBACK_AUTH_PROVISIONING_INVALID",
+    "SNAPBACK_AUTH_USERNAME_INVALID",
     "SNAPBACK_API_BUDGETS_INVALID",
     "SNAPBACK_API_ASK_BUDGETS_INVALID",
     "SNAPBACK_API_ASK_BUDGETS_REQUIRED",
@@ -20271,6 +20930,10 @@ const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_SESSION_EXPIRED",
     "SNAPBACK_AUTH_STREAM_RESET",
     "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+    "SNAPBACK_AUTH_GUEST_SESSION_INVALID",
+    "SNAPBACK_AUTH_RECOVERY_CODE_INVALID",
+    "SNAPBACK_AUTH_SESSION_INVALID",
+    "SNAPBACK_AUTH_VERIFIED_PROOF_INVALID",
     "SNAPBACK_CONNECTION_AUTHORITY_MISMATCH",
     "SNAPBACK_CONNECTION_TOKEN_REQUIRED",
     "SNAPBACK_PUSH_SESSION_STALE",
@@ -20279,7 +20942,10 @@ const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
 
 const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_EFFECT_APPROVAL_DENIED",
+    "SNAPBACK_AUTH_ASSURANCE_INADMISSIBLE",
+    "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
     "SNAPBACK_AUTH_PASSWORD_SET_AUTHORITY_INVALID",
+    "SNAPBACK_AUTH_PROVISIONING_WRITE_FORBIDDEN",
     "SNAPBACK_REMEDIATION_APPROVAL_REQUIRED",
     "SNAPBACK_WATCH_AUTHORITY_DEAD",
     "SNAPBACK_WATCH_ANCHOR_SCOPE_MISMATCH",
@@ -20442,9 +21108,16 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
 const CONFLICT_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_FUNCTION_GENERATION_REHYDRATION_MISMATCH",
     "SNAPBACK_EFFECT_BINDING_STALE",
+    "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION",
+    "SNAPBACK_AUTH_IDENTITY_COLLISION",
     "SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT",
+    "SNAPBACK_AUTH_LAST_AUTHENTICATOR",
     "SNAPBACK_AUTH_LOGICAL_IMPORT_IDENTITY_COLLISION",
     "SNAPBACK_AUTH_LOGICAL_IMPORT_TARGET_NOT_EMPTY",
+    "SNAPBACK_AUTH_MODE_CHANGED",
+    "SNAPBACK_AUTH_PASSWORD_ALREADY_SET",
+    "SNAPBACK_AUTH_PASSWORD_EXISTS",
+    "SNAPBACK_AUTH_PROVISIONING_REPLAY_MISMATCH",
     // Catalog-v4 activation is one-way: redeclaring a different identifier
     // mode conflicts with the durable app identity contract.
     "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE",
@@ -20811,6 +21484,11 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
     "SNAPBACK_AUTH_RESERVATION_CANCELLED",
     "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+    "SNAPBACK_AUTH_IDENTITY_CORE_REQUIRES_V3",
+    "SNAPBACK_AUTH_PASSWORD_HASH_UNAVAILABLE",
+    "SNAPBACK_AUTH_PASSWORD_RESET_UNAVAILABLE",
+    "SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE",
+    "SNAPBACK_AUTH_RANDOM_UNAVAILABLE",
     // Exact predecessor catalogs remain operational, but the first-class
     // password provider is unavailable until an explicitly activated v4.
     "SNAPBACK_AUTH_PASSWORD_REQUIRES_V4",
