@@ -44,6 +44,13 @@ function walk(directory, accept) {
   return paths;
 }
 
+const diagnosticCatalogPaths = [
+  // This executable table projects diagnostic metadata into the generated
+  // handler profile, but it does not emit the diagnostics itself. Keep it in
+  // the registry input digest below without treating catalog entries as sites.
+  'packages/snapback-codegen/handler-runtime-profile.mjs',
+];
+
 const productionPaths = [
   // @ref LLP 0199#sequencing-guidance-not-a-schedule — these files inherit
   // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
@@ -52,6 +59,7 @@ const productionPaths = [
     path.endsWith('.mjs')
     && !/(?:^|\.)test\.mjs$/u.test(path)
     && !/(?:^|\.)fixture\.mjs$/u.test(path)
+    && !diagnosticCatalogPaths.includes(path)
   )),
   ...walk(join(root, 'clients/swift'), (path) => path.endsWith('.swift') && path.includes('/Sources/')),
 ].sort();
@@ -310,6 +318,7 @@ for (const code of codes) {
 }
 const inputPaths = [
   'scripts/generate-diagnostics-registry.mjs',
+  ...diagnosticCatalogPaths,
   ...productionPaths,
   ...walk(join(root, 'guide'), (path) => (
     path.endsWith('.md')

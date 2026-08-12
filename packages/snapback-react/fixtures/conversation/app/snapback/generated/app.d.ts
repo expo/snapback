@@ -12,6 +12,7 @@ type ReferenceResult<Reference> = Reference extends { readonly __result?: infer 
 type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };
 export interface CommandDescriptor<Mutation = unknown, Input extends string | never = never, MutationArg extends string | never = never, Optional extends boolean = false, Intent = unknown> {
   readonly kind: 'asset-bearing-command.v1';
+  readonly __snapbackReferenceKind: 'Command';
   readonly mutation: Mutation;
   readonly asset: [Input] extends [never] ? null : Readonly<{ input: Input; intent: Intent; mutationArg: MutationArg; optional: Optional }>;
   readonly passthroughArgs: readonly string[];
@@ -19,6 +20,14 @@ export interface CommandDescriptor<Mutation = unknown, Input extends string | ne
   readonly __result?: ReferenceResult<Mutation>;
 }
 export interface GeneratedAppCommands {
+  /**
+   * Command reference `app:command:send`.
+   * Legal client verbs/hooks: `commandClient.start`, `useSnapbackCommand`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: task snapshot is process-local; mutation settlement remains durable Retention: command task is process-local; constituent mutation follows outbox retention.
+   * Dispatch/task states: `preparing`, `transferring`, `committing`, `succeeded`, `failed`, `cancelled`, `ambiguous`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:75e324f48e13c3a79befce10834728a88572bcd5a4aeb56363ebd1e2fb272559`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
   readonly "send": CommandDescriptor<GeneratedApi["sendMessage"], "image", "image", true, GeneratedApi["messageImageUpload"]>;
 }
 /** Surface member call payloads follow strict omission semantics: an optional input the caller omits is omitted from the composed operation payload (never sent as undefined); passing undefined explicitly is refused by the client value gate before any network work. */

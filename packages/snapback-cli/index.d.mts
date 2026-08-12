@@ -303,18 +303,23 @@ export interface GenerateAppSuccess {
   outDir: string;
   schemaManifest: unknown;
   functionManifest: unknown;
+  handlerRuntimeProfile: unknown;
   capabilityManifest: unknown;
   providerIntrospection: unknown;
   providerBindingMetadata: unknown;
   contractManifest: unknown;
   artifactIndex: unknown;
   summary: unknown;
-  cacheGraphRoot: string;
+  check: boolean;
+  checked: boolean;
+  emitted: boolean;
+  cacheGraphRoot: string | null;
 }
 
 export interface GenerateAppFailure {
   schemaVersion: 'snapback.generate.v1';
   targetProfile: string;
+  check: boolean;
   ok: false;
   diagnostics: readonly CliDiagnostic[];
 }
@@ -324,6 +329,7 @@ export type GenerateAppResult = GenerateAppSuccess | GenerateAppFailure;
 /** Run codegen for a backend directory in a fresh worker process. */
 export function generateApp(backendDirectory: string, options?: {
   readonly targetProfile?: string;
+  readonly check?: boolean;
 }): Promise<GenerateAppResult>;
 
 // Re-declared from @expo/snapback-codegen/review-surface (re-exported at runtime).

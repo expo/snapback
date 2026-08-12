@@ -44,6 +44,7 @@ import {
 import {
   prepareReactBindingForClient,
 } from './react-binding.mjs';
+import { assertClientReferenceKind } from './reference-kinds.mjs';
 import {
   attachOutboxDiagnosticsProducer,
   createClientDevConsoleReporter,
@@ -5957,6 +5958,12 @@ export class SnapbackClient {
   cronTick() { return this.#adminReq('POST', '/_snapback/api/cron/tick', {}); }
 
   query(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
+    assertClientReferenceKind({
+      reference: ref,
+      acceptedKinds: ['Query', 'LiveQuery'],
+      invokedVerb: 'query',
+      diagnosticsChannel: this.__clientDiagnosticsChannel,
+    });
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
@@ -6295,6 +6302,12 @@ export class SnapbackClient {
   }
 
   action(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
+    assertClientReferenceKind({
+      reference: ref,
+      acceptedKinds: ['Action'],
+      invokedVerb: 'action',
+      diagnosticsChannel: this.__clientDiagnosticsChannel,
+    });
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
@@ -8599,6 +8612,12 @@ export class SnapbackClient {
     // carries an outbox-capable store; `false` restores fail-loud delivery.
     queue = 'auto',
   } = {}) {
+    assertClientReferenceKind({
+      reference: ref,
+      acceptedKinds: ['Mutation'],
+      invokedVerb: 'mutate',
+      diagnosticsChannel: this.__clientDiagnosticsChannel,
+    });
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
@@ -10397,6 +10416,12 @@ export class SnapbackClient {
     // callers leave this null.
     supersedesSubscriptionId = null,
   } = {}) {
+    assertClientReferenceKind({
+      reference: ref,
+      acceptedKinds: ['Query', 'LiveQuery'],
+      invokedVerb: 'liveQuery',
+      diagnosticsChannel: this.__clientDiagnosticsChannel,
+    });
     if (this.__externalBearerTransition) {
       await this.__externalBearerTransition;
     }

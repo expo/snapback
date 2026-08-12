@@ -1579,11 +1579,13 @@ export function scaffoldApp(target, options = {}) {
 
 export async function generateApp(backendDirectory, options = {}) {
   const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
-  const result = await generate(resolve(backendDirectory), { targetProfile });
+  const check = options.check === true;
+  const result = await generate(resolve(backendDirectory), { targetProfile, check });
   return {
     schemaVersion: 'snapback.generate.v1',
     ...result,
     targetProfile,
+    check,
   };
 }
 
@@ -3389,6 +3391,7 @@ function printResult(result, json) {
       console.error(`[${diagnostic.severity}] ${diagnostic.code} (${diagnostic.subsystem}) ${diagnostic.message}`);
     }
     console.log(formatCodegenSummary(result.summary));
+    if (result.check === true) console.log('codegen preflight ok (no artifacts emitted)');
   }
   else if (result.ok !== false) console.log(`${result.schemaVersion}: ok`);
   else console.error(JSON.stringify(result, null, 2));
@@ -3419,9 +3422,9 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     recovery: 'Fix the named argument/path diagnostic and rerun; existing files are not silently replaced.',
   },
   {
-    name: 'generate', usage: 'snapback generate [<backend-dir>] [--target-profile <id>] [--json]',
-    description: 'Generate and validate reviewable app artifacts.', lifecycle: 'one-shot',
-    output: 'snapback.generate.v1', exits: '0 complete generation; 1 diagnostics contain a refusal',
+    name: 'generate', usage: 'snapback generate [<backend-dir>] [--target-profile <id>] [--check] [--json]',
+    description: 'Generate and validate reviewable app artifacts, or run the complete preflight without emission.', lifecycle: 'one-shot',
+    output: 'snapback.generate.v1', exits: '0 complete generation/preflight; 1 diagnostics contain a refusal',
     recovery: 'Repair the emitted source/artifact diagnostic, then rerun generation.',
   },
   {
@@ -4119,7 +4122,15 @@ export async function runCli(argv, options = {}) {
   }
   if (command === 'generate') {
     const targetProfile = takeFlag(args, '--target-profile', 'local-dev-sqlite-ibex');
-    const result = await generateApp(args.shift() ?? 'snapback', { targetProfile });
+    const check = takeBooleanFlag(args, '--check');
+    const backendDirectory = args.shift() ?? 'snapback';
+    if (args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback generate [<backend-dir>] [--target-profile <id>] [--check] [--json]',
+      );
+    }
+    const result = await generateApp(backendDirectory, { targetProfile, check });
     printResult(result, json);
     return result.ok ? 0 : 1;
   }

@@ -144,6 +144,10 @@ proof command, and honest nonclaims without opening every demo.
   cache, summaries, and fail-closed resolution.
 
 ### Backend
+- [Handler runtime profile and generation preflight](./backend/handler-runtime.md)
+  — inspect current handler module/syntax/global limits, run the full
+  non-replacing `generate --check` path, and follow build-bound refusal
+  remediation.
 - [Queries](./backend/queries.md) — indexed snapshot reads, server scoping,
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,

@@ -1,4 +1,5 @@
 import { createAssetClient } from './assets.mjs';
+import { assertClientReferenceKind } from './reference-kinds.mjs';
 
 let commandSequence = 0;
 
@@ -618,6 +619,12 @@ export class SnapbackCommandClient {
   }
 
   start(command, input) {
+    assertClientReferenceKind({
+      reference: command,
+      acceptedKinds: ['Command'],
+      invokedVerb: 'commandClient.start',
+      diagnosticsChannel: this.client.__clientDiagnosticsChannel,
+    });
     let capture;
     try {
       capture = typeof this.client.captureAuthority === 'function'

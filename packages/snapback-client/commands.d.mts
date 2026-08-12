@@ -31,6 +31,7 @@ export interface AssetBearingCommandDescriptorV1<
   Intent = unknown,
 > {
   readonly kind: 'asset-bearing-command.v1';
+  readonly __snapbackReferenceKind: 'Command';
   readonly mutation: Mutation;
   readonly asset: [AssetInput] extends [never] ? null : null | Readonly<{
     readonly input: AssetInput;
@@ -42,10 +43,11 @@ export interface AssetBearingCommandDescriptorV1<
   readonly __args?: Omit<FunctionArgs<Mutation>, MutationArg> & CommandAssetInput<AssetInput, Optional>;
   readonly __result?: FunctionResult<Mutation>;
 }
-export type AssetBearingCommandReferenceV1 = Pick<
+export type CommandRef = Pick<
   AssetBearingCommandDescriptorV1,
-  'kind' | 'mutation' | 'asset' | 'passthroughArgs'
+  'kind' | '__snapbackReferenceKind' | 'mutation' | 'asset' | 'passthroughArgs'
 >;
+export type AssetBearingCommandReferenceV1 = CommandRef;
 
 export type CommandArgs<Command> = Command extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;
 export type CommandResult<Command> = Command extends { readonly __result?: infer Result } ? Result : unknown;
@@ -115,7 +117,7 @@ export declare class SnapbackCommandClient {
   }>);
   readonly client: SnapbackClient;
   readonly assets: SnapbackAssetClient;
-  start<Command extends AssetBearingCommandReferenceV1>(
+  start<Command extends CommandRef>(
     command: Command,
     input: CommandArgs<Command>,
   ): CommandTask<CommandResult<Command>>;

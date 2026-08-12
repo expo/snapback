@@ -1,5 +1,9 @@
 import ts from 'typescript';
 import { createHash } from 'node:crypto';
+import {
+  handlerDiagnosticDetails,
+  INLINE_HANDLER_RULES,
+} from './handler-runtime-profile.mjs';
 
 // @ref LLP 0108#final-author-reconciliation-after-round-3 — inline v1 is one
 // self-contained function expression. This extractor never obtains executable
@@ -15,13 +19,7 @@ import { createHash } from 'node:crypto';
 // with declared reads/writes remaining evidence (basis: 'declared'), never an
 // enforced ceiling.
 
-const INLINE_BUILDERS = new Set([
-  'defineJsQuery',
-  'defineJsLiveQuery',
-  'defineJsMutation',
-  'defineAction',
-  'defineAssetUpload',
-]);
+const INLINE_BUILDERS = new Set(INLINE_HANDLER_RULES.builders);
 
 // The extracted property per builder: upload intents spell their handler
 // `authorize` (LLP 0044 §Generated upload intents); every other builder
@@ -43,39 +41,7 @@ function inlineEgressAllowedAtCodegen() {
   return /^(1|true)$/i.test(process.env.SNAPBACK_OUTBOUND_ACTIONS || '');
 }
 
-const ALLOWED_GLOBALS = new Set([
-  'Array',
-  'BigInt',
-  'Boolean',
-  'Date',
-  'Error',
-  'Infinity',
-  'JSON',
-  'Map',
-  'Math',
-  'NaN',
-  'Number',
-  'Object',
-  'Promise',
-  'RangeError',
-  'ReferenceError',
-  'RegExp',
-  'Set',
-  'String',
-  'SyntaxError',
-  'TypeError',
-  'URIError',
-  'Uint8Array',
-  'decodeURI',
-  'decodeURIComponent',
-  'encodeURI',
-  'encodeURIComponent',
-  'isFinite',
-  'isNaN',
-  'parseFloat',
-  'parseInt',
-  'undefined',
-]);
+const ALLOWED_GLOBALS = new Set(INLINE_HANDLER_RULES.globals);
 
 const diagnostic = (code, message, path, node, sourceFile, details = {}) => {
   const start = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
@@ -92,6 +58,7 @@ const diagnostic = (code, message, path, node, sourceFile, details = {}) => {
       line: start.line + 1,
       column: start.character + 1,
     },
+    ...handlerDiagnosticDetails(code),
     ...details,
   };
 };
@@ -114,51 +81,21 @@ function authoredPropertyName(member) {
   return propertyName(member.name);
 }
 
-const REFLECTION_PROPERTY_NAMES = new Set([
-  '__proto__',
-  'constructor',
-  'prototype',
-]);
+const REFLECTION_PROPERTY_NAMES = new Set(INLINE_HANDLER_RULES.reflectionPropertyNames);
 
-const OBJECT_REFLECTION_METHODS = new Set([
-  'getOwnPropertyDescriptor',
-  'getOwnPropertyDescriptors',
-  'getOwnPropertyNames',
-  'getOwnPropertySymbols',
-  'getPrototypeOf',
-  'setPrototypeOf',
-]);
+const OBJECT_REFLECTION_METHODS = new Set(INLINE_HANDLER_RULES.objectReflectionMethods);
 
 // The query builder the handler runtime actually implements
 // (packages/snapback-harness/ctx-bootstrap.js). A verb outside this set is a
 // generation-time refusal with a named site rather than a runtime
 // "undefined is not a function" (0137 A2-f5).
-const QUERY_BUILDER_VERBS = new Set([
-  'withIndex',
-  'withSearchIndex',
-  'eq',
-  'in',
-  'lt',
-  'lte',
-  'gt',
-  'gte',
-  'order',
-  'take',
-  'collect',
-  'first',
-]);
+const QUERY_BUILDER_VERBS = new Set(INLINE_HANDLER_RULES.queryBuilderVerbs);
 
 // @ref LLP 0004#ctxdb-contract — keep generation-time member admission in
 // lockstep with the handler runtime's finite ctx.db object. This catches a
 // familiar-API typo such as Convex's `update` before it becomes an opaque
 // runtime "undefined is not a function" failure.
-const CTX_DB_MEMBERS = new Set([
-  'get',
-  'query',
-  'insert',
-  'patch',
-  'delete',
-]);
+const CTX_DB_MEMBERS = new Set(INLINE_HANDLER_RULES.ctxDbMembers);
 
 function staticString(node, checker = null, boundary = null, seen = new Set()) {
   if (!node) return null;
@@ -859,6 +796,7 @@ export function extractInlineHandlers(source, {
       path,
       line: point.line + 1,
       column: point.character + 1,
+      ...handlerDiagnosticDetails('SNAPBACK_INLINE_HANDLER_SOURCE_INVALID'),
     };
   });
   const handlers = new Map();
@@ -957,7 +895,7 @@ export function extractInlineHandlers(source, {
           ...helperStack.slice(helperStack.indexOf(referencedName)),
           referencedName,
         ];
-        const cycleKey = [...new Set(cyclePath)].sort().join(' ');
+        const cycleKey = [...new Set(cyclePath)].sort().join('\0');
         if (!reportedCycles.has(cycleKey)) {
           reportedCycles.add(cycleKey);
           diagnostics.push(diagnostic(

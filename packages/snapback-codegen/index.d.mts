@@ -365,7 +365,11 @@ export function verifyMicroProfileArtifacts(
 
 export type SnapbackTargetProfile = 'local-dev-sqlite-ibex' | 'remote-service-sqlite-ibex';
 
-export type GenerateOptions = Readonly<{ targetProfile?: SnapbackTargetProfile }>;
+export type GenerateOptions = Readonly<{
+  targetProfile?: SnapbackTargetProfile;
+  /** Run complete generation validation without publishing generated output. */
+  check?: boolean;
+}>;
 
 export interface GenerateFailure {
   readonly ok: false;
@@ -383,13 +387,16 @@ export interface GenerateSuccess {
     functions: ReadonlyArray<Readonly<Record<string, unknown>>>;
     [fact: string]: unknown;
   }>;
+  readonly handlerRuntimeProfile: Readonly<Record<string, unknown>>;
   readonly capabilityManifest: Readonly<Record<string, unknown>>;
   readonly providerIntrospection: ProviderIntrospection;
   readonly providerBindingMetadata: ProviderBindingMetadata;
   readonly contractManifest: ContractDataManifest;
   readonly artifactIndex: ReviewManifest;
   readonly summary: CodegenSummary;
-  readonly cacheGraphRoot: string;
+  readonly checked: boolean;
+  readonly emitted: boolean;
+  readonly cacheGraphRoot: string | null;
   /** Present only when a source-controlled `micro.profile.json` was selected. */
   readonly microProfile?: Readonly<Record<string, unknown>>;
 }

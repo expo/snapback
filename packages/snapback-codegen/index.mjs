@@ -83,6 +83,16 @@ import {
   extractInlineHandlers,
   renderInlineOperationModule,
 } from './inline-handlers.mjs';
+import {
+  buildHandlerRuntimeProfile,
+  CLOSED_SCRIPT_HANDLER_RULES,
+  handlerDiagnosticDetails,
+} from './handler-runtime-profile.mjs';
+import {
+  buildClientLifecycleManifest,
+  CLIENT_LIFECYCLE_MANIFEST_FILE,
+  renderReferenceJSDoc,
+} from './client-lifecycle.mjs';
 
 const AUTH_ASSURANCE_KINDS = new Set([
   'authenticated', 'email_verified', 'phone_verified', 'recent_auth',
@@ -1763,12 +1773,19 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
     message: code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
       ? capabilityUnsupportedMessage(message)
       : message,
+    ...handlerDiagnosticDetails(code),
     ...extra,
   });
 
   const targetProfile = options?.targetProfile ?? TARGET_PROFILE_LOCAL;
+  // @ref LLP 0237#d5-preflight-is-available-before-generation — both normal
+  // generation and --check enter this one full checker; only the final
+  // complete-graph publication step differs.
+  const checkOnly = options?.check === true;
   const targetConfig = TARGET_PROFILES.get(targetProfile);
-  if (!targetConfig || Object.keys(options ?? {}).some((key) => key !== 'targetProfile')) {
+  if (!targetConfig
+      || (options?.check !== undefined && typeof options.check !== 'boolean')
+      || Object.keys(options ?? {}).some((key) => !['targetProfile', 'check'].includes(key))) {
     err('CODEGEN_TARGET_PROFILE_UNSUPPORTED', 'codegen', `unsupported target profile ${String(targetProfile)}`, {
       targetProfile,
       supported: [...TARGET_PROFILES.keys()],
@@ -1793,6 +1810,7 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
         diagnostics,
         infoDiagnostics,
         err,
+        checkOnly,
         testHooks,
       }),
       testHooks?.generationLock,
@@ -1810,6 +1828,7 @@ async function generateInProcessLocked({
   diagnostics,
   infoDiagnostics,
   err,
+  checkOnly,
   testHooks,
 }) {
   const schemaPath = join(backendRoot, 'schema.mjs');
@@ -1827,6 +1846,37 @@ async function generateInProcessLocked({
     err(error.codegenCode ?? 'FUNCTION_SOURCE_MISSING', 'function', error.message, {
       path: functionsPath,
     });
+    return { ok: false, diagnostics };
+  }
+  // @ref LLP 0237#d5-preflight-is-available-before-generation — retain the
+  // authored binding/property map across isolated evaluation so definition
+  // failures name the exact author-controlled source site.
+  const functionDefinitionAttribution = definitionAttributionFromSource(
+    functionsSource,
+    'functions.mjs',
+  );
+  for (const definition of functionDefinitionAttribution.definitions) {
+    if (definition.exported) continue;
+    err(
+      'SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED',
+      'function',
+      `${definition.binding} is a top-level ${definition.builder}(...) definition but is not exported; add export before the binding so codegen can discover it`,
+      {
+        binding: definition.binding,
+        builder: definition.builder,
+        path: definition.sourceSpan.file,
+        line: definition.sourceSpan.line,
+        column: definition.sourceSpan.column,
+        sourceSpan: definition.sourceSpan,
+        definitionPath: definition.binding,
+        details: {
+          definitionPath: [definition.binding],
+          remediation: `export const ${definition.binding} = ${definition.builder}(...);`,
+        },
+      },
+    );
+  }
+  if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
   const inlineExtraction = extractInlineHandlers(functionsSource, {
@@ -1863,7 +1913,13 @@ async function generateInProcessLocked({
     return { ok: false, diagnostics };
   }
 
-  const evaluated = await evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, routesBuild);
+  const evaluated = await evaluateDefinitionBundles(
+    schemaBuild,
+    functionsBuild,
+    diagnostics,
+    routesBuild,
+    functionDefinitionAttribution,
+  );
   if (!evaluated || diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -5257,6 +5313,15 @@ async function generateInProcessLocked({
     ...(projections.length > 0 ? { projections } : {}),
     ...(assetUploadIntents.length > 0 ? { assetUploadIntents } : {}),
   };
+  const handlerRuntimeProfile = buildHandlerRuntimeProfile({
+    appId,
+    inputsHash,
+    authoredSourceHash,
+    targetProfile,
+    functions: functionManifest.functions,
+    sourceFunctions: functions,
+    outboundActions: egressAllowedAtCodegen(),
+  });
   // Server-declared, never authored here (LLP 0032 P2 / LLP 0037): the
   // selected committed schemas/ instance is generated from the Rust core's
   // target declaration, drift-gated by tests/capability_v0.rs, and embedded
@@ -5416,6 +5481,14 @@ async function generateInProcessLocked({
     generatedReferences,
     err,
   });
+  const clientLifecycleManifest = buildClientLifecycleManifest({
+    appId,
+    inputsHash,
+    authoredSourceHash,
+    targetProfile,
+    functions: functionManifest.functions,
+    commands: generatedCommands,
+  });
   const generatedSurfaces = buildGeneratedSurfaces({
     appId,
     surfaceDefs,
@@ -5481,6 +5554,7 @@ async function generateInProcessLocked({
     assetUploadIntents,
     generatedCommands,
     generatedSurfaces,
+    clientLifecycleManifest,
   );
   const apiModule = renderApiModule(
     functionManifest.functions,
@@ -5497,6 +5571,7 @@ async function generateInProcessLocked({
     routesManifest,
     assetUploadIntents,
     capabilityManifest,
+    clientLifecycleManifest,
   );
   const microArtifacts = buildMicroArtifacts({
     backendRoot,
@@ -5545,7 +5620,11 @@ async function generateInProcessLocked({
         functions: functionManifest.functions.filter((fn) => fn.apiExposure?.expose === true),
       }
     : functionManifest;
-  const apiEnvelopeMembers = buildApiEnvelopeMembers(envelopeFunctionManifest, operationSchemas);
+  const apiEnvelopeMembers = buildApiEnvelopeMembers(
+    envelopeFunctionManifest,
+    operationSchemas,
+    clientLifecycleManifest,
+  );
   validateContractModuleFilenames(contractModules, err);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
@@ -5598,6 +5677,8 @@ async function generateInProcessLocked({
       './app-descriptor': './app.descriptor.json',
       './schema': './schema.manifest.json',
       './functions': './functions.manifest.json',
+      './handler-runtime-profile': './handler-runtime-profile.v1.json',
+      './client-lifecycle': `./${CLIENT_LIFECYCLE_MANIFEST_FILE}`,
       './capabilities': './capability.manifest.json',
       ...(trustedCompositionActivation
         ? { './trusted-composition-activation': `./${TRUSTED_COMPOSITION_ACTIVATION_FILE}` }
@@ -5641,7 +5722,7 @@ async function generateInProcessLocked({
     bundleHash,
     authoredSourceHash,
     ...(activationGenerationAdvanced === null ? {} : { activationGenerationAdvanced }),
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'handler-runtime-profile.v1.json', CLIENT_LIFECYCLE_MANIFEST_FILE, 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -5667,6 +5748,8 @@ async function generateInProcessLocked({
     writeGeneratedOutput(tmpOutDir, {
       schemaManifest,
       functionManifest,
+      handlerRuntimeProfile,
+      clientLifecycleManifest,
       capabilityManifest,
       routesManifest,
       providerIntrospection,
@@ -5718,13 +5801,20 @@ async function generateInProcessLocked({
       files,
       summary,
     });
-    verifiedGraph = publishGeneratedGraph({
-      temporaryGraphRoot: tmpOutDir,
-      cacheGraphRoot: codegenCacheGraphRoot(backendRoot, inputsHash),
-      materializedRoot: outDir,
-      reviewManifest: artifactIndex,
-      testHooks: testHooks?.publication,
-    });
+    if (checkOnly) {
+      // The complete candidate graph above has already been rendered,
+      // inventoried, hashed, and contract-checked. Preflight discards only
+      // that temporary candidate and never enters graph publication.
+      rmSync(tmpOutDir, { recursive: true, force: true });
+    } else {
+      verifiedGraph = publishGeneratedGraph({
+        temporaryGraphRoot: tmpOutDir,
+        cacheGraphRoot: codegenCacheGraphRoot(backendRoot, inputsHash),
+        materializedRoot: outDir,
+        reviewManifest: artifactIndex,
+        testHooks: testHooks?.publication,
+      });
+    }
   } catch (error) {
     rmSync(tmpOutDir, { recursive: true, force: true });
     err(
@@ -5744,6 +5834,8 @@ async function generateInProcessLocked({
     outDir,
     schemaManifest,
     functionManifest,
+    handlerRuntimeProfile,
+    clientLifecycleManifest,
     capabilityManifest,
     trustedCompositionActivation,
     microProfile: microArtifacts?.profile ?? null,
@@ -5753,7 +5845,9 @@ async function generateInProcessLocked({
     appDescriptor,
     artifactIndex,
     summary,
-    cacheGraphRoot: verifiedGraph.graphRoot,
+    checked: checkOnly,
+    emitted: !checkOnly,
+    cacheGraphRoot: verifiedGraph?.graphRoot ?? null,
   };
 
   // Cache and hash by the fd-attested target's canonical backend-relative POSIX
@@ -8980,19 +9074,8 @@ function scanUnsupportedHandlerSource(source, sourcePath = 'handler.mjs') {
 
   const issues = [];
   const seen = new Set();
-  const functionConstructors = new Set([
-    'Function',
-    'AsyncFunction',
-    'GeneratorFunction',
-    'AsyncGeneratorFunction',
-  ]);
-  const timerFunctions = new Set([
-    'setTimeout',
-    'setInterval',
-    'clearTimeout',
-    'clearInterval',
-    'requestAnimationFrame',
-  ]);
+  const functionConstructors = new Set(CLOSED_SCRIPT_HANDLER_RULES.functionConstructors);
+  const timerFunctions = new Set(CLOSED_SCRIPT_HANDLER_RULES.timerFunctions);
 
   function addIssue(code, token, node, message = unsupportedAmbientDependencyMessage(code, token)) {
     const key = `${code}\0${token}`;
@@ -9280,19 +9363,8 @@ function scanUnsupportedTypeScriptHandlerSource(source, sourcePath) {
 
   const issues = [];
   const seen = new Set();
-  const functionConstructors = new Set([
-    'Function',
-    'AsyncFunction',
-    'GeneratorFunction',
-    'AsyncGeneratorFunction',
-  ]);
-  const timerFunctions = new Set([
-    'setTimeout',
-    'setInterval',
-    'clearTimeout',
-    'clearInterval',
-    'requestAnimationFrame',
-  ]);
+  const functionConstructors = new Set(CLOSED_SCRIPT_HANDLER_RULES.functionConstructors);
+  const timerFunctions = new Set(CLOSED_SCRIPT_HANDLER_RULES.timerFunctions);
 
   function addIssue(code, token, node, message = unsupportedAmbientDependencyMessage(code, token)) {
     const key = `${code}\0${token}`;
@@ -11651,7 +11723,13 @@ function renderSurfaceTypeMap(members, referenceNamespace, commandMap = {}) {
   return entries.length === 0 ? 'Record<string, never>' : `{ ${entries.join('; ')} }`;
 }
 
-function renderAppTypes(functions, assetUploadIntents = [], commands = {}, surfaces = {}) {
+function renderAppTypes(
+  functions,
+  assetUploadIntents = [],
+  commands = {},
+  surfaces = {},
+  clientLifecycleManifest,
+) {
   const standalone = standaloneDescriptorFunctions(functions);
   const queryNames = standalone
     .filter(({ kind }) => kind === 'Query' || kind === 'LiveQuery')
@@ -11676,6 +11754,7 @@ function renderAppTypes(functions, assetUploadIntents = [], commands = {}, surfa
     'type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };',
     'export interface CommandDescriptor<Mutation = unknown, Input extends string | never = never, MutationArg extends string | never = never, Optional extends boolean = false, Intent = unknown> {',
     "  readonly kind: 'asset-bearing-command.v1';",
+    "  readonly __snapbackReferenceKind: 'Command';",
     '  readonly mutation: Mutation;',
     '  readonly asset: [Input] extends [never] ? null : Readonly<{ input: Input; intent: Intent; mutationArg: MutationArg; optional: Optional }>;',
     '  readonly passthroughArgs: readonly string[];',
@@ -11683,7 +11762,12 @@ function renderAppTypes(functions, assetUploadIntents = [], commands = {}, surfa
     '  readonly __result?: ReferenceResult<Mutation>;',
     '}',
     'export interface GeneratedAppCommands {',
-    ...Object.entries(commands).map(([name, command]) => `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`),
+    ...Object.entries(commands).flatMap(([name, command]) => [
+      ...renderReferenceJSDoc({ kind: 'Command', name }, clientLifecycleManifest)
+        .split('\n')
+        .map((line) => `  ${line}`),
+      `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`,
+    ]),
     '}',
     '/** Surface member call payloads follow strict omission semantics: an optional input the caller omits is omitted from the composed operation payload (never sent as undefined); passing undefined explicitly is refused by the client value gate before any network work. */',
     'export interface SurfaceMemberDescriptor<Reference = unknown, Input = Record<string, never>> {',
@@ -11779,6 +11863,7 @@ function renderApiTypes(
   routesManifest,
   assetUploadIntents = [],
   capabilityManifest = null,
+  clientLifecycleManifest,
 ) {
   const hasSearchFunction = functions.some(
     (fn) => fn.runtime?.HostPlan?.SearchQuery !== undefined,
@@ -11882,6 +11967,7 @@ function renderApiTypes(
     '  id: string;',
     '  name: Name;',
     '  kind: Kind;',
+    '  readonly __snapbackReferenceKind: Kind;',
     '  implementationHash: string;',
     '  argsContractHash: string;',
     '  resultContractHash: string;',
@@ -11896,6 +11982,10 @@ function renderApiTypes(
     '  readonly __args?: Args;',
     '  readonly __result?: Result;',
     '}',
+    "export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Query', Args, Result>;",
+    "export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'LiveQuery', Args, Result>;",
+    "export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Mutation', Args, Result>;",
+    "export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Action', Args, Result>;",
     'export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;',
     'export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;',
     "export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
@@ -12246,7 +12336,12 @@ function renderApiTypes(
           [search.resourceArg]: def?.args?.[search.resourceArg],
         })}`
       : typeForGeneratedArgs(def?.args ?? {});
-    lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`);
+    lines.push(
+      ...renderReferenceJSDoc(fn, clientLifecycleManifest)
+        .split('\n')
+        .map((line) => `  ${line}`),
+      `  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`,
+    );
   }
   // Explicit and derived upload intents are api members like functions —
   // the runtime module already emits them, and the declaration surface must
@@ -12969,6 +13064,173 @@ function exportedDefinitionSourceSpans(source) {
   return spans;
 }
 
+const TOP_LEVEL_DEFINITION_BUILDERS = new Set([
+  'defineSearchQuery', 'defineVectorQuery', 'defineLiveSearchQuery',
+  'defineEphemeral', 'defineCommand', 'defineSurface', 'defineLiveQuery',
+  'defineQuery', 'defineJobStatusQuery', 'definePushLedgerQuery',
+  'defineBoundedChildrenQuery', 'defineSnapshotBatchQuery',
+  'defineRelationalQuery', 'defineMaintainedProjection', 'defineJsLiveQuery',
+  'defineJsQuery', 'defineWriteWithActivity', 'defineMutation',
+  'defineJsMutation', 'defineAction', 'defineCron', 'defineRoutes',
+  'defineConfig', 'defineAssetUpload',
+]);
+
+function definitionAttributionFromSource(source, path = 'functions.mjs') {
+  const sourceFile = ts.createSourceFile(
+    path,
+    typeof source === 'string' ? source : '',
+    ts.ScriptTarget.ES2022,
+    true,
+    /\.tsx?$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
+  );
+  const exportedLocals = new Set();
+  const builderLocals = new Map();
+  const builderModuleSpecifier = (specifier) => (
+    specifier === '@expo/snapback-codegen/define'
+    || specifier === '@snapback/codegen/define'
+    || /(?:^|\/)define\.(?:mjs|js|mts|ts)(?:[?#].*)?$/u.test(specifier)
+  );
+  const hasExport = (node) => ts.canHaveModifiers(node)
+    && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+  for (const statement of sourceFile.statements) {
+    if (ts.isImportDeclaration(statement)
+      && ts.isStringLiteral(statement.moduleSpecifier)
+      && builderModuleSpecifier(statement.moduleSpecifier.text)
+      && statement.importClause?.namedBindings
+      && ts.isNamedImports(statement.importClause.namedBindings)) {
+      for (const specifier of statement.importClause.namedBindings.elements) {
+        const imported = specifier.propertyName?.text ?? specifier.name.text;
+        if (TOP_LEVEL_DEFINITION_BUILDERS.has(imported)) {
+          builderLocals.set(specifier.name.text, imported);
+        }
+      }
+    }
+    if (ts.isVariableStatement(statement) && hasExport(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name)) exportedLocals.add(declaration.name.text);
+      }
+    }
+    if (ts.isExportDeclaration(statement) && statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+      for (const specifier of statement.exportClause.elements) {
+        exportedLocals.add(specifier.propertyName?.text ?? specifier.name.text);
+      }
+    }
+    if (ts.isExportAssignment(statement) && ts.isIdentifier(statement.expression)) {
+      exportedLocals.add(statement.expression.text);
+    }
+  }
+
+  const unwrap = (node) => {
+    let current = node;
+    while (current && (
+      ts.isParenthesizedExpression(current)
+      || ts.isAsExpression(current)
+      || ts.isTypeAssertionExpression(current)
+      || ts.isSatisfiesExpression(current)
+      || ts.isNonNullExpression(current)
+    )) current = current.expression;
+    return current;
+  };
+  const authoredName = (node) => {
+    if (ts.isIdentifier(node) || ts.isStringLiteral(node) || ts.isNumericLiteral(node)) return node.text;
+    if (ts.isComputedPropertyName(node)) {
+      const expression = unwrap(node.expression);
+      if (ts.isStringLiteral(expression) || ts.isNumericLiteral(expression)) return expression.text;
+    }
+    return null;
+  };
+  const span = (node) => {
+    const point = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    return { file: path, line: point.line + 1, column: point.character + 1 };
+  };
+  const propertySpans = new Map();
+  const definitions = [];
+  const visitProperties = (node, segments) => {
+    const object = unwrap(node);
+    if (!object || !ts.isObjectLiteralExpression(object)) return;
+    for (const property of object.properties) {
+      if (!('name' in property) || !property.name) continue;
+      const name = authoredName(property.name);
+      if (name === null) continue;
+      const next = [...segments, name];
+      propertySpans.set(next.join('.'), span(property.name));
+      if (ts.isPropertyAssignment(property)) visitProperties(property.initializer, next);
+    }
+  };
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+      const initializer = unwrap(declaration.initializer);
+      if (!ts.isCallExpression(initializer)) continue;
+      const callee = unwrap(initializer.expression);
+      if (!ts.isIdentifier(callee) || !builderLocals.has(callee.text)) continue;
+      const binding = declaration.name.text;
+      const exported = exportedLocals.has(binding) || hasExport(statement);
+      const bindingSpan = span(declaration.name);
+      propertySpans.set(binding, bindingSpan);
+      visitProperties(initializer.arguments[0], [binding]);
+      definitions.push({
+        binding,
+        builder: builderLocals.get(callee.text),
+        exported,
+        sourceSpan: bindingSpan,
+      });
+    }
+  }
+  return { definitions, propertySpans };
+}
+
+function definitionPathText(segments) {
+  return segments.map((segment, index) => (
+    /^\d+$/u.test(String(segment))
+      ? `[${segment}]`
+      : `${index === 0 ? '' : '.'}${segment}`
+  )).join('');
+}
+
+function definitionAttributionDetails(attribution, definitionPath) {
+  const segments = Array.isArray(definitionPath)
+    ? definitionPath.map(String)
+    : typeof definitionPath === 'string' && definitionPath.length > 0
+      ? definitionPath.split('.')
+      : [];
+  if (segments.length === 0) return {};
+  let sourceSpan = null;
+  for (let length = segments.length; length > 0 && sourceSpan === null; length -= 1) {
+    sourceSpan = attribution?.propertySpans?.get(segments.slice(0, length).join('.')) ?? null;
+  }
+  const text = definitionPathText(segments);
+  return {
+    definitionPath: text,
+    details: { definitionPath: segments },
+    ...(sourceSpan ? {
+      line: sourceSpan.line,
+      column: sourceSpan.column,
+      sourceSpan,
+    } : {}),
+  };
+}
+
+function inferredDefinitionEvaluationPath(message, attribution) {
+  if (!attribution || typeof message !== 'string') return null;
+  const commandAsset = /defineCommand\(\) asset ([A-Za-z_][A-Za-z0-9_]*)(?:\.([A-Za-z_][A-Za-z0-9_]*))?/u.exec(message);
+  if (commandAsset) {
+    const [, input, field] = commandAsset;
+    const candidates = attribution.definitions
+      .filter(({ exported, builder }) => exported && builder === 'defineCommand')
+      .map(({ binding }) => [binding, 'assets', input, ...(field ? [field] : [])])
+      .filter((segments) => {
+        const key = segments.join('.');
+        return attribution.propertySpans.has(key)
+          || [...attribution.propertySpans.keys()].some((candidate) => candidate.startsWith(`${key}.`));
+      });
+    if (candidates.length === 1) return candidates[0];
+  }
+  const exported = attribution.definitions.filter((definition) => definition.exported);
+  return exported.length === 1 ? [exported[0].binding] : null;
+}
+
 function authoredPropertySourceSpans(source, label) {
   let tree;
   try {
@@ -13125,6 +13387,8 @@ const DEFINITION_EVALUATION_TIMEOUT_MS = 5_000;
 const DEFINITION_EVALUATOR_PROCESS_TIMEOUT_MS = 15_000;
 const DEFINITION_EVALUATOR_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
+  'SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED',
+  'SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE',
   'SNAPBACK_API_BUDGETS_UNAVAILABLE',
   'SNAPBACK_API_ASK_BUDGETS_INVALID',
   'SNAPBACK_API_ASK_BUDGETS_REQUIRED',
@@ -13236,6 +13500,7 @@ try {
       message: errorObject && typeof error.message === 'string' ? error.message : String(error),
       label: activeItem && typeof activeItem.label === 'string' ? activeItem.label : null,
       path: activeItem && typeof activeItem.sourcePath === 'string' ? activeItem.sourcePath : null,
+      definitionPath: errorObject && Array.isArray(error.definitionPath) ? error.definitionPath : null,
     },
   }));
 }
@@ -13315,6 +13580,7 @@ async function buildDefinitionBundle(
           'const __snapbackApply = Reflect.apply;',
           'const __snapbackObjectKeys = Object.keys;',
           'const __snapbackObjectCreate = Object.create;',
+          'const __snapbackObjectDefineProperty = Object.defineProperty;',
           'const __snapbackObjectGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;',
           'const __snapbackObjectGetPrototypeOf = Object.getPrototypeOf;',
           'const __snapbackObjectHasOwn = Object.prototype.hasOwnProperty;',
@@ -13447,9 +13713,33 @@ function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const define = JSON.stringify(definePath);
   const imports = `import { isAssetUploadDef, isCommandDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isSurfaceBinding, isSurfaceDef, isTableDef } from ${define};`;
 const normalization = String.raw`
-function __snapbackFail(code, message) {
+function __snapbackPathAppend(path, segment) {
+  const next = [];
+  __snapbackApply(__snapbackObjectSetPrototypeOf, null, [next, null]);
+  for (let index = 0; index < path.length; index += 1) {
+    __snapbackApply(__snapbackObjectDefineProperty, null, [next, __snapbackString(index), {
+      value: path[index], enumerable: true, configurable: true, writable: true,
+    }]);
+  }
+  __snapbackApply(__snapbackObjectDefineProperty, null, [next, __snapbackString(path.length), {
+    value: segment, enumerable: true, configurable: true, writable: true,
+  }]);
+  return next;
+}
+function __snapbackPathText(path) {
+  let output = '';
+  for (let index = 0; index < path.length; index += 1) {
+    const segment = __snapbackString(path[index]);
+    output += /^\d+$/.test(segment) ? '[' + segment + ']' : (index === 0 ? segment : '.' + segment);
+  }
+  return output;
+}
+function __snapbackFail(code, message, path = []) {
   const error = new Error(message);
   error.code = code;
+  error.definitionPath = path;
+  const renderedPath = __snapbackPathText(path);
+  if (renderedPath) error.message += ' at ' + renderedPath;
   throw error;
 }
 function __snapbackDefinitionKind(value) {
@@ -13478,42 +13768,42 @@ function __snapbackOwnDescriptor(value, key) {
 function __snapbackIsDataDescriptor(descriptor) {
   return __snapbackApply(__snapbackObjectHasOwn, descriptor, ['value']);
 }
-function __snapbackNormalize(value, stack = new __snapbackSet()) {
+function __snapbackNormalize(value, path = [], stack = new __snapbackSet()) {
   const valueType = typeof value;
   if (value === null || valueType === 'string' || valueType === 'boolean') return value;
   if (valueType === 'number') {
     if (!__snapbackNumberIsFinite(value) || __snapbackObjectIs(value, -0)) {
-      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_NUMBER_INVALID', 'definition numbers must be finite canonical JSON numbers (negative zero is unavailable)');
+      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_NUMBER_INVALID', 'definition numbers must be finite canonical JSON numbers (negative zero is unavailable)', path);
     }
     return value;
   }
-  if (valueType !== 'object') __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE', 'definition values must be strict JSON data; undefined, functions, symbols, and bigint are unavailable');
-  if (__snapbackApply(__snapbackSetHas, stack, [value])) __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_CYCLE', 'definition values must not contain cycles');
+  if (valueType !== 'object') __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE', 'definition values must be strict JSON data; undefined, functions, symbols, and bigint are unavailable', path);
+  if (__snapbackApply(__snapbackSetHas, stack, [value])) __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_CYCLE', 'definition values must not contain cycles', path);
   __snapbackApply(__snapbackSetAdd, stack, [value]);
   let output;
   if (__snapbackArrayIsArray(value)) {
     if (__snapbackApply(__snapbackObjectGetPrototypeOf, null, [value]) !== __snapbackArrayPrototype) {
-      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_PROTOTYPE_INVALID', 'definition arrays must use the intrinsic Array prototype');
+      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_PROTOTYPE_INVALID', 'definition arrays must use the intrinsic Array prototype', path);
     }
     const ownKeys = __snapbackApply(__snapbackReflectOwnKeys, null, [value]);
     if (ownKeys.length !== value.length + 1) {
-      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_SHAPE_INVALID', 'definition arrays must be dense and must not carry extra or symbol properties');
+      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_SHAPE_INVALID', 'definition arrays must be dense and must not carry extra or symbol properties', path);
     }
     output = [];
     __snapbackApply(__snapbackObjectSetPrototypeOf, null, [output, null]);
     for (let index = 0; index < value.length; index += 1) {
       const descriptor = __snapbackOwnDescriptor(value, __snapbackString(index));
-      if (!descriptor) __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_HOLE', 'definition arrays must not contain holes');
+      if (!descriptor) __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_HOLE', 'definition arrays must not contain holes', __snapbackPathAppend(path, index));
       if (!descriptor.enumerable || !__snapbackIsDataDescriptor(descriptor)) {
-        __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_ACCESSOR', 'definition arrays must contain enumerable data elements, not accessors');
+        __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_ARRAY_ACCESSOR', 'definition arrays must contain enumerable data elements, not accessors', __snapbackPathAppend(path, index));
       }
-      output[index] = __snapbackNormalize(descriptor.value, stack);
+      output[index] = __snapbackNormalize(descriptor.value, __snapbackPathAppend(path, index), stack);
     }
   } else {
     const markerKind = __snapbackKnownMarkerKind(value);
     const prototype = __snapbackApply(__snapbackObjectGetPrototypeOf, null, [value]);
     if (prototype !== null && prototype !== __snapbackObjectPrototype && markerKind !== 'table') {
-      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID', 'definition objects must be plain JSON objects');
+      __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID', 'definition objects must be plain JSON objects', path);
     }
     output = __snapbackObjectCreate(null);
     let markerSeen = false;
@@ -13522,21 +13812,21 @@ function __snapbackNormalize(value, stack = new __snapbackSet()) {
       const key = ownKeys[keyIndex];
       const descriptor = __snapbackOwnDescriptor(value, key);
       if (!descriptor || !descriptor.enumerable || !__snapbackIsDataDescriptor(descriptor)) {
-        __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_OBJECT_DESCRIPTOR_INVALID', 'definition objects must contain enumerable data properties, not accessors or hidden state');
+        __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_OBJECT_DESCRIPTOR_INVALID', 'definition objects must contain enumerable data properties, not accessors or hidden state', __snapbackPathAppend(path, key));
       }
       if (typeof key === 'symbol') {
         if (markerKind === null || markerSeen || descriptor.value !== true) {
-          __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_OBJECT_SYMBOL_KEY_INVALID', 'definition objects must not contain symbol-keyed data');
+          __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_OBJECT_SYMBOL_KEY_INVALID', 'definition objects must not contain symbol-keyed data', path);
         }
         markerSeen = true;
         continue;
       }
       if (markerKind !== null && key === '__snapbackDefinitionKind') {
-        __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_RESERVED_FIELD', 'definition objects must not define the reserved __snapbackDefinitionKind field');
+        __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_RESERVED_FIELD', 'definition objects must not define the reserved __snapbackDefinitionKind field', __snapbackPathAppend(path, key));
       }
-      output[key] = __snapbackNormalize(descriptor.value, stack);
+      output[key] = __snapbackNormalize(descriptor.value, __snapbackPathAppend(path, key), stack);
     }
-    if (markerKind !== null && !markerSeen) __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_MARKER_INVALID', 'definition builder marker must be an own data property');
+    if (markerKind !== null && !markerSeen) __snapbackFail('SNAPBACK_CODEGEN_DEFINITION_MARKER_INVALID', 'definition builder marker must be an own data property', path);
     const definitionKind = __snapbackDefinitionKind(value);
     if (definitionKind !== null) output.__snapbackDefinitionKind = definitionKind;
   }
@@ -13549,14 +13839,14 @@ function __snapbackNormalize(value, stack = new __snapbackSet()) {
     // definition kind: a defineAssetUpload (or any handler-family
     // definition) exported from the schema module would otherwise vanish
     // silently at evaluation (0137 A1: schema-module intent ignored).
-    return `${imports}\nimport schema, * as __schemaNamespace from ${entry};\n${normalization}\nconst __misplaced = {};\nfor (const [__name, __value] of Object.entries(__schemaNamespace)) {\n  if (__name === 'default') continue;\n  const __kind = __value && typeof __value === 'object' ? __snapbackDefinitionKind(__value) : null;\n  if (typeof __kind === 'string') __misplaced[__name] = __kind;\n}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify({ schema: __snapbackNormalize(schema), misplacedDefinitions: __misplaced });\n`;
+    return `${imports}\nimport schema, * as __schemaNamespace from ${entry};\n${normalization}\nconst __misplaced = {};\nfor (const [__name, __value] of Object.entries(__schemaNamespace)) {\n  if (__name === 'default') continue;\n  const __kind = __value && typeof __value === 'object' ? __snapbackDefinitionKind(__value) : null;\n  if (typeof __kind === 'string') __misplaced[__name] = __kind;\n}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify({ schema: __snapbackNormalize(schema, __snapbackPathAppend([], 'default')), misplacedDefinitions: __misplaced });\n`;
   }
   if (kind === 'routes') {
     // The route manifest declaration (LLP 0092 §0C.1): one default-exported
     // defineRoutes(...) value, normalized under the same isolation rules.
-    return `${imports}\nimport routes from ${entry};\n${normalization}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(__snapbackNormalize(routes));\n`;
+    return `${imports}\nimport routes from ${entry};\n${normalization}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(__snapbackNormalize(routes, __snapbackPathAppend([], 'default')));\n`;
   }
-  return `${imports}\nimport * as definitions from ${entry};\n${normalization}\nconst output = __snapbackObjectCreate(null);\nconst definitionNames = __snapbackObjectKeys(definitions);\nfor (let nameIndex = 0; nameIndex < definitionNames.length; nameIndex += 1) {\n  const name = definitionNames[nameIndex];\n  if (__snapbackDefinitionKind(definitions[name]) !== null) output[name] = __snapbackNormalize(definitions[name]);\n}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(output);\n`;
+  return `${imports}\nimport * as definitions from ${entry};\n${normalization}\nconst output = __snapbackObjectCreate(null);\nconst definitionNames = __snapbackObjectKeys(definitions);\nfor (let nameIndex = 0; nameIndex < definitionNames.length; nameIndex += 1) {\n  const name = definitionNames[nameIndex];\n  if (__snapbackDefinitionKind(definitions[name]) !== null) output[name] = __snapbackNormalize(definitions[name], __snapbackPathAppend([], name));\n}\nglobalThis[${JSON.stringify(resultKey)}] = __snapbackJsonStringify(output);\n`;
 }
 
 function definitionLoader(path) {
@@ -13565,7 +13855,13 @@ function definitionLoader(path) {
   return 'js';
 }
 
-function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, routesBuild = null) {
+function evaluateDefinitionBundles(
+  schemaBuild,
+  functionsBuild,
+  diagnostics,
+  routesBuild = null,
+  functionDefinitionAttribution = null,
+) {
   if (!process.allowedNodeEnvironmentFlags.has('--permission')) {
     diagnostics.push({
       code: 'CODEGEN_ISOLATED_EVALUATOR_FAILED',
@@ -13634,6 +13930,16 @@ function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, rou
       }
       if (!response?.ok) {
         const evaluationCode = response?.error?.code;
+        const attribution = response?.error?.label === 'functions'
+          ? definitionAttributionDetails(
+              functionDefinitionAttribution,
+              response?.error?.definitionPath
+                ?? inferredDefinitionEvaluationPath(
+                  response?.error?.message,
+                  functionDefinitionAttribution,
+                ),
+            )
+          : {};
         diagnostics.push({
           code: DEFINITION_EVALUATION_DIAGNOSTIC_CODES.has(evaluationCode)
               || /^SNAPBACK_CODEGEN_[A-Z0-9_]+$/u.test(evaluationCode ?? '')
@@ -13644,6 +13950,8 @@ function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, rou
           message: response?.error?.message ?? 'isolated definition evaluation failed',
           ...(response?.error?.name ? { errorName: response.error.name } : {}),
           ...(response?.error?.path ? { path: response.error.path } : {}),
+          ...handlerDiagnosticDetails(evaluationCode),
+          ...attribution,
         });
         finish(null);
         return;
@@ -13902,6 +14210,8 @@ function validateSeedVersionEvidence(backendRoot, outputDirectory, candidate) {
 function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
+  handlerRuntimeProfile,
+  clientLifecycleManifest,
   capabilityManifest,
   routesManifest,
   providerIntrospection,
@@ -13935,6 +14245,8 @@ function writeGeneratedOutput(outDir, {
   mkdirSync(operationsOutDir, { recursive: true });
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
+  writeFileSync(join(outDir, 'handler-runtime-profile.v1.json'), stableJson(handlerRuntimeProfile) + '\n');
+  writeFileSync(join(outDir, CLIENT_LIFECYCLE_MANIFEST_FILE), stableJson(clientLifecycleManifest) + '\n');
   writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
   if (trustedCompositionActivation) {
     writeFileSync(
@@ -14170,6 +14482,8 @@ export async function runCodegenCli(argv = process.argv) {
   const args = argv.slice(2);
   const json = args.includes('--json');
   if (json) args.splice(args.indexOf('--json'), 1);
+  const check = args.includes('--check');
+  if (check) args.splice(args.indexOf('--check'), 1);
   const targetFlag = args.indexOf('--target-profile');
   let targetProfile = TARGET_PROFILE_LOCAL;
   if (targetFlag !== -1) {
@@ -14177,11 +14491,11 @@ export async function runCodegenCli(argv = process.argv) {
     args.splice(targetFlag, 2);
   }
   const backendDir = resolve(args[0] ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
-  const result = await generate(backendDir, { targetProfile });
+  const result = await generate(backendDir, { targetProfile, check });
   for (const d of result.diagnostics) console.error(`[${d.severity}] ${d.code} (${d.subsystem}) ${d.message}`);
   if (result.ok) {
     if (json) console.log(JSON.stringify(result, null, 2));
-    else console.log(`${formatCodegenSummary(result.summary)}\ncodegen ok: ${result.outDir}  (inputsHash ${result.inputsHash.slice(0, 12)}…)`);
+    else console.log(`${formatCodegenSummary(result.summary)}\n${check ? 'codegen preflight ok (no artifacts emitted)' : `codegen ok: ${result.outDir}`}  (inputsHash ${result.inputsHash.slice(0, 12)}…)`);
   } else {
     if (json) console.log(JSON.stringify(result, null, 2));
     console.error('codegen failed: no artifacts written (no silent stale output).');
