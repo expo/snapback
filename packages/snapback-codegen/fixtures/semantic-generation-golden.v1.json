@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "snapback.semantic-generation-golden.v1",
+  "vectors": [
+    {
+      "name": "baseline",
+      "inputs": {
+        "semanticInput": {
+          "schemaVersion": "snapback.semantic-identity.v1",
+          "schema": { "tables": [{ "name": "todos", "fields": [{ "name": "title", "type": "string" }] }] },
+          "operations": [{ "id": "todo:list", "kind": "Query", "args": {}, "result": "todos[]" }],
+          "graph": { "nodes": ["handler:list", "helper:normalize"], "edges": [["handler:list", "helper:normalize", "functions.mjs"]] },
+          "authority": "optional-user",
+          "targetProfile": "local-dev-sqlite-ibex"
+        },
+        "executableInputsByTarget": {
+          "local-dev-sqlite-ibex": {
+            "runtimeBytes": "canonical-ast:handler-list-helper-normalize-v1",
+            "graph": { "edges": [["handler:list", "helper:normalize", "functions.mjs"]] },
+            "toolchain": { "codegen": "v1", "admission": "legacy-v1", "runtime": "ibex-hermes-v1" }
+          }
+        },
+        "evidenceInput": {
+          "sources": [{ "path": "functions.mjs", "bytes": "function normalize(value) { return value.trim(); }" }],
+          "refs": ["LLP 0241#d1"]
+        },
+        "bundleInput": {
+          "members": [{ "path": "functions.manifest.json", "sha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111" }]
+        },
+        "appIdentity": { "appId": "todo", "metadata": null },
+        "dataIdentity": { "kind": "unbound-codegen-data-contract", "schemaHash": "sha256:aaaaaaaaaaaaaaaa" },
+        "targetIdentity": { "profile": "local-dev-sqlite-ibex", "capabilityManifest": "sha256:2222222222222222222222222222222222222222222222222222222222222222" }
+      },
+      "expected": {
+        "schemaVersion": "snapback.semantic-identity.v1",
+        "semanticId": "sha256:79c35850e091b082b68bdda3d00f055f98e9d4f3c17c49fb9e8a955e29cc3921",
+        "executableId": "sha256:f4fdd3f8790fd7c1092c4e77d4a5455791a8e9d8fa0eaa8b4caa1bf5a98c66b2",
+        "executableIdsByTarget": { "local-dev-sqlite-ibex": "sha256:f4fdd3f8790fd7c1092c4e77d4a5455791a8e9d8fa0eaa8b4caa1bf5a98c66b2" },
+        "evidenceId": "sha256:e19dea1b513ca847292ebb11dfab69f9425fd96b8c99097bb79f8785e8e11515",
+        "bundleId": "sha256:b73d41be3886f2ab49e14a19bded2d9d5f1e1cb12d460662b59fb8ae53757bda",
+        "generationId": "sha256:82001287b776a52875366cae09cae776fd34a2641eb7b0e902df777b51c64adf"
+      }
+    },
+    {
+      "name": "evidence-only",
+      "inputs": {
+        "semanticInput": {
+          "schemaVersion": "snapback.semantic-identity.v1",
+          "schema": { "tables": [{ "name": "todos", "fields": [{ "name": "title", "type": "string" }] }] },
+          "operations": [{ "id": "todo:list", "kind": "Query", "args": {}, "result": "todos[]" }],
+          "graph": { "nodes": ["handler:list", "helper:normalize"], "edges": [["handler:list", "helper:normalize", "functions.mjs"]] },
+          "authority": "optional-user",
+          "targetProfile": "local-dev-sqlite-ibex"
+        },
+        "executableInputsByTarget": {
+          "local-dev-sqlite-ibex": {
+            "runtimeBytes": "canonical-ast:handler-list-helper-normalize-v1",
+            "graph": { "edges": [["handler:list", "helper:normalize", "functions.mjs"]] },
+            "toolchain": { "codegen": "v1", "admission": "legacy-v1", "runtime": "ibex-hermes-v1" }
+          }
+        },
+        "evidenceInput": {
+          "sources": [{ "path": "functions.mjs", "bytes": "function normalize(value) { /* review */ return value.trim(); }" }],
+          "refs": ["LLP 0241#d1", "LLP 0241#d2"]
+        },
+        "bundleInput": {
+          "members": [{ "path": "functions.manifest.json", "sha256": "sha256:3333333333333333333333333333333333333333333333333333333333333333" }]
+        },
+        "appIdentity": { "appId": "todo", "metadata": null },
+        "dataIdentity": { "kind": "unbound-codegen-data-contract", "schemaHash": "sha256:aaaaaaaaaaaaaaaa" },
+        "targetIdentity": { "profile": "local-dev-sqlite-ibex", "capabilityManifest": "sha256:2222222222222222222222222222222222222222222222222222222222222222" }
+      },
+      "expected": {
+        "schemaVersion": "snapback.semantic-identity.v1",
+        "semanticId": "sha256:79c35850e091b082b68bdda3d00f055f98e9d4f3c17c49fb9e8a955e29cc3921",
+        "executableId": "sha256:f4fdd3f8790fd7c1092c4e77d4a5455791a8e9d8fa0eaa8b4caa1bf5a98c66b2",
+        "executableIdsByTarget": { "local-dev-sqlite-ibex": "sha256:f4fdd3f8790fd7c1092c4e77d4a5455791a8e9d8fa0eaa8b4caa1bf5a98c66b2" },
+        "evidenceId": "sha256:48dd0dc58a571465784810d72747640e38778ece7382837c5e04d6ea9e26f010",
+        "bundleId": "sha256:02b34d30080a9f749670221a8f23492789f31cf578b8ababe3062117e6f175d9",
+        "generationId": "sha256:bef522070c0384a5b9c12db1dd3dd6cc22981c476017280103c20741f5482c4e"
+      }
+    },
+    {
+      "name": "normalized-graph-edge-change",
+      "inputs": {
+        "semanticInput": {
+          "schemaVersion": "snapback.semantic-identity.v1",
+          "schema": { "tables": [{ "name": "todos", "fields": [{ "name": "title", "type": "string" }] }] },
+          "operations": [{ "id": "todo:list", "kind": "Query", "args": {}, "result": "todos[]" }],
+          "graph": { "nodes": ["handler:list", "helper:normalize"], "edges": [["handler:list", "helper:normalize", "lib/normalize.mjs"]] },
+          "authority": "optional-user",
+          "targetProfile": "local-dev-sqlite-ibex"
+        },
+        "executableInputsByTarget": {
+          "local-dev-sqlite-ibex": {
+            "runtimeBytes": "canonical-ast:handler-list-helper-normalize-v1",
+            "graph": { "edges": [["handler:list", "helper:normalize", "lib/normalize.mjs"]] },
+            "toolchain": { "codegen": "v1", "admission": "legacy-v1", "runtime": "ibex-hermes-v1" }
+          }
+        },
+        "evidenceInput": {
+          "sources": [{ "path": "lib/normalize.mjs", "bytes": "function normalize(value) { return value.trim(); }" }],
+          "refs": ["LLP 0241#d1"]
+        },
+        "bundleInput": {
+          "members": [{ "path": "functions.manifest.json", "sha256": "sha256:4444444444444444444444444444444444444444444444444444444444444444" }]
+        },
+        "appIdentity": { "appId": "todo", "metadata": null },
+        "dataIdentity": { "kind": "unbound-codegen-data-contract", "schemaHash": "sha256:aaaaaaaaaaaaaaaa" },
+        "targetIdentity": { "profile": "local-dev-sqlite-ibex", "capabilityManifest": "sha256:2222222222222222222222222222222222222222222222222222222222222222" }
+      },
+      "expected": {
+        "schemaVersion": "snapback.semantic-identity.v1",
+        "semanticId": "sha256:596b778a73d636ee9a58d4df69f24e72549c1fd5b136887e082781fe00162710",
+        "executableId": "sha256:56b65c6ca82f35c0275ab72b53ab8d9fa69a58e36f4552576711d4088193b060",
+        "executableIdsByTarget": { "local-dev-sqlite-ibex": "sha256:56b65c6ca82f35c0275ab72b53ab8d9fa69a58e36f4552576711d4088193b060" },
+        "evidenceId": "sha256:2878aa85a73a86aa2a38f159408af0aeeda737dc86802a39bd9f370aae7d6b0e",
+        "bundleId": "sha256:2d0251baba8dc431adeb7fa2a3c0228f789c1b7336866b257f9c8ad090b79691",
+        "generationId": "sha256:9ed1c2401ab3e6771b5cf62a9359c09c067c422f70e8721317486b67f79f9546"
+      }
+    }
+  ]
+}

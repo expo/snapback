@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -39,6 +39,7 @@ export const listTodos = defineQuery({ table: 'todos', args: {} });
     const generated = spawnSync(process.execPath, [cli, 'generate', root, '--json'], { encoding: 'utf8' });
     assert.equal(generated.status, 0, generated.stderr || generated.stdout);
     const before = digest(join(root, 'generated'));
+    const envelopeBefore = digest(join(root, '.snapback', 'generations'));
     const checked = spawnSync(process.execPath, [cli, 'generate', root, '--check', '--json'], { encoding: 'utf8' });
     assert.equal(checked.status, 0, checked.stderr || checked.stdout);
     const result = JSON.parse(checked.stdout);
@@ -47,7 +48,45 @@ export const listTodos = defineQuery({ table: 'todos', args: {} });
     assert.equal(result.checked, true);
     assert.equal(result.emitted, false);
     assert.equal(digest(join(root, 'generated')), before);
+    assert.equal(
+      digest(join(root, '.snapback', 'generations')),
+      envelopeBefore,
+      '--check changed immutable generation envelopes or latest-emitted metadata',
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('packaged generate --check preserves the same-file helper-cycle refusal', () => {
+  const refusalRoot = mkdtempSync(join(tmpdir(), 'snapback-cli-generate-check-refusal-'));
+  try {
+    writeFileSync(join(refusalRoot, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+`);
+    writeFileSync(join(refusalRoot, 'functions.mjs'), `
+import { defineJsQuery } from '${defineUrl}';
+function ping() { return pong(); }
+function pong() { return ping(); }
+export const listTodos = defineJsQuery({
+  args: {}, reads: ['todos'], handler: async () => ping(),
+});
+`);
+    const checked = spawnSync(
+      process.execPath,
+      [cli, 'generate', refusalRoot, '--check', '--json'],
+      { encoding: 'utf8' },
+    );
+    assert.equal(checked.status, 1, checked.stderr || checked.stdout);
+    const result = JSON.parse(checked.stdout);
+    assert.equal(result.ok, false);
+    assert(result.diagnostics.some(
+      ({ code }) => code === 'SNAPBACK_INLINE_HELPER_CYCLE',
+    ));
+    assert.equal(existsSync(join(refusalRoot, 'generated')), false);
+    assert.equal(existsSync(join(refusalRoot, '.snapback', 'generations')), false);
+  } finally {
+    rmSync(refusalRoot, { recursive: true, force: true });
   }
 });

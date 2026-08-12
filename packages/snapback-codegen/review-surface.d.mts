@@ -16,6 +16,7 @@ export type ArtifactCustody = 'consumer-committed' | 'regenerable-cache';
 export type ArtifactLogicalKind =
   | 'schema-manifest'
   | 'function-manifest'
+  | 'handler-runtime-profile'
   | 'capability-manifest'
   | 'contract-data-manifest'
   | 'provider-introspection'
@@ -30,6 +31,7 @@ export type ArtifactLogicalKind =
 
 export type ArtifactConsumer =
   | 'snapback-runtime'
+  | 'developer-tooling'
   | 'contract'
   | 'client-bundler'
   | 'app-cli'
@@ -77,6 +79,15 @@ export function createArtifactFileRecords(
 export interface ReviewManifest {
   readonly manifestVersion: number;
   readonly inputsHash: string;
+  readonly identities?: Readonly<{
+    schemaVersion: 'snapback.semantic-identity.v1';
+    semanticId: `sha256:${string}`;
+    executableId: `sha256:${string}`;
+    executableIdsByTarget: Readonly<Record<string, `sha256:${string}`>>;
+    evidenceId: `sha256:${string}`;
+    bundleId: `sha256:${string}`;
+    generationId: `sha256:${string}`;
+  }>;
   readonly reviewManifest: Readonly<{
     path: string;
     custody: 'review-manifest';

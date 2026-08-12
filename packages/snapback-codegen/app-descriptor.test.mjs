@@ -653,6 +653,32 @@ export const items = defineSurface({
   reads: { rows: bind(hiddenItems, { group: param('group') }) },
 });
 `);
+  const unexportedSurfaceReference = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED',
+    { onlyExpectedError: true },
+  );
+  assert.equal(unexportedSurfaceReference.binding, 'hiddenItems');
+  assert.equal(unexportedSurfaceReference.builder, 'defineLiveQuery');
+  assert.equal(unexportedSurfaceReference.definitionPath, 'hiddenItems');
+  assert.deepEqual(unexportedSurfaceReference.sourceSpan, {
+    file: 'functions.mjs',
+    line: 3,
+    column: 7,
+  });
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface, param, v } from '${defineUrl}';
+export const items = defineSurface({
+  params: { group: v.string() },
+  reads: {
+    rows: bind(
+      defineLiveQuery({ table: 'items', args: { group: v.string() } }),
+      { group: param('group') },
+    ),
+  },
+});
+`);
   await assertGenerationRefusedPreservingDescriptor(
     'SNAPBACK_SURFACE_REFERENCE_UNKNOWN',
     { onlyExpectedError: true },
@@ -835,7 +861,7 @@ export const send = defineCommand({ mutation: sendMessage });
   writeValidSources();
   writeFileSync(join(backend, 'functions.mjs'), `
 import { bind, defineLiveQuery, defineSurface, param, v } from '${defineUrl}';
-const shared = defineLiveQuery({ table: 'items', args: { group: v.string() } });
+export const shared = defineLiveQuery({ table: 'items', args: { group: v.string() } });
 export const listItems = shared;
 export const duplicateItems = shared;
 export const items = defineSurface({
@@ -1043,7 +1069,7 @@ export default defineSchema(
   writeValidSources();
   writeFileSync(join(backend, 'functions.mjs'), `
 import { defineLiveQuery } from '${defineUrl}';
-const query = defineLiveQuery({ table: 'items', args: {} });
+export const query = defineLiveQuery({ table: 'items', args: {} });
 export const futureMember = { ...query, __snapbackDefinitionKind: 'surface' };
 `);
   await assertGenerationRefusedPreservingDescriptor('SNAPBACK_CODEGEN_DEFINITION_RESERVED_FIELD');
