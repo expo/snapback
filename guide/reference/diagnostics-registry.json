@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "55809e1a1f351a76a248512e10c5ca1d9c11e4d8",
-    "sourceDigest": "sha256:8a46f18e3765b907f024ec62a14adb87ff4c71b60fd8d3116251e0f3ee4aa53f"
+    "commit": "075cbafbb67634503f6e2eb12d052702267574ef",
+    "sourceDigest": "sha256:418c0012a099cf905326857542f33252b0103cdc8a8d7ab8790da3630128d1fd"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10602,12 +10602,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 475,
+          "line": 485,
           "column": 20
         },
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 798,
+          "line": 946,
           "column": 16
         }
       ],
@@ -11726,7 +11726,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 262,
+          "line": 270,
           "column": 12
         },
         {
@@ -12325,12 +12325,12 @@
       "sites": [
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 235,
+          "line": 243,
           "column": 31
         },
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 254,
+          "line": 262,
           "column": 54
         }
       ],
@@ -29293,22 +29293,22 @@
         },
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 730,
+          "line": 878,
           "column": 25
         },
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 754,
+          "line": 902,
           "column": 21
         },
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 816,
+          "line": 964,
           "column": 23
         },
         {
           "file": "packages/snapback-client/assets.mjs",
-          "line": 831,
+          "line": 979,
           "column": 21
         },
         {
@@ -65325,7 +65325,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 5223,
+          "line": 5254,
           "column": 8
         }
       ],

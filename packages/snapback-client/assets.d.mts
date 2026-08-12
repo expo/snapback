@@ -87,12 +87,52 @@ export interface AssetIssuedUrlSnapshot {
   readonly url: string | null;
   readonly status: AssetIssuedUrlStatus;
   readonly diagnostic: AssetDiagnostic | null;
+  readonly expiresAt: number | null;
+  readonly rendition: string | null;
 }
 
 export interface AssetIssuedUrlStore {
   getSnapshot(): AssetIssuedUrlSnapshot;
   getServerSnapshot(): AssetIssuedUrlSnapshot;
   subscribe(listener: (snapshot: AssetIssuedUrlSnapshot) => void): () => void;
+  refresh(): Promise<void>;
+}
+
+export type MediaKind = 'image' | 'video' | 'audio' | 'file';
+
+export interface MediaRef<K extends MediaKind = MediaKind> {
+  readonly assetId: string;
+  readonly kind: K;
+}
+
+export type MediaState<K extends MediaKind = MediaKind> =
+  | Readonly<{ status: 'empty'; media: null }>
+  | Readonly<{ status: 'issuing'; media: MediaRef<K> }>
+  | Readonly<{
+      status: 'ready';
+      media: MediaRef<K>;
+      url: string;
+      expiresAt: number;
+      rendition: string;
+    }>
+  | Readonly<{
+      status: 'refreshing';
+      media: MediaRef<K>;
+      url: string;
+      expiresAt: number;
+      rendition: string;
+      diagnostic?: AssetDiagnostic;
+    }>
+  | Readonly<{
+      status: 'unavailable' | 'denied';
+      media: MediaRef<K>;
+      diagnostic: AssetDiagnostic;
+    }>;
+
+export interface MediaStore<K extends MediaKind = MediaKind> {
+  getSnapshot(): MediaState<K>;
+  getServerSnapshot(): MediaState<K>;
+  subscribe(listener: (snapshot: MediaState<K>) => void): () => void;
   refresh(): Promise<void>;
 }
 
@@ -182,6 +222,10 @@ export declare class SnapbackAssetClient {
   ): string;
   signedUrl(assetId: string, options?: AssetSignedUrlOptions): Promise<AssetSignedUrlResult>;
   issuedUrlStore(assetId: string, options?: AssetSignedUrlOptions): AssetIssuedUrlStore;
+  mediaStore<K extends MediaKind>(
+    mediaRefOrNull: MediaRef<K> | null | undefined,
+    options?: AssetSignedUrlOptions,
+  ): MediaStore<K>;
   watchStore(
     assetId: string,
     options?: { userId?: string | null; connectionId?: string | null },

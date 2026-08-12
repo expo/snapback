@@ -171,6 +171,14 @@ const ISSUED_URL_CONSTRUCTION_SNAPSHOT = Object.freeze({
   url: null,
   status: 'issuing',
   diagnostic: null,
+  expiresAt: null,
+  rendition: null,
+});
+
+const MEDIA_KINDS = /* @__PURE__ */ new Set(['image', 'video', 'audio', 'file']);
+const EMPTY_MEDIA_SNAPSHOT = /* @__PURE__ */ Object.freeze({
+  status: 'empty',
+  media: null,
 });
 
 /** The exact member set a persisted resume fact may carry. */
@@ -452,6 +460,8 @@ class AssetIssuedUrlStore {
       url: valid ? this.#snapshot.url : null,
       status: valid ? 'refreshing' : 'issuing',
       diagnostic: this.#snapshot.diagnostic,
+      expiresAt: valid ? this.#expiresAt : null,
+      rendition: valid ? this.#snapshot.rendition : null,
     });
     const generation = this.#generation + 1;
     this.#generation = generation;
@@ -480,7 +490,13 @@ class AssetIssuedUrlStore {
         this.#expiresAt = issued.expiresAt;
         this.#retryAttempt = 0;
         this.#inFlight = null;
-        this.#publish({ url: issued.url, status: 'ready', diagnostic: null });
+        this.#publish({
+          url: issued.url,
+          status: 'ready',
+          diagnostic: null,
+          expiresAt: issued.expiresAt,
+          rendition: issued.variant,
+        });
         this.#scheduleRefresh();
       })
       .catch((error) => {
@@ -494,7 +510,13 @@ class AssetIssuedUrlStore {
         this.#inFlight = null;
         if (isStructuredAuthorizationRefusal(diagnostic)) {
           this.#expiresAt = 0;
-          this.#publish({ url: null, status: 'denied', diagnostic });
+          this.#publish({
+            url: null,
+            status: 'denied',
+            diagnostic,
+            expiresAt: null,
+            rendition: null,
+          });
           return;
         }
         const stillValid = this.#snapshot.url !== null && this.#expiresAt > Date.now();
@@ -502,6 +524,8 @@ class AssetIssuedUrlStore {
           url: stillValid ? this.#snapshot.url : null,
           status: stillValid ? 'ready' : 'unavailable',
           diagnostic,
+          expiresAt: stillValid ? this.#expiresAt : null,
+          rendition: stillValid ? this.#snapshot.rendition : null,
         });
         this.#scheduleRetry();
       })
@@ -550,6 +574,130 @@ class AssetIssuedUrlStore {
     this.#disposed = true;
   }
 }
+
+function assertMediaRef(mediaRefOrNull) {
+  if (mediaRefOrNull === null || mediaRefOrNull === undefined) return null;
+  if (mediaRefOrNull === '') {
+    throw new TypeError(
+      'mediaStore mediaRefOrNull must be null or undefined for no media; an empty string is not a media reference',
+    );
+  }
+  if (
+    !mediaRefOrNull
+    || typeof mediaRefOrNull !== 'object'
+    || Array.isArray(mediaRefOrNull)
+    || typeof mediaRefOrNull.assetId !== 'string'
+    || mediaRefOrNull.assetId.length === 0
+    || !MEDIA_KINDS.has(mediaRefOrNull.kind)
+  ) {
+    throw new TypeError(
+      'mediaStore mediaRefOrNull must be null, undefined, or { assetId: non-empty string, kind: image|video|audio|file }',
+    );
+  }
+  return Object.freeze({ assetId: mediaRefOrNull.assetId, kind: mediaRefOrNull.kind });
+}
+
+function mediaIssuanceOptions(media, options = {}) {
+  const normalized = issuanceOptions(options);
+  if (media.kind !== 'image' && normalized.widthPx !== undefined) {
+    throw new TypeError('mediaStore widthPx is supported only for image media');
+  }
+  return Object.freeze({
+    ...normalized,
+    variant: normalized.variant ?? 'primary',
+  });
+}
+
+/**
+ * The media projection is deliberately only a view over AssetIssuedUrlStore:
+ * it owns no transport, authority, refresh timer, retry loop, or capability
+ * probing. Null uses a separate inert singleton and therefore cannot begin
+ * issuance.
+ *
+ * @ref LLP 0239#d5-one-media-projection-handles-empty-image-video-denial-and-refresh —
+ * empty is synchronous and URL-bearing states inherit the neutral issued-URL
+ * controller's authority and refresh fences.
+ */
+class MediaStore {
+  #issued;
+  #media;
+  #serverSnapshot;
+  #snapshot;
+  #sourceSnapshot;
+
+  constructor(issued, media) {
+    this.#issued = issued;
+    this.#media = media;
+    this.#serverSnapshot = Object.freeze({ status: 'issuing', media });
+    this.#sourceSnapshot = issued.getSnapshot();
+    this.#snapshot = this.#project(this.#sourceSnapshot);
+  }
+
+  #project(source) {
+    if (source.status === 'ready' || source.status === 'refreshing') {
+      return Object.freeze({
+        status: source.status,
+        media: this.#media,
+        url: source.url,
+        expiresAt: source.expiresAt,
+        rendition: source.rendition,
+        ...(source.status === 'refreshing' && source.diagnostic !== null
+          ? { diagnostic: source.diagnostic }
+          : {}),
+      });
+    }
+    if (source.status === 'unavailable' || source.status === 'denied') {
+      return Object.freeze({
+        status: source.status,
+        media: this.#media,
+        diagnostic: source.diagnostic,
+      });
+    }
+    return Object.freeze({ status: 'issuing', media: this.#media });
+  }
+
+  #sync(source) {
+    if (source !== this.#sourceSnapshot) {
+      this.#sourceSnapshot = source;
+      this.#snapshot = this.#project(source);
+    }
+    return this.#snapshot;
+  }
+
+  getSnapshot() {
+    return this.#sync(this.#issued.getSnapshot());
+  }
+
+  getServerSnapshot() {
+    return this.#serverSnapshot;
+  }
+
+  subscribe(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('media store listener must be a function');
+    }
+    return this.#issued.subscribe((source) => {
+      this.#sync(source);
+      listener(this.#snapshot);
+    });
+  }
+
+  refresh() {
+    return this.#issued.refresh();
+  }
+}
+
+const EMPTY_MEDIA_STORE = /* @__PURE__ */ Object.freeze({
+  getSnapshot: () => EMPTY_MEDIA_SNAPSHOT,
+  getServerSnapshot: () => EMPTY_MEDIA_SNAPSHOT,
+  subscribe(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('media store listener must be a function');
+    }
+    return () => {};
+  },
+  refresh: () => Promise.resolve(),
+});
 
 /** In-memory default store for persisted resume facts. */
 export function createMemoryAssetTaskStore() {
@@ -946,6 +1094,18 @@ export class SnapbackAssetClient {
     });
     this.#issuedUrlEntries.set(key, entry);
     return entry;
+  }
+
+  /**
+   * Empty-safe projection over the shared issued-URL controller. This method
+   * performs no signed-route probe; work begins only when a non-empty store is
+   * subscribed.
+   */
+  mediaStore(mediaRefOrNull, options = {}) {
+    const media = assertMediaRef(mediaRefOrNull);
+    if (media === null) return EMPTY_MEDIA_STORE;
+    const normalized = mediaIssuanceOptions(media, options);
+    return new MediaStore(this.issuedUrlStore(media.assetId, normalized), media);
   }
 
   start({

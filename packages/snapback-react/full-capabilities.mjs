@@ -24,6 +24,7 @@ export {
   useSnapbackAssetImage,
   useSnapbackAssetUpload,
   useSnapbackAssetUrl,
+  useSnapbackMedia,
   useSnapbackCommand,
   useSurface,
 } from './implementation.mjs';

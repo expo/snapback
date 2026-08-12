@@ -16,7 +16,7 @@ ambiguity, retry, and cancellation semantics; froze collection item identity).
 2026-08-12 (initial Draft synthesized from LLP 0236 P3, P7, P11, and P12)
 **Related:** LLP 0004, LLP 0007, LLP 0044, LLP 0053, LLP 0061, LLP 0110,
 LLP 0131, LLP 0180, LLP 0193, LLP 0208, LLP 0210, LLP 0211, LLP 0220,
-LLP 0236, LLP 0237, LLP 0238, LLP 0240, LLP 0241, LLP 0242, LLP 0243,
+LLP 0235, LLP 0236, LLP 0237, LLP 0238, LLP 0240, LLP 0241, LLP 0242, LLP 0243,
 Diary 0058 (messaging-snapback), Diary 0058
 (relay-room-expo-backend-bakeoff), Diary 0059, Diary 0073
 
@@ -71,6 +71,9 @@ column.
 
 - Every asset reference remains typed, addressable, authorization-checked, and
   visible to reference GC (LLP 0044#typed-references-and-atomic-attachment).
+- Media fields and generated collection-record fields receive exact LLP 0235
+  class-M field treatment like every other schema field; neither introduces an
+  unclassified exception to the all-fields fence.
 - Grant, activation, revocation, signed URL, and user-switch semantics remain
   those of LLP 0210/0220; convenience may not mint ambient authority.
 - Collection bounds and ordering are declared and portable; no unbounded nested

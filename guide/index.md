@@ -183,6 +183,9 @@ proof command, and honest nonclaims without opening every demo.
   attachment, private delivery, per-recipient grants and view-once guidance,
   consistent-cut logical export, and signing-key rotation (local target;
   byte-level backup remains a nonclaim).
+- [Media happy paths](./backend/media-happy-paths.md) — the unreleased
+  empty-safe `useSnapbackMedia` projection, plus honest GAP fences for the
+  `v.media()` field, bounded collection, and atomic media command.
 - [View-once media with per-recipient access](./recipes/view-once-media.md) —
   local grant-edge recipe for disappearing photos: atomic send/open/close,
   product-owned consumption, delete-for-everyone, and strict revocation.

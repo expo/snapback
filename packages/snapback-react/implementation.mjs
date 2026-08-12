@@ -5089,6 +5089,37 @@ export function useSnapbackAssetUrl(assetId, options = {}) {
   return useMemo(() => Object.freeze({ ...snapshot, refresh }), [snapshot, refresh]);
 }
 
+/**
+ * Empty-safe React projection of the neutral media store. In particular,
+ * React does not special-case issuance or own a second URL state machine:
+ * even the inert null spelling is supplied by the headless asset client.
+ *
+ * @ref LLP 0239#d5-one-media-projection-handles-empty-image-video-denial-and-refresh —
+ * null is a synchronous external-store snapshot with zero transport work;
+ * non-empty media inherits issued-URL refresh and authority blanking.
+ */
+export function useSnapbackMedia(mediaRefOrNull, options = {}) {
+  const provider = useProvider();
+  const registry = assetRegistryFor(provider);
+  const mediaKey = canonicalHookInputKey(mediaRefOrNull ?? null);
+  const optionsKey = canonicalHookInputKey(options);
+  const authorityGeneration = useSyncExternalStore(
+    registry.subscribeIssuedUrlGeneration,
+    registry.getIssuedUrlGeneration,
+    registry.getIssuedUrlGeneration,
+  );
+  const store = useMemo(
+    () => registry.assets.mediaStore(mediaRefOrNull, options),
+    [registry, mediaKey, optionsKey, authorityGeneration],
+  );
+  const subscribe = useCallback((listener) => store.subscribe(listener), [store]);
+  const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
+  const getServerSnapshot = useCallback(() => store.getServerSnapshot(), [store]);
+  const refresh = useCallback(() => store.refresh(), [store]);
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  return useMemo(() => Object.freeze({ ...snapshot, refresh }), [snapshot, refresh]);
+}
+
 function createAssetUploadStore(registry, upload) {
   const listeners = new Set();
   let snapshot = IDLE_UPLOAD;

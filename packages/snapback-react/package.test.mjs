@@ -1736,6 +1736,7 @@ for (const name of [
   'useSnapbackAssetUrl',
   'useSnapbackAssetUpload',
   'useSnapbackAssetImage',
+  'useSnapbackMedia',
   'SnapbackAssetImage',
 ]) {
   assert.equal(name in coreEntry, false, `./core excludes optional capability ${name}`);
