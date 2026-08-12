@@ -3,7 +3,7 @@
 **Status:** Open
 **Owner:** LLP 0239 rollout
 **Review:** 2026-08-19
-**Related:** LLP 0044, LLP 0210, LLP 0239
+**Related:** LLP 0044, LLP 0210, LLP 0239, LLP 0244
 
 ## Problem
 
@@ -39,3 +39,13 @@ Until that ruling, `assets.media-field.v1`, media collections, and the media
 command remain GAPs. The independent empty-safe `MediaState` controller and
 `useSnapbackMedia` projection can ship without asserting these server
 semantics.
+
+## Draft ruling
+
+[`LLP 0244`](../llp/0244-media-ref-projection.spec.md) is the Draft
+implementation Spec for this issue. It selects an authoritative storage-cut
+projection, treats coarse `kind` as disclosed with a class-M-disclosed media
+field while leaving delivery under asset policy, requires finalized assets for
+v1 attachment, and preserves projected bytes verbatim through settlement and
+protected retention. This issue remains open while the author reviews the
+Draft and until the accepted implementation slice is qualified.
