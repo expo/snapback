@@ -5,7 +5,10 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Sync, Storage, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-02 (decision-sitting propagation: open-question item 6
+**Revised:** 2026-08-12 (post-acceptance disposition update: Draft LLP 0245
+owns the conditional infer-then-freeze bridge and Draft LLP 0246 owns bounded
+TypeScript module custody; no accepted Move-1 or Move-2 semantic changes).
+2026-08-02 (decision-sitting propagation: open-question item 6
 is answered — context-reader helpers are admitted in the first mechanism and
 declared reads/writes stay evidence rather than enforced ceilings; source:
 `issues/20260802-author-decision-packet.md`). 2026-07-30 (v0.3 — round-2 micro-fix pass. Round-2
@@ -46,7 +49,7 @@ shared principle; plus the detail fixes (0081 as proposed not settled
 owner, watch-item absorption item 7, restored candidate /
 absence-of-regression / new-owned-Spec hedges, CV-14 and npm-gate
 scope corrections, delivery-authorization axis held open).)
-**Related:** LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0012, LLP 0013, LLP 0028, LLP 0034, LLP 0041, LLP 0043, LLP 0044, LLP 0051, LLP 0053, LLP 0059, LLP 0061, LLP 0070, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0090, LLP 0093, LLP 0094, LLP 0095, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0117, LLP 0118, LLP 0119, LLP 0120, LLP 0121, LLP 0122, LLP 0123, LLP 0124, LLP 0125, LLP 0126
+**Related:** LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0012, LLP 0013, LLP 0028, LLP 0034, LLP 0041, LLP 0043, LLP 0044, LLP 0051, LLP 0053, LLP 0059, LLP 0061, LLP 0070, LLP 0073, LLP 0074, LLP 0080, LLP 0081, LLP 0090, LLP 0093, LLP 0094, LLP 0095, LLP 0108, LLP 0110, LLP 0111, LLP 0112, LLP 0113, LLP 0114, LLP 0115, LLP 0116, LLP 0117, LLP 0118, LLP 0119, LLP 0120, LLP 0121, LLP 0122, LLP 0123, LLP 0124, LLP 0125, LLP 0126, LLP 0245, LLP 0246
 
 ## Summary
 
