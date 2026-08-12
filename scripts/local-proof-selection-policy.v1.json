@@ -512,12 +512,12 @@
     },
     "local-store-carrier-receipt": {
       "records": [
-        "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json",
-        "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json"
+        "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json",
+        "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json"
       ],
       "recordPaths": [
-        "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json",
-        "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json"
+        "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json",
+        "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json"
       ],
       "triggerRules": {
         "files": [

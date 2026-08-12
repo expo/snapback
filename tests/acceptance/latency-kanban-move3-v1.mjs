@@ -91,6 +91,7 @@ async function staticIdentityEvidence() {
       implementationHash: ref.implementationHash,
       operationHash: ref.mutationIr.operationHash,
       activation: ref.expectedGeneration,
+      authoredSourceHash: ref.authoredSourceHash,
       steps: ref.mutationIr.plan.steps.map((step) => Object.keys(step)[0]),
       declaredReads: ref.mutationIr.declaredReads,
       effectClass: ref.mutationIr.declaredEffectClass,
@@ -528,8 +529,17 @@ async function verifyReceipt() {
       receipt.controlledRun.activation.deploymentId,
       activation.activation.deploymentId,
     );
+    // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+    // — v2 binds authored bytes while retaining the mint-time generation as
+    // receipt provenance; v1 keeps its exact-generation binding.
+    const activationGeneration = activation.activation.format === 'snapback.composition-activation.v2'
+      ? activation.activation.mintedGeneration
+      : activation.activation.expectedGeneration;
     for (const plan of Object.values(receipt.sections.sourceIdentity.evidence.generatedPlans)) {
-      assert.deepEqual(plan.activation, activation.activation.expectedGeneration);
+      assert.deepEqual(plan.activation, activationGeneration);
+      if (activation.activation.format === 'snapback.composition-activation.v2') {
+        assert.equal(plan.authoredSourceHash, activation.activation.authoredSourceHash);
+      }
     }
     assert.equal(receipt.summary.pass, 5);
     assert.equal(receipt.summary.blocked, 0);

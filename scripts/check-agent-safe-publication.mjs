@@ -214,12 +214,12 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
   }),
   'local-store-carrier-receipt': Object.freeze({
     records: Object.freeze([
-      'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
-      'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+      'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
+      'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json',
     ]),
     recordPaths: Object.freeze([
-      'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
-      'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+      'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
+      'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json',
     ]),
     triggerRules: Object.freeze({
       files: Object.freeze([
