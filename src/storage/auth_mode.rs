@@ -1012,6 +1012,7 @@ impl LocalDatabase {
             catalog,
             crate::storage::auth::AuthCatalogState::ReadyV2
                 | crate::storage::auth::AuthCatalogState::ReadyV3
+                | crate::storage::auth::AuthCatalogState::ReadyV4
         ) {
             crate::storage::auth::terminate_agent_authority_in(&tx)?;
         }
@@ -2309,6 +2310,7 @@ mod tests {
             authorization_invalidation: false,
             authority_descriptor: false,
             authorized_lease: false,
+            password_provider: crate::auth::mode::PasswordProviderReadiness::requires_v4(None),
             session_activation_ready: true,
         }
     }

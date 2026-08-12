@@ -431,9 +431,11 @@ impl LocalDatabase {
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
                 params![user_id, exercise.now_ms as i64],
             )?;
-            if super::auth::inspect_auth_catalog_on(transaction)?
-                == super::auth::AuthCatalogState::ReadyV3
-            {
+            if matches!(
+                super::auth::inspect_auth_catalog_on(transaction)?,
+                super::auth::AuthCatalogState::ReadyV3
+                    | super::auth::AuthCatalogState::ReadyV4
+            ) {
                 // @ref LLP 0214#35-identity-link-relation — rehearsal-created
                 // email links carry the same complete v3 descriptor as the
                 // ordinary email-code provider.
@@ -1283,19 +1285,21 @@ pub(crate) fn prepare_rehearsal_atomic_effect_in(
                 RehearsalAtomicEffectAdmission::Denied(replayed_denial(outcome.code.as_deref()))
             });
         }
-        return Ok(match charge_denial(
-            transaction,
-            &mut grant,
-            plan,
-            &request_digest,
-            idempotency_conflict(),
-            false,
-        )? {
-            ExerciseTransactionOutcome::Denied(error) => {
-                RehearsalAtomicEffectAdmission::Denied(error)
-            }
-            _ => return Err(request_invalid()),
-        });
+        return Ok(
+            match charge_denial(
+                transaction,
+                &mut grant,
+                plan,
+                &request_digest,
+                idempotency_conflict(),
+                false,
+            )? {
+                ExerciseTransactionOutcome::Denied(error) => {
+                    RehearsalAtomicEffectAdmission::Denied(error)
+                }
+                _ => return Err(request_invalid()),
+            },
+        );
     }
     let mut charged = grant.consumed.clone();
     if charged.uses_charged >= grant.limits.max_uses {
@@ -1381,14 +1385,7 @@ fn atomic_persist_denial(
     error: SnapbackError,
     charged: &RehearsalConsumedV1,
 ) -> SnapbackResult<RehearsalAtomicEffectAdmission> {
-    match persist_denial(
-        transaction,
-        grant,
-        plan,
-        request_digest,
-        error,
-        charged,
-    )? {
+    match persist_denial(transaction, grant, plan, request_digest, error, charged)? {
         ExerciseTransactionOutcome::Denied(error) => {
             Ok(RehearsalAtomicEffectAdmission::Denied(error))
         }
@@ -2202,7 +2199,9 @@ fn ensure_tables(transaction: &Transaction<'_>) -> SnapbackResult<()> {
 
 pub(super) fn rehearsal_session_provenance_by_id(
     connection: &rusqlite::Connection,
-) -> SnapbackResult<std::collections::BTreeMap<String, crate::auth::rehearsal::AuthRehearsalProvenanceV1>> {
+) -> SnapbackResult<
+    std::collections::BTreeMap<String, crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+> {
     if !table_exists(connection, DERIVED_SESSIONS)? {
         return Ok(std::collections::BTreeMap::new());
     }
@@ -2210,12 +2209,15 @@ pub(super) fn rehearsal_session_provenance_by_id(
         "SELECT session_id, provenance_json FROM {DERIVED_SESSIONS} ORDER BY session_id"
     ))?;
     let rows = statement
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
         .collect::<Result<Vec<_>, _>>()?;
     let mut provenances = std::collections::BTreeMap::new();
     for (session_id, json) in rows {
         let provenance: crate::auth::rehearsal::AuthRehearsalProvenanceV1 =
-            serde_json::from_str(&json).map_err(|_| crate::auth::rehearsal::provenance_invalid())?;
+            serde_json::from_str(&json)
+                .map_err(|_| crate::auth::rehearsal::provenance_invalid())?;
         provenance.validate()?;
         if provenances.insert(session_id, provenance).is_some() {
             return Err(crate::auth::rehearsal::provenance_invalid());

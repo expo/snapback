@@ -1,12 +1,13 @@
 //! Protected-catalog logical auth export and import.
 
-use super::auth::AuthCatalogState;
+use super::auth::{AuthCatalogState, PasswordIdentifierMode};
 use super::{LocalDatabase, current_version_on};
 use crate::auth::logical_transfer::{
     AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V2, AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3,
-    AuthLogicalExportV1, AuthLogicalIdentityV1, AuthLogicalImportOutcomeV1,
-    AuthLogicalPrincipalKindV1, AuthLogicalScopeBaseV1, AuthLogicalUserV1, logical_export_invalid,
-    logical_identity_collision, logical_import_invalid, logical_target_not_empty,
+    AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V4, AuthLogicalExportV1, AuthLogicalIdentityV1,
+    AuthLogicalImportOutcomeV1, AuthLogicalPrincipalKindV1, AuthLogicalScopeBaseV1,
+    AuthLogicalUserV1, logical_export_invalid, logical_identity_collision, logical_import_invalid,
+    logical_target_not_empty,
 };
 use crate::diagnostic::SnapbackResult;
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
@@ -37,19 +38,32 @@ const AUTH_LOGICAL_TABLES_V3_EXTRA: &[&str] = &[
     "_auth_security_events",
 ];
 
+/// Catalog-v4 lockout state is checked when proving an import target empty,
+/// but intentionally has no logical-export slot. It is internal anti-abuse
+/// history, not a principal, ownership, or identity fact, and exporting it
+/// would unnecessarily place canonical identifiers in the artifact.
+const AUTH_LOGICAL_TABLES_V4_INTERNAL_STATE: &[&str] = &["_auth_password_attempts"];
+
 impl LocalDatabase {
     /// Read the exact included rows from one SQLite snapshot. The artifact's
     /// closed type has no field for any excluded authority class.
     pub(crate) fn auth_logical_export(&self) -> SnapbackResult<AuthLogicalExportV1> {
-        let catalog_version = match self.inspect_auth_catalog()? {
+        let catalog = self.inspect_auth_catalog()?;
+        let catalog_version = match catalog {
             AuthCatalogState::ReadyV2 => AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V2,
             AuthCatalogState::ReadyV3 => AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3,
+            AuthCatalogState::ReadyV4 => AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V4,
             _ => {
                 return Err(logical_export_invalid(
-                    "logical auth export requires an exact catalog version 2 or 3",
+                    "logical auth export requires an exact catalog version 2, 3, or 4",
                 ));
             }
         };
+        let password_identifier_mode = (catalog == AuthCatalogState::ReadyV4)
+            .then(|| self.auth_password_identifier_mode())
+            .transpose()?;
+        let identity_password_identifier_mode =
+            password_identifier_mode.unwrap_or(PasswordIdentifierMode::UsernameV1);
         super::with_pinned_read_snapshot(&self.conn, |conn| {
             let users = {
                 let mut statement = conn.prepare(
@@ -85,7 +99,10 @@ impl LocalDatabase {
                     .collect::<Result<Vec<_>, _>>()?
             };
             let identities = {
-                if catalog_version == AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3 {
+                if matches!(
+                    catalog_version,
+                    AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3 | AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V4
+                ) {
                     let mut statement = conn.prepare(
                         "SELECT id, user_id, kind, provider, issuer, subject,
                                 canonical_value, verified_at_ms, disabled_at_ms
@@ -100,7 +117,11 @@ impl LocalDatabase {
                             let canonical_value = row.get::<_, Option<String>>(6)?;
                             let disabled_at_ms = row.get::<_, Option<u64>>(8)?;
                             let Some((expected_kind, expected_canonical)) =
-                                format_one_v3_identity_descriptor(&provider, &subject)
+                                format_one_identity_descriptor(
+                                    &provider,
+                                    &subject,
+                                    identity_password_identifier_mode,
+                                )
                             else {
                                 return Err(rusqlite::Error::InvalidQuery);
                             };
@@ -160,7 +181,13 @@ impl LocalDatabase {
                     })?
                     .collect::<Result<Vec<_>, _>>()?
             };
-            AuthLogicalExportV1::new(catalog_version, users, identities, scope_bases)
+            AuthLogicalExportV1::new(
+                catalog_version,
+                password_identifier_mode.map(|mode| mode.as_str().to_owned()),
+                users,
+                identities,
+                scope_bases,
+            )
         })
         .map_err(|_| {
             logical_export_invalid(
@@ -184,19 +211,38 @@ impl LocalDatabase {
         let target_catalog = super::auth::inspect_auth_catalog_on(&tx)?;
         if !matches!(
             target_catalog,
-            AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3
+            AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4
         ) {
             return Err(logical_import_invalid(
-                "logical auth import requires an exact catalog version 2 or 3",
+                "logical auth import requires an exact catalog version 2, 3, or 4",
             ));
         }
         require_empty_auth_target(&tx, target_catalog)?;
 
-        if target_catalog == AuthCatalogState::ReadyV3
-            && artifact.identities.iter().any(|identity| {
-                format_one_v3_identity_descriptor(&identity.provider, &identity.subject).is_none()
-            })
+        let target_password_identifier_mode = match target_catalog {
+            AuthCatalogState::ReadyV4 => super::auth::require_password_identifier_mode_on(&tx)?,
+            _ => PasswordIdentifierMode::UsernameV1,
+        };
+        if target_catalog == AuthCatalogState::ReadyV4
+            && artifact.password_identifier_mode.as_deref()
+                != Some(target_password_identifier_mode.as_str())
         {
+            return Err(logical_import_invalid(
+                "logical auth import password identifier mode differs from the target",
+            ));
+        }
+
+        if matches!(
+            target_catalog,
+            AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4
+        ) && artifact.identities.iter().any(|identity| {
+            format_one_identity_descriptor(
+                &identity.provider,
+                &identity.subject,
+                target_password_identifier_mode,
+            )
+            .is_none()
+        }) {
             return Err(logical_import_invalid(
                 "logical auth import contains an identity descriptor that format 1 cannot map to catalog version 3",
             ));
@@ -242,7 +288,10 @@ impl LocalDatabase {
             }
         }
         for identity in &artifact.identities {
-            let inserted = if target_catalog == AuthCatalogState::ReadyV3 {
+            let inserted = if matches!(
+                target_catalog,
+                AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4
+            ) {
                 // Format 1 predates v3's explicit identity kind and canonical
                 // value. Preserve the two built-in provider semantics; other
                 // provider subjects remain external identity links.
@@ -251,7 +300,11 @@ impl LocalDatabase {
                 // the complete non-null identity descriptor without treating
                 // provider subjects as credentials.
                 let (kind, canonical_value) =
-                    format_one_v3_identity_descriptor(&identity.provider, &identity.subject)
+                    format_one_identity_descriptor(
+                        &identity.provider,
+                        &identity.subject,
+                        target_password_identifier_mode,
+                    )
                         .ok_or_else(|| {
                             logical_import_invalid(
                                 "logical auth import contains an identity descriptor that format 1 cannot map to catalog version 3",
@@ -339,13 +392,23 @@ impl LocalDatabase {
 /// Format 1 predates catalog-v3 identity descriptors. These are the only
 /// provider spellings whose v3 kind/canonical fields are fully implied by the
 /// format-1 row; all others must fail closed instead of being guessed.
-fn format_one_v3_identity_descriptor<'a>(
+fn format_one_identity_descriptor<'a>(
     provider: &str,
     subject: &'a str,
+    password_identifier_mode: PasswordIdentifierMode,
 ) -> Option<(&'static str, Option<&'a str>)> {
     match provider {
-        "email-code" => Some(("email", Some(subject))),
-        "local-password" => Some(("username", Some(subject))),
+        "email-code" => crate::auth::crypto::CanonicalAddress::parse(subject)
+            .ok()
+            .filter(|canonical| canonical.as_str() == subject)
+            .map(|_| ("email", Some(subject))),
+        "local-password" => super::auth_identity::canonical_password_identifier_value(
+            password_identifier_mode,
+            subject,
+        )
+        .ok()
+        .filter(|canonical| canonical == subject)
+        .map(|_| (password_identifier_mode.identity_kind(), Some(subject))),
         "agent-credential" => Some(("external", None)),
         _ => None,
     }
@@ -355,13 +418,27 @@ fn require_empty_auth_target(
     conn: &rusqlite::Connection,
     catalog: AuthCatalogState,
 ) -> SnapbackResult<()> {
-    for table in AUTH_LOGICAL_TABLES_V2.iter().copied().chain(
-        (catalog == AuthCatalogState::ReadyV3)
+    for table in AUTH_LOGICAL_TABLES_V2
+        .iter()
+        .copied()
+        .chain(
+            matches!(
+                catalog,
+                AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4
+            )
             .then_some(AUTH_LOGICAL_TABLES_V3_EXTRA)
             .into_iter()
             .flatten()
             .copied(),
-    ) {
+        )
+        .chain(
+            (catalog == AuthCatalogState::ReadyV4)
+                .then_some(AUTH_LOGICAL_TABLES_V4_INTERNAL_STATE)
+                .into_iter()
+                .flatten()
+                .copied(),
+        )
+    {
         let sql = format!("SELECT EXISTS(SELECT 1 FROM \"{table}\" LIMIT 1)");
         if conn.query_row(&sql, [], |row| row.get::<_, bool>(0))? {
             return Err(logical_target_not_empty());
@@ -416,6 +493,13 @@ mod tests {
     fn ready_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog()
+            .expect("activate auth catalog");
+        db
+    }
+
+    fn ready_database_with_mode(mode: PasswordIdentifierMode) -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_current_auth_catalog_with_password_identifier_mode(mode)
             .expect("activate auth catalog");
         db
     }
@@ -516,6 +600,12 @@ mod tests {
                 params![vec![0x13_u8; 32]],
             )?;
             tx.execute(
+                "INSERT INTO _auth_password_attempts(
+                   address, window_start_ms, failed_count, locked_until_ms
+                 ) VALUES('ledger-address@example.com', 10, 3, 100)",
+                [],
+            )?;
+            tx.execute(
                 "INSERT INTO _auth_agent_credentials(
                    id, user_id, secret_hash, generation, created_at_ms, rotated_at_ms,
                    last_used_at_ms, revoked_at_ms
@@ -568,6 +658,14 @@ mod tests {
         let source = seed_source();
         let source_version = source.authorization_version().unwrap();
         let artifact = source.auth_logical_export().unwrap();
+        assert_eq!(
+            artifact.auth_catalog_version,
+            AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V4
+        );
+        assert_eq!(
+            artifact.password_identifier_mode.as_deref(),
+            Some("username-v1")
+        );
         let bytes = artifact.to_pretty_bytes().unwrap();
         for planted in [
             b"credential-secret-marker".as_slice(),
@@ -581,6 +679,7 @@ mod tests {
             b"invitation-secret-marker".as_slice(),
             b"pairing-secret-marker".as_slice(),
             b"pairing-pending-secret".as_slice(),
+            b"ledger-address@example.com".as_slice(),
         ] {
             assert!(!bytes.windows(planted.len()).any(|window| window == planted));
         }
@@ -608,6 +707,7 @@ mod tests {
             "_auth_grant_tokens",
             "_auth_agent_invitations",
             "_auth_pairing_requests",
+            "_auth_password_attempts",
         ] {
             let count: i64 = target
                 .conn
@@ -635,6 +735,67 @@ mod tests {
             )
             .unwrap();
         assert_eq!(unowned, (None, Some(20)));
+    }
+
+    #[test]
+    fn logical_v4_transfer_preserves_and_requires_the_identifier_mode() {
+        let random = crate::auth::crypto::OsRandom;
+        let key = [23; 32];
+        let mut source = ready_database_with_mode(PasswordIdentifierMode::EmailV1);
+        let registered = source
+            .identity_password_register(
+                "OWNER@Example.COM",
+                &crate::auth::identity_core::PasswordSecret::new(
+                    "strong-logical-email-password-1".to_owned(),
+                ),
+                10,
+                &random,
+                "key-1",
+                &key,
+            )
+            .unwrap();
+        let artifact = source.auth_logical_export().unwrap();
+        assert_eq!(
+            artifact.password_identifier_mode.as_deref(),
+            Some("email-v1")
+        );
+
+        let mut matching = ready_database_with_mode(PasswordIdentifierMode::EmailV1);
+        matching.auth_logical_import(&artifact).unwrap();
+        let descriptor: (String, String, String) = matching
+            .conn
+            .query_row(
+                "SELECT kind,provider,subject FROM _auth_identities WHERE user_id=?1",
+                [&registered.user_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            descriptor,
+            (
+                "email".to_owned(),
+                "local-password".to_owned(),
+                "owner@example.com".to_owned()
+            )
+        );
+
+        let mut mismatched = ready_database_with_mode(PasswordIdentifierMode::UsernameV1);
+        assert_eq!(
+            mismatched
+                .auth_logical_import(&artifact)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_LOGICAL_IMPORT_INVALID"
+        );
+        assert_eq!(
+            mismatched
+                .conn
+                .query_row("SELECT COUNT(*) FROM _auth_users", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
     }
 
     #[test]

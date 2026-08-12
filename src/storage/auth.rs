@@ -6,6 +6,7 @@
 //! mutation, journal, version, receipt, or live-delivery machinery.
 
 use super::{LocalDatabase, is_auth_reserved_identifier};
+use crate::auth::mode::{PASSWORD_PROVIDER_REQUIRES_V4_CODE, PasswordProviderReadiness};
 use crate::auth::service_fence::ServiceAuthorityCommitInterlock;
 use crate::contract_types::{
     RevocationReason, SESSION_TERMINAL_CAUSE_META_PREFIX, SessionTerminalCauseRecord,
@@ -21,12 +22,13 @@ use std::path::Path;
 use std::sync::OnceLock;
 use std::time::Duration;
 
-/// The catalog version this binary creates. Identity-core activation moves
-/// fresh stores to v3 while exact v1/v2 stores remain recognition-only.
+/// The catalog version this binary creates. Password-identifier activation
+/// moves fresh stores to v4 while exact v1/v2/v3 stores remain recognized
+/// without migration.
 ///
-/// @ref LLP 0214#31-version-policy — v1 and v2 are recognized without mutation;
-/// fresh activation creates exact v3 and writes its marker last.
-pub(crate) const AUTH_CATALOG_VERSION: &str = "3";
+/// @ref LLP 0214#31-version-policy — predecessor catalogs are recognized
+/// without mutation; fresh activation writes the new marker last.
+pub(crate) const AUTH_CATALOG_VERSION: &str = "4";
 /// The frozen predecessor version. A v2-aware binary still **recognizes** an
 /// existing v1 catalog (sessions keep working); agent operations require v2. A
 /// first-class v1→v2 migration is deferred (LLP 0057 pins "a future migration
@@ -34,8 +36,10 @@ pub(crate) const AUTH_CATALOG_VERSION: &str = "3";
 /// legacy and agent surfaces are unavailable on it.
 pub(crate) const AUTH_CATALOG_VERSION_V1: &str = "1";
 pub(crate) const AUTH_CATALOG_VERSION_V2: &str = "2";
+pub(crate) const AUTH_CATALOG_VERSION_V3: &str = "3";
 pub(crate) const AUTH_GC_BATCH: usize = 512;
 const META_AUTH_CATALOG_VERSION: &str = "auth_catalog_version";
+const META_AUTH_PASSWORD_IDENTIFIER_MODE: &str = "auth_password_identifier_mode";
 pub(super) const META_AUTH_RESTORE_DECLARATION_ID: &str = "auth_restore_declaration_id";
 /// Durable non-decreasing floor for every auth lifetime decision that reads
 /// the wall clock. Persisted so a backward wall-clock move across restart can
@@ -45,7 +49,7 @@ const META_AUTH_SESSION_CLOCK_FLOOR_MS: &str = "auth_session_clock_floor_ms";
 const MAX_SAFE_TIMESTAMP_MS: u64 = 9_007_199_254_740_991;
 #[cfg(test)]
 fn auth_activation_steps() -> usize {
-    catalog_tables(CURRENT_CATALOG).count() + catalog_indexes(CURRENT_CATALOG).count() + 1
+    catalog_tables(CURRENT_CATALOG).count() + catalog_indexes(CURRENT_CATALOG).count() + 2
 }
 
 #[cfg(test)]
@@ -146,6 +150,9 @@ pub(crate) enum AuthCatalogState {
     /// A recognized exact catalog version 3 with split principals, identity
     /// links, credentials, assurances, and the carried v2 agent objects.
     ReadyV3,
+    /// A recognized exact catalog version 4. It carries v3 unchanged and adds
+    /// password lockout state plus one immutable identifier-mode declaration.
+    ReadyV4,
 }
 
 impl AuthCatalogState {
@@ -153,7 +160,42 @@ impl AuthCatalogState {
     /// identity surfaces common to every version. Version-specific surfaces
     /// (agent operations) take a stricter check.
     pub(crate) fn is_ready(self) -> bool {
-        matches!(self, Self::ReadyV1 | Self::ReadyV2 | Self::ReadyV3)
+        matches!(
+            self,
+            Self::ReadyV1 | Self::ReadyV2 | Self::ReadyV3 | Self::ReadyV4
+        )
+    }
+}
+
+/// The canonicalization contract chosen once when catalog v4 is activated.
+/// Its stored spelling is a versioned protocol value, not presentation text.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PasswordIdentifierMode {
+    UsernameV1,
+    EmailV1,
+}
+
+impl PasswordIdentifierMode {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::UsernameV1 => "username-v1",
+            Self::EmailV1 => "email-v1",
+        }
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "username-v1" => Some(Self::UsernameV1),
+            "email-v1" => Some(Self::EmailV1),
+            _ => None,
+        }
+    }
+
+    pub(crate) const fn identity_kind(self) -> &'static str {
+        match self {
+            Self::UsernameV1 => "username",
+            Self::EmailV1 => "email",
+        }
     }
 }
 
@@ -179,13 +221,19 @@ const CATALOG_V2: CatalogSchema = CatalogSchema {
 };
 
 const CATALOG_V3: CatalogSchema = CatalogSchema {
-    version: AUTH_CATALOG_VERSION,
+    version: AUTH_CATALOG_VERSION_V3,
     tables: AUTH_TABLES_V3_CORE,
     indexes: AUTH_INDEXES_V3_ADDITIONS,
 };
 
+const CATALOG_V4: CatalogSchema = CatalogSchema {
+    version: AUTH_CATALOG_VERSION,
+    tables: AUTH_TABLES_V4_ADDITIONS,
+    indexes: &[],
+};
+
 /// The version a fresh activation creates.
-const CURRENT_CATALOG: &CatalogSchema = &CATALOG_V3;
+const CURRENT_CATALOG: &CatalogSchema = &CATALOG_V4;
 
 /// V3 replaces the first five v2 core tables and carries the remaining LLP
 /// 0055 objects unchanged. Its named indexes carry every v2 index unchanged
@@ -195,6 +243,13 @@ fn catalog_tables(
 ) -> Box<dyn Iterator<Item = &'static ExpectedTable>> {
     if schema.version == CATALOG_V3.version {
         Box::new(schema.tables.iter().chain(AUTH_TABLES_V2[5..].iter()))
+    } else if schema.version == CATALOG_V4.version {
+        Box::new(
+            AUTH_TABLES_V3_CORE
+                .iter()
+                .chain(AUTH_TABLES_V2[5..].iter())
+                .chain(schema.tables.iter()),
+        )
     } else {
         Box::new(schema.tables.iter())
     }
@@ -205,6 +260,13 @@ fn catalog_indexes(
 ) -> Box<dyn Iterator<Item = &'static ExpectedIndex>> {
     if schema.version == CATALOG_V3.version {
         Box::new(AUTH_INDEXES_V2.iter().chain(schema.indexes.iter()))
+    } else if schema.version == CATALOG_V4.version {
+        Box::new(
+            AUTH_INDEXES_V2
+                .iter()
+                .chain(AUTH_INDEXES_V3_ADDITIONS.iter())
+                .chain(schema.indexes.iter()),
+        )
     } else {
         Box::new(schema.indexes.iter())
     }
@@ -218,6 +280,7 @@ pub(crate) fn auth_catalog_table_names(state: AuthCatalogState) -> Option<Vec<&'
         AuthCatalogState::ReadyV1 => &CATALOG_V1,
         AuthCatalogState::ReadyV2 => &CATALOG_V2,
         AuthCatalogState::ReadyV3 => &CATALOG_V3,
+        AuthCatalogState::ReadyV4 => &CATALOG_V4,
         AuthCatalogState::Uninitialized => return None,
     };
     Some(catalog_tables(schema).map(|table| table.name).collect())
@@ -1270,6 +1333,31 @@ CREATE TABLE "_auth_security_events" (
     },
 ];
 
+/// Catalog v4 carries the complete frozen v3 inventory and appends only the
+/// account-existence-blind password lockout ledger. The canonical address is
+/// protected catalog data in the same custody class as identity subjects.
+///
+/// @ref LLP 0214#20-amendment-2026-08-10-reconciliation-with-llp-0227 — the
+/// attempt relation is lockout state only and never becomes a rate-budget
+/// authority.
+const AUTH_TABLES_V4_ADDITIONS: &[ExpectedTable] = &[ExpectedTable {
+    name: "_auth_password_attempts",
+    sql: r#"
+CREATE TABLE "_auth_password_attempts" (
+  address TEXT NOT NULL PRIMARY KEY
+    CHECK(length(address) BETWEEN 1 AND 320),
+  window_start_ms INTEGER NOT NULL
+    CHECK(window_start_ms BETWEEN 0 AND 9007199254740991),
+  failed_count INTEGER NOT NULL DEFAULT 0
+    CHECK(failed_count BETWEEN 0 AND 9007199254740991),
+  locked_until_ms INTEGER
+    CHECK(locked_until_ms IS NULL
+      OR locked_until_ms BETWEEN 0 AND 9007199254740991),
+  CHECK(locked_until_ms IS NULL OR window_start_ms <= locked_until_ms)
+)
+"#,
+}];
+
 const AUTH_INDEXES_V3_ADDITIONS: &[ExpectedIndex] = &[
     ExpectedIndex {
         name: "_auth_credentials_id_user_uq",
@@ -1399,17 +1487,47 @@ impl LocalDatabase {
     /// migration is deferred; see [`AUTH_CATALOG_VERSION_V1`]).
     pub(crate) fn activate_current_auth_catalog(&mut self) -> SnapbackResult<()> {
         match self.inspect_auth_catalog()? {
-            AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 => {
+            AuthCatalogState::ReadyV1
+            | AuthCatalogState::ReadyV2
+            | AuthCatalogState::ReadyV3
+            | AuthCatalogState::ReadyV4 => {
                 return Ok(());
             }
             AuthCatalogState::Uninitialized => {}
         }
 
+        self.activate_new_auth_catalog(PasswordIdentifierMode::UsernameV1)
+    }
+
+    /// Activate catalog v4 with an explicit, immutable password identifier
+    /// mode. Later calls may confirm the declaration but cannot change it.
+    pub(crate) fn activate_current_auth_catalog_with_password_identifier_mode(
+        &mut self,
+        mode: PasswordIdentifierMode,
+    ) -> SnapbackResult<()> {
+        match self.inspect_auth_catalog()? {
+            AuthCatalogState::ReadyV4 => {
+                let existing = read_password_identifier_mode_on(&self.conn)?;
+                if existing == mode {
+                    return Ok(());
+                }
+                return Err(password_identifier_mode_immutable());
+            }
+            AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 => {
+                return Err(password_requires_v4());
+            }
+            AuthCatalogState::Uninitialized => {}
+        }
+
+        self.activate_new_auth_catalog(mode)
+    }
+
+    fn activate_new_auth_catalog(&mut self, mode: PasswordIdentifierMode) -> SnapbackResult<()> {
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        activate_current_auth_catalog_in(&tx)?;
+        activate_current_auth_catalog_with_password_identifier_mode_in(&tx, mode)?;
         let authorization_predecessor = super::auth_stream::read_authorization_version_on(&tx)?;
         let authorization = super::authorization::authorization_commit_hook_in(
             &tx,
@@ -1425,6 +1543,71 @@ impl LocalDatabase {
             authorization_interlock,
         )?;
         require_ready_on(&self.conn)
+    }
+
+    /// Read the immutable mode directly from the exact catalog. This is a
+    /// read-only operation and does not open a transaction, so readiness
+    /// reporting can use it without mutating predecessor stores.
+    pub(crate) fn auth_password_identifier_mode(&self) -> SnapbackResult<PasswordIdentifierMode> {
+        require_password_identifier_mode_on(&self.conn)
+    }
+
+    /// Resolve the canonicalization contract used by the already-shipped
+    /// catalog-v3 identity floor. V3 remains frozen at its original implicit
+    /// username-v1 behavior; only v4 has a first-class stored declaration.
+    pub(super) fn identity_floor_password_identifier_mode(
+        &self,
+    ) -> SnapbackResult<PasswordIdentifierMode> {
+        identity_floor_password_identifier_mode_on(&self.conn)
+    }
+
+    pub(crate) fn auth_password_provider_readiness(
+        &self,
+    ) -> SnapbackResult<PasswordProviderReadiness> {
+        Ok(match self.inspect_auth_catalog()? {
+            AuthCatalogState::ReadyV4 => PasswordProviderReadiness::ready(
+                read_password_identifier_mode_on(&self.conn)?.as_str(),
+            ),
+            AuthCatalogState::ReadyV1 => PasswordProviderReadiness::requires_v4(Some(1)),
+            AuthCatalogState::ReadyV2 => PasswordProviderReadiness::requires_v4(Some(2)),
+            AuthCatalogState::ReadyV3 => PasswordProviderReadiness::requires_v4(Some(3)),
+            AuthCatalogState::Uninitialized => PasswordProviderReadiness::requires_v4(None),
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn insert_password_attempt_for_test(
+        &mut self,
+        address: &str,
+        window_start_ms: u64,
+        failed_count: u64,
+        locked_until_ms: Option<u64>,
+    ) -> SnapbackResult<()> {
+        require_password_identifier_mode_on(&self.conn)?;
+        self.conn.execute(
+            "INSERT INTO _auth_password_attempts(
+               address,window_start_ms,failed_count,locked_until_ms
+             ) VALUES(?1,?2,?3,?4)",
+            params![address, window_start_ms, failed_count, locked_until_ms],
+        )?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn password_attempt_for_test(
+        &self,
+        address: &str,
+    ) -> SnapbackResult<Option<(u64, u64, Option<u64>)>> {
+        require_password_identifier_mode_on(&self.conn)?;
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT window_start_ms,failed_count,locked_until_ms
+                 FROM _auth_password_attempts WHERE address=?1",
+                [address],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?)
     }
 
     /// Run a read through the protected lane. No raw connection accessor is
@@ -1746,7 +1929,7 @@ impl LocalDatabase {
         let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
         if matches!(
             catalog,
-            AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3
+            AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4
         ) {
             // Restore terminates every v2 bearer and consent authority, not
             // only browser sessions. Deleting child rows before their parents
@@ -2023,6 +2206,13 @@ impl LocalDatabase {
         inspect_auth_catalog_on(&conn)
     }
 
+    pub(crate) fn auth_password_identifier_mode_descriptor_read_only(
+        image: &File,
+    ) -> SnapbackResult<PasswordIdentifierMode> {
+        let conn = open_backup_image_connection(image, true)?;
+        require_password_identifier_mode_on(&conn)
+    }
+
     pub(crate) fn auth_retained_key_ids_file_read_only(path: &Path) -> SnapbackResult<Vec<String>> {
         let conn = Connection::open_with_flags(
             path,
@@ -2191,8 +2381,34 @@ fn normalize_backup_image_format(_image: &File) -> std::io::Result<()> {
 /// catalog activation together with manifest relocation and mode settlement.
 pub(super) fn activate_current_auth_catalog_in(tx: &Transaction<'_>) -> SnapbackResult<()> {
     match inspect_auth_catalog_on(tx)? {
-        AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 => {
+        AuthCatalogState::ReadyV1
+        | AuthCatalogState::ReadyV2
+        | AuthCatalogState::ReadyV3
+        | AuthCatalogState::ReadyV4 => {
             return Ok(());
+        }
+        AuthCatalogState::Uninitialized => {}
+    }
+
+    activate_current_auth_catalog_with_password_identifier_mode_in(
+        tx,
+        PasswordIdentifierMode::UsernameV1,
+    )
+}
+
+pub(super) fn activate_current_auth_catalog_with_password_identifier_mode_in(
+    tx: &Transaction<'_>,
+    mode: PasswordIdentifierMode,
+) -> SnapbackResult<()> {
+    match inspect_auth_catalog_on(tx)? {
+        AuthCatalogState::ReadyV4 => {
+            if read_password_identifier_mode_on(tx)? == mode {
+                return Ok(());
+            }
+            return Err(password_identifier_mode_immutable());
+        }
+        AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 => {
+            return Err(password_requires_v4());
         }
         AuthCatalogState::Uninitialized => {}
     }
@@ -2208,8 +2424,14 @@ pub(super) fn activate_current_auth_catalog_in(tx: &Transaction<'_>) -> Snapback
         activation_step_completed(activation_step)?;
         activation_step += 1;
     }
-    // The marker remains the final catalog statement. The outer LLP 0058
-    // transaction may append mode metadata only after this exact-ready proof.
+    tx.execute(
+        "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
+        params![META_AUTH_PASSWORD_IDENTIFIER_MODE, mode.as_str()],
+    )?;
+    activation_step_completed(activation_step)?;
+    activation_step += 1;
+    // The version marker remains the final catalog statement. The immutable
+    // identifier declaration is already durable in the same transaction.
     tx.execute(
         "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
         params![META_AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION],
@@ -2280,6 +2502,36 @@ pub(crate) fn install_frozen_v2_catalog_fixture(
     Ok(())
 }
 
+/// Install the exact shipped version-3 catalog for no-silent-migration and
+/// older-binary recognition fixtures. It deliberately has no identifier-mode
+/// metadata because that declaration first exists in version 4.
+#[cfg(test)]
+pub(crate) fn install_frozen_v3_catalog_fixture(
+    database: &mut LocalDatabase,
+) -> SnapbackResult<()> {
+    if database.inspect_auth_catalog()? != AuthCatalogState::Uninitialized {
+        return Err(corrupt(
+            "frozen-v3 fixture requires an uninitialized auth catalog",
+        ));
+    }
+    let tx = database
+        .conn
+        .transaction_with_behavior(TransactionBehavior::Immediate)?;
+    for table in catalog_tables(&CATALOG_V3) {
+        tx.execute_batch(table.sql)?;
+    }
+    for index in catalog_indexes(&CATALOG_V3) {
+        tx.execute_batch(index.sql)?;
+    }
+    tx.execute(
+        "INSERT INTO _snapback_meta(key,value) VALUES(?1,?2)",
+        params![META_AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION_V3],
+    )?;
+    require_ready_on(&tx)?;
+    tx.commit()?;
+    Ok(())
+}
+
 /// Revoke every still-live session inside a caller-owned downgrade
 /// transaction. This matches declared-restore generation semantics without
 /// creating a restore marker or deleting identity rows.
@@ -2335,7 +2587,7 @@ pub(super) fn revoke_all_sessions_in(
 fn retained_key_ids_on(conn: &Connection) -> SnapbackResult<Vec<String>> {
     let catalog = inspect_auth_catalog_on(conn)?;
     let sql = match catalog {
-        AuthCatalogState::ReadyV3 => {
+        AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4 => {
             // Recovery-code digests are keyed durable credential state. A
             // backup or rotation that inventories only email challenges can
             // strand those digests from the exact keyring bytes they require.
@@ -2436,6 +2688,10 @@ fn restored_auth_timestamp_frontier_on(
         ("_auth_provisioning_receipts", "committed_at_ms"),
         ("_auth_security_events", "occurred_at_ms"),
     ];
+    const V4_COLUMNS: &[(&str, &str)] = &[
+        ("_auth_password_attempts", "window_start_ms"),
+        ("_auth_password_attempts", "locked_until_ms"),
+    ];
 
     let mut frontier = 0;
     let columns = V1_COLUMNS
@@ -2444,7 +2700,7 @@ fn restored_auth_timestamp_frontier_on(
         .chain(
             matches!(
                 catalog,
-                AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3
+                AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4
             )
             .then_some(V2_COLUMNS)
             .into_iter()
@@ -2452,8 +2708,18 @@ fn restored_auth_timestamp_frontier_on(
             .copied(),
         )
         .chain(
-            (catalog == AuthCatalogState::ReadyV3)
-                .then_some(V3_COLUMNS)
+            matches!(
+                catalog,
+                AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4
+            )
+            .then_some(V3_COLUMNS)
+            .into_iter()
+            .flatten()
+            .copied(),
+        )
+        .chain(
+            (catalog == AuthCatalogState::ReadyV4)
+                .then_some(V4_COLUMNS)
                 .into_iter()
                 .flatten()
                 .copied(),
@@ -2535,7 +2801,10 @@ pub(super) fn reset_auth_catalog_in(tx: &Transaction<'_>) -> SnapbackResult<()> 
     )?;
     // Agent tables exist only from version 2 onward; clear them first (children
     // before the `_auth_users` parent they reference).
-    if marker == CATALOG_V2.version || marker == CATALOG_V3.version {
+    if matches!(
+        marker.as_str(),
+        AUTH_CATALOG_VERSION_V2 | AUTH_CATALOG_VERSION_V3 | AUTH_CATALOG_VERSION
+    ) {
         for table in [
             "_auth_grant_tokens",
             "_auth_pairing_requests",
@@ -2547,7 +2816,10 @@ pub(super) fn reset_auth_catalog_in(tx: &Transaction<'_>) -> SnapbackResult<()> 
             tx.execute(&format!("DELETE FROM \"{table}\""), [])?;
         }
     }
-    if marker == CATALOG_V3.version {
+    if marker == CATALOG_V3.version || marker == CATALOG_V4.version {
+        if marker == CATALOG_V4.version {
+            tx.execute("DELETE FROM _auth_password_attempts", [])?;
+        }
         // @ref LLP 0214#315-activation-reset-backup-and-export — v3 identity-core
         // children are erased before sessions, identities, and principals;
         // DDL and the version marker survive reset.
@@ -2590,6 +2862,11 @@ pub(super) fn inspect_auth_catalog_on(conn: &Connection) -> SnapbackResult<AuthC
     let objects = schema_objects(conn)?;
     let marker = auth_catalog_marker_from_objects(conn, &objects)?;
     match marker.as_deref() {
+        Some(version) if version == CATALOG_V4.version => {
+            validate_exact(conn, &objects, &CATALOG_V4)?;
+            read_password_identifier_mode_on(conn)?;
+            Ok(AuthCatalogState::ReadyV4)
+        }
         Some(version) if version == CATALOG_V3.version => {
             validate_exact(conn, &objects, &CATALOG_V3)?;
             Ok(AuthCatalogState::ReadyV3)
@@ -2683,7 +2960,7 @@ fn require_ready_on(conn: &Connection) -> SnapbackResult<()> {
 /// v3-only surface refuses with the shared typed compatibility diagnostic.
 pub(super) fn require_identity_core_v3_on(conn: &Connection) -> SnapbackResult<()> {
     match inspect_auth_catalog_on(conn)? {
-        AuthCatalogState::ReadyV3 => Ok(()),
+        AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4 => Ok(()),
         AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => Err(SnapbackError::error(
             "SNAPBACK_AUTH_IDENTITY_CORE_REQUIRES_V3",
             "auth",
@@ -2856,12 +3133,15 @@ fn expected_catalog_shape(schema: &'static CatalogSchema) -> SnapbackResult<&'st
     static EXPECTED_V1: OnceLock<Result<CatalogShape, SnapbackError>> = OnceLock::new();
     static EXPECTED_V2: OnceLock<Result<CatalogShape, SnapbackError>> = OnceLock::new();
     static EXPECTED_V3: OnceLock<Result<CatalogShape, SnapbackError>> = OnceLock::new();
+    static EXPECTED_V4: OnceLock<Result<CatalogShape, SnapbackError>> = OnceLock::new();
     let cell = if schema.version == CATALOG_V1.version {
         &EXPECTED_V1
     } else if schema.version == CATALOG_V2.version {
         &EXPECTED_V2
-    } else {
+    } else if schema.version == CATALOG_V3.version {
         &EXPECTED_V3
+    } else {
+        &EXPECTED_V4
     };
     match cell.get_or_init(|| {
         let conn = Connection::open_in_memory()?;
@@ -3071,6 +3351,81 @@ fn auth_catalog_marker_from_objects(
             |row| row.get(0),
         )
         .optional()?)
+}
+
+fn read_password_identifier_mode_on(conn: &Connection) -> SnapbackResult<PasswordIdentifierMode> {
+    let stored = conn
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key = ?1",
+            params![META_AUTH_PASSWORD_IDENTIFIER_MODE],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    stored
+        .as_deref()
+        .and_then(PasswordIdentifierMode::parse)
+        .ok_or_else(|| corrupt("catalog v4 lacks a valid password identifier mode"))
+}
+
+/// Return the v4-only canonicalization declaration without opening a
+/// transaction. Predecessor catalogs remain recognized, but password-provider
+/// paths that need this declaration refuse with one stable readiness code.
+pub(super) fn require_password_identifier_mode_on(
+    conn: &Connection,
+) -> SnapbackResult<PasswordIdentifierMode> {
+    match inspect_auth_catalog_on(conn)? {
+        AuthCatalogState::ReadyV4 => read_password_identifier_mode_on(conn),
+        AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 => {
+            Err(password_requires_v4())
+        }
+        AuthCatalogState::Uninitialized => Err(corrupt("auth catalog is not initialized")),
+    }
+}
+
+/// Preserve the exact behavior of the password/recovery storage floor that
+/// shipped with catalog v3 while keeping the first-class provider gated on
+/// v4 readiness. No row is synthesized and no predecessor catalog migrates.
+pub(super) fn identity_floor_password_identifier_mode_on(
+    conn: &Connection,
+) -> SnapbackResult<PasswordIdentifierMode> {
+    match inspect_auth_catalog_on(conn)? {
+        AuthCatalogState::ReadyV4 => read_password_identifier_mode_on(conn),
+        AuthCatalogState::ReadyV3 => Ok(PasswordIdentifierMode::UsernameV1),
+        AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => Err(password_requires_v4()),
+        AuthCatalogState::Uninitialized => Err(corrupt("auth catalog is not initialized")),
+    }
+}
+
+fn password_requires_v4() -> SnapbackError {
+    SnapbackError::error(
+        PASSWORD_PROVIDER_REQUIRES_V4_CODE,
+        "auth",
+        "password identifier mode requires auth catalog version 4",
+    )
+}
+
+fn password_identifier_mode_immutable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE",
+        "auth",
+        "password identifier mode cannot change after auth catalog activation",
+    )
+}
+
+/// Test the marker wall from the perspective of the shipped v3 recognizer.
+/// A v3-era binary has no descriptor for marker 4 and therefore refuses before
+/// attempting to interpret any v4 table or metadata.
+#[cfg(test)]
+fn inspect_auth_catalog_as_v3_era_binary(conn: &Connection) -> SnapbackResult<AuthCatalogState> {
+    let objects = schema_objects(conn)?;
+    if auth_catalog_marker_from_objects(conn, &objects)?.as_deref() == Some(CATALOG_V4.version) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED",
+            "auth",
+            "auth catalog marker names an unsupported version",
+        ));
+    }
+    inspect_auth_catalog_on(conn)
 }
 
 fn normalize_schema_sql(sql: &str) -> String {
@@ -3343,6 +3698,101 @@ mod tests {
         assert_eq!(
             auth_catalog_marker(&reopened.conn).unwrap().as_deref(),
             Some(AUTH_CATALOG_VERSION_V2)
+        );
+    }
+
+    #[test]
+    fn fresh_activation_creates_exact_v4_and_v3_remains_usable_without_migration() {
+        let mut fresh = LocalDatabase::memory().unwrap();
+        fresh
+            .activate_current_auth_catalog_with_password_identifier_mode(
+                PasswordIdentifierMode::EmailV1,
+            )
+            .unwrap();
+        assert_eq!(
+            fresh.inspect_auth_catalog().unwrap(),
+            AuthCatalogState::ReadyV4
+        );
+        assert_eq!(
+            fresh.auth_password_identifier_mode().unwrap(),
+            PasswordIdentifierMode::EmailV1
+        );
+        assert_eq!(
+            auth_catalog_marker(&fresh.conn).unwrap().as_deref(),
+            Some(AUTH_CATALOG_VERSION)
+        );
+        assert!(
+            auth_catalog_table_names(AuthCatalogState::ReadyV4)
+                .unwrap()
+                .contains(&"_auth_password_attempts")
+        );
+        assert_eq!(
+            inspect_auth_catalog_as_v3_era_binary(&fresh.conn)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED"
+        );
+        assert_eq!(
+            fresh
+                .activate_current_auth_catalog_with_password_identifier_mode(
+                    PasswordIdentifierMode::UsernameV1,
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE"
+        );
+
+        let mut frozen = LocalDatabase::memory().unwrap();
+        install_frozen_v3_catalog_fixture(&mut frozen).unwrap();
+        frozen.activate_current_auth_catalog().unwrap();
+        assert_eq!(
+            frozen.inspect_auth_catalog().unwrap(),
+            AuthCatalogState::ReadyV3
+        );
+        let guest = frozen
+            .identity_guest_create(10_000, 1, &crate::auth::crypto::OsRandom)
+            .expect("v3 identity-core guest path remains usable");
+        assert!(!guest.user_id.is_empty());
+        let legacy_password = frozen
+            .identity_password_register(
+                "legacy-user",
+                &crate::auth::identity_core::PasswordSecret::new(
+                    "strong-legacy-password-1".to_owned(),
+                ),
+                2,
+                &crate::auth::crypto::OsRandom,
+                "key-1",
+                &[7; 32],
+            )
+            .expect("v3 username-v1 password floor remains usable");
+        assert!(!legacy_password.user_id.is_empty());
+        assert_eq!(
+            frozen
+                .auth_password_identifier_mode()
+                .unwrap_err()
+                .diagnostic
+                .code,
+            PASSWORD_PROVIDER_REQUIRES_V4_CODE,
+            "the first-class identifier declaration remains a v4-only path"
+        );
+        assert_eq!(
+            frozen
+                .activate_current_auth_catalog_with_password_identifier_mode(
+                    PasswordIdentifierMode::EmailV1,
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+            PASSWORD_PROVIDER_REQUIRES_V4_CODE
+        );
+        let readiness = frozen.auth_password_provider_readiness().unwrap();
+        assert!(!readiness.ready);
+        assert_eq!(readiness.catalog_version, Some(3));
+        assert_eq!(
+            readiness.refusal_code.as_deref(),
+            Some(PASSWORD_PROVIDER_REQUIRES_V4_CODE)
         );
     }
 
@@ -3916,7 +4366,7 @@ mod tests {
             .expect("exact catalog successor proves activation committed");
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
-            AuthCatalogState::ReadyV3
+            AuthCatalogState::ReadyV4
         );
         assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 2);
         assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
@@ -4020,7 +4470,7 @@ mod tests {
             .expect("activate exact catalog");
         assert_eq!(
             db.inspect_auth_catalog().expect("ready catalog"),
-            AuthCatalogState::ReadyV3
+            AuthCatalogState::ReadyV4
         );
         assert!(db.auth_catalog_ready().expect("ready predicate"));
         assert_eq!(
@@ -4392,7 +4842,7 @@ mod tests {
         assert_eq!(row_count(&db, "_auth_users"), 0);
         assert_eq!(
             db.inspect_auth_catalog().expect("catalog survives reset"),
-            AuthCatalogState::ReadyV3
+            AuthCatalogState::ReadyV4
         );
     }
 

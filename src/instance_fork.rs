@@ -772,6 +772,13 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         name: "_auth_password_credentials",
         disposition: CustodyDisposition::Copy,
     },
+    // @ref LLP 0214#20-amendment-2026-08-10-reconciliation-with-llp-0227 — physical
+    // owner custody preserves lockout state with its protected identifiers;
+    // logical auth export excludes this relation separately.
+    CustodyRule {
+        name: "_auth_password_attempts",
+        disposition: CustodyDisposition::Copy,
+    },
     CustodyRule {
         name: "_auth_passkey_credentials",
         disposition: CustodyDisposition::Copy,

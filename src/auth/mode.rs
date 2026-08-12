@@ -370,6 +370,64 @@ impl StartupArtifacts {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PasswordProviderReadiness {
+    pub ready: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub catalog_version: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identifier_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refusal_code: Option<String>,
+}
+
+pub const PASSWORD_PROVIDER_REQUIRES_V4_CODE: &str = "SNAPBACK_AUTH_PASSWORD_REQUIRES_V4";
+
+impl PasswordProviderReadiness {
+    pub fn ready(identifier_mode: &str) -> Self {
+        Self {
+            ready: true,
+            catalog_version: Some(4),
+            identifier_mode: Some(identifier_mode.to_owned()),
+            refusal_code: None,
+        }
+    }
+
+    pub fn requires_v4(catalog_version: Option<u32>) -> Self {
+        Self {
+            ready: false,
+            catalog_version,
+            identifier_mode: None,
+            refusal_code: Some(PASSWORD_PROVIDER_REQUIRES_V4_CODE.to_owned()),
+        }
+    }
+
+    fn validate(&self) -> SnapbackResult<()> {
+        let coherent = if self.ready {
+            self.catalog_version == Some(4)
+                && matches!(
+                    self.identifier_mode.as_deref(),
+                    Some("username-v1" | "email-v1")
+                )
+                && self.refusal_code.is_none()
+        } else {
+            self.catalog_version.is_none_or(|version| version < 4)
+                && self.identifier_mode.is_none()
+                && self.refusal_code.as_deref() == Some(PASSWORD_PROVIDER_REQUIRES_V4_CODE)
+        };
+        if coherent {
+            Ok(())
+        } else {
+            Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "password-provider readiness is internally inconsistent",
+            ))
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthProgramReadiness {
     pub route_registry_enforced: bool,
     pub existing_surface_closure: bool,
@@ -384,13 +442,14 @@ pub struct AuthProgramReadiness {
     pub authorization_invalidation: bool,
     pub authority_descriptor: bool,
     pub authorized_lease: bool,
+    pub password_provider: PasswordProviderReadiness,
     pub session_activation_ready: bool,
 }
 
 impl AuthProgramReadiness {
     /// Item 4's positive build facts. Sessions deliberately remain impossible
     /// because the three item-5 facts are false.
-    pub(crate) const fn item4(secret_read_process_prerequisites: bool) -> Self {
+    pub(crate) fn item4(secret_read_process_prerequisites: bool) -> Self {
         Self::new(
             secret_read_process_prerequisites,
             false,
@@ -404,7 +463,7 @@ impl AuthProgramReadiness {
 
     /// Compose later-item build facts without allowing a caller to assert the
     /// derived activation bit independently.
-    pub(crate) const fn new(
+    pub(crate) fn new(
         secret_read_process_prerequisites: bool,
         connection_binding: bool,
         two_phase_revocation: bool,
@@ -431,8 +490,17 @@ impl AuthProgramReadiness {
             authorization_invalidation,
             authority_descriptor,
             authorized_lease,
+            password_provider: PasswordProviderReadiness::requires_v4(None),
             session_activation_ready,
         }
+    }
+
+    pub(crate) fn with_password_provider(
+        mut self,
+        password_provider: PasswordProviderReadiness,
+    ) -> Self {
+        self.password_provider = password_provider;
+        self
     }
 
     pub fn derive_session_activation_ready(&self) -> bool {
@@ -449,6 +517,7 @@ impl AuthProgramReadiness {
     }
 
     pub fn validate(&self) -> SnapbackResult<()> {
+        self.password_provider.validate()?;
         if self.session_activation_ready != self.derive_session_activation_ready() {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
@@ -570,6 +639,7 @@ mod tests {
             authorization_invalidation: false,
             authority_descriptor: false,
             authorized_lease: false,
+            password_provider: PasswordProviderReadiness::requires_v4(None),
             session_activation_ready: true,
         };
         readiness.validate().unwrap();
@@ -577,6 +647,26 @@ mod tests {
         assert_eq!(
             readiness.validate().unwrap_err().diagnostic.code,
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+    }
+
+    #[test]
+    fn password_provider_readiness_is_closed_and_serializes_the_v3_refusal() {
+        let predecessor = PasswordProviderReadiness::requires_v4(Some(3));
+        predecessor.validate().unwrap();
+        let json = serde_json::to_value(&predecessor).unwrap();
+        assert_eq!(json["ready"], false);
+        assert_eq!(json["catalogVersion"], 3);
+        assert_eq!(json["refusalCode"], PASSWORD_PROVIDER_REQUIRES_V4_CODE);
+        assert!(json.get("identifierMode").is_none());
+
+        PasswordProviderReadiness::ready("email-v1")
+            .validate()
+            .unwrap();
+        assert!(
+            PasswordProviderReadiness::ready("future-v2")
+                .validate()
+                .is_err()
         );
     }
 

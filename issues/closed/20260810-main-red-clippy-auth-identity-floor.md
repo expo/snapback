@@ -3,6 +3,15 @@
 **Opened:** 2026-08-10 · **Severity:** P2 (blocks the clippy gate for every
 subsequent landing) · **Area:** auth identity floor / lint hygiene
 
+**Resolved:** 2026-08-11 in the catalog-v4/password-auth storage lane. The
+three redundant byte conversions were removed, the recovery-key arguments
+were grouped under `RecoveryKeyMaterial`, and the intentionally ahead-of-callers
+identity-core surface received narrow, reasoned dead-code allowances naming
+the route/provisioning lanes that consume it. The post-fix clippy signature
+set contains no error in either affected file; the only remaining all-targets
+error is the pre-existing `manual_inspect` lint in
+`src/local/auth_room_kick_acceptance.rs`.
+
 ## What
 
 On clean `origin/main` at `3d1553975`, `cargo clippy --all-targets -- -D

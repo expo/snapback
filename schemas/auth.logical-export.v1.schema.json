@@ -151,6 +151,13 @@
       },
       "type": "array"
     },
+    "passwordIdentifierMode": {
+      "description": "Catalog-v4 identity subjects can only be reconstructed under the same\nimmutable canonicalization contract. Pre-v4 format-1 artifacts omit\nthis field and retain their exact wire shape.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "schemaVersion": {
       "type": "string"
     },

@@ -1426,9 +1426,9 @@ fn sessions_startup_carrier_with_functions(
 #[cfg(unix)]
 #[tokio::test]
 async fn fresh_sessions_startup_stages_then_quarantines_before_item_five() {
-    use crate::contract_types::ServerProfile;
     use crate::auth::mode::{AppDataAvailability, AuthModeStatus, AuthProgramReadiness};
     use crate::auth::provider::AuthProviderProfile;
+    use crate::contract_types::ServerProfile;
     use crate::local::LocalSnapback;
     use crate::manifest::AuthMode;
 
@@ -1849,8 +1849,8 @@ async fn pending_missing_carrier_quarantines_and_explicit_clear_restores_dev() {
 
 #[test]
 fn auth_transport_matrix_has_no_sessions_plaintext_override() {
-    use crate::contract_types::ServerProfile;
     use crate::auth::mode::AuthModeStateRecord;
+    use crate::contract_types::ServerProfile;
     use crate::manifest::AuthMode;
 
     let dev = AuthModeStateRecord::initial_dev(None);

@@ -116,29 +116,30 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // @ref LLP 0204#d93--durable-watches-end-user-automations — management input/ownership,
         // lifecycle, quota, deferred integration, and catalog failures keep
         // distinct retry postures. Internal job/catalog corruption stays 5xx.
-        "SNAPBACK_WATCH_INPUT_INVALID" | "SNAPBACK_WATCH_RENEWAL_INVALID"
-        | "SNAPBACK_WEBHOOK_TARGET_INVALID" | "SNAPBACK_WEBHOOK_SSRF_REFUSED" => {
-            StatusCode::BAD_REQUEST
-        }
-        "SNAPBACK_WATCH_OWNER_DENIED" | "SNAPBACK_WATCH_AUTHORITY_DEAD"
-        | "SNAPBACK_WATCH_ANCHOR_SCOPE_MISMATCH" | "SNAPBACK_WATCH_RENEWAL_DENIED" => {
-            StatusCode::FORBIDDEN
-        }
+        "SNAPBACK_WATCH_INPUT_INVALID"
+        | "SNAPBACK_WATCH_RENEWAL_INVALID"
+        | "SNAPBACK_WEBHOOK_TARGET_INVALID"
+        | "SNAPBACK_WEBHOOK_SSRF_REFUSED" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_WATCH_OWNER_DENIED"
+        | "SNAPBACK_WATCH_AUTHORITY_DEAD"
+        | "SNAPBACK_WATCH_ANCHOR_SCOPE_MISMATCH"
+        | "SNAPBACK_WATCH_RENEWAL_DENIED" => StatusCode::FORBIDDEN,
         "SNAPBACK_WATCH_NOT_FOUND" => StatusCode::NOT_FOUND,
         "SNAPBACK_WATCH_STATUS_INVALID" => StatusCode::CONFLICT,
-        "SNAPBACK_WATCH_BUDGET_EXHAUSTED"
-        | "SNAPBACK_WATCH_OWNER_EVALUATION_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
+        "SNAPBACK_WATCH_BUDGET_EXHAUSTED" | "SNAPBACK_WATCH_OWNER_EVALUATION_LIMIT" => {
+            StatusCode::TOO_MANY_REQUESTS
+        }
         "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE" | "SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE" => {
             StatusCode::SERVICE_UNAVAILABLE
         }
         "SNAPBACK_WEBHOOK_DELIVERY_REJECTED" | "SNAPBACK_WEBHOOK_DEAD_LETTERED" => {
             StatusCode::BAD_GATEWAY
         }
-        "SNAPBACK_WATCH_CATALOG_CORRUPT" | "SNAPBACK_WATCH_JOB_INVALID"
-        | "SNAPBACK_WEBHOOK_CATALOG_CORRUPT" | "SNAPBACK_WEBHOOK_DELIVERY_INVALID"
-        | "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE" => {
-            StatusCode::INTERNAL_SERVER_ERROR
-        }
+        "SNAPBACK_WATCH_CATALOG_CORRUPT"
+        | "SNAPBACK_WATCH_JOB_INVALID"
+        | "SNAPBACK_WEBHOOK_CATALOG_CORRUPT"
+        | "SNAPBACK_WEBHOOK_DELIVERY_INVALID"
+        | "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE" => StatusCode::INTERNAL_SERVER_ERROR,
         // @ref LLP 0031#capability-link-mint-and-serve-family — closed link
         // request secrets use one non-oracular not-found shape; caller input,
         // authority, throttle, and catalog failures retain distinct D10
@@ -312,9 +313,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // occupancy/identity reuse are conflicts, and export failure is a
         // source-store invariant.
         "SNAPBACK_AUTH_LOGICAL_IMPORT_INVALID"
-        | "SNAPBACK_AUTH_LOGICAL_IMPORT_FORMAT_UNSUPPORTED" => StatusCode::BAD_REQUEST,
+        | "SNAPBACK_AUTH_LOGICAL_IMPORT_FORMAT_UNSUPPORTED"
+        | "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID" => StatusCode::BAD_REQUEST,
         "SNAPBACK_AUTH_LOGICAL_IMPORT_TARGET_NOT_EMPTY"
-        | "SNAPBACK_AUTH_LOGICAL_IMPORT_IDENTITY_COLLISION" => StatusCode::CONFLICT,
+        | "SNAPBACK_AUTH_LOGICAL_IMPORT_IDENTITY_COLLISION"
+        | "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID" => StatusCode::INTERNAL_SERVER_ERROR,
         // These are operator-only shutdown controls/failures rather than
         // served request outcomes. Inventory still classifies them explicitly
@@ -795,6 +798,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         | "SNAPBACK_AUTH_RESERVATION_CANCELLED"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
+        | "SNAPBACK_AUTH_PASSWORD_REQUIRES_V4"
         | "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE"
         | "SNAPBACK_AUTH_SOURCE_UNTRUSTED"
         | "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE"

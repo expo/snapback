@@ -19,6 +19,7 @@ pub(crate) const AUTH_LOGICAL_EXPORT_FORMAT_VERSION: u8 = 1;
 pub(crate) const AUTH_LOGICAL_EXPORT_SCHEMA_VERSION: &str = "snapback.auth-logical-export.v1";
 pub(crate) const AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V2: u8 = 2;
 pub(crate) const AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3: u8 = 3;
+pub(crate) const AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V4: u8 = 4;
 pub(crate) const MAX_AUTH_LOGICAL_EXPORT_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
@@ -88,6 +89,11 @@ pub(crate) struct AuthLogicalExportV1 {
     pub schema_version: String,
     pub format_version: u8,
     pub auth_catalog_version: u8,
+    /// Catalog-v4 identity subjects can only be reconstructed under the same
+    /// immutable canonicalization contract. Pre-v4 format-1 artifacts omit
+    /// this field and retain their exact wire shape.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub password_identifier_mode: Option<String>,
     pub users: Vec<AuthLogicalUserV1>,
     pub identities: Vec<AuthLogicalIdentityV1>,
     pub scope_bases: Vec<AuthLogicalScopeBaseV1>,
@@ -96,6 +102,7 @@ pub(crate) struct AuthLogicalExportV1 {
 impl AuthLogicalExportV1 {
     pub(crate) fn new(
         auth_catalog_version: u8,
+        password_identifier_mode: Option<String>,
         users: Vec<AuthLogicalUserV1>,
         identities: Vec<AuthLogicalIdentityV1>,
         scope_bases: Vec<AuthLogicalScopeBaseV1>,
@@ -104,6 +111,7 @@ impl AuthLogicalExportV1 {
             schema_version: AUTH_LOGICAL_EXPORT_SCHEMA_VERSION.to_owned(),
             format_version: AUTH_LOGICAL_EXPORT_FORMAT_VERSION,
             auth_catalog_version,
+            password_identifier_mode,
             users,
             identities,
             scope_bases,
@@ -147,12 +155,34 @@ impl AuthLogicalExportV1 {
         if self.schema_version != AUTH_LOGICAL_EXPORT_SCHEMA_VERSION
             || !matches!(
                 self.auth_catalog_version,
-                AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V2 | AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3
+                AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V2
+                    | AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3
+                    | AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V4
             )
         {
             return Err(logical_import_invalid(
                 "logical auth import names an unsupported schema or auth catalog version",
             ));
+        }
+        match self.auth_catalog_version {
+            AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V4
+                if !matches!(
+                    self.password_identifier_mode.as_deref(),
+                    Some("username-v1" | "email-v1")
+                ) =>
+            {
+                return Err(logical_import_invalid(
+                    "catalog-v4 logical auth import lacks a valid password identifier mode",
+                ));
+            }
+            AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V2 | AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3
+                if self.password_identifier_mode.is_some() =>
+            {
+                return Err(logical_import_invalid(
+                    "a predecessor logical auth import carries catalog-v4 identifier metadata",
+                ));
+            }
+            _ => {}
         }
 
         validate_strictly_sorted_unique(self.users.iter().map(|row| row.id.as_str()), "user")?;

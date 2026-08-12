@@ -23,7 +23,7 @@ use snapback::admin::{AppState, ServerContext, ServerProfile};
 use snapback::auth::mode::{
     AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeStateRecord, AuthModeStatus,
     AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX,
-    SCHEMA_V1_PREFIX,
+    PasswordProviderReadiness, SCHEMA_V1_PREFIX,
 };
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
@@ -134,6 +134,7 @@ fn sessions_runtime(state: AppState) -> AppState {
                 authorization_invalidation: false,
                 authority_descriptor: false,
                 authorized_lease: false,
+                password_provider: PasswordProviderReadiness::requires_v4(None),
                 session_activation_ready: true,
             },
         )

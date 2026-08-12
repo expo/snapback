@@ -1557,7 +1557,10 @@ pub(super) fn issue_initial_agent_credential_on(
         params![credential_id, user_id, hash.as_bytes(), now_ms as i64],
     )
     .map_err(map_live_credential_constraint)?;
-    if super::auth::inspect_auth_catalog_on(tx)? == AuthCatalogState::ReadyV3 {
+    if matches!(
+        super::auth::inspect_auth_catalog_on(tx)?,
+        AuthCatalogState::ReadyV3 | AuthCatalogState::ReadyV4
+    ) {
         // @ref LLP 0214#35-identity-link-relation — the carried LLP 0055
         // agent-credential link is an external identity in v3; the actual
         // credential material remains in `_auth_agent_credentials`.

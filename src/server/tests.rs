@@ -396,7 +396,6 @@ async fn network_profile_admin_api_uses_shared_authorizer_and_activation_gate() 
     );
 }
 use crate::admin::{AppState, ServerContext};
-use crate::contract_types::ServerProfile;
 use crate::admin_impersonation::{
     IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
 };
@@ -431,7 +430,7 @@ use crate::auth::service_fence::{
     ServiceAuthorityCommitInterlock, ServiceAuthorityFenceRegistry,
     with_service_authority_terminal_gate,
 };
-use crate::contract_types::RevocationReason;
+use crate::contract_types::{RevocationReason, ServerProfile};
 use crate::cron::CronRunOutcome;
 use crate::diagnostic::SnapbackError;
 use crate::local::{
@@ -11292,9 +11291,8 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(unknown["diagnostic"]["code"], "SNAPBACK_UNKNOWN_FUNCTION");
     assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
-    // Rotates with the embedded todo demo's generated artifacts; the
-    // LLP 0204 S4 stream-fact codegen change is the latest rotation.
-    assert_eq!(details["artifactHash"], "sha256:52d8ad3ef1e5d803");
+    // Rotates with the embedded todo demo's generated artifacts.
+    assert_eq!(details["artifactHash"], "sha256:fe9ff786585e6212");
     assert_eq!(
         details["remediationSet"]["schemaVersion"],
         "snapback.remediation-set.v1"
@@ -19723,6 +19721,9 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_REHEARSAL_REQUEST_INVALID",
     "SNAPBACK_AUTH_LOGICAL_IMPORT_FORMAT_UNSUPPORTED",
     "SNAPBACK_AUTH_LOGICAL_IMPORT_INVALID",
+    // LLP 0214 §20.3: an identifier that does not satisfy the app's immutable
+    // username-v1/email-v1 declaration is malformed caller input.
+    "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
     "SNAPBACK_API_BUDGETS_INVALID",
     "SNAPBACK_API_ASK_BUDGETS_INVALID",
     "SNAPBACK_API_ASK_BUDGETS_REQUIRED",
@@ -20410,6 +20411,9 @@ const CONFLICT_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT",
     "SNAPBACK_AUTH_LOGICAL_IMPORT_IDENTITY_COLLISION",
     "SNAPBACK_AUTH_LOGICAL_IMPORT_TARGET_NOT_EMPTY",
+    // Catalog-v4 activation is one-way: redeclaring a different identifier
+    // mode conflicts with the durable app identity contract.
+    "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE",
     // @ref LLP 0146#oq6-author-ruling--2026-08-10 — stale remediation
     // bindings are conflicts, independent of the refusal that carried them.
     "SNAPBACK_REMEDIATION_ARTIFACT_STALE",
@@ -20772,6 +20776,9 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
     "SNAPBACK_AUTH_RESERVATION_CANCELLED",
     "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+    // Exact predecessor catalogs remain operational, but the first-class
+    // password provider is unavailable until an explicitly activated v4.
+    "SNAPBACK_AUTH_PASSWORD_REQUIRES_V4",
     "SNAPBACK_RANDOM_UNAVAILABLE",
     "SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE",
     // LLP 0098 §6: forwarding metadata that is absent, malformed,

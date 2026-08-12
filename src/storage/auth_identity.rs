@@ -1,6 +1,7 @@
-//! Protected catalog-v3 guest/password/recovery transition floor.
+//! Protected catalog-v3/v4 guest/password/recovery transition floor.
 
 use super::LocalDatabase;
+use super::auth::PasswordIdentifierMode;
 use crate::auth::crypto::{CanonicalAddress, RandomSource, SessionBearer};
 use crate::auth::identity_core::{
     AssuranceKind, AssuranceProvenance, AssuranceRecord, AuthClaimsProjection, ClaimsIdentity,
@@ -8,7 +9,7 @@ use crate::auth::identity_core::{
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use argon2::{
-    Argon2,
+    Algorithm, Argon2, Params, Version,
     password_hash::{PasswordHasher, PasswordVerifier, phc::PasswordHash},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -33,8 +34,66 @@ const COMMON_PASSWORDS: &[&str] = &[
     "qwertyuiop12",
 ];
 const RECOVERY_DOMAIN: &[u8] = b"snapback.auth.recovery-code.v1";
-const DUMMY_PASSWORD_PHC: &str =
-    "$argon2id$v=19$m=65536,t=2,p=1$c29tZXNhbHQ$CTFhFdXPJO1aFaMaO6Mm5c8y7cJHAph8ArZWb2GRPPc";
+const DUMMY_PASSWORD_PHC: &str = "$argon2id$v=19$m=19456,t=2,p=1$HyAhIiMkJSYnKCkqKywtLg$Kwc47BIKhIV7UTbl8eAZf0EL/mFlTXkkO6rPuplXNLc";
+
+/// Versioned policy authority for newly stored password hashes. PHC strings
+/// describe individual stored hashes but never choose the active policy.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct PasswordHashPolicy {
+    version: u64,
+    memory_kib: u32,
+    iterations: u32,
+    parallelism: u32,
+    salt_bytes: usize,
+    tag_bytes: usize,
+    common_password_list_version: u64,
+}
+
+const PASSWORD_HASH_POLICY_V1: PasswordHashPolicy = PasswordHashPolicy {
+    version: 1,
+    memory_kib: 19_456,
+    iterations: 2,
+    parallelism: 1,
+    salt_bytes: 16,
+    tag_bytes: 32,
+    common_password_list_version: COMMON_PASSWORD_LIST_VERSION,
+};
+
+impl PasswordHashPolicy {
+    fn argon2(self) -> Argon2<'static> {
+        let params = Params::new(
+            self.memory_kib,
+            self.iterations,
+            self.parallelism,
+            Some(self.tag_bytes),
+        )
+        .expect("ratified password hash policy is a valid Argon2 parameter set");
+        Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
+    }
+
+    /// Upgrade-on-verify plugs in here: after a successful verification, a
+    /// false result causes a replacement PHC to be prepared outside the writer
+    /// lock and swapped under the credential-generation compare-and-swap.
+    fn matches_phc(self, hash: &PasswordHash) -> bool {
+        let Ok(params) = Params::try_from(hash) else {
+            return false;
+        };
+        hash.algorithm.as_str() == "argon2id"
+            && hash.version == Some(19)
+            && params.m_cost() == self.memory_kib
+            && params.t_cost() == self.iterations
+            && params.p_cost() == self.parallelism
+            && params.output_len() == Some(self.tag_bytes)
+            && hash
+                .salt
+                .as_ref()
+                .is_some_and(|salt| salt.len() == self.salt_bytes)
+            && hash
+                .hash
+                .as_ref()
+                .is_some_and(|tag| tag.len() == self.tag_bytes)
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct IdentitySession {
@@ -51,6 +110,24 @@ struct PasswordSnapshot {
     credential_id: String,
     generation: u64,
     hash_phc: String,
+    identifier_mode: PasswordIdentifierMode,
+}
+
+struct PasswordIdentifier {
+    canonical: String,
+    mode: PasswordIdentifierMode,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct RecoveryKeyMaterial<'a> {
+    key_id: &'a str,
+    key: &'a [u8; 32],
+}
+
+impl<'a> RecoveryKeyMaterial<'a> {
+    pub(crate) const fn new(key_id: &'a str, key: &'a [u8; 32]) -> Self {
+        Self { key_id, key }
+    }
 }
 
 /// A prepared authority cannot be decoded from a request or constructed by an
@@ -158,7 +235,7 @@ fn canonical_username(value: &str) -> SnapbackResult<String> {
     let normalized: String = trimmed.nfc().collect();
     let canonical = normalized.to_lowercase();
     if canonical.is_empty()
-        || canonical.as_bytes().len() > 128
+        || canonical.len() > 128
         || canonical
             .chars()
             .any(|c| c.is_whitespace() || c.is_control())
@@ -171,10 +248,57 @@ fn canonical_username(value: &str) -> SnapbackResult<String> {
     Ok(canonical)
 }
 
-fn hash_password(secret: &PasswordSecret) -> SnapbackResult<String> {
+fn canonical_password_identifier(
+    mode: PasswordIdentifierMode,
+    value: &str,
+) -> SnapbackResult<PasswordIdentifier> {
+    Ok(PasswordIdentifier {
+        canonical: canonical_password_identifier_value(mode, value)?,
+        mode,
+    })
+}
+
+pub(super) fn canonical_password_identifier_value(
+    mode: PasswordIdentifierMode,
+    value: &str,
+) -> SnapbackResult<String> {
+    let canonical = match mode {
+        PasswordIdentifierMode::UsernameV1 => canonical_username(value),
+        PasswordIdentifierMode::EmailV1 => CanonicalAddress::parse(value)
+            .map(|address| address.as_str().to_owned())
+            .map_err(|_| {
+                auth_error(
+                    "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
+                    "password identifier does not satisfy the declared mode",
+                )
+            }),
+    }
+    .map_err(|_| {
+        auth_error(
+            "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID",
+            "password identifier does not satisfy the declared mode",
+        )
+    })?;
+    Ok(canonical)
+}
+
+fn require_same_password_identifier_mode(
+    conn: &rusqlite::Connection,
+    expected: PasswordIdentifierMode,
+) -> SnapbackResult<()> {
+    if super::auth::identity_floor_password_identifier_mode_on(conn)? == expected {
+        return Ok(());
+    }
+    Err(auth_error(
+        "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE",
+        "password identifier mode cannot change after auth catalog activation",
+    ))
+}
+
+fn hash_password(secret: &PasswordSecret, random: &dyn RandomSource) -> SnapbackResult<String> {
     let password = secret.expose_secret();
-    if password.as_bytes().len() < 12
-        || password.as_bytes().len() > 1_024
+    if password.len() < 12
+        || password.len() > 1_024
         || COMMON_PASSWORDS
             .iter()
             .any(|candidate| candidate == &password)
@@ -184,8 +308,16 @@ fn hash_password(secret: &PasswordSecret) -> SnapbackResult<String> {
             "password does not satisfy the active policy",
         ));
     }
-    Argon2::default()
-        .hash_password(password.as_bytes())
+    let mut salt = [0_u8; PASSWORD_HASH_POLICY_V1.salt_bytes];
+    random.fill(&mut salt).map_err(|_| {
+        auth_error(
+            "SNAPBACK_AUTH_RANDOM_UNAVAILABLE",
+            "secure randomness is unavailable",
+        )
+    })?;
+    PASSWORD_HASH_POLICY_V1
+        .argon2()
+        .hash_password_with_salt(password.as_bytes(), &salt)
         .map(|hash| hash.to_string())
         .map_err(|_| {
             auth_error(
@@ -197,10 +329,17 @@ fn hash_password(secret: &PasswordSecret) -> SnapbackResult<String> {
 
 fn verify_password(secret: &PasswordSecret, hash_phc: &str) -> bool {
     PasswordHash::new(hash_phc).is_ok_and(|hash| {
-        Argon2::default()
+        PASSWORD_HASH_POLICY_V1
+            .argon2()
             .verify_password(secret.expose_secret().as_bytes(), &hash)
             .is_ok()
     })
+}
+
+fn password_hash_needs_upgrade(hash_phc: &str) -> bool {
+    PasswordHash::new(hash_phc)
+        .map(|hash| !PASSWORD_HASH_POLICY_V1.matches_phc(&hash))
+        .unwrap_or(true)
 }
 
 fn recovery_digest(key: &[u8; 32], code: &str) -> [u8; 32] {
@@ -374,22 +513,25 @@ impl LocalDatabase {
         password: &PasswordSecret,
         now: u64,
         random: &dyn RandomSource,
-        key_id: &str,
-        recovery_key: &[u8; 32],
+        recovery: RecoveryKeyMaterial<'_>,
     ) -> SnapbackResult<IdentitySession> {
-        let canonical = canonical_username(username)?;
-        let phc = hash_password(password)?; // intentionally outside writer lock
-        let (codes, digests) = generate_recovery(random, recovery_key)?;
+        let identifier = canonical_password_identifier(
+            self.identity_floor_password_identifier_mode()?,
+            username,
+        )?;
+        let phc = hash_password(password, random)?; // intentionally outside writer lock
+        let (codes, digests) = generate_recovery(random, recovery.key)?;
         self.with_auth_transaction(|tx| {
             super::auth::require_identity_core_v3_on(tx)?;
+            require_same_password_identifier_mode(tx, identifier.mode)?;
             let row: Option<(String,String)> = tx.query_row("SELECT s.id,s.user_id FROM _auth_sessions s JOIN _auth_users u ON u.id=s.user_id WHERE s.token_hash=?1 AND s.revoked_at_ms IS NULL AND s.authn_source='guest' AND u.guest_state='active'", [guest.token_hash().as_bytes().as_slice()], |r| Ok((r.get(0)?,r.get(1)?))).optional()?;
             let (old_session, user) = row.ok_or_else(|| auth_error("SNAPBACK_AUTH_GUEST_SESSION_INVALID", "guest session is invalid"))?;
-            if tx.query_row("SELECT 1 FROM _auth_identities WHERE provider='local-password' AND subject=?1", [&canonical], |_| Ok(())).optional()?.is_some() { return Err(auth_error("SNAPBACK_AUTH_GUEST_CLAIM_COLLISION", "guest claim collides with an existing principal")); }
+            if tx.query_row("SELECT 1 FROM _auth_identities WHERE provider='local-password' AND subject=?1", [&identifier.canonical], |_| Ok(())).optional()?.is_some() { return Err(auth_error("SNAPBACK_AUTH_GUEST_CLAIM_COLLISION", "guest claim collides with an existing principal")); }
             let identity = opaque_id("identity"); let credential = opaque_id("credential");
-            tx.execute("INSERT INTO _auth_identities(id,user_id,kind,provider,subject,canonical_value,created_at_ms,verified_at_ms) VALUES(?1,?2,'username','local-password',?3,?3,?4,?4)", params![identity,user,canonical,now])?;
+            tx.execute("INSERT INTO _auth_identities(id,user_id,kind,provider,subject,canonical_value,created_at_ms,verified_at_ms) VALUES(?1,?2,?3,'local-password',?4,?4,?5,?5)", params![identity,user,identifier.mode.identity_kind(),identifier.canonical,now])?;
             tx.execute("INSERT INTO _auth_credentials(id,user_id,kind,created_at_ms) VALUES(?1,?2,'password',?3)", params![credential,user,now])?;
-            tx.execute("INSERT INTO _auth_password_credentials(credential_id,algorithm,hash_phc,policy_version,common_password_list_version,changed_at_ms) VALUES(?1,'argon2id',?2,1,?3,?4)", params![credential,phc,COMMON_PASSWORD_LIST_VERSION,now])?;
-            insert_recovery_set(tx, &user, key_id, &digests, "initial", now)?;
+            tx.execute("INSERT INTO _auth_password_credentials(credential_id,algorithm,hash_phc,policy_version,common_password_list_version,changed_at_ms) VALUES(?1,'argon2id',?2,?3,?4,?5)", params![credential,phc,PASSWORD_HASH_POLICY_V1.version,PASSWORD_HASH_POLICY_V1.common_password_list_version,now])?;
+            insert_recovery_set(tx, &user, recovery.key_id, &digests, "initial", now)?;
             tx.execute("UPDATE _auth_users SET guest_state='claimed',guest_expires_at_ms=NULL,guest_claimed_at_ms=?2 WHERE id=?1 AND guest_state='active'", params![user,now])?;
             tx.execute("UPDATE _auth_sessions SET revoked_at_ms=?2,generation=generation+1 WHERE user_id=?1 AND revoked_at_ms IS NULL", params![user,now])?;
             let (session,bearer)=insert_session(tx,&user,None,Some(&credential),"credential",now,random)?;
@@ -408,17 +550,21 @@ impl LocalDatabase {
         key_id: &str,
         recovery_key: &[u8; 32],
     ) -> SnapbackResult<IdentitySession> {
-        let canonical = canonical_username(username)?;
-        let phc = hash_password(password)?;
+        let identifier = canonical_password_identifier(
+            self.identity_floor_password_identifier_mode()?,
+            username,
+        )?;
+        let phc = hash_password(password, random)?;
         let (codes, digests) = generate_recovery(random, recovery_key)?;
         self.with_auth_transaction(|tx| {
             super::auth::require_identity_core_v3_on(tx)?;
-            if tx.query_row("SELECT 1 FROM _auth_identities WHERE provider='local-password' AND subject=?1",[&canonical], |_| Ok(())).optional()?.is_some(){return Err(auth_error("SNAPBACK_AUTH_IDENTITY_COLLISION","identity already exists"));}
+            require_same_password_identifier_mode(tx, identifier.mode)?;
+            if tx.query_row("SELECT 1 FROM _auth_identities WHERE provider='local-password' AND subject=?1",[&identifier.canonical], |_| Ok(())).optional()?.is_some(){return Err(auth_error("SNAPBACK_AUTH_IDENTITY_COLLISION","identity already exists"));}
             let user=opaque_id("user"); let identity=opaque_id("identity"); let credential=opaque_id("credential");
             tx.execute("INSERT INTO _auth_users(id,created_at_ms,kind,guest_state) VALUES(?1,?2,'human','never')",params![user,now])?;
-            tx.execute("INSERT INTO _auth_identities(id,user_id,kind,provider,subject,canonical_value,created_at_ms,verified_at_ms) VALUES(?1,?2,'username','local-password',?3,?3,?4,?4)",params![identity,user,canonical,now])?;
+            tx.execute("INSERT INTO _auth_identities(id,user_id,kind,provider,subject,canonical_value,created_at_ms,verified_at_ms) VALUES(?1,?2,?3,'local-password',?4,?4,?5,?5)",params![identity,user,identifier.mode.identity_kind(),identifier.canonical,now])?;
             tx.execute("INSERT INTO _auth_credentials(id,user_id,kind,created_at_ms) VALUES(?1,?2,'password',?3)",params![credential,user,now])?;
-            tx.execute("INSERT INTO _auth_password_credentials VALUES(?1,'argon2id',?2,1,?3,?4)",params![credential,phc,COMMON_PASSWORD_LIST_VERSION,now])?;
+            tx.execute("INSERT INTO _auth_password_credentials VALUES(?1,'argon2id',?2,?3,?4,?5)",params![credential,phc,PASSWORD_HASH_POLICY_V1.version,PASSWORD_HASH_POLICY_V1.common_password_list_version,now])?;
             insert_recovery_set(tx,&user,key_id,&digests,"initial",now)?;
             let(session,bearer)=insert_session(tx,&user,None,Some(&credential),"credential",now,random)?; insert_assurance(tx,&user,&session,Some(&credential),"authenticated",now,Some(now+SESSION_IDLE_MS))?; insert_assurance(tx,&user,&session,Some(&credential),"recent_auth",now,Some(now+600_000))?; journal(tx,&user,"password.account-created",now)?; journal(tx,&user,"recovery-codes.issued",now)?;
             Ok(IdentitySession{user_id:user,session_id:session,bearer,recovery_codes:Some(codes)})
@@ -432,30 +578,33 @@ impl LocalDatabase {
         password: &PasswordSecret,
         now: u64,
         random: &dyn RandomSource,
-        key_id: &str,
-        recovery_key: &[u8; 32],
+        recovery: RecoveryKeyMaterial<'_>,
     ) -> SnapbackResult<IdentitySession> {
-        let canonical = canonical_username(username)?;
-        let phc = hash_password(password)?;
-        let (codes, digests) = generate_recovery(random, recovery_key)?;
+        let identifier = canonical_password_identifier(
+            self.identity_floor_password_identifier_mode()?,
+            username,
+        )?;
+        let phc = hash_password(password, random)?;
+        let (codes, digests) = generate_recovery(random, recovery.key)?;
         self.with_auth_transaction(|tx| {
             super::auth::require_identity_core_v3_on(tx)?;
+            require_same_password_identifier_mode(tx, identifier.mode)?;
             let user: String = tx.query_row(
                 "SELECT s.user_id FROM _auth_sessions s JOIN _auth_users u ON u.id=s.user_id WHERE s.token_hash=?1 AND s.revoked_at_ms IS NULL AND s.expires_at_ms>?2 AND u.guest_state<>'active' AND u.deactivated_at_ms IS NULL",
                 params![acting.token_hash().as_bytes().as_slice(), now],
                 |row| row.get(0),
             ).map_err(|_| auth_error("SNAPBACK_AUTH_SESSION_INVALID", "session is invalid"))?;
-            let collision = tx.query_row("SELECT user_id FROM _auth_identities WHERE provider='local-password' AND subject=?1", [&canonical], |row| row.get::<_,String>(0)).optional()?;
+            let collision = tx.query_row("SELECT user_id FROM _auth_identities WHERE provider='local-password' AND subject=?1", [&identifier.canonical], |row| row.get::<_,String>(0)).optional()?;
             if collision.is_some_and(|owner| owner != user) {
                 return Err(auth_error("SNAPBACK_AUTH_IDENTITY_COLLISION", "identity already exists"));
             }
             let live: u64 = tx.query_row("SELECT COUNT(*) FROM _auth_credentials WHERE user_id=?1 AND kind='password' AND revoked_at_ms IS NULL", [&user], |row| row.get(0))?;
             if live != 0 { return Err(auth_error("SNAPBACK_AUTH_PASSWORD_ALREADY_SET", "principal already has a password")); }
             let identity=opaque_id("identity"); let credential=opaque_id("credential");
-            tx.execute("INSERT INTO _auth_identities(id,user_id,kind,provider,subject,canonical_value,created_at_ms,verified_at_ms) VALUES(?1,?2,'username','local-password',?3,?3,?4,?4)",params![identity,user,canonical,now])?;
+            tx.execute("INSERT INTO _auth_identities(id,user_id,kind,provider,subject,canonical_value,created_at_ms,verified_at_ms) VALUES(?1,?2,?3,'local-password',?4,?4,?5,?5)",params![identity,user,identifier.mode.identity_kind(),identifier.canonical,now])?;
             tx.execute("INSERT INTO _auth_credentials(id,user_id,kind,created_at_ms) VALUES(?1,?2,'password',?3)",params![credential,user,now])?;
-            tx.execute("INSERT INTO _auth_password_credentials VALUES(?1,'argon2id',?2,1,?3,?4)",params![credential,phc,COMMON_PASSWORD_LIST_VERSION,now])?;
-            insert_recovery_set(tx,&user,key_id,&digests,"initial",now)?;
+            tx.execute("INSERT INTO _auth_password_credentials VALUES(?1,'argon2id',?2,?3,?4,?5)",params![credential,phc,PASSWORD_HASH_POLICY_V1.version,PASSWORD_HASH_POLICY_V1.common_password_list_version,now])?;
+            insert_recovery_set(tx,&user,recovery.key_id,&digests,"initial",now)?;
             tx.execute("UPDATE _auth_sessions SET revoked_at_ms=?2,generation=generation+1 WHERE user_id=?1 AND revoked_at_ms IS NULL",params![user,now])?;
             let(session,bearer)=insert_session(tx,&user,None,Some(&credential),"credential",now,random)?;
             insert_assurance(tx,&user,&session,Some(&credential),"authenticated",now,Some(now+SESSION_IDLE_MS))?; insert_assurance(tx,&user,&session,Some(&credential),"recent_auth",now,Some(now+600_000))?; journal(tx,&user,"password.set",now)?;
@@ -477,8 +626,11 @@ impl LocalDatabase {
     }
 
     fn password_snapshot(&self, username: &str) -> SnapbackResult<Option<PasswordSnapshot>> {
-        let canonical = canonical_username(username)?;
-        self.with_auth_read(|conn| { super::auth::require_identity_core_v3_on(conn)?; Ok(conn.query_row("SELECT i.user_id,i.id,c.id,c.generation,p.hash_phc FROM _auth_identities i JOIN _auth_credentials c ON c.user_id=i.user_id AND c.kind='password' AND c.revoked_at_ms IS NULL JOIN _auth_password_credentials p ON p.credential_id=c.id JOIN _auth_users u ON u.id=i.user_id WHERE i.provider='local-password' AND i.subject=?1 AND i.disabled_at_ms IS NULL AND u.deactivated_at_ms IS NULL",[canonical],|r|Ok(PasswordSnapshot{user_id:r.get(0)?,identity_id:r.get(1)?,credential_id:r.get(2)?,generation:r.get(3)?,hash_phc:r.get(4)?})).optional()?) })
+        let identifier = canonical_password_identifier(
+            self.identity_floor_password_identifier_mode()?,
+            username,
+        )?;
+        self.with_auth_read(|conn| { super::auth::require_identity_core_v3_on(conn)?; require_same_password_identifier_mode(conn, identifier.mode)?; Ok(conn.query_row("SELECT i.user_id,i.id,c.id,c.generation,p.hash_phc FROM _auth_identities i JOIN _auth_credentials c ON c.user_id=i.user_id AND c.kind='password' AND c.revoked_at_ms IS NULL JOIN _auth_password_credentials p ON p.credential_id=c.id JOIN _auth_users u ON u.id=i.user_id WHERE i.provider='local-password' AND i.subject=?1 AND i.disabled_at_ms IS NULL AND u.deactivated_at_ms IS NULL",[identifier.canonical],|r|Ok(PasswordSnapshot{user_id:r.get(0)?,identity_id:r.get(1)?,credential_id:r.get(2)?,generation:r.get(3)?,hash_phc:r.get(4)?,identifier_mode:identifier.mode})).optional()?) })
     }
 
     pub(crate) fn identity_password_authenticate(
@@ -502,7 +654,11 @@ impl LocalDatabase {
             ));
         }
         let s = snapshot.unwrap();
-        self.with_auth_transaction(|tx| { super::auth::require_identity_core_v3_on(tx)?; let current:Option<(u64,String)>=tx.query_row("SELECT c.generation,p.hash_phc FROM _auth_credentials c JOIN _auth_password_credentials p ON p.credential_id=c.id WHERE c.id=?1 AND c.user_id=?2 AND c.revoked_at_ms IS NULL",params![s.credential_id,s.user_id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?; if current.as_ref()!=Some(&(s.generation,s.hash_phc.clone())) { return Err(auth_error("SNAPBACK_AUTH_CREDENTIAL_INVALID","credential is invalid")); } let(session,bearer)=insert_session(tx,&s.user_id,None,Some(&s.credential_id),"credential",now,random)?; tx.execute("UPDATE _auth_credentials SET last_used_at_ms=?2 WHERE id=?1",params![s.credential_id,now])?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"authenticated",now,Some(now+SESSION_IDLE_MS))?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"recent_auth",now,Some(now+600_000))?; journal(tx,&s.user_id,"password.authenticated",now)?; Ok(IdentitySession{user_id:s.user_id,session_id:session,bearer,recovery_codes:None}) })
+        let _upgrade_on_verify_required = password_hash_needs_upgrade(&s.hash_phc);
+        // A later lane prepares the replacement hash here, still outside the
+        // writer lock, then swaps it below only if `s.generation` remains the
+        // exact predecessor.
+        self.with_auth_transaction(|tx| { super::auth::require_identity_core_v3_on(tx)?; require_same_password_identifier_mode(tx, s.identifier_mode)?; let current:Option<(u64,String)>=tx.query_row("SELECT c.generation,p.hash_phc FROM _auth_credentials c JOIN _auth_password_credentials p ON p.credential_id=c.id WHERE c.id=?1 AND c.user_id=?2 AND c.revoked_at_ms IS NULL",params![s.credential_id,s.user_id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?; if current.as_ref()!=Some(&(s.generation,s.hash_phc.clone())) { return Err(auth_error("SNAPBACK_AUTH_CREDENTIAL_INVALID","credential is invalid")); } let(session,bearer)=insert_session(tx,&s.user_id,None,Some(&s.credential_id),"credential",now,random)?; tx.execute("UPDATE _auth_credentials SET last_used_at_ms=?2 WHERE id=?1",params![s.credential_id,now])?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"authenticated",now,Some(now+SESSION_IDLE_MS))?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"recent_auth",now,Some(now+600_000))?; journal(tx,&s.user_id,"password.authenticated",now)?; Ok(IdentitySession{user_id:s.user_id,session_id:session,bearer,recovery_codes:None}) })
     }
 
     pub(crate) fn identity_password_change(
@@ -523,9 +679,9 @@ impl LocalDatabase {
                 "credential is invalid",
             ));
         }
-        let new_phc = hash_password(replacement)?;
+        let new_phc = hash_password(replacement, random)?;
         let s = snapshot.unwrap();
-        self.with_auth_transaction(|tx|{super::auth::require_identity_core_v3_on(tx)?; let changed=tx.execute("UPDATE _auth_password_credentials SET hash_phc=?2,changed_at_ms=?3 WHERE credential_id=?1 AND hash_phc=?4",params![s.credential_id,new_phc,now,s.hash_phc])?; if changed!=1{return Err(auth_error("SNAPBACK_AUTH_CREDENTIAL_INVALID","credential is invalid"));} let generation_changed=tx.execute("UPDATE _auth_credentials SET generation=generation+1 WHERE id=?1 AND generation=?2",params![s.credential_id,s.generation])?; if generation_changed!=1{return Err(auth_error("SNAPBACK_AUTH_CREDENTIAL_INVALID","credential is invalid"));} tx.execute("UPDATE _auth_sessions SET revoked_at_ms=?2,generation=generation+1 WHERE user_id=?1 AND revoked_at_ms IS NULL",params![s.user_id,now])?; let(session,bearer)=insert_session(tx,&s.user_id,None,Some(&s.credential_id),"credential",now,random)?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"authenticated",now,Some(now+SESSION_IDLE_MS))?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"recent_auth",now,Some(now+600_000))?; journal(tx,&s.user_id,"password.changed",now)?; Ok(IdentitySession{user_id:s.user_id,session_id:session,bearer,recovery_codes:None})})
+        self.with_auth_transaction(|tx|{super::auth::require_identity_core_v3_on(tx)?; require_same_password_identifier_mode(tx, s.identifier_mode)?; let changed=tx.execute("UPDATE _auth_password_credentials SET hash_phc=?2,policy_version=?3,common_password_list_version=?4,changed_at_ms=?5 WHERE credential_id=?1 AND hash_phc=?6",params![s.credential_id,new_phc,PASSWORD_HASH_POLICY_V1.version,PASSWORD_HASH_POLICY_V1.common_password_list_version,now,s.hash_phc])?; if changed!=1{return Err(auth_error("SNAPBACK_AUTH_CREDENTIAL_INVALID","credential is invalid"));} let generation_changed=tx.execute("UPDATE _auth_credentials SET generation=generation+1 WHERE id=?1 AND generation=?2",params![s.credential_id,s.generation])?; if generation_changed!=1{return Err(auth_error("SNAPBACK_AUTH_CREDENTIAL_INVALID","credential is invalid"));} tx.execute("UPDATE _auth_sessions SET revoked_at_ms=?2,generation=generation+1 WHERE user_id=?1 AND revoked_at_ms IS NULL",params![s.user_id,now])?; let(session,bearer)=insert_session(tx,&s.user_id,None,Some(&s.credential_id),"credential",now,random)?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"authenticated",now,Some(now+SESSION_IDLE_MS))?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"recent_auth",now,Some(now+600_000))?; journal(tx,&s.user_id,"password.changed",now)?; Ok(IdentitySession{user_id:s.user_id,session_id:session,bearer,recovery_codes:None})})
     }
 
     pub(crate) fn identity_recovery_rotate(
@@ -549,11 +705,15 @@ impl LocalDatabase {
         key_id: &str,
         key: &[u8; 32],
     ) -> SnapbackResult<IdentitySession> {
-        let canonical = canonical_username(username)?;
+        let identifier = canonical_password_identifier(
+            self.identity_floor_password_identifier_mode()?,
+            username,
+        )?;
         let digest = recovery_digest(key, code);
         let (codes, digests) = generate_recovery(random, key)?;
         let candidates = self.with_auth_read(|conn| {
             super::auth::require_identity_core_v3_on(conn)?;
+            require_same_password_identifier_mode(conn, identifier.mode)?;
             let mut stmt = conn.prepare(
                 "SELECT i.user_id,r.set_credential_id,r.ordinal,r.code_digest
                  FROM _auth_identities i
@@ -570,7 +730,7 @@ impl LocalDatabase {
                    AND r.consumed_at_ms IS NULL
                  ORDER BY r.ordinal",
             )?;
-            stmt.query_map(params![canonical, key_id], |row| {
+            stmt.query_map(params![identifier.canonical, key_id], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
@@ -599,7 +759,7 @@ impl LocalDatabase {
                 "recovery code is invalid",
             )
         })?;
-        self.with_auth_transaction(|tx|{super::auth::require_identity_core_v3_on(tx)?;let changed=tx.execute("UPDATE _auth_recovery_codes SET consumed_at_ms=?4 WHERE set_credential_id=?1 AND ordinal=?2 AND code_digest=?3 AND consumed_at_ms IS NULL",params![set,ordinal,digest.as_slice(),now])?;if changed!=1{return Err(auth_error("SNAPBACK_AUTH_RECOVERY_CODE_INVALID","recovery code is invalid"));}let successor=insert_recovery_set(tx,&user,key_id,&digests,"after-use",now)?;tx.execute("UPDATE _auth_sessions SET revoked_at_ms=?2,generation=generation+1 WHERE user_id=?1 AND revoked_at_ms IS NULL",params![user,now])?;let(session,bearer)=insert_session(tx,&user,None,Some(&successor),"credential",now,random)?;insert_assurance(tx,&user,&session,Some(&successor),"authenticated",now,Some(now+SESSION_IDLE_MS))?;insert_assurance(tx,&user,&session,Some(&successor),"recent_auth",now,Some(now+600_000))?;journal(tx,&user,"recovery-code.used",now)?;Ok(IdentitySession{user_id:user,session_id:session,bearer,recovery_codes:Some(codes)})})
+        self.with_auth_transaction(|tx|{super::auth::require_identity_core_v3_on(tx)?;require_same_password_identifier_mode(tx,identifier.mode)?;let changed=tx.execute("UPDATE _auth_recovery_codes SET consumed_at_ms=?4 WHERE set_credential_id=?1 AND ordinal=?2 AND code_digest=?3 AND consumed_at_ms IS NULL",params![set,ordinal,digest.as_slice(),now])?;if changed!=1{return Err(auth_error("SNAPBACK_AUTH_RECOVERY_CODE_INVALID","recovery code is invalid"));}let successor=insert_recovery_set(tx,&user,key_id,&digests,"after-use",now)?;tx.execute("UPDATE _auth_sessions SET revoked_at_ms=?2,generation=generation+1 WHERE user_id=?1 AND revoked_at_ms IS NULL",params![user,now])?;let(session,bearer)=insert_session(tx,&user,None,Some(&successor),"credential",now,random)?;insert_assurance(tx,&user,&session,Some(&successor),"authenticated",now,Some(now+SESSION_IDLE_MS))?;insert_assurance(tx,&user,&session,Some(&successor),"recent_auth",now,Some(now+600_000))?;journal(tx,&user,"recovery-code.used",now)?;Ok(IdentitySession{user_id:user,session_id:session,bearer,recovery_codes:Some(codes)})})
     }
 
     pub(crate) fn identity_revoke_password(&mut self, user: &str, now: u64) -> SnapbackResult<()> {
@@ -641,6 +801,12 @@ mod tests {
         db.activate_current_auth_catalog().unwrap();
         db
     }
+    fn ready_with_mode(mode: PasswordIdentifierMode) -> LocalDatabase {
+        let mut db = LocalDatabase::memory().unwrap();
+        db.activate_current_auth_catalog_with_password_identifier_mode(mode)
+            .unwrap();
+        db
+    }
     fn password(value: &str) -> PasswordSecret {
         PasswordSecret::new(value.into())
     }
@@ -668,8 +834,7 @@ mod tests {
                 &password("strong-guest-secret-22"),
                 3,
                 &random,
-                "key-1",
-                &key,
+                RecoveryKeyMaterial::new("key-1", &key),
             )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GUEST_CLAIM_COLLISION");
@@ -680,8 +845,7 @@ mod tests {
                 &password("strong-guest-secret-22"),
                 4,
                 &random,
-                "key-1",
-                &key,
+                RecoveryKeyMaterial::new("key-1", &key),
             )
             .unwrap();
         assert_eq!(claimed.user_id, guest.user_id);
@@ -713,8 +877,7 @@ mod tests {
                 &password("strong-password-set-123"),
                 8,
                 &random,
-                "key-1",
-                &key,
+                RecoveryKeyMaterial::new("key-1", &key),
             )
             .unwrap();
         assert_eq!(set.user_id, settable.user_id);
@@ -728,8 +891,7 @@ mod tests {
                 &password("strong-too-late-secret"),
                 10,
                 &random,
-                "key-1",
-                &key
+                RecoveryKeyMaterial::new("key-1", &key)
             )
             .unwrap_err()
             .diagnostic
@@ -818,6 +980,136 @@ mod tests {
                 .len(),
             RECOVERY_COUNT
         );
+    }
+
+    #[test]
+    fn email_v1_is_provider_scoped_and_never_confers_email_verified_assurance() {
+        let random = CounterRandom::new();
+        let key = [11; 32];
+        let mut db = ready_with_mode(PasswordIdentifierMode::EmailV1);
+        let registered = db
+            .identity_password_register(
+                "  TÉST@Example.COM  ",
+                &password("strong-email-password-1"),
+                10,
+                &random,
+                "key-1",
+                &key,
+            )
+            .unwrap();
+        assert_eq!(
+            db.identity_password_register(
+                "te\u{301}st@example.com",
+                &password("strong-email-password-2"),
+                11,
+                &random,
+                "key-1",
+                &key,
+            )
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_AUTH_IDENTITY_COLLISION"
+        );
+        let authenticated = db
+            .identity_password_authenticate(
+                "TÉST@EXAMPLE.COM",
+                &password("strong-email-password-1"),
+                12,
+                &random,
+            )
+            .unwrap();
+        let claims = db.identity_claims(&authenticated.session_id, 12).unwrap();
+        let local = claims
+            .identities
+            .iter()
+            .find(|identity| identity.provider_key == "local-password")
+            .unwrap();
+        assert_eq!(local.kind, "email");
+        assert_eq!(local.subject, "tést@example.com");
+        assert!(
+            claims
+                .assurances
+                .iter()
+                .all(|assurance| assurance.kind != AssuranceKind::EmailVerified),
+            "password possession must not create email-verified assurance"
+        );
+        let (local_verified_at, local_user): (u64, String) = db
+            .with_auth_read(|conn| {
+                Ok(conn.query_row(
+                    "SELECT verified_at_ms,user_id FROM _auth_identities
+                     WHERE provider='local-password' AND subject='tést@example.com'",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?)
+            })
+            .unwrap();
+        assert_eq!(
+            local_verified_at, 10,
+            "local verified_at is creation time only"
+        );
+        assert_eq!(local_user, registered.user_id);
+
+        let email_guest = db.identity_guest_create(50_000, 13, &random).unwrap();
+        let proof = prepare_verified_email_claim(
+            "TE\u{301}ST@example.com",
+            "email-event-1",
+            "email-code:built-in",
+        )
+        .unwrap();
+        let email_claimed = db
+            .identity_guest_claim_verified_email(&email_guest.bearer, &proof, 14, &random)
+            .expect("local-password identity must not satisfy email-code lookup");
+        assert_ne!(email_claimed.user_id, registered.user_id);
+        let providers = db
+            .with_auth_read(|conn| {
+                let mut statement = conn.prepare(
+                    "SELECT provider,user_id FROM _auth_identities
+                     WHERE subject='tést@example.com' ORDER BY provider",
+                )?;
+                Ok(statement
+                    .query_map([], |row| {
+                        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                    })?
+                    .collect::<Result<Vec<_>, _>>()?)
+            })
+            .unwrap();
+        assert_eq!(providers.len(), 2);
+        assert_eq!(providers[0].0, "email-code");
+        assert_eq!(providers[0].1, email_claimed.user_id);
+        assert_eq!(providers[1].0, "local-password");
+        assert_eq!(providers[1].1, registered.user_id);
+
+        assert_eq!(
+            db.identity_password_authenticate(
+                "not-an-email",
+                &password("strong-email-password-1"),
+                15,
+                &random,
+            )
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID"
+        );
+    }
+
+    #[test]
+    fn password_hash_policy_v1_is_explicit_in_every_new_phc() {
+        let phc =
+            hash_password(&password("strong-policy-password-1"), &CounterRandom::new()).unwrap();
+        let hash = PasswordHash::new(&phc).unwrap();
+        let params = Params::try_from(&hash).unwrap();
+        assert_eq!(hash.algorithm.as_str(), "argon2id");
+        assert_eq!(hash.version, Some(19));
+        assert_eq!(params.m_cost(), 19_456);
+        assert_eq!(params.t_cost(), 2);
+        assert_eq!(params.p_cost(), 1);
+        assert_eq!(params.output_len(), Some(32));
+        assert_eq!(hash.salt.as_ref().unwrap().len(), 16);
+        assert_eq!(hash.hash.as_ref().unwrap().len(), 32);
+        assert!(!password_hash_needs_upgrade(&phc));
+        assert!(!password_hash_needs_upgrade(DUMMY_PASSWORD_PHC));
     }
 
     #[test]

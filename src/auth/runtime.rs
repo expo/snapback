@@ -239,22 +239,23 @@ impl AuthRuntime {
         };
         let startup_diagnostic = match catalog {
             AuthCatalogState::Uninitialized => None,
-            AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 => {
-                match provider.readiness() {
-                    AuthProviderReadiness::Available => None,
-                    AuthProviderReadiness::Unavailable => Some(match database_path {
-                        Some(database_path) => {
-                            let error = match keyring.load_existing() {
-                                Err(error) => error,
-                                Ok(_) => KeyringError::Unavailable,
-                            };
-                            let keyring_path = AuthKeyringStore::keyring_path(database_path);
-                            startup_provider_unavailable_diagnostic(&keyring_path, error)
-                        }
-                        None => provider_unavailable_diagnostic(),
-                    }),
-                }
-            }
+            AuthCatalogState::ReadyV1
+            | AuthCatalogState::ReadyV2
+            | AuthCatalogState::ReadyV3
+            | AuthCatalogState::ReadyV4 => match provider.readiness() {
+                AuthProviderReadiness::Available => None,
+                AuthProviderReadiness::Unavailable => Some(match database_path {
+                    Some(database_path) => {
+                        let error = match keyring.load_existing() {
+                            Err(error) => error,
+                            Ok(_) => KeyringError::Unavailable,
+                        };
+                        let keyring_path = AuthKeyringStore::keyring_path(database_path);
+                        startup_provider_unavailable_diagnostic(&keyring_path, error)
+                    }
+                    None => provider_unavailable_diagnostic(),
+                }),
+            },
         };
         Ok(Self {
             provider,
@@ -689,7 +690,9 @@ fn startup_provider_unavailable_diagnostic(path: &Path, error: KeyringError) -> 
 
 /// Profile conversion stays explicit so production capture cannot be enabled
 /// by a lossy boolean or a default branch.
-pub(crate) fn provider_profile(profile: crate::contract_types::ServerProfile) -> AuthProviderProfile {
+pub(crate) fn provider_profile(
+    profile: crate::contract_types::ServerProfile,
+) -> AuthProviderProfile {
     match profile {
         crate::contract_types::ServerProfile::Dev => AuthProviderProfile::Dev,
         crate::contract_types::ServerProfile::Test => AuthProviderProfile::Test,

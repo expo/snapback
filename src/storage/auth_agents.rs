@@ -20,9 +20,9 @@ use super::auth_agent_credentials::{
     IssuedAgentCredential, advance_agent_clock_on, issue_initial_agent_credential_on,
     reconcile_issued_agent_credential, require_agent_clock_on, token_ids_for_user,
 };
-use crate::contract_types::ServerProfile;
 use crate::auth::crypto::{CreationInvitation, RandomSource};
 use crate::auth::crypto::{StepUpConsumption, StepUpProof, step_up_required_error};
+use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AgentsMode, AuthMode, MembershipScope, SchemaManifest};
 use rusqlite::{Connection, OptionalExtension, Transaction, params, types::Value as SqlValue};
@@ -1512,17 +1512,17 @@ mod tests {
 
     #[test]
     fn catalog_refuses_a_version_above_this_binary_understanding() {
-        // Refuse-at-open: a fresh catalog is v3 and recognized; a marker naming a
+        // Refuse-at-open: a fresh catalog is v4 and recognized; a marker naming a
         // higher version must fail closed rather than reopen "without agents".
         let db = ready_database();
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
-            crate::storage::auth::AuthCatalogState::ReadyV3
+            crate::storage::auth::AuthCatalogState::ReadyV4
         );
-        assert_eq!(AUTH_CATALOG_VERSION, "3");
+        assert_eq!(AUTH_CATALOG_VERSION, "4");
         db.conn
             .execute(
-                "UPDATE _snapback_meta SET value = '4' WHERE key = 'auth_catalog_version'",
+                "UPDATE _snapback_meta SET value = '5' WHERE key = 'auth_catalog_version'",
                 [],
             )
             .expect("bump marker above understanding");

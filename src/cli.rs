@@ -1,9 +1,9 @@
 use crate::admin::{AppState, ResolvedAdminToken, ServerContext};
-use crate::contract_types::ServerProfile;
 use crate::admin_secret_read::{
     SecretReadMintBridge, SecretReadMintSpec, SecretReadScope, secret_read_root_sibling,
     sign_secret_read_mint,
 };
+use crate::contract_types::ServerProfile;
 use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor};
 use crate::instance_lock::{DatabaseInstanceLock, StartupTargetReservation};
 use crate::local::{DiagnosticBoundary, LocalSnapback};
@@ -6342,7 +6342,10 @@ fn wait_failure_result(
     let diagnostic = crate::host_ops::host_op_diagnostic(
         code,
         "host.wait",
-        &format!("wait did not reach {} readiness: {condition}", level.as_str()),
+        &format!(
+            "wait did not reach {} readiness: {condition}",
+            level.as_str()
+        ),
     )
     .with_details(json!({
         "operation": "host.wait",
@@ -6398,9 +6401,7 @@ async fn host_wait_result(
     let timeout = std::time::Duration::from_millis(timeout_ms);
     let receipt_path = application_ready_file
         .map(Path::to_path_buf)
-        .unwrap_or_else(|| {
-            crate::operational_readiness::application_ready_sibling(ready_file)
-        });
+        .unwrap_or_else(|| crate::operational_readiness::application_ready_sibling(ready_file));
     let mut target = wait_unknown_target();
     let mut last: WaitObservation;
 
@@ -6487,8 +6488,7 @@ async fn host_wait_result(
                 payload.clone(),
             );
         }
-        if let Err(diagnostic) =
-            verify_live_descriptor_identity(&descriptor, &health, "host.wait")
+        if let Err(diagnostic) = verify_live_descriptor_identity(&descriptor, &health, "host.wait")
         {
             last = WaitObservation {
                 condition: if health.is_err() {
@@ -6556,10 +6556,9 @@ async fn host_wait_result(
                 continue;
             }
         };
-        let receipt_bytes = match ready_target.read_strict_owner_only_sibling(
-            &pinned_receipt,
-            APPLICATION_READY_RECEIPT_MAX_BYTES,
-        ) {
+        let receipt_bytes = match ready_target
+            .read_strict_owner_only_sibling(&pinned_receipt, APPLICATION_READY_RECEIPT_MAX_BYTES)
+        {
             Ok(bytes) => bytes,
             Err(error) => {
                 last = WaitObservation {
@@ -7917,6 +7916,10 @@ async fn run_composed(
             return Err(error.into());
         }
     };
+    let password_provider_readiness = snapback
+        .auth_database_mut()
+        .auth_password_provider_readiness()
+        .map_err(anyhow::Error::new)?;
     if args.derived_fork_arm_writer_coverage {
         // @ref LLP 0058#cold-startup-artifact-carrier — the complete pair is
         // active before the fork-specific coverage cut.
@@ -8109,7 +8112,8 @@ async fn run_composed(
         &installed_auth_receipts,
         authorized_lease_ready,
         authorized_lease_ready,
-    );
+    )
+    .with_password_provider(password_provider_readiness);
     let app_state = app_state
         .with_auth_runtime_facts(auth_mode_state.clone(), auth_program_readiness.clone())
         .map_err(anyhow::Error::new)?;
@@ -8682,8 +8686,11 @@ async fn run_auth_collision_recovery(
                     crate::contract_types::ServerProfile::Dev => {
                         crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
                     }
-                    crate::contract_types::ServerProfile::Test => "local-test-sqlite-ibex".to_owned(),
-                    crate::contract_types::ServerProfile::Demo | crate::contract_types::ServerProfile::Prod => {
+                    crate::contract_types::ServerProfile::Test => {
+                        "local-test-sqlite-ibex".to_owned()
+                    }
+                    crate::contract_types::ServerProfile::Demo
+                    | crate::contract_types::ServerProfile::Prod => {
                         unreachable!("recovery context rejected this profile before bind")
                     }
                 },

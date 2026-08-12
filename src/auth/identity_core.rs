@@ -27,6 +27,9 @@ pub(crate) enum AssuranceProvenance {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+// The password-route lane will select this posture when admitting assurance
+// records; the storage floor intentionally landed the closed enum first.
+#[allow(dead_code)]
 pub(crate) enum DeploymentPosture {
     Production,
     Dev,
@@ -49,6 +52,8 @@ pub(crate) struct AssuranceRecord {
 }
 
 impl AssuranceRecord {
+    // The password-route/assurance-admission lane consumes this coherent API.
+    #[allow(dead_code)]
     pub(crate) fn admit(&self, posture: DeploymentPosture, now_ms: u64) -> SnapbackResult<()> {
         let governed = matches!(
             self.provenance,
@@ -116,6 +121,8 @@ impl AuthClaimsProjection {
         }
     }
 
+    // The verified-provisioning invocation lane consumes this fail-closed seam.
+    #[allow(dead_code)]
     pub(crate) fn refuse_binding_write(&self) -> SnapbackError {
         SnapbackError::error(
             "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
@@ -127,6 +134,8 @@ impl AuthClaimsProjection {
 
 pub(crate) struct PasswordSecret(Zeroizing<String>);
 impl PasswordSecret {
+    // Public password request DTOs in the route lane construct this carrier.
+    #[allow(dead_code)]
     pub(crate) fn new(value: String) -> Self {
         Self(Zeroizing::new(value))
     }
@@ -140,11 +149,15 @@ impl fmt::Debug for PasswordSecret {
     }
 }
 
+// The client/route response lane consumes the one-time recovery-code payload;
+// storage already needs to construct and preserve its zeroizing carrier.
+#[allow(dead_code)]
 pub(crate) struct RecoveryCodes(Zeroizing<Vec<String>>);
 impl RecoveryCodes {
     pub(crate) fn new(values: Vec<String>) -> Self {
         Self(Zeroizing::new(values))
     }
+    #[allow(dead_code)]
     pub(crate) fn expose_once(&self) -> &[String] {
         &self.0
     }
