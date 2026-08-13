@@ -480,6 +480,33 @@ reuse_authoritative_runtime_receipt() {
     [ "$readiness_profile" = "debug" ] || return 1
 }
 
+reuse_prepared_runtime_receipt() {
+    # @ref LLP 0232#d-2-prepared-execution-and-rebase-stable-records -- a detached gate may consume the invoking
+    # environment's qualified binary only after the ordinary readiness
+    # verifier reopens binary/Hermes digests and the prepared-runtime verifier
+    # proves source, qualification, toolchain, platform, and environment
+    # closure equality. Any miss is deliberately non-fatal and falls through
+    # to the unchanged cold link + qualification producer below.
+    local prepared_root="${SNAPBACK_PREPARED_RUNTIME_ROOT:-}"
+    [ -n "$prepared_root" ] || return 1
+    local binary="${SNAPBACK_PREPARED_RUNTIME_BINARY:-$prepared_root/target/debug/snapback}"
+    [ -x "$binary" ] || {
+        log "prepared runtime reuse miss: candidate binary is absent at $binary"
+        return 1
+    }
+    local verdict reason message
+    verdict="$(node "$ROOT/packages/snapback-cli/prepared-runtime-reuse.mjs" verify \
+        --root "$ROOT" --binary "$binary" --json 2>/dev/null)" || {
+        reason="$(printf '%s' "$verdict" | python3 -c \
+            'import json,sys; print(json.load(sys.stdin).get("reason") or "verification-failed")' 2>/dev/null || printf 'verification-failed')"
+        message="$(printf '%s' "$verdict" | python3 -c \
+            'import json,sys; print(json.load(sys.stdin).get("message") or "prepared receipt verification failed")' 2>/dev/null || printf 'prepared receipt verification failed')"
+        log "prepared runtime reuse miss ($reason): $message; falling back to cold bootstrap"
+        return 1
+    }
+    log "reusing closure-identical prepared runtime readiness receipt from $binary"
+}
+
 # @ref LLP 0010#native-runtime-bootstrap -- vendor/ibex is a git submodule;
 # resolve its checkout state BEFORE writing any artifacts into the path.
 # Running this script ahead of `git submodule update --init` used to wedge
@@ -585,7 +612,15 @@ probe_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_IBEX_HERMES_ARTIFACTS_UN
 link_peer_cli
 
 if [ "$RUN_CHECK" != "0" ]; then
-    if reuse_authoritative_runtime_receipt; then
+    if [ -n "${SNAPBACK_PREPARED_RUNTIME_ROOT:-}" ]; then
+        if reuse_prepared_runtime_receipt; then
+            log "Ibex runtime bootstrap complete"
+            exit 0
+        fi
+        # A proposed prepared-runtime mismatch is required to take the cold
+        # producer below. Do not let the older exact-revision shortcut turn a
+        # qualification/source/toolchain/platform miss back into reuse.
+    elif reuse_authoritative_runtime_receipt; then
         log "reusing exact current-revision runtime readiness receipt; link and qualification are already authoritative"
         log "Ibex runtime bootstrap complete"
         exit 0

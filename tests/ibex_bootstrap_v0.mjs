@@ -182,6 +182,73 @@ printf '{"ok":true,"receipt":{"buildIdentity":{"gitCommit":"%s","gitDirty":false
   assert.equal(reuseResult.status, 0, `${reuseResult.stdout}\n${reuseResult.stderr}`);
   assert.match(reuseResult.stdout, /reusing exact current-revision runtime readiness receipt/);
 
+  // Prepared reuse has priority over exact-revision reuse because a detached
+  // gate checkout intentionally has a different commit identity. A positive
+  // verifier result must return before the cold link producer is consulted.
+  const preparedRoot = join(scratch, 'prepared-runtime');
+  const preparedBinary = join(preparedRoot, 'target', 'debug', 'snapback');
+  touch(preparedBinary, '#!/usr/bin/env sh\nexit 0\n');
+  chmodSync(preparedBinary, 0o755);
+  const preparedHit = spawnSync(script, [], {
+    cwd: checkout,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: `${fakeBin}:${process.env.PATH}`,
+      FIXTURE_COMMIT: fixtureCommit,
+      SNAPBACK_BOOTSTRAP_CHECK: '1',
+      SNAPBACK_IBEX_CHECKOUT: peer,
+      SNAPBACK_PREPARED_RUNTIME_ROOT: preparedRoot,
+      SNAPBACK_PREPARED_RUNTIME_BINARY: preparedBinary,
+    },
+  });
+  assert.equal(preparedHit.status, 0, `${preparedHit.stdout}\n${preparedHit.stderr}`);
+  assert.match(preparedHit.stdout, /reusing closure-identical prepared runtime readiness receipt/);
+  assert.doesNotMatch(preparedHit.stdout, /validating Snapback native runtime: exact cargo link/);
+
+  // LLP 0232 D-2: a proposed prepared runtime that fails its closure verifier
+  // is a cache miss, never a prepare failure. The existing exact link +
+  // qualification producer remains the fallback and receives control.
+  rmSync(servedBinary, { force: true });
+  const fallbackBin = join(scratch, 'fallback-bin');
+  const fallbackNode = join(fallbackBin, 'node');
+  touch(fallbackNode, `#!/usr/bin/env bash
+case "$1" in
+  *prepared-runtime-reuse.mjs)
+    printf '%s\\n' '{"ok":false,"reason":"source-closure-drift","message":"fixture mismatch"}'
+    exit 1
+    ;;
+  *runtime-link-smoke.mjs)
+    printf '%s\\n' '{"ok":true,"recovery":{"schemaVersion":"snapback.runtime-recovery.v1"}}'
+    exit 0
+    ;;
+  *runtime-readiness.mjs)
+    printf '%s\\n' '{"ok":true,"receipt":{"buildIdentity":{"gitCommit":"unused","gitDirty":false,"buildProfile":"debug"}}}'
+    exit 0
+    ;;
+  *)
+    exit 2
+    ;;
+esac
+`);
+  chmodSync(fallbackNode, 0o755);
+  const fallbackResult = spawnSync(script, [], {
+    cwd: checkout,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: `${fallbackBin}:${process.env.PATH}`,
+      SNAPBACK_BOOTSTRAP_CHECK: '1',
+      SNAPBACK_IBEX_CHECKOUT: peer,
+      SNAPBACK_PREPARED_RUNTIME_ROOT: preparedRoot,
+      SNAPBACK_PREPARED_RUNTIME_BINARY: preparedBinary,
+    },
+  });
+  assert.equal(fallbackResult.status, 0, `${fallbackResult.stdout}\n${fallbackResult.stderr}`);
+  assert.match(fallbackResult.stdout, /prepared runtime reuse miss \(source-closure-drift\)/);
+  assert.match(fallbackResult.stdout, /falling back to cold bootstrap/);
+  assert.match(fallbackResult.stdout, /validating Snapback native runtime: exact cargo link/);
+
   const driftCheckout = join(scratch, 'snapback-drift');
   const driftVendor = join(driftCheckout, 'vendor', 'ibex');
   const driftPeer = join(scratch, 'ibex-drift');

@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
   DEFAULT_RUNTIME_LINK_TIMEOUT_MS,
@@ -27,6 +28,9 @@ import {
   runtimeReadinessReceiptPath,
   verifyRuntimeReadinessReceipt,
 } from '../packages/snapback-cli/runtime-readiness.mjs';
+import {
+  PREPARED_RUNTIME_QUALIFICATION_INPUTS,
+} from '../packages/snapback-cli/prepared-runtime-reuse.mjs';
 
 function writeExecutable(path, contents) {
   mkdirSync(dirname(path), { recursive: true });
@@ -377,6 +381,83 @@ chmodSync(binary, 0o755);
   }
 });
 
+fixtureTest('a closure change during build cannot be certified for prepared reuse', async () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-closure-race-'));
+  try {
+    writeFixture(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
+    writeFixture(join(scratch, 'Cargo.lock'), '');
+    writeFixture(
+      join(scratch, 'scripts', 'runtime-build-inputs.txt'),
+      'Cargo.toml\nCargo.lock\nscripts/runtime-build-inputs.txt\n',
+    );
+    for (const input of PREPARED_RUNTIME_QUALIFICATION_INPUTS) {
+      writeFixture(join(scratch, input), `qualification fixture: ${input}\n`);
+    }
+    for (const candidate of runtimeArtifactCandidates(scratch)) {
+      writeFixture(candidate, `fixture artifact ${candidate}`);
+    }
+    for (const args of [
+      ['init', '-q'],
+      ['config', 'user.email', 'fixture@example.invalid'],
+      ['config', 'user.name', 'Runtime Link Fixture'],
+      ['add', '-A'],
+      ['commit', '-qm', 'fixture'],
+    ]) {
+      const initialized = spawnSync('git', args, { cwd: scratch, encoding: 'utf8' });
+      assert.equal(initialized.status, 0, initialized.stderr);
+    }
+
+    const cargo = join(scratch, 'fake-cargo.mjs');
+    writeExecutable(cargo, `#!/usr/bin/env node
+import { appendFileSync, chmodSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+if (process.argv[2] === '--version') {
+  console.log('cargo 1.99.0-fixture');
+  process.exit(0);
+}
+appendFileSync(join(process.cwd(), 'scripts', 'bootstrap-ibex-runtime'), '// changed during build\\n');
+const index = process.argv.indexOf('--target-dir');
+const binary = join(process.argv[index + 1], 'debug', 'snapback');
+mkdirSync(dirname(binary), {recursive:true});
+writeFileSync(binary, \`#!/usr/bin/env node
+if (process.argv[2] === 'runtime-qualify') {
+  console.log(JSON.stringify({
+    schemaVersion:'snapback.runtime-qualify.v1',
+    probe:'restricted-no-eval-handler-vm',
+    ok:true,
+    binary:{gitCommit:'race-cafebabe',gitDirty:false,crateVersion:'1.2.3',buildProfile:'debug'}
+  }));
+  process.exit(0);
+}
+console.log(JSON.stringify({binary:{
+  gitCommit:'race-cafebabe',gitDirty:false,crateVersion:'1.2.3',buildProfile:'debug'
+}}));
+\`);
+chmodSync(binary, 0o755);
+`);
+    const target = join(scratch, 'kept-target');
+    const result = await runRuntimeLinkProbe({
+      root: scratch,
+      cargoCommand: cargo,
+      timeoutMs: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
+      targetDirectory: target,
+      keepTarget: true,
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostic));
+    const receipt = JSON.parse(readFileSync(
+      runtimeReadinessReceiptPath(join(target, 'debug', 'snapback')),
+      'utf8',
+    ));
+    assert.equal(
+      Object.hasOwn(receipt, 'preparedRuntime'),
+      false,
+      'an ordinary readiness receipt may survive the race, but reusable preparation may not',
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 fixtureTest('a VM-refusing kept binary gets no receipt', async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-no-receipt-'));
   try {
@@ -565,7 +646,7 @@ fixtureTest('symbol extraction handles Darwin and GNU linker spellings', () => {
   );
 });
 
-fixtureTest('repository doctor surfaces the exact-link failure and recovery record', () => {
+fixtureTest('repository doctor surfaces the exact-link failure and recovery record', (context) => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-ibex-doctor-link-'));
   try {
     const scripts = join(scratch, 'scripts');
@@ -579,6 +660,14 @@ fixtureTest('repository doctor surfaces the exact-link failure and recovery reco
       new URL('../packages/snapback-cli/runtime-readiness.mjs', import.meta.url),
       join(dirname(runtimeModule), 'runtime-readiness.mjs'),
     );
+    copyFileSync(
+      new URL('../packages/snapback-cli/prepared-runtime-reuse.mjs', import.meta.url),
+      join(dirname(runtimeModule), 'prepared-runtime-reuse.mjs'),
+    );
+    copyFileSync(
+      new URL('../packages/snapback-cli/admin-snapshot.mjs', import.meta.url),
+      join(dirname(runtimeModule), 'admin-snapshot.mjs'),
+    );
     chmodSync(join(scripts, 'ibex-doctor'), 0o755);
     chmodSync(join(scripts, 'runtime-link-smoke.mjs'), 0o755);
     writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
@@ -587,15 +676,67 @@ fixtureTest('repository doctor surfaces the exact-link failure and recovery reco
     writeFixture(join(vendor, 'Cargo.toml'), '[package]\nname = "ibex-runtime"\nversion = "1.0.0"\n');
     if (process.platform === 'darwin') {
       writeFixture(join(vendor, 'ios', 'Frameworks', 'hermes-headers', 'hermes', 'hermes.h'));
-      writeFixture(join(vendor, 'ios', 'Frameworks', 'hermesvm.framework', 'hermesvm'));
+      const runtime = join(vendor, 'ios', 'Frameworks', 'hermesvm.framework', 'hermesvm');
+      const sourceIbex = process.env.SNAPBACK_IBEX_CHECKOUT
+        ?? fileURLToPath(new URL('../vendor/ibex/', import.meta.url));
+      const sourceRuntime = join(
+        sourceIbex,
+        'ios',
+        'Frameworks',
+        'hermesvm.framework',
+        'Versions',
+        '1',
+        'hermesvm',
+      );
+      if (!existsSync(sourceRuntime)) {
+        context.skip(`prepared Hermes fixture is unavailable: ${sourceRuntime}`);
+        return;
+      }
+      mkdirSync(dirname(runtime), { recursive: true });
+      copyFileSync(sourceRuntime, runtime);
       writeFixture(join(vendor, 'tools', 'hermes', 'hermesc'));
     } else if (process.platform === 'linux') {
       writeFixture(join(vendor, 'linux', 'hermes-headers', 'hermes', 'hermes.h'));
-      writeFixture(join(vendor, 'linux', 'lib', 'libhermesvm.so'));
+      const runtime = join(vendor, 'linux', 'lib', 'libhermesvm.so');
+      const sourceIbex = process.env.SNAPBACK_IBEX_CHECKOUT
+        ?? fileURLToPath(new URL('../vendor/ibex/', import.meta.url));
+      const sourceRuntime = join(sourceIbex, 'linux', 'lib', 'libhermesvm.so');
+      if (!existsSync(sourceRuntime)) {
+        context.skip(`prepared Hermes fixture is unavailable: ${sourceRuntime}`);
+        return;
+      }
+      mkdirSync(dirname(runtime), { recursive: true });
+      copyFileSync(sourceRuntime, runtime);
       writeFixture(join(vendor, 'tools', 'hermes', 'hermesc'));
     } else {
       return;
     }
+    for (const cwd of [vendor, scratch]) {
+      let initialized = spawnSync('git', ['init', '-q'], { cwd, encoding: 'utf8' });
+      assert.equal(initialized.status, 0, initialized.stderr);
+      initialized = spawnSync('git', ['config', 'user.email', 'fixture@example.invalid'], {
+        cwd,
+        encoding: 'utf8',
+      });
+      assert.equal(initialized.status, 0, initialized.stderr);
+      initialized = spawnSync('git', ['config', 'user.name', 'Runtime Link Fixture'], {
+        cwd,
+        encoding: 'utf8',
+      });
+      assert.equal(initialized.status, 0, initialized.stderr);
+      initialized = spawnSync('git', ['add', '-A'], { cwd, encoding: 'utf8' });
+      assert.equal(initialized.status, 0, initialized.stderr);
+      initialized = spawnSync('git', ['commit', '-qm', 'fixture'], { cwd, encoding: 'utf8' });
+      assert.equal(initialized.status, 0, initialized.stderr);
+    }
+    const vendorCommit = spawnSync('git', ['rev-parse', 'HEAD'], {
+      cwd: vendor,
+      encoding: 'utf8',
+    }).stdout.trim();
+    const artifactStamp = process.platform === 'darwin'
+      ? join(vendor, 'ios', 'Frameworks', '.snapback-ibex-gitlink')
+      : join(vendor, 'linux', 'lib', '.snapback-ibex-gitlink');
+    writeFixture(artifactStamp, `${vendorCommit}\n`);
     const stale = join(scratch, 'target', 'debug', 'snapback');
     writeExecutable(stale, `#!/usr/bin/env node
 if (process.argv[2] === 'build-identity') {

@@ -995,16 +995,21 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
         + relevantLines(coreTier.output),
     );
 
+    const fixtureIssues = 'issues/drift-runner-fixture';
     const firstBackstop = run(repo, process.execPath, [
       'scripts/drift-prone-gates.mjs', 'backstop', '--head', 'HEAD', '--gate', 'guide',
+      '--issues-dir', fixtureIssues,
     ], { env });
     assert.equal(firstBackstop.status, 1, firstBackstop.output);
     assert.match(firstBackstop.output, /dependency mirror cache HIT [0-9a-f]{16}/u);
-    assert.match(firstBackstop.output, /FILED issues\/20260806-main-drift-guide\.md/u);
-    const ticketsAfterFirst = readdirSync(join(repo, 'issues'))
+    assert.match(
+      firstBackstop.output,
+      /FILED issues\/drift-runner-fixture\/20260806-main-drift-guide\.md/u,
+    );
+    const ticketsAfterFirst = readdirSync(join(repo, fixtureIssues))
       .filter((name) => name.includes('main-drift-guide'));
     assert.deepEqual(ticketsAfterFirst, ['20260806-main-drift-guide.md']);
-    const ticket = readFileSync(join(repo, 'issues', ticketsAfterFirst[0]), 'utf8');
+    const ticket = readFileSync(join(repo, fixtureIssues, ticketsAfterFirst[0]), 'utf8');
     assert.ok(ticket.includes('**Causal landing:** `' + bypassCommit + '`'));
     const causalLanding = ticket.split(/\r?\n/u)
       .find((line) => line.startsWith('**Causal landing:**'));
@@ -1012,10 +1017,11 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
 
     const secondBackstop = run(repo, process.execPath, [
       'scripts/drift-prone-gates.mjs', 'backstop', '--head', 'HEAD', '--gate', 'guide',
+      '--issues-dir', fixtureIssues,
     ], { env });
     assert.equal(secondBackstop.status, 1, secondBackstop.output);
     assert.match(secondBackstop.output, /existing open ticket .*; not filing a duplicate/u);
-    const ticketsAfterSecond = readdirSync(join(repo, 'issues'))
+    const ticketsAfterSecond = readdirSync(join(repo, fixtureIssues))
       .filter((name) => name.includes('main-drift-guide'));
     assert.deepEqual(ticketsAfterSecond, ticketsAfterFirst);
     console.log(
