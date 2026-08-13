@@ -76,7 +76,7 @@ export const LOCAL_SUITES = Object.freeze([
   {
     id: 'acceptance-egress',
     file: 'cloudflare/test/acceptance.egress.mjs',
-    evidence: ['cloudflare egress acceptance: 29/29 checks passed'],
+    evidence: ['cloudflare egress acceptance: 31/31 checks passed'],
   },
   {
     id: 'acceptance-live-and-diagnostics-hardening',
@@ -105,7 +105,7 @@ export const LOCAL_SUITES = Object.freeze([
   {
     id: 'acceptance-rqs',
     file: 'cloudflare/test/acceptance.rqs.mjs',
-    evidence: ['cloudflare rqs acceptance: 42/42 checks passed'],
+    evidence: ['cloudflare rqs acceptance: 43/43 checks passed'],
   },
   {
     id: 'acceptance-secrets',
@@ -115,7 +115,7 @@ export const LOCAL_SUITES = Object.freeze([
   {
     id: 'acceptance-security-hardening',
     file: 'cloudflare/test/acceptance.security-hardening.mjs',
-    evidence: ['cloudflare security-hardening acceptance: seed, actions, grants, redaction'],
+    evidence: ['cloudflare proof-surface hardening: 25/25 checks passed'],
   },
   {
     id: 'acceptance-storage-layout',
@@ -125,7 +125,7 @@ export const LOCAL_SUITES = Object.freeze([
   {
     id: 'acceptance-wire-shapes',
     file: 'cloudflare/test/acceptance.wire-shapes.mjs',
-    evidence: ['cloudflare wire-shape acceptance: 32/32 checks passed'],
+    evidence: ['cloudflare wire-shape acceptance: 33/33 checks passed'],
   },
   {
     id: 'acceptance-wire-version',

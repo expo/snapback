@@ -2,11 +2,12 @@
 // was already in flight must never cross its final synchronous commit fence.
 import fs from 'node:fs';
 import http from 'node:http';
-import { startProof, ADMIN_TOKEN } from './harness.mjs';
+import { startProof, ADMIN_TOKEN, proxyOutboundTo } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { cloudflareClientOptions } from '../client-options.mjs';
 
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
+const AUTHORED_ORIGIN = 'https://upstream.example';
 
 const proof = await startProof({
   app: 'all-aboard',
@@ -60,6 +61,7 @@ const hugeTimeout = await startProof({
   app: 'all-aboard',
   port: 0,
   bindings: { SNAPBACK_ACTION_TIMEOUT_MS: '18446744073709551615' },
+  outboundService: proxyOutboundTo(`http://127.0.0.1:${quickServer.address().port}`),
 });
 try {
   const client = new SnapbackClient(
@@ -68,7 +70,7 @@ try {
   );
   await client.ensureApp({ seed });
   const outcome = await client.action('probeLateMutation', {
-    args: { url: `http://127.0.0.1:${quickServer.address().port}/quick` },
+    args: { url: `${AUTHORED_ORIGIN}/quick` },
   });
   if (outcome.ok !== true) {
     throw new Error(`huge action timeout overflowed instead of clamping: ${JSON.stringify(outcome)}`);
@@ -98,13 +100,14 @@ const resetProof = await startProof({
   app: 'all-aboard',
   port: 0,
   bindings: { SNAPBACK_ACTION_TIMEOUT_MS: '5000' },
+  outboundService: proxyOutboundTo(`http://127.0.0.1:${slowServer.address().port}`),
 });
 try {
   const base = await resetProof.url();
   const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   await client.ensureApp({ seed });
   const action = client.action('probeLateMutation', {
-    args: { url: `http://127.0.0.1:${slowServer.address().port}/slow` },
+    args: { url: `${AUTHORED_ORIGIN}/slow` },
   });
   await fetchStarted;
   const reset = await resetProof.reset();

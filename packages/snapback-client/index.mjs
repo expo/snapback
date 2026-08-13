@@ -2295,6 +2295,10 @@ export class SnapbackClient {
     // served `/inspect` capability manifest; it is intentionally undeclared
     // in the public TypeScript surface.
     __offlineMutationReplayCapability = null,
+    // Cloudflare proof-target transport seam: that target has no hosted
+    // session authority, so its constructor adapter may opt ordinary app
+    // data requests into the already-configured operator credential.
+    __adminDataPlane = false,
     // Deterministic construction seam for the LLP 0166 background runtime.
     // Production callers omit it; wiring tests inject clocks/carriers without
     // replacing any policy or broker object.
@@ -2302,6 +2306,8 @@ export class SnapbackClient {
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
+    if (typeof __adminDataPlane !== 'boolean') throw new TypeError('__adminDataPlane must be boolean');
+    this.__adminDataPlane = __adminDataPlane;
     this.ingressLimits = normalizedIngressLimits(ingressLimits);
     if (authCoordinator && agentAuthority) {
       throw new TypeError('AuthCoordinator and AgentAuthorityFence are mutually exclusive');
@@ -4739,7 +4745,9 @@ export class SnapbackClient {
         ? sessionWireBody(path, requestBody)
         : requestBody;
       const merged = {
-        ...(admin && this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
+        ...((admin || (
+          this.__adminDataPlane && /^\/(?:query|mutation|action)\/[A-Za-z0-9_-]+$/u.test(path)
+        )) && this.adminToken ? { 'x-snapback-admin-token': this.adminToken } : {}),
         ...(sessionsMode ? this.#sessionRequestHeaders(
           path,
           requestBody,

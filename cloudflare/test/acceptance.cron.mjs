@@ -13,7 +13,7 @@
 // Run: node cloudflare/test/acceptance.cron.mjs
 import http from 'node:http';
 import fs from 'node:fs';
-import { startProof, ADMIN_TOKEN } from './harness.mjs';
+import { startProof, ADMIN_TOKEN, proxyOutboundTo } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { bindingNameFor } from '../config-set.mjs';
 import { cloudflareClientOptions } from '../client-options.mjs';
@@ -83,8 +83,9 @@ async function main() {
       // Route the warm poll's 511 fetch at the mock (the handler honors a
       // loopback feedUrl arg only from callers; cron runs use the real URL —
       // so the test points the real URL override at the mock instead).
-      SNAPBACK_TEST_FEED_URL: `${mock.origin}/transit/StopMonitoring`,
+      SNAPBACK_TEST_FEED_URL: 'https://upstream.example/transit/StopMonitoring',
     },
+    outboundService: proxyOutboundTo(mock.origin),
   });
   const base = await proof.url();
   const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));

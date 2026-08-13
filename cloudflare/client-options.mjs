@@ -26,6 +26,10 @@ export function cloudflareClientOptions(overrides = {}) {
   }
   return Object.freeze({
     ...options,
+    // The hosted proof has no session provider. When an operator token is
+    // explicitly supplied, carry it on app-data POSTs as the target's honest
+    // non-public authority instead of leaving mutation/action requests open.
+    __adminDataPlane: typeof options.adminToken === 'string' && options.adminToken.length > 0,
     authClientProtocol: null,
     authInvalidationProtocol: null,
     authorityDescriptorProtocol: null,

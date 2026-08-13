@@ -4,13 +4,13 @@ id: deploying.cloudflare
 order: 2
 audience: agent-first
 capabilities: [deploy.cloudflare]
-authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0060-hosted-auth-security.rfc.md, llp/0094-wire-envelope-contract.spec.md, schemas/cloudflare.deploy-receipt-v1.schema.json, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/gateway.js, cloudflare/src/coordinator.js, src/server.rs, cloudflare/test/local-suite-manifest.mjs]
+authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0060-hosted-auth-security.rfc.md, llp/0094-wire-envelope-contract.spec.md, llp/0251-outbound-destination-policy.rfc.md, schemas/cloudflare.deploy-receipt-v1.schema.json, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/gateway.js, cloudflare/src/coordinator.js, src/server.rs, cloudflare/test/local-suite-manifest.mjs]
 examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:5a26b512f9bfd6946148fabe46fc8ac367af3dab85d2b64bd2d18bab58a8e97f
+reviewed: 2026-08-12
+reviewed-authorities-digest: sha256:1c337a2cb1b8d1afc09c7addc6be2bd689e1fd5ac5a0e06b5a00bdfcbb526174
 ---
 
 # Deploying the Cloudflare proof
@@ -127,9 +127,21 @@ host-fetch boundary into declared query-parameter or header slots:
 Ambient `fetch`, `.expose()`, and `.asBearer()` stay unavailable in the app
 isolate. The host validates HTTP(S), descriptor ownership and placement,
 enforces action/fetch deadlines and bounded response bodies, and redacts secret
-values before any response or diagnostic re-enters app code. This is not a
-general egress claim: the two All Aboard placement shapes are proven, but a
-destination allowlist is still a declared gap.
+values before any response or diagnostic re-enters app code. The outbound
+floor also refuses credentials in URLs, metadata/localhost hostnames, and
+non-public IPv4/IPv6 literals; redirects are manual and refused. Workers does
+not expose a DNS-resolution-and-pinning primitive, so a public-looking hostname
+that resolves or rebinds to a private address remains a named residual. This is
+not a general egress claim: the two All Aboard placement shapes are proven, but
+a destination allowlist is still a declared gap.
+
+The app-data boundary is separately fail-closed. Only functions whose compiled
+entry explicitly says `authRequirement: 'public'` admit an anonymous request.
+Every other query, mutation, or action requires either
+`x-snapback-admin-token` or the id/token pair issued by
+`POST /connection/open`. A connection grant is a scoped request capability,
+not hosted user authentication; handlers still receive an anonymous authority
+projection, and the profile continues to report hosted auth unavailable.
 
 ## Run the remote proof
 

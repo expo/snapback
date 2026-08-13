@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 import Ajv from 'ajv/dist/2020.js';
-import { startProof } from './harness.mjs';
+import { startProof, ADMIN_TOKEN } from './harness.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
@@ -177,7 +177,10 @@ async function main() {
     // below; its response bytes converged (§0C.6 item 1) and validate hard.
     const mutationResponse = await client.raw('/mutation/addNote', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        'x-snapback-admin-token': ADMIN_TOKEN,
+      },
       body: JSON.stringify({ args: { boardId: 'lobby', text: 'wire gate' } }),
     });
     checkServed('POST /mutation/{name} serves a schema-valid mutation output',
@@ -212,7 +215,10 @@ async function main() {
 
     const failureResponse = await client.raw('/query/noSuchFunction', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        'x-snapback-admin-token': ADMIN_TOKEN,
+      },
       body: JSON.stringify({ args: {} }),
     });
     checkServed('kit-route error envelope serves the versioned ErrorResponse',

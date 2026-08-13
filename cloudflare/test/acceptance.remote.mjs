@@ -48,10 +48,15 @@ const adminToken = process.env.SNAPBACK_ADMIN_TOKEN || '';
 
 async function post(path, body) {
   const headers = { 'content-type': 'application/json' };
-  // /_snapback/api/app/reset and /_snapback/api/object/evict are token-gated on the deployed gateway (ENG-23587).
-  if (path === '/_snapback/api/app/reset' || path === '/_snapback/api/object/evict') {
+  // Admin operations and non-public app-data calls share the operator token
+  // on this hosted-auth-unavailable proof target.
+  if (
+    path === '/_snapback/api/app/reset'
+    || path === '/_snapback/api/object/evict'
+    || /^\/(?:query|mutation|action)(?:\/|$)/u.test(path)
+  ) {
     if (!adminToken) {
-      console.error('set SNAPBACK_ADMIN_TOKEN to drive the admin endpoints on a real deploy');
+      console.error('set SNAPBACK_ADMIN_TOKEN to drive non-public app data and admin endpoints on a real deploy');
       process.exit(2);
     }
     headers['x-snapback-admin-token'] = adminToken;

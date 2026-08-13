@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 import Ajv from 'ajv/dist/2020.js';
-import { startProof } from './harness.mjs';
+import { startProof, ADMIN_TOKEN } from './harness.mjs';
 import { decodeRemediationSet } from '../../packages/snapback-client/remediation.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -91,7 +91,11 @@ async function main() {
     const post = (pathName, body, headers = {}) =>
       raw(pathName, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', ...headers },
+        headers: {
+          'content-type': 'application/json',
+          'x-snapback-admin-token': ADMIN_TOKEN,
+          ...headers,
+        },
         body: JSON.stringify(body),
       });
 

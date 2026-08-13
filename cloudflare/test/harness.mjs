@@ -184,7 +184,7 @@ async function bundle(entry, appBundle, { seedOverride } = {}) {
 // §0F item-1 schema drift gate (`wire-schema-gate.mjs`). Test-only plumbing:
 // the production Workers are untouched; only the Miniflare binding graph
 // gains the proxies.
-export async function startProof({ app = 'notes', port = null, bindings = {}, seedOverride, assetsDirectory = null, persistRoot = null, handlerWireCapture = null } = {}) {
+export async function startProof({ app = 'notes', port = null, bindings = {}, seedOverride, assetsDirectory = null, persistRoot = null, handlerWireCapture = null, outboundService = null } = {}) {
   // @ref LLP 0040#proof-runtime-preflight-2026-07-14-eng-24454 — fail closed on
   // an unsupported Node major before standing up Miniflare, rather than letting
   // the first real-loopback action reset (`read ECONNRESET`) under Node 25.
@@ -262,6 +262,7 @@ export default {
       // The admin-token gate on /_snapback/api/app/reset and /_snapback/api/object/evict (ENG-23587); the client
       // below presents it, and the acceptance suite asserts its absence 403s.
       bindings: gatewayBindings,
+      ...(outboundService === null ? {} : { outboundService }),
       ...(assetsDirectory
         ? {
             assets: {
@@ -329,6 +330,24 @@ export default {
   const client = new ProofClient(mf, runtimeDiagnostics, String(ready).replace(/\/$/, ''));
   client.registerLoopback();
   return client;
+}
+
+// Keep authored test URLs public-policy admissible while routing their bytes
+// to a loopback fixture wholly inside the test harness. Production code sees
+// and validates the authored hostname; only Miniflare's outbound service is
+// replaced.
+export function proxyOutboundTo(origin) {
+  const targetOrigin = new URL(origin);
+  return async (request) => {
+    const authored = new URL(request.url);
+    const target = new URL(`${authored.pathname}${authored.search}`, targetOrigin);
+    const headers = new Headers(request.headers);
+    headers.delete('host');
+    headers.set('connection', 'close');
+    const method = request.method;
+    const body = method === 'GET' || method === 'HEAD' ? undefined : await request.arrayBuffer();
+    return fetch(target, { method, headers, body, redirect: 'manual', signal: request.signal });
+  };
 }
 
 class ProofClient {
@@ -420,7 +439,7 @@ class ProofClient {
   async query(name, args) {
     const response = await this.mf.dispatchFetch(`${this.base}/query`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-snapback-admin-token': ADMIN_TOKEN },
       body: JSON.stringify({ name, args }),
     });
     return response.json();
@@ -429,7 +448,7 @@ class ProofClient {
   async mutation(name, args) {
     const response = await this.mf.dispatchFetch(`${this.base}/mutation`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-snapback-admin-token': ADMIN_TOKEN },
       body: JSON.stringify({ name, args }),
     });
     return response.json();
@@ -438,7 +457,7 @@ class ProofClient {
   async kitMutation(name, args) {
     const response = await this.mf.dispatchFetch(`${this.base}/mutation/${encodeURIComponent(name)}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-snapback-admin-token': ADMIN_TOKEN },
       body: JSON.stringify({ args }),
     });
     return { status: response.status, body: await response.json() };
