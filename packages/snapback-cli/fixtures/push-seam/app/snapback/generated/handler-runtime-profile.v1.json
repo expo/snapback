@@ -2,7 +2,7 @@
   "admissionVersion": "snapback.handler-admission.legacy.v1",
   "appId": "app",
   "artifactKind": "handlerRuntimeProfile",
-  "authoredSourceHash": "sha256:6c3ab49a0a83bee12ebe139793231420454ab87fbff9dc422698c56eadb40401",
+  "authoredSourceHash": "sha256:f6fd4094065d4a22a89cfd12c95cd21b2c25d1e5d41369c9bfd941ca9ec0abe7",
   "computedAccess": {
     "dynamicProperties": "forbidden",
     "forbiddenReflectionProperties": [

@@ -6,7 +6,7 @@
   "appId": "app",
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:f6fd4094065d4a22a89cfd12c95cd21b2c25d1e5d41369c9bfd941ca9ec0abe7",
-  "bundleHash": "snapback.v1:sessions:function:sha256:f9ceb69749e8e82d34162d57d9be063d035ecc97127d8782d5cc99d70c645b74",
+  "bundleHash": "snapback.v1:sessions:function:sha256:1d4ce10ae5bd42eb81e86ca1f039bd5bdac2ff46466933fea142bb62c2bd7ed5",
   "config": [
     {
       "description": "Optional Expo enhanced-push-security access token.",
@@ -794,7 +794,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:3b055547437fa7f4229c42acd7bc1503a828c33ddc6111af2b3142e1a3fa2581",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:f6fb70ffd9e35cb80c621a1d879919b15ba613f46ac6e21bef0401fb6eefe582",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

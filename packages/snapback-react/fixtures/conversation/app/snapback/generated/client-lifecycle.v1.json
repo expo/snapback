@@ -1,7 +1,7 @@
 {
   "appId": "app",
   "artifactKind": "clientLifecycleManifest",
-  "authoredSourceHash": "sha256:f5abb2e44a60fd66dfd4f028cf0163655a9b4a6267eb1f8861c85cfb88b5004a",
+  "authoredSourceHash": "sha256:cfb54cf932c230a1377913a9b7cf6db5630b41b5d189b1ff1199b895b07eab5b",
   "commands": [
     {
       "authRequirement": "authenticated",

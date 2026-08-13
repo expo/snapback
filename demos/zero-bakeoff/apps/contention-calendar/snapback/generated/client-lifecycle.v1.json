@@ -1,7 +1,7 @@
 {
   "appId": "contention-calendar",
   "artifactKind": "clientLifecycleManifest",
-  "authoredSourceHash": "sha256:23d49f01a870b0aeb459c0e8c3f07435807a6c4b89ef7309dad97082fc15246b",
+  "authoredSourceHash": "sha256:47b548c7748a2fd4e13c77c89368ce0876d114d5b271969062cc5b9b51d04fee",
   "commands": [],
   "compatibilityAliases": [
     {

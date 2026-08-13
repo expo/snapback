@@ -2,7 +2,7 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v2",
-    "databaseId": "019ff95a-c157-7812-a8af-7011696c0f52",
+    "databaseId": "019ffa03-80ad-7a22-98e4-529967756bf0",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
@@ -10,20 +10,20 @@
     "mintedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "triage-graph",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:ff52fe07174994505b8f7e13b799147b37cc9f53dd239355b9699cffc181320d",
-      "bundleHash": "snapback.v1:sessions:function:sha256:051e6eecad158ff104a03e5320b6a656de13a0b2448fee590aca52213836c458",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:51581f507632ed318eb14cafed0f7b8b48be121f30a65f84a27cb30bf479daf6"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:587db5235a39256c8e613b57a3554e0fdb3e5de861d412da62cfd461b8b0f7bf",
+      "bundleHash": "snapback.v1:sessions:function:sha256:3c3075b4ae68ff985e6da6ea74ed8468377ce8f92effc6abde6c209fc995f994",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:7b17214c67a2a761f3cff19b245beea77da0483d4b58b8077ccbd5823e226ea9"
     },
-    "proofKeyManifestDigest": "sha256:fff0fefe66482782ba286de07dc85f900e968260b7bf4c5c8c3f7b2b2397227b"
+    "proofKeyManifestDigest": "sha256:ae48f2c4f89b979fbfc2a42595774e8f2d234f4e0767e66725439be6f7daacb7"
   },
-  "activationHash": "sha256:17c07f83f831415f0203bc6b17bb18c84a9d49027e676df4fbdf5071abb7c249",
+  "activationHash": "sha256:e09973db86ab4d7fe4d2c27936d09a227b3ff5d956c0dc407e5159e8382ebbd3",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.rQ2aInmRNqK2Bru3H7wEGg",
+        "proofKeyId": "sbpk1.cM3lJH61hg9S-97lpDQFog",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "8Vv87fDIlAZ2TXvx7BCX0i4U0c-qRmhVH32jd26l_K8"
+        "publicKeyBase64url": "bi0fkqd1fMLFSnlQGD8r3di3jw3c-youg5WkVGcCw88"
       }
     ]
   }

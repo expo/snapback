@@ -5,10 +5,10 @@
     "single_table_v1"
   ],
   "maturity": "experimental",
-  "qualificationReceiptSha256": "sha256:dcccd8fa406b267c4906de0060c2f29de64cf16d859354d16b2e88f01224b03d",
+  "qualificationReceiptSha256": "sha256:f976c4806a628f866d3d276a7ab6eb8e2eed77ad0ce0e85f5dc6e7961f782eeb",
   "supportingReceiptSha256": {
-    "triageBudgetFreeze": "sha256:aa4094d255b8ae613d9a6f51d9c478bc662c9bb02d4f0b36b453954849e0b8bb",
-    "triageMove1Exit": "sha256:300f80cae0322e393f9cec2f2c9fa658e948526464dab56d998bdcb3fc8d9a7b"
+    "triageBudgetFreeze": "sha256:87a948907424b41f68630a29b8c1dc04630f68b516685b00fb488817d9708a3c",
+    "triageMove1Exit": "sha256:fdf09ec8c091e419eab567a2f78f58e25fa1413f0a34a56ba70ef269b1597616"
   },
   "executorSourceSha256": {
     "src/local.rs": "sha256:a3a738bbeb1a14fdea95ecfe08ae2a1ab7188f1b5027094dc1396500e2c0c2f5",
@@ -44,7 +44,7 @@
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/index.mjs": "sha256:b714a5396973a8c992dee28f70825a7c8166a12df3ef6138caa43cc90d7cef9c"
+    "packages/snapback-codegen/index.mjs": "sha256:ea603b6d12c301bf0e992c7b2ac40bb2fcfbb784458327277251c9446b353875"
   },
   "clientSourceSha256": {
     "packages/snapback-client/local-read-admission.mjs": "sha256:703f293078782ab3d595d518925be5b299ed7e26e19edc8ecef8c29627cc7900",
