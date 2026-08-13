@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:c9a46467cbe390642c43535f8e137e9f239cb51d3887f1c412bfd5004db1caf9
 ---
 
 # Targets — what each one claims

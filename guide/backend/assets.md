@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
+reviewed-authorities-digest: sha256:6287bc6c8979d956731270da9347db15ad885830243a974db93e9309d29e38bf
 ---
 
 # Assets

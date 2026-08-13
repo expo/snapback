@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Guide corpus checks: snippet transclusion-match, consistency (frontmatter,
 // links, capability index + surface joins, reachability, bootstrap-command
-// resolvability), reviewed-commit freshness (warning-only), and manifest
+// resolvability), content-bound review freshness (warning-only), and manifest
 // staleness.
 // @ref LLP 0061#3-verification-snippets-that-ran — the registered guide checks.
 //
@@ -145,8 +145,7 @@ if (runAll && index && preflightErrors.length === 0) {
   try {
     const actual = JSON.parse(readFileSync(join(root, MANIFEST_PATH), 'utf8'));
     checkGuideMcpProjection(root, actual, errors);
-    const strip = ({ buildIdentity, ...rest }) => rest;
-    manifestStale = JSON.stringify(strip(actual)) !== JSON.stringify(strip(expected));
+    manifestStale = JSON.stringify(actual) !== JSON.stringify(expected);
   } catch {
     manifestStale = true;
   }

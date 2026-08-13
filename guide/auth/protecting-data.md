@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-11
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:9961e003c68db5a33d0f9ebf1b99c9154a293156925e7fd644a41c420dbd633e
 ---
 
 # Protecting live and retained data

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-11
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:177cfb52b773143139cf8fa071c37532617458dbdf2dded321ac76a74b4d4da8
 ---
 
 # Move auth identities without moving authority

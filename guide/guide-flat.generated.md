@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:b8b73b44aab3dcdb2282fd93d46d01ba4ab5b78caea49a915a116019d571c2a4
 ---
 
 # Capability index
@@ -156,7 +156,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:c34ac7bcfbf2e5de9b9c4536a3ad6bd0791614514c36f1ba36418ea20ff84a38
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -540,7 +540,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:af05f0c3c7e4c8f66fdee42ffbe920e6827de7a44e73015b65a2078c086d1c9c
 ---
 
 # Surface map
@@ -796,8 +796,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-12
+reviewed-authorities-digest: sha256:db256fee9e3faac8594cfcf8b3e51cb5206704d222c85855d0535a9842947283
 ---
 
 # Guide conventions
@@ -824,7 +824,7 @@ Fields (schema: [`frontmatter.schema.json`](./frontmatter.schema.json)):
 | `order` | yes | Deterministic ordering within the section. |
 | `audience` | yes | `agent-first`. |
 | `capabilities` | yes | Capability-index ids this page claims coverage of (`[]` for meta pages). |
-| `authorities` | yes | Repo paths (LLPs and code) this page derives from. Freshness compares these against `reviewed-commit`. |
+| `authorities` | yes | Repo paths (LLPs and code) this page derives from. Freshness hashes these paths and their bytes. |
 | `examples` | yes | Demo directories/files that exercise what the page teaches (`[]` if none). |
 | `status` | yes | `draft` \| `current` \| `deprecated` — authored lifecycle. |
 | `targets` | yes | `[local]`, `[local, cloudflare]`, or `[all]` for genuinely target-independent material. Local-only pages render a banner line (see below). |
@@ -832,7 +832,7 @@ Fields (schema: [`frontmatter.schema.json`](./frontmatter.schema.json)):
 | `since` | no | Published closure version (`X.Y.Z`) in which the page's described surface first became, or is expected to become, available. |
 | `unreleased` | no | The boolean `true` when the whole page deliberately describes a surface newer than the newest published closure; requires `since` and a rendered unreleased banner. |
 | `reviewed` | yes | Date of the last intentional review — display metadata only. |
-| `reviewed-commit` | yes | The commit the page was last reviewed at — the freshness **identity**. Bumping it is a deliberate act in a review pass; no tool regenerates it. `HEAD` is permitted only in the same change that creates or fully revises the page. |
+| `reviewed-authorities-digest` | yes | SHA-256 digest of the declared authority bytes at the last intentional review — the freshness **identity**. Refreshing it is a deliberate review act, not ordinary regeneration: `node scripts/migrate-guide-review-digests.mjs --refresh guide/path.md`. |
 
 `targets:` and `maturity:` are the honesty boundary made mechanical
 (LLP 0060's posture): a page must never generalize a local-target guarantee
@@ -1011,11 +1011,12 @@ For a context-limited one-request read, start with the budgeted entry tier:
 budget) plus [`surface-map.md`](./surface-map.md) (about 12 KiB under its 16 KiB
 budget). Then choose a section flat or specific page. The whole export remains
 available for bulk consumers, but is not the default reading recommendation.
-At server compile time, `build.rs` restamps the embedded manifest's
-`buildIdentity.commit` to the exact binary build; HTTP headers and MCP metadata
-therefore give every whole or section projection the same guide content hash
-and exact build commit. The checked source manifest remains the
-corpus-generation record.
+The checked source manifest carries only its content-derived
+`buildIdentity.sourceDigest`. At server compile time, `build.rs` adds
+`buildIdentity.commit` to the embedded manifest for the exact binary build;
+HTTP headers and MCP metadata therefore give every whole or section projection
+the same guide content hash and exact carrier commit without making the source
+record depend on the current checkout commit.
 
 ## Running the checks in a fresh tree
 
@@ -1041,10 +1042,11 @@ Regeneration writes only gitignored paths; the tracked tree stays clean.
 
 ## Freshness
 
-Warning-only, but sound: the checker reports pages whose `authorities:`
-changed between `reviewed-commit` and `HEAD` (via `git diff`). Dates are
-never identity. Expired GAP review dates and check failures gate; drift
-warnings don't (LLP 0061 §Design 3).
+Warning-only, but sound: the checker hashes each page's current `authorities:`
+bytes and reports when they differ from `reviewed-authorities-digest`. Dates
+and commit locations are never identity, so an unrelated rebase cannot change
+the verdict. Expired GAP review dates and check failures gate; drift warnings
+don't (LLP 0061 §Design 3).
 
 ---
 
@@ -1061,7 +1063,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:21151762e65add63cf4a16312d57f6f138fe06204b1574b331e611930fc84e35
 ---
 
 # Retrieval eval protocol
@@ -1654,7 +1656,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:189be9d1f43cb5a1c125e943a28c129db1294d9ad11d46f7f38bffa43c6e2d8d
 ---
 
 # Sessions and principals
@@ -2211,7 +2213,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:ac8d62b9963acb4ae03677b4d49c691065590e2dfcaf9763ccf786a6dd95e096
 ---
 
 # Bind a principal to your app's user identity
@@ -2559,7 +2561,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:0477674dd0a92c186bbce0411539ece02daa28726bdf5d021aa039e6510130c2
 ---
 
 # Email and password
@@ -2816,7 +2818,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:82893b993434042d00d895244476e58ba7c0cca1643a3d0cc695ee2e9e22eb6e
 ---
 
 # Authenticate a native app
@@ -2939,7 +2941,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-11
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:9961e003c68db5a33d0f9ebf1b99c9154a293156925e7fd644a41c420dbd633e
 ---
 
 # Protecting live and retained data
@@ -3281,7 +3283,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed-authorities-digest: sha256:9053759777a36adc8b8c86db01260743da262bfc7dedd0e312310f908e0e2abb
 ---
 
 # Scoped roles and memberships
@@ -3704,7 +3706,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: b60e477e59cc93f67ab244a4cc359a9d32e8adb0
+reviewed-authorities-digest: sha256:4b8a139980b6dd9eaa3f142ff8a2ac66e6c116ddb3bd92c13383ad1ba4f4af54
 ---
 
 # Agent principals and scoped grants
@@ -3867,7 +3869,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-11
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:177cfb52b773143139cf8fa071c37532617458dbdf2dded321ac76a74b4d4da8
 ---
 
 # Move auth identities without moving authority
@@ -4014,7 +4016,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:c9a46467cbe390642c43535f8e137e9f239cb51d3887f1c412bfd5004db1caf9
 ---
 
 # Targets — what each one claims
@@ -4129,7 +4131,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:3c633addc68c63da88f6f8eadc26412c91fd5d08a55ae6fc7729cf8b59e0a310
 ---
 
 # Queries
@@ -4470,7 +4472,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:01fa5dbe529af771cf3fe1bd7bf41650488399086db55b61f7505c6f8910cd1d
 ---
 
 # Mutations
@@ -5031,7 +5033,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:63ee41d271a9a40072ccb8ce36307972fe1ea2a65d54c2464fe4f847a55a7faf
 ---
 
 # Actions and outbound fetch
@@ -5339,7 +5341,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:391f5bef508ca9c561097cb2f5de09f3c55ca2953808ca3c93f8ee2eb89361ae
 ---
 
 # Declarative mutation plans
@@ -5634,7 +5636,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:f69a89f211633bef6232851c37e3da506b4548cba2b8deeb3bd45fedc373e870
 ---
 
 # Scheduled execution with cron
@@ -5814,7 +5816,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:6d95641bb08090de8c01061804af32041cc9f70e6846bf722395c2e504334591
 ---
 
 # One-off durable jobs
@@ -6103,7 +6105,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed-authorities-digest: sha256:d7472d809b09c8d3009cae85e794bb85f54db6098441f82a8b50424cf0f2459f
 ---
 
 # Versioned seeds
@@ -6297,7 +6299,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
+reviewed-authorities-digest: sha256:6287bc6c8979d956731270da9347db15ad885830243a974db93e9309d29e38bf
 ---
 
 # Assets
@@ -7445,7 +7447,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-09
-reviewed-commit: 339e9fed3500daece2ad90de0d21018e1b00a314
+reviewed-authorities-digest: sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374c91db0a295ece3ed8122
 ---
 
 # External API exposure
@@ -7751,7 +7753,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:6919f120fbdc6b257e5c339ef8cdf9bd4ff8d32c498a0befc1c762967f765f26
 ---
 
 # Trusted runtime time and identifiers
@@ -7910,7 +7912,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:f99b6fdb988d64145b86f8c6275af59102ac56d2b59681059038fcfabeb44bec
 ---
 
 # Safe standard data patterns
@@ -8259,7 +8261,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-05
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed-authorities-digest: sha256:c762f859e8d1f553c899de48d81ac1020929f6cd618b04e514ec8b100ab77bc1
 ---
 
 # Relational queries (bounded joins)
@@ -8539,7 +8541,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:21e047f9a0382245b33c96da4b91b541f81b8de4c5b93f131512a7da792745c4
 ---
 
 # Snapshot batches
@@ -8783,7 +8785,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:dfeb7a6cbfe90ea9ec4f1c6a768fd6075accd769ed424d201b73dac2d9e2eecc
 ---
 
 # Portable indexed text search
@@ -8980,7 +8982,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: eb3f78a64db88ef1368b57ca17f56dbad77205ce
+reviewed-authorities-digest: sha256:339769af563c7edf2b98728e26b469c9b33b7635fa8666b193a2ba63e7a578cf
 ---
 
 # Scoped sequences
@@ -9081,7 +9083,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:39af92584e57debdcb2baa5c38f3f7b19dac6a588f5fefec6e5ba8d7e77d1dcd
 ---
 
 # Portable exact vector search
@@ -9229,7 +9231,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:0845678e9f349bbf1f6872d176f125d4fcd113124dda99a6558eb22917bb249f
 ---
 
 # Reviewed migrations
@@ -9444,7 +9446,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed-authorities-digest: sha256:e0fd6cecbea08f7ee19b849395320ffc839983a8c3e87af1635f502f1c53bf8d
 ---
 
 # Streamed actions
@@ -9726,7 +9728,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: bbfb871f14c3cefbda2e1e143770b5c25eadb94f
+reviewed-authorities-digest: sha256:1b03a6d605d8591c0d82496900f39eb17acd1209f609feb927610e6bc0f84af6
 ---
 
 # Expo push notifications
@@ -10066,7 +10068,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-11
-reviewed-commit: ef936353ffdc540dedd4d5760e51c78eb6e38f72
+reviewed-authorities-digest: sha256:3b0befc7c75710f4371fd0a0fb62af039db64b8c78ffdd26cb5e0b9f49bbaa4b
 ---
 
 # The Contract adapter
@@ -10607,7 +10609,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:723f591ef92b3a2a4f72c6cb6a5c0f4f40050a55d5274a274395e96c38a686e2
 ---
 
 # The headless client
@@ -11236,7 +11238,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:81f4c4ce553e40209fd74b935585cd0a515e72808971f218a178f62cc1f0aa34
 ---
 
 # The artifact-driven app CLI
@@ -11563,7 +11565,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: 308414f8da2c05bc267c8df02a45a2395ab895e9
+reviewed-authorities-digest: sha256:6c79e2248c33cda10dcbfb499db1cbdbfeed181445efcc7005831e285576874e
 ---
 
 # The React client
@@ -12350,7 +12352,7 @@ targets: [local]
 maturity: partial
 since: 0.1.11
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:1b8366a3e658f07b57c069a944a6a64ecbcd0469e2bbc0ee8ec042f1dbe2299e
 ---
 
 # Application surfaces
@@ -12922,7 +12924,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:bb3cab052a509303eae2f0d0656d35af210deaa8c6a1e8c479704348b29be69f
 ---
 
 # Swift client
@@ -13045,7 +13047,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: 27d3a9cd9b54f4b45b5c0ca50c8d85796dc06b59
+reviewed-authorities-digest: sha256:7327367ecd9b003c565ab5989c4852ff6d0d5997bdd3e92ef004d01663db237f
 ---
 
 # React Expo Online clients
@@ -14032,7 +14034,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:ef95f794e1201fad76046e3f04ccc1fd42a1a5326f23d9cc8c32b9639755ed6d
 ---
 
 # Framework bindings
@@ -14134,7 +14136,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:b8d0b1c8db2169ff78afea78417374268e681164c440744c62ec88c7122a1297
 ---
 
 # Deployment posture
@@ -14200,7 +14202,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed-authorities-digest: sha256:f85a68b5535014a11658cc98888396f98b3a2890058da4ba26f101dbb3176352
 ---
 
 # Build an immutable release
@@ -14737,7 +14739,7 @@ status: current
 targets: [cloudflare]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:5a26b512f9bfd6946148fabe46fc8ac367af3dab85d2b64bd2d18bab58a8e97f
 ---
 
 # Deploying the Cloudflare proof
@@ -14966,7 +14968,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:6cb04e0ad71393216ec57d648a10ccc352a99e73955a5684e96ae8700caeef99
 ---
 
 # Inspect hosted control
@@ -15066,7 +15068,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-09
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:fee04f8766ab6c2d182a1b287011ef896f16ba001922217f326d56ce73e2395b
 ---
 
 # Your first backend
@@ -15522,7 +15524,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-12
-reviewed-commit: 27d3a9cd9b54f4b45b5c0ca50c8d85796dc06b59
+reviewed-authorities-digest: sha256:7862c2f40d1ad8936ea30fe5cdf8bcb51676fca5c5ac41a3897b1977e72ab31e
 ---
 
 # The authoring loop
@@ -15900,7 +15902,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-11
-reviewed-commit: ef936353ffdc540dedd4d5760e51c78eb6e38f72
+reviewed-authorities-digest: sha256:c4bb30cf92b00374d8bf75c35defdb9547f5f83faf1f89c762c236d00abfd036
 ---
 
 # Generated artifact custody and review
@@ -16055,7 +16057,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-commit: 2715951cf
+reviewed-authorities-digest: sha256:b8784542ae2f90c964cfd9e17df728f5e7681a8964a5568504d60c356b59b6d8
 ---
 
 # Discover agent controls
@@ -16354,7 +16356,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-commit: c9af5600c82c30e6765b270fc10db368adf0dd5a
+reviewed-authorities-digest: sha256:c00bd2ab8122d44b8578bf83a5b38c5361a65dfab0d8fd1a5c9d7054002b1b94
 ---
 
 # Secrets and deployment config
@@ -16580,7 +16582,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:e276d9f43b744ac2d28a8c7ee4a09cf25f08bf77f6f2a92d9c4a63efa65fd3dd
 ---
 
 # Host operations
@@ -17031,7 +17033,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-05
-reviewed-commit: f40e52b86ec10b75ff5c958f3500e213f2a4ae98
+reviewed-authorities-digest: sha256:430e7d2de7660d7ca5a556dd5ff753626578baa669e46f85e8a72728448a3c55
 ---
 
 # Network condition profiles
@@ -17247,7 +17249,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: 5b3122704d59e3792d744a7475462008dad0bade
+reviewed-authorities-digest: sha256:1c25648b54546e0cba48be11aa9c86c92fe3548afc6b94f50767aa6b4761deab
 ---
 
 # Diagnostics and local doctoring
@@ -17669,7 +17671,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:dafdda17e37afb44c53a58b7bd4cb9a1617fd14676e6f065815f05124c2f56a7
 ---
 
 # Admin console
@@ -17983,7 +17985,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:c39c3ad792dc3458af8398d113e6d24cb378de2094556d3bcb84fea4956a2e85
 ---
 
 # Backend observability
@@ -18149,7 +18151,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:2945c7d8f80d8a41b366ede5aee474f6f9b9e7105918f818896d99a704405709
 ---
 
 # Backend error tracking
@@ -18312,7 +18314,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-06
-reviewed-commit: 0ee1fadc136e837f430556374a5842ac82069004
+reviewed-authorities-digest: sha256:e111ece9828fd85ebb3493ac42dc0901b77a579a80c5f9287b74c89b673db916
 ---
 
 # Local instance forks
@@ -18778,7 +18780,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.10
 reviewed: 2026-08-06
-reviewed-commit: d6222e7f24a0ac0009c68fd1b8f7df17a17ca480
+reviewed-authorities-digest: sha256:71ba403fb53322bbe5b84cf21691312bc6c3e51e6d98d324693a02b269434b6c
 ---
 
 # Patch one existing row safely
@@ -18937,7 +18939,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 36d675e6d956255e352a60bdb3de6b3de2c95387
+reviewed-authorities-digest: sha256:d7a40a97571ef8ca095a38d8bed21070410b646277c209f5344dbd49c35b277a
 ---
 
 # Back up, copy, and move a store
@@ -19216,7 +19218,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:9b727f6437aaba9ddc8a5ca69cf043f818a3f6e9c109e65925fed2d341d564d7
 ---
 
 # Continuously replicate a local SQLite store
@@ -19419,7 +19421,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: 61bed55506396483864130ee61552e701d030313
+reviewed-authorities-digest: sha256:be072dcbd23299ab78d60a6b4498679e1f0c97ddf3285f3fde5b5f52ae91358a
 ---
 
 # Client protocol
@@ -19586,7 +19588,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: bbfb871f14c3cefbda2e1e143770b5c25eadb94f
+reviewed-authorities-digest: sha256:200cc44a010d410e8d1079febbdeacb45e946479a33ec31a8281c84acce48783
 ---
 
 # Live queries
@@ -19863,7 +19865,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:e2e75f898032a3d67f1b9d8c349dd599fc409a6fef4c429fab7c5fc16bb756f6
 ---
 
 # Ephemeral realtime state
@@ -20205,7 +20207,7 @@ status: current
 targets: [local, cloudflare]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:6d5cd59fd7ab84930ebac769356d7cfed715e10fc0afcc055f529917d9d25cd7
 ---
 
 # Route snapshot bundles
@@ -20398,7 +20400,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-commit: 6e158169b3c908b8be149db4487a71dc35738470
+reviewed-authorities-digest: sha256:a7db97c928d50b0540d979fcb70b41dd58eb0afedbbfe340eb6201b40817372c
 ---
 
 # Recipe: presence cursors
@@ -20610,7 +20612,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed-authorities-digest: sha256:43d4e382c66e7bf80e560ee5956322fc91b488556aee9e1ecfa503c180d0ce86
 ---
 
 # Recipe: hidden hands
@@ -20716,7 +20718,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-07
-reviewed-commit: 0984a1e72525f8685a0fa0af2d580d4f1d647ab0
+reviewed-authorities-digest: sha256:8ffcd721327b6729764c25465d6d319fb5fa7b07e57369539fd1b23287147fd5
 ---
 
 # Recipe: optimistic toggle
@@ -21041,7 +21043,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
+reviewed-authorities-digest: sha256:cfa8b56a1cc17fecd9a9c7199933bca32ed9ab24d7610ceca52419d7bc039923
 ---
 
 # Recipe: paginated and load-more lists
@@ -21249,7 +21251,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
+reviewed-authorities-digest: sha256:a70d555f13f958cda513f75a238433ac2ee5be9c83d7c28db0fabc90eaee0257
 ---
 
 # Recipe: browser sign-in and reload custody
@@ -21605,7 +21607,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:a12838a91ec8d10412f534c734aafbb28bb727c1177f2a49cbf91363932cd3ec
 ---
 
 # Recipe: optimistic create with a server-minted ID
@@ -21773,7 +21775,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
+reviewed-authorities-digest: sha256:81a9bf72530b3e0a80f036530ba131b47acf290f203203d1145c57b982e84ea3
 ---
 
 # Recipe: coming from Convex and Supabase
@@ -22384,7 +22386,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:b2f44450f65c94d36f116a994a9586c316339fadc42dc0e20ca51f8c17976f9c
 ---
 
 # Recipe: view-once media with per-recipient access
@@ -22733,7 +22735,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:c7855a21f077e7da3f2ab0959aeceddda95641e9f2c0dd0f7cf85cc27b9d59d7
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -22742,7 +22744,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,070 stable codes** from 425 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,070 stable codes** from 426 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -22945,7 +22947,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-api-auth-mode-invalid"></a>`SNAPBACK_API_AUTH_MODE_INVALID` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:1413` | 3 |
 | <a id="diagnostic-snapback-api-auth-requirement-loosened"></a>`SNAPBACK_API_AUTH_REQUIREMENT_LOOSENED` | server | 400 | — | `src/api_compat.rs:156` | 3 |
 | <a id="diagnostic-snapback-api-budgets-invalid"></a>`SNAPBACK_API_BUDGETS_INVALID` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:1503` | 2 |
-| <a id="diagnostic-snapback-api-budgets-unavailable"></a>`SNAPBACK_API_BUDGETS_UNAVAILABLE` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:13138` | 2 |
+| <a id="diagnostic-snapback-api-budgets-unavailable"></a>`SNAPBACK_API_BUDGETS_UNAVAILABLE` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:13139` | 2 |
 | <a id="diagnostic-snapback-api-compatibility-baseline-unavailable"></a>`SNAPBACK_API_COMPATIBILITY_BASELINE_UNAVAILABLE` | server | 400 | — | `src/api_compat.rs:64` | 3 |
 | <a id="diagnostic-snapback-api-declared-clients-unavailable"></a>`SNAPBACK_API_DECLARED_CLIENTS_UNAVAILABLE` | server | 403 | — | `src/server/api_error.rs:255` | 2 |
 | <a id="diagnostic-snapback-api-declared-client-catalog-corrupt"></a>`SNAPBACK_API_DECLARED_CLIENT_CATALOG_CORRUPT` | server | 409 | — | `src/server/api_error.rs:306` | 3 |
@@ -23255,7 +23257,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-cli-failed"></a>`SNAPBACK_AUTH_CLI_FAILED` | auth | — | — | `src/cli.rs:4519` | 1 |
 | <a id="diagnostic-snapback-auth-cli-request-failed"></a>`SNAPBACK_AUTH_CLI_REQUEST_FAILED` | auth | — | — | `src/cli.rs:4536` | 2 |
 | <a id="diagnostic-snapback-auth-cli-response-invalid"></a>`SNAPBACK_AUTH_CLI_RESPONSE_INVALID` | auth | — | — | `src/cli.rs:4562` | 5 |
-| <a id="diagnostic-snapback-auth-clock-dependent-visibility"></a>`SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` | auth | 400 | — | `packages/snapback-codegen/index.mjs:8006` | 8 |
+| <a id="diagnostic-snapback-auth-clock-dependent-visibility"></a>`SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` | auth | 400 | — | `packages/snapback-codegen/index.mjs:8007` | 8 |
 | <a id="diagnostic-snapback-auth-clock-rollback"></a>`SNAPBACK_AUTH_CLOCK_ROLLBACK` | auth | — | — | `packages/snapback-contract/client-store.mjs:1472` | 13 |
 | <a id="diagnostic-snapback-auth-code-invalid"></a>`SNAPBACK_AUTH_CODE_INVALID` | auth | 401 | — | `packages/snapback-client/index.mjs:1752` | 11 |
 | <a id="diagnostic-snapback-auth-code-locked"></a>`SNAPBACK_AUTH_CODE_LOCKED` | auth | 403 | — | `packages/snapback-client/index.mjs:1756` | 7 |
@@ -23363,7 +23365,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-mode-pending"></a>`SNAPBACK_AUTH_MODE_PENDING` | auth | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift:1257` | 40 |
 | <a id="diagnostic-snapback-auth-mode-quiescence-timeout"></a>`SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` | auth | — | — | `src/auth/admission.rs:613` | 9 |
 | <a id="diagnostic-snapback-auth-mode-state-corrupt"></a>`SNAPBACK_AUTH_MODE_STATE_CORRUPT` | auth | — | — | `src/auth/admission.rs:396` | 23 |
-| <a id="diagnostic-snapback-auth-mutable-input-denied"></a>`SNAPBACK_AUTH_MUTABLE_INPUT_DENIED` | auth | 400 | — | `packages/snapback-codegen/index.mjs:8008` | 11 |
+| <a id="diagnostic-snapback-auth-mutable-input-denied"></a>`SNAPBACK_AUTH_MUTABLE_INPUT_DENIED` | auth | 400 | — | `packages/snapback-codegen/index.mjs:8009` | 11 |
 | <a id="diagnostic-snapback-auth-oauth-access-denied"></a>`SNAPBACK_AUTH_OAUTH_ACCESS_DENIED` | auth | 403 | — | `src/server/api_error.rs:223` | 3 |
 | <a id="diagnostic-snapback-auth-oauth-grant-invalid"></a>`SNAPBACK_AUTH_OAUTH_GRANT_INVALID` | auth | 400 | — | `src/server/api_error.rs:249` | 6 |
 | <a id="diagnostic-snapback-auth-oauth-invalid-client"></a>`SNAPBACK_AUTH_OAUTH_INVALID_CLIENT` | auth | 401 | — | `src/server/api_error.rs:224` | 3 |
@@ -23582,9 +23584,9 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-browser-executable"></a>`SNAPBACK_BROWSER_EXECUTABLE` | cli | — | — | `packages/snapback-cli/carrier-kit.mjs:327` | 2 |
 | <a id="diagnostic-snapback-browser-ir-untyped-error"></a>`SNAPBACK_BROWSER_IR_UNTYPED_ERROR` | client | — | — | `packages/snapback-client/ir-evaluator.mjs:324` | 1 |
 | <a id="diagnostic-snapback-buffered-write-limit-exceeded"></a>`SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED` | server | 400 | [guide](../backend/mutations.md#bound-and-resume-bulk-work) | `src/error_tracking.rs:79` | 4 |
-| <a id="diagnostic-snapback-build-distribution"></a>`SNAPBACK_BUILD_DISTRIBUTION` | server | — | — | `src/identity.rs:29` | 1 |
-| <a id="diagnostic-snapback-build-git-commit"></a>`SNAPBACK_BUILD_GIT_COMMIT` | server | — | — | `src/bin/snapback-agent-safe-candidate.rs:213` | 8 |
-| <a id="diagnostic-snapback-build-git-dirty"></a>`SNAPBACK_BUILD_GIT_DIRTY` | server | — | — | `src/bin/snapback-agent-safe-candidate.rs:216` | 6 |
+| <a id="diagnostic-snapback-build-distribution"></a>`SNAPBACK_BUILD_DISTRIBUTION` | cli | — | — | `packages/snapback-cli/prepared-runtime-reuse.mjs:57` | 2 |
+| <a id="diagnostic-snapback-build-git-commit"></a>`SNAPBACK_BUILD_GIT_COMMIT` | cli | — | — | `packages/snapback-cli/prepared-runtime-reuse.mjs:58` | 9 |
+| <a id="diagnostic-snapback-build-git-dirty"></a>`SNAPBACK_BUILD_GIT_DIRTY` | cli | — | — | `packages/snapback-cli/prepared-runtime-reuse.mjs:59` | 7 |
 | <a id="diagnostic-snapback-build-identity-mismatch"></a>`SNAPBACK_BUILD_IDENTITY_MISMATCH` | cli | — | — | `packages/snapback-cli/index.mjs:252` | 1 |
 | <a id="diagnostic-snapback-bundle-"></a>`SNAPBACK_BUNDLE_` | server | — | — | `src/bundle.rs:2` | 3 |
 | <a id="diagnostic-snapback-bundle-attach-grace-ms"></a>`SNAPBACK_BUNDLE_ATTACH_GRACE_MS` | server | — | — | `src/server.rs:25787` | 1 |
@@ -23728,55 +23730,55 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-client-wire-version-strict"></a>`SNAPBACK_CLIENT_WIRE_VERSION_STRICT` | client | — | — | `packages/snapback-client/index.mjs:4042` | 1 |
 | <a id="diagnostic-snapback-cli-argument-invalid"></a>`SNAPBACK_CLI_ARGUMENT_INVALID` | cli | — | — | `packages/snapback-cli/agent-setup.mjs:67` | 60 |
 | <a id="diagnostic-snapback-cli-failed"></a>`SNAPBACK_CLI_FAILED` | create-snapback-app | — | — | `packages/create-snapback-app/cli.mjs:99` | 3 |
-| <a id="diagnostic-snapback-codegen-"></a>`SNAPBACK_CODEGEN_` | codegen | — | — | `packages/snapback-codegen/index.mjs:13649` | 1 |
-| <a id="diagnostic-snapback-codegen-artifact-auth-tuple-unsupported"></a>`SNAPBACK_CODEGEN_ARTIFACT_AUTH_TUPLE_UNSUPPORTED` | codegen | — | — | `packages/snapback-codegen/index.mjs:13089` | 1 |
+| <a id="diagnostic-snapback-codegen-"></a>`SNAPBACK_CODEGEN_` | codegen | — | — | `packages/snapback-codegen/index.mjs:13650` | 1 |
+| <a id="diagnostic-snapback-codegen-artifact-auth-tuple-unsupported"></a>`SNAPBACK_CODEGEN_ARTIFACT_AUTH_TUPLE_UNSUPPORTED` | codegen | — | — | `packages/snapback-codegen/index.mjs:13090` | 1 |
 | <a id="diagnostic-snapback-codegen-artifact-invalid"></a>`SNAPBACK_CODEGEN_ARTIFACT_INVALID` | codegen | — | — | `packages/snapback-codegen/review-surface.mjs:145` | 3 |
 | <a id="diagnostic-snapback-codegen-artifact-inventory-mismatch"></a>`SNAPBACK_CODEGEN_ARTIFACT_INVENTORY_MISMATCH` | codegen | — | — | `packages/snapback-codegen/review-surface.mjs:127` | 1 |
 | <a id="diagnostic-snapback-codegen-artifact-not-in-manifest"></a>`SNAPBACK_CODEGEN_ARTIFACT_NOT_IN_MANIFEST` | codegen | — | — | `packages/snapback-cli/index.mjs:2181` | 4 |
-| <a id="diagnostic-snapback-codegen-bundle-output-missing"></a>`SNAPBACK_CODEGEN_BUNDLE_OUTPUT_MISSING` | codegen | — | — | `packages/snapback-codegen/index.mjs:13422` | 1 |
+| <a id="diagnostic-snapback-codegen-bundle-output-missing"></a>`SNAPBACK_CODEGEN_BUNDLE_OUTPUT_MISSING` | codegen | — | — | `packages/snapback-codegen/index.mjs:13423` | 1 |
 | <a id="diagnostic-snapback-codegen-cache-invalid"></a>`SNAPBACK_CODEGEN_CACHE_INVALID` | codegen | — | [guide](../getting-started/generated-artifacts.md#consume-through-the-manifest) | `packages/snapback-codegen/review-surface.mjs:344` | 9 |
 | <a id="diagnostic-snapback-codegen-committed-projection-unknown"></a>`SNAPBACK_CODEGEN_COMMITTED_PROJECTION_UNKNOWN` | codegen | — | — | `packages/snapback-codegen/review-surface.mjs:135` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-ambient-unavailable"></a>`SNAPBACK_CODEGEN_DEFINITION_AMBIENT_UNAVAILABLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:13207` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-array-accessor"></a>`SNAPBACK_CODEGEN_DEFINITION_ARRAY_ACCESSOR` | codegen | — | — | `packages/snapback-codegen/index.mjs:13518` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-array-hole"></a>`SNAPBACK_CODEGEN_DEFINITION_ARRAY_HOLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:13516` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-array-prototype-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_ARRAY_PROTOTYPE_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13506` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-array-shape-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_ARRAY_SHAPE_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13510` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-cycle"></a>`SNAPBACK_CODEGEN_DEFINITION_CYCLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:13501` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-marker-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_MARKER_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13549` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-number-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_NUMBER_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13496` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-object-descriptor-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_OBJECT_DESCRIPTOR_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13535` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-object-prototype-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13526` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-object-symbol-key-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_OBJECT_SYMBOL_KEY_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13539` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-reserved-field"></a>`SNAPBACK_CODEGEN_DEFINITION_RESERVED_FIELD` | codegen | — | — | `packages/snapback-codegen/index.mjs:13545` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-result-missing"></a>`SNAPBACK_CODEGEN_DEFINITION_RESULT_MISSING` | codegen | — | — | `packages/snapback-codegen/index.mjs:13233` | 1 |
-| <a id="diagnostic-snapback-codegen-definition-value-unserializable"></a>`SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:13500` | 1 |
-| <a id="diagnostic-snapback-codegen-effect-ceiling-failed"></a>`SNAPBACK_CODEGEN_EFFECT_CEILING_FAILED` | codegen | — | — | `packages/snapback-codegen/index.mjs:8502` | 1 |
-| <a id="diagnostic-snapback-codegen-expression-unserializable"></a>`SNAPBACK_CODEGEN_EXPRESSION_UNSERIALIZABLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:6136` | 1 |
-| <a id="diagnostic-snapback-codegen-function-id-invalid"></a>`SNAPBACK_CODEGEN_FUNCTION_ID_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:8481` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-ambient-unavailable"></a>`SNAPBACK_CODEGEN_DEFINITION_AMBIENT_UNAVAILABLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:13208` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-array-accessor"></a>`SNAPBACK_CODEGEN_DEFINITION_ARRAY_ACCESSOR` | codegen | — | — | `packages/snapback-codegen/index.mjs:13519` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-array-hole"></a>`SNAPBACK_CODEGEN_DEFINITION_ARRAY_HOLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:13517` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-array-prototype-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_ARRAY_PROTOTYPE_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13507` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-array-shape-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_ARRAY_SHAPE_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13511` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-cycle"></a>`SNAPBACK_CODEGEN_DEFINITION_CYCLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:13502` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-marker-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_MARKER_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13550` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-number-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_NUMBER_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13497` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-object-descriptor-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_OBJECT_DESCRIPTOR_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13536` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-object-prototype-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13527` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-object-symbol-key-invalid"></a>`SNAPBACK_CODEGEN_DEFINITION_OBJECT_SYMBOL_KEY_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:13540` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-reserved-field"></a>`SNAPBACK_CODEGEN_DEFINITION_RESERVED_FIELD` | codegen | — | — | `packages/snapback-codegen/index.mjs:13546` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-result-missing"></a>`SNAPBACK_CODEGEN_DEFINITION_RESULT_MISSING` | codegen | — | — | `packages/snapback-codegen/index.mjs:13234` | 1 |
+| <a id="diagnostic-snapback-codegen-definition-value-unserializable"></a>`SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:13501` | 1 |
+| <a id="diagnostic-snapback-codegen-effect-ceiling-failed"></a>`SNAPBACK_CODEGEN_EFFECT_CEILING_FAILED` | codegen | — | — | `packages/snapback-codegen/index.mjs:8503` | 1 |
+| <a id="diagnostic-snapback-codegen-expression-unserializable"></a>`SNAPBACK_CODEGEN_EXPRESSION_UNSERIALIZABLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:6137` | 1 |
+| <a id="diagnostic-snapback-codegen-function-id-invalid"></a>`SNAPBACK_CODEGEN_FUNCTION_ID_INVALID` | codegen | — | — | `packages/snapback-codegen/index.mjs:8482` | 1 |
 | <a id="diagnostic-snapback-codegen-inputs-hash-invalid"></a>`SNAPBACK_CODEGEN_INPUTS_HASH_INVALID` | codegen | — | — | `packages/snapback-codegen/review-surface.mjs:62` | 2 |
 | <a id="diagnostic-snapback-codegen-legacy-graph-incomplete"></a>`SNAPBACK_CODEGEN_LEGACY_GRAPH_INCOMPLETE` | codegen | — | — | `packages/snapback-codegen/review-surface.mjs:455` | 1 |
 | <a id="diagnostic-snapback-codegen-materialization-invalid"></a>`SNAPBACK_CODEGEN_MATERIALIZATION_INVALID` | codegen | — | — | `packages/snapback-codegen/review-surface.mjs:345` | 3 |
 | <a id="diagnostic-snapback-codegen-path-invalid"></a>`SNAPBACK_CODEGEN_PATH_INVALID` | codegen | — | — | `packages/snapback-codegen/review-surface.mjs:510` | 1 |
-| <a id="diagnostic-snapback-codegen-query-group-function-unknown"></a>`SNAPBACK_CODEGEN_QUERY_GROUP_FUNCTION_UNKNOWN` | codegen | — | — | `packages/snapback-codegen/index.mjs:10349` | 1 |
+| <a id="diagnostic-snapback-codegen-query-group-function-unknown"></a>`SNAPBACK_CODEGEN_QUERY_GROUP_FUNCTION_UNKNOWN` | codegen | — | — | `packages/snapback-codegen/index.mjs:10350` | 1 |
 | <a id="diagnostic-snapback-codegen-review-manifest-invalid"></a>`SNAPBACK_CODEGEN_REVIEW_MANIFEST_INVALID` | codegen | — | — | `packages/snapback-codegen/review-surface.mjs:311` | 10 |
 | <a id="diagnostic-snapback-command-asset-failed"></a>`SNAPBACK_COMMAND_ASSET_FAILED` | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/commands.mjs:342` | 2 |
-| <a id="diagnostic-snapback-command-asset-intent-args-unsupported"></a>`SNAPBACK_COMMAND_ASSET_INTENT_ARGS_UNSUPPORTED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10972` | 1 |
-| <a id="diagnostic-snapback-command-asset-intent-unknown"></a>`SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10961` | 2 |
-| <a id="diagnostic-snapback-command-asset-mapping-incompatible"></a>`SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10986` | 2 |
-| <a id="diagnostic-snapback-command-authority-input-refused"></a>`SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11044` | 1 |
+| <a id="diagnostic-snapback-command-asset-intent-args-unsupported"></a>`SNAPBACK_COMMAND_ASSET_INTENT_ARGS_UNSUPPORTED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10973` | 1 |
+| <a id="diagnostic-snapback-command-asset-intent-unknown"></a>`SNAPBACK_COMMAND_ASSET_INTENT_UNKNOWN` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10962` | 2 |
+| <a id="diagnostic-snapback-command-asset-mapping-incompatible"></a>`SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10987` | 2 |
+| <a id="diagnostic-snapback-command-authority-input-refused"></a>`SNAPBACK_COMMAND_AUTHORITY_INPUT_REFUSED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11045` | 1 |
 | <a id="diagnostic-snapback-command-authority-replaced"></a>`SNAPBACK_COMMAND_AUTHORITY_REPLACED` | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/commands.mjs:369` | 1 |
 | <a id="diagnostic-snapback-command-cancelled"></a>`SNAPBACK_COMMAND_CANCELLED` | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/commands.mjs:218` | 1 |
 | <a id="diagnostic-snapback-command-cancelled-during-commit"></a>`SNAPBACK_COMMAND_CANCELLED_DURING_COMMIT` | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/commands.mjs:443` | 1 |
 | <a id="diagnostic-snapback-command-client-disposed"></a>`SNAPBACK_COMMAND_CLIENT_DISPOSED` | client | — | — | `packages/snapback-client/commands.mjs:482` | 1 |
 | <a id="diagnostic-snapback-command-client-disposed-during-commit"></a>`SNAPBACK_COMMAND_CLIENT_DISPOSED_DURING_COMMIT` | client | — | — | `packages/snapback-client/commands.mjs:464` | 1 |
-| <a id="diagnostic-snapback-command-input-collision"></a>`SNAPBACK_COMMAND_INPUT_COLLISION` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11017` | 1 |
-| <a id="diagnostic-snapback-command-invalid-identifier"></a>`SNAPBACK_COMMAND_INVALID_IDENTIFIER` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10906` | 1 |
-| <a id="diagnostic-snapback-command-mapping-ambiguous"></a>`SNAPBACK_COMMAND_MAPPING_AMBIGUOUS` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10932` | 2 |
-| <a id="diagnostic-snapback-command-multi-asset-unsupported"></a>`SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10948` | 1 |
+| <a id="diagnostic-snapback-command-input-collision"></a>`SNAPBACK_COMMAND_INPUT_COLLISION` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11018` | 1 |
+| <a id="diagnostic-snapback-command-invalid-identifier"></a>`SNAPBACK_COMMAND_INVALID_IDENTIFIER` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10907` | 1 |
+| <a id="diagnostic-snapback-command-mapping-ambiguous"></a>`SNAPBACK_COMMAND_MAPPING_AMBIGUOUS` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10933` | 2 |
+| <a id="diagnostic-snapback-command-multi-asset-unsupported"></a>`SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10949` | 1 |
 | <a id="diagnostic-snapback-command-mutation-ambiguous"></a>`SNAPBACK_COMMAND_MUTATION_AMBIGUOUS` | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/commands.mjs:413` | 1 |
-| <a id="diagnostic-snapback-command-mutation-cardinality-invalid"></a>`SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10916` | 1 |
+| <a id="diagnostic-snapback-command-mutation-cardinality-invalid"></a>`SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10917` | 1 |
 | <a id="diagnostic-snapback-command-mutation-failed"></a>`SNAPBACK_COMMAND_MUTATION_FAILED` | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/commands.mjs:413` | 1 |
-| <a id="diagnostic-snapback-command-mutation-unknown"></a>`SNAPBACK_COMMAND_MUTATION_UNKNOWN` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10931` | 2 |
+| <a id="diagnostic-snapback-command-mutation-unknown"></a>`SNAPBACK_COMMAND_MUTATION_UNKNOWN` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:10932` | 2 |
 | <a id="diagnostic-snapback-command-not-retryable"></a>`SNAPBACK_COMMAND_NOT_RETRYABLE` | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/commands.mjs:503` | 1 |
 | <a id="diagnostic-snapback-comparator-atomic-witness-invalid"></a>`SNAPBACK_COMPARATOR_ATOMIC_WITNESS_INVALID` | cli | — | — | `packages/snapback-cli/comparator-profile.mjs:766` | 3 |
 | <a id="diagnostic-snapback-comparator-atomic-write-set-failed"></a>`SNAPBACK_COMPARATOR_ATOMIC_WRITE_SET_FAILED` | cli | — | — | `packages/snapback-cli/comparator-profile.mjs:788` | 2 |
@@ -23834,7 +23836,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-config-store-io"></a>`SNAPBACK_CONFIG_STORE_IO` | server | — | — | `src/config.rs:703` | 5 |
 | <a id="diagnostic-snapback-config-store-version-unsupported"></a>`SNAPBACK_CONFIG_STORE_VERSION_UNSUPPORTED` | server | — | — | `src/config.rs:349` | 2 |
 | <a id="diagnostic-snapback-config-transit-rule"></a>`SNAPBACK_CONFIG_TRANSIT_RULE` | server | 400 | [guide](../operating/secrets-and-config.md#the-callable-routes) | `src/local.rs:5364` | 3 |
-| <a id="diagnostic-snapback-config-undeclared"></a>`SNAPBACK_CONFIG_UNDECLARED` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:6645` | 8 |
+| <a id="diagnostic-snapback-config-undeclared"></a>`SNAPBACK_CONFIG_UNDECLARED` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:6646` | 8 |
 | <a id="diagnostic-snapback-config-uses-unknown"></a>`SNAPBACK_CONFIG_USES_UNKNOWN` | server | 400 | — | `src/local.rs:17472` | 4 |
 | <a id="diagnostic-snapback-config-value-fd-invalid"></a>`SNAPBACK_CONFIG_VALUE_FD_INVALID` | server | — | — | `src/cli/config_command.rs:59` | 2 |
 | <a id="diagnostic-snapback-config-value-fd-unsupported"></a>`SNAPBACK_CONFIG_VALUE_FD_UNSUPPORTED` | server | — | — | `src/cli/config_command.rs:80` | 1 |
@@ -24259,19 +24261,19 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-future-code-unseen"></a>`SNAPBACK_FUTURE_CODE_UNSEEN` | server | — | — | `src/app_data_result.rs:219` | 1 |
 | <a id="diagnostic-snapback-generated-at-ms"></a>`SNAPBACK_GENERATED_AT_MS` | codegen | — | — | `packages/snapback-codegen/index.mjs:1745` | 3 |
 | <a id="diagnostic-snapback-generated-ir-absent"></a>`SNAPBACK_GENERATED_IR_ABSENT` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:40` | 1 |
-| <a id="diagnostic-snapback-generated-ir-authoritative-expr-server-only"></a>`SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6878` | 1 |
+| <a id="diagnostic-snapback-generated-ir-authoritative-expr-server-only"></a>`SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6879` | 1 |
 | <a id="diagnostic-snapback-generated-ir-clock-invalid"></a>`SNAPBACK_GENERATED_IR_CLOCK_INVALID` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:91` | 1 |
 | <a id="diagnostic-snapback-generated-ir-derived-options-only"></a>`SNAPBACK_GENERATED_IR_DERIVED_OPTIONS_ONLY` | client | — | — | `packages/snapback-client/store-runtime.mjs:1702` | 2 |
 | <a id="diagnostic-snapback-generated-ir-duplicate-transform"></a>`SNAPBACK_GENERATED_IR_DUPLICATE_TRANSFORM` | client | — | — | `packages/snapback-client/store-runtime.mjs:1687` | 2 |
-| <a id="diagnostic-snapback-generated-ir-dynamic-mint-server-only"></a>`SNAPBACK_GENERATED_IR_DYNAMIC_MINT_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6884` | 1 |
-| <a id="diagnostic-snapback-generated-ir-effect-server-only"></a>`SNAPBACK_GENERATED_IR_EFFECT_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6873` | 1 |
-| <a id="diagnostic-snapback-generated-ir-host-wrapper-server-only"></a>`SNAPBACK_GENERATED_IR_HOST_WRAPPER_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6868` | 1 |
+| <a id="diagnostic-snapback-generated-ir-dynamic-mint-server-only"></a>`SNAPBACK_GENERATED_IR_DYNAMIC_MINT_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6885` | 1 |
+| <a id="diagnostic-snapback-generated-ir-effect-server-only"></a>`SNAPBACK_GENERATED_IR_EFFECT_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6874` | 1 |
+| <a id="diagnostic-snapback-generated-ir-host-wrapper-server-only"></a>`SNAPBACK_GENERATED_IR_HOST_WRAPPER_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6869` | 1 |
 | <a id="diagnostic-snapback-generated-ir-invalid"></a>`SNAPBACK_GENERATED_IR_INVALID` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:66` | 2 |
-| <a id="diagnostic-snapback-generated-ir-local-executable"></a>`SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:6859` | 1 |
+| <a id="diagnostic-snapback-generated-ir-local-executable"></a>`SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE` | codegen | — | — | `packages/snapback-codegen/index.mjs:6860` | 1 |
 | <a id="diagnostic-snapback-generated-ir-mint-invalid"></a>`SNAPBACK_GENERATED_IR_MINT_INVALID` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:106` | 1 |
 | <a id="diagnostic-snapback-generated-ir-mint-sites-invalid"></a>`SNAPBACK_GENERATED_IR_MINT_SITES_INVALID` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:94` | 2 |
-| <a id="diagnostic-snapback-generated-ir-point-binding-server-only"></a>`SNAPBACK_GENERATED_IR_POINT_BINDING_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6912` | 1 |
-| <a id="diagnostic-snapback-generated-ir-point-id-server-only"></a>`SNAPBACK_GENERATED_IR_POINT_ID_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6898` | 1 |
+| <a id="diagnostic-snapback-generated-ir-point-binding-server-only"></a>`SNAPBACK_GENERATED_IR_POINT_BINDING_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6913` | 1 |
+| <a id="diagnostic-snapback-generated-ir-point-id-server-only"></a>`SNAPBACK_GENERATED_IR_POINT_ID_SERVER_ONLY` | codegen | — | — | `packages/snapback-codegen/index.mjs:6899` | 1 |
 | <a id="diagnostic-snapback-generated-ir-schema-mismatch"></a>`SNAPBACK_GENERATED_IR_SCHEMA_MISMATCH` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:86` | 1 |
 | <a id="diagnostic-snapback-generated-ir-server-only"></a>`SNAPBACK_GENERATED_IR_SERVER_ONLY` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:69` | 1 |
 | <a id="diagnostic-snapback-generated-ir-settlement-id-invalid"></a>`SNAPBACK_GENERATED_IR_SETTLEMENT_ID_INVALID` | client | — | — | `packages/snapback-client/generated-mutation-ir.mjs:88` | 1 |
@@ -24279,7 +24281,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-guard-failed"></a>`SNAPBACK_GUARD_FAILED` | server | — | — | `src/manifest.rs:17579` | 3 |
 | <a id="diagnostic-snapback-guide-identity-mismatch"></a>`SNAPBACK_GUIDE_IDENTITY_MISMATCH` | guide | — | — | `packages/snapback-admin-client/index.mjs:326` | 2 |
 | <a id="diagnostic-snapback-guide-identity-missing"></a>`SNAPBACK_GUIDE_IDENTITY_MISSING` | guide | — | — | `packages/snapback-admin-client/index.mjs:314` | 1 |
-| <a id="diagnostic-snapback-guide-lookup-budget-exceeded"></a>`SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED` | guide | — | — | `packages/snapback-cli/reference-lookup.mjs:120` | 8 |
+| <a id="diagnostic-snapback-guide-lookup-budget-exceeded"></a>`SNAPBACK_GUIDE_LOOKUP_BUDGET_EXCEEDED` | guide | — | — | `packages/snapback-cli/reference-lookup.mjs:118` | 8 |
 | <a id="diagnostic-snapback-guide-manifest-invalid"></a>`SNAPBACK_GUIDE_MANIFEST_INVALID` | guide | — | — | `packages/snapback-admin-client/index.mjs:335` | 1 |
 | <a id="diagnostic-snapback-guide-path-invalid"></a>`SNAPBACK_GUIDE_PATH_INVALID` | guide | — | — | `packages/snapback-admin-client/index.mjs:289` | 1 |
 | <a id="diagnostic-snapback-guide-registry-identity-mismatch"></a>`SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH` | guide | — | — | `packages/snapback-cli/reference-lookup.mjs:53` | 8 |
@@ -24290,7 +24292,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-handler-console"></a>`SNAPBACK_HANDLER_CONSOLE` | server | — | — | `src/runtime.rs:2692` | 1 |
 | <a id="diagnostic-snapback-handler-did-not-settle"></a>`SNAPBACK_HANDLER_DID_NOT_SETTLE` | harness | 400 | — | `packages/snapback-harness/envelope.mjs:6` | 12 |
 | <a id="diagnostic-snapback-handler-error-exposure"></a>`SNAPBACK_HANDLER_ERROR_EXPOSURE` | cli | — | — | `packages/snapback-cli/index.mjs:2152` | 4 |
-| <a id="diagnostic-snapback-handler-export-missing"></a>`SNAPBACK_HANDLER_EXPORT_MISSING` | codegen | 400 | [guide](../backend/actions-and-fetch.md#the-handler-file-is-a-closed-script) | `packages/snapback-codegen/index.mjs:8945` | 8 |
+| <a id="diagnostic-snapback-handler-export-missing"></a>`SNAPBACK_HANDLER_EXPORT_MISSING` | codegen | 400 | [guide](../backend/actions-and-fetch.md#the-handler-file-is-a-closed-script) | `packages/snapback-codegen/index.mjs:8946` | 8 |
 | <a id="diagnostic-snapback-handler-failed"></a>`SNAPBACK_HANDLER_FAILED` | harness | 400 | [guide](../backend/mutations.md#debug-snapbackhandlerfailed-under-the-dev-supervisor) | `packages/snapback-harness/envelope.mjs:15` | 50 |
 | <a id="diagnostic-snapback-handler-harness-init-failed"></a>`SNAPBACK_HANDLER_HARNESS_INIT_FAILED` | harness | — | — | `packages/snapback-harness/workerd/handler-server.mjs:21` | 4 |
 | <a id="diagnostic-snapback-handler-host-call-"></a>`SNAPBACK_HANDLER_HOST_CALL_` | harness | — | — | `packages/snapback-harness/envelope.mjs:90` | 2 |
@@ -25431,7 +25433,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-seed-declaration-invalid"></a>`SNAPBACK_SEED_DECLARATION_INVALID` | seeds | 400 | — | `packages/snapback-codegen/index.mjs:4536` | 27 |
 | <a id="diagnostic-snapback-seed-effect-limit"></a>`SNAPBACK_SEED_EFFECT_LIMIT` | seeds | — | — | `packages/snapback-codegen/seed-artifact.mjs:67` | 1 |
 | <a id="diagnostic-snapback-seed-effect-limit-exceeded"></a>`SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED` | seeds | 409 | [guide](../backend/versioned-seeds.md#interpret-refusals) | `src/seed_identity.rs:837` | 7 |
-| <a id="diagnostic-snapback-seed-evidence-invalid"></a>`SNAPBACK_SEED_EVIDENCE_INVALID` | seeds | — | — | `packages/snapback-codegen/index.mjs:13888` | 1 |
+| <a id="diagnostic-snapback-seed-evidence-invalid"></a>`SNAPBACK_SEED_EVIDENCE_INVALID` | seeds | — | — | `packages/snapback-codegen/index.mjs:13898` | 1 |
 | <a id="diagnostic-snapback-seed-identity-conflict"></a>`SNAPBACK_SEED_IDENTITY_CONFLICT` | seeds | 409 | — | `src/seed_identity.rs:571` | 2 |
 | <a id="diagnostic-snapback-seed-identity-corrupt"></a>`SNAPBACK_SEED_IDENTITY_CORRUPT` | seeds | 409 | — | `src/seed_identity.rs:832` | 6 |
 | <a id="diagnostic-snapback-seed-invalid"></a>`SNAPBACK_SEED_INVALID` | seeds | 400 | — | `src/server/api_error.rs:1336` | 2 |
@@ -25442,7 +25444,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-seed-operation-id-reused"></a>`SNAPBACK_SEED_OPERATION_ID_REUSED` | seeds | 409 | — | `src/seed_identity.rs:600` | 4 |
 | <a id="diagnostic-snapback-seed-partial-untracked"></a>`SNAPBACK_SEED_PARTIAL_UNTRACKED` | seeds | 409 | [guide](../backend/versioned-seeds.md#interpret-refusals) | `src/server/api_error.rs:576` | 3 |
 | <a id="diagnostic-snapback-seed-replay-requires-preflight"></a>`SNAPBACK_SEED_REPLAY_REQUIRES_PREFLIGHT` | seeds | 409 | — | `src/server/api_error.rs:577` | 2 |
-| <a id="diagnostic-snapback-seed-version-reused"></a>`SNAPBACK_SEED_VERSION_REUSED` | seeds | 409 | [guide](../backend/versioned-seeds.md#author-the-identity) | `packages/snapback-codegen/index.mjs:13900` | 4 |
+| <a id="diagnostic-snapback-seed-version-reused"></a>`SNAPBACK_SEED_VERSION_REUSED` | seeds | 409 | [guide](../backend/versioned-seeds.md#author-the-identity) | `packages/snapback-codegen/index.mjs:13910` | 4 |
 | <a id="diagnostic-snapback-sender-replay-process-result"></a>`SNAPBACK_SENDER_REPLAY_PROCESS_RESULT` | server | — | — | `src/auth/sender_proof.rs:1839` | 4 |
 | <a id="diagnostic-snapback-sequence-activation-state-invalid"></a>`SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID` | server | 409 | — | `src/server/api_error.rs:539` | 2 |
 | <a id="diagnostic-snapback-sequence-declaration-invalid"></a>`SNAPBACK_SEQUENCE_DECLARATION_INVALID` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:4119` | 23 |
@@ -25605,17 +25607,17 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-supervisor-tls-cert"></a>`SNAPBACK_SUPERVISOR_TLS_CERT` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/service.mjs:50` | 1 |
 | <a id="diagnostic-snapback-supervisor-tls-key"></a>`SNAPBACK_SUPERVISOR_TLS_KEY` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/service.mjs:49` | 1 |
 | <a id="diagnostic-snapback-supervisor-uncommitted-database"></a>`SNAPBACK_SUPERVISOR_UNCOMMITTED_DATABASE` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:289` | 1 |
-| <a id="diagnostic-snapback-surface-auth-binding-refused"></a>`SNAPBACK_SURFACE_AUTH_BINDING_REFUSED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11164` | 1 |
-| <a id="diagnostic-snapback-surface-binding-ambiguous"></a>`SNAPBACK_SURFACE_BINDING_AMBIGUOUS` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11193` | 2 |
-| <a id="diagnostic-snapback-surface-binding-unportable"></a>`SNAPBACK_SURFACE_BINDING_UNPORTABLE` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11207` | 2 |
-| <a id="diagnostic-snapback-surface-budget-exceeded"></a>`SNAPBACK_SURFACE_BUDGET_EXCEEDED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11103` | 5 |
-| <a id="diagnostic-snapback-surface-input-unknown"></a>`SNAPBACK_SURFACE_INPUT_UNKNOWN` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11230` | 2 |
-| <a id="diagnostic-snapback-surface-invalid-identifier"></a>`SNAPBACK_SURFACE_INVALID_IDENTIFIER` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11112` | 3 |
-| <a id="diagnostic-snapback-surface-member-class-unsupported"></a>`SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11188` | 3 |
-| <a id="diagnostic-snapback-surface-parameter-type-mismatch"></a>`SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11147` | 3 |
-| <a id="diagnostic-snapback-surface-parameter-unknown"></a>`SNAPBACK_SURFACE_PARAMETER_UNKNOWN` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11175` | 1 |
-| <a id="diagnostic-snapback-surface-reference-unknown"></a>`SNAPBACK_SURFACE_REFERENCE_UNKNOWN` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11302` | 1 |
-| <a id="diagnostic-snapback-surface-required-input-unbound"></a>`SNAPBACK_SURFACE_REQUIRED_INPUT_UNBOUND` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11237` | 2 |
+| <a id="diagnostic-snapback-surface-auth-binding-refused"></a>`SNAPBACK_SURFACE_AUTH_BINDING_REFUSED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11165` | 1 |
+| <a id="diagnostic-snapback-surface-binding-ambiguous"></a>`SNAPBACK_SURFACE_BINDING_AMBIGUOUS` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11194` | 2 |
+| <a id="diagnostic-snapback-surface-binding-unportable"></a>`SNAPBACK_SURFACE_BINDING_UNPORTABLE` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11208` | 2 |
+| <a id="diagnostic-snapback-surface-budget-exceeded"></a>`SNAPBACK_SURFACE_BUDGET_EXCEEDED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11104` | 5 |
+| <a id="diagnostic-snapback-surface-input-unknown"></a>`SNAPBACK_SURFACE_INPUT_UNKNOWN` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11231` | 2 |
+| <a id="diagnostic-snapback-surface-invalid-identifier"></a>`SNAPBACK_SURFACE_INVALID_IDENTIFIER` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11113` | 3 |
+| <a id="diagnostic-snapback-surface-member-class-unsupported"></a>`SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11189` | 3 |
+| <a id="diagnostic-snapback-surface-parameter-type-mismatch"></a>`SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11148` | 3 |
+| <a id="diagnostic-snapback-surface-parameter-unknown"></a>`SNAPBACK_SURFACE_PARAMETER_UNKNOWN` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11176` | 1 |
+| <a id="diagnostic-snapback-surface-reference-unknown"></a>`SNAPBACK_SURFACE_REFERENCE_UNKNOWN` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11303` | 1 |
+| <a id="diagnostic-snapback-surface-required-input-unbound"></a>`SNAPBACK_SURFACE_REQUIRED_INPUT_UNBOUND` | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:11238` | 2 |
 | <a id="diagnostic-snapback-swift-client-state-invalid"></a>`SNAPBACK_SWIFT_CLIENT_STATE_INVALID` | swift-client | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:71` | 1 |
 | <a id="diagnostic-snapback-swift-response-undecodable"></a>`SNAPBACK_SWIFT_RESPONSE_UNDECODABLE` | swift-client | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:70` | 1 |
 | <a id="diagnostic-snapback-swift-transport-failed"></a>`SNAPBACK_SWIFT_TRANSPORT_FAILED` | swift-client | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:68` | 1 |
@@ -25716,7 +25718,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-unknown-subscription"></a>`SNAPBACK_UNKNOWN_SUBSCRIPTION` | client | 404 | — | `packages/snapback-client/index.mjs:11848` | 4 |
 | <a id="diagnostic-snapback-unknown-table"></a>`SNAPBACK_UNKNOWN_TABLE` | client | 404 | — | `packages/snapback-client/ir-evaluator.mjs:266` | 7 |
 | <a id="diagnostic-snapback-unsupported-blob"></a>`SNAPBACK_UNSUPPORTED_BLOB` | server | 400 | — | `src/server/api_error.rs:1365` | 1 |
-| <a id="diagnostic-snapback-update-capability-manifest"></a>`SNAPBACK_UPDATE_CAPABILITY_MANIFEST` | codegen | — | — | `packages/snapback-codegen/index.mjs:14133` | 2 |
+| <a id="diagnostic-snapback-update-capability-manifest"></a>`SNAPBACK_UPDATE_CAPABILITY_MANIFEST` | codegen | — | — | `packages/snapback-codegen/index.mjs:14143` | 2 |
 | <a id="diagnostic-snapback-upgrade-required"></a>`SNAPBACK_UPGRADE_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:198` | 4 |
 | <a id="diagnostic-snapback-url"></a>`SNAPBACK_URL` | swift-client | — | [guide](../auth/agent-principals.md#register-an-agent) | `clients/swift/SnapbackClient/Sources/snapback-prove/main.swift:18` | 2 |
 | <a id="diagnostic-snapback-v8-compat-config-invalid"></a>`SNAPBACK_V8_COMPAT_CONFIG_INVALID` | server | 400 | — | `src/server/api_error.rs:1367` | 2 |
@@ -25832,7 +25834,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:f96259ae585e2f9f63ad0526672ed563ab3a7a44b4f8bec665c168f96ebaab96
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -25840,7 +25842,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # Generated API reference
 
 One build-bound projection of 1080 public symbols (446 runtime values and 634 explicit type-only symbols).
-Registry identity: `sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`; source commit: `bcde6984d9cc02daaeba1d02929296c544340aa4`.
+Registry source identity: `sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -25911,7 +25913,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:2de4f9b8cc082bf272ef84a40212287683370c30031a3b678be96aaa78d8b193
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -25919,7 +25921,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -35771,7 +35773,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:dcc2b42cc4c03f0de2803190566ec507dff310b2412e4a7790b767bbe2c939cd
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35779,7 +35781,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/agent-authority
 
 Build-bound public API projection for `@expo/snapback-client/agent-authority`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/agent-authority.mjs`.
 
@@ -36296,7 +36298,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:f59068e07a136de139a9cff35d4fea36fd9c618d715248765f29237de4cbb0a4
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36304,7 +36306,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/app-data
 
 Build-bound public API projection for `@expo/snapback-client/app-data`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/app-data.mjs`.
 
@@ -36547,7 +36549,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:bfe1bc5e72f0bb148c7f5f108d3d372828ae079eb37a93edea37aa638c34e25e
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36555,7 +36557,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/assets
 
 Build-bound public API projection for `@expo/snapback-client/assets`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/assets.mjs`.
 
@@ -37190,7 +37192,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:ba016e1ab498a51db9d44ef0d6f0e688b6b0b52eb1e8061748f1bc0bcd7b337f
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37198,7 +37200,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/canonical-client-value
 
 Build-bound public API projection for `@expo/snapback-client/canonical-client-value`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/canonical-client-value.mjs`.
 
@@ -37297,7 +37299,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:d21a6495c5846e5d74f1bc296317f8314be6907e7607fcfc019ba3a42d9e09b5
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37305,7 +37307,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/client-diagnostics
 
 Build-bound public API projection for `@expo/snapback-client/client-diagnostics`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/client-diagnostics.mjs`.
 
@@ -37685,7 +37687,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:ec71da58761a7c9152ae1912f802746ce5e178babc735d9fb2a5cb5bbc81ee66
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37693,7 +37695,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/commands
 
 Build-bound public API projection for `@expo/snapback-client/commands`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/commands.mjs`.
 
@@ -38140,7 +38142,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:ff7507f82f73a1588c09a75a3cd7484cb33ae4f9bb39df42ffb66337227040a3
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38148,7 +38150,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/evaluation-floor
 
 Build-bound public API projection for `@expo/snapback-client/evaluation-floor`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/evaluation-floor.mjs`.
 
@@ -38279,7 +38281,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:3f5cdf7ca82e4b908aa849c05da64ada0a10138ae0910587f7065515cd1b0188
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38287,7 +38289,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/external-store
 
 Build-bound public API projection for `@expo/snapback-client/external-store`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/external-store.mjs`.
 
@@ -38641,7 +38643,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:9d957564a07bab4d1afd60e765691b16e65e6e4c521eb130201f45f781b61729
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38649,7 +38651,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/hosted-browser
 
 Build-bound public API projection for `@expo/snapback-client/hosted-browser`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/hosted-browser.mjs`.
 
@@ -38732,7 +38734,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:02de1a7e909b2d3d697fa9abc5511b13b4c94a5285ce8bfdef03a56f172ed372
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38740,7 +38742,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/ir-evaluator
 
 Build-bound public API projection for `@expo/snapback-client/ir-evaluator`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/ir-evaluator.mjs`.
 
@@ -39101,7 +39103,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:30e21445b21a319b3d4ff7b11eb67e7d3261f705e02d5c1f5fd53ea098d21ef8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39109,7 +39111,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/lease-convergence
 
 Build-bound public API projection for `@expo/snapback-client/lease-convergence`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/lease-convergence.mjs`.
 
@@ -39251,7 +39253,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:780cd698a3d43862a614fe004b599b4a5cdef8e197c041dbc9094ca77ac5a4e9
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39259,7 +39261,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/local-read-admission
 
 Build-bound public API projection for `@expo/snapback-client/local-read-admission`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/local-read-admission.mjs`.
 
@@ -39754,7 +39756,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:8945e81b5d1e044f4432d0885a60cb6869b27d454981331d632068a0354ace42
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39762,7 +39764,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/materialization-store
 
 Build-bound public API projection for `@expo/snapback-client/materialization-store`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/materialization-store.mjs`.
 
@@ -40255,7 +40257,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:2bcb7460ca48fb06d7cc30f67248ecfd60f289688b9fc68c9fa50c1a7c22d6bc
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40263,7 +40265,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/micro
 
 Build-bound public API projection for `@expo/snapback-client/micro`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro.mjs`.
 
@@ -40489,7 +40491,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:159dc0b4b300547836ae669794d371d1c7de6ae30d155f192671ada59f3a7d37
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40497,7 +40499,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/micro/core
 
 Build-bound public API projection for `@expo/snapback-client/micro/core`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-core.mjs`.
 
@@ -40852,7 +40854,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:d90fd6ac6c61b1782b1487b3237171bc90b7fefe7cf5420c7f7f8320bb122fa7
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40860,7 +40862,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/micro/live
 
 Build-bound public API projection for `@expo/snapback-client/micro/live`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-live.mjs`.
 
@@ -40966,7 +40968,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:b6f3c3fbb5170f82de8903afedb82c34656b51df7cd6618f4867fd0e661db5fb
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40974,7 +40976,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -41670,7 +41672,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:b220fdecc6879ad7637931401808d64dede6021886e4dd194354f0cfa8df3396
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41678,7 +41680,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/optimistic-rebase
 
 Build-bound public API projection for `@expo/snapback-client/optimistic-rebase`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/optimistic-rebase.mjs`.
 
@@ -41975,7 +41977,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:e9d2ab14c55d140e10a96c196b6e27176c89a43738b871f24d551f27bf80999e
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41983,7 +41985,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/outbox-shared
 
 Build-bound public API projection for `@expo/snapback-client/outbox-shared`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/outbox-shared.mjs`.
 
@@ -42422,7 +42424,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:6938c1d867a60bc78d5a6f8c3f389eda4a7aa87b439065e309bb5b73102bf490
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42430,7 +42432,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/push-installation-expo
 
 Build-bound public API projection for `@expo/snapback-client/push-installation-expo`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-installation-expo.mjs`.
 
@@ -42548,7 +42550,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:b4e4b6f74efa92aaf0ebafcd78153e276122034b078203199d448ddd7fa5658b
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42556,7 +42558,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/push-registry
 
 Build-bound public API projection for `@expo/snapback-client/push-registry`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-registry.mjs`.
 
@@ -42720,7 +42722,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:4d14540f1d260b388d16f3540cfcf563512b27604ec1b7001b8c261e4ad514a8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42728,7 +42730,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/react-binding
 
 Build-bound public API projection for `@expo/snapback-client/react-binding`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/react-binding.mjs`.
 
@@ -43175,7 +43177,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:01657b27e77d73ce091a9030e4607513acdf80264b1ccce894856c88c316a8f6
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43183,7 +43185,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/remediation
 
 Build-bound public API projection for `@expo/snapback-client/remediation`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/remediation.mjs`.
 
@@ -43362,7 +43364,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:dbd35cb9b2de5c44340bb39a7bcbbe20a7ffdb03cf66bc32784f14be5fe5d8bc
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43370,7 +43372,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/result-transform
 
 Build-bound public API projection for `@expo/snapback-client/result-transform`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/result-transform.mjs`.
 
@@ -43767,7 +43769,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:2a5098a3f97ab192d274272bd5a89609e8a595a9baf3b43e05c8be2ffdad0606
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43775,7 +43777,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/rqs
 
 Build-bound public API projection for `@expo/snapback-client/rqs`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs.mjs`.
 
@@ -44234,7 +44236,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:1d8cac88d37e15b9112b8369617ca848f580d884ce07391712aa0ae5f6d549ef
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44242,7 +44244,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/rqs-preload
 
 Build-bound public API projection for `@expo/snapback-client/rqs-preload`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload-core.mjs`.
 
@@ -44491,7 +44493,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:3d8829122ec158f216a7abfbdaee8a4dde813a16dbf3a671b4148f674fb206d6
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44499,7 +44501,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/rqs-registered
 
 Build-bound public API projection for `@expo/snapback-client/rqs-registered`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload.mjs`.
 
@@ -44881,7 +44883,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:eb0117492e498fb74d6a8e92e2116f1b027f82e95efdc891511a56222d3a6a70
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44889,7 +44891,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/rqs-store
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store.mjs`.
 
@@ -45505,7 +45507,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:b7b3d1ed9c3b807e8a46253ae52ae25a3e0e67b558d4e83402693acfd783b779
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45513,7 +45515,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/rqs-store-default
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-default`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-default.mjs`.
 
@@ -45653,7 +45655,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:72197b275a33c739c2a2bd0fa573357680f8e5003d5c08109d3924b1b3b793a7
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45661,7 +45663,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/rqs-store-expo
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-expo`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-expo.mjs`.
 
@@ -45861,7 +45863,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:54fb925517da629403f4893d3c4366e3d5190106265e769c0b08c7fcda413cad
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45869,7 +45871,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/rqs-store-file
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-file`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-file.mjs`.
 
@@ -46054,7 +46056,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:e723756f858ce0619b84b976aeb59d755c131f927a97a1d1a1a020f6c3c86dae
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46062,7 +46064,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/search
 
 Build-bound public API projection for `@expo/snapback-client/search`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/search.mjs`.
 
@@ -46307,7 +46309,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:00f93436f6c71a8b7b1a504e47633c2b399b9c743ce8e3db694a1c273536db8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46315,7 +46317,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -46983,7 +46985,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:c84429fbeede50528275332c4e87173a96c579d1a291fd68209a9db5379be81c
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46991,7 +46993,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-react
 
 Build-bound public API projection for `@expo/snapback-react`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-react/index.mjs`.
 
@@ -49273,7 +49275,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:5f0b96bafc1d10b3bba7b270d4c4fe1f80696e1b2b99da50bdc46115ac13e89a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -49281,7 +49283,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-react/core
 
 Build-bound public API projection for `@expo/snapback-react/core`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-react/core.mjs`.
 
@@ -50381,7 +50383,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:a09fcdb73e25a8e1b53bc0ed7e53b1817fa94b9471282ff8d3ee23b13cdc5082
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -50389,7 +50391,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-react/thumbhash
 
 Build-bound public API projection for `@expo/snapback-react/thumbhash`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-react/thumbhash.mjs`.
 
@@ -50494,7 +50496,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:03037d607766c884bec44533877abaa13d5f9f9880d81ae8538eb6b7600b1b5a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -50502,7 +50504,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-expo
 
 Build-bound public API projection for `@expo/snapback-expo`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import, default` → `packages/snapback-expo/index.mjs`.
 
@@ -53571,7 +53573,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:45db51bfdc76973ebd09a960b5d213e0ea623c736471c160a8f0b5cb98fd213f
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -53579,7 +53581,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-expo/app-binding
 
 Build-bound public API projection for `@expo/snapback-expo/app-binding`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/app-binding.mjs`.
 
@@ -53853,7 +53855,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:ebda62ee4c10384674750b9a9649131c05c52aa3b2546038bbbaec19f3e6d613
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -53861,7 +53863,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-expo/app.plugin
 
 Build-bound public API projection for `@expo/snapback-expo/app.plugin`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/app.plugin.js`.
 
@@ -53977,7 +53979,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:30fb88f2d7d7cecc271db9b0478a899b03d66e61e6c9152e44486d5b62c64be7
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -53985,7 +53987,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-expo/asset-source
 
 Build-bound public API projection for `@expo/snapback-expo/asset-source`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/asset-source.mjs`.
 
@@ -54132,7 +54134,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:ebda62ee4c10384674750b9a9649131c05c52aa3b2546038bbbaec19f3e6d613
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -54140,7 +54142,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-expo/config-plugin
 
 Build-bound public API projection for `@expo/snapback-expo/config-plugin`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/config-plugin.cjs`.
 
@@ -54256,7 +54258,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:654b272852f54f1c0049c4ce86a0fdd7d1623a84c342567e0553041212d4bf0b
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -54264,7 +54266,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-expo/supervised-environment
 
 Build-bound public API projection for `@expo/snapback-expo/supervised-environment`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/supervised-environment.mjs`.
 
@@ -54426,7 +54428,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:fb4bd51c14e0c4ad523f0094a343a168c9050b14a108c974f64c38f283395647
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -54434,7 +54436,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-cli/verify
 
 Build-bound public API projection for `@expo/snapback-cli/verify`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 Runtime parity condition:
 `default` → `packages/snapback-cli/verify.mjs`.
 
@@ -54848,7 +54850,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
+reviewed-authorities-digest: sha256:2df8237cf1416e4845100b262af932052b88101375c977d62a468f684d030315
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -54856,7 +54858,7 @@ reviewed-commit: bcde6984d9cc02daaeba1d02929296c544340aa4
 # @expo/snapback-codegen/ctx
 
 Build-bound public API projection for `@expo/snapback-codegen/ctx`. Canonical registry identity:
-`sha256:3a8c72f4821952a316801cfb9c55c739d5c4ab8eebece8142de271d334df8a08`.
+`sha256:a28e3dc5a8a3f8902c0e0b1d985b158d8d50fff86e699786b1dc856fb1501fbf`.
 This package subpath is type-only; runtime export parity is not applicable.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)
@@ -55743,7 +55745,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: 308414f8da2c05bc267c8df02a45a2395ab895e9
+reviewed-authorities-digest: sha256:8247e5bbf4236ef656eecd9f697afa2060fe506b082669a611b15f23af3f7a86
 ---
 
 # Offline retention and mutation replay
@@ -56751,7 +56753,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:b0d9926f4ded2f3c1b3fd241040a6ba00c0b1ad64a34f295e039b92def0b82f4
 ---
 
 # Acceptance testing
@@ -57111,7 +57113,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:359ad5ef75925fd5932dec2dcd91eb5a9de3e7d399a3bd0da2cd2e6444e5b133
 ---
 
 # Verify the declared app contract
@@ -57293,7 +57295,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed-authorities-digest: sha256:5742dae5187b91cc2e253e1b98308576566793436f851c2b776a78b53ec1c471
 ---
 
 # Loading large deterministic fixtures

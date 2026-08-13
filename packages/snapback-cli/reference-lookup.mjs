@@ -82,9 +82,7 @@ function resultIdentity(registry, diagnostics, manifest) {
     guideContentHash: manifest.contentHash,
     guideBuildCommit: manifest.buildIdentity?.commit ?? 'unknown',
     registrySourceDigest: registry.buildIdentity.sourceDigest,
-    registrySourceCommit: registry.buildIdentity.commit,
     diagnosticsSourceDigest: diagnostics.buildIdentity.sourceDigest,
-    diagnosticsSourceCommit: diagnostics.buildIdentity.commit,
   };
 }
 

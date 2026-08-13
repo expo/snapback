@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-06
-reviewed-commit: 0ee1fadc136e837f430556374a5842ac82069004
+reviewed-authorities-digest: sha256:e111ece9828fd85ebb3493ac42dc0901b77a579a80c5f9287b74c89b673db916
 ---
 
 # Local instance forks

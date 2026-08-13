@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-09
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:fee04f8766ab6c2d182a1b287011ef896f16ba001922217f326d56ce73e2395b
 ---
 
 # Your first backend

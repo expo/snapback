@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:c34ac7bcfbf2e5de9b9c4536a3ad6bd0791614514c36f1ba36418ea20ff84a38
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -399,7 +399,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:b8b73b44aab3dcdb2282fd93d46d01ba4ab5b78caea49a915a116019d571c2a4
 ---
 
 # Capability index
@@ -540,7 +540,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:af05f0c3c7e4c8f66fdee42ffbe920e6827de7a44e73015b65a2078c086d1c9c
 ---
 
 # Surface map
@@ -796,8 +796,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-12
+reviewed-authorities-digest: sha256:db256fee9e3faac8594cfcf8b3e51cb5206704d222c85855d0535a9842947283
 ---
 
 # Guide conventions
@@ -824,7 +824,7 @@ Fields (schema: [`frontmatter.schema.json`](./frontmatter.schema.json)):
 | `order` | yes | Deterministic ordering within the section. |
 | `audience` | yes | `agent-first`. |
 | `capabilities` | yes | Capability-index ids this page claims coverage of (`[]` for meta pages). |
-| `authorities` | yes | Repo paths (LLPs and code) this page derives from. Freshness compares these against `reviewed-commit`. |
+| `authorities` | yes | Repo paths (LLPs and code) this page derives from. Freshness hashes these paths and their bytes. |
 | `examples` | yes | Demo directories/files that exercise what the page teaches (`[]` if none). |
 | `status` | yes | `draft` \| `current` \| `deprecated` — authored lifecycle. |
 | `targets` | yes | `[local]`, `[local, cloudflare]`, or `[all]` for genuinely target-independent material. Local-only pages render a banner line (see below). |
@@ -832,7 +832,7 @@ Fields (schema: [`frontmatter.schema.json`](./frontmatter.schema.json)):
 | `since` | no | Published closure version (`X.Y.Z`) in which the page's described surface first became, or is expected to become, available. |
 | `unreleased` | no | The boolean `true` when the whole page deliberately describes a surface newer than the newest published closure; requires `since` and a rendered unreleased banner. |
 | `reviewed` | yes | Date of the last intentional review — display metadata only. |
-| `reviewed-commit` | yes | The commit the page was last reviewed at — the freshness **identity**. Bumping it is a deliberate act in a review pass; no tool regenerates it. `HEAD` is permitted only in the same change that creates or fully revises the page. |
+| `reviewed-authorities-digest` | yes | SHA-256 digest of the declared authority bytes at the last intentional review — the freshness **identity**. Refreshing it is a deliberate review act, not ordinary regeneration: `node scripts/migrate-guide-review-digests.mjs --refresh guide/path.md`. |
 
 `targets:` and `maturity:` are the honesty boundary made mechanical
 (LLP 0060's posture): a page must never generalize a local-target guarantee
@@ -1011,11 +1011,12 @@ For a context-limited one-request read, start with the budgeted entry tier:
 budget) plus [`surface-map.md`](./surface-map.md) (about 12 KiB under its 16 KiB
 budget). Then choose a section flat or specific page. The whole export remains
 available for bulk consumers, but is not the default reading recommendation.
-At server compile time, `build.rs` restamps the embedded manifest's
-`buildIdentity.commit` to the exact binary build; HTTP headers and MCP metadata
-therefore give every whole or section projection the same guide content hash
-and exact build commit. The checked source manifest remains the
-corpus-generation record.
+The checked source manifest carries only its content-derived
+`buildIdentity.sourceDigest`. At server compile time, `build.rs` adds
+`buildIdentity.commit` to the embedded manifest for the exact binary build;
+HTTP headers and MCP metadata therefore give every whole or section projection
+the same guide content hash and exact carrier commit without making the source
+record depend on the current checkout commit.
 
 ## Running the checks in a fresh tree
 
@@ -1041,10 +1042,11 @@ Regeneration writes only gitignored paths; the tracked tree stays clean.
 
 ## Freshness
 
-Warning-only, but sound: the checker reports pages whose `authorities:`
-changed between `reviewed-commit` and `HEAD` (via `git diff`). Dates are
-never identity. Expired GAP review dates and check failures gate; drift
-warnings don't (LLP 0061 §Design 3).
+Warning-only, but sound: the checker hashes each page's current `authorities:`
+bytes and reports when they differ from `reviewed-authorities-digest`. Dates
+and commit locations are never identity, so an unrelated rebase cannot change
+the verdict. Expired GAP review dates and check failures gate; drift warnings
+don't (LLP 0061 §Design 3).
 
 ---
 
@@ -1061,7 +1063,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:21151762e65add63cf4a16312d57f6f138fe06204b1574b331e611930fc84e35
 ---
 
 # Retrieval eval protocol

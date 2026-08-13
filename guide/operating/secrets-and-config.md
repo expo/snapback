@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-commit: c9af5600c82c30e6765b270fc10db368adf0dd5a
+reviewed-authorities-digest: sha256:c00bd2ab8122d44b8578bf83a5b38c5361a65dfab0d8fd1a5c9d7054002b1b94
 ---
 
 # Secrets and deployment config

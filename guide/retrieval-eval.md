@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:21151762e65add63cf4a16312d57f6f138fe06204b1574b331e611930fc84e35
 ---
 
 # Retrieval eval protocol

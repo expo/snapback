@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-09
-reviewed-commit: 339e9fed3500daece2ad90de0d21018e1b00a314
+reviewed-authorities-digest: sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374c91db0a295ece3ed8122
 ---
 
 # External API exposure

@@ -92,11 +92,6 @@ fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
         .and_then(Value::as_str)
         .context("embedded symbol registry has no sourceDigest")?
         .to_owned();
-    let registry_source_commit = registry
-        .pointer("/buildIdentity/commit")
-        .and_then(Value::as_str)
-        .context("embedded symbol registry has no source commit")?
-        .to_owned();
     let declared_budget = registry
         .pointer("/limits/lookupBytes")
         .and_then(Value::as_u64)
@@ -109,9 +104,7 @@ fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
             "guideContentHash": guide_content_hash,
             "guideBuildCommit": guide_build_commit,
             "registrySourceDigest": registry_source_digest,
-            "registrySourceCommit": registry_source_commit,
             "diagnosticsSourceDigest": diagnostics.pointer("/buildIdentity/sourceDigest"),
-            "diagnosticsSourceCommit": diagnostics.pointer("/buildIdentity/commit"),
         }),
         diagnostics,
         budget: declared_budget.min(MAX_LOOKUP_BYTES),

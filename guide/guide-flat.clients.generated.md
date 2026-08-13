@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-11
-reviewed-commit: ef936353ffdc540dedd4d5760e51c78eb6e38f72
+reviewed-authorities-digest: sha256:3b0befc7c75710f4371fd0a0fb62af039db64b8c78ffdd26cb5e0b9f49bbaa4b
 ---
 
 # The Contract adapter
@@ -556,7 +556,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:723f591ef92b3a2a4f72c6cb6a5c0f4f40050a55d5274a274395e96c38a686e2
 ---
 
 # The headless client
@@ -1185,7 +1185,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:81f4c4ce553e40209fd74b935585cd0a515e72808971f218a178f62cc1f0aa34
 ---
 
 # The artifact-driven app CLI
@@ -1512,7 +1512,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: 308414f8da2c05bc267c8df02a45a2395ab895e9
+reviewed-authorities-digest: sha256:6c79e2248c33cda10dcbfb499db1cbdbfeed181445efcc7005831e285576874e
 ---
 
 # The React client
@@ -2299,7 +2299,7 @@ targets: [local]
 maturity: partial
 since: 0.1.11
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:1b8366a3e658f07b57c069a944a6a64ecbcd0469e2bbc0ee8ec042f1dbe2299e
 ---
 
 # Application surfaces
@@ -2871,7 +2871,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:bb3cab052a509303eae2f0d0656d35af210deaa8c6a1e8c479704348b29be69f
 ---
 
 # Swift client
@@ -2994,7 +2994,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: 27d3a9cd9b54f4b45b5c0ca50c8d85796dc06b59
+reviewed-authorities-digest: sha256:7327367ecd9b003c565ab5989c4852ff6d0d5997bdd3e92ef004d01663db237f
 ---
 
 # React Expo Online clients
@@ -3981,7 +3981,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:ef95f794e1201fad76046e3f04ccc1fd42a1a5326f23d9cc8c32b9639755ed6d
 ---
 
 # Framework bindings

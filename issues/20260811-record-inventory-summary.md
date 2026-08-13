@@ -43,7 +43,7 @@ Classification precedence used here is:
 | `module-ownership` | `ownership.manifest.json`, `ownership.baseline.json` | `observationRevision` is historical attribution; waiver `deadline` is the intentionally semantic expiry. The check reads today's date but does not rewrite records. | 6.38s measured | `INVARIANT-OK` |
 | `generated-artifacts` | policy-selected review manifests/projections under `admin-ui/generated/`, `demos/`, CLI fixtures, and React fixtures | Codegen is content-derived and emits stable `generatedAt: 0`; no current commit/calendar/tool identity was found in generated records. | about 18–19s for 29 non-blocked jobs; four signed-activation jobs currently refuse before the final checks | `NEEDS-RECEIPT` |
 | `contract-meta` | non-generated `demos/**/*.contract-meta.ts` mirrors | Pure TypeScript-AST parameter mirrors; no commit, clock, or ambient method bytes. | 0.26s measured | `FAST-REGEN-OK` |
-| `guide` | declared manifest/flat/diagnostics/type records; generator also writes symbol registry, 46 reference pages, and section flats | `buildIdentity.commit` and generated `reviewed-commit` fields use HEAD and cascade through page/resource/flat/content hashes. The extra outputs are absent from `recordPaths`. | 3.61s measured | `NEEDS-WORK` — `issues/20260811-record-inventory-guide.md` |
+| `guide` | all 65 outputs: manifest, whole/section flats, diagnostics records/type union, symbol registry, and 46 generated reference pages | Resolved 2026-08-12: source records use content digests only; historical page-review verdicts migrated to authority-byte digests; exact carrier commit remains runtime-injected. Repeated and gate-disjoint-commit regeneration changed zero record hashes. | 3.61s inventory measurement; 7.99s post-remedy cold regeneration on this worktree | `INVARIANT-OK` — `issues/closed/20260811-record-inventory-guide.md` |
 | `telemetry-receipt-check` | `tests/acceptance/telemetry-phase1-evidence.v1.json` | `createdAt`, `sourceRevision`, build commits, Linux/x86_64 environment, and filesystem witnesses are semantically required retained evidence; LLP 0189 D-7 preserves exact-current telemetry for release candidates. | about 5.7 min from LLP 0175 | `NEEDS-RECEIPT` |
 | `auth-invalidation-report` | `tests/acceptance/auth-invalidation-v1-composed-receipt.json` | Output is normalized deterministic behavior evidence with a fixed property seed; no HEAD/date/toolchain fields were found. Cost comes from qualified Rust/runtime preparation. | cold battery about 10 min dominated by bootstrap; prepared-runtime target about 2 min, from LLP 0232 evidence | `NEEDS-RECEIPT` |
 | `control-catalog` | catalog JSON and generated Guide blocks | JSON serializes `buildIdentity.sourceCommit`, `buildIdentity.dirty`, and `generatedAtCommit`, although check strips them. Registry names nonexistent `guide/reference/control-catalog.md` and misses actual `guide/operating/agent-controls.md`. | 0.60s measured | `NEEDS-WORK` — `issues/20260811-record-inventory-control-catalog.md` |
@@ -54,8 +54,8 @@ Classification precedence used here is:
 | `local-store-publication` | `src/local-persistent-store-publication.v1.json` and anchor | Carrier bytes are content-hashed, but registry triggers name 2026-08-04 evidence while refresh/check/Rust readers use fixed/latest 2026-08-06 records. Calendar paths are competing authorities. | cold native finalize conservatively multi-minute; warm unmeasured | `NEEDS-WORK` — `issues/20260811-record-inventory-local-store-publication.md` |
 | `local-store-carrier-receipt` | registry declares 2026-08-04 pair; checker actually selects latest 2026-08-06 pair | Latest record serializes start/end time, Node/platform/arch, exact revision, `dirty`, and dozens of unrelated `dirtyPaths`; per-file hashes already provide semantic identity. | 135.518s latest retained run; 161.830s prior run | `NEEDS-WORK` — `issues/20260811-record-inventory-local-store-carrier-receipt.md` |
 
-Totals: 4 `INVARIANT-OK`, 5 `FAST-REGEN-OK`, 5 `NEEDS-RECEIPT`, and
-4 `NEEDS-WORK`.
+Totals: 5 `INVARIANT-OK`, 5 `FAST-REGEN-OK`, 5 `NEEDS-RECEIPT`, and
+3 `NEEDS-WORK`.
 
 ## Priority order
 
@@ -82,4 +82,3 @@ Close this summary only when the four `NEEDS-WORK` tickets are resolved, every
 `NEEDS-RECEIPT` gate has an admitted LLP 0232 D-1 semantic closure and reusable
 green receipt, and the formal ten-cold/ten-warm benchmarks demonstrate the D-2
 bounds or document the authorized D-1 exception.
-

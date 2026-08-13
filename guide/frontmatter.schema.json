@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "snapback-guide-frontmatter",
   "title": "Snapback Guide page frontmatter",
-  "description": "Compatible core shared with the Exact guide (title, id, order, audience, capabilities, authorities, examples, status, reviewed) plus Snapback extensions (targets, maturity, reviewed-commit). Frontmatter uses the flat YAML subset: scalar values and inline arrays only. @ref LLP 0061#design — schema artifact required by the conventions.",
+  "description": "Compatible core shared with the Exact guide (title, id, order, audience, capabilities, authorities, examples, status, reviewed) plus Snapback extensions (targets, maturity, reviewed-authorities-digest). Frontmatter uses the flat YAML subset: scalar values and inline arrays only. @ref LLP 0061#design — schema artifact required by the conventions.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,7 +17,7 @@
     "targets",
     "maturity",
     "reviewed",
-    "reviewed-commit"
+    "reviewed-authorities-digest"
   ],
   "properties": {
     "title": { "type": "string", "minLength": 1 },
@@ -36,7 +36,7 @@
     "authorities": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Repo-root paths (LLPs and code). Freshness compares these against reviewed-commit."
+      "description": "Repo-root paths (LLPs and code). Freshness compares their current bytes against reviewed-authorities-digest."
     },
     "examples": {
       "type": "array",
@@ -68,10 +68,10 @@
       "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
       "description": "Date of last intentional review — display metadata, never identity."
     },
-    "reviewed-commit": {
+    "reviewed-authorities-digest": {
       "type": "string",
-      "pattern": "^([0-9a-f]{7,40}|HEAD)$",
-      "description": "Commit the page was last reviewed at — the freshness identity. 'HEAD' permitted only in the change that creates or fully revises the page; the manifest generator resolves it."
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Digest of the declared authority bytes at the last intentional review — the rebase-stable freshness identity."
     }
   }
 }

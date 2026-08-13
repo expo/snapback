@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:b0d9926f4ded2f3c1b3fd241040a6ba00c0b1ad64a34f295e039b92def0b82f4
 ---
 
 # Acceptance testing
@@ -375,7 +375,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:359ad5ef75925fd5932dec2dcd91eb5a9de3e7d399a3bd0da2cd2e6444e5b133
 ---
 
 # Verify the declared app contract
@@ -557,7 +557,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed-authorities-digest: sha256:5742dae5187b91cc2e253e1b98308576566793436f851c2b776a78b53ec1c471
 ---
 
 # Loading large deterministic fixtures

@@ -5,7 +5,6 @@
 // @ref LLP 0194#design — one TypeScript-derived registry owns every API projection.
 
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 import {
   existsSync,
   readFileSync,
@@ -24,6 +23,7 @@ import {
   validatePublishedSymbolsSnapshot,
   validateSymbolLifecycle,
 } from './symbol-lifecycle.mjs';
+import { authoritiesDigest } from './guide-lib.mjs';
 
 const root = resolve(dirname(new URL(import.meta.url).pathname), '..');
 const outputDirectory = join(root, 'guide/reference');
@@ -325,18 +325,13 @@ function createRegistry(modules) {
     moduleRecords.push({ ...moduleEntry, symbolIds: moduleSymbolIds });
   }
 
-  let commit = 'unknown';
-  try {
-    commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-  } catch {
-    // The content digest remains authoritative outside a git checkout.
-  }
   // @ref LLP 0187#t5--guide-truthfulness-against-the-published-closure —
   // public version labels come from the checked-in publication closure, while
   // source-manifest versions remain separately labeled checkout facts.
   const publishedClosureVersion = readPublishedClosureVersion();
   const inputPaths = new Set([
     'scripts/generate-symbol-registry.mjs',
+    'scripts/guide-lib.mjs',
     'scripts/symbol-lifecycle.mjs',
     publishedClosurePath,
     lifecyclePath,
@@ -363,7 +358,6 @@ function createRegistry(modules) {
     schemaVersion: 'snapback-symbol-registry.v1',
     generatedBy: 'scripts/generate-symbol-registry.mjs',
     buildIdentity: {
-      commit,
       sourceDigest: `sha256:${sourceDigest}`,
       publishedClosureVersion,
       packageVersions: Object.fromEntries(packageNames.map((name) => [
@@ -521,6 +515,12 @@ function removedSymbolLine(symbol) {
 function modulePage(registry, moduleRecord, order) {
   const symbols = registry.symbols.filter((symbol) => symbol.module === moduleRecord.module);
   const removedSymbols = registry.removedSymbols.filter((symbol) => symbol.module === moduleRecord.module);
+  const authorities = [
+    'llp/0194-generated-api-reference.rfc.md',
+    lifecyclePath,
+    moduleRecord.manifest,
+    moduleRecord.typesTarget,
+  ];
   const lines = [
     '---',
     `title: API reference — ${moduleRecord.module}`,
@@ -528,13 +528,13 @@ function modulePage(registry, moduleRecord, order) {
     `order: ${order}`,
     'audience: agent-first',
     'capabilities: []',
-    `authorities: ${yamlArray(['llp/0194-generated-api-reference.rfc.md', lifecyclePath, moduleRecord.manifest, moduleRecord.typesTarget])}`,
+    `authorities: ${yamlArray(authorities)}`,
     'examples: []',
     'status: current',
     'targets: [all]',
     'maturity: shipped',
     'reviewed: 2026-08-08',
-    `reviewed-commit: ${registry.buildIdentity.commit}`,
+    `reviewed-authorities-digest: ${authoritiesDigest(root, authorities)}`,
     '---',
     '',
     generatedMarker,
@@ -594,6 +594,11 @@ function modulePage(registry, moduleRecord, order) {
 function indexPage(registry, order) {
   const valueCount = registry.symbols.filter((symbol) => symbol.runtime.kind === 'value').length;
   const typeCount = registry.symbols.length - valueCount;
+  const authorities = [
+    'llp/0194-generated-api-reference.rfc.md',
+    lifecyclePath,
+    'scripts/generate-symbol-registry.mjs',
+  ];
   const lines = [
     '---',
     'title: Generated API reference',
@@ -601,13 +606,13 @@ function indexPage(registry, order) {
     `order: ${order}`,
     'audience: agent-first',
     'capabilities: []',
-    `authorities: [llp/0194-generated-api-reference.rfc.md, ${lifecyclePath}, scripts/generate-symbol-registry.mjs]`,
+    `authorities: [${authorities.join(', ')}]`,
     'examples: [tests/generated-api-reference-v1.mjs]',
     'status: current',
     'targets: [all]',
     'maturity: shipped',
     'reviewed: 2026-08-08',
-    `reviewed-commit: ${registry.buildIdentity.commit}`,
+    `reviewed-authorities-digest: ${authoritiesDigest(root, authorities)}`,
     '---',
     '',
     generatedMarker,
@@ -615,7 +620,7 @@ function indexPage(registry, order) {
     '# Generated API reference',
     '',
     `One build-bound projection of ${registry.symbols.length} public symbols (${valueCount} runtime values and ${typeCount} explicit type-only symbols).`,
-    `Registry identity: \`${registry.buildIdentity.sourceDigest}\`; source commit: \`${registry.buildIdentity.commit}\`.`,
+    `Registry source identity: \`${registry.buildIdentity.sourceDigest}\`.`,
     '',
     'Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).',
     '',
@@ -695,19 +700,6 @@ assertNoUndeclaredSymbolRemovals({
   currentIdentities: registrySymbolIdentities(registry),
   lifecycle,
 });
-// A committed generator cannot name the commit that contains its own output.
-// Like the Guide manifest check, preserve the committed producer witness while
-// checking all content-bound bytes (especially sourceDigest) exactly.
-if (check && existsSync(registryPath)) {
-  try {
-    const committed = readJson(registryPath);
-    if (typeof committed.buildIdentity?.commit === 'string') {
-      registry.buildIdentity.commit = committed.buildIdentity.commit;
-    }
-  } catch {
-    // The ordinary missing/malformed comparison below reports the artifact.
-  }
-}
 const parityErrors = [
   ...checkHandlerContextOwnership(registry),
   ...await checkRuntimeParity(registry),

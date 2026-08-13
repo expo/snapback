@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:0845678e9f349bbf1f6872d176f125d4fcd113124dda99a6558eb22917bb249f
 ---
 
 # Reviewed migrations

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:01fa5dbe529af771cf3fe1bd7bf41650488399086db55b61f7505c6f8910cd1d
 ---
 
 # Mutations

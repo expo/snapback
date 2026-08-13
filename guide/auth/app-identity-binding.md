@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:ac8d62b9963acb4ae03677b4d49c691065590e2dfcaf9763ccf786a6dd95e096
 ---
 
 # Bind a principal to your app's user identity

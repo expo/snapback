@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: bbfb871f14c3cefbda2e1e143770b5c25eadb94f
+reviewed-authorities-digest: sha256:200cc44a010d410e8d1079febbdeacb45e946479a33ec31a8281c84acce48783
 ---
 
 # Live queries
@@ -292,7 +292,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:e2e75f898032a3d67f1b9d8c349dd599fc409a6fef4c429fab7c5fc16bb756f6
 ---
 
 # Ephemeral realtime state
@@ -634,7 +634,7 @@ status: current
 targets: [local, cloudflare]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:6d5cd59fd7ab84930ebac769356d7cfed715e10fc0afcc055f529917d9d25cd7
 ---
 
 # Route snapshot bundles

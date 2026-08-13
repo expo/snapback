@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-11
-reviewed-commit: ef936353ffdc540dedd4d5760e51c78eb6e38f72
+reviewed-authorities-digest: sha256:c4bb30cf92b00374d8bf75c35defdb9547f5f83faf1f89c762c236d00abfd036
 ---
 
 # Generated artifact custody and review

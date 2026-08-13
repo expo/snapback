@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-commit: 2715951cf
+reviewed-authorities-digest: sha256:b8784542ae2f90c964cfd9e17df728f5e7681a8964a5568504d60c356b59b6d8
 ---
 
 # Discover agent controls
@@ -314,7 +314,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-commit: c9af5600c82c30e6765b270fc10db368adf0dd5a
+reviewed-authorities-digest: sha256:c00bd2ab8122d44b8578bf83a5b38c5361a65dfab0d8fd1a5c9d7054002b1b94
 ---
 
 # Secrets and deployment config
@@ -540,7 +540,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:e276d9f43b744ac2d28a8c7ee4a09cf25f08bf77f6f2a92d9c4a63efa65fd3dd
 ---
 
 # Host operations
@@ -991,7 +991,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-05
-reviewed-commit: f40e52b86ec10b75ff5c958f3500e213f2a4ae98
+reviewed-authorities-digest: sha256:430e7d2de7660d7ca5a556dd5ff753626578baa669e46f85e8a72728448a3c55
 ---
 
 # Network condition profiles
@@ -1207,7 +1207,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: 5b3122704d59e3792d744a7475462008dad0bade
+reviewed-authorities-digest: sha256:1c25648b54546e0cba48be11aa9c86c92fe3548afc6b94f50767aa6b4761deab
 ---
 
 # Diagnostics and local doctoring
@@ -1629,7 +1629,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:dafdda17e37afb44c53a58b7bd4cb9a1617fd14676e6f065815f05124c2f56a7
 ---
 
 # Admin console
@@ -1943,7 +1943,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:c39c3ad792dc3458af8398d113e6d24cb378de2094556d3bcb84fea4956a2e85
 ---
 
 # Backend observability
@@ -2109,7 +2109,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:2945c7d8f80d8a41b366ede5aee474f6f9b9e7105918f818896d99a704405709
 ---
 
 # Backend error tracking
@@ -2272,7 +2272,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-06
-reviewed-commit: 0ee1fadc136e837f430556374a5842ac82069004
+reviewed-authorities-digest: sha256:e111ece9828fd85ebb3493ac42dc0901b77a579a80c5f9287b74c89b673db916
 ---
 
 # Local instance forks
@@ -2738,7 +2738,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.10
 reviewed: 2026-08-06
-reviewed-commit: d6222e7f24a0ac0009c68fd1b8f7df17a17ca480
+reviewed-authorities-digest: sha256:71ba403fb53322bbe5b84cf21691312bc6c3e51e6d98d324693a02b269434b6c
 ---
 
 # Patch one existing row safely
@@ -2897,7 +2897,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 36d675e6d956255e352a60bdb3de6b3de2c95387
+reviewed-authorities-digest: sha256:d7a40a97571ef8ca095a38d8bed21070410b646277c209f5344dbd49c35b277a
 ---
 
 # Back up, copy, and move a store
@@ -3176,7 +3176,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:9b727f6437aaba9ddc8a5ca69cf043f818a3f6e9c109e65925fed2d341d564d7
 ---
 
 # Continuously replicate a local SQLite store

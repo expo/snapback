@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
+reviewed-authorities-digest: sha256:a70d555f13f958cda513f75a238433ac2ee5be9c83d7c28db0fabc90eaee0257
 ---
 
 # Recipe: browser sign-in and reload custody

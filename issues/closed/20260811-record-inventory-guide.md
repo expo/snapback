@@ -1,6 +1,6 @@
 # Guide frozen records embed rebase-unstable commit identity and exceed their declared inventory
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 3
@@ -79,3 +79,13 @@ Per LLP 0232 D-2:
 - Runtime responses may still expose exact binary identity without embedding
   that identity in committed Guide-source records.
 
+## Resolution
+
+Resolved 2026-08-12 under LLP 0232 D-2. Authored page review anchors were
+migrated at their historical commits to `reviewed-authorities-digest`; the
+checker now compares those anchors with current authority bytes. Source Guide,
+symbol, and diagnostics records retain content digests but no commit identity,
+while `build.rs` injects the carrier commit only into the embedded runtime
+manifest. The guide drift gate now declares all 65 records written by its
+regeneration command, and the regression proof covers both genuine authority
+changes and gate-disjoint commits.

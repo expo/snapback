@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-05
-reviewed-commit: f40e52b86ec10b75ff5c958f3500e213f2a4ae98
+reviewed-authorities-digest: sha256:430e7d2de7660d7ca5a556dd5ff753626578baa669e46f85e8a72728448a3c55
 ---
 
 # Network condition profiles

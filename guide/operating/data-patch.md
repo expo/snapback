@@ -11,7 +11,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.10
 reviewed: 2026-08-06
-reviewed-commit: d6222e7f24a0ac0009c68fd1b8f7df17a17ca480
+reviewed-authorities-digest: sha256:71ba403fb53322bbe5b84cf21691312bc6c3e51e6d98d324693a02b269434b6c
 ---
 
 # Patch one existing row safely

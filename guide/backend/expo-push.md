@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: bbfb871f14c3cefbda2e1e143770b5c25eadb94f
+reviewed-authorities-digest: sha256:1b03a6d605d8591c0d82496900f39eb17acd1209f609feb927610e6bc0f84af6
 ---
 
 # Expo push notifications

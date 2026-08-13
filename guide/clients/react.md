@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: 308414f8da2c05bc267c8df02a45a2395ab895e9
+reviewed-authorities-digest: sha256:6c79e2248c33cda10dcbfb499db1cbdbfeed181445efcc7005831e285576874e
 ---
 
 # The React client

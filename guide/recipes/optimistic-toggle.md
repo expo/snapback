@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-07
-reviewed-commit: 0984a1e72525f8685a0fa0af2d580d4f1d647ab0
+reviewed-authorities-digest: sha256:8ffcd721327b6729764c25465d6d319fb5fa7b07e57369539fd1b23287147fd5
 ---
 
 # Recipe: optimistic toggle

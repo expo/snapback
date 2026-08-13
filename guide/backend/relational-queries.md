@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-05
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed-authorities-digest: sha256:c762f859e8d1f553c899de48d81ac1020929f6cd618b04e514ec8b100ab77bc1
 ---
 
 # Relational queries (bounded joins)

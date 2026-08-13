@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-12
+reviewed-authorities-digest: sha256:db256fee9e3faac8594cfcf8b3e51cb5206704d222c85855d0535a9842947283
 ---
 
 # Guide conventions
@@ -37,7 +37,7 @@ Fields (schema: [`frontmatter.schema.json`](./frontmatter.schema.json)):
 | `order` | yes | Deterministic ordering within the section. |
 | `audience` | yes | `agent-first`. |
 | `capabilities` | yes | Capability-index ids this page claims coverage of (`[]` for meta pages). |
-| `authorities` | yes | Repo paths (LLPs and code) this page derives from. Freshness compares these against `reviewed-commit`. |
+| `authorities` | yes | Repo paths (LLPs and code) this page derives from. Freshness hashes these paths and their bytes. |
 | `examples` | yes | Demo directories/files that exercise what the page teaches (`[]` if none). |
 | `status` | yes | `draft` \| `current` \| `deprecated` — authored lifecycle. |
 | `targets` | yes | `[local]`, `[local, cloudflare]`, or `[all]` for genuinely target-independent material. Local-only pages render a banner line (see below). |
@@ -45,7 +45,7 @@ Fields (schema: [`frontmatter.schema.json`](./frontmatter.schema.json)):
 | `since` | no | Published closure version (`X.Y.Z`) in which the page's described surface first became, or is expected to become, available. |
 | `unreleased` | no | The boolean `true` when the whole page deliberately describes a surface newer than the newest published closure; requires `since` and a rendered unreleased banner. |
 | `reviewed` | yes | Date of the last intentional review — display metadata only. |
-| `reviewed-commit` | yes | The commit the page was last reviewed at — the freshness **identity**. Bumping it is a deliberate act in a review pass; no tool regenerates it. `HEAD` is permitted only in the same change that creates or fully revises the page. |
+| `reviewed-authorities-digest` | yes | SHA-256 digest of the declared authority bytes at the last intentional review — the freshness **identity**. Refreshing it is a deliberate review act, not ordinary regeneration: `node scripts/migrate-guide-review-digests.mjs --refresh guide/path.md`. |
 
 `targets:` and `maturity:` are the honesty boundary made mechanical
 (LLP 0060's posture): a page must never generalize a local-target guarantee
@@ -224,11 +224,12 @@ For a context-limited one-request read, start with the budgeted entry tier:
 budget) plus [`surface-map.md`](./surface-map.md) (about 12 KiB under its 16 KiB
 budget). Then choose a section flat or specific page. The whole export remains
 available for bulk consumers, but is not the default reading recommendation.
-At server compile time, `build.rs` restamps the embedded manifest's
-`buildIdentity.commit` to the exact binary build; HTTP headers and MCP metadata
-therefore give every whole or section projection the same guide content hash
-and exact build commit. The checked source manifest remains the
-corpus-generation record.
+The checked source manifest carries only its content-derived
+`buildIdentity.sourceDigest`. At server compile time, `build.rs` adds
+`buildIdentity.commit` to the embedded manifest for the exact binary build;
+HTTP headers and MCP metadata therefore give every whole or section projection
+the same guide content hash and exact carrier commit without making the source
+record depend on the current checkout commit.
 
 ## Running the checks in a fresh tree
 
@@ -254,7 +255,8 @@ Regeneration writes only gitignored paths; the tracked tree stays clean.
 
 ## Freshness
 
-Warning-only, but sound: the checker reports pages whose `authorities:`
-changed between `reviewed-commit` and `HEAD` (via `git diff`). Dates are
-never identity. Expired GAP review dates and check failures gate; drift
-warnings don't (LLP 0061 §Design 3).
+Warning-only, but sound: the checker hashes each page's current `authorities:`
+bytes and reports when they differ from `reviewed-authorities-digest`. Dates
+and commit locations are never identity, so an unrelated rebase cannot change
+the verdict. Expired GAP review dates and check failures gate; drift warnings
+don't (LLP 0061 §Design 3).

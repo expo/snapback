@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-commit: 6e158169b3c908b8be149db4487a71dc35738470
+reviewed-authorities-digest: sha256:a7db97c928d50b0540d979fcb70b41dd58eb0afedbbfe340eb6201b40817372c
 ---
 
 # Recipe: presence cursors
@@ -227,7 +227,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed-authorities-digest: sha256:43d4e382c66e7bf80e560ee5956322fc91b488556aee9e1ecfa503c180d0ce86
 ---
 
 # Recipe: hidden hands
@@ -333,7 +333,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-07
-reviewed-commit: 0984a1e72525f8685a0fa0af2d580d4f1d647ab0
+reviewed-authorities-digest: sha256:8ffcd721327b6729764c25465d6d319fb5fa7b07e57369539fd1b23287147fd5
 ---
 
 # Recipe: optimistic toggle
@@ -658,7 +658,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
+reviewed-authorities-digest: sha256:cfa8b56a1cc17fecd9a9c7199933bca32ed9ab24d7610ceca52419d7bc039923
 ---
 
 # Recipe: paginated and load-more lists
@@ -866,7 +866,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
+reviewed-authorities-digest: sha256:a70d555f13f958cda513f75a238433ac2ee5be9c83d7c28db0fabc90eaee0257
 ---
 
 # Recipe: browser sign-in and reload custody
@@ -1222,7 +1222,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:a12838a91ec8d10412f534c734aafbb28bb727c1177f2a49cbf91363932cd3ec
 ---
 
 # Recipe: optimistic create with a server-minted ID
@@ -1390,7 +1390,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
+reviewed-authorities-digest: sha256:81a9bf72530b3e0a80f036530ba131b47acf290f203203d1145c57b982e84ea3
 ---
 
 # Recipe: coming from Convex and Supabase
@@ -2001,7 +2001,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:b2f44450f65c94d36f116a994a9586c316339fadc42dc0e20ca51f8c17976f9c
 ---
 
 # Recipe: view-once media with per-recipient access

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:e2e75f898032a3d67f1b9d8c349dd599fc409a6fef4c429fab7c5fc16bb756f6
 ---
 
 # Ephemeral realtime state

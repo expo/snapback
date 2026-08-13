@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:0477674dd0a92c186bbce0411539ece02daa28726bdf5d021aa039e6510130c2
 ---
 
 # Email and password
