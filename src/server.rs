@@ -1553,6 +1553,18 @@ impl IbexActionHost for DetachedActionHost {
         if remaining.is_zero() {
             return Err(action_deadline_elapsed("fetchStream.open"));
         }
+        let request_timeout = remaining.min(Duration::from_millis(ACTION_STREAM_IDLE_MS));
+        // @ref LLP 0251#consumers — destination admission completes before
+        // the stream attempt is pre-marked, then the request uses only the
+        // shared pinned/no-redirect/no-env-proxy transport.
+        let prepared_target = crate::outbound_policy::prepare_http_target(
+            &request.url,
+            crate::outbound_policy::action_http_target_policy(),
+            4_096,
+        )
+        .map_err(action_stream_target_error)?;
+        let agent = crate::outbound_policy::pinned_http_agent(&prepared_target, request_timeout)
+            .map_err(action_stream_target_error)?;
         // Mint the cursor id and bind it as a child record of the named
         // attempt BEFORE the request bytes reach the outbound stack: the
         // write-ahead pre-mark leaves `initiation_possible` standing unless a
@@ -1572,14 +1584,8 @@ impl IbexActionHost for DetachedActionHost {
                 return Err(error);
             }
         }
-        let request_timeout = remaining.min(Duration::from_millis(ACTION_STREAM_IDLE_MS));
-        let agent = ureq::AgentBuilder::new()
-            .timeout_connect(request_timeout)
-            .timeout_read(request_timeout)
-            .timeout_write(request_timeout)
-            .build();
         let mut outbound = agent
-            .request(&method, &request.url)
+            .request(&method, prepared_target.authored_url())
             .timeout(request_timeout);
         for (name, value) in &request.headers {
             outbound = outbound.set(name, value);
@@ -1677,7 +1683,6 @@ impl IbexActionHost for DetachedActionHost {
         self.flush_stream_attempts_trusted();
         let status = response.status();
         let status_text = response.status_text().to_owned();
-        let final_url = response.get_url().to_owned();
         let mut headers = BTreeMap::new();
         for name in response.headers_names().into_iter().take(64) {
             if let Some(value) = response.header(&name) {
@@ -1715,7 +1720,7 @@ impl IbexActionHost for DetachedActionHost {
             stream_id,
             status,
             status_text,
-            url: final_url,
+            url: request.url,
             headers,
         })
     }
@@ -1814,13 +1819,41 @@ impl IbexActionHost for DetachedActionHost {
                 .unwrap_or(15_000),
         );
         let request_timeout = requested_timeout.min(remaining);
-        let agent = ureq::AgentBuilder::new()
-            .timeout_connect(request_timeout)
-            .timeout_read(request_timeout)
-            .timeout_write(request_timeout)
-            .build();
+        // @ref LLP 0251#consumers — buffered and streamed action fetch share
+        // one destination floor and the same DNS-pinned transport.
+        let prepared_target = crate::outbound_policy::prepare_http_target(
+            &request.url,
+            crate::outbound_policy::action_http_target_policy(),
+            4_096,
+        )
+        .map_err(|error| match error.kind() {
+            crate::outbound_policy::PrepareTargetErrorKind::Invalid => fetch_error(
+                "SNAPBACK_HOST_FETCH_INVALID",
+                "ctx.fetch requires a bounded credential-free HTTPS URL",
+            ),
+            crate::outbound_policy::PrepareTargetErrorKind::SsrfRefused => fetch_error(
+                "SNAPBACK_HOST_FETCH_SSRF_REFUSED",
+                "ctx.fetch refused a non-public outbound destination",
+            ),
+            crate::outbound_policy::PrepareTargetErrorKind::Unavailable => fetch_error(
+                "SNAPBACK_HOST_FETCH_FAILED",
+                "the upstream destination could not be resolved",
+            ),
+        })?;
+        let agent = crate::outbound_policy::pinned_http_agent(&prepared_target, request_timeout)
+            .map_err(|error| match error.kind() {
+                crate::outbound_policy::PrepareTargetErrorKind::Invalid
+                | crate::outbound_policy::PrepareTargetErrorKind::SsrfRefused => fetch_error(
+                    "SNAPBACK_HOST_FETCH_SSRF_REFUSED",
+                    "ctx.fetch refused a non-public outbound destination",
+                ),
+                crate::outbound_policy::PrepareTargetErrorKind::Unavailable => fetch_error(
+                    "SNAPBACK_HOST_FETCH_FAILED",
+                    "the upstream destination could not be resolved",
+                ),
+            })?;
         let mut outbound = agent
-            .request(&method, &request.url)
+            .request(&method, prepared_target.authored_url())
             .timeout(request_timeout);
         for (name, value) in &request.headers {
             outbound = outbound.set(name, value);
@@ -2354,6 +2387,31 @@ fn action_stream_error(
         json!("guide/backend/actions-and-fetch#stream-a-response"),
     );
     SnapbackError::error(code, "runtime", message).with_details(Value::Object(details))
+}
+
+fn action_stream_target_error(
+    error: crate::outbound_policy::PrepareTargetError,
+) -> SnapbackError {
+    match error.kind() {
+        crate::outbound_policy::PrepareTargetErrorKind::Invalid => action_stream_error(
+            "SNAPBACK_ACTION_STREAM_INVALID",
+            "open",
+            "ctx.fetchStream requires a bounded credential-free HTTPS URL",
+            json!({ "expected": "public HTTPS, or explicitly enabled all-loopback HTTP", "received": "invalid destination policy shape" }),
+        ),
+        crate::outbound_policy::PrepareTargetErrorKind::SsrfRefused => action_stream_error(
+            "SNAPBACK_ACTION_STREAM_SSRF_REFUSED",
+            "open",
+            "ctx.fetchStream refused a non-public outbound destination",
+            json!({ "expected": "public HTTPS, or explicitly enabled all-loopback HTTP", "received": "destination policy refusal" }),
+        ),
+        crate::outbound_policy::PrepareTargetErrorKind::Unavailable => action_stream_error(
+            "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+            "open",
+            "the upstream destination could not be resolved",
+            json!({ "received": "DNS resolution unavailable", "retrySafe": true }),
+        ),
+    }
 }
 
 fn action_authorization_reservation_stale(name: &str) -> SnapbackError {

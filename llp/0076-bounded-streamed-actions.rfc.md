@@ -5,7 +5,9 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-08-09 (LLP 0204 S4 Landing A adds the distinct bounded
+**Revised:** 2026-08-12 (the local upstream-response reader now consumes LLP
+0251's shared destination floor and names its value-free SSRF refusal code);
+2026-08-09 (LLP 0204 S4 Landing A adds the distinct bounded
 private action-output stream described in the dated amendment below; the
 accepted upstream-response reader contract remains unchanged). 2026-07-29 (implementation-drift repair — LLP 0102's frozen
 Research Room/Snapback arm found that sessions complete-pair preflight still
@@ -95,7 +97,7 @@ the rethrown-leak and untouched-refusal directions through the real HTTP
 path; `secretSlots` parity added to the bridge with a typed local refusal
 for unresolvable descriptor slots; residue: the hosted descriptor seam and
 retained-receipt scans). 2026-07-24 (diagnostic envelope landed on the local arm: all
-nine promised codes survive both envelope allowlists; an out-of-band recorder
+nine then-promised codes survive both envelope allowlists; an out-of-band recorder
 restores the host-built structured refusal past the JS round-trip while
 forged stream codes fold to the generic handler failure; raw serde text
 removed from stream diagnostics; witnessed through the real HTTP action path
@@ -540,6 +542,7 @@ default diagnostic.
 The v1 code families are:
 
 - `SNAPBACK_ACTION_STREAM_INVALID`;
+- `SNAPBACK_ACTION_STREAM_SSRF_REFUSED`;
 - `SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED`;
 - `SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT`;
 - `SNAPBACK_ACTION_STREAM_TIMEOUT`;

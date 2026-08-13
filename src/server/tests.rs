@@ -449,7 +449,7 @@ use crate::manifest::{
     SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, SeedData, TableManifest, TargetCapabilityId,
     ValueExpr,
 };
-use crate::runtime::{ActionStreamRequest, IbexActionHost};
+use crate::runtime::{ActionStreamRequest, HostFetchRequest, IbexActionHost};
 use crate::storage::ClientMutationIdentity;
 use crate::storage::auth::AuthTransactionAttempt;
 use crate::storage::auth::PasswordIdentifierMode;
@@ -20308,6 +20308,10 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "environment variable enabling outbound action capabilities",
     ),
     (
+        "SNAPBACK_OUTBOUND_LOOPBACK",
+        "explicit local-development override admitting all-loopback HTTP action egress; never an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_EXPO_PUSH_BASE_URL",
         "local/test-only environment variable overriding the Expo provider origin (LLP 0143 D2d)",
     ),
@@ -20619,12 +20623,14 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_RESULT_TRANSFORM_STAGE_UNKNOWN",
     "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
     "SNAPBACK_ACTION_STREAM_INVALID",
+    "SNAPBACK_ACTION_STREAM_SSRF_REFUSED",
     "SNAPBACK_VECTOR_INDEX_INVALID",
     "SNAPBACK_VECTOR_QUERY_INVALID",
     "SNAPBACK_VECTOR_QUERY_PLAN_INVALID",
     "SNAPBACK_VECTOR_VALUE_INVALID",
     "SNAPBACK_VECTOR_MAINTENANCE_LIMIT",
     "SNAPBACK_HOST_FETCH_INVALID",
+    "SNAPBACK_HOST_FETCH_SSRF_REFUSED",
     "SNAPBACK_HOST_FETCH_SLOT_INVALID",
     "SNAPBACK_BUNDLE_ENTRY_INVALID",
     "SNAPBACK_BUNDLE_MODE_INVALID",
@@ -24008,6 +24014,118 @@ fn bounded_action_stream_pulls_multiple_chunks_and_closes_idempotently() {
             .contains(secret_path),
         "stream diagnostics must not retain URL path data"
     );
+}
+
+#[test]
+fn both_action_fetch_lanes_refuse_non_public_destinations() {
+    let mut snapback = LocalSnapback::memory().expect("destination-policy host state");
+    snapback.load_functions(generation_test_manifest());
+    let state = Arc::new(Mutex::new(snapback));
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state, &staged);
+    host.deadline = Instant::now() + Duration::from_secs(10);
+
+    for url in [
+        "https://localhost/private",
+        "https://metadata.google.internal/latest/meta-data",
+        "https://169.254.169.254/latest/meta-data",
+        "https://10.0.0.1/private",
+        "https://[fe80::a9fe:a9fe]/latest/meta-data",
+    ] {
+        let buffered = host
+            .host_fetch(HostFetchRequest {
+                url: url.to_owned(),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                timeout_ms: Some(100),
+                secret_slots: Vec::new(),
+            })
+            .expect_err("buffered fetch must refuse non-public destination");
+        assert_eq!(
+            buffered.diagnostic.code, "SNAPBACK_HOST_FETCH_SSRF_REFUSED",
+            "buffered destination: {url}"
+        );
+
+        let streamed = host
+            .open_response_stream(ActionStreamRequest {
+                url: url.to_owned(),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect_err("streamed fetch must refuse non-public destination");
+        assert_eq!(
+            streamed.diagnostic.code, "SNAPBACK_ACTION_STREAM_SSRF_REFUSED",
+            "streamed destination: {url}"
+        );
+        let serialized = serde_json::to_string(&streamed).expect("serialize stream refusal");
+        assert!(
+            !serialized.contains(url),
+            "stream refusal must not echo the authored URL"
+        );
+    }
+}
+
+#[test]
+fn both_action_fetch_lanes_refuse_redirects_and_echo_the_authored_url() {
+    let listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("bind action redirect fixture");
+    let address = listener.local_addr().expect("action redirect address");
+    let upstream = std::thread::spawn(move || {
+        for _ in 0..2 {
+            let (mut socket, _) = listener.accept().expect("accept action redirect request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request)
+                .expect("read action redirect request");
+            socket
+                .write_all(
+                    b"HTTP/1.1 302 Found\r\nLocation: http://169.254.169.254/latest/meta-data\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write action redirect response");
+        }
+    });
+    let authored_url = format!("http://{address}/authored");
+
+    let mut snapback = LocalSnapback::memory().expect("redirect-policy host state");
+    snapback.load_functions(generation_test_manifest());
+    let state = Arc::new(Mutex::new(snapback));
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state, &staged);
+    host.deadline = Instant::now() + Duration::from_secs(10);
+
+    let buffered = host
+        .host_fetch(HostFetchRequest {
+            url: authored_url.clone(),
+            method: "GET".to_owned(),
+            headers: BTreeMap::new(),
+            body: None,
+            timeout_ms: Some(2_000),
+            secret_slots: Vec::new(),
+        })
+        .expect("buffered redirect is returned to the handler");
+    assert_eq!(buffered.status, 302);
+    assert_eq!(buffered.url, authored_url);
+
+    let streamed = host
+        .open_response_stream(ActionStreamRequest {
+            url: authored_url.clone(),
+            method: "GET".to_owned(),
+            headers: BTreeMap::new(),
+            body: None,
+            idempotency_key: None,
+            attempt_token: None,
+            secret_slots: Vec::new(),
+        })
+        .expect("stream redirect is returned to the handler");
+    assert_eq!(streamed.status, 302);
+    assert_eq!(streamed.url, authored_url);
+    host.cancel_response_stream(&streamed.stream_id)
+        .expect("close redirect response stream");
+    upstream.join().expect("action redirect fixture joins");
 }
 
 #[test]

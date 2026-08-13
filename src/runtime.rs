@@ -5773,6 +5773,7 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_ACTION_STREAM_CANCELLED"
         | "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
         | "SNAPBACK_ACTION_STREAM_INVALID"
+        | "SNAPBACK_ACTION_STREAM_SSRF_REFUSED"
         | "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
         | "SNAPBACK_ACTION_STREAM_TIMEOUT"
         | "SNAPBACK_ACTION_STREAM_UNSUPPORTED"
@@ -5796,6 +5797,9 @@ fn handler_envelope_code(code: &str) -> &str {
         // Parity with envelope.mjs's PASSTHROUGH_CODES: the bounded host
         // fetch response refusals survive with their exact code on both
         // decoders (0137 a4-f1/a5-f1 — ctx.fetch is now target-portable).
+        // @ref LLP 0251#consumers — the shared destination floor's refusal
+        // is host-authored and must remain typed across the Rust envelope.
+        | "SNAPBACK_HOST_FETCH_SSRF_REFUSED"
         | "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE"
         | "SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8"
         // @ref LLP 0158#the-runtime-plane--where-the-real-design-is — the

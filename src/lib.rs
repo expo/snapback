@@ -124,6 +124,7 @@ pub(crate) mod instance_lock;
 #[doc(hidden)]
 pub mod jobs;
 pub mod live_coalesce;
+pub(crate) mod outbound_policy;
 pub(crate) mod watches;
 pub(crate) mod webhooks;
 

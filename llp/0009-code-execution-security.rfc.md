@@ -5,7 +5,10 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-01 (strict host context is armed per VM: the M2
+**Revised:** 2026-08-12 (host-mediated action fetch now inherits LLP 0251's
+shared public-destination floor: metadata/non-public answers refused, resolver
+pinned, redirects and inherited proxies disabled, with loopback HTTP denied by
+default); 2026-08-01 (strict host context is armed per VM: the M2
 install-once caching also cached the single-use, thread-bound arming, so only
 the first VM per process — and no VM on any other thread — claimed an
 Enforce-mode Ibex context; the Host is still built once, arming now happens
@@ -831,6 +834,13 @@ action may call: it retains fetch and declared secrets, but still denies eval,
 Function-family compilation, and WebAssembly, so fetched text remains data and
 cannot execute with `ctx.runMutation` authority. Codegen's AST diagnostics are
 deliberately only the early, precise explanation of that runtime policy.
+
+Host-mediated action fetch is also subject to LLP 0251's destination floor:
+every DNS answer must be public, the vetted address set is pinned through
+connect, redirects and inherited environment proxies are disabled, and
+loopback HTTP is denied unless the local operator explicitly enables the
+development-only exception. This floor is separate from the still-missing
+per-app destination allowlist.
 
 Action egress also depends on causal capability attribution across Promise
 machinery. For Promise reactions, Hermes mints a private one-shot scheduler
