@@ -7153,7 +7153,14 @@ export class SnapbackClient {
     const nextClientMutationId = createClientMutationId();
     const ref = record.expectedGeneration == null
       ? record.function
-      : { name: record.function, expectedGeneration: record.expectedGeneration };
+      // @ref LLP 0238#d1-generated-references-are-nominal-by-operation-kind —
+      // the durable record is a mutation by construction, including records
+      // written before references carried a persisted kind.
+      : {
+        kind: 'Mutation',
+        name: record.function,
+        expectedGeneration: record.expectedGeneration,
+      };
     await this.mutate(ref, {
       args: options.args ?? structuredClone(record.args),
       userId: options.userId ?? record.userId ?? undefined,
@@ -8187,7 +8194,14 @@ export class SnapbackClient {
         const settlement = await this.mutate(
           record.expectedGeneration == null
             ? record.function
-            : { name: record.function, expectedGeneration: record.expectedGeneration },
+            // @ref LLP 0043#milestone-2-queued-mutation-replay — a durable
+            // outbox intent is mutation authority; reconstruction supplies
+            // the nominal kind without weakening the public reference gate.
+            : {
+              kind: 'Mutation',
+              name: record.function,
+              expectedGeneration: record.expectedGeneration,
+            },
           {
           args: record.args,
           userId: record.userId ?? undefined,

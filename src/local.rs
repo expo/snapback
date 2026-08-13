@@ -1442,19 +1442,48 @@ pub(crate) struct DetachedMutationBinding {
     pub epoch_scopes: BTreeSet<String>,
 }
 
+/// Project the separately carried authoritative storage identity into the
+/// handler request before a media proof is minted. The proof still binds only
+/// its digest; the opaque client mutation id never becomes proof authority.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+pub(crate) fn bind_authoritative_client_mutation_identity(
+    input: &mut HandlerInput,
+    identity: Option<&ClientMutationIdentity>,
+) {
+    let digest = identity.map(ClientMutationIdentity::activity_digest);
+    input.auth = input.auth.clone().with_client_mutation_settlement(
+        identity.map(|identity| identity.id.as_str()),
+        digest.as_deref(),
+    );
+}
+
 fn expected_media_projection_binding(
     prepared: &PreparedInvocation,
     input: &HandlerInput,
     executed: &ExecutedIbexMutation,
+    identity: Option<&ClientMutationIdentity>,
 ) -> SnapbackResult<Option<crate::runtime::MediaProjectionProofBindingV1>> {
     match (
         executed.media_projection_proof.as_ref(),
         executed.media_projection_scope.as_ref(),
     ) {
-        (Some(_), Some(scope)) => crate::runtime::expected_media_projection_proof_binding(
-            prepared, input, scope,
-        )
-        .map(Some),
+        (Some(_), Some(scope)) => {
+            let mut binding = crate::runtime::expected_media_projection_proof_binding(
+                prepared, input, scope,
+            )?;
+            // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+            // — expected proof authority comes from the exact identity passed
+            // separately to storage, not a possibly absent request projection.
+            binding.client_mutation_identity = match identity {
+                Some(identity) => {
+                    crate::runtime::MediaProjectionClientMutationIdentityV1::ClientMutation(
+                        identity.activity_digest(),
+                    )
+                }
+                None => crate::runtime::MediaProjectionClientMutationIdentityV1::NoClientIdentity,
+            };
+            Ok(Some(binding))
+        }
         (None, None) => Ok(None),
         _ => Err(SnapbackError::error(
             "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED",
@@ -11738,6 +11767,7 @@ impl LocalSnapback {
                                         &prepared,
                                         &input,
                                         &executed,
+                                        identity.as_ref(),
                                     )?;
                                 let membership_plans = self
                                     .db
@@ -12440,6 +12470,7 @@ impl LocalSnapback {
                         &prepared,
                         &input,
                         &executed,
+                        identity.as_ref(),
                     )?;
                     crate::result_contract::validate_handler_result(&function, &executed.result)?;
                     let membership_plans = self
@@ -12810,7 +12841,8 @@ impl LocalSnapback {
         admission.validate("detached nested mutation commit")?;
         self.persist_and_validate_prepared_service_authority(binding.invocation.authority())?;
         check_live()?;
-        let input = binding.invocation.canonicalize_input(input);
+        let mut input = binding.invocation.canonicalize_input(input);
+        bind_authoritative_client_mutation_identity(&mut input, identity.as_ref());
         let trace_identity =
             crate::spike_trace::MutationTraceIdentity::capture(&input, identity.as_ref(), None);
         let function = self.function(name)?.clone();
@@ -12831,6 +12863,7 @@ impl LocalSnapback {
             &binding.invocation,
             &input,
             &executed,
+            identity.as_ref(),
         )?;
         let membership_plans = self
             .db
@@ -17279,11 +17312,13 @@ impl LocalSnapback {
         name: &str,
         input: &HandlerInput,
         authority: PreparedAuthority,
+        identity: Option<&ClientMutationIdentity>,
     ) -> SnapbackResult<StagedNestedMutation> {
         let function = self.function(name)?.clone();
         let invocation = InvocationGate::prepare_function(authority, &function)?;
         self.persist_and_validate_prepared_service_authority(invocation.authority())?;
-        let canonical_input = invocation.canonicalize_input(input.clone());
+        let mut canonical_input = invocation.canonicalize_input(input.clone());
+        bind_authoritative_client_mutation_identity(&mut canonical_input, identity);
         // @ref LLP 0131#runtime-ingress-validation — action-hosted nested
         // mutations validate at staging, before any dry run, handler byte,
         // or detached effect.
@@ -17361,6 +17396,7 @@ impl LocalSnapback {
         input: &HandlerInput,
         binding: &DetachedMutationBinding,
         executed: &ExecutedIbexMutation,
+        identity: Option<&ClientMutationIdentity>,
     ) -> SnapbackResult<crate::storage::AuthorizationCommitPreflight> {
         binding
             .invocation
@@ -17379,11 +17415,13 @@ impl LocalSnapback {
                 ),
             ));
         }
-        let canonical_input = binding.invocation.canonicalize_input(input.clone());
+        let mut canonical_input = binding.invocation.canonicalize_input(input.clone());
+        bind_authoritative_client_mutation_identity(&mut canonical_input, identity);
         let expected_media_projection_binding = expected_media_projection_binding(
             &binding.invocation,
             &canonical_input,
             executed,
+            identity,
         )?;
         let membership_plans = self
             .db

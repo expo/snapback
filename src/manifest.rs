@@ -3759,6 +3759,19 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
                 "an Action direct result cannot carry mediaRef.v1; return it from a Query or Mutation",
             ));
         }
+        // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+        // — a media proof must bind a concrete generated function artifact;
+        // optional implementation identity cannot collapse to `None == None`.
+        if value_contract_contains_media(contract) && function.implementation_hash.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID",
+                "runtime",
+                format!(
+                    "media-bearing function {} requires a concrete implementationHash",
+                    function.name
+                ),
+            ));
+        }
     }
     if let Some(form) = function.handler_form.as_deref() {
         let form_matches = matches!(
@@ -18570,6 +18583,15 @@ mod media_ref_manifest_tests {
             capability == TargetCapabilityId::MediaRefProjectionV1.as_str()
         }));
         assert_eq!(rqs_eligible_digest_kind(function), None);
+
+        let mut missing_generation = function.clone();
+        missing_generation.implementation_hash = None;
+        let error = validate_result_contract_definition(&missing_generation)
+            .expect_err("media result proof cannot bind an absent implementation generation");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_FUNCTION_CONTRACT_HASH_INVALID"
+        );
 
         let table = schema.table("profiles").expect("profiles table");
         let field = table.field("image").expect("media field");

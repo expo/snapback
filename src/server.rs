@@ -1267,7 +1267,12 @@ impl IbexActionHost for DetachedActionHost {
             .inherit_for(InvocationSource::NestedMutation)?;
         let host_identity =
             snapback.covered_host_child_identity(&self.host_operation, name, &input, &authority)?;
-        match snapback.stage_nested_mutation(name, &input, authority)? {
+        match snapback.stage_nested_mutation(
+            name,
+            &input,
+            authority,
+            host_identity.as_ref(),
+        )? {
             StagedNestedMutation::InLock(staged) => {
                 let snapshot = snapback.authorization_reservation_snapshot()?;
                 let ephemeral = snapback.ephemeral_api();
@@ -1311,7 +1316,11 @@ impl IbexActionHost for DetachedActionHost {
             }
             StagedNestedMutation::Detached(staged) => {
                 let crate::local::DetachedIbexMutation { binding, read } = *staged;
-                let input = binding.invocation.canonicalize_input(input);
+                let mut input = binding.invocation.canonicalize_input(input);
+                crate::local::bind_authoritative_client_mutation_identity(
+                    &mut input,
+                    host_identity.as_ref(),
+                );
                 let telemetry = snapback.telemetry();
                 let correlation = input
                     .correlation
@@ -1360,7 +1369,11 @@ impl IbexActionHost for DetachedActionHost {
                     // before the potentially blocking room reservation.
                     let mut snapback = self.lock_live("runMutation")?;
                     let preflight = snapback.preview_detached_nested_authorization_mutation(
-                        name, &input, &binding, &executed,
+                        name,
+                        &input,
+                        &binding,
+                        &executed,
+                        host_identity.as_ref(),
                     )?;
                     let snapshot = snapback.authorization_reservation_snapshot()?;
                     let ephemeral = snapback.ephemeral_api();

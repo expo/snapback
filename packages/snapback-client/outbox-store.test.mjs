@@ -46,20 +46,6 @@ const TEST_FRESH_SNAPSHOT_BARRIER = Object.freeze({
   kind: 'full-snapshot',
 });
 
-class GeneratedMutationReplayClientDouble extends SnapbackClient {
-  mutate(reference, options) {
-    const typedReference = (
-      reference !== null
-      && typeof reference === 'object'
-      && !Array.isArray(reference)
-      && !Object.hasOwn(reference, 'kind')
-    )
-      ? { ...reference, kind: 'Mutation' }
-      : reference;
-    return super.mutate(typedReference, options);
-  }
-}
-
 const adoptionInspection = (generation = TEST_ARTIFACT_GENERATION) => ({
   schema: {
     schemaVersion: generation.schemaVersion,
@@ -862,7 +848,7 @@ test('checked sidecar adoption drains one injected store against the candidate o
     delivered.push({ url: String(url), body });
     return Response.json({ result: { ok: true }, version: 7 });
   };
-  const candidate = new GeneratedMutationReplayClientDouble('http://127.0.0.1:41002', {
+  const candidate = new SnapbackClient('http://127.0.0.1:41002', {
     rqsStore: store,
     offlineQueue: true,
   });
@@ -1003,7 +989,7 @@ test('sidecar adoption keeps identity-divergent intent pending for rollback', as
       },
     }, { status: 409 });
   };
-  const candidate = new GeneratedMutationReplayClientDouble('http://127.0.0.1:41005', {
+  const candidate = new SnapbackClient('http://127.0.0.1:41005', {
     rqsStore: store,
     offlineQueue: true,
   });
@@ -1739,7 +1725,7 @@ test('queued generated mutation retains its call-time artifact generation throug
     name: 'generationBoundMutation',
     expectedGeneration,
   };
-  const client = new GeneratedMutationReplayClientDouble('http://127.0.0.1:9', {
+  const client = new SnapbackClient('http://127.0.0.1:9', {
     rqsStore: store,
   });
   globalThis.fetch = async () => { throw new TypeError('offline'); };
@@ -1755,8 +1741,57 @@ test('queued generated mutation retains its call-time artifact generation throug
       authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
     });
   };
-  assert.equal((await client.replayQueuedMutations()).replayed, 1);
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
+    { replayed: 1, failed: 0, remaining: 0 },
+  );
   assert.deepEqual(replayBody.expectedGeneration, expectedGeneration);
+  assert.deepEqual(
+    (await store.outboxRecords()).map((record) => record.status),
+    ['settled'],
+    'production reconstruction must not terminally retire the generated intent',
+  );
+});
+
+test('persisted generated mutation without reference kind replays as Mutation', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const expectedGeneration = {
+    schemaVersion: 'snapback.v1',
+    appId: 'legacy-kindless-outbox',
+    schemaHash: 'schema-legacy-kindless-outbox',
+    bundleHash: 'bundle-legacy-kindless-outbox',
+    inputsHash: 'inputs-legacy-kindless-outbox',
+  };
+  await store.outboxEnqueue({
+    id: 'cm-legacy-kindless-generated',
+    function: 'legacyGenerationBoundMutation',
+    args: { value: 2 },
+    readSet: [],
+    expectedGeneration,
+    settlementLane: 'replay-accept',
+  });
+  const [persisted] = await store.outboxPending();
+  assert.equal(Object.hasOwn(persisted, 'kind'), false, 'legacy durable shape has no reference kind');
+
+  let replayBody;
+  globalThis.fetch = async (_url, init) => {
+    replayBody = JSON.parse(init.body);
+    return Response.json({
+      version: 1,
+      result: { ok: true },
+      authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+    });
+  };
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
+    { replayed: 1, failed: 0, remaining: 0 },
+  );
+  assert.deepEqual(replayBody.expectedGeneration, expectedGeneration);
+  assert.equal((await store.outboxRecords())[0].status, 'settled');
 });
 
 test('explicit-id online publication is durable before delivery and retires only after ACK', async (t) => {

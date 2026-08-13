@@ -4016,6 +4016,12 @@ impl LocalDatabase {
                 media_projection.proof(),
                 media_projection.expected(),
             )?;
+            if options.apply {
+                validate_staged_media_projection_commit_identity(
+                    media_projection.proof(),
+                    options.identity,
+                )?;
+            }
             validate_staged_media_projection_dependencies(
                 media_projection.proof(),
                 &read_dependencies,
@@ -14472,7 +14478,34 @@ fn validate_staged_media_projection_binding(
     proof: &crate::runtime::StagedMediaProjectionProofV1,
     expected: &crate::runtime::MediaProjectionProofBindingV1,
 ) -> SnapbackResult<()> {
-    if &proof.binding != expected || proof.result_contract_hash != expected.result_contract_hash {
+    if !crate::runtime::is_concrete_function_artifact_generation(
+        &proof.binding.function_artifact_generation,
+    )
+        || &proof.binding != expected
+        || proof.result_contract_hash != expected.result_contract_hash
+    {
+        return Err(media_projection_unprovenanced());
+    }
+    Ok(())
+}
+
+/// The request carrier used while executing an action-hosted child is not the
+/// authoritative idempotency carrier. Close the proof against the identity
+/// independently supplied to this storage call.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+fn validate_staged_media_projection_commit_identity(
+    proof: &crate::runtime::StagedMediaProjectionProofV1,
+    identity: Option<&ClientMutationIdentity>,
+) -> SnapbackResult<()> {
+    let expected = match identity {
+        Some(identity) => {
+            crate::runtime::MediaProjectionClientMutationIdentityV1::ClientMutation(
+                identity.activity_digest(),
+            )
+        }
+        None => crate::runtime::MediaProjectionClientMutationIdentityV1::NoClientIdentity,
+    };
+    if proof.binding.client_mutation_identity != expected {
         return Err(media_projection_unprovenanced());
     }
     Ok(())

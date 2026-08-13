@@ -17378,11 +17378,14 @@ mod media_ref_projection_acceptance_tests {
             principal_binding: "sha256:principal-a".to_owned(),
             authority_instance_binding: "authority-a".to_owned(),
             function_id: "profiles:setImage".to_owned(),
-            function_artifact_generation: Some("sha256:generation-a".to_owned()),
+            function_artifact_generation:
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    .to_owned(),
             result_contract_hash: "sha256:result-a".to_owned(),
             pinned_snapshot: 7,
             request_identity: "request-a".to_owned(),
-            client_mutation_identity: Some("sha256:client-mutation-a".to_owned()),
+            client_mutation_identity:
+                crate::runtime::MediaProjectionClientMutationIdentityV1::NoClientIdentity,
         }
     }
 
@@ -17397,6 +17400,22 @@ mod media_ref_projection_acceptance_tests {
             binding,
             Vec::new(),
         )
+    }
+
+    fn proof_binding_for_identity(
+        nonce: u64,
+        identity: Option<&ClientMutationIdentity>,
+    ) -> crate::runtime::MediaProjectionProofBindingV1 {
+        let mut binding = proof_binding(nonce);
+        binding.client_mutation_identity = match identity {
+            Some(identity) => {
+                crate::runtime::MediaProjectionClientMutationIdentityV1::ClientMutation(
+                    identity.activity_digest(),
+                )
+            }
+            None => crate::runtime::MediaProjectionClientMutationIdentityV1::NoClientIdentity,
+        };
+        binding
     }
 
     /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
@@ -17424,7 +17443,9 @@ mod media_ref_projection_acceptance_tests {
         cross_function.function_id = "profiles:setBanner".to_owned();
         swaps.push(cross_function);
         let mut cross_generation = binding.clone();
-        cross_generation.function_artifact_generation = Some("sha256:generation-b".to_owned());
+        cross_generation.function_artifact_generation =
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                .to_owned();
         swaps.push(cross_generation);
         let mut cross_contract = binding.clone();
         cross_contract.result_contract_hash = "sha256:result-b".to_owned();
@@ -17434,7 +17455,9 @@ mod media_ref_projection_acceptance_tests {
         swaps.push(cross_snapshot);
         let mut cross_client_mutation = binding.clone();
         cross_client_mutation.client_mutation_identity =
-            Some("sha256:client-mutation-b".to_owned());
+            crate::runtime::MediaProjectionClientMutationIdentityV1::ClientMutation(
+                "sha256:client-mutation-b".to_owned(),
+            );
         swaps.push(cross_client_mutation);
 
         for swapped in swaps {
@@ -17444,6 +17467,32 @@ mod media_ref_projection_acceptance_tests {
         }
         validate_staged_media_projection_binding(&proof, &binding)
             .expect("the exact independently reconstructed binding is admitted");
+    }
+
+    /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+    #[test]
+    fn previous_none_collapses_refuse_missing_generation_and_concrete_commit_identity() {
+        let mut missing_generation = proof_binding(12);
+        missing_generation.function_artifact_generation.clear();
+        let proof = empty_staged_proof(missing_generation.clone());
+        let error = validate_staged_media_projection_binding(&proof, &missing_generation)
+            .expect_err("equal absent generations cannot become a bindable proof fact");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
+
+        let input = principal("asset-owner");
+        let concrete = ClientMutationIdentity::new("concrete-proof-id", "setImage", &input);
+        let no_identity = empty_staged_proof(proof_binding(13));
+        let error = validate_staged_media_projection_commit_identity(
+            &no_identity,
+            Some(&concrete),
+        )
+        .expect_err("NoClientIdentity cannot collapse with a concrete storage identity");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
+
+        let concrete_proof = empty_staged_proof(proof_binding_for_identity(14, Some(&concrete)));
+        let error = validate_staged_media_projection_commit_identity(&concrete_proof, None)
+            .expect_err("a concrete proof identity cannot collapse with an identity-free lane");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
     }
 
     fn empty_media_payload(
@@ -17495,6 +17544,8 @@ mod media_ref_projection_acceptance_tests {
         assert!(proof.borrow_occurrences().is_empty());
 
         let identity = ClientMutationIdentity::new("media-proof-preview", "setImage", &input);
+        let binding = proof_binding_for_identity(19, Some(&identity));
+        let proof = empty_staged_proof(binding.clone());
         let committed = db
             .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
@@ -17527,7 +17578,7 @@ mod media_ref_projection_acceptance_tests {
         let mut db = media_database();
         let input = principal("asset-owner");
         let identity = ClientMutationIdentity::new("media-proof-lifecycle", "setImage", &input);
-        let cancelled_binding = proof_binding(20);
+        let cancelled_binding = proof_binding_for_identity(20, Some(&identity));
         let error = db
             .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
@@ -17553,7 +17604,7 @@ mod media_ref_projection_acceptance_tests {
             "cancelled work retains no settlement"
         );
 
-        let retry_binding = proof_binding(21);
+        let retry_binding = proof_binding_for_identity(21, Some(&identity));
         let committed = db
             .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
@@ -17565,13 +17616,16 @@ mod media_ref_projection_acceptance_tests {
             )
             .expect("fresh execution with a new invocation nonce commits");
 
-        let mut losing_expected = proof_binding(22);
+        let mut losing_expected = proof_binding_for_identity(22, Some(&identity));
         losing_expected.request_identity = "cross-request-loser".to_owned();
         let replayed = db
             .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
                 &input,
-                empty_media_payload(proof_binding(22), losing_expected),
+                empty_media_payload(
+                    proof_binding_for_identity(22, Some(&identity)),
+                    losing_expected,
+                ),
                 Some(&identity),
                 || Ok(()),
                 || Ok(()),

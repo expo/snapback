@@ -399,6 +399,42 @@ pub(crate) struct MediaProjectionInvocationScopeV1 {
     pinned_snapshot: u64,
 }
 
+#[cfg(test)]
+impl MediaProjectionInvocationScopeV1 {
+    pub(crate) fn for_test(
+        process_epoch: impl Into<String>,
+        invocation_nonce: u64,
+        pinned_snapshot: u64,
+    ) -> Self {
+        Self {
+            process_epoch: process_epoch.into(),
+            invocation_nonce,
+            pinned_snapshot,
+        }
+    }
+}
+
+/// Closed representation of the identity used by the authoritative storage
+/// lane. An absent client identity is a positive fact, never `None == None`.
+///
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut — the
+/// proof binds the exact commit identity, including lanes that deliberately
+/// commit without one.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum MediaProjectionClientMutationIdentityV1 {
+    ClientMutation(String),
+    NoClientIdentity,
+}
+
+impl MediaProjectionClientMutationIdentityV1 {
+    pub(crate) fn from_digest(digest: Option<&str>) -> Self {
+        match digest {
+            Some(digest) => Self::ClientMutation(digest.to_owned()),
+            None => Self::NoClientIdentity,
+        }
+    }
+}
+
 /// Closed host-only identity checked independently at storage admission.
 /// None of these fields enter handler or settlement bytes.
 ///
@@ -412,11 +448,11 @@ pub(crate) struct MediaProjectionProofBindingV1 {
     pub principal_binding: String,
     pub authority_instance_binding: String,
     pub function_id: String,
-    pub function_artifact_generation: Option<String>,
+    pub function_artifact_generation: String,
     pub result_contract_hash: String,
     pub pinned_snapshot: u64,
     pub request_identity: String,
-    pub client_mutation_identity: Option<String>,
+    pub client_mutation_identity: MediaProjectionClientMutationIdentityV1,
 }
 
 #[derive(Debug)]
@@ -510,6 +546,11 @@ fn media_unprovenanced() -> SnapbackError {
     )
 }
 
+pub(crate) fn is_concrete_function_artifact_generation(generation: &str) -> bool {
+    let digest = generation.strip_prefix("sha256:").unwrap_or_default();
+    digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
 fn media_projection_proof_binding(
     prepared: &PreparedInvocation,
     input: &HandlerInput,
@@ -525,17 +566,24 @@ fn media_projection_proof_binding(
         b"snapback:media-proof-principal:v1\n",
         &principal_value,
     );
+    let function_artifact_generation = prepared
+        .artifact_generation()
+        .filter(|generation| is_concrete_function_artifact_generation(generation))
+        .ok_or_else(media_unprovenanced)?
+        .to_owned();
     Ok(MediaProjectionProofBindingV1 {
         process_epoch: scope.process_epoch.clone(),
         invocation_nonce: scope.invocation_nonce,
         principal_binding,
         authority_instance_binding: prepared.authority().resolved().invalidation_subject(),
         function_id: prepared.function_id().to_owned(),
-        function_artifact_generation: prepared.artifact_generation().map(str::to_owned),
+        function_artifact_generation,
         result_contract_hash,
         pinned_snapshot: scope.pinned_snapshot,
         request_identity: prepared.invocation_id().to_owned(),
-        client_mutation_identity: input.auth.client_mutation_digest.clone(),
+        client_mutation_identity: MediaProjectionClientMutationIdentityV1::from_digest(
+            input.auth.client_mutation_digest.as_deref(),
+        ),
     })
 }
 
@@ -1643,11 +1691,16 @@ mod media_provenance_tests {
             principal_binding: "sha256:principal".to_owned(),
             authority_instance_binding: "authority-a".to_owned(),
             function_id: "profiles:setImage".to_owned(),
-            function_artifact_generation: Some("sha256:generation".to_owned()),
+            function_artifact_generation:
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    .to_owned(),
             result_contract_hash: "sha256:result-contract".to_owned(),
             pinned_snapshot: 7,
             request_identity: "request-a".to_owned(),
-            client_mutation_identity: Some("sha256:mutation-a".to_owned()),
+            client_mutation_identity:
+                MediaProjectionClientMutationIdentityV1::ClientMutation(
+                    "sha256:mutation-a".to_owned(),
+                ),
         };
         let proof = StagedMediaProjectionProofV1::new(
             MediaProjectionPlanV1 {

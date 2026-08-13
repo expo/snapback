@@ -50,7 +50,10 @@ use crate::manifest::{
     SettlementLane, SettlementMintClaim, SettlementMintObservation, SnapshotBatchPlanV1,
     TableManifest, ValueExpr, ctx_ledger_version,
 };
-use crate::runtime::ExecutedIbexMutation;
+use crate::runtime::{
+    ExecutedIbexMutation, MediaProjectionClientMutationIdentityV1,
+    MediaProjectionInvocationScopeV1, StagedMediaProjectionProofV1,
+};
 use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
 use crate::storage::{BufferedWrite, DbRead};
 use crate::vector::{
@@ -25652,7 +25655,7 @@ fn prepared_mutation(snapback: &LocalSnapback, name: &str) -> PreparedInvocation
 
 fn detached(snapback: &mut LocalSnapback, name: &str) -> Box<DetachedIbexMutation> {
     match snapback
-        .stage_nested_mutation(name, &input(), nested_authority())
+        .stage_nested_mutation(name, &input(), nested_authority(), None)
         .expect("stage nested mutation")
     {
         StagedNestedMutation::Detached(staged) => staged,
@@ -25685,6 +25688,113 @@ fn executed_insert() -> ExecutedIbexMutation {
             auth_fingerprint: None,
         },
     }
+}
+
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+#[test]
+fn action_hosted_child_media_proof_refuses_swapped_commit_identity() {
+    let mut snapback = guarded_snapback();
+    let function = snapback
+        .functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "ibexInsert")
+        .expect("Ibex fixture mutation");
+    function.implementation_hash = Some(
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            .to_owned(),
+    );
+    function.result_contract = FunctionResultContract::Value {
+        value: ResultValueContract::MediaRefV1 {
+            source_table: "profiles".to_owned(),
+            source_field: "image".to_owned(),
+            source_field_generation:
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                    .to_owned(),
+            optional: false,
+            class_m_treatment: "class-m.none.v1".to_owned(),
+            upload_intent: "profileImageUpload".to_owned(),
+            policy_generation: "profile-image.v1".to_owned(),
+            kinds: vec![crate::contract_types::MediaKindV1::Image],
+            delivery: Some("primary".to_owned()),
+            variants: vec!["primary".to_owned()],
+            classification_profile: "detected-content-type.v1".to_owned(),
+            retention_class: "media-reference.v1".to_owned(),
+        },
+    };
+    function.result_contract_hash = Some(
+        crate::manifest::result_contract_hash(&function.result_contract)
+            .expect("media result contract hash"),
+    );
+    function.required_capabilities.push("result_contract_v1".to_owned());
+    snapback
+        .functions
+        .acknowledged_experimental_capabilities
+        .push("result_contract_v1".to_owned());
+
+    let original = crate::storage::ClientMutationIdentity::new(
+        "action-child-original",
+        "ibexInsert",
+        &input(),
+    );
+    let swapped = crate::storage::ClientMutationIdentity::new(
+        "action-child-swapped",
+        "ibexInsert",
+        &input(),
+    );
+    let staged = match snapback
+        .stage_nested_mutation(
+            "ibexInsert",
+            &input(),
+            nested_authority(),
+            Some(&original),
+        )
+        .expect("stage action-hosted mutation")
+    {
+        StagedNestedMutation::Detached(staged) => staged,
+        StagedNestedMutation::InLock(_) => panic!("Ibex mutation must detach"),
+    };
+    let DetachedIbexMutation { binding, read: _ } = *staged;
+    let mut proof_input = binding.invocation.canonicalize_input(input());
+    super::bind_authoritative_client_mutation_identity(&mut proof_input, Some(&original));
+    let scope = MediaProjectionInvocationScopeV1::for_test("action-host-process", 31, 0);
+    let proof_binding = crate::runtime::expected_media_projection_proof_binding(
+        &binding.invocation,
+        &proof_input,
+        &scope,
+    )
+    .expect("proof binds original child identity");
+    assert!(matches!(
+        proof_binding.client_mutation_identity,
+        MediaProjectionClientMutationIdentityV1::ClientMutation(_)
+    ));
+    let proof = StagedMediaProjectionProofV1::new(
+        crate::runtime::media_projection_plan(binding.invocation.result_contract()),
+        proof_binding.result_contract_hash.clone(),
+        proof_binding,
+        Vec::new(),
+    );
+    let mut executed = executed_insert();
+    executed.result = json!({ "assetId": "asset-action-child", "kind": "image" });
+    executed.media_projection_scope = Some(scope);
+    executed.media_projection_proof = Some(proof);
+
+    let error = snapback
+        .commit_detached_ibex_mutation_guarded(
+            "ibexInsert",
+            input(),
+            binding,
+            executed,
+            Some(swapped),
+            || Ok(()),
+            || Ok(()),
+        )
+        .expect_err("separately carried swapped commit identity must refuse");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED"
+    );
+    assert_eq!(snapback.durable_version().expect("durable version"), 0);
 }
 
 #[test]

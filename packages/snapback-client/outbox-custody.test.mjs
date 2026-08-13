@@ -635,6 +635,20 @@ test('stranded recovery reads, discards, and rerecords as a new current intent',
     args: { value: 'recover-again' },
     settlementIdentity: { old: 'must-not-cross-authority' },
   });
+  const generatedGeneration = {
+    schemaVersion: 'snapback.v1',
+    appId: fixture.appId,
+    schemaHash: 'schema-generation-bound-stranded',
+    bundleHash: 'bundle-generation-bound-stranded',
+    inputsHash: 'inputs-generation-bound-stranded',
+  };
+  const generated = await queueOffline(fixture, client, {
+    kind: 'Mutation',
+    name: 'recoverGeneratedIntent',
+    expectedGeneration: generatedGeneration,
+  }, {
+    args: { value: 'recover-generated' },
+  });
   await transitionTo(fixture, coordinator, {
     ...actorA2(),
     sessionId: IDS.sessionA1,
@@ -653,7 +667,7 @@ test('stranded recovery reads, discards, and rerecords as a new current intent',
   );
   assert.deepEqual(
     (await client.strandedMutations()).map((record) => record.clientMutationId),
-    [second.clientMutationId],
+    [second.clientMutationId, generated.clientMutationId],
     'a failed replacement leaves the stranded source bytes recoverable',
   );
   fixture.refusalFor = null;
@@ -664,7 +678,7 @@ test('stranded recovery reads, discards, and rerecords as a new current intent',
   assert.equal(fixture.successfulMutationBodies.at(-1).clientMutationId, rerecordedId);
   assert.deepEqual(
     (await client.strandedMutations()).map((record) => record.clientMutationId),
-    [second.clientMutationId],
+    [second.clientMutationId, generated.clientMutationId],
     'a refused predecessor cleanup remains visible after the replacement succeeds',
   );
   assert.equal(
@@ -676,6 +690,15 @@ test('stranded recovery reads, discards, and rerecords as a new current intent',
     true,
   );
   fixture.store.outboxDiscardStranded = discardStranded;
+  const generatedRerecordedId = await client.reRecordStrandedMutation(
+    generated.clientMutationId,
+  );
+  assert.notEqual(generatedRerecordedId, generated.clientMutationId);
+  assert.deepEqual(
+    fixture.successfulMutationBodies.at(-1).expectedGeneration,
+    generatedGeneration,
+    'production stranded re-record reconstructs a nominal Mutation reference',
+  );
   assert.equal(
     (await client.discardStrandedMutations([second.clientMutationId])).discarded,
     1,
