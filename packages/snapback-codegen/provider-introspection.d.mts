@@ -116,6 +116,7 @@ export interface ProviderEphemeralChannel {
   readonly routingFields?: readonly string[];
   readonly defaultTtlMs?: number;
   readonly maxTtlMs?: number;
+  readonly withdrawalVisibilityDeadlineMs?: number;
   readonly deliveryMode?: string;
   readonly maxDeltaRateHz?: number;
   readonly coalesce?: boolean;
@@ -201,6 +202,7 @@ export interface SnapbackEphemeralSection {
   readonly routingFields?: readonly string[];
   readonly defaultTtlMs?: number;
   readonly maxTtlMs?: number;
+  readonly withdrawalVisibilityDeadlineMs?: number;
   readonly deliveryMode?: string;
   readonly maxDeltaRateHz?: number;
   readonly coalesce?: boolean;

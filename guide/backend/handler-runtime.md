@@ -12,7 +12,7 @@ maturity: shipped
 since: 0.1.21
 unreleased: true
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:845519883f83aac197189804f749732f7424d782fbe09a29ee24a7f09f34ff7d
 ---
 
 # Handler runtime profile and generation preflight

@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: bbfb871f14c3cefbda2e1e143770b5c25eadb94f
+reviewed-authorities-digest: sha256:200cc44a010d410e8d1079febbdeacb45e946479a33ec31a8281c84acce48783
 ---
 
 # Live queries
@@ -286,13 +286,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:6012197ffa75017c16a1b0bb8f17383d49a487d37a29cde381426e635e58f62a
 ---
 
 # Ephemeral realtime state
@@ -321,9 +321,14 @@ React values. There is no separate `useSnapbackEphemeral` hook.
 `scope` is the room boundary, so a conversation id gives one typing room per
 conversation. `ConnectionEphemeralCollectionReference` describes how each row
 inside that room is owned and keyed; it does not force a global or
-connection-only scope. `value: skip` observes without publishing. From that
-observer state, `publish` installs managed intent (including heartbeat) and
-`delete` clears it immediately. A non-skipped `value` is the declarative form.
+connection-only scope. `value: skip` observes without publishing; if this
+owner previously published, transitioning to `skip` also stops renewal and
+sends an idempotent fenced withdrawal so the old member disappears within the
+collection's `withdrawalVisibilityDeadlineMs` (at most half its TTL) instead
+of lingering to expiry. A delayed or ambiguous withdrawal settles
+`superseded` and can never delete a republished successor. From the observer
+state, `publish` installs managed intent (including heartbeat) and `delete`
+clears it immediately. A non-skipped `value` is the declarative form.
 In both forms the first-party React provider owns subscription, heartbeat,
 cleanup, reconnect, and authority transition:
 
@@ -634,7 +639,7 @@ status: current
 targets: [local, cloudflare]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:6d5cd59fd7ab84930ebac769356d7cfed715e10fc0afcc055f529917d9d25cd7
 ---
 
 # Route snapshot bundles

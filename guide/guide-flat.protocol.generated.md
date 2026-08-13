@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: 61bed55506396483864130ee61552e701d030313
+reviewed-authorities-digest: sha256:be072dcbd23299ab78d60a6b4498679e1f0c97ddf3285f3fde5b5f52ae91358a
 ---
 
 # Client protocol

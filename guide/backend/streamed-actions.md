@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed-authorities-digest: sha256:e0fd6cecbea08f7ee19b849395320ffc839983a8c3e87af1635f502f1c53bf8d
 ---
 
 # Streamed actions

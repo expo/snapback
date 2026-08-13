@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:189be9d1f43cb5a1c125e943a28c129db1294d9ad11d46f7f38bffa43c6e2d8d
 ---
 
 # Sessions and principals

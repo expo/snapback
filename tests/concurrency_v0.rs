@@ -946,6 +946,7 @@ fn concurrency_schema() -> SchemaManifest {
             vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
+            authority_profile: None,
             asset_sharing: None,
             visibility: None,
             history: None,

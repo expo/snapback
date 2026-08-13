@@ -225,3 +225,185 @@ ruling** with the escalation options enumerated to the author: (a) authorize
 a final round-3 revision + delta round with an explicit growth allowance;
 (b) close now, stay `Review`, with the asymmetry recorded and any convergence
 claim scoped accordingly; (c) revert to `Draft`.
+
+### Author ruling — 2026-08-12
+
+The author chose **(a): final round 3 with growth authorized to roughly +30%
+over the entering revision.** The reviser closes the complete GPT MATERIAL
+set and both families' DETAIL ledgers in r3; round 3 is the final round of
+the budget regardless of outcome.
+
+## Revision r3 — 2026-08-12 (reviser: the orchestrating Claude session)
+
+- **r3 SHA-256:**
+  `afaff1bc43d7040bd34b81d5b90d42b0e1b345eed79776b2a663342e8c5be312`
+  (53,541 bytes; +32.6% net over the entering revision, within the author's
+  roughly-+30% authorization and disclosed exactly).
+- **Closures:** GPT #1 → per-kind key matrix with the v1 action row pinned
+  (no `ctx.db`, no reach keys, isolated Node form unsupported with routed
+  refusal); #2 → Phase 0 generated per-field disposition table with a
+  fail-closed completeness gate, refusal/tracked-refusal vocabulary pinned
+  direct, `sequences`/plan alternates pinned unsupported; #3 → total
+  normative `useQuery` state-projection table on LLP 0247's state-vs-error
+  line, canonical error carrier, revocation edge pinned; #4 → closed
+  `useMutation` contract on canonical `queue: false` (LLP 0218) with
+  generation/typecheck rejection of queue-capable refs; #5 →
+  behavior-complete `normalizedContractId` with named-exclusion rule and
+  separately-named narrower witnesses; #6 → withdrawal creates a new
+  configuration version, no cross-version pooling (LLP 0197), calendar
+  unchanged; #7 → backstop as Phase 3 item 4 + Acceptance 9. GPT DETAILs
+  8–10 and Claude C1–C11 all applied (C3 root-invariants leg dropped, C4
+  ER-3 1a/1b naming in Phase 2.5, C6 normative-enumeration rule, C8
+  mandatory `useQueryState`, C10 round definition, C2 per-gate
+  insufficient-evidence rule).
+
+## Round 3 — 2026-08-12 (final delta round)
+
+- **Revision:** r3 as above. Topology unchanged (two families, lockstep, one
+  capsule).
+- **Capsule:** clone of the round-2 capsule (base
+  `d87d8d9a9cb0f35208c889784991ce40b2fcfe27`) with the r3 target overlaid;
+  zero `llp/reviews/0252*` files. Inventory SHA-256:
+  `12639a4fb639b17e052b51f42aa67b58a5bb7119685214fe6adeb8291bab6b1b`.
+- **Instruction SHA-256:**
+  `b5adb87feca5f6254ea04c5abe902ea051038a36f675e052e15307b87780c89c`.
+- **Lens:** final delta round (r2→r3 delta enumerated; IN-DELTA vs
+  PRE-EXISTING required) plus the same bounded D2/D4 implementer probe.
+- **Launches:** Claude family — fresh general-purpose Fable agent, launch 3;
+  GPT family — same codex invocation, launch 4 (1 void). Launched
+  concurrently after this record was persisted.
+- **GPT outcome:** appended verbatim to the codex artifact on receipt.
+  **NOT READY** (2 MATERIAL, both IN-DELTA; 3 DETAIL, all IN-DELTA; zero
+  PRE-EXISTING MATERIAL) bound to r3.
+- **Claude outcome:** appended verbatim to the claude artifact on receipt
+  (transport HTML-entity escapes decoded; an initial heredoc-delimiter slip
+  appended two stray shell lines to the artifact, removed immediately — the
+  review body itself was never altered). **NOT READY** (1 MATERIAL,
+  IN-DELTA; 10 DETAIL — 9 IN-DELTA, 1 PRE-EXISTING; zero PRE-EXISTING
+  MATERIAL) bound to r3. The reviewer disclosed harness-injected repository
+  status metadata in its context; it read no file outside the capsule.
+
+### Round 3 result — loop converged (delta rule), final revision unreviewed
+
+**Delta-rule convergence achieved on r3:** neither family reports any
+MATERIAL concern in pre-existing text. Every remaining MATERIAL is IN-DELTA
+— and both families independently converged on the same defect the r3
+revision itself introduced: the `useMutation` gate referenced a
+per-operation "declared queue policy" that does not exist in the canonical
+model (LLP 0218's `queue: false` is a dispatch-time option; the Claude
+reviewer verified the shipped guide/schemas/codegen carry no such field).
+The GPT reviewer's second MATERIAL (conditional/skip consumption undecided)
+was rated DETAIL by the Claude reviewer.
+
+The round budget (3) is exhausted, so per LLP 0010 §2 the remaining in-delta
+fixes take the terminal path: **applied as final revision r4, labeled
+unreviewed.**
+
+## Revision r4 — 2026-08-12 (final, UNREVIEWED)
+
+- **r4 SHA-256:**
+  `cdc724825c32fe24c488fc443c96581bfdcdb7ef76a9966f8039dfe9692ab001`
+  (55,161 bytes; +36.6% net over the entering revision — the growth beyond
+  the authorized ~+30% is exactly the review-demanded in-delta fixes, and is
+  disclosed here rather than achieved by cutting reviewed content).
+- **Fixes applied:** `useMutation` pinned as LLP 0218's dispatch-time
+  settled-only convenience (the design both reviewers indicated as
+  canonical-model-consistent); the phantom queue fact struck from the
+  Terminology closure and the D4 ref-fact list, with a rule that any future
+  per-operation queue policy (an LLP 0218/0108 amendment) would enter the
+  hash; D5 routing retargeted to application-declared offline requirements;
+  skip sentinel pinned `same-shape` (zero demand, projects `undefined`);
+  `normalizedSchemaId` named and frozen at Phase 0; Phase 3 backstop ordered
+  before the clock start; "no non-Withdraw gate" wording; matrix
+  accepted-key reconciliation; action `effects` unified to
+  declared-when-used with effect-free actions legal; familiar action `ctx`
+  pinned to the ref-based canonical composition seam; D1 admission-check
+  exemption sentence; withdrawal rounds excluded from the new
+  configuration's three-round trigger; profile-fact handling named in
+  Phase 0 item 6; post-throw semantics and the `delivery: "read"`
+  consumption route named as Phase 2 owned work.
+- **Two r4 pins are new decisions awaiting author ratification** (made along
+  the line the reviews indicated but themselves unreviewed): the skip
+  sentinel admitted as `same-shape`, and the familiar action composition
+  seam spelled over familiar-branded refs.
+- Validation at r4: `./ref-check` 0 errors; `node scripts/check-guide.mjs`
+  ok.
+
+## Final report
+
+- **Rounds run:** 3 (the budget), plus one failed Grok launch. Launches:
+  Claude 3/6, GPT 4/6 (1 void), Grok 1/6 (failed, payment).
+- **Verdict binding:** the final verdicts bind to **r3**
+  (`afaff1bc43d7040bd34b81d5b90d42b0e1b345eed79776b2a663342e8c5be312`):
+  Claude NOT READY (sole MATERIAL = the in-delta queue-policy defect, fixed
+  in r4), GPT NOT READY (both MATERIALs in-delta, fixed in r4). **A later
+  unreviewed revision exists: r4** as above. Claude's r1 and r2 READY
+  verdicts bind to those earlier hashes.
+- **Convergence claim, scoped:** the loop converged under the LLP 0010 §2
+  delta rule at round 3 — zero pre-existing MATERIAL across both reviewing
+  families — with the enumerated in-delta fixes applied in unreviewed r4.
+  The Grok family never reviewed any revision (authorized, unavailable:
+  Grok Build balance exhausted; author ruled "skip grok for now").
+  Tri-family convergence was therefore not achieved and is not claimed.
+- **Direction:** both reviewing families independently retained the RFC's
+  direction in round 1 with zero DIRECTION-DISSENT across all rounds; the
+  round-1 staging-vs-bundling fork was resolved by the ablation-lane design
+  and recorded in the document's Alternatives.
+- **Proposed next step:** the document stays in `Review`. The author may
+  (a) accept r4 as-is, ratifying the two flagged r4 pins; (b) commission a
+  short author-authorized delta round over the r3→r4 delta to convert the
+  unreviewed label into reviewed verdicts; or (c) rule on the pins
+  individually. Acceptance remains the author's act alone; this loop
+  recommends and does not apply it.
+
+## Post-loop addendum — Grok independent review of r4 and revision r5
+
+- **Grok review received (2026-08-12, recorded 2026-08-13):** the author ran
+  Grok 4.6 interactively (Grok Build TUI) against landed r4 and relayed the
+  result. This is an **independent Grok-family review, not a loop round**:
+  the loop had closed, and the session was not capsule-blind — it read the
+  existing 0252 artifacts after its corpus checks, as its own provenance
+  discloses. Preserved in the grok artifact by that session. **NOT READY**
+  (2 MATERIAL, 5 DETAIL) bound to r4
+  `cdc724825c32fe24c488fc443c96581bfdcdb7ef76a9966f8039dfe9692ab001`;
+  direction retained, no dissent. It does not alter the loop's launch
+  counts or its r3-bound verdicts.
+- **Orchestrator verification:** both MATERIALs were re-verified against the
+  shipped code before incorporation. `packages/snapback-harness/
+  ctx-bootstrap.js` defines `action.runMutation` only ("Queries are reads
+  and actions must enter through runMutation") — r4's
+  `ctx.runQuery(api.x.y, …)` pin invented a host op, the same phantom-fact
+  class r3 caught. `guide/backend/queries.md` confirms `withIndex` is a
+  name-only setter, so the D2 example's Convex range callback — present
+  since the initial draft and missed by both loop families across three
+  rounds — would be silently ignored by the shipped builder, dropping the
+  owner filter. The skip pin's `same-shape`-vs-imported-sentinel
+  contradiction is real (Convex spells the string `"skip"`).
+
+### Revision r5 — 2026-08-13 (reviser: the orchestrating Claude session; UNREVIEWED)
+
+- **r5 SHA-256:**
+  `0ec9e231c652d55bf06cb16b6f7eb53e042673509043ad029f40d77514bea46f`
+  (56,862 bytes). `./ref-check` 0 errors.
+- **Applied (grok's recommended pins):** familiar action seam =
+  `ctx.runMutation(api.x.y, args)` only, lowering onto the existing
+  `action.runMutation` host op; `ctx.runQuery` unsupported in v1 with a
+  stable routed refusal, any future query host op explicitly outside 0252;
+  skip second argument closed as `Args | "skip" | typeof skip`, the string
+  as familiar-only sugar over the one canonical sentinel; callback
+  `withIndex` admitted as adapter sugar lowering to the canonical
+  name-setter + chained filters, refuse-on-unlowerable, adversarial no-drop
+  test gated in Phase 1; `useAction` closed to
+  `(args) => Promise<Result>`, call-time only, canonical error carrier;
+  the mutation-routing diagnostic re-triggered on real facts (always-on
+  JSDoc + the offline refusal's route) with the phantom "application
+  offline requirements" fact struck; the `delivery: "read"` →
+  `client.read` route stated in the document; OQ1 notes the
+  deletable-entrypoint withdrawal argument.
+- **Verdict binding after r5:** loop verdicts bind r3; Grok's independent
+  NOT READY binds r4; **r5 is unreviewed by any family.** The two r4 pins
+  previously flagged for ratification are superseded by grok's review and
+  the r5 pins; the r5 pins themselves (runMutation-only seam, skip closed
+  set, callback-withIndex admission) await author ratification or a short
+  delta review of r4→r5 — for which all three families are now available,
+  since Grok works interactively even while the CLI wallet 402s.

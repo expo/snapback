@@ -1,9 +1,16 @@
 // Shared logic for the Snapback Guide corpus checks and manifest generator.
 // @ref LLP 0061#3-verification-snippets-that-ran — transclusion-match snippets,
-// consistency joins, reviewed-commit freshness, manifest as the projection interface.
+// consistency joins, content-bound review freshness, manifest as the projection interface.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  readFileSync,
+  readlinkSync,
+  readdirSync,
+  statSync,
+} from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
 export const GUIDE_DIR = 'guide';
@@ -48,14 +55,16 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // its nonclaims inline (production blind-accept signup and mail-delivered
 // reset are unready, local reset is capture-mailbox only) so the boundary is
 // visible in the index rather than only on the page.
-// Bumped 55808 -> 56832 on 2026-08-12 for LLP 0244's one new
-// assets.media-field.v1 row, including its explicit future-work nonclaims.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 56832;
+// Round 3 preserves both the LLP 0244 and LLP 0245-0249 rows while tightening
+// the prose to the charter's pre-wave hard ceiling.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 55808;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.
 const MIN_ROUTE_PATHS = 50;
 const MIN_HOST_OPS = 10;
+const REVIEWED_AUTHORITIES_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
+const GIT_AUTHORITY_MAX_BUFFER = 64 * 1024 * 1024;
 
 export function repoRoot() {
   return resolve(dirname(new URL(import.meta.url).pathname), '..');
@@ -234,7 +243,8 @@ function unquote(value) {
 
 const REQUIRED_FIELDS = [
   'title', 'id', 'order', 'audience', 'capabilities', 'authorities',
-  'examples', 'status', 'targets', 'maturity', 'reviewed', 'reviewed-commit',
+  'examples', 'status', 'targets', 'maturity', 'reviewed',
+  'reviewed-authorities-digest',
 ];
 
 export function validateFrontmatter(fm, path, errors) {
@@ -252,7 +262,11 @@ export function validateFrontmatter(fm, path, errors) {
   check('since', /^\d+\.\d+\.\d+$/.test(fm.since ?? ''), 'must be a three-component version (X.Y.Z)');
   check('unreleased', fm.unreleased === 'true', "must be the boolean true");
   check('reviewed', /^\d{4}-\d{2}-\d{2}$/.test(fm.reviewed ?? ''), 'must be YYYY-MM-DD');
-  check('reviewed-commit', /^([0-9a-f]{7,40}|HEAD)$/.test(fm['reviewed-commit'] ?? ''), "must be a commit sha or 'HEAD'");
+  check(
+    'reviewed-authorities-digest',
+    REVIEWED_AUTHORITIES_DIGEST_PATTERN.test(fm['reviewed-authorities-digest'] ?? ''),
+    'must be a sha256: content digest',
+  );
   if (Array.isArray(fm.targets)) {
     for (const t of fm.targets) {
       if (!['local', 'cloudflare', 'all'].includes(t)) errors.push(`${path}: unknown target '${t}'`);
@@ -743,34 +757,126 @@ export function checkCapabilityIndex(root, index, pageInfo, errors) {
   return { routes: routes.size, hostOps: hostOps.size };
 }
 
-export function checkFreshness(root, pageInfo, warnings, infos) {
-  let head = null;
-  try {
-    head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-  } catch {
-    infos.push('freshness: git unavailable; skipping drift report');
-    return;
-  }
-  for (const [path, info] of pageInfo) {
-    const pinned = info.frontmatter?.['reviewed-commit'];
-    if (!pinned) continue;
-    if (pinned === 'HEAD') {
-      infos.push(`${path}: reviewed-commit is unpinned (HEAD) — pin it in the landing change`);
-      continue;
+function hashAuthorityEntries(authorities, entriesForAuthority) {
+  const hash = createHash('sha256');
+  hash.update('snapback-guide-reviewed-authorities.v1\0');
+  for (const authority of [...new Set(authorities)].sort()) {
+    hash.update('authority\0').update(authority).update('\0');
+    const entries = entriesForAuthority(authority).sort((left, right) => (
+      left.path < right.path ? -1 : left.path > right.path ? 1 : 0
+    ));
+    if (entries.length === 0) hash.update('missing\0');
+    for (const entry of entries) {
+      hash.update('entry\0').update(entry.path).update('\0');
+      hash.update(String(entry.bytes.byteLength)).update('\0');
+      hash.update(entry.bytes).update('\0');
     }
+  }
+  return `sha256:${hash.digest('hex')}`;
+}
+
+function currentAuthorityEntries(root, authority) {
+  const absolute = join(root, authority);
+  let metadata;
+  try {
+    metadata = lstatSync(absolute);
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+  if (!metadata.isDirectory()) {
+    const bytes = metadata.isSymbolicLink()
+      ? Buffer.from(readlinkSync(absolute))
+      : readFileSync(absolute);
+    return [{ path: authority, bytes }];
+  }
+  // Match Git's review history domain: tracked files plus non-ignored files
+  // that can enter the pending review. Ignored build products do not make a
+  // reviewed authority stale merely by appearing in a worktree.
+  const listed = execFileSync(
+    'git',
+    ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', authority],
+    { cwd: root, maxBuffer: GIT_AUTHORITY_MAX_BUFFER },
+  );
+  return listed.toString('utf8').split('\0').filter(Boolean).flatMap((path) => {
+    const absolutePath = join(root, path);
+    // `git ls-files` retains tracked deletions. Omitting that absent entry
+    // changes the directory digest, so deletion remains a freshness event
+    // instead of turning the check into an informational filesystem error.
+    let pathMetadata;
+    try {
+      pathMetadata = lstatSync(absolutePath);
+    } catch (error) {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    }
+    return [{
+      path,
+      bytes: pathMetadata.isSymbolicLink()
+        ? Buffer.from(readlinkSync(absolutePath))
+        : readFileSync(absolutePath),
+    }];
+  });
+}
+
+function historicalAuthorityEntries(root, authority, revision) {
+  const tree = execFileSync(
+    'git',
+    ['ls-tree', '-r', '-z', '--full-tree', revision, '--', authority],
+    { cwd: root, maxBuffer: GIT_AUTHORITY_MAX_BUFFER },
+  );
+  return tree.toString('utf8').split('\0').filter(Boolean).map((record) => {
+    const match = record.match(/^[0-7]+ blob ([0-9a-f]+)\t(.+)$/s);
+    if (!match) throw new Error(`unsupported git tree entry for '${authority}': ${record}`);
+    return {
+      path: match[2],
+      bytes: execFileSync('git', ['cat-file', 'blob', match[1]], {
+        cwd: root,
+        maxBuffer: GIT_AUTHORITY_MAX_BUFFER,
+      }),
+    };
+  });
+}
+
+// @ref LLP 0232#d-2-prepared-execution-and-rebase-stable-records — a page review is bound to the authority bytes that were
+// actually reviewed, never to the checkout's moving commit identity.
+export function authoritiesDigest(root, authorities) {
+  return hashAuthorityEntries(
+    authorities,
+    (authority) => currentAuthorityEntries(root, authority),
+  );
+}
+
+export function authoritiesDigestAtRevision(root, authorities, revision) {
+  const commit = execFileSync(
+    'git',
+    ['rev-parse', '--verify', `${revision}^{commit}`],
+    { cwd: root, encoding: 'utf8' },
+  ).trim();
+  return hashAuthorityEntries(
+    authorities,
+    (authority) => historicalAuthorityEntries(root, authority, commit),
+  );
+}
+
+export function checkFreshness(root, pageInfo, warnings, infos) {
+  for (const [path, info] of pageInfo) {
+    const reviewedDigest = info.frontmatter?.['reviewed-authorities-digest'];
+    if (!reviewedDigest) continue;
     const authorities = info.frontmatter?.authorities ?? [];
     if (authorities.length === 0) continue;
     try {
-      const changed = execFileSync(
-        'git',
-        ['diff', '--name-only', `${pinned}..${head}`, '--', ...authorities],
-        { cwd: root, encoding: 'utf8' },
-      ).trim();
-      if (changed) {
-        warnings.push(`${path}: authorities changed since review at ${pinned.slice(0, 10)}: ${changed.split('\n').join(', ')}`);
+      const currentDigest = authoritiesDigest(root, authorities);
+      if (currentDigest !== reviewedDigest) {
+        warnings.push(
+          `${path}: authorities changed since review at ${reviewedDigest.slice(0, 17)}… `
+          + `(current ${currentDigest.slice(0, 17)}…)`,
+        );
       }
-    } catch {
-      warnings.push(`${path}: reviewed-commit ${pinned} is unknown to git — re-pin it`);
+    } catch (error) {
+      const message = `${path}: could not compute authority freshness: ${error.message}`;
+      if (error.code === 'ENOENT') infos.push(message);
+      else warnings.push(message);
     }
   }
 }
@@ -794,7 +900,7 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
       authorities: fm.authorities,
       examples: fm.examples,
       reviewed: fm.reviewed,
-      reviewedCommit: fm['reviewed-commit'],
+      reviewedAuthoritiesDigest: fm['reviewed-authorities-digest'],
       sha256: createHash('sha256').update(info.raw).digest('hex'),
       snippets: snippetRecords.get(path) ?? [],
     };
@@ -808,12 +914,6 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
   for (const cap of index.capabilities.values()) {
     (cap.page.startsWith('GAP') ? gaps : covered).push(cap.id);
   }
-  let commit = 'unknown';
-  try {
-    commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-  } catch {
-    // buildIdentity stays 'unknown' outside a git checkout.
-  }
   const registryBytes = readFileSync(join(root, SYMBOL_REGISTRY_PATH));
   const registry = JSON.parse(registryBytes);
   const diagnosticsBytes = readFileSync(join(root, DIAGNOSTICS_REGISTRY_PATH));
@@ -821,7 +921,7 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
   const manifest = {
     schemaVersion: 'snapback-guide.v1',
     generatedBy: 'scripts/generate-guide-manifest.mjs',
-    buildIdentity: { commit },
+    buildIdentity: { sourceDigest: null },
     publishedClosure: {
       scope: publishedClosureRecord?.scope,
       newestPublished: publishedClosureRecord?.newestPublished,
@@ -895,6 +995,7 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
     .update('\0')
     .update(diagnosticsBytes)
     .digest('hex');
+  manifest.buildIdentity.sourceDigest = `sha256:${manifest.contentHash}`;
   return manifest;
 }
 
@@ -1014,9 +1115,7 @@ export function auditGuideManifestInventory({
   const stale = [];
   try {
     const actual = JSON.parse(readGeneratedFile(MANIFEST_PATH));
-    const stripBuildIdentity = ({ buildIdentity, ...rest }) => rest;
-    if (JSON.stringify(stripBuildIdentity(actual))
-        !== JSON.stringify(stripBuildIdentity(expected))) {
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       stale.push(MANIFEST_PATH);
     }
   } catch {

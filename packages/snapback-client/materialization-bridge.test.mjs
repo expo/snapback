@@ -242,8 +242,9 @@ test('offline volatile query and liveQuery establishment expose the D4 unknown a
       args: { forged: true },
     }),
     (error) => {
-      assert.equal(error.code, 'SNAPBACK_ARGUMENT_VALIDATION_FAILED');
-      assert.equal(error.diagnostic.details.function, 'triageGraph');
+      assert.equal(error.code, 'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED');
+      assert.equal(error.diagnostic.details.reason, 'unknown object property');
+      assert.equal(error.diagnostic.details.path, 'args.forged');
       return true;
     },
   );

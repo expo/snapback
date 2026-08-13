@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
+reviewed-authorities-digest: sha256:81a9bf72530b3e0a80f036530ba131b47acf290f203203d1145c57b982e84ea3
 ---
 
 # Recipe: coming from Convex and Supabase

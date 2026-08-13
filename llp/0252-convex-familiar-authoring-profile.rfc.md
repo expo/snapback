@@ -7,10 +7,13 @@ TypeScript, Code generation, React, Client integration, Competitive evaluation,
 Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (r2: round-1 review revisions — ablation lane,
-sub-attribution, disposition-eligibility rules, profile-brand enforcement,
-honest alias-state contract, staged migration, same-landing amendment
-obligations; initial draft same date)
+**Revised:** 2026-08-13 (r5: post-loop Grok-review repairs — familiar
+action seam pinned to `ctx.runMutation` only (no invented `runQuery` host
+op), skip second argument closed as `Args | "skip" | typeof skip` over the
+one canonical sentinel, callback-`withIndex` admitted as lowering sugar
+with a no-drop gate, closed `useAction` callable, real diagnostic
+triggers; loop verdicts bind to r3, Grok's independent NOT READY binds to
+r4, r5 is unreviewed — see `llp/reviews/0252-*`; r4/r3/r2/r1 2026-08-12)
 **Related:** LLP 0000, LLP 0004, LLP 0037, LLP 0061, LLP 0073, LLP 0074,
 LLP 0108,
 LLP 0115, LLP 0117, LLP 0119, LLP 0127, LLP 0130, LLP 0146, LLP 0186,
@@ -184,9 +187,17 @@ projections briefly provides enough information to choose honestly.
 - **Normalized contract identity (`normalizedContractId`)** — a
   domain-separated hash of the canonical schema, operation contracts, authority,
   read/write/effect reach, plans, and capability requirements after adapter
-  lowering. It is an equivalence and migration witness only. It never replaces
-  LLP 0241's `semanticId`, `executableId`, or `generationId`, and it grants no
-  runtime compatibility by itself.
+  lowering. All behavior-bearing normalized fields enter this hash —
+  operation kind, delivery, retention policy, secrets, capability/runtime
+  profiles; only non-semantic custody and formatting facts may be excluded,
+  each named. Should a per-operation queue policy ever be introduced (an
+  LLP 0218/0108 amendment), it enters by this rule. A narrower
+  data-migration closure gets a separately named witness
+  (`normalizedSchemaId`, frozen at Phase 0 with its own golden vectors),
+  never a weakened `normalizedContractId`. It is an equivalence and
+  migration witness only.
+  It never replaces LLP 0241's `semanticId`, `executableId`, or
+  `generationId`, and it grants no runtime compatibility by itself.
 - **Familiar alias** — a conventional name whose narrower Snapback semantics
   are completely specified here, such as online-only `useMutation`. An alias is
   not permission to hide a distinct lifecycle.
@@ -210,7 +221,10 @@ snapback-familiar-ts-v1 ─────┘        │
 
 After normalization, no subsystem may branch on the authoring profile to decide
 authorization, validation, execution, storage, invalidation, settlement,
-retention, or transport behavior. The profile remains available only where
+retention, or transport behavior. Admission checks this RFC itself mandates —
+the profile-brand refusal — are not such branches: they refuse before
+admission and never change how an admitted operation behaves. The profile
+remains available only where
 source custody and diagnostics need it: generation evidence, source maps,
 profile-specific remediation, migration tooling, and comparative records.
 
@@ -313,6 +327,14 @@ export const create = mutation({
 });
 ```
 
+The example's `withIndex("by_owner", (q) => q.eq(...))` range callback is
+deliberate familiar sugar, not the shipped grammar: the canonical builder's
+`withIndex` is a name-only setter with chained filters, so the adapter
+lowers the callback's predicate chain onto that canonical grammar and
+refuses any callback it cannot lower. A range predicate is never ignored —
+a silently dropped filter would widen reads into an authorization defect —
+and an adversarial no-drop test gates this in Phase 1.
+
 The exact `reads`/`writes` refinement syntax remains owned by LLP 0108,
 LLP 0146, and the authority/query owners; the strings above illustrate the
 compact table-granular first spelling, not a new permission model. Where row,
@@ -323,27 +345,56 @@ weaken them.
 
 The ordinary imperative `ctx.db` path also leans directly on the bounded
 composition and batch-read owners: LLP 0242's bounded child/aggregate plans
-and LLP 0248's same-snapshot batch reads are what keep familiar handler code
-from recreating the N+1 read shapes the comparison corpus recorded
-(LLP 0236). The familiar profile adds no third read grammar.
+and LLP 0248's same-snapshot batch reads provide the bounded alternatives and
+diagnostics that steer familiar handler code away from the N+1 read shapes
+the comparison corpus recorded (LLP 0236). The familiar profile adds no third
+read grammar.
 
-The v1 function object has these canonical keys:
+The v1 function object closes to this per-kind key matrix:
 
-- `args` — required frozen ingress validators;
-- `returns` — required frozen egress validator, including schema references;
-- `auth` — required, with no public-by-omission default;
-- `reads`, and for write-capable kinds `writes` — required canonical reach
-  declarations (a query declares reads only), though LLP 0245 may propose
-  addition-only patches;
-- `effects`, `secrets`, `capabilities`, and `runtime` — required when used and
-  never inferred;
-- `delivery` — optional query spelling defined below; and
-- `handler` — a bounded `.ts`/`.mts` handler graph under LLP 0237/0246.
+| Key | `query` | `mutation` | `action` |
+| --- | --- | --- | --- |
+| `args`, `returns`, `auth` | required | required | required |
+| `reads` | required | required | forbidden in v1 |
+| `writes` | forbidden | required | forbidden in v1 |
+| `delivery` | optional (default `"live"`) | forbidden | forbidden |
+| `effects` | forbidden | declared when used | declared when used |
+| `secrets`, `capabilities`, `runtime` | declared when used | declared when used | declared when used |
+| `handler` | required | required | required |
+
+`args` and `returns` are frozen ingress/egress validators; `auth` has no
+public-by-omission default; reach, effect, secret, capability, and runtime
+facts are never inferred; `handler` is a bounded `.ts`/`.mts` graph under
+LLP 0237/0246. A v1 familiar `action` receives no `ctx.db`. Its only
+composition seam is `ctx.runMutation(api.x.y, args)` — familiar-branded
+sugar lowering onto the existing `action.runMutation` host op. `ctx.runQuery`
+is unsupported in v1 (D6 `unsupported`, stable refusal with a route): the
+shipped action context has no query host op, and this RFC does not smuggle
+one in as familiar spelling — if the familiar lane measurably loses because
+actions cannot read, that is component evidence for a separately owned
+host-op RFC, outside 0252. An effect-free action is legal (effect facts are
+declared exactly when used, never inferred), and LLP 0249's isolated Node
+action form is unsupported in the familiar grammar (disposition 4, refusal
+routing to the explicit profile). Accepted keys are the matrix rows plus the
+disposition-1 rows of the Phase 0 table below; a key with no recorded
+disposition refuses (disposition 4), never ignored.
+
+Every remaining canonical function/application definition field —
+`refusals`, `trackedRefusals`, `sequences`, declarative plan forms,
+alternate action forms, and the rest — gets its disposition in a Phase 0
+table generated against the canonical schema and enforced fail-closed:
+generation refuses the familiar profile while any field lacks one
+(LLP 0037). Pinned now: refusal and tracked-refusal declarations reuse the
+canonical vocabulary unchanged (disposition 1); `sequences` and declarative
+plan alternates are unsupported in v1 with stable refusals routing to the
+explicit profile.
 
 The adapter may accept a missing candidate field only long enough to produce a
-read-only LLP 0245 suggestion. It may not activate or replace an application
-generation until the accepted ordinary source contains every required frozen
-fact. Inference proposes; explicit source remains authority.
+read-only LLP 0245 suggestion; the absent-key patch path covers exactly
+`returns` and the reach keys, and every other absent required key refuses. It
+may not activate or replace an application generation until the accepted
+ordinary source contains every required frozen fact. Inference proposes;
+explicit source remains authority.
 
 The familiar profile deliberately follows modern Convex guidance more closely
 than Convex's most permissive runtime: both `args` and `returns` are mandatory,
@@ -388,9 +439,9 @@ This is the option-1b family identified in LLP 0119, narrowed for an
 experimental source profile: one familiar authored function kind, live by
 default, and an authored escape hatch. It preserves the rule that polling or
 refresh convenience is never reported as proven push — stated in LLP 0074
-(now Shelved) and carried live by LLP 0119, LLP 0073's search pin, and the
-root invariants. It also preserves the ephemeral lane: durable query liveness
-and connection-owned ephemeral state remain orthogonal.
+(now Shelved) and carried live by LLP 0119 and LLP 0073's search pin. It
+also preserves the ephemeral lane: durable query liveness and
+connection-owned ephemeral state remain orthogonal.
 
 Accepting this RFC would authorize the experiment, not silently settle
 LLP 0130 ER-3 for the existing profile. Promotion of one authored query kind to
@@ -426,13 +477,33 @@ online authoritative convenience projection:
 Result | undefined
 ```
 
-`undefined` means no authoritative current result: initial loading, authority
-transition, unavailable current data, loss of current authority, or the
-LLP 0247 `authentication-required` blocked state, which stays the stable
-non-error LLP 0247 defines — the development build emits a routing diagnostic
-naming `useQueryState` whenever a blocked query renders as `undefined`. Typed
-refusals and errors route through the documented React error boundary; they
-are never silently converted to `undefined`.
+The projection from the canonical LLP 0238 state object is total, generated,
+and normative — implementations choose nothing:
+
+| Canonical state | Familiar `useQuery` |
+| --- | --- |
+| current authoritative data | `Result` |
+| initial loading, no result yet | `undefined` |
+| retained, stale, or optimistic snapshot | `undefined` — never data |
+| stable blocked states (incl. LLP 0247 `authentication-required`) | `undefined` + development routing diagnostic |
+| authority transition; predecessor-generation data | `undefined` — predecessor data is never current |
+| transient transport loss without current authority | `undefined` |
+| error-class typed refusals, sealed refusals, contract failures | thrown to the documented React error boundary |
+
+The dividing line is exactly LLP 0247's: stable non-error states project to
+`undefined`; error-class refusals throw, carried by the same canonical typed
+diagnostic error the explicit client surface uses — the familiar package
+introduces no error type of its own. Mid-subscription authority revocation
+follows that line too: the continuing subscription enters a stable
+unavailable state (`undefined`), while a fresh one-shot call of the same
+operation surfaces the typed refusal. Nothing is ever silently converted
+between the two columns. Conditional consumption accepts a closed
+second-argument set — `Args | "skip" | typeof skip`. The Convex-shaped
+string `"skip"` is familiar-only sugar for the canonical imported `skip`
+sentinel (one owner, two spellings); both lower to the canonical
+zero-demand skipped state and project `undefined`. The D6 row is
+`same-shape` honestly because the Convex call shape is admitted verbatim;
+the canonical hooks keep the imported sentinel alone.
 
 What is enforced, by types and runtime together, is the exclusion set: the
 hook never returns retained, optimistic, or queued data through this
@@ -445,29 +516,48 @@ it teaches mistakes.
 
 Applications that use retention, offline reads, freshness display, explicit
 refresh, or diagnostic rendering use the canonical LLP 0238
-`useSnapbackLiveQuery` state object. A companion `useQueryState` alias may point
-to that same canonical hook, but it must return the complete
+`useSnapbackLiveQuery` state object. The familiar package ships a companion
+`useQueryState` alias pointing to that same canonical hook — mandatory, since
+the routing diagnostic above names it — and it must return the complete
 `{data,status,freshness,diagnostic,refresh}` grammar rather than a subtly
 different cache.
 
+Two owned edges are pinned to Phase 2 with the documented error-boundary
+guidance: post-throw temporal semantics (rethrow while the canonical state
+stays error-class; boundary reset on recovery), and the explicit route for
+`delivery: "read"` queries, which no v1 hook consumes (LLP 0238 ships no
+one-shot hook) — generated JSDoc routes them to `client.read`, an event-time
+one-shot rather than a hook, and D6 carries the row. The D5 progression
+states this route so the profile's own escape hatch is not a cliff.
+
 #### `useMutation`
 
-`useMutation` is an online-settled convenience. Its callable dispatches with
-`queue: "never"`, resolves only with the validated authoritative result, and
-refuses offline before accepting custody. It never maps a queued intent to a
-successful result.
+`useMutation` is an online-settled convenience with a closed contract:
+`useMutation(ref)` returns `(args) => Promise<Result>`. It type-accepts
+familiar-branded mutation references and always dispatches with the
+canonical settled-only option (`queue: false` — LLP 0218's dispatch-time
+contract; neither profile defines an operation-level queue policy, and the
+familiar profile adds no queue vocabulary). The callable resolves only with
+the validated authoritative result; offline, protocol, application, and
+result-validation failures reject the promise with the canonical typed
+diagnostic error, offline before any durable custody is accepted. It never
+maps a queued intent to a successful result.
 
 Applications that want offline mutation custody use the canonical
 `useSnapbackMutationDispatch` plus `useSnapbackMutationStatus` lifecycle from
-LLP 0238/0218. Generated JSDoc and a kind/policy mismatch diagnostic route the
-author there when a mutation is declared queue-capable or the application asks
-for offline behavior.
+LLP 0238/0218 — the same operation stays fully available to that lifecycle
+(D5). Generated JSDoc on every familiar mutation names that lifecycle, and
+the runtime offline refusal's diagnostic carries the same route — no
+manifest-level "offline requirements" fact exists, and none is invented for
+this.
 
 #### `useAction`
 
-`useAction` is a direct alias over one-shot `run(ActionRef)`. External effects
-remain non-rollbackable and retain the existing typed refusal/result contract.
-Longer command workflows keep `useSnapbackTask`.
+`useAction(ref)` returns `(args) => Promise<Result>` over one-shot
+`run(ActionRef)` — always call-time, never render-time, owning no task
+state; rejections use the canonical typed diagnostic error. External effects
+remain non-rollbackable and retain the existing typed refusal/result
+contract. Longer command workflows keep `useSnapbackTask`.
 
 #### Provider and generated references
 
@@ -475,7 +565,9 @@ Longer command workflows keep `useSnapbackTask`.
 generation/auth/connection owners. The familiar profile creates no second
 cache, transport, auth coordinator, outbox, or external-store registry.
 Generated refs remain nominal and carry operation kind, authority, retention,
-delivery, queue, and guide facts.
+delivery, authoring profile, and guide facts; the profile fact is a
+runtime discriminant checked before any resource or transport work, not a
+compile-time-only brand — Acceptance 2's refusal is that check.
 
 These aliases deliberately amend none of LLP 0238's truthful underlying
 lifecycles. They do reopen its conclusion that an ambiguous direct-result query
@@ -523,9 +615,12 @@ states per recognizable construct:
 | `unsupported` | No mapping; generation refuses or migration requires application design. |
 
 At minimum the table covers schema values, table/index definitions, system
-fields, query consumers, query liveness, mutation retry/settlement, actions and
-packages, auth identity, file/assets, scheduled work, offline state, ephemeral
-state, migrations, generated refs, and deployment.
+fields, query consumers (including conditional/skip consumption), query
+liveness, mutation retry/settlement, actions and packages, auth identity,
+file/assets, scheduled work, offline state, ephemeral state, migrations,
+generated refs, and deployment. The table is the normative enumeration of
+the v1 familiar surface: a construct absent from it is unsupported
+(disposition 4), not undefined.
 
 Public docs must state:
 
@@ -606,7 +701,9 @@ component at lane level; sub-attribution is the declared — and disclosed —
 granularity for the delivery default and package shape, which do not get
 their own lanes.
 
-The experimental period ends at the earlier of:
+A comparison round is one complete pass of the preregistered lane × workload
+matrix at its preregistered N. The experimental period ends at the earlier
+of:
 
 - three complete qualified comparison rounds covering all workload families;
   or
@@ -640,14 +737,22 @@ result exists:
 - **Tier** requires evidence naming distinct application audiences and the
   maintenance bound holding.
 - **Withdraw** is always eligible.
-- Insufficient evidence at the stop date permits only the freeze below plus
-  Withdraw or a dated extension amendment — never Promote or Tier.
+- Insufficient evidence for a disposition means its own gate above is unmet
+  at the stop date; a disposition whose gate is met stays eligible. When no
+  non-Withdraw gate is met, only the freeze below plus Withdraw or a dated
+  extension amendment are available — Promote, Merge, and Tier are not.
 
 The author may also withdraw a single component mid-period — most plausibly
 the client aliases — by dated note without ending the experiment; the
-ablation lane keeps the remaining readout attributable. This makes the
-D4/Risks commitment — a misleading alias is withdrawn rather than explained
-harder — operable.
+ablation lane keeps the remaining readout attributable. A withdrawal creates
+a new named treatment configuration: runs never pool across configuration
+versions (LLP 0197 requires N≥3 per configuration), rounds completed against
+the prior configuration count only toward its claims and not toward the new
+configuration's three-round trigger, and the calendar stop
+date does not reset — if the remaining window cannot fit the new
+configuration's required rounds, the insufficient-evidence path governs it.
+This makes the D4/Risks commitment — a misleading alias is withdrawn rather
+than explained harder — operable.
 
 There is no implicit fifth outcome called "keep evaluating." Extending the
 period requires a dated author amendment naming missing evidence, a new maximum
@@ -682,8 +787,9 @@ snapback author profile migrate --to familiar-ts --preview
 snapback author profile migrate --to explicit --preview
 ```
 
-The command emits a source patch, `normalizedContractId` comparison, semantic
-diff, unresolved mappings, and exact verification steps. It does not edit by
+The command emits a source patch, `normalizedContractId` and
+`normalizedSchemaId` comparisons, semantic diff, unresolved mappings, and
+exact verification steps. It does not edit by
 default. Apply uses the stale-safe compare-and-write pattern of LLP 0245 and
 normal generation/activation afterward.
 
@@ -773,16 +879,23 @@ paths, and two failure modes before either surface had proven its value.
 3. Add a gate proving that no runtime/wire/storage branch reads authoring
    profile to change semantics.
 4. Preregister the four-lane comparison matrix, the component
-   sub-attribution schema, the disposition-eligibility rules (including
-   OQ7's threshold number), and the maintenance classifier before profile
-   results exist.
+   sub-attribution schema with its metric-to-component derivation rule (how
+   wall time, tokens, first-green time, and successful no-correction work map
+   to components — not only loops and defects), the disposition-eligibility
+   rules (including OQ7's threshold number), and the maintenance classifier
+   before profile results exist.
 5. Re-verify and pin the external Convex surface inventory (agent files,
    skills, MCP, evals, validator guidance) under LLP 0197/0198 control-lane
    rules.
 6. Enumerate the exact `NormalizedApplicationDefinitionV1` field closure
-   entering `normalizedContractId` — operation kind, delivery, retention and
-   queue policy, secrets, and capability/runtime profiles each included or
-   named as excluded — with golden vectors.
+   entering `normalizedContractId` per the Terminology rule — all
+   behavior-bearing fields included, non-semantic exclusions each named —
+   with golden vectors; name the authoring-profile fact's handling
+   explicitly (it lives in semantic identity, not the normalized projection,
+   keeping cross-profile equivalence computable) and freeze the
+   `normalizedSchemaId` preimage.
+7. Generate the complete per-field adapter disposition table over the
+   canonical definition (D2) and land its fail-closed completeness gate.
 
 ### Phase 1 — Server authoring adapter
 
@@ -809,14 +922,17 @@ paths, and two failure modes before either surface had proven its value.
    LLP 0238 in the same landing that ships the familiar entrypoint: their
    accepted decisions stand for the canonical surface, and a reader of any of
    the three must learn about this scoped, measured exception from the
-   document itself.
+   document itself. The LLP 0130 note names the ER-3 1a/1b scope extension
+   explicitly (ER-3 governs the 1a preregistration; this experiment runs a
+   1b family under the scoped exception).
 
 ### Phase 3 — Paired external templates and migration
 
 1. Ship matched explicit and familiar CRUD and messaging templates from one
    neutral outcome specification, with separate generated source snapshots.
 2. Add preview/apply profile migrations and normalized/diff receipts.
-3. Qualify both profiles from the same external npm closure and start the
+3. Land the stop-date freeze backstop (D7) with a tested filing path.
+4. Qualify both profiles from the same external npm closure and start the
    evaluation clock.
 
 ### Phase 4 — Measure and decide
@@ -842,7 +958,8 @@ The RFC's experiment is implemented only when all of the following hold:
    runtime facts cannot disappear through the familiar adapter. Omission either
    produces an LLP 0245 patch or refuses before artifact replacement, and
    suggestion-backed dispositions exist only for `returns` and addition-only
-   reach patches.
+   reach patches. The generated completeness gate proves no canonical
+   definition field lacks an adapter disposition.
 4. `query` defaults to required proven liveness, `delivery: "read"` is an
    explicit opt-out, and an unprovable live query refuses rather than polling or
    silently downgrading.
@@ -863,7 +980,8 @@ The RFC's experiment is implemented only when all of the following hold:
 9. The benchmark record includes authoring, semantic, expressiveness, and
    maintenance groups, and the author records Promote, Merge, Tier, or Withdraw
    by the stop rule under the preregistered eligibility rules, including the
-   second-family N≥3 requirement for Promote.
+   second-family N≥3 requirement for Promote; the tested stop-date backstop
+   exists before the evaluation clock starts.
 10. No package, guide, README, or generated JSDoc calls the profile
     "Convex-compatible" or implies unmodified Convex applications work.
 11. The dated cross-reference amendments to LLP 0127, LLP 0130, and LLP 0238
@@ -921,6 +1039,9 @@ changes enter only when they improve Snapback's own measured path.
    experimental subpaths of the existing codegen/React packages? This RFC
    recommends the umbrella because package/import coherence is part of the
    learned surface, but publication inventory cost should be measured.
+   Either way, the familiar React aliases should live in an entrypoint that
+   withdrawal can delete whole, rather than as siblings beside the canonical
+   hooks (round-4 Grok review).
 2. **Client alias value.** Are constrained `useQuery`/`useMutation` aliases a
    useful ordinary lane, or do their exclusions create more mistakes than the
    familiar names save? This is intentionally measured rather than assumed —

@@ -175,15 +175,28 @@ function publicReference(
     id: definition?.id,
     name: definition?.name ?? definition?.exportedName,
     kind: definition?.kind,
+    ...(definition?.authRequirement === undefined ? {} : {
+      authRequirement: definition.authRequirement,
+    }),
     implementationHash: definition?.implementationHash,
     argsContractHash: definition?.argsContractHash,
+    ...(definition?.argsContract === undefined ? {} : {
+      argsContract: structuredClone(definition.argsContract),
+    }),
+    ...(definition?.argumentSchema === undefined ? {} : {
+      argumentSchema: structuredClone(definition.argumentSchema),
+    }),
     resultContractHash: definition?.resultContractHash,
     ...(definition?.authoredSourceHash === undefined ? {} : {
       authoredSourceHash: definition.authoredSourceHash,
     }),
     ...(expectedGeneration === null ? {} : { expectedGeneration }),
   };
-  for (const field of Object.keys(reference).filter((field) => field !== 'expectedGeneration')) {
+  for (const field of Object.keys(reference).filter((field) => (
+    field !== 'expectedGeneration'
+    && field !== 'argsContract'
+    && field !== 'argumentSchema'
+  ))) {
     if (typeof reference[field] !== 'string' || reference[field].length === 0) {
       throw diagnosticError(
         'SNAPBACK_REACT_MANIFEST_INVALID',
@@ -793,6 +806,8 @@ async function prepareReactBindingOnce(
     if (
       !actual
       || exactDeploymentFunction(actual) !== exactDeploymentFunction(reference)
+      || (reference.authRequirement !== undefined
+        && actual.authRequirement !== reference.authRequirement)
       || (!generated.descriptorMode
         && (actual.authorityIndependent === true)
           !== (definition.authorityIndependent === true))
@@ -862,6 +877,17 @@ async function prepareReactBindingOnce(
     );
     for (const [name, carried] of Object.entries(generated.descriptor.api.ephemeral ?? {})) {
       const deployedDefinition = deployedCollections.get(name);
+      // Pre-D3 descriptors did not carry the authored withdrawal deadline.
+      // Preserve one-release binding compatibility while ensuring the public
+      // reference always has the same bounded default codegen now emits.
+      const carriedWithdrawalVisibilityDeadlineMs = carried
+        ? carried.withdrawalVisibilityDeadlineMs
+          ?? Math.min(Math.floor(carried.defaultTtlMs / 2), 10_000)
+        : null;
+      const deployedWithdrawalVisibilityDeadlineMs = deployedDefinition
+        ? deployedDefinition.withdrawalVisibilityDeadlineMs
+          ?? Math.min(Math.floor(deployedDefinition.defaultTtlMs / 2), 10_000)
+        : null;
       const expectedSubset = carried && typeof carried === 'object'
         ? {
             name: carried.name,
@@ -872,16 +898,20 @@ async function prepareReactBindingOnce(
             routingFields: carried.routingFields,
             defaultTtlMs: carried.defaultTtlMs,
             maxTtlMs: carried.maxTtlMs,
+            withdrawalVisibilityDeadlineMs: carriedWithdrawalVisibilityDeadlineMs,
             maxValueBytes: carried.maxValueBytes,
             sustainedHz: carried.publishRate?.sustainedHz,
             burst: carried.publishRate?.burst,
           }
         : null;
       const deployedSubset = deployedDefinition
-        ? Object.fromEntries(Object.keys(expectedSubset ?? {}).map((key) => [
-            key,
-            deployedDefinition[key],
-          ]))
+        ? {
+            ...Object.fromEntries(Object.keys(expectedSubset ?? {}).map((key) => [
+              key,
+              deployedDefinition[key],
+            ])),
+            withdrawalVisibilityDeadlineMs: deployedWithdrawalVisibilityDeadlineMs,
+          }
         : null;
       if (
         !carried
@@ -897,7 +927,10 @@ async function prepareReactBindingOnce(
           { collection: name },
         );
       }
-      const reference = deepFreeze(structuredClone(carried));
+      const reference = deepFreeze({
+        ...structuredClone(carried),
+        withdrawalVisibilityDeadlineMs: carriedWithdrawalVisibilityDeadlineMs,
+      });
       let scopeValidator;
       let valueValidator;
       try {
@@ -977,9 +1010,13 @@ async function prepareReactBindingOnce(
         name: definition.name,
         keyMode: definition.keyMode,
         scopeFields: Object.freeze([...definition.scopeFields]),
+        scopeContract: deepFreeze(structuredClone(definition.scopeContract)),
+        valueContract: deepFreeze(structuredClone(definition.valueContract)),
         routingFields: Object.freeze([...definition.routingFields]),
         defaultTtlMs: definition.defaultTtlMs,
         maxTtlMs: definition.maxTtlMs,
+        withdrawalVisibilityDeadlineMs: definition.withdrawalVisibilityDeadlineMs
+          ?? Math.min(Math.floor(definition.defaultTtlMs / 2), 10_000),
         maxValueBytes: definition.maxValueBytes,
         publishRate: Object.freeze({
           sustainedHz: definition.sustainedHz,
@@ -1258,10 +1295,18 @@ async function prepareReactBindingOnce(
       }
       for (const [memberName, member] of Object.entries(surface.presence)) {
         const admitted = ephemeralDefinitionsById.get(member?.reference?.id)?.reference;
+        const memberReference = member?.reference
+          ? {
+              ...member.reference,
+              withdrawalVisibilityDeadlineMs:
+                member.reference.withdrawalVisibilityDeadlineMs
+                ?? Math.min(Math.floor(member.reference.defaultTtlMs / 2), 10_000),
+            }
+          : null;
         if (
           member?.artifactKind !== 'surfaceMemberBinding'
           || !admitted
-          || canonicalizeClientValueV1(admitted) !== canonicalizeClientValueV1(member.reference)
+          || canonicalizeClientValueV1(admitted) !== canonicalizeClientValueV1(memberReference)
         ) {
           throw diagnosticError(
             'SNAPBACK_REACT_MANIFEST_INVALID',
@@ -1587,7 +1632,15 @@ export function admittedReactSurface(binding, reference) {
         const expectedMember = expected[namespace]?.[name];
         if (!expectedMember) continue;
         if (namespace === 'presence') {
-          if (canonicalizeClientValueV1(member.reference) !== canonicalizeClientValueV1(expectedMember.reference)) continue;
+          const memberReference = member?.reference
+            ? {
+                ...member.reference,
+                withdrawalVisibilityDeadlineMs:
+                  member.reference.withdrawalVisibilityDeadlineMs
+                  ?? Math.min(Math.floor(member.reference.defaultTtlMs / 2), 10_000),
+              }
+            : null;
+          if (canonicalizeClientValueV1(memberReference) !== canonicalizeClientValueV1(expectedMember.reference)) continue;
         } else if (exactDeploymentFunction(member.reference) !== exactDeploymentFunction(expectedMember.reference)) {
           continue;
         }

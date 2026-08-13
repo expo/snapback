@@ -2047,7 +2047,7 @@ impl EphemeralApi {
         &self,
         request: DeleteRequest,
         now_ms: u64,
-    ) -> Result<Option<EphemeralMessage>, crate::ephemeral::EphemeralError> {
+    ) -> Result<crate::ephemeral::DeleteSettlement, crate::ephemeral::EphemeralError> {
         self.delete_with_room_authority(request, now_ms, None)
     }
 
@@ -2056,7 +2056,7 @@ impl EphemeralApi {
         request: DeleteRequest,
         now_ms: u64,
         room_authority: Option<&crate::ephemeral::RoomAuthorityPermit>,
-    ) -> Result<Option<EphemeralMessage>, crate::ephemeral::EphemeralError> {
+    ) -> Result<crate::ephemeral::DeleteSettlement, crate::ephemeral::EphemeralError> {
         let connection_id = request.connection_id.clone();
         let outcome = self
             .store
@@ -18155,7 +18155,7 @@ impl LocalSnapback {
         &mut self,
         request: DeleteRequest,
         now_ms: u64,
-    ) -> Result<Option<EphemeralMessage>, crate::ephemeral::EphemeralError> {
+    ) -> Result<crate::ephemeral::DeleteSettlement, crate::ephemeral::EphemeralError> {
         self.touch_connection(&request.connection_id, now_ms);
         self.ephemeral.delete(request, now_ms)
     }

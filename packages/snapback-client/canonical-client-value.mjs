@@ -4,6 +4,8 @@
 // @ref LLP 0114#exact-identity-bytes-and-limits — identity is the RFC 8785
 // admitted JSON subset with fixed structural and byte ceilings.
 
+import { normalizeGeneratedArgumentsV1 } from './argument-normalization.mjs';
+
 export const CANONICAL_CLIENT_VALUE_V1_LIMITS = Object.freeze({
   maxDepth: 32,
   maxNodes: 4_096,
@@ -227,7 +229,9 @@ export function canonicalReactStoreKeyV1(providerInstanceId, reference, args) {
   // Validate/count the argument tree independently. The fixed key envelope
   // must not consume the argument depth/node budget defined by the public
   // grammar, while its bytes still count toward the final key ceiling.
-  const canonicalArgs = canonicalizeClientValueV1(args);
+  const canonicalArgs = canonicalizeClientValueV1(
+    normalizeGeneratedArgumentsV1(reference, args),
+  );
   const key = `["snapback:react-store-key:v1",${canonicalizeClientValueV1(providerInstanceId)
   },${canonicalizeClientValueV1(completeReference)},${canonicalArgs}]`;
   const bytes = utf8.encode(key).byteLength;

@@ -103,6 +103,7 @@ fn schema() -> SchemaManifest {
                 resource_table: None,
                 principal_addressed_writes: None,
             }),
+            authority_profile: None,
             asset_sharing: None,
             visibility: None,
             history: None,

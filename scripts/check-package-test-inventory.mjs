@@ -62,6 +62,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'application-ready.test.mjs',
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
+      'declaration-suggestion-cli.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
       'expo-bootstrap-exchange.test.mjs',
@@ -97,11 +98,13 @@ export const PACKAGE_TEST_INVENTORIES = [
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'app-data.test.mjs',
+      'argument-normalization.test.mjs',
       'argument-validation.test.mjs',
       'answer-classes.test.mjs',
       'assets-watch-authorization.test.mjs',
       'assets.test.mjs',
       'attribution.test.mjs',
+      'auth-anonymous-read-recovery.test.mjs',
       'auth-exchange-concurrency.test.mjs',
       'authorization-invalidation.test.mjs',
       'bearer-rotation.test.mjs',
@@ -112,6 +115,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'commands.test.mjs',
       'connection-open-stream-reset-retry.test.mjs',
       'demand-broker.test.mjs',
+      'diagnostic-error.test.mjs',
       'ephemeral-room.test.mjs',
       'evaluation-floor.test.mjs',
       'export-parity.test.mjs',
@@ -202,6 +206,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'assets.test.mjs',
+      'auth-blocked-resource.test.mjs',
       'authorization-denial.test.mjs',
       'binding-development-sync.test.mjs',
       'cold-boot-binding-indexeddb.test.mjs',
@@ -278,6 +283,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'contract-binding-reads.test.mjs',
       'contract-output-mode.test.mjs',
       'data-tier-corpus.test.mjs',
+      'declaration-suggestion.test.mjs',
       'dependency-graph.test.mjs',
       'effect-ceiling.test.mjs',
       'function-id.test.mjs',
@@ -324,6 +330,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'structured-stored-values.test.mjs',
       'table-visibility-authoring.test.mjs',
       'typed-search-wrapper.test.mjs',
+      'typescript-profile.test.mjs',
       'vector-authoring.test.mjs',
       'vector-distance-profile.test.mjs',
     ],
@@ -475,7 +482,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 265,
+  expectedTotal = 272,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -836,6 +843,16 @@ export function checkPackageTestInventories(options = {}) {
 // 264 -> 265 (2026-08-12, LLP 0244 media projection):
 // @expo/snapback-codegen gains descriptor/lowering, result-contract identity,
 // RQS demotion, and action-refusal coverage for v.media().
+// 265 -> 266 (2026-08-12, LLP 0246 rollouts 1-2):
+// @expo/snapback-codegen gains the frozen TypeScript handler profile,
+// syntax-erasure, refusal, identity, and atomic type-check corpus.
+// 266 -> 268 (2026-08-12, LLP 0247 rollouts 1+2): the client gains
+// anonymous protected one-shot/auth-exchange recovery coverage, and React
+// gains the stable auth-blocked resource plus barrier-resume suite.
+// 268 -> 270 (2026-08-12, LLP 0247 rollouts 3-5): the client gains shared
+// argument-normalization and typed-diagnostic-error contract suites.
+// 270 -> 272 (2026-08-12, LLP 0245 rollout 1): codegen and CLI gain the
+// DeclarationSuggestionV1 analyzer/apply and machine-output acceptance suites.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

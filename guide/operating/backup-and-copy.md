@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 36d675e6d956255e352a60bdb3de6b3de2c95387
+reviewed-authorities-digest: sha256:d7a40a97571ef8ca095a38d8bed21070410b646277c209f5344dbd49c35b277a
 ---
 
 # Back up, copy, and move a store

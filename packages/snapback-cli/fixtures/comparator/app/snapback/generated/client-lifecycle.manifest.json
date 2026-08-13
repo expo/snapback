@@ -1,0 +1,175 @@
+{
+  "appId": "app",
+  "inputsHash": "11575804fdf0c66d091bfe7c36d9250d1919e8d27fcda4fecf0b2962ad101ac1",
+  "rows": {
+    "anchors": {
+      "diagnostics": [
+        "SNAPBACK_ARGUMENT_NORMALIZATION_FAILED",
+        "SNAPBACK_ARGUMENT_VALIDATION_FAILED",
+        "SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID"
+      ],
+      "guide": [
+        "guide/clients/headless.md",
+        "guide/clients/react.md",
+        "guide/realtime/ephemeral-state.md"
+      ]
+    },
+    "argumentNormalization": {
+      "operations": [
+        {
+          "functionId": "app:activityRows",
+          "kind": "LiveQuery",
+          "name": "activityRows",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:liveRows",
+          "kind": "LiveQuery",
+          "name": "liveRows",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:primaryRows",
+          "kind": "LiveQuery",
+          "name": "primaryRows",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:publishLiveRow",
+          "kind": "Mutation",
+          "name": "publishLiveRow",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:rejectInvalidWrite",
+          "kind": "Mutation",
+          "name": "rejectInvalidWrite",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:rejectionRows",
+          "kind": "LiveQuery",
+          "name": "rejectionRows",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:writePrimaryAndActivity",
+          "kind": "Mutation",
+          "name": "writePrimaryAndActivity",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        }
+      ],
+      "version": "snapback.argument-normalization.v1"
+    },
+    "authorityAdmission": {
+      "operations": [
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:activityRows",
+          "kind": "LiveQuery",
+          "name": "activityRows",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:liveRows",
+          "kind": "LiveQuery",
+          "name": "liveRows",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:primaryRows",
+          "kind": "LiveQuery",
+          "name": "primaryRows",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:publishLiveRow",
+          "kind": "Mutation",
+          "name": "publishLiveRow",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:rejectInvalidWrite",
+          "kind": "Mutation",
+          "name": "rejectInvalidWrite",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:rejectionRows",
+          "kind": "LiveQuery",
+          "name": "rejectionRows",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:writePrimaryAndActivity",
+          "kind": "Mutation",
+          "name": "writePrimaryAndActivity",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "mutate"
+        }
+      ]
+    },
+    "presenceLifecycle": {
+      "authorityLossBarrierOwner": "server-connection-cleanup",
+      "collections": [
+        {
+          "collection": "fixturePresence",
+          "withdrawalVisibilityDeadlineMs": 2500
+        }
+      ],
+      "disposeAction": "fenced-withdrawal",
+      "neverPublishedAction": "none",
+      "stopAction": "fenced-withdrawal"
+    },
+    "primaryFailureCarrier": {
+      "publicErrorType": "SnapbackDiagnosticError",
+      "verbs": [
+        {
+          "carrier": "throw",
+          "operationKind": "Query",
+          "verb": "query"
+        },
+        {
+          "carrier": "throw",
+          "operationKind": "Action",
+          "verb": "run"
+        },
+        {
+          "carrier": "throw-immediate",
+          "operationKind": "Mutation",
+          "verb": "mutate"
+        },
+        {
+          "carrier": "raw-envelope-deprecated",
+          "operationKind": "Action",
+          "verb": "action"
+        },
+        {
+          "carrier": "resolved-queued-union",
+          "operationKind": "Mutation",
+          "verb": "queued-mutate"
+        }
+      ]
+    }
+  },
+  "schemaVersion": "snapback.client-lifecycle.v1"
+}

@@ -1,0 +1,8 @@
+{
+  "name": "isolated-node-action-vendor-sdk-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@octokit/auth-token": "6.0.0"
+  }
+}

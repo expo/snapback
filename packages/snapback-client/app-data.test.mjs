@@ -170,12 +170,13 @@ try {
   );
   await facade.mutate('addThing', { args: { title: 'planted' } });
   await facade.action('pingThing');
+  assert.equal(await facade.run('pingThing'), 'pong');
   // The request capture is what matters here; a strict challenge-projection
   // refusal on the response side must not abort the non-transmission sweep.
   await facade.authRequestCode('facade@example.com').catch(() => {});
   await fetchPublicArtifact(baseUrl, '/app-api/current', { ingressClass: 'discovery' });
   await fetchPublicArtifact(baseUrl, `/app-api/envelope/${'a'.repeat(64)}`);
-  assert.ok(captured.length >= 7, 'capture server observed the driven calls');
+  assert.ok(captured.length >= 8, 'capture server observed the driven calls');
   for (const call of captured) {
     const serialized = JSON.stringify(call);
     assert.equal(

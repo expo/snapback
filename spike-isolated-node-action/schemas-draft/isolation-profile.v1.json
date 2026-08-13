@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/draft/isolation-profile.v1.json",
+  "title": "IsolationProfileV1",
+  "description": "Draft live, launcher-signed, per-worker attestation. A static copy is never readiness authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "targetId", "profile", "trustRootId", "attesterKeyId", "workerBuild", "runtimeBuild", "osPolicyDigest", "brokerDigest", "classifier", "denyFactDigest", "probeCorpusDigest", "probeResultDigest", "challengeId", "generationId", "bundleId", "executableId", "startupNonce", "launchNonce", "kernelInstanceId", "containerInstanceId", "sessionBinding", "issuedAtMs", "expiresAtMs", "revocationGeneration", "signatureAlgorithm", "signature"],
+  "properties": {
+    "schemaVersion": { "const": "isolation-profile.v1" },
+    "targetId": { "type": "string", "minLength": 1 },
+    "profile": { "const": "isolated-node-action-v1" },
+    "trustRootId": { "type": "string", "minLength": 1 },
+    "attesterKeyId": { "type": "string", "minLength": 1 },
+    "workerBuild": { "$ref": "#/$defs/digest" },
+    "runtimeBuild": { "$ref": "#/$defs/digest" },
+    "osPolicyDigest": { "$ref": "#/$defs/digest" },
+    "brokerDigest": { "$ref": "#/$defs/digest" },
+    "classifier": {
+      "type": "object", "additionalProperties": false, "required": ["id", "digest"],
+      "properties": { "id": { "const": "globally-routable-unicast-v1" }, "digest": { "$ref": "#/$defs/digest" } }
+    },
+    "denyFactDigest": { "$ref": "#/$defs/digest" },
+    "probeCorpusDigest": { "$ref": "#/$defs/digest" },
+    "probeResultDigest": { "$ref": "#/$defs/digest" },
+    "challengeId": { "type": "string", "minLength": 16 },
+    "generationId": { "$ref": "#/$defs/digest" },
+    "bundleId": { "$ref": "#/$defs/digest" },
+    "executableId": { "$ref": "#/$defs/digest" },
+    "startupNonce": { "type": "string", "minLength": 16 },
+    "launchNonce": { "type": "string", "minLength": 16 },
+    "kernelInstanceId": { "type": "string", "minLength": 1 },
+    "containerInstanceId": { "type": ["string", "null"], "minLength": 1 },
+    "sessionBinding": {
+      "type": "object", "additionalProperties": false, "required": ["sessionId", "workerChannelIdentity", "channelBindingDigest"],
+      "properties": {
+        "sessionId": { "type": "string", "minLength": 16 },
+        "workerChannelIdentity": { "type": "string", "minLength": 1 },
+        "channelBindingDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "issuedAtMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "expiresAtMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "revocationGeneration": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "signatureAlgorithm": { "enum": ["ed25519"] },
+    "signature": { "type": "string", "pattern": "^base64:[A-Za-z0-9+/=]+$" }
+  },
+  "$defs": { "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" } }
+}
+

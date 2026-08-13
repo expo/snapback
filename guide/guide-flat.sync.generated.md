@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: 308414f8da2c05bc267c8df02a45a2395ab895e9
+reviewed-authorities-digest: sha256:8247e5bbf4236ef656eecd9f697afa2060fe506b082669a611b15f23af3f7a86
 ---
 
 # Offline retention and mutation replay

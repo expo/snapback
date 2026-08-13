@@ -42,7 +42,17 @@ export const INLINE_HANDLER_RULES = Object.freeze({
     'withIndex', 'withSearchIndex', 'eq', 'in', 'lt', 'lte', 'gt', 'gte',
     'order', 'take', 'collect', 'first',
   ]),
-  ctxDbMembers: Object.freeze(['get', 'query', 'insert', 'patch', 'delete']),
+  // @ref LLP 0248#d1-exact-id-batch-reads — batch reads are finite
+  // first-class ctx.db members, not query-builder verbs.
+  ctxDbMembers: Object.freeze([
+    'get',
+    'getMany',
+    'uniqueMany',
+    'query',
+    'insert',
+    'patch',
+    'delete',
+  ]),
   syntax: Object.freeze({
     admitted: Object.freeze([
       'direct function and arrow-function expressions',

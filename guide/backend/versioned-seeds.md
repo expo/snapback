@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed-authorities-digest: sha256:d7472d809b09c8d3009cae85e794bb85f54db6098441f82a8b50424cf0f2459f
 ---
 
 # Versioned seeds

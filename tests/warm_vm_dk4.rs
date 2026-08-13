@@ -54,6 +54,7 @@ fn configured() -> LocalSnapback {
                 permission_backing: false,
                 permission_fields: None,
                 membership: None,
+                authority_profile: None,
                 asset_sharing: None,
                 visibility: None,
                 history: None,

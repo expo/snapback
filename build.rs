@@ -158,15 +158,28 @@ fn emit_embedded_guide() {
     );
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is set by cargo"));
-    let manifest_commit = generated_json_string(&manifest, "commit")
-        .expect("generated guide manifest carries buildIdentity.commit");
     let build_commit = env_nonempty("SNAPBACK_BUILD_GIT_COMMIT")
         .or_else(|| git(&manifest_dir, &["rev-parse", "HEAD"]))
         .unwrap_or_else(|| "unknown".to_owned());
+    let build_commit = if build_commit
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric() || "-._".contains(character))
+    {
+        build_commit
+    } else {
+        "unknown".to_owned()
+    };
+    // @ref LLP 0232#d-2-prepared-execution-and-rebase-stable-records — the checked source record is content-bound. The
+    // binary carrier adds its exact commit only while embedding the manifest.
+    let identity_prefix = "\"buildIdentity\": {";
     let embedded_manifest = manifest.replacen(
-        &format!("\"commit\": \"{manifest_commit}\""),
-        &format!("\"commit\": \"{build_commit}\""),
+        identity_prefix,
+        &format!("{identity_prefix}\n    \"commit\": \"{build_commit}\","),
         1,
+    );
+    assert_ne!(
+        embedded_manifest, manifest,
+        "generated guide manifest carries buildIdentity"
     );
     fs::write(
         out_dir.join("embedded-guide-manifest.json"),

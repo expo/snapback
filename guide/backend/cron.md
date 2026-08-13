@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:f69a89f211633bef6232851c37e3da506b4548cba2b8deeb3bd45fedc373e870
 ---
 
 # Scheduled execution with cron

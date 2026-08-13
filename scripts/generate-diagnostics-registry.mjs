@@ -6,7 +6,6 @@
 // exact error lookup and typed client diagnostics.
 
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 import {
   existsSync,
   readFileSync,
@@ -16,6 +15,7 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { authoritiesDigest } from './guide-lib.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const check = process.argv.includes('--check');
@@ -26,6 +26,12 @@ const outputs = {
   markdown: 'guide/reference/diagnostics.md',
   types: 'packages/snapback-client/diagnostic-codes.d.mts',
 };
+const markdownAuthorities = [
+  'llp/0193-errors-as-docs-completeness.plan.md',
+  'scripts/generate-diagnostics-registry.mjs',
+  'src/server/api_error.rs',
+  'src/server/tests.rs',
+];
 
 function walk(directory, accept) {
   const paths = [];
@@ -248,13 +254,13 @@ function renderMarkdown(registry) {
     'order: 99',
     'audience: agent-first',
     'capabilities: []',
-    'authorities: [llp/0193-errors-as-docs-completeness.plan.md, scripts/generate-diagnostics-registry.mjs, src/server/api_error.rs, src/server/tests.rs]',
+    `authorities: [${markdownAuthorities.join(', ')}]`,
     'examples: []',
     'status: current',
     'targets: [all]',
     'maturity: shipped',
     'reviewed: 2026-08-08',
-    `reviewed-commit: ${registry.buildIdentity.commit}`,
+    `reviewed-authorities-digest: ${authoritiesDigest(root, markdownAuthorities)}`,
     '---',
     '',
     generatedMarker,
@@ -292,12 +298,6 @@ function renderTypes(codes) {
 const byCode = collectSites();
 const statuses = parseHttpStatuses();
 const anchors = guideAnchors();
-let commit = 'unknown';
-try {
-  commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-} catch {
-  // Source-only archives keep a deterministic unknown identity.
-}
 const codes = [...byCode.keys()].sort();
 const diagnostics = {};
 for (const code of codes) {
@@ -319,6 +319,7 @@ for (const code of codes) {
 const inputPaths = [
   'scripts/generate-diagnostics-registry.mjs',
   ...diagnosticCatalogPaths,
+  'scripts/guide-lib.mjs',
   ...productionPaths,
   ...walk(join(root, 'guide'), (path) => (
     path.endsWith('.md')
@@ -329,7 +330,7 @@ const inputPaths = [
 const registry = {
   schemaVersion: 'snapback-diagnostics-registry.v1',
   generatedBy: 'scripts/generate-diagnostics-registry.mjs',
-  buildIdentity: { commit, sourceDigest: sourceDigest(inputPaths) },
+  buildIdentity: { sourceDigest: sourceDigest(inputPaths) },
   limits: { lookupBytes: 16_384 },
   counts: {
     codes: codes.length,
@@ -340,19 +341,6 @@ const registry = {
   },
   diagnostics,
 };
-// A generated artifact cannot name the commit that first contains it. During
-// drift checks, retain the committed producer witness and compare every
-// content-bound field (especially sourceDigest and the records) exactly.
-if (check && existsSync(join(root, outputs.registry))) {
-  try {
-    const committed = JSON.parse(readFileSync(join(root, outputs.registry), 'utf8'));
-    if (typeof committed.buildIdentity?.commit === 'string') {
-      registry.buildIdentity.commit = committed.buildIdentity.commit;
-    }
-  } catch {
-    // The ordinary byte comparison below reports malformed registry bytes.
-  }
-}
 const rendered = new Map([
   [outputs.registry, `${JSON.stringify(registry, null, 2)}\n`],
   [outputs.markdown, renderMarkdown(registry)],

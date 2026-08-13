@@ -210,7 +210,7 @@ function ctxDbMemberProblem(node, checker, boundary) {
   const member = staticMemberName(node, checker, boundary);
   if (member === null || CTX_DB_MEMBERS.has(member)) return null;
   return `${member} is not a ctx.db member in inline_handler_v1 `
-    + '(use query, get, insert, patch, or delete; use patch for partial updates)';
+    + '(use query, get, getMany, uniqueMany, insert, patch, or delete; use patch for partial updates)';
 }
 
 function reflectionProblem(node, checker, boundary) {

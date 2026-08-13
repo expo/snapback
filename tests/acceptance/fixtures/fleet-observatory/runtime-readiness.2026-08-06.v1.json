@@ -1,18 +1,18 @@
 {
   "schemaVersion": "snapback.runtime-readiness.v1",
-  "issuedAt": "2026-08-13T07:26:02.280Z",
+  "issuedAt": "2026-08-13T06:35:16.345Z",
   "issuer": "kit-configured",
   "platform": "darwin-arm64",
   "binary": {
-    "bytes": 439857128,
-    "sha256": "1ea1529d4faefd7c93435666b5b6125c9cf4c9107bc492a352205781b46584f5"
+    "bytes": 437341048,
+    "sha256": "a6929871b391f23ad769035c08cd82a4561510d413ea7aa43d14132b7803bbe6"
   },
   "buildIdentity": {
     "crateVersion": "0.1.0",
-    "gitCommit": "9fdced897cfbe426aefdb4b1d4f6c75700645779",
-    "gitDirty": false,
+    "gitCommit": "e5d924c109d670667dd7b862ac2bc1a648a898e3",
+    "gitDirty": true,
     "buildProfile": "debug",
-    "startupNonce": "019ffa03-837d-7de1-a7e5-911d0c6f1a3d"
+    "startupNonce": "019ff9d5-091d-78b2-9ad6-87bc9c0e023f"
   },
   "artifacts": [
     {
@@ -35,10 +35,10 @@
       "ok": true,
       "binary": {
         "crateVersion": "0.1.0",
-        "gitCommit": "9fdced897cfbe426aefdb4b1d4f6c75700645779",
-        "gitDirty": false,
+        "gitCommit": "e5d924c109d670667dd7b862ac2bc1a648a898e3",
+        "gitDirty": true,
         "buildProfile": "debug",
-        "startupNonce": "019ffa03-837d-7de1-a7e5-911d0c6f1a3d"
+        "startupNonce": "019ff9d5-091d-78b2-9ad6-87bc9c0e023f"
       }
     }
   }

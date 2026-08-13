@@ -67,13 +67,29 @@ function publicReference(
     kind: definition?.kind,
     implementationHash: definition?.implementationHash,
     argsContractHash: definition?.argsContractHash,
+    argsContract: definition?.argsContract === undefined
+      ? undefined
+      : deepFreeze(structuredClone(definition.argsContract)),
+    argumentSchema: definition?.argumentSchema === undefined
+      ? undefined
+      : deepFreeze(structuredClone(definition.argumentSchema)),
     resultContractHash: definition?.resultContractHash,
     ...(definition?.authoredSourceHash === undefined ? {} : {
       authoredSourceHash: definition.authoredSourceHash,
     }),
     expectedGeneration,
   };
-  for (const field of Object.keys(reference).filter((field) => field !== 'expectedGeneration')) {
+  for (const field of [
+    'artifactKind',
+    'schemaVersion',
+    'appId',
+    'id',
+    'name',
+    'kind',
+    'implementationHash',
+    'argsContractHash',
+    'resultContractHash',
+  ]) {
     if (typeof reference[field] !== 'string' || reference[field].length === 0) {
       throw diagnosticError(
         'SNAPBACK_REACT_MANIFEST_INVALID',

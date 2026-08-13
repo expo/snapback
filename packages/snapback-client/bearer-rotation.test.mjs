@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-import { createExternalSessionClient } from './index.mjs';
+import { createExternalSessionClient, isSnapbackDiagnosticError } from './index.mjs';
 
 // Regression: 0137 A1-Expo f4 (carrier-agnostic) — replaceBearerToken to a
 // lesser-privileged successor must SETTLE (the denial becomes a handle
@@ -316,7 +316,8 @@ await withHarness(async ({ client, harness }) => {
   await assert.rejects(
     () => client.replaceBearerToken(MALLORY),
     (error) => error instanceof AggregateError
-      && error.errors.some((inner) => inner instanceof TypeError),
+      && error.errors.some((inner) => isSnapbackDiagnosticError(inner)
+        && inner.cause instanceof TypeError),
     'a transport-level successor failure is still a loud lifecycle failure',
   );
   assert.equal(sites.paused, true);

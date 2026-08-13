@@ -3,6 +3,12 @@
   "packagedCommandDeferrals": [],
   "entries": [
     {
+      "operation": "cli.packaged.author", "packagedCommand": "author", "title": "Suggest and freeze result declarations", "intents": ["infer result", "suggest contract", "write my result contract"],
+      "guide": "getting-started/the-authoring-loop.md#suggest-review-and-apply-a-result-contract", "policy": { "authority": "none", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "The identity-checked apply seam writes one caller-reviewed repository patch; editor/MCP integration is outside DeclarationSuggestionV1.", "sources": ["packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.author", "packages/snapback-codegen/declaration-suggestion.mjs"]
+    },
+    {
       "operation": "cli.packaged.guide", "packagedCommand": "guide", "title": "Look up an exact Guide symbol", "intents": ["look up an API symbol", "search the Snapback guide"],
       "guide": "index.md", "policy": { "authority": "none", "effect": "none", "responseSensitivity": "PublicProjection" },
       "behavior": { "readOnly": true, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": false },

@@ -34,6 +34,10 @@ import {
   canonicalReactStoreKeyV1,
 } from '@expo/snapback-client/canonical-client-value';
 import {
+  normalizeArgumentsAgainstContractV1,
+  normalizeGeneratedArgumentsV1,
+} from '@expo/snapback-client/argument-normalization';
+import {
   positiveDevelopmentEnvironment,
   projectDiagnosticV1,
 } from '@expo/snapback-client/client-diagnostics';
@@ -318,6 +322,44 @@ function pending(connection = 'idle') {
   });
 }
 
+const AUTHENTICATION_REQUIRED_BLOCKED = Object.freeze({
+  status: 'blocked',
+  reason: 'authentication-required',
+  data: undefined,
+  error: null,
+  connection: 'idle',
+  freshness: 'unknown',
+  retention: null,
+});
+
+function generatedAuthenticatedAuthorityState(client, reference) {
+  if (
+    reference?.artifactKind !== 'functionReference'
+    || reference.authRequirement !== 'authenticated'
+  ) return 'not-applicable';
+  if (client.custody === 'anonymous-public') return 'anonymous';
+  const coordinator = client.authCoordinator;
+  if (!coordinator) return 'unknown';
+  try {
+    const capture = coordinator.capture();
+    const authority = coordinator.credentialFor(capture)?.authority;
+    return authority?.kind === 'anonymous' ? 'anonymous' : 'authenticated';
+  } catch (error) {
+    const code = error?.diagnostic?.code ?? error?.code;
+    return code === 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+      || code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+      ? 'settling'
+      : 'unknown';
+  }
+}
+
+function isAnonymousProtectedAuthorizationDenial(client, reference, error) {
+  const code = error?.diagnostic?.code ?? error?.code;
+  return generatedAuthenticatedAuthorityState(client, reference) === 'anonymous'
+    && (error?.status === 401 || error?.status === 403)
+    && code === 'SNAPBACK_AUTH_REQUIRED';
+}
+
 const SKIPPED = Object.freeze({
   status: 'skipped',
   data: undefined,
@@ -401,6 +443,7 @@ function captureRetention(store) {
 
 function queryStateForConnection(store, connection, detail = {}) {
   const snapshot = store.snapshot;
+  if (snapshot.status === 'blocked') return snapshot;
   if (connection === 'error') {
     return Object.freeze({
       status: 'error',
@@ -897,6 +940,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const startStore = (store, supersedes = null) => {
     if (terminal || runtimePaused() || store.handle || (store.consumers === 0 && store.pins === 0)) return;
     if (store.readOnlySnapshot !== null) return null;
+    const authorityState = generatedAuthenticatedAuthorityState(client, store.reference);
+    if (authorityState === 'settling') return null;
+    if (authorityState === 'anonymous') {
+      if (store.snapshot.status !== 'blocked') {
+        const generation = ++store.generation;
+        store.freshness = 'unknown';
+        store.retention = null;
+        publish(store, AUTHENTICATION_REQUIRED_BLOCKED, generation);
+      }
+      return null;
+    }
     // A one-for-one supersession must carry its exact predecessor witness to
     // the server now; it is an explicit invalidation, so it resets any held
     // failure window rather than waiting behind it.
@@ -941,6 +995,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           // renderable outcome, not an empty 'ready'. Rows are already blank;
           // project the denial on the error axis. Fresh authoritative rows
           // (a later authorized subscribe) clear it below.
+          if (isAnonymousProtectedAuthorizationDenial(
+            client,
+            store.reference,
+            detail.error ?? detail.authorization,
+          )) {
+            store.freshness = 'unknown';
+            store.retention = null;
+            publish(store, AUTHENTICATION_REQUIRED_BLOCKED, generation);
+            return;
+          }
           captureRetention(store);
           publish(store, Object.freeze({
             status: 'error',
@@ -1009,6 +1073,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
           () => !terminal && !runtimePaused(),
           () => startStore(store),
+          () => isAnonymousProtectedAuthorizationDenial(
+            client,
+            store.reference,
+            error,
+          ) ? AUTHENTICATION_REQUIRED_BLOCKED : null,
         ])
       )).catch((loadError) => {
         recordDiagnostic(loadError);
@@ -1024,6 +1093,13 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         clearUnadoptedSubscription(store);
         store.handle = null;
         allHandles.delete(handle);
+        if (isAnonymousProtectedAuthorizationDenial(client, store.reference, error)) {
+          store.retry = null;
+          store.freshness = 'unknown';
+          store.retention = null;
+          publish(store, AUTHENTICATION_REQUIRED_BLOCKED, generation);
+          return;
+        }
         publish(store, Object.freeze({
           status: 'error',
           data: undefined,
@@ -1644,6 +1720,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
       admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
     }
+    mutationArgs = normalizeGeneratedArgumentsV1(admittedMutation, mutationArgs);
     canonicalizeClientValueV1(mutationArgs);
     if (
       dispatchOptions === null
@@ -1882,6 +1959,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
       admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
     }
+    mutationArgs = normalizeGeneratedArgumentsV1(admittedMutation, mutationArgs);
     canonicalizeClientValueV1(mutationArgs);
     const output = await client.mutate(admittedMutation, {
       args: mutationArgs,
@@ -2092,7 +2170,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       });
     }
     return Object.freeze({
-      status: room.acknowledged ? 'published' : 'publishing',
+      status: room.publishing || room.acknowledgedPair === null ? 'publishing' : 'published',
       diagnostic: null,
     });
   };
@@ -2165,7 +2243,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         { ttlMs: effectiveTtlMs, maxTtlMs: room.definition.reference.maxTtlMs },
       );
     }
-    const validated = room.definition.valueValidator.validate(value);
+    const normalizedValue = normalizeArgumentsAgainstContractV1(
+      value,
+      room.definition.reference.valueContract,
+      { path: 'value' },
+    );
+    const validated = room.definition.valueValidator.validate(normalizedValue);
     if (!validated.ok) {
       throw diagnosticError(
         'SNAPBACK_REACT_PRESENCE_VALUE_INVALID',
@@ -2247,9 +2330,51 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }, room.desired.intervalMs);
     room.heartbeatTimer.unref?.();
   };
+  const acknowledgedPairFromOutcome = (outcome) => {
+    const scopeEpoch = outcome?.scope_epoch;
+    const entryVersion = outcome?.entry_version;
+    if (
+      !Number.isSafeInteger(scopeEpoch)
+      || scopeEpoch < 1
+      || !Number.isSafeInteger(entryVersion)
+      || entryVersion < 1
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_EPHEMERAL_PUBLISH_OUTCOME_INVALID',
+        'managed presence publish omitted its acknowledged epoch/version pair',
+      );
+    }
+    return Object.freeze({
+      scopeEpoch,
+      entryVersion,
+      authorityCapture: client.authorityCaptureFor?.(outcome) ?? client.captureAuthority?.() ?? null,
+    });
+  };
+  const enqueuePairWithdrawal = (room, pair, handle = room.handle) => {
+    if (pair === null || !handle) return Promise.resolve({ status: 'absent' });
+    if (
+      pair.authorityCapture !== null
+      && client.isAuthorityCaptureCurrent?.(pair.authorityCapture) !== true
+    ) {
+      return Promise.resolve({ status: 'superseded', reason: 'authority-generation' });
+    }
+    const task = Promise.resolve(handle.delete({
+      expectedScopeEpoch: pair.scopeEpoch,
+      expectedEntryVersion: pair.entryVersion,
+      authorityCapture: pair.authorityCapture,
+    }));
+    room.withdrawalTasks.add(task);
+    void task.finally(() => room.withdrawalTasks.delete(task)).catch(() => {});
+    return task;
+  };
+  const withdrawAcknowledgedPair = (room, handle = room.handle) => {
+    const pair = room.acknowledgedPair;
+    room.acknowledgedPair = null;
+    return enqueuePairWithdrawal(room, pair, handle);
+  };
   const enqueueRoomPublish = (room, generation = room.intentGeneration) => {
     room.publisherDiagnostic = null;
-    room.acknowledged = false;
+    room.publishing = true;
     notifyRoom(room);
     const desired = room.desired;
     const task = room.workTail.then(async () => {
@@ -2260,13 +2385,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         || room.raw.status !== 'ready'
       ) return;
       try {
-        await room.handle.publish(desired.value, { ttlMs: desired.ttlMs });
+        const handle = room.handle;
+        const outcome = await handle.publish(desired.value, { ttlMs: desired.ttlMs });
+        const pair = acknowledgedPairFromOutcome(outcome);
         if (
           room.closed
           || room.intentGeneration !== generation
           || room.desired !== desired
-        ) return;
-        room.acknowledged = true;
+        ) {
+          void enqueuePairWithdrawal(room, pair, handle).catch(recordDiagnostic);
+          return;
+        }
+        room.acknowledgedPair = pair;
+        room.publishing = false;
         room.suspended = false;
         room.publisherDiagnostic = null;
         notifyRoom(room);
@@ -2278,7 +2409,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           || room.desired !== desired
         ) return;
         room.suspended = true;
-        room.acknowledged = false;
+        room.publishing = false;
         room.publisherDiagnostic = serializeError(error);
         clearRoomHeartbeat(room);
         notifyRoom(room);
@@ -2297,7 +2428,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     recomputeRoomDesired(room);
     room.intentGeneration += 1;
     room.suspended = false;
-    room.acknowledged = false;
+    room.publishing = false;
     clearRoomHeartbeat(room);
     notifyRoom(room);
     return room.raw.status === 'ready'
@@ -2330,14 +2461,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }
     const generation = ++room.intentGeneration;
     clearRoomHeartbeat(room);
+    token.desired = null;
+    recomputeRoomDesired(room);
+    room.publishing = false;
+    notifyRoom(room);
     try {
-      await room.handle?.delete();
+      await withdrawAcknowledgedPair(room);
       if (room.closed || room.intentGeneration !== generation) return;
-      token.desired = null;
-      room.acknowledged = false;
       room.suspended = false;
       room.publisherDiagnostic = null;
-      recomputeRoomDesired(room);
       notifyRoom(room);
     } catch (error) {
       if (room.closed || room.intentGeneration !== generation) return;
@@ -2356,13 +2488,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     room.republisher = null;
     const handle = room.handle;
     room.handle = null;
-    if (room.acknowledged) void handle?.delete?.().catch((error) => recordDiagnostic(error));
+    room.acknowledgedPair = null;
+    room.publishing = false;
     handle?.dispose?.();
     room.cleanup = Promise.allSettled([
       room.workTail,
+      ...room.withdrawalTasks,
       handle?.settled?.() ?? Promise.resolve(),
-    ]).then((results) => {
+    ]).then(async (results) => {
       for (const result of results) {
+        if (result.status === 'rejected') recordDiagnostic(result.reason);
+      }
+      const lateWithdrawals = await Promise.allSettled([...room.withdrawalTasks]);
+      for (const result of lateWithdrawals) {
         if (result.status === 'rejected') recordDiagnostic(result.reason);
       }
     });
@@ -2412,7 +2550,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           || room.desired === null
           || canonicalizeClientValueV1(context.scope ?? {}) !== scopeKey
         ) return;
-        await context.publish(room.desired.value, { ttlMs: room.desired.ttlMs });
+        const outcome = await context.publish(room.desired.value, { ttlMs: room.desired.ttlMs });
+        room.acknowledgedPair = acknowledgedPairFromOutcome(outcome);
+        room.publishing = false;
+        notifyRoom(room);
       },
     );
     void handle.started().catch((error) => {
@@ -2446,7 +2587,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       republisher: null,
       heartbeatTimer: null,
       desired: null,
-      acknowledged: false,
+      acknowledgedPair: null,
+      publishing: false,
       suspended: false,
       publisherDiagnostic: null,
       intentGeneration: 0,
@@ -2454,6 +2596,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       version: 0,
       idleEpoch: 0,
       workTail: Promise.resolve(),
+      withdrawalTasks: new Set(),
       cleanup: Promise.resolve(),
       resyncReasons: [],
       closed: false,
@@ -2476,8 +2619,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (wasDesired && room.desired === null) {
       room.intentGeneration += 1;
       clearRoomHeartbeat(room);
-      if (room.acknowledged) void room.handle?.delete?.().catch((error) => recordDiagnostic(error));
-      room.acknowledged = false;
+      room.publishing = false;
+      void withdrawAcknowledgedPair(room).catch((error) => recordDiagnostic(error));
     }
     notifyRoom(room);
     if (room.tokens.size !== 0) return;
@@ -2549,9 +2692,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         );
         void publishTask.catch(recordDiagnostic);
       } else if (token.source === 'declarative') {
+        const wasDesired = token.desired !== null;
         token.source = 'observer';
         token.desired = null;
         recomputeRoomDesired(room);
+        if (wasDesired && room.desired === null) {
+          room.intentGeneration += 1;
+          clearRoomHeartbeat(room);
+          room.publishing = false;
+          void withdrawAcknowledgedPair(room).catch(recordDiagnostic);
+        }
       }
       startRoom(room);
     } catch (error) {
@@ -2638,7 +2788,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
   const presenceDescriptor = (reference, scope, value, ttlMs) => {
     const definition = admittedReactEphemeralDefinition(binding, reference);
-    const scopeResult = definition.scopeValidator.validate(scope);
+    const admittedScope = normalizeArgumentsAgainstContractV1(
+      scope,
+      definition.reference.scopeContract,
+      { path: 'scope' },
+    );
+    const scopeResult = definition.scopeValidator.validate(admittedScope);
     if (!scopeResult.ok) {
       throw diagnosticError(
         'SNAPBACK_REACT_ARGS_INVALID',
@@ -2753,7 +2908,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
       for (const room of rooms.values()) {
         room.raw = PRESENCE_SERVER_PENDING;
-        room.acknowledged = false;
+        room.acknowledgedPair = null;
+        room.publishing = false;
         room.publisherDiagnostic = null;
         notifyRoom(room);
       }
@@ -3109,6 +3265,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       await beginGenerationHandoff(target).promise;
       admittedMutation = admittedOptimisticCreateMutation(mutationReference, state.table);
     }
+    mutationArgs = normalizeGeneratedArgumentsV1(admittedMutation, mutationArgs);
     canonicalizeClientValueV1(mutationArgs);
     const mutationContract = preparedReactResultContract(binding, admittedMutation);
     const view = await ensureOptimisticCreateView(store, state);
@@ -3723,6 +3880,18 @@ function useProvider() {
 const canonicalHookInputKey = (value) => (
   value === skip ? skip : canonicalizeClientValueV1(value)
 );
+const canonicalFunctionArgsKey = (reference, value) => (
+  value === skip
+    ? skip
+    : canonicalizeClientValueV1(normalizeGeneratedArgumentsV1(reference, value))
+);
+const canonicalContractInputKey = (contract, value, path) => (
+  value === skip
+    ? skip
+    : canonicalizeClientValueV1(
+        normalizeArgumentsAgainstContractV1(value, contract, { path }),
+      )
+);
 
 export function useSnapbackQuery(reference, args) {
   const provider = useProvider();
@@ -3731,7 +3900,7 @@ export function useSnapbackQuery(reference, args) {
   if (churnDetectorRef.current === HOOK_CHURN_UNINITIALIZED) {
     churnDetectorRef.current = createHookChurnDetector(provider, 'query');
   }
-  const argsKey = canonicalHookInputKey(args);
+  const argsKey = canonicalFunctionArgsKey(reference, args);
   if (
     positiveDevelopmentEnvironment()
     && args !== skip
@@ -3797,8 +3966,8 @@ export function useSnapbackPresence(reference, options) {
   if (churnDetectorRef.current === HOOK_CHURN_UNINITIALIZED) {
     churnDetectorRef.current = createHookChurnDetector(provider, 'presence');
   }
-  const scopeKey = canonicalHookInputKey(options.scope);
-  const valueKey = canonicalHookInputKey(options.value);
+  const scopeKey = canonicalContractInputKey(reference.scopeContract, options.scope, 'scope');
+  const valueKey = canonicalContractInputKey(reference.valueContract, options.value, 'value');
   const descriptor = useMemo(
     () => provider.registry.presenceDescriptor(
       reference,
@@ -3898,11 +4067,13 @@ function groupSnapshot(provider, descriptors) {
     .map((descriptor) => queries[descriptor.name].error)[0] ?? null;
   const status = active.some((query) => query.status === 'error')
     ? 'error'
-    : active.some((query) => query.status === 'pending')
-      ? 'pending'
-      : active.some((query) => query.status === 'refreshing')
-        ? 'refreshing'
-        : 'ready';
+    : active.some((query) => query.status === 'blocked')
+      ? 'blocked'
+      : active.some((query) => query.status === 'pending')
+        ? 'pending'
+        : active.some((query) => query.status === 'refreshing')
+          ? 'refreshing'
+          : 'ready';
   const preparedGroup = descriptors.length > 0
     && descriptors.every((descriptor) => descriptor.preparedEntryName !== null)
     ? preparedGroupForProvider(provider)
@@ -4057,7 +4228,7 @@ export function useSnapbackOptimisticCreate(reference, options) {
     throw new TypeError('useSnapbackOptimisticCreate requires query and args options');
   }
   const lease = useRef(null);
-  const argsKey = canonicalHookInputKey(options.args);
+  const argsKey = canonicalFunctionArgsKey(options.query, options.args);
   const descriptor = useMemo(
     () => provider.registry.descriptor(options.query, options.args),
     [provider, options.query, argsKey],

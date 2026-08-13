@@ -188,6 +188,17 @@ automatic rewriting out of scope.
   debugging. Authenticated developer inspection may report aggregate policy
   facts without identifying hidden keys to application code.
 
+## Addendum — experimental capability introduction (2026-08-12)
+
+`bounded_batch_reads_v1` is registered `unregistered → experimental` on the
+`local-dev-sqlite-ibex` target with this RFC's implementation landing (LLP
+0134 same-commit introduction act; record
+`tests/acceptance/maturity/bounded-batch-reads-2026-08-12.introduction.json`).
+Rollouts 1–3 plus cost/dependency evidence are implemented; the Cloudflare DO
+and remote-service targets carry explicit capability gaps; the N+1 diagnostic
+and the measurement rerun remain open
+(`issues/20260812-0247-0248-measurement-reruns.md`).
+
 ## Addendum — invocation-snapshot scope (2026-08-12)
 
 Implementation orientation against LLP 0003's execution-semantics record

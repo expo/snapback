@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:b8d0b1c8db2169ff78afea78417374268e681164c440744c62ec88c7122a1297
 ---
 
 # Deployment posture
@@ -81,7 +81,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed-authorities-digest: sha256:f85a68b5535014a11658cc98888396f98b3a2890058da4ba26f101dbb3176352
 ---
 
 # Build an immutable release
@@ -618,7 +618,7 @@ status: current
 targets: [cloudflare]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:5a26b512f9bfd6946148fabe46fc8ac367af3dab85d2b64bd2d18bab58a8e97f
 ---
 
 # Deploying the Cloudflare proof
@@ -847,7 +847,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:6cb04e0ad71393216ec57d648a10ccc352a99e73955a5684e96ae8700caeef99
 ---
 
 # Inspect hosted control

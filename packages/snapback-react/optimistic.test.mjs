@@ -66,6 +66,15 @@ const ref = (name, kind, contract) => Object.freeze({
   kind,
   implementationHash: `sha256:${name}-implementation`,
   argsContractHash: `sha256:${name}-args`,
+  argumentSchema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      amount: { type: 'integer' },
+      handle: { type: 'string' },
+      postId: { type: 'string' },
+    },
+  },
   resultContractHash: resultContractHash(contract),
   resultContract: contract,
 });

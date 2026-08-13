@@ -53,16 +53,17 @@
           }
         ],
         "kind": "object"
-      }
+      },
+      "withdrawalVisibilityDeadlineMs": 2000
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:fe80118dcb8e68cf6065b228621150314cf5ada89f1cecef2b0c517398cc6a96",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:797321077da0f3cc6c75feb8a2054aba34d39fc183ef3f79c44e4fd4323f6a91",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:a764847a0ee9257ed049c741ff5abd194378c2045d1ff05ac3b874a95166dc47",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:0b2dd51cffb8c7604ee1f684dc3bc2a9bae4284f2e5848fbec00c0b91c3e4b93",
   "schemaVersion": "snapback.v1",
   "tables": [
     {

@@ -9,13 +9,13 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-harness/ctx-bootstrap.js, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0245-infer-show-freeze-declarations.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-harness/ctx-bootstrap.js, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-12
+reviewed-authorities-digest: sha256:f4949c42aecb1f52adce18aaf2336512ddd971a5e028f12d7f5cc6de91a06dff
 ---
 
 # Queries
@@ -334,6 +334,13 @@ polling contract. See [live queries](../realtime/live-queries.md).
 - **Do not respell a complete stored row with `v.object`.** Use
   `results.documents(table)` at the top level, or `v.doc(table)` when the
   complete stored shape appears inside a result validator.
+- **Do not treat a manually pasted suggestion patch as stale-safe.** Manual
+  paste remains ordinary authoring; only `snapback author suggestion apply`
+  rechecks the complete analysis identity immediately before its atomic write.
+- **Do not accept a candidate without reading its evidence class.** Review
+  `exact`, `schema-derived`, `widened`, and `unresolved` proportions and resolve
+  every hole; the analyzer never invents bounds, numeric refinements, or table
+  identity.
 - **Do not capture imports or arbitrary top-level bindings in an inline
   handler.** Statically reachable same-file function declarations—including
   context-reader helpers that receive `ctx.db`—are admitted. Imported helpers,
@@ -356,7 +363,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:01fa5dbe529af771cf3fe1bd7bf41650488399086db55b61f7505c6f8910cd1d
 ---
 
 # Mutations
@@ -917,7 +924,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:63ee41d271a9a40072ccb8ce36307972fe1ea2a65d54c2464fe4f847a55a7faf
 ---
 
 # Actions and outbound fetch
@@ -1225,7 +1232,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:391f5bef508ca9c561097cb2f5de09f3c55ca2953808ca3c93f8ee2eb89361ae
 ---
 
 # Declarative mutation plans
@@ -1520,7 +1527,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:f69a89f211633bef6232851c37e3da506b4548cba2b8deeb3bd45fedc373e870
 ---
 
 # Scheduled execution with cron
@@ -1931,7 +1938,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:6d95641bb08090de8c01061804af32041cc9f70e6846bf722395c2e504334591
 ---
 
 # One-off durable jobs
@@ -2220,7 +2227,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed-authorities-digest: sha256:d7472d809b09c8d3009cae85e794bb85f54db6098441f82a8b50424cf0f2459f
 ---
 
 # Versioned seeds
@@ -2414,7 +2421,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
+reviewed-authorities-digest: sha256:6287bc6c8979d956731270da9347db15ad885830243a974db93e9309d29e38bf
 ---
 
 # Assets
@@ -3710,7 +3717,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-09
-reviewed-commit: 339e9fed3500daece2ad90de0d21018e1b00a314
+reviewed-authorities-digest: sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374c91db0a295ece3ed8122
 ---
 
 # External API exposure
@@ -4016,7 +4023,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:6919f120fbdc6b257e5c339ef8cdf9bd4ff8d32c498a0befc1c762967f765f26
 ---
 
 # Trusted runtime time and identifiers
@@ -4175,7 +4182,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:f99b6fdb988d64145b86f8c6275af59102ac56d2b59681059038fcfabeb44bec
 ---
 
 # Safe standard data patterns
@@ -4524,7 +4531,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-05
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed-authorities-digest: sha256:c762f859e8d1f553c899de48d81ac1020929f6cd618b04e514ec8b100ab77bc1
 ---
 
 # Relational queries (bounded joins)
@@ -4804,7 +4811,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:21e047f9a0382245b33c96da4b91b541f81b8de4c5b93f131512a7da792745c4
 ---
 
 # Snapshot batches
@@ -5048,7 +5055,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:dfeb7a6cbfe90ea9ec4f1c6a768fd6075accd769ed424d201b73dac2d9e2eecc
 ---
 
 # Portable indexed text search
@@ -5245,7 +5252,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: eb3f78a64db88ef1368b57ca17f56dbad77205ce
+reviewed-authorities-digest: sha256:339769af563c7edf2b98728e26b469c9b33b7635fa8666b193a2ba63e7a578cf
 ---
 
 # Scoped sequences
@@ -5346,7 +5353,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:39af92584e57debdcb2baa5c38f3f7b19dac6a588f5fefec6e5ba8d7e77d1dcd
 ---
 
 # Portable exact vector search
@@ -5494,7 +5501,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:0845678e9f349bbf1f6872d176f125d4fcd113124dda99a6558eb22917bb249f
 ---
 
 # Reviewed migrations
@@ -5709,7 +5716,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed-authorities-digest: sha256:e0fd6cecbea08f7ee19b849395320ffc839983a8c3e87af1635f502f1c53bf8d
 ---
 
 # Streamed actions
@@ -5991,7 +5998,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: bbfb871f14c3cefbda2e1e143770b5c25eadb94f
+reviewed-authorities-digest: sha256:1b03a6d605d8591c0d82496900f39eb17acd1209f609feb927610e6bc0f84af6
 ---
 
 # Expo push notifications

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "isolated-action-diagnostics.v1",
+  "codeTable": [
+    {
+      "code": "PACKAGE_BAD",
+      "severity": "warning",
+      "subsystem": "generic",
+      "phase": "install",
+      "summary": "bad",
+      "remediation": ""
+    }
+  ]
+}
+

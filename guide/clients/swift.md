@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:bb3cab052a509303eae2f0d0656d35af210deaa8c6a1e8c479704348b29be69f
 ---
 
 # Swift client

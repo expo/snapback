@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:9b727f6437aaba9ddc8a5ca69cf043f818a3f6e9c109e65925fed2d341d564d7
 ---
 
 # Continuously replicate a local SQLite store

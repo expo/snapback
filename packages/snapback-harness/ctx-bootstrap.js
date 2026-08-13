@@ -107,6 +107,7 @@
   var QUERY_MAX_LIMIT = 1024;
   var QUERY_MAX_IN_ITEMS = 500;
   var QUERY_MAX_FILTER_BINDINGS = 500;
+  var BATCH_READ_MAX_ITEMS = 256;
   function normalizeDirection(direction) {
     return String(direction || "asc").toLowerCase() === "desc" ? "Desc" : "Asc";
   }
@@ -777,8 +778,29 @@
     }
     trustedFreeze(auth);
     var run = runJson ? trustedJsonParse(runJson) : null;
+    function batchRead(op, table, index, items) {
+      if (!Array.isArray(items)) {
+        throw snapbackError(
+          "SNAPBACK_BATCH_READ_INPUT_INVALID",
+          op + " expects an array"
+        );
+      }
+      if (items.length > BATCH_READ_MAX_ITEMS) {
+        throw snapbackError(
+          "SNAPBACK_BATCH_READ_ITEMS_EXCEEDED",
+          op + " accepts at most " + BATCH_READ_MAX_ITEMS + " items"
+        );
+      }
+      if (items.length === 0) return [];
+      var args = { table: table };
+      if (index !== null) args.index = index;
+      args[op === "db.getMany" ? "ids" : "keys"] = items;
+      return adoptHostResult(host(op, args));
+    }
     var db = {
       get: function(table, id) { return adoptHostResult(host("db.get", { table: table, id: id })); },
+      getMany: function(table, ids) { return batchRead("db.getMany", table, null, ids); },
+      uniqueMany: function(table, index, keys) { return batchRead("db.uniqueMany", table, index, keys); },
       query: makeBuilder,
       insert: function(table, values) { return host("db.insert", { table: table, values: values }); },
       patch: function(table, id, values) { return host("db.patch", { table: table, id: id, values: values }); },
@@ -839,6 +861,8 @@
     };
     if (mode === "action") {
       db.get = readonlyDenied("get");
+      db.getMany = readonlyDenied("getMany");
+      db.uniqueMany = readonlyDenied("uniqueMany");
       db.query = readonlyDenied("query");
     }
     // Declared application refusals (LLP 0108 §Declared application refusals).

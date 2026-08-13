@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "isolated-node-action-source-profile.v1",
+  "profileName": "isolated-node-action-v1",
+  "typescript": {
+    "packageVersion": "5.9.3",
+    "packageIntegrity": "sha512-YWJjZA==",
+    "syntaxErasureOnly": true,
+    "compilerOptions": { "module": "ESNext", "target": "ES2022", "moduleResolution": "Bundler", "verbatimModuleSyntax": true, "sourceMap": true }
+  },
+  "resolver": { "algorithm": "snapback-esm-exact-v1", "conditions": ["node", "import", "default"], "explicitExtensions": true, "bareEdges": "declared-lockfile-closure-only" },
+  "bundler": { "name": "esbuild", "version": "0.28.1", "integrity": "sha512-YWJjZA==", "format": "esm", "platform": "node" },
+  "sourceMaps": { "external": true, "sourcesContent": true, "absolutePaths": false },
+  "limits": { "appFiles": 64, "appDepth": 16, "appSourceBytes": 524288, "packageInstances": 256, "packageDepth": 32, "packageUnpackedBytes": 67108864, "bundleBytes": 33554432 },
+  "allowedExtensions": [".ts", ".mts", ".js", ".mjs"],
+  "refusedFeatures": ["commonjs", "dynamic-import", "decorators", "jsx", "aliases", "custom-transforms", "url-edges", "git-edges", "workspace-edges", "path-edges"]
+}
+

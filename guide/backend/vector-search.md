@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:39af92584e57debdcb2baa5c38f3f7b19dac6a588f5fefec6e5ba8d7e77d1dcd
 ---
 
 # Portable exact vector search

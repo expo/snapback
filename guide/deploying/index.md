@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:b8d0b1c8db2169ff78afea78417374268e681164c440744c62ec88c7122a1297
 ---
 
 # Deployment posture

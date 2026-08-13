@@ -18,7 +18,12 @@ export {
   useSurface,
 } from './full-capabilities.mjs';
 
-export { bindSnapbackAppLifecycle } from '@expo/snapback-client';
+export {
+  ARGUMENT_NORMALIZATION_VERSION,
+  SnapbackDiagnosticError,
+  bindSnapbackAppLifecycle,
+  isSnapbackDiagnosticError,
+} from '@expo/snapback-client';
 
 // Full compatibility composition. Query/mutation-only applications can select
 // @expo/snapback-react/core and omit this file's optional capability module.

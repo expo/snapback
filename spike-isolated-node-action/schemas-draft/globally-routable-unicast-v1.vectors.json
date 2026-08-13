@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "globally-routable-unicast-v1.vectors",
+  "classifier": {
+    "id": "globally-routable-unicast-v1",
+    "factTableRevision": "draft-20260812",
+    "rule": "canonicalize every answer and mapped/translated equivalent; admit only when every answer is globally routable unicast and no target deny fact matches"
+  },
+  "vectors": [
+    { "id": "ipv4-global", "answers": ["8.8.8.8"], "canonical": ["8.8.8.8"], "decision": "admit", "classifications": ["globally-routable-unicast"] },
+    { "id": "ipv4-private", "answers": ["192.168.1.1"], "canonical": ["192.168.1.1"], "decision": "refuse", "classifications": ["non-global-unicast"] },
+    { "id": "ipv4-metadata", "answers": ["169.254.169.254"], "canonical": ["169.254.169.254"], "decision": "refuse", "classifications": ["metadata"] },
+    { "id": "ipv4-target-reserved", "answers": ["100.100.100.200"], "canonical": ["100.100.100.200"], "decision": "refuse", "classifications": ["target-reserved"] },
+    { "id": "ipv6-global", "answers": ["2001:4860:4860::8888"], "canonical": ["2001:4860:4860::8888"], "decision": "admit", "classifications": ["globally-routable-unicast"] },
+    { "id": "ipv6-loopback", "answers": ["::1"], "canonical": ["::1"], "decision": "refuse", "classifications": ["non-global-unicast"] },
+    { "id": "ipv4-mapped-global", "answers": ["::ffff:8.8.8.8"], "canonical": ["8.8.8.8"], "decision": "admit", "classifications": ["globally-routable-unicast"] },
+    { "id": "ipv4-mapped-metadata", "answers": ["::ffff:169.254.169.254"], "canonical": ["169.254.169.254"], "decision": "refuse", "classifications": ["metadata"] },
+    { "id": "ipv4-translated-global", "answers": ["64:ff9b::808:808"], "canonical": ["8.8.8.8"], "decision": "admit", "classifications": ["globally-routable-unicast"] },
+    { "id": "ipv4-translated-metadata", "answers": ["64:ff9b::a9fe:a9fe"], "canonical": ["169.254.169.254"], "decision": "refuse", "classifications": ["metadata"] },
+    { "id": "ipv6-scoped", "answers": ["fe80::1%en0"], "canonical": [null], "decision": "refuse", "classifications": ["scoped"] },
+    { "id": "ipv6-noncanonical", "answers": ["2001:0DB8:0:0:0:0:0:1"], "canonical": [null], "decision": "refuse", "classifications": ["noncanonical"] },
+    { "id": "mixed-answer", "answers": ["8.8.8.8", "127.0.0.1"], "canonical": ["8.8.8.8", "127.0.0.1"], "decision": "refuse", "classifications": ["globally-routable-unicast", "non-global-unicast"] }
+  ]
+}
+

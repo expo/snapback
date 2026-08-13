@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-11
-reviewed-commit: ef936353ffdc540dedd4d5760e51c78eb6e38f72
+reviewed-authorities-digest: sha256:3b0befc7c75710f4371fd0a0fb62af039db64b8c78ffdd26cb5e0b9f49bbaa4b
 ---
 
 # The Contract adapter
@@ -550,13 +550,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.micro]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:723f591ef92b3a2a4f72c6cb6a5c0f4f40050a55d5274a274395e96c38a686e2
 ---
 
 # The headless client
@@ -916,60 +916,6 @@ returns the same phased command task documented in
 `useSnapbackCommand` and `provider.surface(...)` compose this same owner
 rather than a second one.
 
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Generated nominal reference kinds, lifecycle metadata, and
-> pre-transport kind diagnostics are not present in the newest published
-> closure, 0.1.20. They are expected in 0.1.21.
-
-## Generated reference kinds and legal verbs
-
-Generated function references are nominally distinct `QueryRef`,
-`LiveQueryRef`, `MutationRef`, and `ActionRef` values. Generated command
-descriptors are `CommandRef` values with the runtime discriminator
-`asset-bearing-command.v1`. The current legal surface is closed:
-
-| Reference kind | Legal headless verb | Meaning |
-| --- | --- | --- |
-| `QueryRef` | `query()` or `liveQuery()` | One authoritative read, or the existing live-subscription compatibility path. |
-| `LiveQueryRef` | `query()` or `liveQuery()` | One-shot read or authoritative snapshot followed by updates. |
-| `MutationRef` | `mutate()` | Dispatch; a queued result is pending, not settled. |
-| `ActionRef` | `action()` | One online action response. |
-| `CommandRef` | `commandClient.start()` | One process-local command task over its ordinary mutation and optional asset transfer. |
-
-TypeScript rejects cross-kind calls. JavaScript, stale generated modules, and
-other skewed callers receive
-`SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH` before auth discovery, store
-preparation, command-task creation, or transport. Its structured details name
-`receivedKind`, the verb's `acceptedKinds`, the received kind's `correctVerb`,
-and this guide anchor. Legacy string names remain untyped compatibility input
-because they carry no kind discriminator. Structured diagnostics are always
-available through `diagnosticsChannel()`; the default console projection is
-attached only under a positive development/HMR signal.
-
-Codegen writes `client-lifecycle.v1.json` beside the other generated
-artifacts. It is currently a developer-tooling, regenerable-cache artifact:
-no rollout-1 runtime consumer requires a committed copy. The artifact and
-generated JSDoc come from the same lifecycle table and bind every operation's
-semantic id, implementation and contract hashes, auth requirement, required
-capabilities, legal verbs, freshness, retention, and guide anchor to the
-generated build.
-
-Mutation dispatch and settlement remain separate. Durable dispositions are
-exactly `pending | settled | failed | stranded | quarantined | resultGone |
-unknown`; do not infer another state from promise completion. Live handles use
-connection states `connecting | live | polling | stale | disconnected` and
-stop publishing after disposal. Command tasks progress through `preparing |
-transferring | committing` and terminate as `succeeded | failed | cancelled |
-ambiguous`.
-
-Resource keys combine reference semantic identity, canonical argument
-contract and bytes, authority partition, normalized lifecycle options, and
-build identity. A later class-M handle may expose `snapshotVersion`; when it
-does, that value means the authorized principal/query `viewRevision`, never a
-raw row version, app commit, or storage snapshot. Rollout 1 does not add that
-handle or any new client verb.
-
 ## Subscribe to durable state
 
 `liveQuery(ref, options)` is the author-facing composite. It performs the
@@ -1165,7 +1111,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Construction/static helpers | `constructor`, `createExternalSessionClient`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission`, `SnapbackClient.mintBundleBootKey` |
 | Discovery | `health`, `inspect` |
 | App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick`, `ensureVersionedSeed`, `previewVersionedSeed`, `resetInstallVersionedSeed`, `clearVersionedSeed` |
-| Function calls | `query`, `search`, `vectorSearch`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
+| Function calls | `query`, `search`, `vectorSearch`, `authorizedLeaseQuery`, `mutate`, `run`, `action`, `acknowledgeMutations` |
 | Route bundles | `fetchBundle` |
 | Durable live | `liveQuery`, `startLiveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
 | Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `startOutboxDrain`, `replayQueuedMutations`, `mutationStatus`, `subscribeMutation`, `acknowledgeResultGoneMutations`, `adoptQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
@@ -1179,6 +1125,15 @@ intent so source additions cannot hide as “advanced” APIs:
 | Receipts and retry evidence | `recordReceipt`, `receipts`, `onReceipt`, `reservationRetryDiagnostics` |
 | Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `authTerminalStatus`, `subscribeAuthTerminal`, `registerAuthBarrierParticipant` |
 | Auth adapter/coordinator seam | `captureAuthority`, `authorityCaptureFor`, `isAuthorityCaptureCurrent`, `allocateLiveQueryNamespace`, `registerAuthMaterialization`, `commitAuthorityPublication`, `commitSenderSocketNonce`, `handleTerminalAuthLoss`, `liveStreamProtocolsFor` |
+
+`run` is the primary one-shot action verb: it unwraps success to the plain
+typed result and rejects application/protocol refusals with
+`SnapbackDiagnosticError` — the same public error class `query` and `mutate`
+throw, caught with the exported `isSnapbackDiagnosticError` guard. `action`
+keeps returning the raw `{ ok, ... }` envelope for one compatibility release
+and emits a one-shot development deprecation pointing at `run`. Queued
+dispatch is not an exception: it stays a resolved `{ status: 'queued' }`
+union.
 
 The quarantine/stranded family projects the durable offline queue's terminal
 custody states: `quarantinedMutations()` lists payload-free tombstones for
@@ -1239,7 +1194,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:81f4c4ce553e40209fd74b935585cd0a515e72808971f218a178f62cc1f0aa34
 ---
 
 # The artifact-driven app CLI
@@ -1560,13 +1515,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react, clients.dev-diagnostics]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-react/dev-diagnostics.test.mjs, packages/snapback-react/dev-diagnostics-acceptance.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-commit: 03125be6a3dc51f7e20d9b7db01bdc225735d0cf
+reviewed: 2026-08-10
+reviewed-authorities-digest: sha256:f5128d9b45b331fb43c14e64d0b14d608c4be17f898a944308594189c6806535
 ---
 
 # The React client
@@ -1729,35 +1684,6 @@ Keep importing from `@expo/snapback-react` when the application uses an
 APIs remain synchronous and unchanged on the root; the core entry does not
 replace them with lazy proxies.
 
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Generated nominal reference kinds and their lifecycle JSDoc
-> are not present in the newest published closure, 0.1.20. They are expected
-> in 0.1.21.
-
-## Pass each hook the reference kind it owns
-
-`useSnapbackQuery` accepts a generated `LiveQueryRef`; `useSnapbackMutation`
-and `useSnapbackSettledMutation` accept a generated `MutationRef`; and
-`useSnapbackCommand` accepts a generated `CommandRef`. The nominal brands make
-cross-kind TypeScript calls fail even when two operations happen to have the
-same argument and result shape. The generated reference JSDoc lists the legal
-headless verbs and React hooks, auth requirement, required capabilities,
-freshness and retention meaning, semantic identity, and the build-bound guide
-anchor.
-
-`useSnapbackQuery` remains the current exported live-query hook name. The
-clearer `useSnapbackLiveQuery` spelling is only a planned compatibility alias:
-rollout 1 does not emit it. The current name has no removal date; removal can
-be considered only in a declared major version after stage-2 usage
-measurement. No one-shot `QueryRef` hook and no future watch, mutation-handle,
-or action-handle hook ships in this rollout.
-
-For imperative calls below a hook, the headless client enforces the same
-matrix before transport and reports
-`SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH`; see
-[generated reference kinds and legal verbs](./headless.md#generated-reference-kinds-and-legal-verbs).
-
 ## Bind a generated query
 
 Pass a generated operation reference and its exact arguments. The reference
@@ -1777,7 +1703,11 @@ returned by `snapback guide QueryState`.
 
 `useSnapbackQuery` returns:
 
-- `status`: `pending | ready | refreshing | error | skipped`;
+- `status`: `pending | ready | refreshing | error | skipped | blocked` —
+  `blocked` is the stable state a protected read renders while the client is
+  anonymous (public reason `authentication-required`); it never oscillates or
+  retries, and a later sign-in rebuilds a fresh instance across the authority
+  barrier;
 - `data`: immutable result rows only for `ready` or `refreshing`, otherwise
   `undefined`;
 - `connection`: `idle | connecting | live | polling | stale | disconnected |
@@ -2382,7 +2312,7 @@ targets: [local]
 maturity: partial
 since: 0.1.11
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:1b8366a3e658f07b57c069a944a6a64ecbcd0469e2bbc0ee8ec042f1dbe2299e
 ---
 
 # Application surfaces
@@ -2954,7 +2884,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:bb3cab052a509303eae2f0d0656d35af210deaa8c6a1e8c479704348b29be69f
 ---
 
 # Swift client
@@ -3077,7 +3007,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: 27d3a9cd9b54f4b45b5c0ca50c8d85796dc06b59
+reviewed-authorities-digest: sha256:7327367ecd9b003c565ab5989c4852ff6d0d5997bdd3e92ef004d01663db237f
 ---
 
 # React Expo Online clients
@@ -4064,7 +3994,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:ef95f794e1201fad76046e3f04ccc1fd42a1a5326f23d9cc8c32b9639755ed6d
 ---
 
 # Framework bindings

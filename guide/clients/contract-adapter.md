@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-11
-reviewed-commit: ef936353ffdc540dedd4d5760e51c78eb6e38f72
+reviewed-authorities-digest: sha256:3b0befc7c75710f4371fd0a0fb62af039db64b8c78ffdd26cb5e0b9f49bbaa4b
 ---
 
 # The Contract adapter

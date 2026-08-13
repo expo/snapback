@@ -61,13 +61,14 @@
           }
         ],
         "kind": "object"
-      }
+      },
+      "withdrawalVisibilityDeadlineMs": 10000
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "8cdaf93616eb337c40ddb0e8447a65358a81527304b3e3dcf5822cde51b46bdf",
+  "inputsHash": "02aeb3401b640f007e586b257f9e3c5ea816eb8b33d5e08c1babff40224d3ea1",
   "portabilityFlags": [],
-  "schemaHash": "sha256:230a51818d75c4b5",
+  "schemaHash": "sha256:e38d8711d27a556f",
   "schemaVersion": "snapback.v0",
   "tables": [
     {

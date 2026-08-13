@@ -29,8 +29,12 @@
     "client-lifecycle.d.mts",
     "client-lifecycle.mjs",
     "codegen-policy.schema.json",
+    "client-lifecycle.schema.json",
     "ctx.d.mts",
     "data-tier-corpus.mjs",
+    "declaration-suggestion.d.mts",
+    "declaration-suggestion.mjs",
+    "declaration-suggestion.schema.json",
     "define.d.ts",
     "define.mjs",
     "effect-ceiling.mjs",
@@ -39,6 +43,7 @@
     "generate-worker.mjs",
     "handler-runtime-profile.d.mts",
     "handler-runtime-profile.mjs",
+    "handler-typescript-profile.schema.json",
     "index.d.mts",
     "index.mjs",
     "inline-handlers.mjs",
@@ -55,10 +60,13 @@
     "review-surface.d.mts",
     "review-surface.mjs",
     "semantic-generation.mjs",
+    "scripts/declaration-suggestion-rollout.mjs",
     "prepare-runtime-artifacts.mjs",
     "runtime-artifacts",
     "standard-patterns.d.ts",
-    "standard-patterns.mjs"
+    "standard-patterns.mjs",
+    "typescript-profile.mjs",
+    "typescript-transform.mjs"
   ],
   "exports": {
     ".": {
@@ -87,6 +95,13 @@
       "default": "./codegen-summary.mjs"
     },
     "./codegen-policy.schema.json": "./codegen-policy.schema.json",
+    "./declaration-suggestion": {
+      "types": "./declaration-suggestion.d.mts",
+      "default": "./declaration-suggestion.mjs"
+    },
+    "./declaration-suggestion.schema.json": "./declaration-suggestion.schema.json",
+    "./handler-typescript-profile.schema.json": "./handler-typescript-profile.schema.json",
+    "./client-lifecycle.schema.json": "./client-lifecycle.schema.json",
     "./ctx": {
       "types": "./ctx.d.mts"
     },
@@ -138,6 +153,7 @@
   "scripts": {
     "pretest": "node generated-mutation-ir.test.mjs && node client-lifecycle.test.mjs && node media-field-authoring.test.mjs",
     "prepack": "node prepare-runtime-artifacts.mjs",
-    "test": "node generation-lock.test.mjs && node handler-runtime-profile.test.mjs && node handler-graph-parity.test.mjs && node semantic-generation-golden.test.mjs && node semantic-generation-rotation.test.mjs && node inline-result-contracts.test.mjs && node refusal-tracking-authoring.test.mjs && node omission-defaults.test.mjs && node table-visibility-authoring.test.mjs && node micro-profile.test.mjs && node schema-reference-type-flow.test.mjs && node inline-helper-sharing.test.mjs && node search-result-contracts.test.mjs && node membership-search-authoring.test.mjs && node typed-search-wrapper.test.mjs && node live-search-authoring.test.mjs && node vector-authoring.test.mjs && node stored-enum-authoring.test.mjs && node structured-stored-values.test.mjs && node search-ast-fixtures.test.mjs && node vector-distance-profile.test.mjs && node args-contract-goldens.test.mjs && node identifier-validation.test.mjs && node effect-ceiling.test.mjs && node seed-artifact.test.mjs && node seed-asset-fixtures.test.mjs && node relational-authoring.test.mjs && node plain-join-advisory.test.mjs && node relation-activity-authoring.test.mjs && node snapshot-batch-v2-authoring.test.mjs && node maintained-projections.test.mjs && node authoring-validation.test.mjs && node guide-pointer.test.mjs && node mixed-route-v2.test.mjs && node asset-upload-authoring.test.mjs && node asset-thumbhash-vector.test.mjs && node api-envelope-members.test.mjs && node settlement-bounded-skew.test.mjs && node standard-patterns.test.mjs && node rbac-authoring.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler history-authoring-types.fixture.ts rbac-authoring-types.fixture.ts refusal-tracking-authoring-types.fixture.ts standard-patterns-types.fixture.ts vector-authoring-types.fixture.ts && node function-id.test.mjs && node auth-artifacts.test.mjs && node protected-query-profile.test.mjs && node retainability-profile.test.mjs && node dependency-graph.test.mjs && node contract-output-mode.test.mjs && node contract-binding-reads.test.mjs && node receipt-capability.test.mjs && node jobs-authoring.test.mjs && node sequence-authoring.test.mjs && node provider-introspection.test.mjs && node operation-schemas.test.mjs && node app-descriptor.test.mjs && node app-inspection.test.mjs && node remote-service-publication.test.mjs && node data-tier-corpus.test.mjs && node auth-crypto-vectors.test.mjs && node review-surface.test.mjs"
+    "rollout:declaration-suggestions": "node scripts/declaration-suggestion-rollout.mjs",
+    "test": "node generation-lock.test.mjs && node handler-runtime-profile.test.mjs && node handler-graph-parity.test.mjs && node semantic-generation-golden.test.mjs && node semantic-generation-rotation.test.mjs && node inline-result-contracts.test.mjs && node refusal-tracking-authoring.test.mjs && node omission-defaults.test.mjs && node table-visibility-authoring.test.mjs && node micro-profile.test.mjs && node schema-reference-type-flow.test.mjs && node inline-helper-sharing.test.mjs && node search-result-contracts.test.mjs && node membership-search-authoring.test.mjs && node typed-search-wrapper.test.mjs && node live-search-authoring.test.mjs && node vector-authoring.test.mjs && node stored-enum-authoring.test.mjs && node structured-stored-values.test.mjs && node search-ast-fixtures.test.mjs && node vector-distance-profile.test.mjs && node args-contract-goldens.test.mjs && node identifier-validation.test.mjs && node effect-ceiling.test.mjs && node seed-artifact.test.mjs && node seed-asset-fixtures.test.mjs && node relational-authoring.test.mjs && node plain-join-advisory.test.mjs && node relation-activity-authoring.test.mjs && node snapshot-batch-v2-authoring.test.mjs && node maintained-projections.test.mjs && node authoring-validation.test.mjs && node typescript-profile.test.mjs && node guide-pointer.test.mjs && node mixed-route-v2.test.mjs && node asset-upload-authoring.test.mjs && node asset-thumbhash-vector.test.mjs && node api-envelope-members.test.mjs && node settlement-bounded-skew.test.mjs && node standard-patterns.test.mjs && node rbac-authoring.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler history-authoring-types.fixture.ts rbac-authoring-types.fixture.ts refusal-tracking-authoring-types.fixture.ts standard-patterns-types.fixture.ts vector-authoring-types.fixture.ts && node function-id.test.mjs && node auth-artifacts.test.mjs && node protected-query-profile.test.mjs && node retainability-profile.test.mjs && node dependency-graph.test.mjs && node contract-output-mode.test.mjs && node contract-binding-reads.test.mjs && node receipt-capability.test.mjs && node jobs-authoring.test.mjs && node sequence-authoring.test.mjs && node provider-introspection.test.mjs && node operation-schemas.test.mjs && node app-descriptor.test.mjs && node app-inspection.test.mjs && node declaration-suggestion.test.mjs && node remote-service-publication.test.mjs && node data-tier-corpus.test.mjs && node auth-crypto-vectors.test.mjs && node review-surface.test.mjs"
   }
 }

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:c39c3ad792dc3458af8398d113e6d24cb378de2094556d3bcb84fea4956a2e85
 ---
 
 # Backend observability

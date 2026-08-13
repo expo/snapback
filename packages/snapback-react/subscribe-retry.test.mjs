@@ -40,6 +40,7 @@ const records = Object.freeze({
   kind: 'LiveQuery',
   implementationHash: 'sha256:records-implementation',
   argsContractHash: 'sha256:records-args',
+  argsContract: { kind: 'object', fields: [] },
   resultContractHash: resultContractHash(queryContract),
   resultContract: queryContract,
 });

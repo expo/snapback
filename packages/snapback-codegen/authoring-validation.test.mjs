@@ -8,6 +8,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate } from './index.mjs';
 import { formatCodegenSummary } from './codegen-summary.mjs';
+import {
+  defineAction,
+  defineMutation,
+  defineQuery,
+  insert,
+  lit,
+} from './define.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
@@ -20,6 +27,21 @@ const validSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
 `;
+
+// LLP 0010's no-silent-drops rule applies uniformly to the three primary
+// function builders. In particular LLP 0249's proposed `runtime`/`effects`
+// spelling must not compile into a portable action until that profile lands.
+for (const [kind, field, build] of [
+  ['Query', 'typo', () => defineQuery({ table: 'todos', typo: true })],
+  ['Mutation', 'typo', () => defineMutation({ plan: insert('todos', { title: lit('x') }), typo: true })],
+  ['Action', 'runtime', () => defineAction({ plan: [], runtime: {} })],
+  ['Action', 'effects', () => defineAction({ plan: [], effects: ['delivery'] })],
+]) {
+  assert.throws(build, (error) => (
+    error?.code === 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN'
+      && error.message.includes(`${kind} has unknown field ${field}`)
+  ));
+}
 
 async function invalidCase({ schema = validSchema, functions, handlers = {} }) {
   const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-authoring-'));
@@ -54,6 +76,22 @@ async function validCase({ schema = validSchema, functions, handlers = {} }) {
   const result = await generate(dir);
   assert.equal(result.ok, true, `expected success, got ${JSON.stringify(result.diagnostics)}`);
   return result;
+}
+
+{
+  const diagnostics = await invalidCase({
+    functions: `
+import { defineAction } from '${defineUrl}';
+export const proposedButUnimplemented = defineAction({ runtime: { profile: 'isolated-node-action-v1' }, effects: ['delivery'] });
+`,
+  });
+  assert(
+    diagnostics.some((diagnostic) => (
+      diagnostic.code === 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN'
+        && diagnostic.message.includes('Action has unknown field runtime')
+    )),
+    JSON.stringify(diagnostics),
+  );
 }
 
 // LLP 0231 D3/D5: an opaque JS query may declare its interim field-masking
@@ -423,6 +461,30 @@ export const pushLedger = definePushLedgerQuery({ auth: 'authenticated' });
   ));
   assert(apiTypes.includes('send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult>;'));
   assert(apiTypes.includes('readonly redriveAmbiguous?: boolean'));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { allow, defineEphemeral, defineSchema, ephemeral, v } from '${defineUrl}';
+export default defineSchema({}, { ephemeral: defineEphemeral({
+  cursors: ephemeral.collection({
+    scope: { roomId: v.string() },
+    value: v.object({ x: v.number() }),
+    ttlMs: 1000,
+    withdrawalVisibilityDeadlineMs: 501,
+    publish: allow.all(),
+    subscribe: allow.all(),
+  }),
+}) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((diagnostic) => (
+    diagnostic.code === 'EPHEMERAL_INVALID_BUDGET'
+    && diagnostic.field === 'withdrawalVisibilityDeadlineMs'
+    && diagnostic.maximum === 500
+  )));
 }
 
 {
@@ -2013,6 +2075,106 @@ export const illegalMutation = defineMutation({
     assert(
       diagnostics.some((diagnostic) => /stream/u.test(diagnostic.message ?? '')),
       `expected stream kind refusal, got ${JSON.stringify(diagnostics)}`,
+    );
+  }
+}
+
+// @ref LLP 0248#d2-complete-unique-index-batch-reads — codegen closes statically visible unique
+// index calls against the schema and emits only unique indexes into handler
+// key types; the function also carries the target capability requirement.
+{
+  const batchSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  docs: defineTable({
+    tenant: v.string(),
+    slug: v.optional(v.string()),
+    count: v.integer(),
+  })
+    .index('byTenantSlug', ['tenant', 'slug'], { unique: true })
+    .index('byCount', ['count']),
+});
+`;
+  const batchFunctions = (body) => `
+import { defineJsQuery, results } from '${defineUrl}';
+export const batchDocs = defineJsQuery({
+  args: {},
+  reads: ['docs'],
+  result: results.documents('docs'),
+  handler: async (ctx) => { ${body} },
+});
+`;
+  const generated = await validCase({
+    schema: batchSchema,
+    functions: batchFunctions(`
+      await ctx.db.getMany('docs', []);
+      return await ctx.db.uniqueMany('docs', 'byTenantSlug', [
+        { slug: 'welcome', tenant: 'acme' },
+      ]);
+    `),
+  });
+  const functions = JSON.parse(
+    readFileSync(join(generated.outDir, 'functions.manifest.json'), 'utf8'),
+  );
+  assert(
+    functions.functions[0].requiredCapabilities.includes('bounded_batch_reads_v1'),
+    'getMany/uniqueMany handler source must require bounded_batch_reads_v1',
+  );
+  const types = readFileSync(join(generated.outDir, 'api.d.ts'), 'utf8');
+  const uniqueMap = types.slice(
+    types.indexOf('export interface GeneratedUniqueIndexKeys'),
+    types.indexOf('export interface GeneratedTableAdmissionMaps'),
+  );
+  assert.match(uniqueMap, /"byTenantSlug": Readonly<\{ "tenant": NonNullable</u);
+  assert.match(uniqueMap, /"slug": NonNullable</u);
+  assert.doesNotMatch(uniqueMap, /byCount/u, 'non-unique index names must be unrepresentable');
+  const batchTypeFixture = join(generated.outDir, '..', 'batch-read-types.fixture.ts');
+  writeFileSync(batchTypeFixture, `
+import type { GeneratedQueryDatabase, Id } from './generated/api.js';
+declare const db: GeneratedQueryDatabase;
+declare const first: Id<'docs'>;
+await db.getMany('docs', [first]);
+await db.uniqueMany('docs', 'byTenantSlug', [{ tenant: 'acme', slug: 'welcome' }]);
+// @ts-expect-error non-unique indexes are absent from the generated key map.
+await db.uniqueMany('docs', 'byCount', [{ count: 1 }]);
+// @ts-expect-error complete compound keys require every component.
+await db.uniqueMany('docs', 'byTenantSlug', [{ tenant: 'acme' }]);
+`);
+  const batchTypecheck = spawnSync(
+    fileURLToPath(new URL('../../node_modules/.bin/tsc', import.meta.url)),
+    [
+      '--noEmit',
+      '--strict',
+      '--target', 'es2022',
+      '--module', 'esnext',
+      '--moduleResolution', 'bundler',
+      batchTypeFixture,
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(
+    batchTypecheck.status,
+    0,
+    `batch read declarations failed strict typecheck\n${batchTypecheck.stdout}\n${batchTypecheck.stderr}`,
+  );
+
+  for (const [body, expectedReason] of [
+    ["return await ctx.db.uniqueMany('docs', 'missing', [{ tenant: 'acme', slug: 'welcome' }]);", 'unknown-index'],
+    ["return await ctx.db.uniqueMany('docs', 'byCount', [{ count: 1 }]);", 'non-unique-index'],
+    ["return await ctx.db.uniqueMany('docs', 'byTenantSlug', [{ tenant: 'acme' }]);", 'component-set-mismatch'],
+    ["return await ctx.db.uniqueMany('docs', 'byTenantSlug', [{ tenant: 'acme', slug: null }]);", 'where-applicable-component-null'],
+    ["return await ctx.db.uniqueMany('docs', 'byTenantSlug', [{ tenant: 'acme', slug: 42 }]);", 'component-type-mismatch'],
+  ]) {
+    const diagnostics = await invalidCase({
+      schema: batchSchema,
+      functions: batchFunctions(body),
+    });
+    assert(
+      diagnostics.some((diagnostic) => (
+        diagnostic.code.startsWith('SNAPBACK_BATCH_READ_')
+        && diagnostic.reason === expectedReason
+      )),
+      `expected ${expectedReason}, got ${JSON.stringify(diagnostics)}`,
     );
   }
 }

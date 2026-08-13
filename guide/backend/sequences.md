@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: eb3f78a64db88ef1368b57ca17f56dbad77205ce
+reviewed-authorities-digest: sha256:339769af563c7edf2b98728e26b469c9b33b7635fa8666b193a2ba63e7a578cf
 ---
 
 # Scoped sequences

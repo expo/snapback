@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:391f5bef508ca9c561097cb2f5de09f3c55ca2953808ca3c93f8ee2eb89361ae
 ---
 
 # Declarative mutation plans

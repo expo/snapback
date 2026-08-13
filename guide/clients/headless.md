@@ -4,13 +4,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.micro]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:5b456c547f3f44e5ffed621499429f08d135537971f179e2b704149992749e55
 ---
 
 # The headless client
@@ -619,7 +619,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Construction/static helpers | `constructor`, `createExternalSessionClient`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission`, `SnapbackClient.mintBundleBootKey` |
 | Discovery | `health`, `inspect` |
 | App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick`, `ensureVersionedSeed`, `previewVersionedSeed`, `resetInstallVersionedSeed`, `clearVersionedSeed` |
-| Function calls | `query`, `search`, `vectorSearch`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
+| Function calls | `query`, `search`, `vectorSearch`, `authorizedLeaseQuery`, `mutate`, `run`, `action`, `acknowledgeMutations` |
 | Route bundles | `fetchBundle` |
 | Durable live | `liveQuery`, `startLiveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
 | Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `startOutboxDrain`, `replayQueuedMutations`, `mutationStatus`, `subscribeMutation`, `acknowledgeResultGoneMutations`, `adoptQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
@@ -633,6 +633,15 @@ intent so source additions cannot hide as “advanced” APIs:
 | Receipts and retry evidence | `recordReceipt`, `receipts`, `onReceipt`, `reservationRetryDiagnostics` |
 | Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `authTerminalStatus`, `subscribeAuthTerminal`, `registerAuthBarrierParticipant` |
 | Auth adapter/coordinator seam | `captureAuthority`, `authorityCaptureFor`, `isAuthorityCaptureCurrent`, `allocateLiveQueryNamespace`, `registerAuthMaterialization`, `commitAuthorityPublication`, `commitSenderSocketNonce`, `handleTerminalAuthLoss`, `liveStreamProtocolsFor` |
+
+`run` is the primary one-shot action verb: it unwraps success to the plain
+typed result and rejects application/protocol refusals with
+`SnapbackDiagnosticError` — the same public error class `query` and `mutate`
+throw, caught with the exported `isSnapbackDiagnosticError` guard. `action`
+keeps returning the raw `{ ok, ... }` envelope for one compatibility release
+and emits a one-shot development deprecation pointing at `run`. Queued
+dispatch is not an exception: it stays a resolved `{ status: 'queued' }`
+union.
 
 The quarantine/stranded family projects the durable offline queue's terminal
 custody states: `quarantinedMutations()` lists payload-free tombstones for

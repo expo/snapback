@@ -377,6 +377,19 @@ With defect-shaped loops at zero, the run-5 skill-lane delta (19m00s /
 
 ---
 
+## Program board — 2026-08-12 ordinary-TS authoring wave
+
+The five LLPs this plan routed through LLP 0236 (0245–0249) landed their
+first implementation wave: 0245 rollouts 1–2 + apply CAS, 0246 rollouts 1–2
+(erasure custody fix + frozen TS profile), 0247 rollouts 1–5, 0248 rollouts
+1–3 with the `bounded_batch_reads_v1` experimental introduction (LLP 0134
+same-commit act; record
+`tests/acceptance/maturity/bounded-batch-reads-2026-08-12.introduction.json`),
+and 0249 rollouts 1–2 as calibration-only spike evidence. All five remain
+Accepted; the deferred remainder is tracked under `issues/` (0245 R4 on LLP
+0146, 0246 R3–6 on LLP 0237, 0247/0248 measurement reruns, 0249 design
+tickets).
+
 ## Part II — The plan: parity, then past it
 
 ### II.1 What "surpass" means — a claim ladder

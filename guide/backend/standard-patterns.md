@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:f99b6fdb988d64145b86f8c6275af59102ac56d2b59681059038fcfabeb44bec
 ---
 
 # Safe standard data patterns

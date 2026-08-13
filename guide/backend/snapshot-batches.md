@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:21e047f9a0382245b33c96da4b91b541f81b8de4c5b93f131512a7da792745c4
 ---
 
 # Snapshot batches

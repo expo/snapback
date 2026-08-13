@@ -4,13 +4,13 @@ id: meta.retrieval-eval
 order: 91
 audience: agent-first
 capabilities: []
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:622ed35a0850ae6e4bec99ff59db20df0c12e2820962f76c97cfcc2d05d9a58a
 ---
 
 # Retrieval eval protocol
@@ -571,6 +571,15 @@ restriction profile.
     Expected pages: `backend/handler-runtime.md`.
     Route terms: "SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE",
     "nested property path", "definition path".
+
+53. **Declaration suggestions:** "How do I get Snapback to write my result
+    contract?" The run fails if the plan invents bounds or table identity,
+    treats suggestion provenance as runtime authority, bulk-applies operations,
+    or claims a manually pasted patch received the stale-safe apply check.
+    Expected pages: `getting-started/the-authoring-loop.md` or
+    `backend/queries.md`.
+    Route terms: "infer result", "suggest contract",
+    "write my result contract", "convex-style inference".
 
 ## Static routing check
 

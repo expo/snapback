@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:189be9d1f43cb5a1c125e943a28c129db1294d9ad11d46f7f38bffa43c6e2d8d
 ---
 
 # Sessions and principals
@@ -572,7 +572,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:ac8d62b9963acb4ae03677b4d49c691065590e2dfcaf9763ccf786a6dd95e096
 ---
 
 # Bind a principal to your app's user identity
@@ -920,7 +920,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:0477674dd0a92c186bbce0411539ece02daa28726bdf5d021aa039e6510130c2
 ---
 
 # Email and password
@@ -1177,7 +1177,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:82893b993434042d00d895244476e58ba7c0cca1643a3d0cc695ee2e9e22eb6e
 ---
 
 # Authenticate a native app
@@ -1300,7 +1300,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-11
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:9961e003c68db5a33d0f9ebf1b99c9154a293156925e7fd644a41c420dbd633e
 ---
 
 # Protecting live and retained data
@@ -1635,14 +1635,14 @@ title: Scoped roles and memberships
 id: auth.scoped-roles
 order: 5
 audience: agent-first
-capabilities: [auth.scoped-roles, authority.profile.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0240-application-authority-profiles.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, tests/membership_principal_addressed_v0.rs]
+capabilities: [auth.scoped-roles]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, tests/membership_principal_addressed_v0.rs]
 examples: [demos/rbac, demos/shindig, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-authorities-digest: sha256:9053759777a36adc8b8c86db01260743da262bfc7dedd0e312310f908e0e2abb
 ---
 
 # Scoped roles and memberships
@@ -1751,81 +1751,6 @@ Codegen derives `resourceTable` from that validator and carries the nominal
 type into the function artifact. An argument or row-field helper bound to
 `Id<'organizations'>` is rejected before publication when the declaration
 requires `Id<'events'>`.
-
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Authority-profile authoring is available in this checkout
-> but is not in the newest published closure, 0.1.20.
-
-## Reuse one role hierarchy in queries and table visibility
-
-Decorate an existing resource-scoped membership with
-`.authorityProfile(...)` when product roles form a finite hierarchy. The
-profile is a codegen facade: the membership table remains the only roster and
-authority store, and every write still uses the LLP 0056 transition seam.
-
-```js fragment reason="AuthorityProfileV1 authoring shape; lowering, refusal codes, projection identity, and generation rotation are exercised in packages/snapback-codegen/rbac-authoring.test.mjs"
-export const roomMembers = defineTable({
-  roomId: v.id('rooms'),
-  userId: v.principal(),
-  role: v.string(),
-  displayName: v.string(),
-}).membership({
-  id: 'roomAccess',
-  principal: 'userId',
-  resource: 'roomId',
-  role: 'role',
-  roles: ['owner', 'admin', 'member'],
-  pendingRoles: ['invited'],
-  bootstrapRole: 'owner',
-  lastHolder: { protect: 'owner' },
-  provenance: 'full',
-  transitions: [],
-}).authorityProfile({
-  name: 'roomAccess',
-  hierarchy: {
-    owner: ['admin', 'member'],
-    admin: ['member'],
-    member: [],
-  },
-  roster: { visible: ['userId', 'role', 'displayName'] },
-});
-```
-
-Chain the profile after `membership()`. Its `name` must equal the explicitly
-pinned membership `id`. The scope must be a required `v.id(resourceTable)`,
-the principal a required `v.principal()`, and the role a required `v.string()`
-whose active and pending values are the closed `roles`/`pendingRoles`
-vocabularies. `owner` must be an active role and the exact
-`bootstrapRole`/`lastHolder.protect` role. Do not author the reserved
-`_membership_pk` or `_membership_reverse` indexes; membership owns their
-true-unique principal/scope and resource-leading holder lookup shapes.
-
-The hierarchy names active roles only. Codegen computes its transitive closure
-and writes literal role sets into the existing membership predicate and table
-visibility IR. In the example, a predicate asking for `member` admits
-`member`, `admin`, and `owner`; `invited` remains pending and gains no active
-role implication. The resulting `AuthorityProfileV1` references the canonical
-membership-predicate and table-visibility identities and records the scope,
-lattice, owner invariant, authorization-event fields, bounded indexes,
-subject derivation, and conservative coarse-global wake universe.
-
-Functions with profile-backed membership predicates, profile-backed table
-visibility, or declared writes to the membership table carry that profile's
-`{ id, generation }` authorization dependence. Changing the role field,
-hierarchy, or transition matrix rotates the generation and dependent function
-identity; unrelated functions keep their existing identity. A broadening or
-incomparable visibility edit still requires LLP 0234's remotely-prior,
-content-bound approval and exact-set ratchet—generation rotation records the
-change but does not approve it.
-
-Rollout 1 qualifies only local, app-table-owned profiles composed with ordinary
-table visibility. `roster.visible` is projection metadata: it does not create
-list, invitation, role-change, owner-transfer, or client-hook surfaces, and the
-membership table remains private under the operations table above. Profile
-composition with membership-visible search or asset sharing fails generation
-with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS`; hosted targets
-fail with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET`.
 
 ## Gate a query with the declaration
 
@@ -2124,11 +2049,6 @@ coordinator transition.
   the declaration's atomic `bootstrap()` method.
 - **Do not use `ctx.permissions` in an action or retain a role-gated result
   offline.** Neither has the transactional/lease proof required by v1.
-- **Do not mirror a profiled membership into a second product roster.** The
-  app-owned membership table is both product roster and authority relation.
-- **Do not infer generated roster operations, hooks, search sharing, or asset
-  sharing from `authorityProfile()`.** Rollout 1 emits only the validated
-  profile projection and membership/table-visibility lowering described above.
 
 ---
 
@@ -2145,7 +2065,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: b60e477e59cc93f67ab244a4cc359a9d32e8adb0
+reviewed-authorities-digest: sha256:4b8a139980b6dd9eaa3f142ff8a2ac66e6c116ddb3bd92c13383ad1ba4f4af54
 ---
 
 # Agent principals and scoped grants
@@ -2308,7 +2228,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-11
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:177cfb52b773143139cf8fa071c37532617458dbdf2dded321ac76a74b4d4da8
 ---
 
 # Move auth identities without moving authority
@@ -2455,7 +2375,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:c9a46467cbe390642c43535f8e137e9f239cb51d3887f1c412bfd5004db1caf9
 ---
 
 # Targets — what each one claims

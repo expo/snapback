@@ -6,6 +6,14 @@ const admitted = Object.freeze({
   reference: Object.freeze({
     artifactKind: 'ephemeralCollectionReference',
     name: 'presence',
+    scopeContract: Object.freeze({
+      kind: 'object',
+      fields: Object.freeze([
+        Object.freeze({ name: 'roomId', required: true, value: Object.freeze({ kind: 'string' }) }),
+      ]),
+      allowExtra: false,
+    }),
+    valueContract: Object.freeze({ kind: 'json' }),
   }),
   definition: Object.freeze({ name: 'presence' }),
   connectionId: 'room-test',

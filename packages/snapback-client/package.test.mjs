@@ -298,6 +298,11 @@ unregisterExternalMaterialization();
     artifactKind: 'functionReference',
     name: 'generationBound',
     expectedGeneration: generation,
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {},
+    },
   };
   const generatedQueryRef = {
     ...generatedRef,
@@ -368,8 +373,9 @@ unregisterExternalMaterialization();
         persistResume: false,
       }),
       (error) => {
-        assert.equal(error.code, 'SNAPBACK_ARGUMENT_VALIDATION_FAILED');
-        assert(error.diagnostic.details.problems.includes('args.forged is not declared'));
+        assert.equal(error.code, 'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED');
+        assert.equal(error.diagnostic.details.reason, 'unknown object property');
+        assert.equal(error.diagnostic.details.path, 'args.forged');
         return true;
       },
     );
@@ -645,6 +651,16 @@ assert.equal(appStateListeners.size, 0);
     name: 'searchIncidents',
     kind: 'Query',
     implementationHash: `sha256:${'1'.repeat(64)}`,
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        query: {},
+        limit: { type: 'integer' },
+        after: { type: 'string' },
+      },
+      required: ['query'],
+    },
     // The generated pin (LLP 0131 identity cascade item 2): regenerated, not
     // hand-kept, and asserted against codegen by the search-pin conformance
     // test in @expo/snapback-codegen.

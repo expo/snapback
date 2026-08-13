@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:6919f120fbdc6b257e5c339ef8cdf9bd4ff8d32c498a0befc1c762967f765f26
 ---
 
 # Trusted runtime time and identifiers

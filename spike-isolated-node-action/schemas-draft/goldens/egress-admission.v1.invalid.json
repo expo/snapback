@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "egress-admission.v1",
+  "classifier": { "id": "globally-routable-unicast-v1", "factTableDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+  "grant": { "protocol": "https", "host": "169.254.169.254", "port": 443 },
+  "resolution": {
+    "answers": [{ "answer": "169.254.169.254", "canonicalAddress": "169.254.169.254", "family": "ipv4", "classification": "metadata", "admitted": false }],
+    "allAnswersAdmitted": false,
+    "selectedAddress": null
+  },
+  "tls": { "sni": "169.254.169.254", "certificateDnsName": "169.254.169.254" },
+  "redirects": { "followed": 6, "maximum": 5 },
+  "decision": "admitted",
+  "refusalCode": null
+}
+

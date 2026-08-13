@@ -41,6 +41,7 @@ import {
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const IMPLEMENTATION_FILES = [
   '.githooks/pre-push',
+  'issues/closed/20260811-record-inventory-guide.md',
   'issues/20260809-0199-ownership-ratchet-worklist.md',
   'issues/closed/20260810-main-module-ownership-red-rehearsal-edges.md',
   'ownership.baseline.json',
@@ -96,6 +97,10 @@ function copyImplementation(repo) {
     mkdirSync(dirname(target), { recursive: true });
     copyFileSync(source, target);
   }
+  // This lane resolves the Guide record-inventory ticket. Disposable clones
+  // start from committed HEAD, so mirror the uncommitted move before testing
+  // that a later stale Guide files one new, idempotent backstop ticket.
+  rmSync(join(repo, 'issues/20260811-record-inventory-guide.md'), { force: true });
   for (const path of [
     '.githooks/pre-push',
     'scripts/drift-prone-gates.mjs',
@@ -442,6 +447,21 @@ test('drift selection preserves mapped triggers and tiers fail-closed paths', ()
   const mapped = selectDriftProneGates(['guide/index.md'], context);
   assert.deepEqual(mapped.selectedDriftProneGates, ['guide', 'module-ownership']);
   assert.equal(mapped.driftFailClosedDisposition, null);
+  const guideTriggerFiles = [
+    'llp/0193-errors-as-docs-completeness.plan.md',
+    'llp/0194-generated-api-reference.rfc.md',
+    'scripts/symbol-lifecycle.mjs',
+  ];
+  for (const path of guideTriggerFiles) {
+    assert.ok(
+      context.policy.driftProneGates.guide.triggerRules.files.includes(path),
+      `${path} is an explicit Guide drift trigger`,
+    );
+    assert.ok(
+      selectDriftProneGates([path], context).selectedDriftProneGates.includes('guide'),
+      `${path} selects the Guide drift gate`,
+    );
+  }
   assert.deepEqual(
     selectDriftProneGates([
       'tests/agent_safe_publication_checker_v1.mjs',
@@ -910,7 +930,18 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     const refused = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
     assert.notEqual(refused.status, 0, refused.output);
     assert.match(refused.output, /REFUSED: .* failed drift-prone gate guide/u);
-    assert.match(refused.output, /stale record: guide\/guide-manifest\.generated\.json/u);
+    assert.match(
+      refused.output,
+      /stale record: Guide manifest, whole-corpus flat, and every section flat projection/u,
+    );
+    assert.match(
+      refused.output,
+      /stale record: diagnostics registry, Markdown projection, and public TypeScript code union/u,
+    );
+    assert.match(
+      refused.output,
+      /stale record: symbol registry, compact reference index, and every generated module reference page/u,
+    );
     assert.match(refused.output, /regenerate: node scripts\/generate-guide-manifest\.mjs/u);
     assert.doesNotMatch(refused.output, /\n\s+at (?:async )?/u);
     assert.doesNotMatch(refused.output, /\[snapback-drift\] ERROR:/u);

@@ -1,0 +1,127 @@
+{
+  "appId": "app",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:9e8e81e9a82d208514d117f06efa75c066a6a1d4186470211bc6c33bb71d0ed5",
+  "rows": {
+    "anchors": {
+      "diagnostics": [
+        "SNAPBACK_ARGUMENT_NORMALIZATION_FAILED",
+        "SNAPBACK_ARGUMENT_VALIDATION_FAILED",
+        "SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID"
+      ],
+      "guide": [
+        "guide/clients/headless.md",
+        "guide/clients/react.md",
+        "guide/realtime/ephemeral-state.md"
+      ]
+    },
+    "argumentNormalization": {
+      "operations": [
+        {
+          "functionId": "app:joinAsHost",
+          "kind": "Mutation",
+          "name": "joinAsHost",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:leaveHost",
+          "kind": "Mutation",
+          "name": "leaveHost",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:pushLedger",
+          "kind": "Query",
+          "name": "pushLedger",
+          "optionalPropertyPaths": [],
+          "verb": "query"
+        },
+        {
+          "functionId": "app:sendSelected",
+          "kind": "Action",
+          "name": "sendSelected",
+          "optionalPropertyPaths": [
+            "args.redriveAmbiguous"
+          ],
+          "verb": "run"
+        }
+      ],
+      "version": "snapback.argument-normalization.v1"
+    },
+    "authorityAdmission": {
+      "operations": [
+        {
+          "authRequirement": "authenticated",
+          "functionId": "app:joinAsHost",
+          "kind": "Mutation",
+          "name": "joinAsHost",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "app:leaveHost",
+          "kind": "Mutation",
+          "name": "leaveHost",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "app:pushLedger",
+          "kind": "Query",
+          "name": "pushLedger",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "query"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "app:sendSelected",
+          "kind": "Action",
+          "name": "sendSelected",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "run"
+        }
+      ]
+    },
+    "presenceLifecycle": {
+      "authorityLossBarrierOwner": "server-connection-cleanup",
+      "collections": [],
+      "disposeAction": "fenced-withdrawal",
+      "neverPublishedAction": "none",
+      "stopAction": "fenced-withdrawal"
+    },
+    "primaryFailureCarrier": {
+      "publicErrorType": "SnapbackDiagnosticError",
+      "verbs": [
+        {
+          "carrier": "throw",
+          "operationKind": "Query",
+          "verb": "query"
+        },
+        {
+          "carrier": "throw",
+          "operationKind": "Action",
+          "verb": "run"
+        },
+        {
+          "carrier": "throw-immediate",
+          "operationKind": "Mutation",
+          "verb": "mutate"
+        },
+        {
+          "carrier": "raw-envelope-deprecated",
+          "operationKind": "Action",
+          "verb": "action"
+        },
+        {
+          "carrier": "resolved-queued-union",
+          "operationKind": "Mutation",
+          "verb": "queued-mutate"
+        }
+      ]
+    }
+  },
+  "schemaVersion": "snapback.client-lifecycle.v1"
+}

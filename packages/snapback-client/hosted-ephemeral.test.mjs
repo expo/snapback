@@ -44,6 +44,15 @@ globalThis.fetch = async (input, init = {}) => {
       expires_at_ms: Date.now() + 1_000,
     });
   }
+  if (url.pathname === '/ephemeral/delete') {
+    return Response.json({
+      status: 'superseded',
+      expectedScopeEpoch: body.expected_scope_epoch,
+      expectedEntryGeneration: body.expected_entry_generation,
+      actualScopeEpoch: 1,
+      actualEntryGeneration: 2,
+    });
+  }
   if (url.pathname === '/ephemeral/unsubscribe') return Response.json({ ok: true });
   throw new Error(`unexpected request ${url.pathname}`);
 };
@@ -64,6 +73,16 @@ try {
     transport: 'poll',
   });
   assert.deepEqual(values, [], 'initial authority establishment is not a restart');
+  const withdrawal = await client.deleteEphemeral('presence', {
+    connectionId: 'app',
+    scope: { roomId: 'lobby' },
+    expectedScopeEpoch: 1,
+    expectedEntryVersion: 1,
+  });
+  assert.equal(withdrawal.status, 'superseded');
+  const withdrawalRequest = requests.find(({ path }) => path === '/ephemeral/delete');
+  assert.equal(withdrawalRequest.body.expected_scope_epoch, 1);
+  assert.equal(withdrawalRequest.body.expected_entry_generation, 1);
   first.dispose();
   authority = `eai1.${'b'.repeat(43)}`;
   const second = await client.subscribeEphemeral('presence', {

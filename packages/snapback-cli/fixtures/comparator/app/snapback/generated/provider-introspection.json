@@ -51,7 +51,8 @@
           ],
           "scopeFields": [
             "roomId"
-          ]
+          ],
+          "withdrawalVisibilityDeadlineMs": 2500
         },
         "delivery": {
           "defaultLive": true,
@@ -721,8 +722,8 @@
   "schemaVersion": "provider-introspection.v1",
   "source": {
     "authoredSourceHash": "sha256:48933a9f387041dc300ace217029cf2c36a03503fe78c280feda81a31b66bf38",
-    "implementationHash": "sha256:f44ed56ec94ff483",
-    "inputsHash": "1415f4e11ab6bf503c7850030ec5ec2abd824ae38f517d507221453964ce50dd",
-    "schemaHash": "sha256:90157f92caea09ce"
+    "implementationHash": "sha256:b80c9af6be4942d7",
+    "inputsHash": "11575804fdf0c66d091bfe7c36d9250d1919e8d27fcda4fecf0b2962ad101ac1",
+    "schemaHash": "sha256:44b296f7191bdfad"
   }
 }

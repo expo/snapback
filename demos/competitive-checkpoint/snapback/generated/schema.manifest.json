@@ -8,12 +8,12 @@
   "authoredSourceHash": "sha256:4455ef68ce8584f85c901a570550adbc9c2d0f836262cb84106a8116d369242b",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "a2a4c7da92e4436aa0d6845e9a1c4d5967d811034e1bb57ac8581b5a0436eb1c",
+  "inputsHash": "302e21f662f7bfbac2f95cc02c603fb347ec9914ab265e6d9c093cf991fac771",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "relational_query_v1"
   ],
-  "schemaHash": "sha256:6526c6f5313409bf",
+  "schemaHash": "sha256:68d8ed345fec98f8",
   "schemaVersion": "snapback.v0",
   "tables": [
     {

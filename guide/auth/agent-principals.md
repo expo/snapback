@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: b60e477e59cc93f67ab244a4cc359a9d32e8adb0
+reviewed-authorities-digest: sha256:4b8a139980b6dd9eaa3f142ff8a2ac66e6c116ddb3bd92c13383ad1ba4f4af54
 ---
 
 # Agent principals and scoped grants

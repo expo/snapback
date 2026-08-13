@@ -69,6 +69,14 @@ const QUERY_SPEC_FIELDS = new Set([
   'auth', 'authorityIndependent', 'publicInline', 'retainable', 'refusals', 'trackedRefusals',
   'authScopeField', 'membership', 'standardPattern', 'requires',
 ]);
+const MUTATION_SPEC_FIELDS = new Set([
+  'args', 'plan', 'result', 'returns', 'stream', 'boundedSkew', 'standardPattern',
+  'auth', 'authorityCreating', 'refusals', 'trackedRefusals', 'requires',
+]);
+const ACTION_SPEC_FIELDS = new Set([
+  'args', 'plan', 'js', 'handler', 'result', 'returns', 'stream', 'uses', 'writes',
+  'auth', 'authorityCreating', 'refusals', 'trackedRefusals', 'requires',
+]);
 
 // @ref LLP 0065#3-common-pattern-contracts — every standard-pattern helper
 //   and profile carries a stable versioned identifier recorded in generated
@@ -319,12 +327,12 @@ function authoredFunctionAuth(spec, kind) {
   return fields;
 }
 
-function assertKnownSpecFields(spec, kind, allowed) {
+function assertKnownSpecFields(spec, kind, allowed, code = undefined) {
   assert(spec && typeof spec === 'object' && !Array.isArray(spec), `${kind} expects a spec object`);
   const fields = Object.keys(spec);
   for (let index = 0; index < fields.length; index += 1) {
     const field = fields[index];
-    assert(allowed.has(field), `${kind} has unknown field ${field}`);
+    assert(allowed.has(field), `${kind} has unknown field ${field}`, code);
   }
 }
 
@@ -2382,6 +2390,8 @@ export const ephemeral = {
       key: spec.key ?? 'connection',
       ...(spec.ttlMs !== undefined ? { ttlMs: spec.ttlMs } : {}),
       maxTtlMs: spec.maxTtlMs ?? 30_000,
+      withdrawalVisibilityDeadlineMs: spec.withdrawalVisibilityDeadlineMs
+        ?? Math.min(Math.floor((spec.ttlMs ?? spec.maxTtlMs ?? 30_000) / 2), 10_000),
       maxValueBytes: spec.maxValueBytes ?? 1_024,
       hardMaxValueBytes: spec.hardMaxValueBytes ?? 4_096,
       publishRate: spec.publishRate ?? { sustainedHz: 20, burst: 60 },
@@ -2652,7 +2662,7 @@ export const asc = (field, options) => order(field, 'Asc', options);
 export const desc = (field, options) => order(field, 'Desc', options);
 
 function queryDef(kind, spec) {
-  assertKnownSpecFields(spec, kind, QUERY_SPEC_FIELDS);
+  assertKnownSpecFields(spec, kind, QUERY_SPEC_FIELDS, 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN');
   assert(spec.table, `${kind} requires a table`);
   if (spec.authScopeField !== undefined) {
     assert(
@@ -4240,6 +4250,10 @@ function normalizeBoundedSkew(declaration, steps) {
 }
 
 export function defineMutation(spec) {
+  // @ref LLP 0010#generated-artifacts — function declarations are closed:
+  // a typo or not-yet-implemented proposal must refuse, never disappear from
+  // the generated function manifest.
+  assertKnownSpecFields(spec, 'Mutation', MUTATION_SPEC_FIELDS, 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN');
   assert(spec.stream !== true, 'stream: true is available only on defineAction');
   const steps = Array.isArray(spec.plan) ? spec.plan : [spec.plan];
   assert(steps.length > 0, 'defineMutation requires at least one plan step');
@@ -4376,6 +4390,11 @@ export const runMutation = (name, args = {}, opts = {}) => ({
 });
 
 export function defineAction(spec) {
+  // @ref LLP 0249#d1-an-explicit-action-only-runtime-profile — until the
+  // accepted isolated-node declaration has a real authoring implementation,
+  // its proposed runtime/effects fields must fail loudly instead of compiling
+  // into an ordinary portable action with those properties silently dropped.
+  assertKnownSpecFields(spec, 'Action', ACTION_SPEC_FIELDS, 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN');
   assert(spec.stream === undefined || typeof spec.stream === 'boolean', 'defineAction stream must be a boolean');
   const stream = spec.stream === true;
   if (spec.result !== undefined) {

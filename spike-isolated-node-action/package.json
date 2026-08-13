@@ -1,0 +1,16 @@
+{
+  "name": "snapback-isolated-node-action-spike",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "run": "node run.mjs",
+    "schemas": "node schemas-draft/validate-goldens.mjs"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0",
+    "esbuild": "0.28.1"
+  }
+}

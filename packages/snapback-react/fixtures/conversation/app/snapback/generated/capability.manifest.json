@@ -251,7 +251,7 @@
     "asset_lifecycle_v1": "experimental",
     "asset_reference_gc_v1": "experimental",
     "asset_video_finalization_v1": "experimental",
-    "assets.media-ref-projection.v1": "experimental",
+    "bounded_batch_reads_v1": "experimental",
     "bounded_children_v1": "experimental",
     "inline_handler_v1": "experimental",
     "jobs_one_off_v1": "experimental",
@@ -469,6 +469,16 @@
     }
   ],
   "runtimeEngine": "ibex",
+  "runtimeFacts": {
+    "boundedBatchReadsV1": {
+      "logicalBatchesPerHostCall": 1,
+      "maxCanonicalInputBytes": 1048576,
+      "maxItems": 256,
+      "maxPolicyProbesPerItem": 8,
+      "maxResponseBytes": 4194304,
+      "sqliteVariableFloor": 999
+    }
+  },
   "schemaVersion": "snapback.v0",
   "standardPatterns": {
     "authScopeDisjointnessSkip": "disabled",
@@ -496,6 +506,7 @@
   "supportedCapabilities": [
     "auth.sessions.v1",
     "bounded_children_v1",
+    "bounded_batch_reads_v1",
     "cron",
     "cron_action_run_mutation",
     "host_plan_runtime",
@@ -525,7 +536,6 @@
     "versioned_seed_reset_v1",
     "write_activity_v1",
     "asset_lifecycle_v1",
-    "assets.media-ref-projection.v1",
     "asset_image_finalization_v1",
     "asset_image_pipeline_v1",
     "asset_reference_gc_v1",

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:dafdda17e37afb44c53a58b7bd4cb9a1617fd14676e6f065815f05124c2f56a7
 ---
 
 # Admin console

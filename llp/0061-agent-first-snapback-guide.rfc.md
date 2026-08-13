@@ -5,7 +5,11 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-08-10 (reachability amendment: §Design 5 names the
+**Revised:** 2026-08-12 (LLP 0232 D-2 freshness-identity amendment: page
+review anchors now bind the declared authority bytes directly instead of a
+commit containing them; source-generated Guide, symbol, and diagnostic
+records carry content digests only, while `build.rs` still adds the exact
+carrier commit to the embedded runtime manifest.) 2026-08-10 (reachability amendment: §Design 5 names the
 sophisticated-variant-only anti-pattern — a page teaching only the advanced
 variant of a capability makes the base variant look unsupported, so the
 search terminates in a wrong conclusion — with Diary 0074's three guide-gap
@@ -41,7 +45,8 @@ the guide is a product surface rather than repo documentation, and `docs/`
 remains the internal-engineering shelf; the shape stays 0365-compatible via
 the conventions/schema/manifest, which never depended on the path. Phase 1
 implementation lands with this revision.) 2026-07-15 (r2 — reconciled round-1 fable + codex reviews: replaced
-date-based freshness with a reviewed-commit baseline; replaced the informal
+date-based freshness with a commit-pinned review baseline (superseded by the
+2026-08-12 content-digest amendment); replaced the informal
 Phase 1 exit with a pinned cold-agent retrieval eval (diaries stay a
 complementary source); scoped the guide's Phase 1 audience honestly to
 checkout/adjacent authors and corrected the Summary's overstatement of the MCP
@@ -242,7 +247,7 @@ repos are already siblings in practice; the guides cross-link instead.
 
 | Reused from Exact LLP 0365 | Form of reuse |
 | --- | --- |
-| Page conventions: frontmatter core (`title`, `id`, `order`, `audience`, `capabilities`, `authorities`, `examples`, `status`, `reviewed`), intent-first headings, complete inventories, named anti-patterns | Adopted as a **compatible core plus Snapback extensions** (`targets:`, `maturity:`, `reviewed-commit:` — §Design 1), defined in a schema artifact that is a Phase 1 deliverable. `examples:` keeps its name and points at demo paths. |
+| Page conventions: frontmatter core (`title`, `id`, `order`, `audience`, `capabilities`, `authorities`, `examples`, `status`, `reviewed`), intent-first headings, complete inventories, named anti-patterns | Adopted as a **compatible core plus Snapback extensions** (`targets:`, `maturity:`, `reviewed-authorities-digest:` — §Design 1), defined in a schema artifact that is a Phase 1 deliverable. `examples:` keeps its name and points at demo paths. |
 | Link policy: relative corpus-internal links; marked `repo:` references for out-of-corpus authorities | Copied verbatim for the in-repo classes; the cross-repo reference form is new and coordinated (§seam below) |
 | Snippet classes: runnable / fixture-backed / explicitly-partial-with-reason | Copied, with the runnable class upgraded from "compiles" to "executes against a `--memory` server" and transclusion-from-verified-code as the default mechanism (§Design 3) |
 | Capability index with explicit GAP rows and a size budget | Adopted with required witnesses for shipped rows and two day-one inventory joins (§Design 2) |
@@ -356,8 +361,9 @@ Page conventions are 0365 §1's, with these Snapback deltas:
   capability/inspect reporting — the mechanical form of the activation-fence
   rule; LLP 0055/0056 material stays a GAP row until an author can exercise
   it.
-- **`reviewed:` + `reviewed-commit:`** — the page's last intentional review
-  date (display metadata) and the commit it was reviewed at (identity — §3).
+- **`reviewed:` + `reviewed-authorities-digest:`** — the page's last
+  intentional review date (display metadata) and the SHA-256 digest of its
+  declared authority bytes at that review (identity — §3).
 - **`examples:` frontmatter** points at demo directories and specific files;
   the consistency check verifies the paths. The field keeps 0365's name for
   schema compatibility.
@@ -475,15 +481,14 @@ LLP 0010/0012:
   the index within its size budget; `targets:` and `maturity:` present and
   consistent with the index; the generated manifest (§4) not stale.
 - **Freshness** — warning-only, but sound: the check compares each page's
-  `reviewed-commit:` baseline against HEAD with
-  `git diff <reviewed-commit>..HEAD -- <authorities>`, so any authority
-  change since the page's last intentional review is visible regardless of
-  dates, same-day revisions, or how many edits landed. Bumping the baseline
-  is a deliberate act (edit the frontmatter in a review pass); no tool
-  regenerates it. This adopts 0365's dates-are-not-identity principle at a
-  fraction of its review-lock tooling; the full lock file with per-authority
-  content hashes is the recorded upgrade if per-commit granularity proves
-  too coarse. **Day-one gates:** snippet failures, consistency failures
+  `reviewed-authorities-digest:` with a digest over its current declared
+  authority paths and bytes, so any authority byte change since the page's
+  last intentional review is visible regardless of dates, same-day revisions,
+  commit topology, or how many edits landed. Refreshing the digest is a
+  deliberate act in a review pass; ordinary Guide regeneration never changes
+  authored review anchors. This adopts 0365's dates-are-not-identity principle
+  while making the verdict invariant under gate-disjoint rebases, as required
+  by LLP 0232 D-2. **Day-one gates:** snippet failures, consistency failures
   (including join violations), and expired GAP review dates. Drift warnings
   stay warnings.
 

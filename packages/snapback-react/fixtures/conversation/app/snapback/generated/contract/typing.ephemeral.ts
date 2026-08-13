@@ -11,6 +11,7 @@ export const keyMode = 'Connection';
 export const scopeFields = ["conversationId"];
 export const defaultTtlMs = 4000;
 export const maxTtlMs = 8000;
+export const withdrawalVisibilityDeadlineMs = 2000;
 export const maxDeltaRateHz = 13;
 export const coalesce = true;
 export type TypingScope = { conversationId: string };

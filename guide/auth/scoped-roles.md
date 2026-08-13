@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:e424cd8ea06dca933a7cd807d187882d5c2998acf80d205abfe413ffe08c2d31
 ---
 
 # Scoped roles and memberships

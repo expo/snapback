@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-authorities-digest: sha256:359ad5ef75925fd5932dec2dcd91eb5a9de3e7d399a3bd0da2cd2e6444e5b133
 ---
 
 # Verify the declared app contract

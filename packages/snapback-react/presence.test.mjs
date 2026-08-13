@@ -31,6 +31,7 @@ const collection = Object.freeze({
   routingFields: ['roomId'],
   defaultTtlMs: 1_000,
   maxTtlMs: 5_000,
+  withdrawalVisibilityDeadlineMs: 500,
   maxValueBytes: 128,
   hardMaxValueBytes: 4_096,
   sustainedHz: 4,
@@ -65,7 +66,7 @@ const capabilityManifest = Object.freeze({
 function fakeClient(
   profile = 'local-dev-sqlite-ibex',
   deployment = { schema, functions },
-  { failNextPublish = false } = {},
+  { failNextPublish = false, delayNextDelete = false } = {},
 ) {
   let starts = 0;
   let publishAttempts = 0;
@@ -73,6 +74,10 @@ function fakeClient(
   let deletes = 0;
   let handles = 0;
   let barriers = 0;
+  const deleteCalls = [];
+  const authorityCapture = Object.freeze({ revision: 1 });
+  let barrierParticipant = null;
+  let settleDelayedDelete = null;
   return {
     liveQuery() {},
     async inspect() {
@@ -85,10 +90,14 @@ function fakeClient(
       };
     },
     async authSession() { return { activeMode: 'dev' }; },
-    registerAuthBarrierParticipant() {
+    registerAuthBarrierParticipant(participant) {
       barriers += 1;
-      return async () => { barriers -= 1; };
+      barrierParticipant = participant;
+      return async () => { barriers -= 1; barrierParticipant = null; };
     },
+    captureAuthority: () => authorityCapture,
+    authorityCaptureFor: () => authorityCapture,
+    isAuthorityCaptureCurrent: (capture) => capture === authorityCapture,
     liveStreamManager() {
       return { async settled() {} };
     },
@@ -155,13 +164,27 @@ function fakeClient(
             })]),
           });
           notify();
-          return { accepted: true };
+          return { accepted: true, scope_epoch: 1, entry_version: publishes };
         },
-        async delete() {
+        async delete(options = {}) {
           deletes += 1;
+          deleteCalls.push(options);
+          if (delayNextDelete) {
+            delayNextDelete = false;
+            return new Promise((resolve) => {
+              settleDelayedDelete = (settlement = { status: 'superseded' }) => {
+                if (settlement.status === 'deleted') {
+                  current = Object.freeze({ ...current, entries: Object.freeze([]) });
+                  notify();
+                }
+                settleDelayedDelete = null;
+                resolve(settlement);
+              };
+            });
+          }
           current = Object.freeze({ ...current, entries: Object.freeze([]) });
           notify();
-          return { removed: true };
+          return { status: 'deleted' };
         },
         dispose() {
           if (disposed) return;
@@ -175,7 +198,17 @@ function fakeClient(
       });
     },
     inspection() {
-      return { starts, publishAttempts, publishes, deletes, handles, barriers };
+      return {
+        starts,
+        publishAttempts,
+        publishes,
+        deletes,
+        deleteCalls,
+        handles,
+        barriers,
+        barrierParticipant,
+        settleDelayedDelete,
+      };
     },
   };
 }
@@ -207,6 +240,7 @@ const observer = observeSnapbackPresence(
 await flush();
 assert.equal(observer.snapshot().status, 'ready');
 assert.equal(client.inspection().starts, 1);
+assert.equal(client.inspection().deletes, 0, 'never-published skip sends no withdrawal');
 await observer.publish({ name: 'Ada' }, { ttlMs: 1_000 });
 assert.equal(observer.snapshot().publisher.status, 'published');
 assert.equal(observer.snapshot().entries[0].value.name, 'Ada');
@@ -310,6 +344,104 @@ assert.equal(recoveringClient.inspection().publishes, 1);
 await recoveringObserver.dispose();
 await recoveringProvider.dispose();
 
+// @ref LLP 0247#d3-presence-has-explicit-active-and-withdrawn-states — declarative
+// published→skip keeps the read room but withdraws the exact acknowledged
+// epoch/version pair within the generated visibility deadline.
+const skipClient = fakeClient();
+const skipBinding = await prepareReactBindingForClient(skipClient, {
+  generatedManifest: { functions, schema, capabilityManifest },
+});
+const skipProvider = createSnapbackReactProvider(skipBinding, { connectionId: 'presence-skip' });
+const skipObserver = observeSnapbackPresence(
+  skipProvider,
+  skipBinding.ephemeral.presence,
+  { scope: { roomId: 'skip-room' }, value: { name: 'Ada' }, ttlMs: 1_000 },
+  () => {},
+);
+await flush();
+await flush();
+assert.equal(skipObserver.snapshot().publisher.status, 'published');
+const skipStartedAt = Date.now();
+skipObserver.update({ scope: { roomId: 'skip-room' }, value: skip });
+await flush();
+assert.equal(skipClient.inspection().deletes, 1);
+assert.deepEqual(skipClient.inspection().deleteCalls[0], {
+  expectedScopeEpoch: 1,
+  expectedEntryVersion: 1,
+  authorityCapture: skipClient.captureAuthority(),
+});
+assert(
+  Date.now() - skipStartedAt <= collection.withdrawalVisibilityDeadlineMs,
+  'published→skip dispatches withdrawal within withdrawalVisibilityDeadlineMs',
+);
+assert.equal(skipObserver.snapshot().status, 'ready', 'skip retains the read room');
+assert.equal(skipClient.inspection().handles, 1, 'skip does not dispose the room handle');
+await skipObserver.dispose();
+await skipProvider.dispose();
+
+// A predecessor withdrawal is independent from successor publication. Its
+// eventual superseded settlement is idempotent success and cannot blank the
+// successor entry.
+const supersededClient = fakeClient(
+  'local-dev-sqlite-ibex',
+  { schema, functions },
+  { delayNextDelete: true },
+);
+const supersededBinding = await prepareReactBindingForClient(supersededClient, {
+  generatedManifest: { functions, schema, capabilityManifest },
+});
+const supersededProvider = createSnapbackReactProvider(supersededBinding, {
+  connectionId: 'presence-superseded',
+});
+const supersededObserver = observeSnapbackPresence(
+  supersededProvider,
+  supersededBinding.ephemeral.presence,
+  { scope: { roomId: 'same-room' }, value: { name: 'Ada' }, ttlMs: 1_000 },
+  () => {},
+);
+await flush();
+await flush();
+supersededObserver.update({ scope: { roomId: 'same-room' }, value: skip });
+supersededObserver.update({
+  scope: { roomId: 'same-room' },
+  value: { name: 'Grace' },
+  ttlMs: 1_000,
+});
+await flush();
+await flush();
+assert.equal(supersededClient.inspection().publishes, 2, 'republish is not serialized behind withdrawal');
+assert.equal(typeof supersededClient.inspection().settleDelayedDelete, 'function');
+supersededClient.inspection().settleDelayedDelete({ status: 'superseded' });
+await flush();
+assert.equal(supersededObserver.snapshot().entries[0].value.name, 'Grace');
+await supersededObserver.dispose();
+await supersededProvider.dispose();
+
+// The auth barrier owns remote connection cleanup. React quiescence must
+// blank/dispose locally without issuing an app delete under lost authority.
+const authorityClient = fakeClient();
+const authorityBinding = await prepareReactBindingForClient(authorityClient, {
+  generatedManifest: { functions, schema, capabilityManifest },
+});
+const authorityProvider = createSnapbackReactProvider(authorityBinding, {
+  connectionId: 'presence-authority-loss',
+});
+const authorityObserver = observeSnapbackPresence(
+  authorityProvider,
+  authorityBinding.ephemeral.presence,
+  { scope: { roomId: 'authority-room' }, value: { name: 'Ada' }, ttlMs: 1_000 },
+  () => {},
+);
+await flush();
+await flush();
+assert.equal(authorityObserver.snapshot().publisher.status, 'published');
+const authorityBarrier = authorityClient.inspection().barrierParticipant;
+await authorityBarrier.quiesce();
+authorityBarrier.blank();
+assert.equal(authorityClient.inspection().deletes, 0, 'authority loss issues no app delete');
+await authorityObserver.dispose();
+await authorityProvider.dispose();
+
 const hosted = fakeClient('hosted-postgres');
 const hostedBinding = await prepareReactBindingForClient(hosted, {
   generatedManifest: {
@@ -359,9 +491,12 @@ const generatedApiReference = Object.freeze({
   name: 'presence',
   keyMode: 'Connection',
   scopeFields: ['roomId'],
+  scopeContract,
+  valueContract,
   routingFields: ['roomId'],
   defaultTtlMs: 1_000,
   maxTtlMs: 5_000,
+  withdrawalVisibilityDeadlineMs: 500,
   maxValueBytes: 128,
   publishRate: { sustainedHz: 4, burst: 8 },
   deliveryMode: 'latest',

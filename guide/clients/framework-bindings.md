@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-authorities-digest: sha256:ef95f794e1201fad76046e3f04ccc1fd42a1a5326f23d9cc8c32b9639755ed6d
 ---
 
 # Framework bindings

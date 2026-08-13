@@ -35,6 +35,7 @@ export interface GeneratedMutationIrV1 {
   readonly usesRuntimeNow: boolean;
   readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;
 }
+/** Optional own-property `undefined` is normalized exactly as omission; required, array, and open-JSON undefined still refuse before dispatch. */
 export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
@@ -42,9 +43,10 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   id: string;
   name: Name;
   kind: Kind;
-  readonly __snapbackReferenceKind: Kind;
+  authRequirement: 'public' | 'optional-user' | 'authenticated';
   implementationHash: string;
   argsContractHash: string;
+  argsContract: Readonly<{ fields: readonly Readonly<{ name: string; required: boolean; value: Readonly<Record<string, unknown>> }>[] }>;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
   authoredSourceHash: `sha256:${string}`;
@@ -57,10 +59,6 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   readonly __args?: Args;
   readonly __result?: Result;
 }
-export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Query', Args, Result>;
-export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'LiveQuery', Args, Result>;
-export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Mutation', Args, Result>;
-export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Action', Args, Result>;
 export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;
 export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
@@ -142,6 +140,7 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value,
   routingFields: readonly string[];
   defaultTtlMs: number;
   maxTtlMs: number;
+  withdrawalVisibilityDeadlineMs: number;
   maxValueBytes: number;
   publishRate: { readonly sustainedHz: number; readonly burst: number };
   deliveryMode: 'latest';
@@ -169,13 +168,17 @@ export interface GeneratedIndexNames {
   "resources": "by_key";
   "reservations": "by_idempotency" | "by_resource_slot" | "by_slot_owner";
 }
+export interface GeneratedUniqueIndexKeys {
+  "resources": { "by_key": Readonly<{ "key": NonNullable<GeneratedDataModel["resources"]["key"]> }> };
+  "reservations": { "by_idempotency": Readonly<{ "idempotencyKey": NonNullable<GeneratedDataModel["reservations"]["idempotencyKey"]> }>; "by_resource_slot": Readonly<{ "resourceSlotKey": NonNullable<GeneratedDataModel["reservations"]["resourceSlotKey"]> }> };
+}
 export interface GeneratedTableAdmissionMaps {
   readonly read: Record<GeneratedReadableTableName, true>;
   readonly insert: Record<GeneratedInsertableTableName, true>;
   readonly patch: Record<GeneratedPatchableTableName, true>;
   readonly delete: Record<GeneratedDeletableTableName, true>;
 }
-export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps>;
+export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps, GeneratedUniqueIndexKeys>;
 export type GeneratedQueryBuilder<Table extends GeneratedReadableTableName> = QueryBuilder<GeneratedHandlerSchema, Table>;
 export type GeneratedQueryDatabase = QueryDatabase<GeneratedHandlerSchema>;
 export type GeneratedMutationDatabase = MutationDatabase<GeneratedHandlerSchema>;
@@ -204,50 +207,10 @@ export interface GeneratedEphemeral {
 export interface GeneratedQueryGroups {
 }
 export interface GeneratedApi {
-  /**
-   * Mutation reference `contention-calendar:clearReservations`.
-   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
-   * Auth: `optional-user`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
-   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
-   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `5b223a5cb34ed4d48482aa5ad5d2641dcb7f61509b8b00e57c3cb2a00e9e6507`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
-   */
   clearReservations: FunctionReference<'clearReservations', 'Mutation', Record<string, never>, number>;
-  /**
-   * LiveQuery reference `contention-calendar:reservationsForSlot`.
-   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
-   * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
-   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
-   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `5b223a5cb34ed4d48482aa5ad5d2641dcb7f61509b8b00e57c3cb2a00e9e6507`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
-   */
   reservationsForSlot: FunctionReference<'reservationsForSlot', 'LiveQuery', { slotKey: string; ownerId: string }, ReadonlyArray<GeneratedDataModel["reservations"]>>;
-  /**
-   * Mutation reference `contention-calendar:reserve`.
-   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
-   * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
-   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
-   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `5b223a5cb34ed4d48482aa5ad5d2641dcb7f61509b8b00e57c3cb2a00e9e6507`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
-   */
   reserve: FunctionReference<'reserve', 'Mutation', { idempotencyKey: string; resourceKey: string; slotKey: string; ownerId: string; title: string; now: number }, Id<"reservations">>;
-  /**
-   * LiveQuery reference `contention-calendar:resourceList`.
-   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
-   * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
-   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
-   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `5b223a5cb34ed4d48482aa5ad5d2641dcb7f61509b8b00e57c3cb2a00e9e6507`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
-   */
   resourceList: FunctionReference<'resourceList', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["resources"]>>;
-  /**
-   * LiveQuery reference `contention-calendar:schedule`.
-   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
-   * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
-   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
-   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `5b223a5cb34ed4d48482aa5ad5d2641dcb7f61509b8b00e57c3cb2a00e9e6507`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
-   */
   schedule: FunctionReference<'schedule', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["reservations"]>>;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;

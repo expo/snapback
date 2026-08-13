@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: 5b3122704d59e3792d744a7475462008dad0bade
+reviewed-authorities-digest: sha256:1c25648b54546e0cba48be11aa9c86c92fe3548afc6b94f50767aa6b4761deab
 ---
 
 # Diagnostics and local doctoring

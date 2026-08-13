@@ -13,6 +13,25 @@ import type { CodegenSummary } from './codegen-summary.mjs';
 import type { ResultValueContract } from './result-contracts.mjs';
 
 export { formatCodegenSummary } from './codegen-summary.mjs';
+export {
+  DECLARATION_SUGGESTION_REASON_CODES,
+  applyDeclarationSuggestion,
+  formatDeclarationSuggestionPatch,
+  readDeclarationSuggestionFile,
+  resolveDeclarationSuggestionTarget,
+  suggestDeclarations,
+} from './declaration-suggestion.mjs';
+export type {
+  DeclarationSuggestionApplyResultV1,
+  DeclarationSuggestionDiagnosticV1,
+  DeclarationSuggestionDiagnosticCode,
+  DeclarationSuggestionEvidenceV1,
+  DeclarationSuggestionHoleV1,
+  DeclarationSuggestionPatchV1,
+  DeclarationSuggestionReasonCode,
+  DeclarationSuggestionResultV1,
+  DeclarationSuggestionV1,
+} from './declaration-suggestion.mjs';
 
 export const SURFACE_MAX_PARAMS: 8;
 export const SURFACE_MAX_MEMBERS: 24;

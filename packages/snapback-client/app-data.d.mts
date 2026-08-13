@@ -47,6 +47,7 @@ export type SnapbackAppDataSurface = Pick<
   | 'search'
   | 'mutate'
   | 'action'
+  | 'run'
   // The LLP 0043 settlement lifecycle, whole (see app-data.mjs).
   | 'settledMutations'
   | 'markMutationSettlementsConsumed'

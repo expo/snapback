@@ -227,6 +227,92 @@ test('structural media copies lose provenance custody', async () => {
   });
 });
 
+test('bounded batch reads bypass empty host calls and use one transition per nonempty batch', async () => {
+  const context = vm.createContext({});
+  vm.runInContext('globalThis.__hostCall = function() { throw new Error("ambient transport must not run"); };', context);
+  vm.runInContext(bootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(`
+    globalThis.__snapbackHandlers = {
+      probe: async function(ctx) {
+        return {
+          emptyIds: await ctx.db.getMany('items', []),
+          emptyKeys: await ctx.db.uniqueMany('items', 'bySlug', []),
+          ids: await ctx.db.getMany('items', ['b', 'a', 'b']),
+          keys: await ctx.db.uniqueMany('items', 'bySlug', [{ slug: 'two' }]),
+        };
+      }
+    };
+  `, context);
+  const calls = [];
+  const decoded = parseHandlerEnvelope(await context.__snapbackSettle(
+    'probe',
+    '{}',
+    '{}',
+    'query',
+    null,
+    null,
+    '17',
+    (rawOp, argsJson) => {
+      calls.push({ rawOp, args: JSON.parse(argsJson) });
+      if (rawOp.endsWith('|db.getMany')) {
+        return [{ _id: 'b' }, { _id: 'a' }, { _id: 'b' }];
+      }
+      return Promise.resolve([{ _id: 'two' }]);
+    },
+  ));
+  assert.equal(decoded.ok, true);
+  assert.deepEqual(decoded.value.emptyIds, []);
+  assert.deepEqual(decoded.value.emptyKeys, []);
+  assert.deepEqual(decoded.value.ids.map((row) => row._id), ['b', 'a', 'b']);
+  assert.deepEqual(decoded.value.keys.map((row) => row._id), ['two']);
+  const batchCalls = calls.filter(({ rawOp }) => rawOp.includes('|db.'));
+  assert.equal(batchCalls.length, 2, JSON.stringify(calls));
+  assert.equal(batchCalls[0].rawOp, '17|db.getMany');
+  assert.deepEqual(batchCalls[0].args.ids, ['b', 'a', 'b']);
+  assert.equal(batchCalls[1].rawOp, '17|db.uniqueMany');
+  assert.deepEqual(batchCalls[1].args.keys, [{ slug: 'two' }]);
+  assert.deepEqual(calls.slice(2), [{
+    rawOp: '17|media.handoff',
+    args: { occurrences: [] },
+  }]);
+});
+
+test('bounded batch reads reject non-arrays before a host transition', async () => {
+  const context = vm.createContext({});
+  vm.runInContext('globalThis.__hostCall = function() { throw new Error("ambient transport must not run"); };', context);
+  vm.runInContext(bootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(`
+    globalThis.__snapbackHandlers = {
+      probe: async function(ctx) { return await ctx.db.getMany('items', 'not-an-array'); }
+    };
+  `, context);
+  let calls = 0;
+  const decoded = parseHandlerEnvelope(await context.__snapbackSettle(
+    'probe', '{}', '{}', 'query', null, null, '18', () => { calls += 1; return []; },
+  ));
+  assert.equal(decoded.ok, false);
+  assert.equal(decoded.code, 'SNAPBACK_BATCH_READ_INPUT_INVALID');
+  assert.equal(calls, 0);
+});
+
+test('bounded batch reads are denied in actions before a host transition', async () => {
+  const context = vm.createContext({});
+  vm.runInContext('globalThis.__hostCall = function() { throw new Error("ambient transport must not run"); };', context);
+  vm.runInContext(bootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(`
+    globalThis.__snapbackHandlers = {
+      probe: async function(ctx) { return await ctx.db.uniqueMany('items', 'bySlug', [{ slug: 'x' }]); }
+    };
+  `, context);
+  const calls = [];
+  const decoded = parseHandlerEnvelope(await context.__snapbackSettle(
+    'probe', '{}', '{}', 'action', null, null, '19', (rawOp) => { calls.push(rawOp); return []; },
+  ));
+  assert.equal(decoded.ok, false);
+  assert.equal(decoded.code, 'SNAPBACK_HANDLER_WRITE_IN_QUERY');
+  assert.equal(calls.some((rawOp) => rawOp.endsWith('|db.uniqueMany')), false);
+});
+
 test('mutation settlement availability refusals survive the JS-host decoder', () => {
   assert.equal(
     handlerEnvelopeCode('SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE'),

@@ -64,6 +64,11 @@ const reference = (name, kind, suffix) => {
     kind,
     implementationHash: `sha256:implementation-${suffix}`,
     argsContractHash: `sha256:args-${suffix}`,
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { value: { type: 'string' } },
+    },
     resultContractHash: resultContractHash(resultContract),
     resultContract,
   });

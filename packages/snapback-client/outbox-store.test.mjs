@@ -13,7 +13,7 @@ import { test } from 'node:test';
 
 import { IDBFactory } from 'fake-indexeddb';
 
-import { SnapbackClient } from './index.mjs';
+import { SnapbackClient, isSnapbackDiagnosticError } from './index.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 import { createFileRqsResumeStore, RQS_FILE_STORE_FORMAT_V1 } from './rqs-store-file.mjs';
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
@@ -39,6 +39,12 @@ const TEST_ARTIFACT_GENERATION = Object.freeze({
   schemaHash: `sha256:${'a'.repeat(64)}`,
   bundleHash: `sha256:${'b'.repeat(64)}`,
   inputsHash: `sha256:${'c'.repeat(64)}`,
+});
+const TEST_CREATE_THING_ARGUMENT_SCHEMA = Object.freeze({
+  type: 'object',
+  additionalProperties: false,
+  properties: { title: { type: 'string' } },
+  required: ['title'],
 });
 const TEST_FRESH_SNAPSHOT_BARRIER = Object.freeze({
   schemaVersion: 'snapback.outbox-fresh-snapshot-barrier.v1',
@@ -678,7 +684,10 @@ test('volatile store never claims the durable settlement-publication path', asyn
     (error) => error.code === 'SNAPBACK_OFFLINE_QUEUE_DURABILITY_REQUIRED',
   );
   assert.equal(calls, 0, 'required durable custody refuses before dispatch');
-  await assert.rejects(() => client.mutate('createThing', { args: {} }), TypeError);
+  await assert.rejects(
+    () => client.mutate('createThing', { args: {} }),
+    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
+  );
   assert.equal((await store.outboxRecords()).length, 0, 'auto mode never queues into memory');
 });
 
@@ -840,6 +849,7 @@ test('checked sidecar adoption drains one injected store against the candidate o
     function: 'createThing',
     args: { title: 'pending across origin' },
     expectedGeneration: TEST_ARTIFACT_GENERATION,
+    argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,
   });
   const delivered = [];
   globalThis.fetch = async (url, init = {}) => {
@@ -861,7 +871,11 @@ test('checked sidecar adoption drains one injected store against the candidate o
   assert.equal(receipt.clientStoreId, clientStoreId);
   assert.equal(receipt.writer, true);
   assert.equal(receipt.pendingBefore, 1);
-  assert.equal(receipt.replayed, 1);
+  assert.equal(receipt.replayed, 1, JSON.stringify({
+    receipt,
+    stop: candidate.__outboxLastReplayStop,
+    diagnostics: candidate.outboxDiagnostics,
+  }));
   assert.equal(receipt.remaining, 0);
   assert.equal(receipt.stopped, false);
   assert.deepEqual(
@@ -979,6 +993,7 @@ test('sidecar adoption keeps identity-divergent intent pending for rollback', as
     function: 'createThing',
     args: { title: 'different identity' },
     expectedGeneration: TEST_ARTIFACT_GENERATION,
+    argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,
   });
   globalThis.fetch = async (url) => {
     if (String(url).endsWith('/inspect')) return Response.json(adoptionInspection());
@@ -1111,6 +1126,7 @@ test('uncovered offline intent obtains and durably assigns a range before reconn
   assert.deepEqual(
     { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
     { replayed: 1, failed: 0, remaining: 0 },
+    JSON.stringify({ replay, records: await store.outboxRecords() }),
   );
   assert.equal(
     requests.filter(({ url }) => url.endsWith('/mutation/createThing')).length,
@@ -1723,6 +1739,12 @@ test('queued generated mutation retains its call-time artifact generation throug
     artifactKind: 'functionReference',
     kind: 'Mutation',
     name: 'generationBoundMutation',
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { value: { type: 'integer' } },
+      required: ['value'],
+    },
     expectedGeneration,
   };
   const client = new SnapbackClient('http://127.0.0.1:9', {
@@ -1741,10 +1763,18 @@ test('queued generated mutation retains its call-time artifact generation throug
       authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
     });
   };
-  const replay = await client.replayQueuedMutations();
+  const generationReplay = await client.replayQueuedMutations();
   assert.deepEqual(
-    { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
+    {
+      replayed: generationReplay.replayed,
+      failed: generationReplay.failed,
+      remaining: generationReplay.remaining,
+    },
     { replayed: 1, failed: 0, remaining: 0 },
+    JSON.stringify({
+      generationReplay,
+      records: await store.outboxRecords(),
+    }),
   );
   assert.deepEqual(replayBody.expectedGeneration, expectedGeneration);
   assert.deepEqual(
@@ -1789,6 +1819,7 @@ test('persisted generated mutation without reference kind replays as Mutation', 
   assert.deepEqual(
     { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
     { replayed: 1, failed: 0, remaining: 0 },
+    JSON.stringify({ replay, records: await store.outboxRecords() }),
   );
   assert.deepEqual(replayBody.expectedGeneration, expectedGeneration);
   assert.equal((await store.outboxRecords())[0].status, 'settled');
@@ -2356,7 +2387,7 @@ test('replay drop-and-mark-failed on server refusal, pending kept on connectivit
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   await assert.rejects(
     () => client.mutate('createThing', { args: { n: 3 }, queue: false }),
-    TypeError,
+    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
   );
 });
 
@@ -2411,7 +2442,7 @@ test('caller aborts and server answers are never classified as connectivity', as
   };
   await assert.rejects(
     () => client.mutate('createThing', { args: { title: 'aborted' } }),
-    (error) => error?.name === 'AbortError',
+    (error) => isSnapbackDiagnosticError(error) && error.cause?.name === 'AbortError',
   );
   assert.equal((await store.outboxPending()).length, 0, 'abort did not enqueue');
 

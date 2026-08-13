@@ -19,6 +19,7 @@ use snapback::storage::{
     BufferedWrite, CapturedReadDependency, CapturedReadKind, ChangeOp, LocalDatabase,
 };
 use std::collections::BTreeMap;
+use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
@@ -123,6 +124,114 @@ fn ibex_ctx_db_handlers_run_todo_query_mutation_and_live_update() {
     let update: Value = serde_json::from_slice(&message.payload).expect("live update json");
     assert_eq!(update["kind"], "live_replace");
     assert_eq!(update["rows"].as_array().unwrap().len(), 1);
+}
+
+/// LLP 0246 rollouts 1-2: codegen erases a typed single-file handler and the
+/// exact emitted JavaScript executes in Hermes. This is intentionally a real
+/// codegen -> generated manifest -> runtime invocation seam, not a hand-copied
+/// JavaScript transform fixture.
+#[test]
+fn typescript_handler_codegen_executes_emitted_javascript_in_hermes() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let codegen = root.join("packages/snapback-codegen/index.mjs");
+    let define = root.join("packages/snapback-codegen/define.mjs");
+    let define_url = format!(
+        "file://{}",
+        define
+            .to_string_lossy()
+            .replace('%', "%25")
+            .replace(' ', "%20")
+            .replace('#', "%23")
+            .replace('?', "%3F")
+    );
+    let fixture = tempfile::tempdir().expect("temporary TypeScript handler app");
+    std::fs::write(
+        fixture.path().join("schema.mjs"),
+        format!(
+            "import {{ defineSchema }} from '{define_url}';\n\
+             export default defineSchema({{}});\n"
+        ),
+    )
+    .expect("write schema source");
+    std::fs::write(
+        fixture.path().join("functions.mjs"),
+        format!(
+            "import {{ defineAction, v }} from '{define_url}';\n\
+             export const typedProbe = defineAction({{\n\
+               args: {{ value: v.string() }},\n\
+               js: {{ source: 'typed-probe.ts', exportName: 'typedProbe' }},\n\
+             }});\n"
+        ),
+    )
+    .expect("write functions source");
+    std::fs::write(
+        fixture.path().join("typed-probe.ts"),
+        r#"interface ProbeArgs { value: string }
+interface ProbeResult { echoed: string; count: number }
+globalThis.__snapbackHandlers = {
+  async typedProbe(_ctx: unknown, args: ProbeArgs): Promise<ProbeResult> {
+    const echoed: string = args.value.toUpperCase();
+    return { echoed, count: echoed.length };
+  },
+};
+"#,
+    )
+    .expect("write typed handler source");
+
+    let output = Command::new("node")
+        .arg(&codegen)
+        .arg(fixture.path())
+        .output()
+        .expect("run snapback-codegen");
+    assert!(
+        output.status.success(),
+        "TypeScript handler codegen failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+
+    let generated = fixture.path().join("generated");
+    let schema: SchemaManifest = serde_json::from_slice(
+        &std::fs::read(generated.join("schema.manifest.json")).expect("read generated schema"),
+    )
+    .expect("decode generated schema");
+    let functions: FunctionManifest = serde_json::from_slice(
+        &std::fs::read(generated.join("functions.manifest.json"))
+            .expect("read generated functions"),
+    )
+    .expect("decode generated functions");
+    let typed_probe = functions
+        .functions
+        .iter()
+        .find(|function| function.name == "typedProbe")
+        .expect("generated typedProbe function");
+    let FunctionRuntime::IbexModule(module) = &typed_probe.runtime else {
+        panic!("typedProbe must be emitted as an Ibex module");
+    };
+    assert!(!module.source.contains("ProbeArgs"));
+    assert!(!module.source.contains(": string"));
+    assert!(module.source.contains("async typedProbe(_ctx, args)"));
+
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback
+        .apply_schema(schema)
+        .expect("apply generated schema");
+    let diagnostics = snapback.load_functions(functions);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"),
+        "generated typed handler must load: {diagnostics:?}"
+    );
+    let result = snapback.run_function(
+        "typedProbe",
+        input(json!({ "value": "hermes" }), "typescript-test"),
+    );
+    assert!(result.ok, "typed handler invocation failed: {result:?}");
+    assert_eq!(
+        result.result,
+        Some(json!({ "echoed": "HERMES", "count": 6 }))
+    );
 }
 
 #[test]
@@ -1530,6 +1639,86 @@ fn captured_handler_read_conflict_rejects_without_client_read_set() {
     assert_eq!(diagnostic.details["dependency"]["id"], todo_id);
 }
 
+// @ref LLP 0248#d3-one-host-operation-one-authoritative-snapshot — the batch storage read is one pinned snapshot.
+// Parking after its first logical capture and committing a change to the other
+// requested row must leave the mutation with a stale coherent batch, never a
+// mixed before/after result that could commit successfully.
+#[test]
+fn captured_batch_read_is_one_snapshot_and_conflicts_as_a_unit() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join("snapback.db");
+
+    let mut setup = LocalSnapback::open(&db_path).expect("open setup snapback");
+    setup.apply_schema(todo_schema()).expect("apply schema");
+    setup.load_functions(ibex_todo_functions(CONFLICT_HANDLER_SOURCE));
+    let first_id = setup
+        .invoke_mutation("createTodo", input(json!({ "title": "First" }), "user_1"))
+        .expect("create first todo")
+        .result
+        .as_str()
+        .expect("first id")
+        .to_owned();
+    let second_id = setup
+        .invoke_mutation("createTodo", input(json!({ "title": "Second" }), "user_1"))
+        .expect("create second todo")
+        .result
+        .as_str()
+        .expect("second id")
+        .to_owned();
+    drop(setup);
+
+    let (read_tx, read_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let _read_hook = snapback::runtime::set_captured_point_read_debug_hook(
+        "todos", &first_id, read_tx, release_rx,
+    );
+    let thread_path = db_path.clone();
+    let thread_first_id = first_id.clone();
+    let thread_second_id = second_id.clone();
+    let first = thread::spawn(move || {
+        let mut snapback = LocalSnapback::open(thread_path).expect("open batch snapback");
+        snapback.load_functions(batch_conflict_functions());
+        snapback
+            .invoke_mutation(
+                "batchSetCompleted",
+                input(
+                    json!({ "firstId": thread_first_id, "secondId": thread_second_id }),
+                    "user_1",
+                ),
+            )
+            .err()
+            .map(|error| error.diagnostic)
+    });
+
+    read_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("batch captured its pinned pre-write rows");
+
+    let mut concurrent = LocalSnapback::open(&db_path).expect("open concurrent snapback");
+    concurrent.load_functions(todo_functions());
+    concurrent
+        .invoke_mutation(
+            "setCompleted",
+            input(
+                json!({ "id": second_id.clone(), "completed": true }),
+                "user_1",
+            ),
+        )
+        .expect("concurrent patch of the other batch row");
+    release_tx
+        .send(())
+        .expect("release batch handler after concurrent commit");
+
+    let diagnostic = first
+        .join()
+        .expect("batch thread joins")
+        .expect("the coherent stale batch must conflict");
+    assert_eq!(diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+    assert_eq!(diagnostic.details["retryPolicy"], "reject");
+    assert_eq!(diagnostic.details["dependency"]["kind"], "row");
+    assert_eq!(diagnostic.details["dependency"]["id"], second_id);
+}
+
 // @ref LLP 0032#phase-2--execution-semantics-honesty — E3: host-plan mutation
 // isolation is the client-supplied read_set baseline *by design* (Option A). A
 // stale optimistic baseline is rejected; a current baseline commits. This is the
@@ -2798,6 +2987,45 @@ globalThis.__snapbackHandlers = {
 };
 "#;
 
+const BATCH_CONFLICT_HANDLER_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async batchSetCompleted(ctx, args) {
+    const rows = await ctx.db.getMany('todos', [args.firstId, args.secondId]);
+    if (!rows[0] || !rows[1] || rows[0].completed !== false || rows[1].completed !== false) {
+      throw new Error('batch did not observe one coherent pre-write snapshot');
+    }
+    return (await ctx.db.patch('todos', args.firstId, { completed: true })) ? 1 : 0;
+  }
+};
+"#;
+
+fn batch_conflict_functions() -> FunctionManifest {
+    let mut function = FunctionDefinition::new(
+        "batchSetCompleted",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: BATCH_CONFLICT_HANDLER_SOURCE.to_owned(),
+            export: "batchSetCompleted".to_owned(),
+        }),
+    );
+    function.required_capabilities = vec![
+        "bounded_batch_reads_v1".to_owned(),
+        "ibex_ctx_db_host_bridge".to_owned(),
+        "mutation_read_set_validation".to_owned(),
+    ];
+    function.read_set_summary.primary_table = Some("todos".to_owned());
+    function.read_set_summary.tables = vec!["todos".to_owned()];
+    function.read_set_summary.mode = Some("handlerDeclared".to_owned());
+    function.write_set_summary.primary_table = Some("todos".to_owned());
+    function.write_set_summary.tables = vec!["todos".to_owned()];
+    function.write_set_summary.mode = Some("handlerDeclared".to_owned());
+    FunctionManifest {
+        acknowledged_experimental_capabilities: vec!["bounded_batch_reads_v1".to_owned()],
+        functions: vec![function],
+        ..FunctionManifest::default()
+    }
+}
+
 fn todo_schema() -> SchemaManifest {
     SchemaManifest {
         schema_hash: Some("todo-v0".to_owned()),
@@ -2838,6 +3066,7 @@ fn todo_schema() -> SchemaManifest {
             vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
+            authority_profile: None,
             asset_sharing: None,
             visibility: None,
             history: None,
@@ -5040,6 +5269,7 @@ fn l3_prune_preserves_cold_table_validation_version() {
         vector_indexes: Vec::new(),
         search_live_limits: None,
         membership: None,
+        authority_profile: None,
         asset_sharing: None,
         visibility: None,
         history: None,
@@ -5126,6 +5356,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         vector_indexes: Vec::new(),
         search_live_limits: None,
         membership: None,
+        authority_profile: None,
         asset_sharing: None,
         visibility: None,
         history: None,
@@ -5923,6 +6154,7 @@ fn single_index_schema(hash: &str, table: &str, field: &str, index: &str) -> Sch
             vector_indexes: Vec::new(),
             search_live_limits: None,
             membership: None,
+            authority_profile: None,
             asset_sharing: None,
             visibility: None,
             history: None,

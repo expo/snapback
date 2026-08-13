@@ -19,6 +19,11 @@ const encoder = new TextEncoder();
 const CLIENT_STORE_ID = 'shipped-store-runtime';
 const partition = (character) => `sha256:${character.repeat(64)}`;
 const qmk = (label) => `qmk1.${base64UrlNoPad(sha256(encoder.encode(label)))}`;
+const generatedTestRef = (name) => ({
+  artifactKind: 'functionReference',
+  name,
+  argsContract: { kind: 'object', fields: [] },
+});
 
 function authorityState() {
   return {
@@ -125,7 +130,7 @@ async function registerProgrammatic(client, {
   idleTtlClass = 'default',
 }) {
   client.__prepareGeneratedMaterializationBridge = async () => preparedBridge(item);
-  return client.registerQuery({ name: `query_${id.replaceAll('-', '_')}` }, {
+  return client.registerQuery(generatedTestRef(`query_${id.replaceAll('-', '_')}`), {
     registrationId: id,
     args: {},
     label: null,
@@ -452,7 +457,7 @@ test('shipped runtime starts release grace and deadline-scheduled GC compacts at
     await fixture.client.releaseQueryRegistration('grace-registration'),
     'released',
   );
-  const refused = await fixture.client.registerQuery({ name: 'query_limit' }, {
+  const refused = await fixture.client.registerQuery(generatedTestRef('query_limit'), {
     registrationId: 'x'.repeat(65),
     args: {},
   });
@@ -584,7 +589,7 @@ test('second shipped context demand protects custody until heartbeat expiry reap
   assert.equal(inspected.addresses[0].demandState, 'demanded-active');
 
   reader.client.__prepareGeneratedMaterializationBridge = async () => preparedBridge(item);
-  const registerTask = reader.client.registerQuery({ name: 'query_remote_programmatic' }, {
+  const registerTask = reader.client.registerQuery(generatedTestRef('query_remote_programmatic'), {
     registrationId: 'remote-programmatic',
     args: {},
     label: null,
@@ -639,7 +644,7 @@ test('reader-forwarded register and release outcomes replay across writer death'
   });
   registering.client.__prepareGeneratedMaterializationBridge = async () => preparedBridge(item);
 
-  const registerTask = registering.client.registerQuery({ name: 'outcomeReplay' }, {
+  const registerTask = registering.client.registerQuery(generatedTestRef('outcomeReplay'), {
     registrationId: 'outcome-replay-registration',
     args: {},
   });

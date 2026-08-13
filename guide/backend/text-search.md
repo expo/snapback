@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-authorities-digest: sha256:dfeb7a6cbfe90ea9ec4f1c6a768fd6075accd769ed424d201b73dac2d9e2eecc
 ---
 
 # Portable indexed text search

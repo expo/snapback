@@ -72,6 +72,11 @@ const operation = (overrides = {}) => ({
 
 const generatedReference = ({ complete }) => ({
   artifactKind: 'functionReference',
+  argumentSchema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {},
+  },
   resultContractHash: digest('2'),
   composition: {
     planHash: digest('1'),

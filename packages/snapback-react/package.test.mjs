@@ -53,6 +53,20 @@ const reference = (name, kind, suffix) => {
     kind,
     implementationHash: `sha256:implementation-${suffix}`,
     argsContractHash: `sha256:args-${suffix}`,
+    ...(name.startsWith('capacityFeed')
+      ? { argsContract: { kind: 'object', fields: [] } }
+      : {
+          argumentSchema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              id: { type: 'string' },
+              value: { type: 'string' },
+              index: { type: 'integer' },
+              context: {},
+            },
+          },
+        }),
     resultContractHash: resultContractHash(resultContract),
     resultContract,
   });
@@ -548,8 +562,38 @@ const inlineProvider = Object.freeze({
   registry: inlineRegistry,
   start() { return this; },
 });
-const inlineQueryReference = Object.freeze({ id: 'inline-query' });
-const inlinePresenceReference = Object.freeze({ id: 'inline-presence' });
+const inlineQueryReference = Object.freeze({
+  artifactKind: 'functionReference',
+  id: 'inline-query',
+  argumentSchema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      filter: {},
+      page: { type: 'array', items: { type: 'number' } },
+    },
+    required: ['filter'],
+  },
+});
+const inlinePresenceReference = Object.freeze({
+  id: 'inline-presence',
+  scopeContract: {
+    kind: 'object',
+    allowExtra: false,
+    fields: [
+      { name: 'roomId', required: true, value: { kind: 'string' } },
+      { name: 'channel', required: true, value: { kind: 'string' } },
+    ],
+  },
+  valueContract: {
+    kind: 'object',
+    allowExtra: false,
+    fields: [
+      { name: 'label', required: true, value: { kind: 'string' } },
+      { name: 'typing', required: true, value: { kind: 'boolean' } },
+    ],
+  },
+});
 let inlineQueryState = null;
 function InlineContentProbe({ label, tick, querySkipped = false, presenceSkipped = false }) {
   const queryArgs = tick % 2 === 0
@@ -1711,13 +1755,13 @@ const storeProvider = createSnapbackReactProvider(binding, {
 storeProvider.start();
 await fake.inspection().barriers.at(-1).quiesce({});
 const storeLeases = Array.from({ length: 256 }, (_, index) => {
-  const descriptor = storeProvider.registry.descriptor(capacityFeeds[0], { index });
+  const descriptor = storeProvider.registry.descriptor(feed, { index });
   return storeProvider.registry.subscribe(descriptor, () => {});
 });
 assert.equal(storeProvider.inspection().stores, 256);
 assert.throws(
   () => storeProvider.registry.subscribe(
-    storeProvider.registry.descriptor(capacityFeeds[0], { index: 256 }),
+    storeProvider.registry.descriptor(feed, { index: 256 }),
     () => {},
   ),
   (error) => error?.code === 'SNAPBACK_REACT_STORE_CAPACITY',

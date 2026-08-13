@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed-authorities-digest: sha256:63ee41d271a9a40072ccb8ce36307972fe1ea2a65d54c2464fe4f847a55a7faf
 ---
 
 # Actions and outbound fetch

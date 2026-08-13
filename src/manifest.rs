@@ -86,6 +86,28 @@ pub const QUERY_MAX_IN_ITEMS: usize = 500;
 pub const QUERY_MAX_FILTER_BINDINGS: usize = 500;
 pub const QUERY_MAX_BUFFERED_WRITES: usize = 1_024;
 pub const QUERY_INTERNAL_OVERFETCH_MAX: usize = QUERY_MAX_LIMIT + QUERY_MAX_BUFFERED_WRITES;
+/// Portable bounded batch-read ceilings. The item cap stays below SQLite's
+/// 999-variable compatibility floor for exact-id reads; canonical request
+/// bytes mirror the 1 MiB handler-input posture and response bytes mirror the
+/// 4 MiB result-contract host-response posture.
+///
+/// @ref LLP 0248#d1-exact-id-batch-reads
+/// @ref LLP 0248#d4-dependency-and-cost-evidence-remain-conservative
+pub const BATCH_READ_MAX_ITEMS: usize = 256;
+pub const BATCH_READ_MAX_INPUT_BYTES: usize = 1_048_576;
+pub const BATCH_READ_MAX_RESPONSE_BYTES: usize = 4_194_304;
+pub const BATCH_READ_MAX_POLICY_PROBES_PER_ITEM: usize = 8;
+
+fn bounded_batch_read_runtime_facts() -> Value {
+    serde_json::json!({
+        "maxItems": BATCH_READ_MAX_ITEMS,
+        "maxCanonicalInputBytes": BATCH_READ_MAX_INPUT_BYTES,
+        "maxResponseBytes": BATCH_READ_MAX_RESPONSE_BYTES,
+        "maxPolicyProbesPerItem": BATCH_READ_MAX_POLICY_PROBES_PER_ITEM,
+        "logicalBatchesPerHostCall": 1,
+        "sqliteVariableFloor": 999,
+    })
+}
 /// One request may cumulatively acknowledge this many durable mutation
 /// settlements. It matches the existing 1,024-item replay-ledger budget so a
 /// hostile envelope cannot turn acknowledgement into unbounded SQLite work.
@@ -10692,6 +10714,8 @@ pub enum TargetCapabilityId {
     BoundedResponseStreamV1,
     #[serde(rename = "bounded_children_v1")]
     BoundedChildrenV1,
+    #[serde(rename = "bounded_batch_reads_v1")]
+    BoundedBatchReadsV1,
     #[serde(rename = "cron")]
     Cron,
     #[serde(rename = "cron_action_run_mutation")]
@@ -10794,10 +10818,11 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 40] = [
+    pub const ALL: [Self; 41] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
+        Self::BoundedBatchReadsV1,
         Self::Cron,
         Self::CronActionRunMutation,
         Self::HostPlanRuntime,
@@ -10842,6 +10867,7 @@ impl TargetCapabilityId {
             Self::AuthSessionsV1 => "auth.sessions.v1",
             Self::BoundedResponseStreamV1 => "bounded_response_stream_v1",
             Self::BoundedChildrenV1 => "bounded_children_v1",
+            Self::BoundedBatchReadsV1 => "bounded_batch_reads_v1",
             Self::Cron => "cron",
             Self::CronActionRunMutation => "cron_action_run_mutation",
             Self::HostPlanRuntime => "host_plan_runtime",
@@ -10908,6 +10934,7 @@ impl TargetCapabilityId {
         // promoted id are unaffected (stable acknowledgment is a no-op).
         match self {
             Self::BoundedChildrenV1
+            | Self::BoundedBatchReadsV1
             | Self::InlineHandlerV1
             // LLP 0070 is Draft: `jobs_one_off_v1` stays experimental until
             // the RFC is accepted, and its presence never claims a
@@ -11035,6 +11062,10 @@ impl TargetCapabilityId {
                         }
                         _ => unreachable!(),
                     }
+            }
+            Self::BoundedBatchReadsV1 => {
+                facts.bounded_batch_reads_v1_registered
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
             }
             Self::HostPlanRuntime => facts.host_plan_runtime,
             Self::IbexCtxDbHostBridge => facts.ibex_ctx_db_host_bridge_available,
@@ -11371,13 +11402,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:f46d2c4cdf2fef3c0723bb709d69c99faf3d5ca7e0608c09877539bce8af876e";
+    "sha256:1d6b29de654edc1dd7be1d2d78fe5819228d26f059daf63e3f4a07a12922701f";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:40ab71faf1e0af14eac1bd57961341c7e763d4533d1dd79d9e083676cc01ca84";
+    "sha256:2b7a110c9b6149e4d4070cc21768dc32a833b252a8fbb508dc040b420d0f9954";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -11777,7 +11808,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:a3a738bbeb1a14fdea95ecfe08ae2a1ab7188f1b5027094dc1396500e2c0c2f5"
+                    "sha256:725cc362ef67d38978a1eb2bcf91cf805f55580753d768b6d28d42a60d6b7e10"
                         .to_owned(),
                 ),
                 (
@@ -11812,12 +11843,12 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:4097d85953927ec33441cf59bf62b31514ff0e78877bd42dcb099311a905887d"
+                    "sha256:3721bb3b278887db79397e0ef7e14316e307df546731bbb9bed1dc56e3ea7581"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:2aad0d90d232e27acce7a909bb8bfcd922f884f0535f5c37e7f645ead20d7393"
+                    "sha256:881ba8ec141633de089724fb34eb10cf490aede98f047954c64c899dd42a0e98"
                         .to_owned(),
                 ),
                 (
@@ -11934,7 +11965,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:2011c3eb0347c374e47fb021cce8a4423f486816cdb7db4bdaba694920376609"
+                "sha256:dc189b85e8e2410ca468a00755d0e90f3a41faac273c9bdf55bc1b2d77d02a93"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -12015,17 +12046,17 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:4097d85953927ec33441cf59bf62b31514ff0e78877bd42dcb099311a905887d"
+                    "sha256:3721bb3b278887db79397e0ef7e14316e307df546731bbb9bed1dc56e3ea7581"
                         .to_owned(),
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:92a950f9df11aef92b63ff9595f2e4853a458c66be330074a5394006241f397c"
+                    "sha256:74431ee4f1a8aaf3d20d20298e6beb9f62fc469aeab34c18899918ca63ad1c93"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:2aad0d90d232e27acce7a909bb8bfcd922f884f0535f5c37e7f645ead20d7393"
+                    "sha256:881ba8ec141633de089724fb34eb10cf490aede98f047954c64c899dd42a0e98"
                         .to_owned(),
                 ),
                 (
@@ -12142,7 +12173,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:2011c3eb0347c374e47fb021cce8a4423f486816cdb7db4bdaba694920376609"
+                "sha256:dc189b85e8e2410ca468a00755d0e90f3a41faac273c9bdf55bc1b2d77d02a93"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -12274,7 +12305,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:a3a738bbeb1a14fdea95ecfe08ae2a1ab7188f1b5027094dc1396500e2c0c2f5"
+                    "sha256:725cc362ef67d38978a1eb2bcf91cf805f55580753d768b6d28d42a60d6b7e10"
                         .to_owned(),
                 ),
                 (
@@ -12309,12 +12340,12 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:4097d85953927ec33441cf59bf62b31514ff0e78877bd42dcb099311a905887d"
+                    "sha256:3721bb3b278887db79397e0ef7e14316e307df546731bbb9bed1dc56e3ea7581"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:2aad0d90d232e27acce7a909bb8bfcd922f884f0535f5c37e7f645ead20d7393"
+                    "sha256:881ba8ec141633de089724fb34eb10cf490aede98f047954c64c899dd42a0e98"
                         .to_owned(),
                 ),
                 (
@@ -12431,7 +12462,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:ea603b6d12c301bf0e992c7b2ac40bb2fcfbb784458327277251c9446b353875"
+                "sha256:41bdab09b97645e126369325b842e088fcdda86f3160dac4268df94f925611ea"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -12463,7 +12494,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "packages/snapback-client/store-runtime.mjs".to_owned(),
-                    "sha256:99abcfc574ab38920105d90fe220ec43c5ee374226199b98d8ec6c4d768389ab"
+                    "sha256:b40e6e3807118cce81e5aaf8a799fab0c42db166373a8e7f9222180b841cde1e"
                         .to_owned(),
                 ),
             ])
@@ -12527,6 +12558,7 @@ fn local_persistent_store_publication_verified() -> bool {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TargetCapabilityFacts {
     bounded_children_v1_registered: bool,
+    bounded_batch_reads_v1_registered: bool,
     snapshot_batch_v1_registered: bool,
     snapshot_batch_v2_registered: bool,
     single_table_v1_registered: bool,
@@ -12679,6 +12711,7 @@ impl TargetCapabilityFacts {
             asset_reference_gc_registered: true,
             asset_video_finalization_registered: true,
             bounded_children_v1_registered: true,
+            bounded_batch_reads_v1_registered: true,
             // @ref LLP 0135#26-maturity-and-the-experimental-dependency-acknowledgment
             //   — exact tuple execution, `sbsb1` custody, and first-page live
             //   replacement are registered together on the local target.
@@ -14203,6 +14236,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "outbound_actions".to_owned(),
         "bounded_response_stream_v1".to_owned(),
         "bounded_children_v1".to_owned(),
+        "bounded_batch_reads_v1".to_owned(),
         "snapshot_batch_v1".to_owned(),
         "snapshot_batch_v2".to_owned(),
         "single_table_v1".to_owned(),
@@ -14227,6 +14261,19 @@ fn ensure_relation_activity_capability_gaps(gaps: &mut Vec<String>) {
     }
     if !gaps.iter().any(|gap| gap == "write_activity_v1") {
         gaps.push("write_activity_v1".to_owned());
+    }
+}
+
+fn ensure_bounded_batch_reads_capability_gap(gaps: &mut Vec<String>) {
+    // @ref LLP 0248#d3-one-host-operation-one-authoritative-snapshot — only
+    // the local Rust host implements the batch ops in this rollout; the
+    // Cloudflare host-ops twin remains an explicit target gap.
+    if !gaps.iter().any(|gap| gap == "bounded_batch_reads_v1") {
+        let insertion = gaps
+            .iter()
+            .position(|gap| gap == "bounded_children_v1")
+            .unwrap_or(gaps.len());
+        gaps.insert(insertion, "bounded_batch_reads_v1".to_owned());
     }
 }
 
@@ -14459,7 +14506,13 @@ impl CapabilityManifest {
             // Current Ibex is owner-thread-affine, so every target uses the
             // conservative fresh-per-invocation lifecycle.
             vm_lifecycle: vm_lifecycle_fresh(),
-            runtime_facts: None,
+            // @ref LLP 0248#d4-dependency-and-cost-evidence-remain-conservative
+            // — codegen embeds these public profile ceilings from the Rust
+            // target authority. Match cardinality and hidden-row outcomes can
+            // never alter them.
+            runtime_facts: Some(serde_json::json!({
+                "boundedBatchReadsV1": bounded_batch_read_runtime_facts(),
+            })),
         };
         // @ref LLP 0162#8-capability-honesty — target component facts are
         // reconstructed by exact Rust builders only after their independent
@@ -14735,6 +14788,7 @@ impl CapabilityManifest {
             "assets".to_owned(),
             "outbound_actions".to_owned(),
             "bounded_response_stream_v1".to_owned(),
+            "bounded_batch_reads_v1".to_owned(),
             "bounded_children_v1".to_owned(),
             "snapshot_batch_v1".to_owned(),
             "snapshot_batch_v2".to_owned(),
@@ -14789,6 +14843,15 @@ impl CapabilityManifest {
             .into_iter()
             .filter(|capability| capability.is_supported_by(self, facts))
             .collect();
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::BoundedBatchReadsV1)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != "bounded_batch_reads_v1");
+        } else {
+            ensure_bounded_batch_reads_capability_gap(&mut self.capability_gaps);
+        }
         if self
             .supported_capabilities
             .contains(&TargetCapabilityId::SequenceAllocationV1)

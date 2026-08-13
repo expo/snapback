@@ -2,7 +2,7 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v2",
-    "databaseId": "019ffa04-a163-7dc0-9026-479535206a4e",
+    "databaseId": "019ff9d6-72bb-7e71-9dd5-816dd8b47d79",
     "deploymentId": "fleet-observatory-move1-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
@@ -10,20 +10,20 @@
     "mintedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "fleet-observatory-move1",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:eddaa8e153f5b92b58b032d14d797f5669917d3da949d56a24b41aaccb64ddf1",
-      "bundleHash": "snapback.v1:sessions:function:sha256:3baedcd8f766dc52b375602643867005389995a6ef58357645fb52cfb1d1101b",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:fcea109e71ba85a1a1104cb613664f73b38133160bac3041b8d58945ef922df8"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:bbfaa99f7414df752a360364a1af87b3955f8aee5afe34e40ec17c54f21617cb",
+      "bundleHash": "snapback.v1:sessions:function:sha256:d00a8cc2e7e17c5409954f0f699051fcb2a3c8c80d2c01814bc7ac95720b0366",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:9f27fe7c41ddb71c8baa93dfa57247527b61904242aae2bf81e7c67e8eed4c6f"
     },
-    "proofKeyManifestDigest": "sha256:38df4834489d5f391e8c1d17673752122c8f00b3714080e4f6d8b57c880cb3e7"
+    "proofKeyManifestDigest": "sha256:feeac84a644a9d480bacd55f2ff97c0e1161e045d2473cd527b15b3fe581e919"
   },
-  "activationHash": "sha256:6e348537fa744ceaccb95c560baedbebf4f9264fff0bb3d34ec56ea0f89e6f5f",
+  "activationHash": "sha256:aadea9d34cadd59af43969c01119420daa25a52dd8c2a3a1919600f6e4fbf2a1",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.9XcebI9yqQfdXNonobFvaw",
+        "proofKeyId": "sbpk1.PWmE7PD_QHfME_sJwRv3eQ",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "UpTXRMHVoP67UsslYZ2N-dtBgDYvHbveopb4h7J-3_Y"
+        "publicKeyBase64url": "RUI3SOR5TgpooCe3JFVNIKA7otbkWR_HDrfERFQZBR0"
       }
     ]
   }

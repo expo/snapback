@@ -1,0 +1,140 @@
+{
+  "appId": "contention-calendar",
+  "inputsHash": "ab58135bd8a7a9bc9f0882692ada0fb94fe07b4a21e71fee54f2bffc61950fdc",
+  "rows": {
+    "anchors": {
+      "diagnostics": [
+        "SNAPBACK_ARGUMENT_NORMALIZATION_FAILED",
+        "SNAPBACK_ARGUMENT_VALIDATION_FAILED",
+        "SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID"
+      ],
+      "guide": [
+        "guide/clients/headless.md",
+        "guide/clients/react.md",
+        "guide/realtime/ephemeral-state.md"
+      ]
+    },
+    "argumentNormalization": {
+      "operations": [
+        {
+          "functionId": "contention-calendar:clearReservations",
+          "kind": "Mutation",
+          "name": "clearReservations",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "contention-calendar:reservationsForSlot",
+          "kind": "LiveQuery",
+          "name": "reservationsForSlot",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "contention-calendar:reserve",
+          "kind": "Mutation",
+          "name": "reserve",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "contention-calendar:resourceList",
+          "kind": "LiveQuery",
+          "name": "resourceList",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "contention-calendar:schedule",
+          "kind": "LiveQuery",
+          "name": "schedule",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        }
+      ],
+      "version": "snapback.argument-normalization.v1"
+    },
+    "authorityAdmission": {
+      "operations": [
+        {
+          "authRequirement": "optional-user",
+          "functionId": "contention-calendar:clearReservations",
+          "kind": "Mutation",
+          "name": "clearReservations",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "contention-calendar:reservationsForSlot",
+          "kind": "LiveQuery",
+          "name": "reservationsForSlot",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "contention-calendar:reserve",
+          "kind": "Mutation",
+          "name": "reserve",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "contention-calendar:resourceList",
+          "kind": "LiveQuery",
+          "name": "resourceList",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "contention-calendar:schedule",
+          "kind": "LiveQuery",
+          "name": "schedule",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        }
+      ]
+    },
+    "presenceLifecycle": {
+      "authorityLossBarrierOwner": "server-connection-cleanup",
+      "collections": [],
+      "disposeAction": "fenced-withdrawal",
+      "neverPublishedAction": "none",
+      "stopAction": "fenced-withdrawal"
+    },
+    "primaryFailureCarrier": {
+      "publicErrorType": "SnapbackDiagnosticError",
+      "verbs": [
+        {
+          "carrier": "throw",
+          "operationKind": "Query",
+          "verb": "query"
+        },
+        {
+          "carrier": "throw",
+          "operationKind": "Action",
+          "verb": "run"
+        },
+        {
+          "carrier": "throw-immediate",
+          "operationKind": "Mutation",
+          "verb": "mutate"
+        },
+        {
+          "carrier": "raw-envelope-deprecated",
+          "operationKind": "Action",
+          "verb": "action"
+        },
+        {
+          "carrier": "resolved-queued-union",
+          "operationKind": "Mutation",
+          "verb": "queued-mutate"
+        }
+      ]
+    }
+  },
+  "schemaVersion": "snapback.client-lifecycle.v1"
+}

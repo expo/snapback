@@ -173,7 +173,7 @@ function validateGeneratedFunctionReference(reference, group, where) {
     'artifactKind', 'schemaVersion', 'appId', 'id', 'name', 'kind',
     'implementationHash', 'argsContractHash', 'resultContractHash',
     'expectedGeneration',
-  ], ['authoredSourceHash'], where);
+  ], ['authoredSourceHash', 'authRequirement'], where);
   if (
     reference.artifactKind !== 'functionReference'
     || reference.schemaVersion !== group.schemaVersion
@@ -183,6 +183,8 @@ function validateGeneratedFunctionReference(reference, group, where) {
     || !SHA256.test(reference.implementationHash ?? '')
     || !SHA256.test(reference.argsContractHash ?? '')
     || !SHA256.test(reference.resultContractHash ?? '')
+    || (Object.hasOwn(reference, 'authRequirement')
+      && !['public', 'optional-user', 'authenticated'].includes(reference.authRequirement))
     || (Object.hasOwn(reference, 'authoredSourceHash')
       && !SHA256.test(reference.authoredSourceHash ?? ''))
   ) invalidMixed(`${where} is not the complete generated query reference`);

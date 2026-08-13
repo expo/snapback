@@ -25,15 +25,15 @@
       "resultBytes": 14981,
       "proofBytes": 1224,
       "durableRegistrations": 1,
-      "registrationBytes": 1554,
+      "registrationBytes": 1588,
       "leaseRecords": 1,
-      "physicalCarrierBytes": 74973
+      "physicalCarrierBytes": 75009
     },
     "hydration": {
       "attempts": 1,
       "rowsInstalled": 100,
       "payloadBytes": 14981,
-      "elapsedMs": 229.831
+      "elapsedMs": 203.182
     }
   },
   "frozenCeilings": {
@@ -49,7 +49,7 @@
       "authoritativeRetainedRows": 100,
       "logicalBytes": 16205,
       "durableRegistrations": 1,
-      "registrationBytes": 1554,
+      "registrationBytes": 1588,
       "leaseRecords": 1
     },
     "hydration": {

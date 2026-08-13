@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed-authorities-digest: sha256:f85a68b5535014a11658cc98888396f98b3a2890058da4ba26f101dbb3176352
 ---
 
 # Build an immutable release

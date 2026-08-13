@@ -1,0 +1,241 @@
+{
+  "appId": "app",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:797321077da0f3cc6c75feb8a2054aba34d39fc183ef3f79c44e4fd4323f6a91",
+  "rows": {
+    "anchors": {
+      "diagnostics": [
+        "SNAPBACK_ARGUMENT_NORMALIZATION_FAILED",
+        "SNAPBACK_ARGUMENT_VALIDATION_FAILED",
+        "SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID"
+      ],
+      "guide": [
+        "guide/clients/headless.md",
+        "guide/clients/react.md",
+        "guide/realtime/ephemeral-state.md"
+      ]
+    },
+    "argumentNormalization": {
+      "operations": [
+        {
+          "functionId": "app:addReaction",
+          "kind": "Mutation",
+          "name": "addReaction",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:annotateMessage",
+          "kind": "Mutation",
+          "name": "annotateMessage",
+          "optionalPropertyPaths": [
+            "args.details.extra",
+            "args.note"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:conversationDetails",
+          "kind": "LiveQuery",
+          "name": "conversationDetails",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:membershipsForConversation",
+          "kind": "LiveQuery",
+          "name": "membershipsForConversation",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:messagesForConversation",
+          "kind": "LiveQuery",
+          "name": "messagesForConversation",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:reactionsForConversation",
+          "kind": "LiveQuery",
+          "name": "reactionsForConversation",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:removeReaction",
+          "kind": "Mutation",
+          "name": "removeReaction",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:sendMessage",
+          "kind": "Mutation",
+          "name": "sendMessage",
+          "optionalPropertyPaths": [
+            "args.body",
+            "args.image"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:sendReply",
+          "kind": "Mutation",
+          "name": "sendReply",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:sendText",
+          "kind": "Mutation",
+          "name": "sendText",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:users",
+          "kind": "LiveQuery",
+          "name": "users",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        }
+      ],
+      "version": "snapback.argument-normalization.v1"
+    },
+    "authorityAdmission": {
+      "operations": [
+        {
+          "authRequirement": "authenticated",
+          "functionId": "app:addReaction",
+          "kind": "Mutation",
+          "name": "addReaction",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "app:annotateMessage",
+          "kind": "Mutation",
+          "name": "annotateMessage",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "app:conversationDetails",
+          "kind": "LiveQuery",
+          "name": "conversationDetails",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "app:membershipsForConversation",
+          "kind": "LiveQuery",
+          "name": "membershipsForConversation",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "app:messagesForConversation",
+          "kind": "LiveQuery",
+          "name": "messagesForConversation",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "app:reactionsForConversation",
+          "kind": "LiveQuery",
+          "name": "reactionsForConversation",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "app:removeReaction",
+          "kind": "Mutation",
+          "name": "removeReaction",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "app:sendMessage",
+          "kind": "Mutation",
+          "name": "sendMessage",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "app:sendReply",
+          "kind": "Mutation",
+          "name": "sendReply",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "app:sendText",
+          "kind": "Mutation",
+          "name": "sendText",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "app:users",
+          "kind": "LiveQuery",
+          "name": "users",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        }
+      ]
+    },
+    "presenceLifecycle": {
+      "authorityLossBarrierOwner": "server-connection-cleanup",
+      "collections": [
+        {
+          "collection": "typing",
+          "withdrawalVisibilityDeadlineMs": 2000
+        }
+      ],
+      "disposeAction": "fenced-withdrawal",
+      "neverPublishedAction": "none",
+      "stopAction": "fenced-withdrawal"
+    },
+    "primaryFailureCarrier": {
+      "publicErrorType": "SnapbackDiagnosticError",
+      "verbs": [
+        {
+          "carrier": "throw",
+          "operationKind": "Query",
+          "verb": "query"
+        },
+        {
+          "carrier": "throw",
+          "operationKind": "Action",
+          "verb": "run"
+        },
+        {
+          "carrier": "throw-immediate",
+          "operationKind": "Mutation",
+          "verb": "mutate"
+        },
+        {
+          "carrier": "raw-envelope-deprecated",
+          "operationKind": "Action",
+          "verb": "action"
+        },
+        {
+          "carrier": "resolved-queued-union",
+          "operationKind": "Mutation",
+          "verb": "queued-mutate"
+        }
+      ]
+    }
+  },
+  "schemaVersion": "snapback.client-lifecycle.v1"
+}
