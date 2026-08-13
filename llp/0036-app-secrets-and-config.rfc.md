@@ -5,6 +5,11 @@
 **Systems:** Security, Runtime, API, Developer experience, Tooling, Deployment, Admin console, Demo apps
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-02
+**Revised:** 2026-08-12 (the staging-time action redactor now scrubs every
+string leaf before `runtime.log` telemetry capture, optional handler-console
+stderr echo, and retained host-call trace arguments including host-fetch
+headers; successful action result values remain the acknowledged local-profile
+non-redacted surface)
 **Revised:** 2026-08-08 (native server examples use the explicit `snapback start` spelling); 2026-07-12 (ENG-24338/ENG-24346: trusted local token discovery and fail-closed owner-only capability/config file handling; ENG-24344/ENG-24362/ENG-24363/ENG-24366: Cloudflare grants use immutable invocation-scoped opaque capability ids, full config status requires admin auth, pooled secrets enter only through stdin with requested member-state and generation attestation, and reversible encoded secret forms—including partial or mixed-case JSON Unicode escapes for BMP and astral values—are scrubbed at host fetch; earlier: 2026-07-07 ENG-23629 / LLP 0049 Phase 1: the first
 `deploy-time-binding` backend landed on the Cloudflare proof target —
 descriptor-only action grants (values never enter the handler isolate),
@@ -595,6 +600,14 @@ public action envelope or cron/config retention sink can observe it. This is
 deliberately separate from scrubbing against the current store: config may be
 rotated or unset while native action work is in flight, and the old value must
 remain redactable without being retained in a diagnostic (ENG-24560).
+The same staged snapshot is installed on the synchronous runtime observation
+boundary: `runtime.log` recursively scrubs authored string leaves before the
+8 KiB telemetry allocator and before optional
+`SNAPBACK_HANDLER_CONSOLE=stderr` echo, and host-call trace arguments are
+scrubbed before retention so a `host.fetch` authorization header cannot become
+trace evidence. Successful action return values are not diagnostic sinks and
+remain unredacted in the local profile; callers must not treat this
+defense-in-depth redactor as an exfiltration boundary.
 
 The Cloudflare host-fetch scrub treats reversible encoding as a language, not
 a short list of strings: each UTF-16 unit may be raw, a short JSON escape, or

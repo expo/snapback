@@ -5,7 +5,14 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-12 (host-mediated action fetch now inherits LLP 0251's
+**Revised:** 2026-08-12 (the Ibex invocation tail now crosses one fixed-template
+slot as one serialized payload instead of sequentially replacing user-adjacent
+tokens; native eval output is refused above an 8 MiB pre-parse carrier bound,
+and unsettled diagnostics retain only byte length plus SHA-256; the existing
+4 MiB application-result contract remains the advertised result limit, while
+the owner VM heap ceiling remains honestly absent because the linked
+`ex_hermes_create_no_eval` ABI exposes no heap-size parameter or setter);
+2026-08-12 (host-mediated action fetch now inherits LLP 0251's
 shared public-destination floor: metadata/non-public answers refused, resolver
 pinned, redirects and inherited proxies disabled, with loopback HTTP denied by
 default); 2026-08-01 (strict host context is armed per VM: the M2
@@ -968,6 +975,16 @@ immediately after construction. The nonce prevents a delayed cancellation from
 interrupting a later runtime that reused the same address; teardown removes the
 identity from Snapback's cancellation hook before destroying the runtime.
 
+The owner-handler Hermes carrier is separately bounded before Rust allocates
+the returned string. Snapback scans at most 8 MiB plus one witness byte and
+returns `SNAPBACK_HANDLER_EVAL_OUTPUT_TOO_LARGE` before parsing or copying a
+larger result. This outer bound matches the local workerd pre-parse refusal;
+the application-visible `maximum_result_size` remains the stricter 4 MiB
+post-JSON contract. `maximum_heap_size` remains absent: unlike Ibex's
+restricted-worker constructor, the owner-VM `ex_hermes_create_no_eval` ABI
+does not accept `withMaxHeapSize` configuration and exposes no post-create
+setter. The capability vocabulary must keep that distinction honest.
+
 ## Supply Chain and Generated Bundles
 
 Generated handler bundles are part of the security surface. Codegen must decide
@@ -1084,6 +1101,30 @@ claimed erased. `inline_handler_v1` therefore adds an authoring and admission
 profile, not a stronger isolation claim. The existing DK-4 runtime benchmark
 inventory covers inline-operation counts 1, 4, 16, and 64 before the capability
 graduates from experimental maturity.
+
+## Bounded Ibex evaluation carrier and single-payload invocation (2026-08-12)
+
+The trusted invocation IIFE is fixed source except for one deliberately invalid
+raw-newline slot. Rust serializes export, args JSON, auth JSON, mode, action-run
+JSON, granted-config JSON, and the exact decimal epoch as one struct, serializes
+that JSON once more as one JavaScript string literal, splits the template at the
+unique slot, and inserts the literal exactly once. Raw newlines cannot occur in
+the serialized string literal, so handler arguments or granted values containing
+former `__SNAPBACK_*__` placeholder text cannot become a second substitution
+site. Workerd's field-based invocation transport is unchanged. The IIFE still
+returns only the authenticated `{"r": ...}` settlement envelope; an untagged
+value remains `SNAPBACK_HANDLER_DID_NOT_SETTLE` with no committed writes.
+
+The Ibex C ABI returns eval output as a NUL-terminated allocation without a
+length. Snapback now applies `strnlen` with the 8 MiB carrier ceiling plus one
+witness byte before it constructs a Rust `String`. Oversize output receives the
+typed carrier refusal and is freed without an unbounded Rust copy. An untagged
+settlement diagnostic records only `outputLengthBytes` and `outputSha256`; raw
+handler output, including an arbitrarily large prefix, never enters diagnostic
+details. The native Ibex allocation necessarily exists before this consumer
+check, and the owner VM still has no heap ceiling through the current ABI; those
+facts remain distinct from both the bounded Rust copy and the enforced 4 MiB
+application-result contract.
 
 ## Dated amendment: strict host context is armed per VM (2026-08-01)
 

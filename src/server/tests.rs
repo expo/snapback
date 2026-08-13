@@ -20273,14 +20273,6 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "environment variable carrying the admin bearer token",
     ),
     (
-        "SNAPBACK_ARGS__",
-        "suffix of the __SNAPBACK_ARGS__ embedded-runtime placeholder",
-    ),
-    (
-        "SNAPBACK_AUTH__",
-        "suffix of the __SNAPBACK_AUTH__ embedded-runtime placeholder",
-    ),
-    (
         "SNAPBACK_AUTH_ACCEPTANCE_PROPERTY_RECEIPT",
         "machine-readable property-oracle marker emitted only by the LLP 0053 server acceptance test",
     ),
@@ -20353,14 +20345,6 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "environment variable configuring bounded cron dispatch",
     ),
     (
-        "SNAPBACK_EPOCH__",
-        "suffix of the __SNAPBACK_EPOCH__ embedded-runtime placeholder",
-    ),
-    (
-        "SNAPBACK_EXPORT__",
-        "suffix of the __SNAPBACK_EXPORT__ embedded-runtime placeholder",
-    ),
-    (
         "SNAPBACK_HANDLER_BACKEND",
         "environment variable selecting the handler backend",
     ),
@@ -20409,8 +20393,8 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "suffix of the __SNAPBACK_MARK__ HTML template placeholder",
     ),
     (
-        "SNAPBACK_MODE__",
-        "suffix of the __SNAPBACK_MODE__ embedded-runtime placeholder",
+        "SNAPBACK_INVOCATION_JSON__",
+        "suffix of the unique __SNAPBACK_INVOCATION_JSON__ embedded-runtime payload slot",
     ),
     (
         "SNAPBACK_OUTBOUND_ACTIONS",
@@ -20559,10 +20543,6 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
     ),
     (
-        "SNAPBACK_RUN__",
-        "suffix of the __SNAPBACK_RUN__ embedded-runtime placeholder",
-    ),
-    (
         "SNAPBACK_SCHEMA_VERSION",
         "Rust constant name interpolated into schema-export text",
     ),
@@ -20573,10 +20553,6 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
         "SNAPBACK_SESSIONS_SCHEMA_VERSION",
         "Rust constant name interpolated into schema-export text",
-    ),
-    (
-        "SNAPBACK_SECRETS__",
-        "suffix of the __SNAPBACK_SECRETS__ embedded-runtime placeholder",
     ),
     (
         "SNAPBACK_V8_WALL_CLOCK_TIMEOUT_MS",
@@ -21526,6 +21502,7 @@ const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_PROOF_BUDGET_EXCEEDED",
     "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
     "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE",
+    "SNAPBACK_HANDLER_EVAL_OUTPUT_TOO_LARGE",
     // LLP 0092 §0D.2 bundle hard limits.
     "SNAPBACK_BUNDLE_LIMIT_BYTES",
     "SNAPBACK_BUNDLE_LIMIT_QUERIES",

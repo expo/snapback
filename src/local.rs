@@ -22094,8 +22094,11 @@ impl LocalSnapback {
         );
         let invocation_redactor = self.config.secret_redactor_for(&function.uses);
         let telemetry = self.telemetry.clone();
-        let result = crate::runtime::with_runtime_log_telemetry(telemetry, correlation, || {
-            match (&function.kind, &function.runtime) {
+        let result = crate::runtime::with_runtime_log_telemetry_redactor(
+            telemetry,
+            correlation,
+            invocation_redactor.clone(),
+            || match (&function.kind, &function.runtime) {
                 (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
                     self.invoke_action_plan(plan, input, metadata, &prepared)
                 }
@@ -22130,8 +22133,8 @@ impl LocalSnapback {
                     "runtime",
                     format!("{name} is not an action"),
                 )),
-            }
-        });
+            },
+        );
         let result = result.map_err(|error| {
             // In-lock actions cannot race config rotation, but scrub at the
             // creation boundary so no public envelope observes raw secret

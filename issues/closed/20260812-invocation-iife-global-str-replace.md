@@ -30,3 +30,12 @@ Stop splicing. Eval a fixed IIFE and pass one `serde_json` object into a host-se
 ## Confidence
 
 High on the mechanism. No verified breakout.
+
+## Resolution (2026-08-12)
+
+The Ibex invocation tail now serializes all invocation fields into one struct,
+serializes that JSON as one JavaScript string literal, and inserts it once into
+a fixed IIFE by splitting at a unique raw-newline slot that cannot occur in the
+serialized literal. Sequential global replacement is gone, workerd remains
+unchanged, and all former placeholder tokens round-trip verbatim through a real
+handler while the tagged settlement envelope stays identical.

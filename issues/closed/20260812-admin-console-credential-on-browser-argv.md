@@ -19,3 +19,13 @@ Open a credential-free URL and complete mint in-page (loopback claim, or `stdin`
 ## Confidence
 
 High. Previous argv ticket is closed and did not include this path.
+
+## Resolution (2026-08-12)
+
+Ordinary browser launch now mints the established process-ephemeral,
+single-use, thirty-minute `sbcl_` claim and passes only its same-origin
+loopback `#claim=` URL to the platform browser helper. The page strips the
+fragment and atomically exchanges the claim for `sbcc_`; reuse, expiry, hosted,
+and non-loopback exchange are already fail-closed. `--no-open` retains the
+explicit stdout-only direct credential URL and spawns no helper. CLI selection
+tests and the existing admin claim/exchange acceptance suite cover the path.

@@ -2687,9 +2687,10 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     let _ = stream_started.send(attempt_token);
                 }
                 let result = initialized.and_then(|()| {
-                    crate::runtime::with_runtime_log_telemetry(
+                    crate::runtime::with_runtime_log_telemetry_redactor(
                         telemetry.clone(),
                         correlation,
+                        redactor.clone(),
                         || {
                             runtime.invoke_ibex_action_prepared(
                                 &module,
