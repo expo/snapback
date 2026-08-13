@@ -5,7 +5,7 @@
 //! bootable deployments that can never promote into their parent.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
@@ -167,6 +167,36 @@ fn run_json_before_rename_hook(temporary: &Path, published: &Path) {
 
 fn fork_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(code, "instanceFork", message)
+}
+
+// @ref LLP 0188#2-integration-point-the-whole-instance-database — persistent
+// WAL is connection-local, so every fork backup, scrub, and lifecycle handle
+// must preserve the replication owner's journal before it can touch SQLite.
+fn configure_fork_connection_wal_lifetime(conn: &Connection) -> SnapbackResult<()> {
+    if crate::replication::configured_from_env() {
+        crate::replication::configure_connection_wal_lifetime(conn)?;
+        conn.execute_batch("PRAGMA wal_autocheckpoint = 0;")?;
+    }
+    Ok(())
+}
+
+fn open_fork_connection(path: &Path) -> SnapbackResult<Connection> {
+    let conn = Connection::open(path)?;
+    configure_fork_connection_wal_lifetime(&conn)?;
+    Ok(conn)
+}
+
+fn open_fork_connection_with_flags(path: &Path, flags: OpenFlags) -> SnapbackResult<Connection> {
+    let conn = Connection::open_with_flags(path, flags)?;
+    configure_fork_connection_wal_lifetime(&conn)?;
+    Ok(conn)
+}
+
+fn checkpoint_when_fork_owns_wal(conn: &Connection) -> SnapbackResult<()> {
+    if !crate::replication::configured_from_env() {
+        conn.execute_batch("PRAGMA wal_checkpoint(FULL);")?;
+    }
+    Ok(())
 }
 
 fn canonical_app_root_string(app_root: &Path) -> SnapbackResult<(PathBuf, String)> {
@@ -1637,7 +1667,7 @@ fn sync_sqlite_set(
     conn: &Connection,
     cut_at: Option<PublicationCut>,
 ) -> SnapbackResult<()> {
-    conn.execute_batch("PRAGMA wal_checkpoint(FULL);")?;
+    checkpoint_when_fork_owns_wal(conn)?;
     sync_sqlite_files(database_path, cut_at)
 }
 
@@ -1702,7 +1732,7 @@ fn scrub_and_mint_with_cut(
     with_secrets: bool,
     expires_at_ms: Option<u64>,
 ) -> SnapbackResult<ForkMintReceiptV1> {
-    let mut conn = Connection::open(database_path)?;
+    let mut conn = open_fork_connection(database_path)?;
     let classified = audit_connection(&conn)?;
     let fork_point_version = conn.query_row(
         "SELECT version FROM _snapback_version WHERE id=1",
@@ -2046,8 +2076,7 @@ fn inspect_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRu
     if !database_path.exists() {
         return Ok(None);
     }
-    let conn =
-        Connection::open_with_flags(database_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let conn = open_fork_connection_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     if !table_exists(&conn, "_snapback_meta")? {
         return Ok(None);
     }
@@ -3373,11 +3402,10 @@ fn write_renewal_database_lineage(
     )?;
     if checkpoint_first {
         // The registered lifecycle token admits this exact non-mutating
-        // maintenance pragma. Run it before the lineage transaction so a
-        // refusal or I/O failure cannot commit half a renewal.
-        writer
-            .conn()
-            .execute_batch("PRAGMA wal_checkpoint(FULL);")?;
+        // maintenance pragma when the fork owns its WAL. Run it before the
+        // lineage transaction so a refusal or I/O failure cannot commit half
+        // a renewal; a configured replicator retains checkpoint authority.
+        checkpoint_when_fork_owns_wal(writer.conn())?;
     }
     let tx = writer.conn().unchecked_transaction()?;
     let changed = tx.execute(
@@ -3738,7 +3766,7 @@ pub fn diff_receipt_bounded(
         )
     })?;
     let mut conn =
-        Connection::open_with_flags(database_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        open_fork_connection_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     // One read transaction pins the floor, head, and rows to the same SQLite
     // snapshot. A later writer can advance or prune without creating a
     // receipt whose header and body describe different moments.
@@ -3957,8 +3985,7 @@ pub fn verified_derived_fork_app_row_coverage(
     let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
         writer_coverage_invalid("writer coverage verification requires a minted derived fork")
     })?;
-    let conn =
-        Connection::open_with_flags(database_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let conn = open_fork_connection_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     verified_fork_app_row_coverage(
         &conn,
         database_path.parent().unwrap_or_else(|| Path::new(".")),
@@ -4094,10 +4121,10 @@ fn net_diff_receipt_with_limits(
         ));
     }
 
-    let base = Connection::open_with_flags(&base_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let base = open_fork_connection_with_flags(&base_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     let base_schema = crate::storage::active_schema_manifest_from_connection(&base)?;
     let mut head =
-        Connection::open_with_flags(database_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        open_fork_connection_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     let tx = head.transaction()?;
     let wal_bytes = validate_sqlite_wal_integrity(database_path, limits.max_bytes)?;
     let head_schema = crate::storage::active_schema_manifest_from_connection(&tx)?;
@@ -4770,9 +4797,9 @@ fn publish_with_options(
                 )
             })?;
         let staging_database = staging.join(database_file);
-        let source = Connection::open(source_database)?;
+        let source = open_fork_connection(source_database)?;
         audit_connection(&source)?;
-        let mut target = Connection::open(&staging_database)?;
+        let mut target = open_fork_connection(&staging_database)?;
         {
             let backup = rusqlite::backup::Backup::new(&source, &mut target)?;
             backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
@@ -4870,7 +4897,7 @@ fn copy_fork_private_assets(
     staging: &Path,
     staging_database: &Path,
 ) -> SnapbackResult<()> {
-    let conn = Connection::open(staging_database)?;
+    let conn = open_fork_connection(staging_database)?;
     if !table_exists(&conn, "_snapback_asset_blobs_v1")? {
         return Ok(());
     }
@@ -4975,8 +5002,8 @@ fn retain_base_snapshot(
     now_ms: u64,
 ) -> SnapbackResult<()> {
     let base_path = staging.join(BASE_SNAPSHOT_FILE);
-    let source = Connection::open(staging_database)?;
-    let mut target = Connection::open(&base_path)?;
+    let source = open_fork_connection(staging_database)?;
+    let mut target = open_fork_connection(&base_path)?;
     {
         let backup = rusqlite::backup::Backup::new(&source, &mut target)?;
         backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
