@@ -1,6 +1,6 @@
 # Pre-push gate battery vs fleet landing cadence: heavyweight landings livelock
 
-**Status:** Open
+**Status:** Closed
 **Date:** 2026-08-10
 **Systems:** Proof/gates, fleet workflow
 
@@ -44,3 +44,19 @@ structural: the heavier your change, the more likely you lose.
 Tactical mitigation in use meanwhile: lull-timed attempts (start the
 battery only after main has been quiet ≥5 min; observed gaps reach
 29 min).
+
+## Resolution — 2026-08-13
+
+Closed by the optimistic-landing author ruling in LLP 0232. Ordinary pushes
+still select and report all affected frozen-record gates but defer their
+commands to the scheduled two-hour backstop; the default hook path therefore
+has negligible latency and cannot lose a landing race to its own gate battery.
+`SNAPBACK_DRIFT_GATES_STRICT=1 git push ...` retains the complete synchronous
+classifier for explicit use, and adding `SNAPBACK_DRIFT_GATES_FULL=1` runs the
+complete registry.
+
+The content-receipt and prepared-runtime work proposed above remains useful for
+strict runs, backstop economics, diagnosis, and release qualification, and is
+still tracked by LLP 0232 plus the open record-inventory tickets. It is no
+longer a prerequisite for ordinary landing, so this livelock ticket itself is
+resolved. Quiet-main timing is no longer a mitigation or recommended recipe.

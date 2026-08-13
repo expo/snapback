@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-// Couple measured commits to their frozen records at push time, and provide an
-// independent main backstop that turns any missed predicate into an owned
-// filesystem ticket.
+// Select the frozen-record checks affected by a push. Ordinary landings defer
+// their execution to the independent main backstop; an explicit strict mode
+// retains synchronous enforcement for operators that need it.
 //
-// @ref LLP 0175#same-change-frozen-record-coupling — only registered
-// frozen-record gates run pre-push; unknown paths fail closed to the fast core.
+// @ref LLP 0232#optimistic-landing-default-2026-08-13 — ordinary pushes
+// preserve selection and attribution inputs without synchronously running gates.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -30,7 +30,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { delimiter, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -43,6 +43,7 @@ const ZERO_SHA = /^0{40}$/u;
 const SHA = /^[0-9a-f]{40}$/u;
 const BYPASS_ENV = 'SNAPBACK_DRIFT_GATES_BYPASS';
 const FULL_ENV = 'SNAPBACK_DRIFT_GATES_FULL';
+const STRICT_ENV = 'SNAPBACK_DRIFT_GATES_STRICT';
 const INFRASTRUCTURE_FAILOPEN_ENV = 'SNAPBACK_DRIFT_INFRA_FAILOPEN';
 const TICKET_REQUESTS_ENV = 'SNAPBACK_DRIFT_TICKET_REQUESTS';
 const DEPENDENCY_MIRROR_SCHEMA = 'snapback.drift-dependency-mirror.v1';
@@ -150,6 +151,7 @@ export function planPrePush(
       localRef: update.localRef,
       remoteRef: update.remoteRef,
       remoteSha: update.remoteSha,
+      scheduledMain: remoteName === 'origin' && update.remoteRef === 'refs/heads/main',
     });
     for (const path of changedPathsForUpdate(root, update, remoteName)) {
       entry.changedPaths.add(path);
@@ -166,6 +168,7 @@ export function planPrePush(
     return {
       revision: entry.revision,
       refs: entry.refs,
+      scheduledMain: entry.refs.some((ref) => ref.scheduledMain),
       changedPaths,
       selection,
       gates: selection.selectedDriftProneGates,
@@ -203,6 +206,7 @@ export function runPrePush({
   const started = performance.now();
   const bypass = env[BYPASS_ENV] ?? '';
   const full = env[FULL_ENV] ?? '';
+  const strict = env[STRICT_ENV] ?? '';
   const infrastructureFailOpen = env[INFRASTRUCTURE_FAILOPEN_ENV] ?? '';
   if (bypass !== '' && bypass !== '1') {
     console.error(`[snapback-drift] REFUSED: ${BYPASS_ENV} must be exactly 1 when used`);
@@ -210,6 +214,10 @@ export function runPrePush({
   }
   if (full !== '' && full !== '1') {
     console.error(`[snapback-drift] REFUSED: ${FULL_ENV} must be exactly 1 when used`);
+    return 2;
+  }
+  if (strict !== '' && strict !== '1') {
+    console.error(`[snapback-drift] REFUSED: ${STRICT_ENV} must be exactly 1 when used`);
     return 2;
   }
   if (!['', '0', '1'].includes(infrastructureFailOpen)) {
@@ -226,10 +234,19 @@ export function runPrePush({
     root,
     { failClosedDisposition: full === '1' ? 'full' : 'core' },
   );
+  if (full === '1') {
+    const registered = context.inventory.canonicalGates.filter((gate) => (
+      Object.hasOwn(context.policy.driftProneGates, gate)
+    ));
+    for (const plan of plans) plan.gates = registered;
+  }
   const changedPathCount = new Set(plans.flatMap((plan) => plan.changedPaths)).size;
   const selected = [...new Set(plans.flatMap((plan) => plan.gates))];
+  // FULL used to be an independent selector. Keep that spelling operational
+  // by treating it as strict/full, while making the preferred explicit form
+  // visible to callers migrating to the optimistic default.
+  const strictMode = strict === '1' || full === '1';
 
-  if (bypass === '1') announceBypass(plans, changedPathCount);
   if (plans.length === 0) {
     console.log(`[snapback-drift] FAST PATH: no pushed commits; 0 drift-prone gates run (${elapsed(started)})`);
     return 0;
@@ -241,11 +258,27 @@ export function runPrePush({
     );
     return 0;
   }
+  if (full === '1' && strict !== '1') {
+    console.error(
+      `[snapback-drift] COMPATIBILITY: ${FULL_ENV}=1 implies strict full-registry enforcement; `
+        + `prefer ${STRICT_ENV}=1 ${FULL_ENV}=1 git push ...`,
+    );
+  }
+  if (full === '1') {
+    console.error(
+      `[snapback-drift] FULL REGISTRY: selected all ${selected.length} registered gate(s)`,
+    );
+  }
   if (bypass === '1') {
+    announceBypass(plans, changedPathCount, { strictMode });
     console.error(
       `[snapback-drift] BYPASS ALLOWED: skipped ${selected.length} selected gate(s): `
         + `${selected.join(', ')}`,
     );
+    return 0;
+  }
+  if (!strictMode) {
+    announceDeferred(plans, context, started);
     return 0;
   }
 
@@ -263,26 +296,7 @@ export function runPrePush({
       );
       return 1;
     }
-    const short = plan.revision.slice(0, 12);
-    console.log(
-      `[snapback-drift] ${short}: ${plan.changedPaths.length} committed path(s) selected `
-        + `${plan.gates.length} gate(s): ${plan.gates.join(', ')}`,
-    );
-    if (plan.selection.unknownFiles.length > 0 || plan.selection.broadFiles.length > 0) {
-      const reasons = [
-        ...plan.selection.unknownFiles.map((path) => `unknown:${path}`),
-        ...plan.selection.broadFiles.map((path) => `broad:${path}`),
-      ];
-      console.error(
-        `[snapback-drift] FAIL-CLOSED selection: ${reasons.join(', ')}; `
-          + `running fail-closed ${plan.selection.driftFailClosedDisposition.toUpperCase()} tier `
-          + `(${plan.gates.length} of ${Object.keys(context.policy.driftProneGates).length} `
-          + 'registered gates)'
-          + (plan.selection.driftFailClosedDisposition === 'core'
-            ? `; ${FULL_ENV}=1 runs the complete registry`
-            : ''),
-      );
-    }
+    announceSelection(plan, context, { strictMode: true });
     const requiredSubmodules = [...new Set(plan.gates.flatMap((gate) => (
       context.policy.driftProneGates[gate].requiredSubmodules ?? []
     )))];
@@ -307,6 +321,24 @@ export function runPrePush({
                 SNAPBACK_MODULE_OWNERSHIP_PREDECESSORS: ownershipBaselines.revisions.join(','),
               }
             : { ...revisionEnv, ...env };
+          if (gate !== 'module-ownership' && infrastructureFailOpen !== '0') {
+            provisionEnvironmentPaths(
+              root,
+              cwd,
+              metadata.requiredEnvironmentPaths ?? [],
+            );
+          }
+          const closureBeforeExecution = gate === 'module-ownership'
+            || infrastructureFailOpen === '0'
+            ? null
+            : observedExecutionClosureDigest({
+                cwd,
+                gate,
+                revision: plan.revision,
+                command,
+                metadata,
+                env: gateEnvironment,
+              });
           const execution = executeGate(cwd, gate, command, {
             env: gateEnvironment,
             prepareCommand: metadata.prepareCommand,
@@ -424,6 +456,25 @@ export function runPrePush({
             const closureCleanAfterFailure = closureAfterFailure.error === null
               && closureAfterFailure.paths.length === 0;
             if (pushedEvidence.kind === 'content' && closureCleanAfterFailure) {
+              const closureBeforeRepeat = observedExecutionClosureDigest({
+                cwd,
+                gate,
+                revision: plan.revision,
+                command,
+                metadata,
+                env: gateEnvironment,
+              });
+              if (closureBeforeRepeat !== closureBeforeExecution) {
+                writeCapturedOutput(execution, { stripJavaScriptStack: true });
+                printUnknownClassification({
+                  gate,
+                  revision: plan.revision,
+                  command,
+                  execution,
+                  reason: 'observed execution closure changed after the first determinate red',
+                });
+                return 2;
+              }
               console.error(
                 `[snapback-drift] DETERMINISM CHECK ${gate} at ${plan.revision.slice(0, 12)}`,
               );
@@ -436,18 +487,31 @@ export function runPrePush({
                 infrastructureClassification: 'd3',
               });
               const closureAfterRepeat = safeWorktreeChanges(cwd);
-              if (repeated.ok
+              const closureAfterRepeatDigest = observedExecutionClosureDigest({
+                cwd,
+                gate,
+                revision: plan.revision,
+                command,
+                metadata,
+                env: gateEnvironment,
+              });
+              const repeatedEvidence = repeated.ok
+                ? passEvidence(repeated)
+                : failureEvidence(repeated);
+              const repeatedDeterminate = repeated.ok || repeatedEvidence.kind === 'content';
+              if (repeatedDeterminate
+                && repeatedEvidence.normalizedSignature !== pushedEvidence.normalizedSignature
                 && closureAfterRepeat.error === null
-                && closureAfterRepeat.paths.length === 0) {
+                && closureAfterRepeat.paths.length === 0
+                && closureAfterRepeatDigest === closureBeforeExecution) {
                 writeCapturedOutput(execution, { stripJavaScriptStack: true });
-                writeCapturedOutput(repeated);
+                writeCapturedOutput(repeated, {
+                  stripJavaScriptStack: repeatedEvidence.kind !== 'runner-setup',
+                });
                 const nondeterministicEvidence = contradictionEvidence({
-                  gate,
-                  revision: plan.revision,
-                  command,
-                  metadata,
+                  closureDigest: closureBeforeExecution,
                   first: pushedEvidence,
-                  second: passEvidence(repeated),
+                  second: repeatedEvidence,
                 });
                 const ticketRequest = recordTicketRequest({
                   root,
@@ -468,6 +532,36 @@ export function runPrePush({
                   revision: plan.revision,
                   command,
                   evidence: nondeterministicEvidence,
+                });
+                return 2;
+              }
+              if (closureAfterRepeatDigest !== closureBeforeExecution) {
+                writeCapturedOutput(execution, { stripJavaScriptStack: true });
+                writeCapturedOutput(repeated, {
+                  stripJavaScriptStack: repeatedEvidence.kind !== 'runner-setup',
+                });
+                printUnknownClassification({
+                  gate,
+                  revision: plan.revision,
+                  command,
+                  execution: repeated,
+                  reason: 'observed execution closure changed during the contradiction check',
+                });
+                return 2;
+              }
+              if (!repeatedDeterminate
+                || closureAfterRepeat.error !== null
+                || closureAfterRepeat.paths.length !== 0) {
+                writeCapturedOutput(execution, { stripJavaScriptStack: true });
+                writeCapturedOutput(repeated, {
+                  stripJavaScriptStack: repeatedEvidence.kind !== 'runner-setup',
+                });
+                printUnknownClassification({
+                  gate,
+                  revision: plan.revision,
+                  command,
+                  execution: repeated,
+                  reason: 'the contradiction check did not preserve a clean determinate closure',
                 });
                 return 2;
               }
@@ -754,7 +848,77 @@ function printLegacyPreExistingStaleness({ gate, baselines, root }) {
   console.error('[snapback-drift] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
 }
 
-function announceBypass(plans, changedPathCount) {
+function announceSelection(plan, context, { strictMode }) {
+  const short = plan.revision.slice(0, 12);
+  console.log(
+    `[snapback-drift] ${short}: ${plan.changedPaths.length} committed path(s) across `
+      + `${plan.refs.length} ref update(s) selected ${plan.gates.length} gate(s): `
+      + `${plan.gates.join(', ')}`,
+  );
+  if (plan.selection.unknownFiles.length === 0 && plan.selection.broadFiles.length === 0) return;
+  const reasons = [
+    ...plan.selection.unknownFiles.map((path) => `unknown:${path}`),
+    ...plan.selection.broadFiles.map((path) => `broad:${path}`),
+  ];
+  const disposition = plan.selection.driftFailClosedDisposition.toUpperCase();
+  const prefix = strictMode ? 'FAIL-CLOSED' : 'DEFERRED BROAD';
+  const action = strictMode ? 'running' : 'selected';
+  console.error(
+    `[snapback-drift] ${prefix} selection: ${reasons.join(', ')}; ${action} `
+      + `${disposition} tier (${plan.gates.length} of `
+      + `${Object.keys(context.policy.driftProneGates).length} registered gates)`
+      + (plan.selection.driftFailClosedDisposition === 'core'
+        ? `; ${STRICT_ENV}=1 ${FULL_ENV}=1 runs the complete registry synchronously`
+        : ''),
+  );
+}
+
+function announceDeferred(plans, context, started) {
+  for (const plan of plans) {
+    if (plan.gates.length > 0) announceSelection(plan, context, { strictMode: false });
+  }
+  const scheduledPlans = plans.filter((plan) => plan.scheduledMain);
+  const nonMainPlans = plans.filter((plan) => plan.refs.some((ref) => !ref.scheduledMain));
+  const nonMainRefCount = nonMainPlans.reduce((count, plan) => (
+    count + plan.refs.filter((ref) => !ref.scheduledMain).length
+  ), 0);
+  const scheduledGates = [...new Set(scheduledPlans.flatMap((plan) => plan.gates))];
+  const nonMainGates = [...new Set(nonMainPlans.flatMap((plan) => plan.gates))];
+  const scheduledPathCount = new Set(
+    scheduledPlans.flatMap((plan) => plan.changedPaths),
+  ).size;
+  const nonMainPathCount = new Set(nonMainPlans.flatMap((plan) => plan.changedPaths)).size;
+  if (scheduledGates.length > 0) {
+    console.log(
+      `[snapback-drift] DEFERRED BY DEFAULT: ${scheduledPathCount} origin/main committed path(s) selected `
+        + `${scheduledGates.length} origin/main drift-prone gate(s); no gate commands ran: `
+        + `${scheduledGates.join(', ')}`,
+    );
+    console.log(
+      '[snapback-drift] scheduled authority: node scripts/drift-prone-gates.mjs backstop; '
+        + `strict opt-in: ${STRICT_ENV}=1 git push ...`,
+    );
+  }
+  if (nonMainPlans.length > 0) {
+    console.log(
+      `[snapback-drift] NON-MAIN REF: ${nonMainRefCount} ref update(s) across `
+        + `${nonMainPlans.length} distinct revision(s), ${nonMainPathCount} committed path(s), `
+        + `selected ${nonMainGates.length} gate(s); no gate commands ran and no independent `
+        + `scheduled-main verdict is claimed: ${nonMainGates.join(', ')}`,
+    );
+    console.log(
+      `[snapback-drift] a same-tip origin/main update is covered by that landing; otherwise a `
+        + `later origin/main landing is selected from its own ref update; strict opt-in now: `
+        + `${STRICT_ENV}=1 git push ...`,
+    );
+  }
+  const disposition = scheduledGates.length > 0
+    ? 'origin/main frozen-record checks deferred to the scheduled backstop'
+    : 'non-main ref updates left frozen-record execution to an explicit strict run or later origin/main landing';
+  console.log(`[snapback-drift] ALLOWED: ${disposition} (${elapsed(started)})`);
+}
+
+function announceBypass(plans, changedPathCount, { strictMode }) {
   const gates = [...new Set(plans.flatMap((plan) => plan.gates))];
   console.error('[snapback-drift] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
   console.error(`[snapback-drift] BYPASS ACTIVE: ${BYPASS_ENV}=1`);
@@ -762,6 +926,12 @@ function announceBypass(plans, changedPathCount) {
     `[snapback-drift] ${changedPathCount} committed path(s), ${gates.length} selected gate(s); `
       + 'this push may leave frozen records stale and the main backstop remains armed',
   );
+  if (!strictMode) {
+    console.error(
+      `[snapback-drift] COMPATIBILITY BYPASS: ordinary pushes already defer these gates; `
+        + `${BYPASS_ENV}=1 remains accepted for legacy callers`,
+    );
+  }
   console.error('[snapback-drift] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
 }
 
@@ -929,16 +1099,18 @@ function failureEvidence(execution) {
   };
 }
 
-function contradictionEvidence({ gate, revision, command, metadata, first, second }) {
-  const closureDigest = digestJson({
-    gate,
-    revision,
-    command,
-    prepareCommand: metadata.prepareCommand ?? null,
-    requiredEnvironmentPaths: metadata.requiredEnvironmentPaths ?? [],
-    requiredModules: metadata.requiredModules ?? [],
-    requiredSubmodules: metadata.requiredSubmodules ?? [],
+function backstopFailureSignature(execution, evidence = failureEvidence(execution)) {
+  return evidence.normalizedSignature ?? digestJson({
+    kind: 'backstop-unknown',
+    phase: execution.phase,
+    status: execution.status,
+    signal: execution.signal,
+    reason: evidence.reason,
+    output: evidence.output,
   });
+}
+
+function contradictionEvidence({ closureDigest, first, second }) {
   const corroboration = [
     {
       ordinal: 1,
@@ -949,7 +1121,7 @@ function contradictionEvidence({ gate, revision, command, metadata, first, secon
     },
     {
       ordinal: 2,
-      outcome: 'green',
+      outcome: second.kind === 'pass' ? 'green' : 'red',
       kind: second.kind,
       normalizedSignature: second.normalizedSignature,
       outputDigest: second.outputDigest,
@@ -1199,6 +1371,242 @@ function digestText(value) {
   return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
 
+function observedExecutionClosureDigest({ cwd, gate, revision, command, metadata, env }) {
+  const executionEnvironment = sanitizedGitEnvironment(env);
+  const environment = Object.entries(executionEnvironment)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([name, value]) => [name, digestText(`${value}`)]);
+  const requiredEnvironmentPaths = (metadata.requiredEnvironmentPaths ?? []).map((path) => ({
+    path,
+    fact: semanticPathFact(join(cwd, path)),
+  }));
+  const requiredModules = (metadata.requiredModules ?? []).map((specifier) => (
+    requiredModuleFact(cwd, specifier)
+  ));
+  const requiredSubmodules = (metadata.requiredSubmodules ?? []).map((path) => ({
+    path,
+    fact: gitCheckoutFact(join(cwd, path), { includeRuntimeArtifacts: true }),
+  }));
+  // @ref LLP 0232#d-4-health-records-producer-map-and-green-pointer — the
+  // contradiction boundary covers the complete installed dependency mirror,
+  // not only registry-named package roots. Packages such as esbuild execute
+  // platform siblings outside their own package directory.
+  const installedDependencies = installedDependencyTrees(cwd).map((path) => ({
+    path,
+    fact: semanticPathDigestFact(join(cwd, path)),
+  }));
+  return digestJson({
+    schemaVersion: 'snapback.drift-observed-execution-closure.v2',
+    gate,
+    revision,
+    tree: git(cwd, ['rev-parse', 'HEAD^{tree}']).trim(),
+    command,
+    prepareCommand: metadata.prepareCommand ?? null,
+    dependencyMirrorKey: dependencyMirrorKey(cwd),
+    requiredEnvironmentPaths,
+    requiredModules,
+    requiredSubmodules,
+    installedDependencies,
+    preparedEnvironment: preparedEnvironmentFacts(env),
+    environment,
+    toolchain: {
+      platform: process.platform,
+      architecture: process.arch,
+      nodeVersion: process.version,
+      executables: toolchainExecutableFacts(env),
+    },
+  });
+}
+
+function requiredModuleFact(cwd, specifier) {
+  const require = createRequire(join(cwd, 'package.json'));
+  let resolved;
+  try {
+    resolved = require.resolve(specifier);
+  } catch {
+    return { specifier, kind: 'missing' };
+  }
+  let packageRoot = dirname(resolved);
+  while (packageRoot !== dirname(packageRoot) && !existsSync(join(packageRoot, 'package.json'))) {
+    packageRoot = dirname(packageRoot);
+  }
+  return {
+    specifier,
+    resolved: relative(cwd, resolved),
+    packageRoot: relative(cwd, packageRoot),
+    fact: semanticPathFact(packageRoot),
+  };
+}
+
+function preparedEnvironmentFacts(env) {
+  const facts = [];
+  const ibex = env.SNAPBACK_IBEX_CHECKOUT;
+  if (ibex) {
+    facts.push({
+      name: 'SNAPBACK_IBEX_CHECKOUT',
+      fact: gitCheckoutFact(ibex, { includeRuntimeArtifacts: true }),
+    });
+  }
+  const binary = env.SNAPBACK_PREPARED_RUNTIME_BINARY
+    ?? (env.SNAPBACK_PREPARED_RUNTIME_ROOT
+      ? join(env.SNAPBACK_PREPARED_RUNTIME_ROOT, 'target/debug/snapback')
+      : null);
+  if (binary) {
+    facts.push({
+      name: 'SNAPBACK_PREPARED_RUNTIME_BINARY',
+      fact: semanticPathFact(binary),
+    });
+    facts.push({
+      name: 'SNAPBACK_PREPARED_RUNTIME_RECEIPT',
+      fact: semanticPathFact(`${binary}.runtime-readiness.json`),
+    });
+  }
+  if (env.CARGO_TARGET_DIR) {
+    const targetBinary = join(env.CARGO_TARGET_DIR, 'debug/snapback');
+    facts.push({ name: 'CARGO_TARGET_BINARY', fact: semanticPathFact(targetBinary) });
+    facts.push({
+      name: 'CARGO_TARGET_RUNTIME_RECEIPT',
+      fact: semanticPathFact(`${targetBinary}.runtime-readiness.json`),
+    });
+  }
+  if (env.HERMES_LIB_DIR) {
+    facts.push({ name: 'HERMES_LIB_DIR', fact: semanticPathFact(env.HERMES_LIB_DIR) });
+  }
+  return facts;
+}
+
+function gitCheckoutFact(path, { includeRuntimeArtifacts = false } = {}) {
+  if (!pathExists(path)) return { kind: 'missing' };
+  let head = null;
+  let tree = null;
+  let status = null;
+  try {
+    head = git(path, ['rev-parse', 'HEAD']).trim();
+    tree = git(path, ['rev-parse', 'HEAD^{tree}']).trim();
+    status = digestText(git(path, [
+      'status', '--porcelain=v1', '-z', '--untracked-files=all', '--ignored=no',
+    ], { encoding: 'buffer' }));
+  } catch {
+    return { kind: 'non-git', fact: semanticPathFact(path) };
+  }
+  const artifacts = includeRuntimeArtifacts
+    ? [
+        'ios/Frameworks',
+        'linux/hermes-headers',
+        'linux/lib',
+        'tools/hermes',
+      ].map((relativePath) => ({
+        path: relativePath,
+        fact: semanticPathFact(join(path, relativePath)),
+      }))
+    : [];
+  return { kind: 'git', head, tree, status, artifacts };
+}
+
+function toolchainExecutableFacts(env) {
+  const names = ['bash', 'bun', 'cargo', 'env', 'find', 'git', 'grep', 'node', 'python3', 'rustc', 'sh'];
+  const facts = [{ name: 'node-current', path: process.execPath, fact: semanticPathFact(process.execPath) }];
+  for (const name of names) {
+    const path = resolvePathExecutable(env.PATH ?? '', name);
+    facts.push({ name, path, fact: path === null ? { kind: 'missing' } : semanticPathFact(path) });
+  }
+  facts.push({ name: 'shell-fixed', path: '/bin/sh', fact: semanticPathFact('/bin/sh') });
+  return facts;
+}
+
+function resolvePathExecutable(pathValue, name) {
+  for (const directory of pathValue.split(delimiter).filter(Boolean)) {
+    const candidate = join(directory, name);
+    if (pathExists(candidate)) return candidate;
+  }
+  return null;
+}
+
+function semanticPathFact(path, seen = new Set()) {
+  if (!pathExists(path)) return { kind: 'missing' };
+  const resolved = resolve(path);
+  if (seen.has(resolved)) return { kind: 'cycle' };
+  seen.add(resolved);
+  try {
+    const entry = lstatSync(resolved);
+    if (entry.isSymbolicLink()) {
+      const target = resolve(dirname(resolved), readlinkSync(resolved));
+      return { kind: 'symlink', target: semanticPathFact(target, seen) };
+    }
+    if (entry.isFile()) {
+      const bytes = readFileSync(resolved);
+      return {
+        kind: 'file',
+        mode: entry.mode & 0o777,
+        bytes: bytes.length,
+        digest: digestText(bytes),
+      };
+    }
+    if (entry.isDirectory()) {
+      return {
+        kind: 'directory',
+        entries: readdirSync(resolved).sort().map((name) => ({
+          name,
+          fact: semanticPathFact(join(resolved, name), seen),
+        })),
+      };
+    }
+    return { kind: 'other', mode: entry.mode, bytes: entry.size };
+  } finally {
+    seen.delete(resolved);
+  }
+}
+
+function semanticPathDigestFact(path, seen = new Set()) {
+  if (!pathExists(path)) return { kind: 'missing' };
+  const resolved = resolve(path);
+  if (seen.has(resolved)) return { kind: 'cycle' };
+  seen.add(resolved);
+  try {
+    const entry = lstatSync(resolved);
+    if (entry.isSymbolicLink()) {
+      const link = readlinkSync(resolved);
+      const target = resolve(dirname(resolved), link);
+      return {
+        kind: 'symlink',
+        link,
+        target: semanticPathDigestFact(target, seen),
+      };
+    }
+    if (entry.isFile()) {
+      const bytes = readFileSync(resolved);
+      return {
+        kind: 'file',
+        mode: entry.mode & 0o777,
+        bytes: bytes.length,
+        digest: digestText(bytes),
+      };
+    }
+    if (entry.isDirectory()) {
+      const hash = createHash('sha256');
+      const names = readdirSync(resolved).sort();
+      hash.update('directory\0');
+      for (const name of names) {
+        const fact = semanticPathDigestFact(join(resolved, name), seen);
+        hash.update(`${name}\0${digestJson(fact)}\0`);
+      }
+      return {
+        kind: 'directory',
+        entries: names.length,
+        digest: `sha256:${hash.digest('hex')}`,
+      };
+    }
+    return {
+      kind: 'other',
+      mode: entry.mode,
+      bytes: entry.size,
+      digest: digestJson({ mode: entry.mode, bytes: entry.size }),
+    };
+  } finally {
+    seen.delete(resolved);
+  }
+}
+
 export function runBackstop({
   head,
   gate = null,
@@ -1221,20 +1629,63 @@ export function runBackstop({
   for (const gateId of gates) {
     const command = commandForGate(context, gateId);
     const metadata = context.policy.driftProneGates[gateId];
-    const execution = runGateAtRevision(root, revision, gateId, command, metadata, env);
+    const observation = runBackstopGateAtRevision(
+      root,
+      revision,
+      gateId,
+      command,
+      metadata,
+      env,
+    );
+    const { execution } = observation;
     if (execution.ok) {
       delete infrastructureStreaks[gateId];
       console.log(`[snapback-drift-backstop] PASS ${gateId}`);
       continue;
     }
-    if (execution.infrastructureReason) {
+    if (observation.nondeterministic) {
+      delete infrastructureStreaks[gateId];
+      failures += 1;
+      const normalizedSignature = observation.nondeterministic.normalizedSignature;
+      console.error(`[snapback-drift-backstop] NONDETERMINISTIC ${gateId} at ${revision}`);
+      console.error(`[snapback-drift-backstop] signature ${normalizedSignature}`);
+      writeCapturedOutput(execution, { stripJavaScriptStack: true });
+      writeCapturedOutput(observation.repeated, { stripJavaScriptStack: true });
+      const existing = findOpenTicket(ticketRoot, gateId, normalizedSignature);
+      if (existing) {
+        updateDriftTicketObservation(existing, { normalizedSignature, headRevision: revision });
+        console.error(
+          `[snapback-drift-backstop] existing open ticket ${relative(root, existing)}; `
+            + 'not filing a duplicate; updated its last observation',
+        );
+        continue;
+      }
+      const ticket = fileDriftTicket({
+        root,
+        ticketRoot,
+        gate: gateId,
+        metadata,
+        command,
+        headRevision: revision,
+        culprit: { revision, method: 'none-nondeterministic' },
+        changedPaths: execution.changedPaths,
+        normalizedSignature,
+        outcome: 'NONDETERMINISTIC',
+        date: env.SNAPBACK_DRIFT_TICKET_DATE ?? DEFAULT_TICKET_DATE(),
+      });
+      console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
+      continue;
+    }
+    const evidence = observation.evidence ?? failureEvidence(execution);
+    if (evidence.kind === 'runner-setup' || evidence.kind === 'unknown') {
       infrastructureFailures += 1;
       const streak = (infrastructureStreaks[gateId] ?? 0) + 1;
       infrastructureStreaks[gateId] = streak;
       writeCapturedOutput(execution);
+      const reason = evidence.reason ?? 'unclassified backstop execution';
       console.error(
-        `[snapback-drift-backstop] INFRASTRUCTURE ERROR ${gateId} at ${revision}: `
-          + execution.infrastructureReason,
+        `[snapback-drift-backstop] ${evidence.kind === 'unknown' ? 'UNKNOWN' : 'INFRASTRUCTURE ERROR'} `
+          + `${gateId} at ${revision}: ${reason}`,
       );
       console.error('[snapback-drift-backstop] no stale-record ticket was filed');
       console.error(
@@ -1254,7 +1705,7 @@ export function runBackstop({
             gate: gateId,
             command,
             headRevision: revision,
-            reason: execution.infrastructureReason,
+            reason,
             date: env.SNAPBACK_DRIFT_TICKET_DATE ?? DEFAULT_TICKET_DATE(),
           });
           console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
@@ -1264,13 +1715,18 @@ export function runBackstop({
     }
     delete infrastructureStreaks[gateId];
     failures += 1;
+    // @ref LLP 0189#decision — the authoritative scheduled verdict keeps one
+    // open ticket per normalized root-failure signature, not merely per gate.
+    const normalizedSignature = backstopFailureSignature(execution, evidence);
     console.error(`[snapback-drift-backstop] STALE ${gateId} at ${revision}`);
+    console.error(`[snapback-drift-backstop] signature ${normalizedSignature}`);
     writeCapturedOutput(execution);
-    const existing = findOpenTicket(ticketRoot, gateId);
+    const existing = findOpenTicket(ticketRoot, gateId, normalizedSignature);
     if (existing) {
+      updateDriftTicketObservation(existing, { normalizedSignature, headRevision: revision });
       console.error(
         `[snapback-drift-backstop] existing open ticket ${relative(root, existing)}; `
-          + 'not filing a duplicate',
+          + 'not filing a duplicate; updated its last observation',
       );
       continue;
     }
@@ -1280,6 +1736,7 @@ export function runBackstop({
       gate: gateId,
       command,
       metadata,
+      normalizedSignature,
       env,
     });
     const ticket = fileDriftTicket({
@@ -1291,6 +1748,8 @@ export function runBackstop({
       headRevision: revision,
       culprit,
       changedPaths: execution.changedPaths,
+      normalizedSignature,
+      outcome: 'STALE',
       date: env.SNAPBACK_DRIFT_TICKET_DATE ?? DEFAULT_TICKET_DATE(),
     });
     console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
@@ -1298,6 +1757,126 @@ export function runBackstop({
   writeInfrastructureStreaks(root, infrastructureStreaks);
   if (infrastructureFailures > 0) return 2;
   return failures === 0 ? 0 : 1;
+}
+
+function runBackstopGateAtRevision(root, revision, gate, command, metadata, env) {
+  return withRevisionWorktree(
+    root,
+    revision,
+    { preferRoot: false, requiredSubmodules: metadata.requiredSubmodules ?? [] },
+    (cwd, revisionEnv) => {
+      const gateEnvironment = { ...revisionEnv, ...env };
+      provisionEnvironmentPaths(root, cwd, metadata.requiredEnvironmentPaths ?? []);
+      const closureBeforeExecution = observedExecutionClosureDigest({
+        cwd,
+        gate,
+        revision,
+        command,
+        metadata,
+        env: gateEnvironment,
+      });
+      const execute = () => executeGate(cwd, gate, command, {
+        env: gateEnvironment,
+        prepareCommand: metadata.prepareCommand,
+        environmentRoot: root,
+        requiredEnvironmentPaths: metadata.requiredEnvironmentPaths,
+        requiredModules: metadata.requiredModules,
+        infrastructureClassification: 'd3',
+      });
+      const execution = execute();
+      execution.changedPaths = safeWorktreeChanges(cwd).paths;
+      if (execution.ok) return { execution, evidence: passEvidence(execution) };
+
+      const evidence = failureEvidence(execution);
+      const closureAfterFailure = safeWorktreeChanges(cwd);
+      if (evidence.kind !== 'content'
+        || closureAfterFailure.error !== null
+        || closureAfterFailure.paths.length !== 0) {
+        return { execution, evidence };
+      }
+      const closureBeforeRepeat = observedExecutionClosureDigest({
+        cwd,
+        gate,
+        revision,
+        command,
+        metadata,
+        env: gateEnvironment,
+      });
+      if (closureBeforeRepeat !== closureBeforeExecution) {
+        return {
+          execution,
+          evidence: unknownEvidence(
+            execution,
+            'observed execution closure changed after the first determinate red',
+          ),
+        };
+      }
+
+      console.error(
+        `[snapback-drift-backstop] DETERMINISM CHECK ${gate} at ${revision.slice(0, 12)}`,
+      );
+      const repeated = execute();
+      repeated.changedPaths = safeWorktreeChanges(cwd).paths;
+      const repeatedEvidence = repeated.ok ? passEvidence(repeated) : failureEvidence(repeated);
+      const closureAfterRepeat = safeWorktreeChanges(cwd);
+      const closureAfterRepeatDigest = observedExecutionClosureDigest({
+        cwd,
+        gate,
+        revision,
+        command,
+        metadata,
+        env: gateEnvironment,
+      });
+      const repeatedDeterminate = repeated.ok || repeatedEvidence.kind === 'content';
+      const contradictory = repeatedDeterminate
+        && repeatedEvidence.normalizedSignature !== evidence.normalizedSignature
+        && closureAfterRepeat.error === null
+        && closureAfterRepeat.paths.length === 0
+        && closureAfterRepeatDigest === closureBeforeExecution;
+      if (contradictory) {
+        return {
+          execution,
+          evidence,
+          repeated,
+          nondeterministic: contradictionEvidence({
+            closureDigest: closureBeforeExecution,
+            first: evidence,
+            second: repeatedEvidence,
+          }),
+        };
+      }
+      if (closureAfterRepeatDigest !== closureBeforeExecution) {
+        return {
+          execution: repeated,
+          evidence: unknownEvidence(
+            repeated,
+            'observed execution closure changed during the contradiction check',
+          ),
+        };
+      }
+      if (!repeatedDeterminate
+        || closureAfterRepeat.error !== null
+        || closureAfterRepeat.paths.length !== 0) {
+        return {
+          execution: repeated,
+          evidence: unknownEvidence(
+            repeated,
+            'the contradiction check did not preserve a clean determinate closure',
+          ),
+        };
+      }
+      return { execution, evidence, repeated };
+    },
+  );
+}
+
+function unknownEvidence(execution, reason) {
+  return {
+    ...failureEvidence(execution),
+    kind: 'unknown',
+    reason,
+    normalizedSignature: null,
+  };
 }
 
 function runGateAtRevision(
@@ -1354,33 +1933,66 @@ export function runRegisteredGateAtRevision({
   return { ...result, changedPaths: safeWorktreeChanges(root).paths };
 }
 
-function findCausalLanding({ root, headRevision, gate, command, metadata, env }) {
+function findCausalLanding({
+  root,
+  headRevision,
+  gate,
+  command,
+  metadata,
+  normalizedSignature,
+  env,
+}) {
   let recordCommit;
   try {
     recordCommit = git(root, [
       'log', '-1', '--format=%H', headRevision, '--', ...metadata.recordPaths,
     ]).trim();
   } catch {
-    return { revision: headRevision, method: 'head-fallback' };
+    return { revision: null, method: 'record-epoch-unavailable' };
   }
-  if (!SHA.test(recordCommit) || recordCommit === headRevision) {
-    return { revision: headRevision, method: 'head-fallback' };
+  if (!SHA.test(recordCommit)) {
+    return { revision: null, method: 'record-epoch-unavailable' };
   }
-  const baseline = runGateAtRevision(root, recordCommit, gate, command, metadata, env);
-  if (!baseline.ok) return { revision: headRevision, method: 'record-epoch-not-green' };
-  const tail = git(root, [
-    'rev-list', '--first-parent', '--reverse', `${recordCommit}..${headRevision}`,
+  if (recordCommit === headRevision) {
+    return { revision: headRevision, method: 'head-record-change' };
+  }
+  const firstParentChain = new Set(git(root, [
+    'rev-list', '--first-parent', headRevision,
+  ]).trim().split('\n').filter(Boolean));
+  if (!firstParentChain.has(recordCommit)) {
+    return { revision: null, method: 'record-epoch-off-first-parent' };
+  }
+  const baseline = runBackstopGateAtRevision(
+    root,
+    recordCommit,
+    gate,
+    command,
+    metadata,
+    env,
+  );
+  if (!baseline.execution.ok || baseline.nondeterministic) {
+    return { revision: null, method: 'record-epoch-not-green' };
+  }
+  const newestFirst = git(root, [
+    'rev-list', '--first-parent', `${recordCommit}..${headRevision}`,
   ]).trim().split('\n').filter(Boolean);
-  const commits = [recordCommit, ...tail];
-  let low = 0;
-  let high = commits.length - 1;
-  while (high - low > 1) {
-    const mid = Math.floor((low + high) / 2);
-    const result = runGateAtRevision(root, commits[mid], gate, command, metadata, env);
-    if (result.ok) low = mid;
-    else high = mid;
+  let culprit = headRevision;
+  for (const revision of newestFirst.slice(1)) {
+    const observation = runBackstopGateAtRevision(
+      root,
+      revision,
+      gate,
+      command,
+      metadata,
+      env,
+    );
+    const result = observation.execution;
+    if (result.ok
+      || observation.nondeterministic
+      || backstopFailureSignature(result, observation.evidence) !== normalizedSignature) break;
+    culprit = revision;
   }
-  return { revision: commits[high], method: 'first-parent-record-epoch-bisection' };
+  return { revision: culprit, method: 'first-parent-signature-epoch' };
 }
 
 function fileDriftTicket({
@@ -1392,21 +2004,27 @@ function fileDriftTicket({
   headRevision,
   culprit,
   changedPaths,
+  normalizedSignature,
+  outcome = 'STALE',
   date,
 }) {
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(date)) fail(`invalid ticket date ${date}`);
   const compactDate = date.replaceAll('-', '');
-  const subject = git(root, ['show', '-s', '--format=%s', culprit.revision]).trim();
+  const attributed = typeof culprit.revision === 'string' && SHA.test(culprit.revision);
+  const subject = attributed
+    ? git(root, ['show', '-s', '--format=%s', culprit.revision]).trim()
+    : null;
   const records = metadata.records.map((record) => `- \`${record}\``).join('\n');
   const regenerated = changedPaths.length === 0
     ? '- The checker did not materialize a working-tree diff; see its command output.'
     : changedPaths.map((path) => `- \`${path}\``).join('\n');
-  let path = join(ticketRoot, `${compactDate}-main-drift-${gate}.md`);
-  if (existsSync(path)) path = join(
-    ticketRoot,
-    `${compactDate}-main-drift-${gate}-${headRevision.slice(0, 8)}.md`,
-  );
-  const body = `# main drift: ${gate} has a stale committed record
+  const signatureSlug = normalizedSignature.replace(/^sha256:/u, '').slice(0, 16);
+  const path = join(ticketRoot, `${compactDate}-main-drift-${gate}-${signatureSlug}.md`);
+  if (existsSync(path)) fail(`drift ticket signature collision at ${relative(root, path)}`);
+  const nondeterministic = outcome === 'NONDETERMINISTIC';
+  const body = `# main drift: ${gate} ${nondeterministic
+    ? 'is nondeterministic'
+    : 'has a stale committed record'}
 
 **Status:** Open
 **Impact:** 5
@@ -1416,19 +2034,29 @@ function fileDriftTicket({
 **Systems:** Testing, Tooling, CI
 **Date:** ${date}
 **Drift gate:** \`${gate}\`
-**Causal landing:** \`${culprit.revision}\` (${subject})
+**Outcome:** \`${outcome}\`
+**Failure signature:** \`${normalizedSignature}\`
+**Causal landing:** ${nondeterministic
+    ? '`none — contradictory same-closure executions`'
+    : attributed
+      ? `\`${culprit.revision}\` (${subject})`
+      : `\`none — ${culprit.method}\``}
 **Detected at:** \`${headRevision}\`
+**Last observed:** \`${headRevision}\`
 **Attribution:** \`${culprit.method}\`
 **Related:** LLP 0175 §D2.1
 
 ## Summary
 
 The frozen-record backstop ran \`${gate}\` independently of path selection on
-\`main\` and found the committed record stale. The first-parent record-epoch
-attribution names the landing above; this ticket is keyed by gate and remains
-idempotent while open.
+\`main\` and ${nondeterministic
+    ? 'observed contradictory determinate executions over the same clean revision closure. No repair attribution is made for nondeterminism'
+    : attributed
+      ? `found the committed record stale. The conservative ${culprit.method} attribution names the landing above`
+      : `found the committed record stale, but ${culprit.method} prevents a supported causal-landing claim`}. This ticket is keyed by gate plus
+normalized failure signature and remains idempotent while open.
 
-## Stale record
+## ${nondeterministic ? 'Affected frozen-record surface' : 'Stale record'}
 
 ${records}
 
@@ -1444,7 +2072,7 @@ Check:
 ${command}
 \`\`\`
 
-Regenerate/reconcile:
+${nondeterministic ? 'Inspect the contradiction, then regenerate/reconcile only after restoring deterministic execution:' : 'Regenerate/reconcile:'}
 
 \`\`\`sh
 ${metadata.regenerateCommand}
@@ -1463,15 +2091,39 @@ the resolution here, and move this ticket to \`issues/closed/\`.
   return path;
 }
 
-function findOpenTicket(ticketRoot, gate) {
+function findOpenTicket(ticketRoot, gate, normalizedSignature = null) {
   if (!existsSync(ticketRoot)) return null;
   const marker = `**Drift gate:** \`${gate}\``;
+  const signatureMarker = normalizedSignature === null
+    ? null
+    : `**Failure signature:** \`${normalizedSignature}\``;
+  let legacy = null;
   for (const name of readdirSync(ticketRoot).sort()) {
     const path = join(ticketRoot, name);
     if (!name.endsWith('.md') || !lstatSync(path).isFile()) continue;
-    if (readFileSync(path, 'utf8').includes(marker)) return path;
+    const body = readFileSync(path, 'utf8');
+    if (!body.includes(marker)) continue;
+    if (signatureMarker === null || body.includes(signatureMarker)) return path;
+    if (!body.includes('**Failure signature:**') && legacy === null) legacy = path;
   }
-  return null;
+  return legacy;
+}
+
+function updateDriftTicketObservation(path, { normalizedSignature, headRevision }) {
+  let body = readFileSync(path, 'utf8');
+  const signatureLine = `**Failure signature:** \`${normalizedSignature}\``;
+  if (!body.includes('**Failure signature:**')) {
+    body = body.replace(/(\*\*Drift gate:\*\* `[^`]+`\n)/u, `$1${signatureLine}\n`);
+  }
+  const observedLine = `**Last observed:** \`${headRevision}\``;
+  if (/^\*\*Last observed:\*\* .*$/mu.test(body)) {
+    body = body.replace(/^\*\*Last observed:\*\* .*$/mu, observedLine);
+  } else if (/^\*\*Detected at:\*\* .*$/mu.test(body)) {
+    body = body.replace(/(\*\*Detected at:\*\* `[^`]+`\n)/u, `$1${observedLine}\n`);
+  } else {
+    body = body.replace(/(\*\*Failure signature:\*\* `[^`]+`\n)/u, `$1${observedLine}\n`);
+  }
+  writeFileSync(path, body);
 }
 
 function readInfrastructureStreaks(root) {

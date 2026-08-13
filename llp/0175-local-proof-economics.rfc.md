@@ -12,6 +12,13 @@ content-caused prepare failures reclassified as content, and runner ticket
 requests via an authorized source-ticket publisher — each effective only when
 its implementing change lands; registry contract gains per-gate semantic
 input closures and execution receipts. See the dated ruling block in D2.1.)
+**Revised:** 2026-08-13 (optimistic-landing amendment, author ruling by Charlie
+Cheever in session: ordinary `origin/main` pushes keep checked frozen-record
+selection but defer execution to the scheduled backstop; non-main refs receive
+no scheduled-main claim; `SNAPBACK_DRIFT_GATES_STRICT=1` retains the complete
+synchronous classifier; the backstop now shares D-3 classification and
+same-closure contradiction detection; full and bypass spellings remain
+compatible; D2.2–D2.4 and release qualification are unchanged.)
 **Revised:** 2026-08-05 (first implementation tranche: Phase 0's named timed
 gate runner, dependency-aware keep-going, dependency inventory, and retained
 JSONL artifact land together with D3.1 doctor reuse, D3.2 clean exact-
@@ -458,22 +465,49 @@ The registered set is:
 > `semanticInputClosure` declarations with admission checks, execution
 > receipts, and derived validation receipts (LLP 0232 D-1).
 
+> **Author ruling — 2026-08-13 (Charlie Cheever, in session), superseding the
+> ordinary-push execution requirement in the dated rulings above.** Ordinary
+> pushes still compute the exact ref-update path union and select the same
+> trigger, always-run, and broad/unknown tiers, but they report and defer the
+> selected commands for revisions targeting `origin/main` to the scheduled
+> two-hour backstop. A non-main ref is reported without claiming a scheduled
+> verdict; its later `origin/main` landing is selected independently. There is
+> no ambient same-change frozen-record veto.
+> `SNAPBACK_DRIFT_GATES_STRICT=1` explicitly
+> runs the selected commands with the 2026-08-11 D-3 classifier; add
+> `SNAPBACK_DRIFT_GATES_FULL=1` for the complete registry. For backward
+> compatibility, `FULL=1` alone implies strict/full and `BYPASS=1` remains an
+> accepted loud skip. D2.2 affected product checks, D2.3 canonical scheduled
+> verification, D2.4 release/platform proof, ticket idempotency, and
+> attribution remain. Activating the backstop as ordinary frozen-record
+> authority also activates D-3's closed classifier there: clean content reds
+> repeat once, contradictions become unattributed nondeterminism tickets,
+> stable content reds retain signature-epoch attribution, and runner-controlled
+> setup failures retain self-health streaks. LLP 0232's 2026-08-13 amendment
+> owns the boundaries for dangerous and irreversible operations.
+
 The tracked `.githooks/pre-push` consumes Git's ref-update stream, computes the
 union of paths in every committed landing being introduced (plus the net diff
 for a rewritten update), and asks `selectDriftProneGates` for the registered
 checks. It never selects from working-tree-only edits. A known path with no
-drift trigger runs zero drift gates. A path classified `all`, or a path with no
-classification, runs its trigger-matched gates plus the fast fail-closed core;
-the explicit full-tier environment variable adds every registered gate. A new
-failure names the stale record, canonical check, and exact regeneration
-command, while baseline-proven pre-existing staleness is reported and allowed.
+drift trigger selects zero trigger-matched gates beyond the configured
+always-run tier. A path classified `all`, or a path with no classification,
+selects its trigger-matched gates plus the fast fail-broad core; strict full
+mode selects every registered gate. Ordinary mode prints the selected gates
+and returns without running their prepare/check commands.
+
+Strict mode retains the prior execution contract. A new failure names the
+stale record, canonical check, and exact regeneration command, while
+baseline-proven pre-existing staleness is reported and allowed. Multi-ref
+updates use the union of committed paths and report each revision/ref count;
+unknown and broad selections are explicit in both deferred and strict output.
 
 The agent-safe publication checker's own file has an explicit publication rule
 ahead of the broad `tests/` fallback. Changing that trigger/record therefore
 runs its owning drift gate without converting an otherwise known path into a
 full-registry environment probe; genuinely unknown test paths still fail broad.
 
-When the requested revision cannot run in the invoking worktree, the hook's
+When strict mode requests a revision that cannot run in the invoking worktree, the hook's
 detached checkout is created beside it so sibling repositories retain their
 normal resolution. It mirrors every installed `node_modules` tree below a
 tracked project directory into a real ignored directory (linking the entries,
@@ -481,9 +515,21 @@ not the directory itself), initializes an already-available Ibex submodule,
 and reuses explicit or locally prepared native caches. Registry entries declare
 non-built-in Node modules and required ignored/prepared paths, which are
 resolved or projected before the gate starts. Missing modules or prepared
-paths, failed prepare commands, missing executables, signals, and stable
-bootstrap/environment diagnostics are exit-2 infrastructure errors: they make
-no stale-record claim and file no backstop ticket.
+paths, missing executables, signals, and stable bootstrap/environment
+diagnostics are runner-setup evidence. In strict D-3 mode, only
+baseline-corroborated runner-controlled failures proceed as `INFRASTRUCTURE`
+with a ticket request; content-caused prepare failures remain content evidence
+and block. The backstop uses the same content/setup boundary and repeats a
+clean content red once before attribution; contradictory determinate outcomes
+over an unchanged observed execution closure become unattributed
+nondeterminism tickets. The closure binds the tracked tree, declared prepared
+inputs, the complete installed dependency-tree bytes including symlink targets,
+actual resolved module-package bytes, submodule Git trees/status and
+prepared runtime artifacts, command identity, sanitized environment, and
+named tool executable bytes at both execution boundaries. A topology that
+cannot support a first-parent causal claim stays unattributed. The backstop
+retains its infrastructure streak/ticket protocol and never mislabels a
+runner-controlled setup failure as stale-record drift.
 
 The auth-invalidation report declares the ignored Todo and RBAC generated
 manifests compiled by its Rust receipt tests. They are environment inputs, not
@@ -537,15 +583,23 @@ cannot suppress the developer's repair command. Captured JavaScript checker
 diagnostics retain their assertion and diff text but omit stack frames; an
 infrastructure failure retains its complete diagnostic output.
 
-`SNAPBACK_DRIFT_GATES_BYPASS=1` is the sole bypass. Any other value refuses;
-the accepted value prints a conspicuous banner and the skipped gates. The
-bypass does not disarm `node scripts/drift-prone-gates.mjs backstop`: that
+`SNAPBACK_DRIFT_GATES_BYPASS=1` remains the compatibility bypass. Any other
+value refuses; the accepted value prints a conspicuous banner and the skipped
+gates. In ordinary mode it additionally explains that deferral is already the
+default; in strict mode it retains its historical emergency-skip meaning.
+`SNAPBACK_DRIFT_GATES_STRICT` and `SNAPBACK_DRIFT_GATES_FULL` likewise accept
+only exact `1`. `FULL=1` alone preserves legacy callers by implying strict/full;
+the preferred complete-registry spelling names both variables. Neither mode nor
+the bypass disarms `node scripts/drift-prone-gates.mjs backstop`: that
 command checks the registered set independently of path selection at the
-selected `main` revision, attributes drift from the most recent green record
-epoch along first parent when possible, and files one
-`issues/YYYYMMDD-main-drift-<gate>.md` ticket. The open-ticket `Drift gate`
-marker is the idempotency key; moving a resolved ticket to `issues/closed/`
-rearms the detector.
+selected `main` revision, normalizes the failure signature, attributes the
+current signature epoch along first parent when possible, and files
+`issues/YYYYMMDD-main-drift-<gate>-<signature>.md`. The `Drift gate` plus
+`Failure signature` markers are the idempotency key: re-observation updates the
+existing ticket's `Last observed` revision, while a distinct signature for the
+same gate gets a distinct ticket. A legacy gate-only open ticket adopts the
+first observed signature in place; moving a resolved ticket to
+`issues/closed/` rearms that signature.
 
 Telemetry keeps D2.4's distinct semantics: its same-change check proves the
 retained receipt is historically valid, but an ancestral `LAGGING` or
@@ -925,6 +979,9 @@ executable code:
   request those prerequisites explicitly; and
 - the complete inventory now runs on six-hour/manual latest-main cadence rather
   than once per push, with heavyweight setup conditional on selected claims.
+- the pre-push frozen-record selector now reports and defers selected gates by
+  default; explicit strict mode retains synchronous execution and its complete
+  D-3 classification, while the two-hour backstop remains authoritative.
 
 No test, assertion, platform obligation, capability gate, or receipt claim was
 removed. The measured 7.5-minute doctor saving and bootstrap savings remain

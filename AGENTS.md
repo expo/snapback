@@ -106,14 +106,21 @@ them after normal checkout/merge operations in this local clone.
 
 Activate the tracked hooks with `git config core.hooksPath .githooks` (a
 relative path keeps each linked worktree on its own checked-out hook). The
-pre-push hook runs only frozen-record gates selected by the committed paths
-being pushed; broad or unknown paths add a fast fail-closed core tier, while
-`SNAPBACK_DRIFT_GATES_FULL=1` opts into the complete registry. Baseline-proven
-pre-existing staleness is reported but does not block. A deliberate emergency
-bypass must be exact and loud: `SNAPBACK_DRIFT_GATES_BYPASS=1 git push ...`.
-Never put that variable in shell startup files. The independent main detector is
-`node scripts/drift-prone-gates.mjs backstop`; it files one open `issues/`
-ticket per stale gate and does not duplicate a still-open ticket. The complete
+pre-push hook selects frozen-record gates from the committed paths being
+pushed and reports them. Revisions targeting `origin/main` ordinarily defer
+execution to the scheduled backstop; non-main refs run nothing and make no
+scheduled-main claim until they later land on `origin/main`. Use
+`SNAPBACK_DRIFT_GATES_STRICT=1 git push ...` for synchronous
+enforcement; add `SNAPBACK_DRIFT_GATES_FULL=1` for the complete registry.
+`FULL=1` alone remains a compatible strict/full spelling. The legacy
+`SNAPBACK_DRIFT_GATES_BYPASS=1 git push ...` spelling remains accepted and
+loud but is redundant for an ordinary deferred push. Never put any of these
+variables in shell startup files. In strict mode, baseline-proven inherited
+reds and corroborated infrastructure proceed under LLP 0232; introduced
+content reds and nondeterminism block. The independent main detector is
+`node scripts/drift-prone-gates.mjs backstop`; it repeats clean content reds,
+files one open `issues/` ticket per normalized stale/nondeterministic signature,
+and does not duplicate a still-open signature. The complete
 suite runs every two hours on the `com.snapback.drift-backstop` launchd
 schedule; install or refresh it with `scripts/install-drift-backstop-schedule`.
 (That backstop covers the frozen-record drift registry only; it is not the
@@ -151,6 +158,16 @@ silent wedge trap (ENG-22659).
   against the landed commit, keeping any capability claim gated on its
   scoped post-landing evidence plus the LLP 0189 D-6 battery reference.
   Expect to `git fetch` + rebase right before every push, and to retry.
+- **Optimistic landing is the ordinary default (author ruling 2026-08-13,
+  LLP 0232).** If affected tests passed in the branch/worktree, the tested
+  semantic delta survives integration unchanged, and merge/rebase adds no
+  semantic conflict resolution, land immediately. Do not rerun expensive
+  checks merely because `main` advanced. Rerun checks whose semantic inputs
+  changed; address known failing affected product tests before landing.
+  Frozen-record drift verdicts are scheduled fix-forward work by default, not
+  an ambient landing veto. This does not relax publication/promotion,
+  destructive migration, urgent-security, active-corruption, or similar
+  irreversible/high-danger protocols.
 - **Verification cadence and claim gating follow LLP 0189.** Landings run
   fast/affected checks only; the complete battery runs on schedule (at least
   twice daily) and its reds become fix-forward tickets, not retroactive

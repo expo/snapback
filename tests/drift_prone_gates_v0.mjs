@@ -34,15 +34,16 @@ import {
 // Every probe below is committed in a disposable clone before Git invokes the
 // real tracked pre-push hook. A working-tree-only edit is deliberately never
 // used as evidence for selection or enforcement.
-// @ref LLP 0175#same-change-frozen-record-coupling — committed-history
-// integration fixtures prove refusal, reconciliation, bypass, baseline
-// attribution, fail-closed tiering, and the scheduled backstop contract.
+// @ref LLP 0232#optimistic-landing-default-2026-08-13 — committed-history
+// integration fixtures prove default deferral, strict refusal/reconciliation,
+// compatibility bypass, tiering, and the authoritative scheduled backstop.
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const IMPLEMENTATION_FILES = [
   '.githooks/pre-push',
   'issues/closed/20260811-record-inventory-guide.md',
   'issues/20260809-0199-ownership-ratchet-worklist.md',
+  'issues/20260810-main-module-ownership-red-jobs-edges.md',
   'issues/closed/20260810-main-module-ownership-red-rehearsal-edges.md',
   'ownership.baseline.json',
   'ownership.manifest.json',
@@ -267,6 +268,27 @@ if (mode === 'pass') {
     console.error('fixture content failure: transient contradiction');
     process.exitCode = 1;
   }
+} else if (mode === 'alternating-red') {
+  const counter = process.env.SNAPBACK_DRIFT_FIXTURE_COUNTER;
+  if (existsSync(counter)) {
+    console.error('fixture content failure: second contradictory red');
+  } else {
+    writeFileSync(counter, 'first red observed\\n');
+    console.error('fixture content failure: first contradictory red');
+  }
+  process.exitCode = 1;
+} else if (mode === 'dependency-drift') {
+  const dependency = new URL('../node_modules/fixture-dependency/mutable.txt', import.meta.url);
+  const before = readFileSync(dependency, 'utf8').trim();
+  writeFileSync(dependency, before + '-changed\\n');
+  console.error('fixture content failure: dependency changed from ' + before);
+  process.exitCode = 1;
+} else if (mode === 'dependency-sibling-drift') {
+  const dependency = new URL('../node_modules/@fixture/platform/mutable.txt', import.meta.url);
+  const before = readFileSync(dependency, 'utf8').trim();
+  writeFileSync(dependency, before + '-changed\\n');
+  console.error('fixture content failure: platform sibling changed from ' + before);
+  process.exitCode = 1;
 } else {
   console.error('fixture invalid mode: ' + mode);
   process.exitCode = 2;
@@ -292,6 +314,52 @@ function fixtureOutcomeContext(gateId = 'guide') {
     prerequisites: [],
   }];
   return context;
+}
+
+function fixtureFullRegistryContext() {
+  const context = fixtureOutcomeContext();
+  context.policy.driftFailClosedCoreGates = ['guide'];
+  context.policy.driftProneGates['contract-meta'] = {
+    records: ['fixture/second-frozen-record.json'],
+    recordPaths: ['fixture/second-frozen-record.json'],
+    triggerRules: { prefixes: ['second-fixture/'] },
+    regenerateCommand: 'node fixture/gate.mjs regenerate',
+    prepareCommand: 'node fixture/gate.mjs prepare',
+  };
+  context.calls.push({
+    gateId: 'contract-meta',
+    command: 'node fixture/gate.mjs check',
+    prerequisites: [],
+  });
+  return context;
+}
+
+function fixtureExternalDependencyContext(gateId = 'guide') {
+  const context = fixtureOutcomeContext(gateId);
+  context.policy.driftProneGates[gateId].requiredModules = ['fixture-dependency'];
+  return context;
+}
+
+function installFixtureDependency(repo) {
+  const directory = join(repo, 'node_modules/fixture-dependency');
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(join(directory, 'package.json'), `${JSON.stringify({
+    name: 'fixture-dependency',
+    version: '1.0.0',
+    main: 'index.js',
+    optionalDependencies: { '@fixture/platform': '1.0.0' },
+  })}\n`);
+  writeFileSync(join(directory, 'index.js'), 'module.exports = true;\n');
+  writeFileSync(join(directory, 'mutable.txt'), 'original\n');
+  const platformDirectory = join(repo, 'node_modules/@fixture/platform');
+  mkdirSync(platformDirectory, { recursive: true });
+  writeFileSync(join(platformDirectory, 'package.json'), `${JSON.stringify({
+    name: '@fixture/platform',
+    version: '1.0.0',
+    main: 'index.js',
+  })}\n`);
+  writeFileSync(join(platformDirectory, 'index.js'), 'module.exports = true;\n');
+  writeFileSync(join(platformDirectory, 'mutable.txt'), 'original\n');
 }
 
 function capturePrePush(callback) {
@@ -322,6 +390,10 @@ function runOutcomeFixture({
   gateId = 'guide',
   staleRequestLock = false,
   tornRequestLine = null,
+  triggerPath = 'fixture/trigger.txt',
+  multiRef = null,
+  secondPushed = pushed,
+  contextFactory = fixtureOutcomeContext,
   env: envOverrides = {},
 }) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-drift-outcome-'));
@@ -332,13 +404,18 @@ function runOutcomeFixture({
     git(repo, ['config', 'user.name', 'Snapback drift outcome fixture']);
     git(repo, ['config', 'user.email', 'snapback-drift-outcome@example.invalid']);
     mkdirSync(join(repo, 'fixture'));
-    writeFileSync(join(repo, '.gitignore'), '/target\n');
+    writeFileSync(join(repo, '.gitignore'), '/target\n/node_modules\n');
     writeFileSync(join(repo, 'fixture/gate.mjs'), OUTCOME_GATE_SOURCE);
     writeFileSync(join(repo, 'fixture/frozen-record.json'), '{}\n');
     writeFileSync(join(repo, 'fixture/state.json'), `${JSON.stringify(baseline)}\n`);
+    const fixtureContext = contextFactory(gateId);
+    if (fixtureContext.policy.driftProneGates[gateId].requiredModules?.includes(
+      'fixture-dependency',
+    )) installFixtureDependency(repo);
     const baselineRevision = commitAll(repo, 'test: outcome baseline');
     writeFileSync(join(repo, 'fixture/state.json'), `${JSON.stringify(pushed)}\n`);
-    writeFileSync(join(repo, 'fixture/trigger.txt'), 'pushed revision\n');
+    mkdirSync(dirname(join(repo, triggerPath)), { recursive: true });
+    writeFileSync(join(repo, triggerPath), 'pushed revision\n');
     const pushedRevision = commitAll(repo, 'test: outcome pushed revision');
     const remoteRevision = unavailableBaseline
       ? git(repo, [
@@ -348,6 +425,14 @@ function runOutcomeFixture({
           'unrelated baseline',
         ]).trim()
       : baselineRevision;
+    let secondRevision = null;
+    if (multiRef === 'distinct-tips') {
+      git(repo, ['checkout', '--detach', '--quiet', baselineRevision]);
+      writeFileSync(join(repo, 'fixture/state.json'), `${JSON.stringify(secondPushed)}\n`);
+      mkdirSync(join(repo, 'second-fixture'), { recursive: true });
+      writeFileSync(join(repo, 'second-fixture/trigger.txt'), 'second pushed revision\n');
+      secondRevision = commitAll(repo, 'test: distinct second-ref revision');
+    }
     const requestPath = join(repo, 'target/proof/drift-ticket-requests.jsonl');
     if (tornRequestLine !== null) {
       mkdirSync(dirname(requestPath), { recursive: true });
@@ -362,16 +447,25 @@ function runOutcomeFixture({
       ...process.env,
       SNAPBACK_DRIFT_FIXTURE_COUNTER: join(scratch, 'counter'),
       SNAPBACK_DRIFT_TICKET_REQUESTS: 'target/proof/drift-ticket-requests.jsonl',
+      SNAPBACK_DRIFT_GATES_STRICT: '1',
       ...envOverrides,
     };
-    const input = `refs/heads/main ${pushedRevision} refs/heads/main ${remoteRevision}\n`;
+    const input = multiRef === 'same-tip'
+      ? `refs/heads/main ${pushedRevision} refs/heads/main ${remoteRevision}\n`
+        + `refs/heads/release ${pushedRevision} refs/heads/release ${remoteRevision}\n`
+      : multiRef === 'distinct-tips'
+        ? `refs/heads/main ${pushedRevision} refs/heads/main ${remoteRevision}\n`
+          + `refs/heads/release ${secondRevision} refs/heads/release ${remoteRevision}\n`
+      : multiRef === 'release-only'
+        ? `refs/heads/release ${pushedRevision} refs/heads/release ${remoteRevision}\n`
+      : `refs/heads/main ${pushedRevision} refs/heads/main ${remoteRevision}\n`;
     const runs = [];
     for (let index = 0; index < attempts; index += 1) {
       runs.push(capturePrePush(() => runPrePush({
         input,
         remoteName: 'origin',
         root: repo,
-        context: fixtureOutcomeContext(gateId),
+        context: fixtureContext,
         env,
       })));
     }
@@ -382,13 +476,23 @@ function runOutcomeFixture({
     const quarantined = existsSync(quarantinePath)
       ? readFileSync(quarantinePath, 'utf8').trim().split(/\r?\n/u).filter(Boolean).map(JSON.parse)
       : [];
-    return { runs, requests, quarantined, baselineRevision, pushedRevision };
+    return {
+      runs,
+      requests,
+      quarantined,
+      baselineRevision,
+      pushedRevision,
+      secondRevision,
+    };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
 }
 
-function runBackstopOutcomeFixture(state) {
+function runBackstopOutcomeFixture(
+  state,
+  { contextFactory = fixtureOutcomeContext } = {},
+) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-drift-backstop-outcome-'));
   const repo = join(scratch, 'repo');
   mkdirSync(repo);
@@ -397,13 +501,148 @@ function runBackstopOutcomeFixture(state) {
     git(repo, ['config', 'user.name', 'Snapback drift backstop fixture']);
     git(repo, ['config', 'user.email', 'snapback-drift-backstop@example.invalid']);
     mkdirSync(join(repo, 'fixture'));
-    writeFileSync(join(repo, '.gitignore'), '/target\n');
+    writeFileSync(join(repo, '.gitignore'), '/target\n/node_modules\n');
     writeFileSync(join(repo, 'fixture/gate.mjs'), OUTCOME_GATE_SOURCE);
     writeFileSync(join(repo, 'fixture/frozen-record.json'), '{}\n');
     writeFileSync(join(repo, 'fixture/state.json'), `${JSON.stringify(state)}\n`);
+    const context = contextFactory();
+    if (context.policy.driftProneGates.guide.requiredModules?.includes(
+      'fixture-dependency',
+    )) installFixtureDependency(repo);
     const revision = commitAll(repo, 'test: backstop outcome fixture');
     const result = capturePrePush(() => runBackstop({
       head: revision,
+      gate: 'guide',
+      issuesDir: 'issues',
+      root: repo,
+      context,
+      env: {
+        ...process.env,
+        SNAPBACK_DRIFT_FIXTURE_COUNTER: join(scratch, 'counter'),
+        SNAPBACK_DRIFT_TICKET_DATE: '2026-08-11',
+      },
+    }));
+    const issues = existsSync(join(repo, 'issues')) ? readdirSync(join(repo, 'issues')) : [];
+    return {
+      result,
+      issues,
+      issueBodies: issues.map((name) => readFileSync(join(repo, 'issues', name), 'utf8')),
+    };
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+function runBackstopSignatureFixture({
+  details = ['first distinct red', 'second distinct red'],
+  legacyTicket = false,
+} = {}) {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-drift-backstop-signatures-'));
+  const repo = join(scratch, 'repo');
+  mkdirSync(repo);
+  try {
+    git(repo, ['init', '--quiet']);
+    git(repo, ['config', 'user.name', 'Snapback drift signature fixture']);
+    git(repo, ['config', 'user.email', 'snapback-drift-signatures@example.invalid']);
+    mkdirSync(join(repo, 'fixture'));
+    writeFileSync(join(repo, '.gitignore'), '/target\n');
+    writeFileSync(join(repo, 'fixture/gate.mjs'), OUTCOME_GATE_SOURCE);
+    writeFileSync(join(repo, 'fixture/frozen-record.json'), '{}\n');
+    writeFileSync(
+      join(repo, 'fixture/state.json'),
+      `${JSON.stringify({ prepare: 'pass', check: 'pass' })}\n`,
+    );
+    commitAll(repo, 'test: green backstop baseline');
+    const env = {
+      ...process.env,
+      SNAPBACK_DRIFT_FIXTURE_COUNTER: join(scratch, 'counter'),
+      SNAPBACK_DRIFT_TICKET_DATE: '2026-08-11',
+    };
+    if (legacyTicket) {
+      mkdirSync(join(repo, 'issues'));
+      writeFileSync(
+        join(repo, 'issues/20260810-legacy-guide-drift.md'),
+        '# Legacy guide drift\n\n**Status:** Open\n**Drift gate:** `guide`\n',
+      );
+    }
+    const runs = [];
+    const revisions = [];
+    for (const detail of details) {
+      writeFileSync(
+        join(repo, 'fixture/state.json'),
+        `${JSON.stringify({ prepare: 'pass', check: `content:${detail}` })}\n`,
+      );
+      revisions.push(commitAll(repo, `test: ${detail}`));
+      runs.push(capturePrePush(() => runBackstop({
+        head: 'HEAD',
+        gate: 'guide',
+        issuesDir: 'issues',
+        root: repo,
+        context: fixtureOutcomeContext(),
+        env,
+      })));
+    }
+    if (details.length > 1) {
+      runs.push(capturePrePush(() => runBackstop({
+        head: 'HEAD',
+        gate: 'guide',
+        issuesDir: 'issues',
+        root: repo,
+        context: fixtureOutcomeContext(),
+        env,
+      })));
+    }
+    const issueNames = readdirSync(join(repo, 'issues')).sort();
+    const issues = issueNames.map((name) => ({
+      name,
+      body: readFileSync(join(repo, 'issues', name), 'utf8'),
+    }));
+    return { runs, revisions, issues };
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+function runBackstopMergeTopologyFixture() {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-drift-backstop-merge-'));
+  const repo = join(scratch, 'repo');
+  mkdirSync(repo);
+  try {
+    git(repo, ['init', '--quiet']);
+    git(repo, ['config', 'user.name', 'Snapback drift merge fixture']);
+    git(repo, ['config', 'user.email', 'snapback-drift-merge@example.invalid']);
+    mkdirSync(join(repo, 'fixture'));
+    writeFileSync(join(repo, '.gitignore'), '/target\n');
+    writeFileSync(join(repo, 'fixture/gate.mjs'), OUTCOME_GATE_SOURCE);
+    writeFileSync(join(repo, 'fixture/frozen-record.json'), '{}\n');
+    writeFileSync(
+      join(repo, 'fixture/state.json'),
+      `${JSON.stringify({ prepare: 'pass', check: 'pass' })}\n`,
+    );
+    const baseline = commitAll(repo, 'test: green merge baseline');
+
+    git(repo, ['checkout', '-b', 'record-side', '--quiet']);
+    writeFileSync(join(repo, 'fixture/frozen-record.json'), '{"side":true}\n');
+    writeFileSync(
+      join(repo, 'fixture/state.json'),
+      `${JSON.stringify({ prepare: 'pass', check: 'content:red introduced by merge side' })}\n`,
+    );
+    const sideRecordCommit = commitAll(repo, 'test: update record on merge side');
+
+    git(repo, ['checkout', '-b', 'main-line', '--quiet', baseline]);
+    writeFileSync(join(repo, 'main-line.txt'), 'main line\n');
+    commitAll(repo, 'test: advance first parent');
+    git(repo, ['merge', '--no-ff', '--no-edit', 'record-side']);
+    writeFileSync(join(repo, 'post-merge.txt'), 'unrelated advance\n');
+    const headRevision = commitAll(repo, 'test: unrelated advance after red merge');
+    assert.equal(
+      git(repo, ['log', '-1', '--format=%H', 'HEAD', '--', 'fixture/frozen-record.json']).trim(),
+      sideRecordCommit,
+      'fixture record epoch must resolve through the non-first parent',
+    );
+
+    const result = capturePrePush(() => runBackstop({
+      head: headRevision,
       gate: 'guide',
       issuesDir: 'issues',
       root: repo,
@@ -414,9 +653,15 @@ function runBackstopOutcomeFixture(state) {
         SNAPBACK_DRIFT_TICKET_DATE: '2026-08-11',
       },
     }));
+    const issueName = readdirSync(join(repo, 'issues')).find((name) => (
+      name.includes('main-drift-guide')
+    ));
+    assert.ok(issueName);
     return {
       result,
-      issues: existsSync(join(repo, 'issues')) ? readdirSync(join(repo, 'issues')) : [],
+      headRevision,
+      sideRecordCommit,
+      issue: readFileSync(join(repo, 'issues', issueName), 'utf8'),
     };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
@@ -524,6 +769,194 @@ test('refusal keeps the regenerate command actionable when Git status is unavail
   assert.match(output, /regenerate: node scripts\/generate-guide-manifest\.mjs/u);
   assert.match(output, /regenerated path inspection unavailable \(non-fatal\)/u);
   assert.doesNotMatch(output, /\n\s+at /u);
+});
+
+test('ordinary push selects relevant gates, defers them, and runs no gate command', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'content:would block under strict mode', check: 'pass' },
+    env: { SNAPBACK_DRIFT_GATES_STRICT: '' },
+  });
+  assert.equal(runs[0].status, 0, runs[0].output);
+  assert.match(runs[0].output, /selected 1 gate\(s\): guide/u);
+  assert.match(runs[0].output, /DEFERRED BY DEFAULT: .* no gate commands ran: guide/u);
+  assert.match(runs[0].output, /strict opt-in: SNAPBACK_DRIFT_GATES_STRICT=1 git push/u);
+  assert.doesNotMatch(runs[0].output, /\[snapback-drift\] RUN |fixture content failure/u);
+  assert.deepEqual(requests, []);
+});
+
+test('default multi-ref push separates scheduled-main deferral from a non-main tip', () => {
+  const { runs, pushedRevision, secondRevision } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'pass' },
+    multiRef: 'distinct-tips',
+    contextFactory: fixtureFullRegistryContext,
+    env: { SNAPBACK_DRIFT_GATES_STRICT: '' },
+  });
+  assert.equal(runs[0].status, 0, runs[0].output);
+  assert.match(
+    runs[0].output,
+    new RegExp(`${pushedRevision.slice(0, 12)}: .*selected 1 gate\\(s\\): guide`, 'u'),
+  );
+  assert.match(
+    runs[0].output,
+    new RegExp(
+      `${secondRevision.slice(0, 12)}: .*selected 2 gate\\(s\\): contract-meta, guide`,
+      'u',
+    ),
+  );
+  assert.equal((runs[0].output.match(/DEFERRED BY DEFAULT/gu) ?? []).length, 1);
+  assert.match(runs[0].output, /origin\/main drift-prone gate\(s\); no gate commands ran: guide/u);
+  assert.match(
+    runs[0].output,
+    /NON-MAIN REF: 1 ref update\(s\) across 1 distinct revision\(s\), 1 committed path\(s\), selected 2 gate\(s\); no gate commands ran and no independent scheduled-main verdict is claimed: contract-meta, guide/u,
+  );
+  assert.match(runs[0].output, /a later origin\/main landing is selected from its own ref update/u);
+  assert.doesNotMatch(runs[0].output, /\[snapback-drift\] RUN /u);
+});
+
+test('default same-tip main and non-main refs report both dispositions without duplicate execution', () => {
+  const { runs } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'pass' },
+    multiRef: 'same-tip',
+    env: { SNAPBACK_DRIFT_GATES_STRICT: '' },
+  });
+  assert.equal(runs[0].status, 0, runs[0].output);
+  assert.match(runs[0].output, /across 2 ref update\(s\) selected 1 gate\(s\): guide/u);
+  assert.match(runs[0].output, /DEFERRED BY DEFAULT: .*no gate commands ran: guide/u);
+  assert.match(
+    runs[0].output,
+    /NON-MAIN REF: 1 ref update\(s\) across 1 distinct revision\(s\).*no independent scheduled-main verdict is claimed: guide/u,
+  );
+  assert.match(runs[0].output, /same-tip origin\/main update is covered by that landing/u);
+  assert.doesNotMatch(runs[0].output, /\[snapback-drift\] RUN /u);
+});
+
+test('default non-main-only push makes no scheduled-backstop claim', () => {
+  const { runs } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'pass' },
+    multiRef: 'release-only',
+    env: { SNAPBACK_DRIFT_GATES_STRICT: '' },
+  });
+  assert.equal(runs[0].status, 0, runs[0].output);
+  assert.match(runs[0].output, /NON-MAIN REF: 1 ref update\(s\) across 1 distinct revision\(s\), 1 committed path\(s\), selected 1 gate\(s\)/u);
+  assert.match(runs[0].output, /later origin\/main landing/u);
+  assert.doesNotMatch(runs[0].output, /DEFERRED BY DEFAULT|scheduled authority:/u);
+  assert.doesNotMatch(runs[0].output, /\[snapback-drift\] RUN /u);
+});
+
+test('strict multi-ref push executes distinct tips and attributes the failing ref', () => {
+  const { runs, baselineRevision, pushedRevision, secondRevision } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'pass' },
+    secondPushed: { prepare: 'content:second ref introduced failure', check: 'pass' },
+    multiRef: 'distinct-tips',
+    contextFactory: fixtureFullRegistryContext,
+    env: { SNAPBACK_DRIFT_GATES_STRICT: '1' },
+  });
+  assert.equal(runs[0].status, 1, runs[0].output);
+  assert.match(
+    runs[0].output,
+    new RegExp(`${pushedRevision.slice(0, 12)}: .*selected 1 gate\\(s\\): guide`, 'u'),
+  );
+  assert.match(runs[0].output, /RUN guide:.*PASS guide/su);
+  assert.match(
+    runs[0].output,
+    new RegExp(
+      `${secondRevision.slice(0, 12)}: .*selected 2 gate\\(s\\): contract-meta, guide`,
+      'u',
+    ),
+  );
+  assert.match(runs[0].output, /OUTCOME CONTENT_RED contract-meta/u);
+  assert.match(
+    runs[0].output,
+    new RegExp(`baseline ${baselineRevision.slice(0, 12)} passed`, 'u'),
+  );
+  assert.doesNotMatch(runs[0].output, /DEFERRED BY DEFAULT/u);
+});
+
+test('default unknown and broad paths explicitly defer the selected core tier', () => {
+  for (const triggerPath of ['unclassified-drift-probe.xyz', 'package.json']) {
+    const { runs } = runOutcomeFixture({
+      baseline: { prepare: 'pass', check: 'pass' },
+      pushed: { prepare: 'pass', check: 'pass' },
+      triggerPath,
+      contextFactory: fixtureFullRegistryContext,
+      env: { SNAPBACK_DRIFT_GATES_STRICT: '' },
+    });
+    assert.equal(runs[0].status, 0, runs[0].output);
+    assert.match(runs[0].output, /DEFERRED BROAD selection: (?:unknown|broad):/u);
+    assert.match(runs[0].output, /selected CORE tier \(1 of 2 registered gates\)/u);
+    assert.match(runs[0].output, /no gate commands ran: guide/u);
+    assert.doesNotMatch(runs[0].output, /\[snapback-drift\] RUN /u);
+  }
+});
+
+test('strict full-registry mode runs every registered gate', () => {
+  const { runs } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'pass' },
+    triggerPath: 'fixture/trigger.txt',
+    contextFactory: fixtureFullRegistryContext,
+    env: {
+      SNAPBACK_DRIFT_GATES_STRICT: '1',
+      SNAPBACK_DRIFT_GATES_FULL: '1',
+    },
+  });
+  assert.equal(runs[0].status, 0, runs[0].output);
+  assert.match(runs[0].output, /FULL REGISTRY: selected all 2 registered gate/u);
+  assert.match(runs[0].output, /RUN guide:/u);
+  assert.match(runs[0].output, /RUN contract-meta:/u);
+  assert.doesNotMatch(runs[0].output, /DEFERRED BY DEFAULT/u);
+});
+
+test('strict, full, and bypass environment variables reject non-exact values', () => {
+  for (const [name, value] of [
+    ['SNAPBACK_DRIFT_GATES_STRICT', 'true'],
+    ['SNAPBACK_DRIFT_GATES_FULL', '0'],
+    ['SNAPBACK_DRIFT_GATES_BYPASS', 'yes'],
+  ]) {
+    const { runs } = runOutcomeFixture({
+      baseline: { prepare: 'pass', check: 'pass' },
+      pushed: { prepare: 'pass', check: 'pass' },
+      env: { [name]: value },
+    });
+    assert.equal(runs[0].status, 2, runs[0].output);
+    assert.match(runs[0].output, new RegExp(`${name} must be exactly 1 when used`, 'u'));
+    assert.doesNotMatch(runs[0].output, /\[snapback-drift\] RUN /u);
+  }
+});
+
+test('legacy full spelling implies strict mode and legacy bypass stays compatible', () => {
+  const full = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'pass' },
+    triggerPath: 'fixture/trigger.txt',
+    contextFactory: fixtureFullRegistryContext,
+    env: {
+      SNAPBACK_DRIFT_GATES_STRICT: '',
+      SNAPBACK_DRIFT_GATES_FULL: '1',
+    },
+  });
+  assert.equal(full.runs[0].status, 0, full.runs[0].output);
+  assert.match(full.runs[0].output, /SNAPBACK_DRIFT_GATES_FULL=1 implies strict/u);
+  assert.match(full.runs[0].output, /FULL REGISTRY: selected all 2 registered gate/u);
+  assert.match(full.runs[0].output, /RUN contract-meta:/u);
+
+  const bypass = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'content:would fail if executed', check: 'pass' },
+    env: {
+      SNAPBACK_DRIFT_GATES_STRICT: '',
+      SNAPBACK_DRIFT_GATES_BYPASS: '1',
+    },
+  });
+  assert.equal(bypass.runs[0].status, 0, bypass.runs[0].output);
+  assert.match(bypass.runs[0].output, /COMPATIBILITY BYPASS: ordinary pushes already defer/u);
+  assert.match(bypass.runs[0].output, /BYPASS ALLOWED: skipped 1 selected gate/u);
+  assert.doesNotMatch(bypass.runs[0].output, /\[snapback-drift\] RUN /u);
 });
 
 test('pushed-revision prepare build failure blocks as CONTENT_RED', () => {
@@ -653,6 +1086,46 @@ test('contradictory determinate executions block as NONDETERMINISTIC without att
   assert.equal(requests[0].attribution, null);
 });
 
+test('red-to-different-red contradiction blocks before inherited-red attribution', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'alternating-red' },
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(runs[0].output, /OUTCOME NONDETERMINISTIC guide/u);
+  assert.match(runs[0].output, /first contradictory red|second contradictory red/u);
+  assert.doesNotMatch(runs[0].output, /ATTRIBUTION CHECK|OUTCOME INHERITED_RED/u);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].outcomeType, 'NONDETERMINISTIC');
+  assert.deepEqual(requests[0].corroboration.map(({ outcome }) => outcome), ['red', 'red']);
+});
+
+test('strict mode refuses nondeterminism classification when resolved dependency bytes drift', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'dependency-drift' },
+    contextFactory: fixtureExternalDependencyContext,
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(runs[0].output, /OUTCOME UNKNOWN guide/u);
+  assert.match(runs[0].output, /observed execution closure changed after the first determinate red/u);
+  assert.doesNotMatch(runs[0].output, /OUTCOME NONDETERMINISTIC|ATTRIBUTION CHECK/u);
+  assert.deepEqual(requests, []);
+});
+
+test('strict mode binds platform sibling bytes in the installed dependency mirror', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'dependency-sibling-drift' },
+    contextFactory: fixtureExternalDependencyContext,
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(runs[0].output, /OUTCOME UNKNOWN guide/u);
+  assert.match(runs[0].output, /observed execution closure changed after the first determinate red/u);
+  assert.doesNotMatch(runs[0].output, /OUTCOME NONDETERMINISTIC|ATTRIBUTION CHECK/u);
+  assert.deepEqual(requests, []);
+});
+
 test('unclassifiable failure output blocks as an unknown control-plane failure', () => {
   const { runs, requests } = runOutcomeFixture({
     baseline: { prepare: 'pass', check: 'pass' },
@@ -733,9 +1206,22 @@ test('module-ownership retains the broad prepare-failure infrastructure path', (
   assert.deepEqual(requests, []);
 });
 
-test('backstop keeps transient prepare failures out of stale-ticket attribution', () => {
+test('backstop treats a stable content-caused prepare red as stale content', () => {
   const { result, issues } = runBackstopOutcomeFixture({
-    prepare: 'content:transient backstop prepare failure',
+    prepare: 'content:stable backstop prepare failure',
+    check: 'pass',
+  });
+  assert.equal(result.status, 1, result.output);
+  assert.match(result.output, /DETERMINISM CHECK guide/u);
+  assert.match(result.output, /\bSTALE guide\b/u);
+  assert.doesNotMatch(result.output, /INFRASTRUCTURE ERROR guide/u);
+  assert.equal(issues.length, 1);
+  assert.match(issues[0], /^20260811-main-drift-guide-[0-9a-f]{16}\.md$/u);
+});
+
+test('backstop retains runner-controlled prepare failures as infrastructure', () => {
+  const { result, issues } = runBackstopOutcomeFixture({
+    prepare: 'infra:backstop setup unavailable',
     check: 'pass',
   });
   assert.equal(result.status, 2, result.output);
@@ -743,6 +1229,90 @@ test('backstop keeps transient prepare failures out of stale-ticket attribution'
   assert.match(result.output, /no stale-record ticket was filed/u);
   assert.doesNotMatch(result.output, /\bSTALE guide\b|main-drift-guide|\bFILED\b/u);
   assert.deepEqual(issues, []);
+});
+
+test('backstop repeats a clean content red and tickets contradictory execution as nondeterminism', () => {
+  const { result, issues, issueBodies } = runBackstopOutcomeFixture({
+    prepare: 'pass',
+    check: 'nondeterministic',
+  });
+  assert.equal(result.status, 1, result.output);
+  assert.match(result.output, /DETERMINISM CHECK guide/u);
+  assert.match(result.output, /NONDETERMINISTIC guide/u);
+  assert.doesNotMatch(result.output, /\bSTALE guide\b/u);
+  assert.equal(issues.length, 1);
+  assert.match(issueBodies[0], /\*\*Outcome:\*\* `NONDETERMINISTIC`/u);
+  assert.match(
+    issueBodies[0],
+    /\*\*Causal landing:\*\* `none — contradictory same-closure executions`/u,
+  );
+  assert.match(issueBodies[0], /\*\*Attribution:\*\* `none-nondeterministic`/u);
+});
+
+test('backstop does not ticket false nondeterminism when resolved dependency bytes drift', () => {
+  const { result, issues } = runBackstopOutcomeFixture(
+    { prepare: 'pass', check: 'dependency-drift' },
+    { contextFactory: fixtureExternalDependencyContext },
+  );
+  assert.equal(result.status, 2, result.output);
+  assert.match(result.output, /UNKNOWN guide/u);
+  assert.match(result.output, /observed execution closure changed after the first determinate red/u);
+  assert.match(result.output, /no stale-record ticket was filed/u);
+  assert.doesNotMatch(result.output, /NONDETERMINISTIC|\bSTALE guide\b/u);
+  assert.deepEqual(issues, []);
+});
+
+test('backstop binds platform sibling bytes in the installed dependency mirror', () => {
+  const { result, issues } = runBackstopOutcomeFixture(
+    { prepare: 'pass', check: 'dependency-sibling-drift' },
+    { contextFactory: fixtureExternalDependencyContext },
+  );
+  assert.equal(result.status, 2, result.output);
+  assert.match(result.output, /UNKNOWN guide/u);
+  assert.match(result.output, /observed execution closure changed after the first determinate red/u);
+  assert.match(result.output, /no stale-record ticket was filed/u);
+  assert.doesNotMatch(result.output, /NONDETERMINISTIC|\bSTALE guide\b/u);
+  assert.deepEqual(issues, []);
+});
+
+test('backstop attribution refuses to cross a non-first-parent record epoch', () => {
+  const { result, headRevision, sideRecordCommit, issue } = runBackstopMergeTopologyFixture();
+  assert.equal(result.status, 1, result.output);
+  assert.match(issue, /\*\*Causal landing:\*\* `none — record-epoch-off-first-parent`/u);
+  assert.match(issue, /\*\*Attribution:\*\* `record-epoch-off-first-parent`/u);
+  assert.ok(!issue.includes(`**Causal landing:** \`${headRevision}\``));
+  assert.ok(!issue.includes(`**Causal landing:** \`${sideRecordCommit}\``));
+});
+
+test('backstop keys distinct reds by signature and updates an unchanged observation', () => {
+  const { runs, revisions, issues } = runBackstopSignatureFixture();
+  assert.deepEqual(runs.map((run) => run.status), [1, 1, 1]);
+  assert.equal(issues.length, 2);
+  assert.ok(issues.every(({ name }) => (
+    /^20260811-main-drift-guide-[0-9a-f]{16}\.md$/u.test(name)
+  )));
+  const signatures = issues.map(({ body }) => (
+    body.match(/^\*\*Failure signature:\*\* `(sha256:[0-9a-f]{64})`$/mu)?.[1]
+  ));
+  assert.equal(new Set(signatures).size, 2);
+  const second = issues.find(({ body }) => body.includes(`\`${revisions[1]}\``));
+  assert.ok(second);
+  assert.match(second.body, /\*\*Attribution:\*\* `first-parent-signature-epoch`/u);
+  assert.ok(second.body.includes(`**Last observed:** \`${revisions[1]}\``));
+  assert.match(runs[2].output, /not filing a duplicate; updated its last observation/u);
+});
+
+test('backstop adopts a legacy gate-only ticket in place', () => {
+  const { runs, revisions, issues } = runBackstopSignatureFixture({
+    details: ['legacy ticket red'],
+    legacyTicket: true,
+  });
+  assert.equal(runs[0].status, 1, runs[0].output);
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].name, '20260810-legacy-guide-drift.md');
+  assert.match(issues[0].body, /^\*\*Failure signature:\*\* `sha256:[0-9a-f]{64}`$/mu);
+  assert.ok(issues[0].body.includes(`**Last observed:** \`${revisions[0]}\``));
+  assert.match(runs[0].output, /not filing a duplicate; updated its last observation/u);
 });
 
 test('failure normalization strips volatile durations, temp paths, PIDs, and ports', () => {
@@ -785,7 +1355,9 @@ test('missing declared dependencies reproduce as corroborated infrastructure', {
       '\n// committed dependency-infrastructure probe\n',
     );
     commitAll(repo, 'test: committed client gate with unavailable dependencies');
-    const result = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main']);
+    const result = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], {
+      env: { ...process.env, SNAPBACK_DRIFT_GATES_STRICT: '1' },
+    });
     assert.equal(result.status, 0, result.output);
     assert.match(result.output, /OUTCOME INFRASTRUCTURE client-bundle-metrology/u);
     assert.match(result.output, /required Node module\(s\) unavailable: esbuild/u);
@@ -844,7 +1416,7 @@ test('diary identity backstop files one ticket for a new collision', { timeout: 
     assert.match(first.output, new RegExp(`NEW collision ${prefix}:`, 'u'));
     assert.match(
       first.output,
-      /FILED issues\/20260810-main-drift-diary-identity\.md/u,
+      /FILED issues\/20260810-main-drift-diary-identity-[0-9a-f]{16}\.md/u,
     );
 
     const second = run(repo, process.execPath, [
@@ -853,11 +1425,10 @@ test('diary identity backstop files one ticket for a new collision', { timeout: 
     ], { env });
     assert.equal(second.status, 1, second.output);
     assert.match(second.output, /existing open ticket .*; not filing a duplicate/u);
-    assert.deepEqual(
-      readdirSync(join(repo, 'issues'))
-        .filter((name) => name.includes('main-drift-diary-identity')),
-      ['20260810-main-drift-diary-identity.md'],
-    );
+    const diaryTickets = readdirSync(join(repo, 'issues'))
+      .filter((name) => name.includes('main-drift-diary-identity'));
+    assert.equal(diaryTickets.length, 1);
+    assert.match(diaryTickets[0], /^20260810-main-drift-diary-identity-[0-9a-f]{16}\.md$/u);
     console.log(
       `DEMO diary NEW collision -> one idempotent backstop ticket\n`
         + `${relevantLines(first.output)}\n${relevantLines(second.output)}`,
@@ -886,7 +1457,9 @@ test('ownership protocol failures never use Boolean inherited-red attribution', 
       `${JSON.stringify(manifest, null, 2)}\n`,
     );
     commitAll(repo, 'test: ownership protocol failure is never Boolean-attributed');
-    const result = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main']);
+    const result = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], {
+      env: { ...process.env, SNAPBACK_DRIFT_GATES_STRICT: '1' },
+    });
     assert.equal(result.status, 1, result.output);
     assert.match(result.output, /legacy unassigned bucket is shrink-only/u);
     assert.match(result.output, /failed drift-prone gate module-ownership/u);
@@ -896,38 +1469,70 @@ test('ownership protocol failures never use Boolean inherited-red attribution', 
   }
 });
 
-test('same-change hook and main backstop operate on committed pushes', { timeout: 180_000 }, () => {
+test('optimistic hook, strict mode, and main backstop operate on committed pushes', { timeout: 180_000 }, () => {
   const { scratch, repo } = setupCommittedClone();
   const env = {
     ...process.env,
     SNAPBACK_DRIFT_TICKET_DATE: '2026-08-06',
   };
+  const strictEnv = {
+    ...env,
+    SNAPBACK_DRIFT_GATES_STRICT: '1',
+  };
   try {
     appendFileSync(
       join(repo, 'tests/agent_safe_publication_checker_v1.mjs'),
-      '\n// committed consistent-trigger probe\n',
+      '\n// committed default-deferral probe\n',
     );
-    const consistentCommit = commitAll(repo, 'test: consistent agent-safe trigger');
+    const deferredCommit = commitAll(repo, 'test: default defers selected agent-safe gate');
     appendFileSync(join(repo, 'README.md'), '\n<!-- later committed HEAD -->\n');
     commitAll(repo, 'test: advance worktree beyond pushed revision');
-    const consistent = run(
+    const deferred = run(
       repo,
       'git',
-      ['push', 'origin', `${consistentCommit}:refs/heads/main`],
+      ['push', 'origin', `${deferredCommit}:refs/heads/main`],
       { env },
     );
-    assert.equal(consistent.status, 0, consistent.output);
-    assert.match(consistent.output, /dependency mirror cache MISS [0-9a-f]{16}/u);
-    assert.match(consistent.output, /PASS agent-safe-publication-fixtures/u);
-    assert.match(consistent.output, /ALLOWED: 2 selected drift-prone gate\(s\) passed/u);
+    assert.equal(deferred.status, 0, deferred.output);
+    assert.match(
+      deferred.output,
+      /DEFERRED BY DEFAULT: .* no gate commands ran: agent-safe-publication-fixtures, module-ownership/u,
+    );
+    assert.doesNotMatch(deferred.output, /dependency mirror cache|\[snapback-drift\] RUN /u);
     console.log(
-      `DEMO consistent committed trigger in isolated checkout -> allowed\n`
-        + relevantLines(consistent.output),
+      `DEMO ordinary committed trigger -> selected and deferred\n`
+        + relevantLines(deferred.output),
+    );
+
+    appendFileSync(
+      join(repo, 'tests/agent_safe_publication_checker_v1.mjs'),
+      '\n// committed strict-execution probe\n',
+    );
+    const strictCommit = commitAll(repo, 'test: strict mode executes selected gates');
+    const strict = run(
+      repo,
+      'git',
+      ['push', 'origin', `${strictCommit}:refs/heads/main`],
+      { env: strictEnv },
+    );
+    assert.equal(strict.status, 0, strict.output);
+    assert.match(strict.output, /RUN agent-safe-publication-fixtures:/u);
+    assert.match(strict.output, /RUN module-ownership:/u);
+    assert.match(strict.output, /PASS agent-safe-publication-fixtures/u);
+    assert.match(strict.output, /ALLOWED: 2 selected drift-prone gate\(s\) passed/u);
+    console.log(
+      `DEMO explicit strict trigger in isolated checkout -> executed and allowed\n`
+        + relevantLines(strict.output),
     );
 
     appendFileSync(join(repo, 'guide/index.md'), '\n<!-- committed stale-guide probe -->\n');
     const staleCommit = commitAll(repo, 'test: committed guide change without frozen record');
-    const refused = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
+    const refused = run(
+      repo,
+      'git',
+      ['push', 'origin', 'HEAD:refs/heads/main'],
+      { env: strictEnv },
+    );
     assert.notEqual(refused.status, 0, refused.output);
     assert.match(refused.output, /REFUSED: .* failed drift-prone gate guide/u);
     assert.match(
@@ -957,7 +1562,12 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     assert.equal(generated.status, 0, generated.output);
     const reconciledCommit = commitAll(repo, '', { amend: true });
     assert.notEqual(reconciledCommit, staleCommit);
-    const allowed = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
+    const allowed = run(
+      repo,
+      'git',
+      ['push', 'origin', 'HEAD:refs/heads/main'],
+      { env: strictEnv },
+    );
     assert.equal(allowed.status, 0, allowed.output);
     assert.match(allowed.output, /ALLOWED: .* selected drift-prone gate\(s\) passed/u);
     console.log(`DEMO (b) same committed change with generated record -> allowed\n${relevantLines(allowed.output)}`);
@@ -968,9 +1578,9 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     const fast = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
     assert.equal(fast.status, 0, fast.output);
     assert.match(fast.output, /selected 1 gate\(s\): module-ownership/u);
-    assert.match(fast.output, /PASS module-ownership/u);
-    assert.match(fast.output, /ALLOWED: 1 selected drift-prone gate\(s\) passed/u);
-    console.log(`DEMO (c) committed docs-only path -> always-run ownership gate\n${relevantLines(fast.output)}`);
+    assert.match(fast.output, /DEFERRED BY DEFAULT: .* no gate commands ran: module-ownership/u);
+    assert.doesNotMatch(fast.output, /RUN module-ownership|PASS module-ownership/u);
+    console.log(`DEMO (c) committed docs-only path -> ownership selected and deferred\n${relevantLines(fast.output)}`);
 
     const noOp = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
     assert.equal(noOp.status, 0, noOp.output);
@@ -983,6 +1593,7 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     });
     assert.equal(bypass.status, 0, bypass.output);
     assert.match(bypass.output, /BYPASS ACTIVE: SNAPBACK_DRIFT_GATES_BYPASS=1/u);
+    assert.match(bypass.output, /COMPATIBILITY BYPASS: ordinary pushes already defer/u);
     assert.match(
       bypass.output,
       /BYPASS ALLOWED: skipped 2 selected gate\(s\): guide, module-ownership/u,
@@ -991,7 +1602,12 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
 
     appendFileSync(join(repo, 'guide/index.md'), '\n<!-- committed pre-existing drift probe -->\n');
     commitAll(repo, 'test: guide remains stale after its baseline');
-    const preExisting = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
+    const preExisting = run(
+      repo,
+      'git',
+      ['push', 'origin', 'HEAD:refs/heads/main'],
+      { env: strictEnv },
+    );
     assert.equal(preExisting.status, 0, preExisting.output);
     assert.match(preExisting.output, /PRE-EXISTING STALE guide: also fails at baseline [0-9a-f]{12}/u);
     assert.match(preExisting.output, /ALLOWED WITH PRE-EXISTING STALENESS: 1 gate\(s\)/u);
@@ -1002,7 +1618,12 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
 
     appendFileSync(join(repo, 'unclassified-drift-probe.xyz'), 'core tier integration probe\n');
     commitAll(repo, 'test: unknown path selects the fail-closed core');
-    const coreTier = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
+    const coreTier = run(
+      repo,
+      'git',
+      ['push', 'origin', 'HEAD:refs/heads/main'],
+      { env: strictEnv },
+    );
     assert.equal(coreTier.status, 0, coreTier.output);
     const context = loadSelectionContext();
     const selectedCoreCount = selectDriftProneGates(
@@ -1013,7 +1634,7 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     assert.match(
       coreTier.output,
       new RegExp(
-        `FAIL-CLOSED selection: .*running fail-closed CORE tier `
+        `FAIL-CLOSED selection: .*running CORE tier `
           + `\\(${selectedCoreCount} of ${registeredCount} registered gates\\)`,
         'u',
       ),
@@ -1035,11 +1656,12 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     assert.match(firstBackstop.output, /dependency mirror cache HIT [0-9a-f]{16}/u);
     assert.match(
       firstBackstop.output,
-      /FILED issues\/drift-runner-fixture\/20260806-main-drift-guide\.md/u,
+      /FILED issues\/drift-runner-fixture\/20260806-main-drift-guide-[0-9a-f]{16}\.md/u,
     );
     const ticketsAfterFirst = readdirSync(join(repo, fixtureIssues))
       .filter((name) => name.includes('main-drift-guide'));
-    assert.deepEqual(ticketsAfterFirst, ['20260806-main-drift-guide.md']);
+    assert.equal(ticketsAfterFirst.length, 1);
+    assert.match(ticketsAfterFirst[0], /^20260806-main-drift-guide-[0-9a-f]{16}\.md$/u);
     const ticket = readFileSync(join(repo, fixtureIssues, ticketsAfterFirst[0]), 'utf8');
     assert.ok(ticket.includes('**Causal landing:** `' + bypassCommit + '`'));
     const causalLanding = ticket.split(/\r?\n/u)

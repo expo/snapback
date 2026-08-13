@@ -291,6 +291,7 @@
       "src/instance_fork.rs",
       "src/jobs.rs",
       "src/local/inspection.rs",
+      "src/outbound_policy.rs",
       "src/push.rs",
       "src/push/fake_expo.rs",
       "src/replication.rs",

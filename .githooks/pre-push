@@ -29,6 +29,7 @@ if [ "${running_node#v}" != "$pinned_node" ]; then
   fi
 fi
 
-# @ref LLP 0175#same-change-frozen-record-coupling — the tracked hook
-# delegates Git's exact ref-update stream to the checked selector-backed gate.
+# @ref LLP 0232#optimistic-landing-default-2026-08-13 — the tracked hook
+# always delegates Git's exact ref-update stream for selection; ordinary
+# pushes defer execution and SNAPBACK_DRIFT_GATES_STRICT=1 enforces it now.
 exec node "$root/scripts/drift-prone-gates.mjs" pre-push --remote "$1"

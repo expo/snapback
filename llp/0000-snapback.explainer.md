@@ -6,6 +6,8 @@
 **Role:** Root
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-13 (ratification ledger records the optimistic-landing
+author ruling governed by LLP 0232 and LLP 0189)
 **Revised:** 2026-08-03 (author promotion after the dual-family super-refine loops: LLP 0159 and LLP 0161 move Draft → Active, LLP 0160 is Accepted — its gap ledger becomes the migration-experience program, with its OQ6/OQ7 conform-or-amend rulings still open); 2026-08-03 (Program D closeout: the local Phase-1 observability
 kernel and local Phase E0/E1 backend error grouping/triage surface now point
 to their shipped guide pages and retained evidence. Hosted observability,
@@ -398,6 +400,19 @@ corpus does not rely on scattered "pending Charlie" notes.
   native-code posture. This does not activate demand-gated route/native-op
   extension (D2/D3), claim crates.io or one-file distribution (D6), or weaken
   the hosted isolation and listener-posture boundaries.
+- **2026-08-13:** Charlie Cheever ratified the **optimistic-landing default**:
+  an ordinary source change whose affected tests passed and whose tested
+  semantic delta survives non-semantic integration lands without repeating
+  expensive verification merely because `main` advanced. Frozen-record drift
+  gates targeting `origin/main` are selected and reported at pre-push but defer
+  to the scheduled D-3-classified backstop by default; non-main refs claim no
+  scheduled verdict. `SNAPBACK_DRIFT_GATES_STRICT=1` restores synchronous
+  enforcement. This is a throughput/fix-forward ruling for ordinary landings,
+  not a weakening of affected product tests or of publication, promotion,
+  destructive migration, urgent-security, active-corruption, or comparable
+  irreversible/high-danger protocols ([LLP 0232](./0232-green-pointer-development-model.rfc.md)
+  §Optimistic landing default; [LLP 0189](./0189-verification-cadence-and-claim-gating.decision.md)
+  D-2).
 
 ## Who Snapback is for
 

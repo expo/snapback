@@ -36,6 +36,11 @@ the derived-fork validator no longer borrows qualification-C custody of the
 local persistent-store, relation/activity, or sequence-allocation publication
 chains; their registered LLP 0175 drift gates retain integrity custody, while
 post-C carrier regeneration is reported as ordinary scoped evolution.)
+**Revised:** 2026-08-13 (optimistic-landing amendment, author ruling by Charlie
+Cheever in session: D-2 defers ordinary `origin/main` frozen-record drift
+verdicts to the scheduled backstop, which uses the LLP 0232 D-3 classifier;
+affected product reds and semantic integration changes remain landing
+concerns; irreversible release/promotion gates are unchanged.)
 **Related:** LLP 0005, LLP 0010, LLP 0061, LLP 0154, LLP 0158, LLP 0162, LLP
 0175, LLP 0185, LLP 0232 (D-4 health projection and ticket transitions
 cross-reference D-1's battery-red tickets without weakening fix-forward or
@@ -106,12 +111,34 @@ stands — "standing, with known red" is a visible state, and it feeds D-3's
 triage. A red persisting across four consecutive scheduled runs escalates to
 the author.
 
-**D-2 — Landing gates stay fast and affected.** Landings run the LLP 0175
-D2.1/D2.2 fast/affected selection plus the same-change frozen-record drift
-gates. No process, gate, or qualification loop may require a complete battery
-at an exact commit as a precondition for landing. (LLP 0175 already
-implements this for CI; this decision extends it to every process design —
-review loops, qualification cycles, publication ceremonies.)
+**D-2 — Landing gates stay fast and affected; frozen-record verdicts are
+deferred by default.** Ordinary landings run the LLP 0175 D2.1/D2.2
+fast/affected product checks. The pre-push hook still selects and reports the
+frozen-record gates affected by the complete ref-update stream, but does not
+execute them unless strict mode is explicitly requested. For revisions
+targeting `origin/main`, their ordinary verdict moves to the scheduled LLP 0175
+drift backstop, whose reds become
+visible, attributable fix-forward tickets under D-1/LLP 0232. There is no
+ambient same-change frozen-record blocking requirement.
+
+Non-main ref updates are reported but are neither executed nor described as
+scheduled in ordinary mode; a later `origin/main` landing is selected from its
+own update. The backstop repeats clean content reds under LLP 0232 D-3 before
+attribution, records contradictory determinate executions as nondeterminism
+without a causal landing, leaves merge topologies that cannot support a
+first-parent claim unattributed, and retains runner-setup self-health handling.
+
+If the affected tests passed before integration, the tested semantic delta is
+unchanged after merge/rebase, and integration required no semantic conflict
+resolution, advancement of `main` alone does not require rerunning expensive
+checks. Changed semantic inputs rerun their affected checks; known failing
+affected product tests still require attention. No process, gate, or
+qualification loop may require a complete battery at an exact commit as a
+precondition for ordinary landing. Explicit strict drift enforcement and the
+qualified protocols for publication, promotion, destructive migrations,
+urgent security exposure, active destructive corruption, and similar external
+effects remain available and blocking where their governing decisions require
+it. (LLP 0175 implements the cadence; LLP 0232 owns landing economics.)
 
 **D-3 — Claims are snapshots.** A capability claim, publication, or promotion
 binds the qualification commit and the scoped evidence surface it names
@@ -281,16 +308,18 @@ three parts:
 
 ## Non-goals and preserved honesty
 
-- No test or assertion is deleted, and no gate is weakened without its
-  replacement drift gate landing in the same change.
+- No test or assertion is deleted. Frozen-record checks move from ambient
+  same-change enforcement to the scheduled authoritative backstop and remain
+  available synchronously through explicit strict mode.
 - Battery reds are never ignored: each becomes an open ticket the fleet is
   expected to fix forward promptly, and D-6 forces promotion records to name
   any outstanding unrelated reds.
 - Claims still name their qualification commit, digest, receipts, review
   heads, and named-author acceptance exactly as before; what changes is only
   which later events can invalidate them.
-- LLP 0175's fail-closed selection (unknown paths run everything) is
-  untouched.
+- LLP 0175's fail-broad selection is retained: unknown/broad paths select the
+  configured tier, reported and deferred ordinarily or executed in strict
+  mode.
 - This decision does not slow the deliberate burst cadence on `main`, and it
   does not convert any `BLOCKED`/`FAIL` state into a silent skip.
 

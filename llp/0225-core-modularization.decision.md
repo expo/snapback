@@ -49,6 +49,9 @@ frozen edges removed by naming the leaf a re-export already resolved to)
 **Revised:** 2026-08-11 (n — §4 rules the item-3 remainder: the split runs
 through `src/auth/provider.rs`, not `src/storage/auth_catalog_ops.rs`; see
 Revision history)
+**Revised:** 2026-08-13 (t — LLP 0232 optimistic-landing alignment: the
+ownership gate remains unconditionally selected and runs in strict mode and
+the scheduled backstop; ordinary pre-push execution is deferred)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -85,8 +88,9 @@ This document consolidates all three into one governing record:
 - the **structural check** (`scripts/check-module-ownership.mjs`) is a
   registered drift-prone gate and, per the 2026-08-10 ruling closing
   `issues/20260809-ownership-gate-prepush-tier.md`, a member of the validated
-  `driftAlwaysRunGates` tier — it runs on **every push with commits**,
-  unconditionally, and is listed in `driftFailClosedCoreGates`;
+  `driftAlwaysRunGates` tier — it is **selected on every push with commits**,
+  runs synchronously under explicit strict mode and under the scheduled
+  backstop, and is listed in `driftFailClosedCoreGates`;
 - the **first slice — generation activation — is extracted and landed**
   (`src/generation_activation.rs`, with the OQ3 composite-commit follow-up of
   2026-08-09 recorded in 0199's revision history).
@@ -102,8 +106,9 @@ not decided here.
 
 **Snapback modularizes by incremental owner extraction inside the existing
 system, under the seven-owner map below, with dependency direction and commit
-authority as stated, enforced by the unconditional pre-push module-ownership
-gate. There is no rewrite, no second implementation, and no flag-day.**
+authority as stated, enforced by the always-selected module-ownership gate in
+explicit strict pushes and the scheduled drift backstop. There is no rewrite,
+no second implementation, and no flag-day.**
 
 All extraction preserves the root LLP's load-bearing invariants: server
 authority; SQLite single-writer correctness (LLP 0059); bounded handler
@@ -933,11 +938,13 @@ requires its named worklist record in the same landing.
 `ownership.baseline.json`, is the enforcement arm of this Decision (so ruled
 2026-08-10 in `issues/closed/20260809-ownership-gate-prepush-tier.md`):
 
-- It runs **unconditionally at pre-push** — a registered drift-prone gate in
+- It is **unconditionally selected at pre-push** — a registered drift-prone gate in
   the validated `driftAlwaysRunGates` tier
   (`scripts/local-proof-selection-policy.v1.json`), unioned into every
   pre-push selection regardless of path selection, and a member of
-  `driftFailClosedCoreGates`. It also runs in the local-proof selection
+  `driftFailClosedCoreGates`. Under LLP 0232's 2026-08-13 optimistic-landing
+  amendment, ordinary pushes report and defer it; explicit strict pushes run
+  the full protocol below. It also runs in the local-proof selection
   (LLP 0175 D2.3) and the drift backstop.
 - It blocks three failure shapes: a new Rust module with no manifest
   assignment; a new dependency edge that violates §2 (including new edges
@@ -1012,10 +1019,13 @@ Normative rules bound to this Decision:
   every new module must take one of the seven real owners. The adversarial
   probe and shipped enforcement are recorded in
   `issues/closed/20260810-ownership-gate-analyzer-gaps.md` item 4.
-- **Bypass is exceptional and loud** (`SNAPBACK_DRIFT_GATES_BYPASS=1`, per
-  CLAUDE.md); a gate red on main is fixed forward at the next landing, as
-  the four recorded occurrences were (one deliberate bypass; three selection
-  gaps predating the always-run promotion, which that promotion closed).
+- **Strict execution is explicit and bypass remains compatible.**
+  `SNAPBACK_DRIFT_GATES_STRICT=1` runs this set-based protocol synchronously;
+  `SNAPBACK_DRIFT_GATES_BYPASS=1` remains accepted and loud for existing
+  callers but is redundant in ordinary deferred mode. A gate red on main is
+  fixed forward, as the four recorded occurrences were (one deliberate bypass;
+  three selection gaps predating the always-run selection, which that
+  promotion closed).
 
 ## 6. Semantic extraction versus cosmetic splitting
 

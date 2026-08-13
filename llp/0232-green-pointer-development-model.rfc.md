@@ -9,7 +9,15 @@
 **Revised:** 2026-08-11 (round-2 dual NOT READY; contract repair for per-gate reuse, closed outcome typing, proof-producer boundaries, and deferred revert activation)
 **Revised:** 2026-08-11 (round-3 delta convergence — pre-existing text clean across families; in-delta punch-list repair; this revision unreviewed per LLP 0010 §2 delta rule)
 **Revised:** 2026-08-11 (Accepted by author ruling, Charlie Cheever in session: all three requested rulings granted as specified — 24h owner priority then fix-forward-by-anyone; narrow baseline-corroborated reversal of LLP 0175 D2.1 infrastructure fail-closed; future separately-reviewed revert-activation decision permitted. Acceptance recorded with the rev4-unreviewed label acknowledged; final review verdicts bind to rev3. LLP 0175 amendments landed in the accepting change.)
-**Related:** LLP 0189, LLP 0175, LLP 0041, LLP 0005, `issues/20260810-prepush-gate-battery-landing-livelock.md`
+**Revised:** 2026-08-13 (optimistic-landing living amendment, author ruling
+by Charlie Cheever in session: ordinary `origin/main` pushes select but defer
+frozen-record drift gates; explicit strict mode retains D-3 synchronous
+enforcement; the scheduled backstop now uses D-3 classification and
+same-closure contradiction detection; irreversible/high-danger operations and
+known affected reds remain blocking; the observed closure binds the complete
+installed dependency mirror, including linked package targets)
+**Related:** LLP 0189, LLP 0175, LLP 0225, LLP 0041, LLP 0005,
+`issues/closed/20260810-prepush-gate-battery-landing-livelock.md`
 
 ## Summary
 
@@ -64,7 +72,9 @@ gate; then emit a derived validation receipt binding all reuse/execution decisio
 new pushed revision and its gate-relevant projection. The projection—not whole-tree hash
 equality—is what transfers. Always-run status alone never invalidates an unchanged gate
 closure, and an intervening commit's selecting a gate is not independently disqualifying.
-Receipt reuse is defined only when the push contains exactly one eligible ref update targeting `main`; a multi-ref push runs all selected gates.
+Strict-mode receipt reuse is defined only when the push contains exactly one
+eligible ref update targeting `main`; a strict multi-ref push runs all selected
+gates. Ordinary mode follows the 2026-08-13 amendment below.
 
 `auth-invalidation-report` must honestly approximate the Rust build closure, including
 the crate, Cargo/build/toolchain inputs, acceptance inputs, and runtime qualification.
@@ -131,7 +141,21 @@ Two authenticated append-only external ledgers remain distinct and feed one proj
 | frozen-record stale/infrastructure/nondeterministic signatures and tickets | two-hour drift backstop; pre-push may open/update early but never closes |
 | current infrastructure/blocking-nondeterministic state | projection union of open producer-labeled signatures; no implicit cross-producer coalescing |
 
-Before cross-producer projection activates, the two-hour backstop must adopt D-3's same closed classifier and normalized signature taxonomy.
+The two-hour backstop uses D-3's same closed classifier and normalized
+signature taxonomy. A clean content red is repeated over the same revision
+closure before stale attribution. The observed-closure digest binds the
+tracked tree, prepare/check identity, dependency-mirror key, the complete
+installed dependency-tree bytes including symlink targets, actual resolved
+module-package bytes, submodule Git trees/status and prepared runtime artifact
+bytes, declared prepared-path bytes, sanitized environment, and the bytes of
+the named Node/shell/build tool executables at both execution boundaries; a
+changed or unclean closure is
+`UNKNOWN`, not nondeterminism evidence. Contradictory determinate observations
+are ticketed as `NONDETERMINISTIC` without repair attribution, while stable
+content reds enter the first-parent signature epoch. When the latest record
+epoch is not on that topology, the ticket stays causally unattributed rather
+than naming a later head. Runner-controlled setup failures retain the backstop
+self-health streak rather than becoming stale.
 A canonical `FAIL` or `BLOCKED` opens or updates its producer/signature ticket; a later
 complete canonical run that determinately exercises the same gate/surface and no longer
 emits that signature closes it, even if another gate remains red. A pre-push observation
@@ -236,6 +260,60 @@ runner-controlled failure is corroborated at every merge-base — effective when
 the D-3 implementation lands, with fail-closed behavior standing until then;
 (3) a later, separately reviewed automated-revert activation decision may
 proceed under D-7 after pilot evidence. That last ruling activates nothing here. Admitting nondeterministic outcomes non-blocking would be a separate future carve-out requiring its own ruling and amendment to LLP 0175; this RFC does not request it. Urgent security exposure, ongoing destructive data corruption, or complete publication inability triggers immediate author escalation, never autonomous action under this RFC.
+
+## Optimistic landing default (2026-08-13)
+
+Author ruling by Charlie Cheever, recorded in session as a living amendment to
+this accepted RFC: **ordinary source landings optimize for throughput and
+fix-forward recovery.** When the affected tests passed on the candidate, the
+tested semantic delta survives integration unchanged, and merge/rebase adds no
+semantic conflict resolution, the candidate lands immediately. Advancement of
+`main` alone does not require repeating expensive verification. If integration
+changes a tested semantic input, the checks whose inputs changed run again;
+known failing affected product tests still require attention before landing.
+This creates no exact-HEAD retest, merge queue, serializer, quiet-main window,
+or new receipt ceremony.
+
+The tracked pre-push hook still consumes every ref update and runs the checked
+LLP 0175 selector. For a revision targeting `origin/main`, ordinary mode
+reports the selected frozen-record gates and defers their commands to the
+two-hour `drift-prone-gates.mjs backstop`.
+The backstop remains authoritative for frozen-record health and converts reds
+into visible, attributable, idempotent fix-forward tickets. The complete
+canonical battery remains authoritative under LLP 0189 D-1. Selection is
+retained because it gives immediate scope visibility and keeps the explicit
+strict path honest; a selected gate is not an ordinary landing veto.
+
+A ref update not targeting `origin/main` is not called scheduled or deferred:
+ordinary mode reports its selected gates, runs none, and states that no
+scheduled-main verdict is claimed. If that revision later lands on
+`origin/main`, that landing's own ref update is selected and becomes backstop
+input. A same-tip main/non-main push reports both ref dispositions while the
+one revision is covered once by the main landing. Explicit strict mode
+continues to execute every selected revision, including multi-ref and non-main
+pushes.
+
+`SNAPBACK_DRIFT_GATES_STRICT=1 git push ...` explicitly restores synchronous
+execution and D-3's complete outcome protocol: introduced content reds and
+nondeterminism block; inherited reds and corroborated runner infrastructure
+proceed with their existing attribution and ticket requests. Add
+`SNAPBACK_DRIFT_GATES_FULL=1` to select the complete registry. For compatibility,
+`SNAPBACK_DRIFT_GATES_FULL=1` by itself implies strict full-registry execution,
+and `SNAPBACK_DRIFT_GATES_BYPASS=1` remains accepted and loud even though its
+skip behavior matches the ordinary default. Non-`1` values refuse.
+
+D-1/D-2 receipt reuse, prepared execution, and record normalization remain
+valuable for strict runs, on-demand diagnosis, the scheduled backstop, and
+release qualification, but they are no longer prerequisites for ordinary
+landing. D-3 remains the strict synchronous classifier rather than the default
+landing classifier, and is also the scheduled backstop's outcome taxonomy.
+D-4/D-6 health and fix-forward routing remain authoritative.
+
+This ruling does not weaken gates around irreversible or unusually dangerous
+operations: npm candidate publication and `latest` promotion, destructive
+migrations, known urgent security exposure, ongoing destructive data
+corruption, or similar external side effects retain their qualified blocking
+protocols. LLP 0041 and LLP 0233 publication qualification are unchanged.
 
 ## Portability
 

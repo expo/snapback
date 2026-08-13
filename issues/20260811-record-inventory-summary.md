@@ -9,6 +9,11 @@
 **Date:** 2026-08-11
 **Related:** LLP 0232 D-1/D-2; LLP 0175 D2.1; LLP 0189 D-4
 
+**2026-08-13 policy note:** this inventory remains open work for strict-mode,
+backstop, diagnostic, and release economics. Under LLP 0232's
+optimistic-landing amendment, none of its incomplete rows is an ambient
+ordinary-landing blocker; the scheduled backstop owns ordinary drift verdicts.
+
 ## Scope and method
 
 This is the complete inventory of the 18 `driftProneGates` registered in
