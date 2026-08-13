@@ -128,3 +128,100 @@ reviewed revision and no unreviewed revision exists. Author options:
 capsule, then revise on all three families' input; (b) authorize dual-family
 continuation without Grok; (c) end the loop, leaving r1 in Review with the
 recorded verdicts.
+
+### Author rulings — 2026-08-12
+
+1. The author first chose (a) and topped up; the balance probe (CLI
+   authenticated as the author's own account) still returned `402 Grok Build
+   usage balance exhausted` on every attempt, so the credit did not reach the
+   wallet the CLI draws from. Probes are not review launches; Grok launches
+   remain 1 of 6.
+2. The author then ruled **"skip grok for now"** — dual-family continuation
+   (Claude + GPT) is authorized; Grok stays recorded as
+   authorized-but-unavailable and may be re-added by a later author
+   instruction.
+
+## Revision r2 — 2026-08-12 (reviser: the orchestrating Claude session)
+
+- **r2 SHA-256:**
+  `001ed2dca02e9eb36fc096f84a6c5adffcd7bd14e49e18f8c03f082f9bd47cd8`
+  (48,812 bytes). Net growth over the entering revision is +20.9%, slightly
+  above the ~20% guideline after trimming; the overage is accepted and
+  disclosed rather than cutting substance the round-1 reviews demanded.
+- **Synthesis:** applies all five GPT MATERIAL concerns and the Claude ledger
+  (C1–C11) plus its direction-serving changes (a)–(e). The one cross-family
+  design fork — GPT's serial staging vs Claude's full treatment — is resolved
+  with a preregistered `snapback-familiar-server-v1` ablation lane, component
+  sub-attribution, preregistered disposition-eligibility rules, and
+  first-class mid-period component withdrawal; the declined staging
+  alternative is recorded in the document with its reasoning. Author credit
+  gains Claude per the author's co-author instruction; Grok is not credited
+  (no contribution received).
+
+## Round 2 — 2026-08-12 (delta round)
+
+- **Revision:** r2 as above. Topology: same single-target cluster, now two
+  families (Claude, GPT) per the author's ruling.
+- **Capsule:** APFS clone of the round-1 capsule (same base
+  `d87d8d9a9cb0f35208c889784991ce40b2fcfe27`) with the r2 target overlaid and
+  round-2 instructions replacing round-1's; zero `llp/reviews/0252*` files.
+  A fresh export of current main was deliberately not used: main now carries
+  the landed round-1 review artifacts, and re-exporting would have put them
+  inside the capsule and broken blindness.
+- **Capsule inventory SHA-256:**
+  `62197614b6afb32a05665f6ad12aed4e5656a8694fa084dc899b0ad0840901e2`.
+- **Instruction SHA-256:**
+  `ebfa37e6402f9c6577f77fc8f67231003e3b2b82ae865cb613c6f6d976401a72`.
+- **Lens:** delta round (r1→r2 delta enumerated in the instructions;
+  IN-DELTA vs PRE-EXISTING classification required) plus a bounded
+  implementer probe over the D2/D4 contracts; direction re-litigation only
+  on MATERIAL defective-decision grounds.
+- **Launches:** Claude family — fresh general-purpose Fable agent, launch 2;
+  GPT family — same codex invocation as round 1, launch 3 (1 void). Launched
+  concurrently after this record was persisted.
+- **Claude outcome:** received and appended verbatim to the claude artifact
+  on receipt (transport HTML-entity escapes decoded and byte-verified on
+  disk). **READY** (0 MATERIAL; 11 DETAIL — 7 IN-DELTA, 4 PRE-EXISTING; all
+  altitude-dispositioned) bound to r2. The implementer probe found no
+  material underdetermination; the reviewer additionally verified the
+  document's citations against the corpus and reports all check out except
+  the "root invariants" leg of the polling-rule citation (its C3).
+  Self-attested capsule-only. Claude launches: 2 of 6.
+- **GPT outcome:** received and appended verbatim to the codex artifact on
+  receipt. **NOT READY** (7 MATERIAL — 5 IN-DELTA, 2 PRE-EXISTING; 3 DETAIL)
+  bound to r2, with one disclosed pre-instruction deviation (a generic local
+  skill file read by its harness before the capsule instructions; no target
+  review content; counted with disclosure). The MATERIAL set demands closed
+  contracts: a per-kind required/optional/forbidden key matrix including
+  actions (its #1), adapter dispositions for every existing canonical
+  function fact — `refusals`, `trackedRefusals`, `sequences`, plan/action
+  forms (#2, PRE-EXISTING), a total `useQuery` state-projection mapping
+  (#3), a closed `useMutation` callable contract including the
+  `queue: "never"` vs LLP 0218 `queue: false` lowering (#4, PRE-EXISTING),
+  a `normalizedContractId` closure over all behavior-bearing fields (#5),
+  benchmark-cohort semantics for mid-period component withdrawal under
+  LLP 0197 (#6), and the freeze backstop present in Rollout/Acceptance (#7;
+  Claude's C1 found the same placement gap as DETAIL). GPT launches: 3 of 6.
+
+### Round 2 result
+
+**No convergence.** Claude READY on r2; GPT NOT READY with MATERIAL concerns
+including two in PRE-EXISTING text, so the delta-convergence rule does not
+close the loop. Two formal bounds are now live:
+
+1. **Sustained asymmetry** (LLP 0010 §2 terminal trigger): Claude READY on
+   two consecutive revisions (r1, r2); GPT NOT READY on both. The substance
+   overlaps heavily — Claude's implementer probe surfaced the same D2/D4
+   underdeterminations (its C5/C7/C9/C11) and dispositioned them DETAIL
+   under the altitude rule; GPT rates the same surface MATERIAL, i.e. the
+   families disagree on altitude, not on the facts.
+2. **Growth budget:** r2 already stands at +20.9% vs the ~20% guideline;
+   revising to close GPT's MATERIAL set is estimated at roughly +3–4 KB more
+   (~+30% total), so continuing requires an explicit author growth
+   authorization.
+
+One round remains in the three-round budget. **Loop stopped for the author's
+ruling** with the escalation options enumerated to the author: (a) authorize
+a final round-3 revision + delta round with an explicit growth allowance;
+(b) close now, stay `Review`, with the asymmetry recorded and any convergence
+claim scoped accordingly; (c) revert to `Draft`.

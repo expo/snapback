@@ -5,17 +5,19 @@
 **Systems:** Product, Developer experience, Authoring, Application data API,
 TypeScript, Code generation, React, Client integration, Competitive evaluation,
 Packaging, Documentation, Testing
-**Author:** Charlie Cheever / Codex
+**Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (initial draft: proposes one experimental
-Convex-familiar TypeScript source profile beside the existing explicit profile,
-both lowering into one canonical Snapback artifact/runtime path, with a bounded
-comparison period and an explicit promotion/merge/withdraw decision)
-**Related:** LLP 0000, LLP 0004, LLP 0037, LLP 0061, LLP 0074, LLP 0108,
+**Revised:** 2026-08-12 (r2: round-1 review revisions — ablation lane,
+sub-attribution, disposition-eligibility rules, profile-brand enforcement,
+honest alias-state contract, staged migration, same-landing amendment
+obligations; initial draft same date)
+**Related:** LLP 0000, LLP 0004, LLP 0037, LLP 0061, LLP 0073, LLP 0074,
+LLP 0108,
 LLP 0115, LLP 0117, LLP 0119, LLP 0127, LLP 0130, LLP 0146, LLP 0186,
 LLP 0189, LLP 0194, LLP 0197, LLP 0198, LLP 0199, LLP 0203, LLP 0218,
 LLP 0225, LLP 0236,
-LLP 0237, LLP 0238, LLP 0241, LLP 0245, LLP 0246, LLP 0247, LLP 0249,
+LLP 0237, LLP 0238, LLP 0241, LLP 0242, LLP 0245, LLP 0246, LLP 0247,
+LLP 0248, LLP 0249,
 https://docs.convex.dev/ai/overview,
 https://docs.convex.dev/functions/validation,
 https://docs.convex.dev/database/reading-data/,
@@ -76,7 +78,7 @@ LLP 0236#convex-remains-the-smoother-conventional-typescript-default). The five
 instrumented messaging runs reduced Snapback's defect-shaped framework loops to
 zero, yet the measured agent still spent roughly twice the time and tokens in
 the final recorded comparison because Convex required no orientation and
-Snapback still did (LLP 0198#summary; LLP 0198#the-remaining-gap-decomposed).
+Snapback still did (LLP 0198#summary; LLP 0198#i5-the-remaining-gap-decomposed).
 
 That combination is evidence for a front-door experiment, not a core restart:
 
@@ -224,7 +226,10 @@ of four adapter dispositions:
    explicit profile or an owning RFC.
 
 There is no silent `unknown`, omission, best-effort mapping, or runtime
-observation arm.
+observation arm. Disposition 3 exists only where LLP 0245 v1 actually
+proposes: result contracts and addition-only `reads`/`writes` patches.
+`auth`, `effects`, `secrets`, `capabilities`, and `runtime` facts are never
+suggestion-backed; their only lawful missing-field disposition is refusal.
 
 An application selects one profile in its Snapback configuration and generated
 manifest. V1 forbids mixing profiles within one application generation. This is
@@ -240,9 +245,20 @@ Parallel support means the toolchain can build either kind of application, not
 that one application carries both. A later mixed-profile design requires a new
 RFC after the evaluation; it is not a convenience extension to this one.
 
-Because LLP 0246 binds source-profile version into semantic identity, two
-source profiles retain distinct `semanticId` and `generationId` values even
-when their normalized definitions match. `normalizedContractId` provides the
+The no-mixing rule is mechanical where mixing would corrupt semantics or
+attribution, not advisory: generated references carry a nominal profile
+brand; the familiar client aliases type-accept only familiar-branded
+references, so an explicit-profile application cannot adopt them; and each
+generation validates server source through exactly one adapter. The reverse
+direction is sanctioned by design — a familiar application uses the canonical
+LLP 0238 lifecycle surface for everything the aliases exclude (D5) — and the
+measured lanes control it by template, not prohibition.
+
+This RFC declares the authoring-profile version (`snapback-explicit-v1` /
+`snapback-familiar-ts-v1`) a semantic-identity input in its own right,
+following the precedent of LLP 0246's language-custody profile, which is a
+distinct axis. Two source profiles therefore retain distinct `semanticId` and
+`generationId` values even when their normalized definitions match. `normalizedContractId` provides the
 separate equivalence witness. It cannot authorize replay, live resume, retained
 settlement, or automatic activation across generations.
 
@@ -305,13 +321,20 @@ uses the same typed declaration vocabulary and generated authority facts as the
 explicit profile. A compact spelling may reference those facts; it may not
 weaken them.
 
+The ordinary imperative `ctx.db` path also leans directly on the bounded
+composition and batch-read owners: LLP 0242's bounded child/aggregate plans
+and LLP 0248's same-snapshot batch reads are what keep familiar handler code
+from recreating the N+1 read shapes the comparison corpus recorded
+(LLP 0236). The familiar profile adds no third read grammar.
+
 The v1 function object has these canonical keys:
 
 - `args` — required frozen ingress validators;
 - `returns` — required frozen egress validator, including schema references;
 - `auth` — required, with no public-by-omission default;
-- `reads` and `writes` — required canonical reach declarations, though
-  LLP 0245 may propose addition-only patches;
+- `reads`, and for write-capable kinds `writes` — required canonical reach
+  declarations (a query declares reads only), though LLP 0245 may propose
+  addition-only patches;
 - `effects`, `secrets`, `capabilities`, and `runtime` — required when used and
   never inferred;
 - `delivery` — optional query spelling defined below; and
@@ -327,7 +350,7 @@ than Convex's most permissive runtime: both `args` and `returns` are mandatory,
 and TypeScript inference checks the handler against them rather than replacing
 them. `v.doc(table)` and the shared validator grammar compress declarations
 without giving TypeScript runtime authority (LLP 0117#option-space;
-LLP 0127#move-1-contracts-reference-nothing-respells).
+LLP 0127#move-1--contracts-reference-nothing-respells).
 
 The generated API projects module names in the familiar shape:
 
@@ -363,10 +386,11 @@ analysis may explain why `live` cannot be proved and propose the explicit
 
 This is the option-1b family identified in LLP 0119, narrowed for an
 experimental source profile: one familiar authored function kind, live by
-default, and an authored escape hatch. It preserves LLP 0074's rule that polling
-or refresh convenience is never reported as proven push. It also preserves the
-ephemeral lane: durable query liveness and connection-owned ephemeral state
-remain orthogonal.
+default, and an authored escape hatch. It preserves the rule that polling or
+refresh convenience is never reported as proven push — stated in LLP 0074
+(now Shelved) and carried live by LLP 0119, LLP 0073's search pin, and the
+root invariants. It also preserves the ephemeral lane: durable query liveness
+and connection-owned ephemeral state remain orthogonal.
 
 Accepting this RFC would authorize the experiment, not silently settle
 LLP 0130 ER-3 for the existing profile. Promotion of one authored query kind to
@@ -390,7 +414,8 @@ const todos = useQuery(api.todos.list, {});
 const create = useMutation(api.todos.create);
 ```
 
-The names are familiar; their limits are explicit and type-enforced:
+The names are familiar; their limits are explicit, and enforced by types
+where types can carry them:
 
 #### `useQuery`
 
@@ -401,11 +426,22 @@ online authoritative convenience projection:
 Result | undefined
 ```
 
-`undefined` means initial loading, authority transition, unavailable current
-data, or loss of current authority. The hook never returns retained,
-optimistic, or otherwise stale data through this direct-result shape. It throws
-or routes typed refusals through the documented React error boundary; it does
-not turn them into `undefined` silently.
+`undefined` means no authoritative current result: initial loading, authority
+transition, unavailable current data, loss of current authority, or the
+LLP 0247 `authentication-required` blocked state, which stays the stable
+non-error LLP 0247 defines — the development build emits a routing diagnostic
+naming `useQueryState` whenever a blocked query renders as `undefined`. Typed
+refusals and errors route through the documented React error boundary; they
+are never silently converted to `undefined`.
+
+What is enforced, by types and runtime together, is the exclusion set: the
+hook never returns retained, optimistic, or queued data through this
+direct-result shape, and it accepts only familiar-branded live-capable
+references. What is not enforced is state discrimination — `Result |
+undefined` deliberately collapses the distinct states LLP 0238's canonical
+hook reports. That collapse is not claimed safe; it is the alias's central
+measured question, and mid-period component withdrawal (D7) is its remedy if
+it teaches mistakes.
 
 Applications that use retention, offline reads, freshness display, explicit
 refresh, or diagnostic rendering use the canonical LLP 0238
@@ -520,14 +556,18 @@ The evaluation clock begins only when an externally consumable npm closure has
 both profiles qualified against the same Snapback runtime release. Repository-
 local prototypes do not start it.
 
-The minimum comparison matrix has three Snapback lanes and three workload
-families:
+The minimum comparison matrix has four lanes and three workload families:
 
 | Lane | Purpose |
 | --- | --- |
 | `snapback-explicit-v1` | Current-authoring control. |
-| `snapback-familiar-ts-v1` | Authoring-profile treatment. |
+| `snapback-familiar-ts-v1` | Full authoring-profile treatment. |
+| `snapback-familiar-server-v1` | Preregistered ablation: familiar server grammar authored against the canonical LLP 0238 client surface; isolates the client-alias component. |
 | pinned Convex | External learned-surface control; not used for the internal promotion decision alone. |
+
+The ablation lane is not a third profile. It is `snapback-familiar-ts-v1`
+whose templates use the canonical client surface every familiar application
+may use anyway (D5); no new adapter, package, or runtime state exists for it.
 
 | Workload | Why it is required |
 | --- | --- |
@@ -549,12 +589,22 @@ The profile decision reads four score groups:
 2. **Semantic quality** — acceptance success, auth-negative proofs, liveness
    truth, queued/settled correctness, runtime contract failures, and review
    defects.
-3. **Expressiveness** — completed required outcomes, explicit-profile escape
-   hatches, unsupported mappings, and whether the familiar lane silently chose
-   a weaker product.
+3. **Expressiveness** — completed required outcomes, intra-application
+   escapes to the D5 extension vocabulary, forced whole-application
+   migrations to the explicit profile (counted separately: an extension call
+   and a profile migration are not the same severity), unsupported mappings,
+   and whether the familiar lane silently chose a weaker product.
 4. **Maintenance economy** — adapter-exclusive production/test/doc lines,
    profile-only defects, mapping drift failures, release skew, duplicated
    examples, and added qualification time.
+
+Phase 0 preregisters component-level sub-attribution, extending LLP 0198
+P0.0(c): every correction loop, orientation action, and defect in a Snapback
+lane is attributed to server vocabulary, query-delivery default, client
+aliases, package shape, or none. The ablation lane attributes the client-alias
+component at lane level; sub-attribution is the declared — and disclosed —
+granularity for the delivery default and package shape, which do not get
+their own lanes.
 
 The experimental period ends at the earlier of:
 
@@ -573,11 +623,41 @@ At that point the author records one disposition:
 4. **Withdraw** — familiar is removed before a stable compatibility promise;
    migration tooling converts experimental apps to explicit source.
 
+Disposition eligibility is preregistered in Phase 0, before any profile
+result exists:
+
+- **Promote** requires complete rounds across all three workload families;
+  the preregistered authoring-economy threshold met (OQ7's number is fixed at
+  preregistration); semantic-quality noninferiority — no familiar-lane
+  increase in acceptance failures, auth-negative misses, liveness or
+  settlement untruths, or review defects; no unresolved expressiveness
+  regression; the maintenance bound held; and paired familiar/explicit
+  evidence at N≥3 from at least one second model family (LLP 0198 P0b: a
+  familiarity effect measured in one family cannot carry a default change).
+- **Merge** requires component-level evidence: the ablation lane plus
+  sub-attribution must identify which component won before that component
+  moves into the canonical profile.
+- **Tier** requires evidence naming distinct application audiences and the
+  maintenance bound holding.
+- **Withdraw** is always eligible.
+- Insufficient evidence at the stop date permits only the freeze below plus
+  Withdraw or a dated extension amendment — never Promote or Tier.
+
+The author may also withdraw a single component mid-period — most plausibly
+the client aliases — by dated note without ending the experiment; the
+ablation lane keeps the remaining readout attributable. This makes the
+D4/Risks commitment — a misleading alias is withdrawn rather than explained
+harder — operable.
+
 There is no implicit fifth outcome called "keep evaluating." Extending the
 period requires a dated author amendment naming missing evidence, a new maximum
 date or round count, and the observed maintenance cost. If the stop date passes
 without a disposition, the familiar profile freezes: no new capabilities, no
 new default templates, and no compatibility promotion until the author rules.
+The freeze is a check, not prose (LLP 0203 P1): Phase 3 lands a dated
+backstop on the existing drift-backstop pattern that files a ticket when the
+stop date passes without a recorded disposition, and capability metadata
+keeps the profile `Experimental` until that disposition exists.
 
 The proposed maintenance bound for a permanent Tier outcome is:
 
@@ -607,9 +687,18 @@ diff, unresolved mappings, and exact verification steps. It does not edit by
 default. Apply uses the stale-safe compare-and-write pattern of LLP 0245 and
 normal generation/activation afterward.
 
+The directions are not symmetric obligations. Familiar→explicit is the
+withdrawal safety valve and must be apply-capable, with a full disposition
+inventory, before the evaluation clock starts. Explicit→familiar may remain
+preview-only until the first complete comparison round: no application is
+required to migrate inward, so its apply automation is earned by results,
+not promised ahead of them.
+
 A profile migration with equal normalized schema and operation contracts needs
-no data reset or schema migration, but it still creates a new semantic/
-generation identity because source custody changed. Existing in-flight work,
+no data reset or schema migration, but it still creates a new semantic and
+generation identity, because the authoring-profile version is a declared
+semantic-identity input (D1). Custody records change with it, but custody is
+evidence identity under LLP 0241, not the rotation's cause. Existing in-flight work,
 subscriptions, queued mutations, and settlements retain their original fences;
 the migration follows LLP 0241's normal activation and compatibility rules.
 
@@ -638,6 +727,18 @@ then recreate cross-target drift while chasing a syntax advantage.
 Declined for the experiment. It destroys the control lane, makes causality hard
 to measure, and risks mixing compatibility repair with API evaluation. If the
 familiar profile wins, a later Decision can merge or promote it deliberately.
+
+### Stage the experiment serially — server grammar first, clients gated on its results
+
+Proposed in round-1 review; declined narrowly. Serial staging doubles the
+calendar under a moving comparator, and the client alias is where accepted
+decisions (LLP 0238) and transfer risk concentrate — deferring it defers the
+hardest question while the strongest agent prior, `useQuery(api.x.y)`, goes
+unmeasured through a half-familiar stack. Staging's legitimate demands —
+component attribution before Merge and a cheap exit — are met by the
+`snapback-familiar-server-v1` ablation lane, sub-attribution, and mid-period
+alias withdrawal (D7). If early evidence shows the aliases failing,
+withdrawal converts this design into the staged one.
 
 ### Improve only the guide, skills, and examples
 
@@ -671,8 +772,17 @@ paths, and two failure modes before either surface had proven its value.
    four-state adapter disposition table.
 3. Add a gate proving that no runtime/wire/storage branch reads authoring
    profile to change semantics.
-4. Preregister the explicit/familiar/Convex comparison matrix and maintenance
-   classifier before profile results exist.
+4. Preregister the four-lane comparison matrix, the component
+   sub-attribution schema, the disposition-eligibility rules (including
+   OQ7's threshold number), and the maintenance classifier before profile
+   results exist.
+5. Re-verify and pin the external Convex surface inventory (agent files,
+   skills, MCP, evals, validator guidance) under LLP 0197/0198 control-lane
+   rules.
+6. Enumerate the exact `NormalizedApplicationDefinitionV1` field closure
+   entering `normalizedContractId` — operation kind, delivery, retention and
+   queue policy, secrets, and capability/runtime profiles each included or
+   named as excluded — with golden vectors.
 
 ### Phase 1 — Server authoring adapter
 
@@ -693,6 +803,13 @@ paths, and two failure modes before either surface had proven its value.
    requirements to the canonical lifecycle APIs.
 3. Prove that familiar hooks allocate no second cache, connection, outbox, auth
    coordinator, or task owner.
+4. Land the profile-brand build gate and adversarial cross-profile import
+   tests (D1).
+5. Land the dated cross-reference amendments to LLP 0127, LLP 0130, and
+   LLP 0238 in the same landing that ships the familiar entrypoint: their
+   accepted decisions stand for the canonical surface, and a reader of any of
+   the three must learn about this scoped, measured exception from the
+   document itself.
 
 ### Phase 3 — Paired external templates and migration
 
@@ -719,16 +836,22 @@ The RFC's experiment is implemented only when all of the following hold:
    equal, while each retains its own correct LLP 0241 identities.
 2. Both applications run through the same server routes, runtime evaluators,
    storage paths, live matcher, auth gates, outbox, and client core; a structural
-   gate prevents profile-conditioned semantic branches below normalization.
+   gate prevents profile-conditioned semantic branches below normalization, and
+   the familiar aliases refuse references from an explicit-profile generation.
 3. Required `args`, `returns`, `auth`, reach, effect, secret, capability, and
    runtime facts cannot disappear through the familiar adapter. Omission either
-   produces an LLP 0245 patch or refuses before artifact replacement.
+   produces an LLP 0245 patch or refuses before artifact replacement, and
+   suggestion-backed dispositions exist only for `returns` and addition-only
+   reach patches.
 4. `query` defaults to required proven liveness, `delivery: "read"` is an
    explicit opt-out, and an unprovable live query refuses rather than polling or
    silently downgrading.
 5. Familiar `useQuery` never returns retained/optimistic data as current;
    familiar `useMutation` never accepts queued custody or returns intent as
-   settlement; the generated correction points to the full lifecycle API.
+   settlement; the generated correction points to the full lifecycle API. The
+   `authentication-required` blocked state renders per the D4 contract with
+   its development diagnostic, and no documentation claims the collapsed
+   direct-result states are type-distinguished.
 6. The familiar profile supports normal `.ts` helper composition and source-map
    diagnostics under LLP 0237/0246, while packages/Node power remain confined
    to LLP 0249's explicit action profile.
@@ -739,9 +862,12 @@ The RFC's experiment is implemented only when all of the following hold:
    suite; repository-local success is insufficient.
 9. The benchmark record includes authoring, semantic, expressiveness, and
    maintenance groups, and the author records Promote, Merge, Tier, or Withdraw
-   by the stop rule.
+   by the stop rule under the preregistered eligibility rules, including the
+   second-family N≥3 requirement for Promote.
 10. No package, guide, README, or generated JSDoc calls the profile
     "Convex-compatible" or implies unmodified Convex applications work.
+11. The dated cross-reference amendments to LLP 0127, LLP 0130, and LLP 0238
+    land with the Phase 2 entrypoint shipping change, not at stop-rule time.
 
 ## Risks
 
@@ -797,7 +923,8 @@ changes enter only when they improve Snapback's own measured path.
    learned surface, but publication inventory cost should be measured.
 2. **Client alias value.** Are constrained `useQuery`/`useMutation` aliases a
    useful ordinary lane, or do their exclusions create more mistakes than the
-   familiar names save? This is intentionally measured rather than assumed.
+   familiar names save? This is intentionally measured rather than assumed —
+   the `snapback-familiar-server-v1` ablation lane exists to answer it.
 3. **Query default.** Does live-by-default plus explicit `delivery: "read"`
    outperform the existing two constructors without creating repeated
    activation refusals? Promotion of the model remains under LLP 0130 ER-3.
@@ -822,5 +949,10 @@ Review. Acceptance would authorize a bounded dual-profile experiment over one
 Snapback core. It would not make the familiar profile the default, establish
 Convex compatibility, weaken any evidence boundary, or authorize permanent
 dual-surface support. Those outcomes require the measured stop-rule disposition
-and any amendments it triggers to LLP 0004, 0108, 0119, 0130, 0198, 0238, 0241,
-0245, and 0246.
+and any amendments it triggers to LLP 0004, 0108, 0119, 0127, 0130, 0198,
+0238, 0241, 0245, and 0246. Acceptance itself obligates the Phase 2
+same-landing cross-reference amendments to LLP 0127, 0130, and 0238
+(Acceptance 11); it reopens their conclusions only inside this scoped,
+measured exception. Acceptance also does not sequence this experiment ahead
+of the hosted-operations term: LLP 0198 records operations, not syntax, as
+the largest stable deficit, and its P4 remains that decision's owner.

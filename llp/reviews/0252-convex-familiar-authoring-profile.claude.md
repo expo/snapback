@@ -90,3 +90,91 @@ VERDICT: READY — bound to SHA-256 01f35fad3586091e09b5d2b9b1dd0911064f28902b82
 ## Self-attestation
 
 I read only paths under the capsule directory (`/private/tmp/claude-501/-Users-ccheever-projects-snapback/cacc6372-1db6-4066-a114-318f7e8b68f7/scratchpad/r1/capsule`): the review instructions, the target, and the following corpus documents in full or in targeted excerpts — LLPs 0198, 0236, 0199, 0203, 0238, 0245, 0246, 0241, 0237, 0247, 0249, 0197, 0130, 0119 (option space and findings), 0117/0127/0074/0225 (cited sections and headings), plus status-line checks on 0004 and 0108. All shell commands (`ls`, `shasum`, `wc`, `grep`) operated exclusively on capsule paths. I did not use the network, WebFetch, or WebSearch, and I did not modify, create, or delete any file. The revision under review was verified against the required SHA-256 and byte count before reading.
+
+## Round 2 — 2026-08-12 (delta round + implementer probe)
+
+- **Runtime:** fresh Claude Fable 5 general-purpose agent (not the
+  orchestrating/revising session and not the round-1 reviewer), capsule-only
+  instructions, web disabled; 122,925 tokens, 29 tool uses, ~560 s. Claude
+  family launch 2.
+- **Capsule:** base `d87d8d9a9cb0f35208c889784991ce40b2fcfe27` (round-1 clone
+  with r2 overlay), inventory SHA-256
+  `62197614b6afb32a05665f6ad12aed4e5656a8694fa084dc899b0ad0840901e2`,
+  instruction SHA-256
+  `ebfa37e6402f9c6577f77fc8f67231003e3b2b82ae865cb613c6f6d976401a72`.
+- **Target under review:** r2 SHA-256
+  `001ed2dca02e9eb36fc096f84a6c5adffcd7bd14e49e18f8c03f082f9bd47cd8`
+  (48,812 bytes), Status: Review.
+- **Lens:** delta round (IN-DELTA vs PRE-EXISTING classification) plus the
+  bounded D2/D4 implementer probe.
+- **Verdict:** READY (0 MATERIAL; 11 DETAIL — 7 IN-DELTA, 4 PRE-EXISTING —
+  all altitude-dispositioned; no material underdetermination in the
+  implementer probe).
+
+The complete response follows verbatim.
+
+---
+
+All verification is complete. Here is my review.
+
+---
+
+## Concern ledger
+
+**C1. [DETAIL / IN-DELTA / D7 "The freeze is a check, not prose" + Rollout Phase 3]** D7 assigns the stop-date enforcement backstop to Phase 3 ("Phase 3 lands a dated backstop on the existing drift-backstop pattern…"), but Rollout Phase 3's enumerated items (templates, migrations, qualification/clock start) do not include it. The named enforcement mechanism — a load-bearing r2 addition — has no home in the phase list it claims.
+
+**C2. [DETAIL / IN-DELTA / D7 disposition-eligibility block]** The insufficient-evidence clause reads "permits only the freeze below plus Withdraw or a dated extension amendment — never Promote or Tier." The "only" excludes Merge, but the "never" list omits it, and "insufficient evidence" is not defined relative to Merge's own component-level gate. If the ablation lane plus sub-attribution have cleanly identified a winning component while overall rounds are incomplete, the block is ambiguous on whether Merge is eligible — precisely the kind of decision the preregistered block exists to pin.
+
+**C3. [DETAIL / IN-DELTA / D3, final paragraph of the delivery-default section]** The polling-never-reported-as-proven-push rule cites three live carriers: LLP 0119, LLP 0073's search pin, and "the root invariants." The first two check out exactly (LLP 0119 pins the rule at multiple points, quoting LLP 0074's Refuse list; LLP 0073 reaffirms non-live search posture and `SNAPBACK_FUNCTION_NOT_LIVE`). The root explainer, however, states realtime propagation as a cross-cutting requirement but nowhere states the polling-not-reported-as-proven-push rule in invariant form that I could find. The third carrier is the weakest leg of an otherwise correct citation repair; point at a specific root section or drop it.
+
+**C4. [DETAIL / PRE-EXISTING / D3 last paragraph; OQ3]** LLP 0130 ER-3 literally governs "the 1a pre-registration's acceptance" (one authored kind, split capability facts); this RFC's query model is the option-**1b** family (live by default, authored escape hatch). Invoking ER-3 as the owner of "promotion of the model" is conservative in effect — it keeps promotion the author's call, which is ER-3's spirit — but the 1a/1b scope mismatch should be named in the Phase 2 dated amendment to LLP 0130 that this RFC already obligates.
+
+**C5. [DETAIL / IN-DELTA / D2 canonical key list]** The per-kind reach clarification covers two of three kinds: "a query declares reads only" and write-capable kinds add `writes`. Whether `action` is write-capable, declares `reads`, declares neither and relies on `effects`, or refuses both keys is unstated. The canonical definition presumably owns the answer, but the v1 function-object key list is this document's contract-bearing surface and should say one line.
+
+**C6. [DETAIL / PRE-EXISTING / D2, D6]** The admitted v1 `ctx.db` surface (method set — get/insert/patch/replace/delete; builder grammar — order/take/first/unique/paginate; index-range predicate forms) is never enumerated. It is implicitly deferred to the Phase 0 construct inventory and the D6 four-state compatibility table ("query consumers" row), but nothing says the D6 table is the *normative* enumeration of the v1 subset rather than documentation of it.
+
+**C7. [DETAIL / PRE-EXISTING / D4 `useQuery`]** Two D4 rules can collide at the mid-subscription authority-revocation edge: "loss of current authority" is enumerated as an `undefined` state, while "typed refusals… are never silently converted to `undefined`." A revocation both removes the authoritative result and may surface as a typed refusal on resubscribe. LLP 0247 D2's vocabulary (continuing reads take stable blocked *states*; one-shot refusals are typed *errors*) resolves it, but the alias document should pin which surface wins at that edge rather than leaving the reconciliation to inference across two documents.
+
+**C8. [DETAIL / IN-DELTA / D4 diagnostic vs. companion alias]** The development-build routing diagnostic "names `useQueryState` whenever a blocked query renders as `undefined`," and Acceptance 5 requires that diagnostic — but D4 makes `useQueryState` optional ("a companion `useQueryState` alias **may** point to that same canonical hook"). As written, a conforming implementation could omit the alias while its mandatory diagnostic names a nonexistent API. Either make the alias mandatory in the familiar package or have the diagnostic name `useSnapbackLiveQuery`.
+
+**C9. [DETAIL / IN-DELTA / D1 no-mixing enforcement; Acceptance 2]** D1 describes the profile brand as nominal/type-level ("familiar client aliases type-accept only familiar-branded references") plus a Phase 2 build gate; Acceptance 2 extends this to what reads as a runtime refusal ("the familiar aliases refuse references from an explicit-profile generation"). Whether the brand is carried as a runtime-checkable fact on generated refs (joining kind/authority/retention/delivery/queue in D4's fact list) or is compile-time-only is left implicit; the two sections imply different mechanisms.
+
+**C10. [DETAIL / PRE-EXISTING / D7 stop rule]** "Three complete qualified comparison rounds covering all workload families" — "round" is never defined (presumably one full pass of the preregistered lane × workload matrix at preregistered N). Phase 0 item 4 preregisters the matrix but not the round definition; one line would make the stop rule's non-calendar bound mechanically checkable.
+
+**C11. [DETAIL / IN-DELTA / D2 adapter rule vs. Acceptance 3]** Disposition 3 is now restricted to `returns` and "addition-only reach patches." Whether an entirely **absent** `reads` key is a refusal (missing required field) or a patch candidate (addition from empty) is determinable only by cross-reading Acceptance 3 ("Omission either produces an LLP 0245 patch or refuses"); D2's own adapter rule ("may accept a missing candidate field only long enough to produce a… suggestion") should state which fields the absent-key patch path covers.
+
+Citation verification performed against the capsule corpus, for the record: LLP 0225#decision, 0199#decision, 0236 (summary, both section anchors, the 55/45 figure), 0198 (summary "roughly half the wall-clock and 45% of the tokens" ↔ "roughly twice the time and tokens"; I.5 anchor; P0.0(c); P0b at N≥3; P4 as the operations owner), 0203 P1/P6 anchors, 0117#option-space, 0127 Move 1 anchor, 0074 Status Shelved + "polling fallback must not be reported as proven push," 0119 option 1b and its carriage of the rule, 0073 non-live search pin, 0130 ER-3 text, 0247 D2 `authentication-required` stable blocked state, 0238 D4 `{data,status,freshness,diagnostic,refresh}` and the deprecated-ambiguous-name conclusion, 0245 D2/D3 (result contracts first; dependency suggestions only widen; stale-safe compare-and-write), 0246 D5 (source-profile version bound into semantic identity — the claimed precedent is real), 0241 D1/D3 (five identities; custody = evidence identity; semantic-identity change does **not** force incompatible reload — D8's fence-preservation claim is coherent with the closed reload classes), 0242/0248 (bounded composition, same-snapshot batch reads, N+1 provenance), 0249 (Node power confined to the isolated action profile), 0237 (bounded helper graph), 0197 (all nine claimed rule elements present), and `v.principal()` (exists in LLP 0004/0108 — not an invented validator). All check out except the "root invariants" leg noted in C3. All twelve enumerated delta items are present in the text as described.
+
+## Implementer probe
+
+**Contract A — familiar function-object validation (from D2).** The adapter accepts a module graph under `snapback/`, requires every operation export to be constructed by `query`/`mutation`/`action` from `./_generated/server`, and validates per object: `args` present (absent → refuse; not suggestion-eligible); `returns` present (absent → read-only LLP 0245 suggestion, activation refused until accepted source); `auth` present from the canonical authority vocabulary (absent → refuse, never suggested); `reads` required (query: reads only), `writes` required for write-capable kinds (incomplete → addition-only LLP 0245 patch or refusal before artifact replacement); `effects`/`secrets`/`capabilities`/`runtime` required when used, never inferred (used-but-undeclared → refuse); `delivery` legal only on `query`, default `"live"` frozen in the profile version, `"read"` the only opt-out, no `auto`; `handler` admitted as a bounded `.ts`/`.mts` graph under LLP 0237/0246. Every canonical field resolves to exactly one of the four dispositions; no silent unknowns. Output: `NormalizedApplicationDefinitionV1` + `normalizedContractId`, profile version recorded as a semantic-identity input, `api.<module>.<fn>` aliases over nominal profile-branded refs.
+
+Underdeterminations logged: action-kind reach requirements (→ C5); absent-vs-incomplete `reads` disposition (→ C11); the admitted `ctx.db`/builder surface (→ C6); unknown-key handling (I inferred refusal from "no silent unknown," but D2 never says unknown keys take disposition 4 — folded into C6's normative-enumeration ask); `auth` value vocabulary (explicitly delegated to the authority owners — adequate, not logged as a concern).
+
+**Contract B — `useQuery`/`useMutation` behavior (from D4).** `useQuery(FamiliarLiveRef<A,R>, args): R | undefined` — subscribes through the canonical machinery (no second cache/transport/outbox); returns `R` only while an authoritative current result exists; `undefined` for initial load, authority transition, unavailable current data, loss of current authority, and the LLP 0247 `authentication-required` stable blocked state; never retained/optimistic/queued data through this shape (types + runtime); typed refusals/errors throw to the documented error boundary, never `undefined`; dev builds emit the routing diagnostic when a blocked query renders `undefined`; only familiar-branded live-capable refs type-accepted. `useMutation(FamiliarMutationRef)` returns a callable that dispatches `queue: "never"`, resolves only with the validated authoritative result, rejects offline with a typed refusal before accepting custody, never resolves from queued intent, and carries the mismatch diagnostic routing queue-capable declarations to `useSnapbackMutationDispatch`/`useSnapbackMutationStatus`.
+
+Underdeterminations logged: the revocation edge between the `undefined` state list and the never-converted-to-`undefined` rule (→ C7); the diagnostic naming an optional API (→ C8); conditional-query ("skip") support — Convex-prior agents will write it and the document neither admits nor refuses it; it is an inventory row for the D6 table, not a defective decision (folded into C6); resubscribe keying and error-boundary mechanics — determinable by inheritance from LLP 0238 D5 and the "projection over existing owners" rule, not logged.
+
+No underdetermination found is material: each is either explicitly delegated to a named owner (authority vocabulary, reach syntax, read shapes), pinned by another section of this document (Acceptance 3, D6, Phase 0 inventory), or fixable by one declared line without changing any decision.
+
+## Altitude dispositions
+
+- **C1** — add the backstop as a Phase 3 (or Phase 4) rollout item; implementation-phase placement fix.
+- **C2** — one sentence defining "insufficient evidence" and stating Merge's eligibility under its component gate at the stop date.
+- **C3** — replace "the root invariants" with a specific root-section citation or drop the third carrier.
+- **C4** — name the 1a/1b scope extension inside the already-obligated Phase 2 amendment to LLP 0130.
+- **C5** — one line stating the action kind's reach-key requirements (or naming the canonical definition as the decider).
+- **C6** — one line declaring the D6 table the normative enumeration of the v1 `ctx.db`/consumer subset, including the skip/conditional-query row.
+- **C7** — Phase 2 pins the revocation edge using LLP 0247/0238 vocabulary; no decision changes.
+- **C8** — make `useQueryState` mandatory in the familiar package or rename the diagnostic's target; one-line fix either way.
+- **C9** — one line stating whether the profile brand is a runtime-carried ref fact or compile-time only; Acceptance 2 already implies the answer.
+- **C10** — one line defining a comparison round; Phase 0 preregistration absorbs it.
+- **C11** — one clause in D2 stating which absent keys are patch-candidates versus refusals; Acceptance 3 already implies the answer.
+
+## Verdict
+
+VERDICT: READY — bound to SHA-256 001ed2dca02e9eb36fc096f84a6c5adffcd7bd14e49e18f8c03f082f9bd47cd8
+
+## Self-attestation
+
+I read only paths under `/private/tmp/claude-501/-Users-ccheever-projects-snapback/cacc6372-1db6-4066-a114-318f7e8b68f7/scratchpad/r2-capsule` (the review instructions, the r2 target, and referenced LLPs under the capsule's `llp/` directory). I verified the target's byte count (48,812) and SHA-256 (`001ed2dca02e9eb36fc096f84a6c5adffcd7bd14e49e18f8c03f082f9bd47cd8`) before reading. I used no network access, no WebFetch/WebSearch, and no prior review of this document; I did not seek one. All shell commands were read-only (`ls`, `shasum`, `wc`, `grep`, `sed -n`) inside the capsule. I modified, created, and deleted no files. No deviations.
