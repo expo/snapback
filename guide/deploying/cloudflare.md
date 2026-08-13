@@ -191,7 +191,12 @@ include row/storage size, wall-clock/CPU, and subscription counts.
 It explicitly does **not** claim:
 
 - hosted authentication (only `authMode: dev` is supported);
-- offline retention/replay or optimistic replay;
+- offline retention/replay or optimistic replay: the manifest reports
+  `offline_mutation_replay` as a gap because the coordinator has no
+  client-mutation settlement ledger. Accordingly, `SnapbackClient` treats
+  default `queue: 'auto'` as fail-loud/no-enqueue after an ambiguous transport
+  failure, and explicit queueing or draining an existing outbox refuses with
+  `SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`;
 - ephemeral realtime rooms;
 - generalized outbound actions or an egress destination allowlist;
 - calendar/Cron Trigger schedules;

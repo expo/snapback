@@ -13,7 +13,7 @@ import { test } from 'node:test';
 
 import { IDBFactory } from 'fake-indexeddb';
 
-import { SnapbackClient, isSnapbackDiagnosticError } from './index.mjs';
+import { SnapbackClient as InspectingSnapbackClient, isSnapbackDiagnosticError } from './index.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 import { createFileRqsResumeStore, RQS_FILE_STORE_FORMAT_V1 } from './rqs-store-file.mjs';
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
@@ -25,6 +25,15 @@ import {
   outboxNotWriterError,
   outboxOps,
 } from './outbox-shared.mjs';
+
+class SnapbackClient extends InspectingSnapbackClient {
+  constructor(baseUrl, options = {}) {
+    super(baseUrl, {
+      __offlineMutationReplayCapability: true,
+      ...options,
+    });
+  }
+}
 
 const originalFetch = globalThis.fetch;
 const TEST_AUTHORITY_DESCRIPTOR = Object.freeze({
@@ -133,6 +142,13 @@ const createDurableTestStore = (options = undefined) => {
   store.durability = () => ({ implementation: 'memory-test-double', durable: true });
   return store;
 };
+
+const offlineReplayCapabilityManifest = ({ supported, targetProfileId }) => ({
+  manifestVersion: 1,
+  targetProfileId,
+  supportedCapabilities: supported ? ['offline_mutation_replay'] : ['live_subscriptions'],
+  capabilityGaps: supported ? [] : ['offline_mutation_replay'],
+});
 
 async function exerciseOutboxContract(store, { label }) {
   assert.equal(await store.outboxEmpty(), true, `${label}: starts empty`);
@@ -689,6 +705,143 @@ test('volatile store never claims the durable settlement-publication path', asyn
     (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
   );
   assert.equal((await store.outboxRecords()).length, 0, 'auto mode never queues into memory');
+});
+
+test("queue:'auto' never enqueues an ambiguous mutation for a ledger-less target", async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('https://ledgerless.example', { rqsStore: store });
+  let mutationCalls = 0;
+  let inspectCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      inspectCalls += 1;
+      return Response.json(offlineReplayCapabilityManifest({
+        supported: false,
+        targetProfileId: 'cloudflare-do-sqlite-v8',
+      }));
+    }
+    mutationCalls += 1;
+    throw new TypeError('ambiguous transport loss');
+  };
+
+  await assert.rejects(
+    () => client.mutate('createThing', { args: { title: 'committed-or-not' } }),
+    (error) => (
+      (error instanceof TypeError && error.message === 'ambiguous transport loss')
+      || (isSnapbackDiagnosticError(error)
+        && error.cause instanceof TypeError
+        && error.cause.message === 'ambiguous transport loss')
+    ),
+  );
+  assert.equal(mutationCalls, 1, 'auto still attempts the online mutation once');
+  assert.equal(inspectCalls, 1, 'the target manifest is checked before durable fallback');
+  assert.deepEqual(await store.outboxRecords(), [], 'ambiguous delivery is never enqueued');
+});
+
+test('explicit queueing fails with a typed capability error for a ledger-less target', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('https://ledgerless.example', { rqsStore: store });
+  let mutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayCapabilityManifest({
+        supported: false,
+        targetProfileId: 'cloudflare-do-sqlite-v8',
+      }));
+    }
+    mutationCalls += 1;
+    throw new Error('mutation transport must not run');
+  };
+
+  await assert.rejects(
+    () => client.mutate('createThing', { args: {}, queue: true }),
+    (error) => (
+      error.name === 'SnapbackOfflineQueueCapabilityError'
+      && error.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED'
+      && error.diagnostic?.details?.capability === 'offline_mutation_replay'
+      && error.diagnostic?.details?.targetProfileId === 'cloudflare-do-sqlite-v8'
+    ),
+  );
+  assert.equal(mutationCalls, 0, 'explicit queue refusal happens before mutation dispatch');
+  assert.deepEqual(await store.outboxRecords(), []);
+});
+
+test('replay refuses to drain an existing outbox for a ledger-less target', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({ id: 'cm-ledgerless', function: 'createThing', args: { n: 1 } });
+  const client = new InspectingSnapbackClient('https://ledgerless.example', { rqsStore: store });
+  let mutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayCapabilityManifest({
+        supported: false,
+        targetProfileId: 'cloudflare-do-sqlite-v8',
+      }));
+    }
+    mutationCalls += 1;
+    throw new Error('mutation transport must not run');
+  };
+
+  await assert.rejects(
+    () => client.replayQueuedMutations(),
+    (error) => (
+      error.name === 'SnapbackOfflineQueueCapabilityError'
+      && error.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED'
+    ),
+  );
+  const controller = client.startOutboxDrain({ automatic: false, eventTarget: null });
+  t.after(() => controller.stop());
+  await assert.rejects(
+    () => client.replayQueuedMutations(),
+    (error) => (
+      error.name === 'SnapbackOfflineQueueCapabilityError'
+      && error.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED'
+    ),
+    'the public replay entry remains typed when a drain controller owns the store',
+  );
+  assert.equal(mutationCalls, 0, 'drain refuses before mutation transport');
+  assert.deepEqual(
+    (await store.outboxPending()).map((record) => record.id),
+    ['cm-ledgerless'],
+    'the refusal does not mutate queue custody or disposition',
+  );
+});
+
+test('a target advertising the settlement ledger still queues and replays', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('http://127.0.0.1:4400', { rqsStore: store });
+  let online = false;
+  const delivered = [];
+  globalThis.fetch = async (url, init) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json({
+        capabilityManifest: offlineReplayCapabilityManifest({
+          supported: true,
+          targetProfileId: 'local-dev-sqlite-ibex',
+        }),
+      });
+    }
+    if (!online) throw new TypeError('offline');
+    delivered.push(JSON.parse(init.body));
+    return Response.json({ result: { ok: true }, version: 1 });
+  };
+
+  const queued = await client.mutate('createThing', { args: { title: 'safe' } });
+  assert.equal(queued.status, 'queued');
+  assert.equal((await store.outboxPending()).length, 1);
+
+  online = true;
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
+    { replayed: 1, failed: 0, remaining: 0 },
+  );
+  assert.equal(delivered.length, 1);
+  assert.equal(delivered[0].clientMutationId, queued.clientMutationId);
 });
 
 test('closeAuth releases an owned default store for the next sequential client', async () => {

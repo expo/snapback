@@ -4,9 +4,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { SnapbackClient } from './index.mjs';
+import { SnapbackClient as InspectingSnapbackClient } from './index.mjs';
 import { outboxNotWriterError } from './outbox-shared.mjs';
 import { createFileRqsResumeStore } from './rqs-store-file.mjs';
+
+class SnapbackClient extends InspectingSnapbackClient {
+  constructor(baseUrl, options = {}) {
+    super(baseUrl, {
+      __offlineMutationReplayCapability: true,
+      ...options,
+    });
+  }
+}
 
 const digest = (character) => `sha256:${character.repeat(64)}`;
 const activation = Object.freeze({

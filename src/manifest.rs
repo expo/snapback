@@ -10250,6 +10250,12 @@ pub enum TargetCapabilityId {
     ConnectedClientPredicate,
     #[serde(rename = "live_subscriptions")]
     LiveSubscriptions,
+    /// The target atomically retains a client-mutation settlement under the
+    /// caller's replay-stable id and republishes it on duplicate delivery.
+    /// This is the safety prerequisite for a durable client outbox; it is
+    /// independent from merely accepting a `clientMutationId` field.
+    #[serde(rename = "offline_mutation_replay")]
+    OfflineMutationReplay,
     #[serde(rename = "mutation_read_set_validation")]
     MutationReadSetValidation,
     #[serde(rename = "mixed_bundle_boot_v2")]
@@ -10339,6 +10345,7 @@ impl TargetCapabilityId {
         Self::ExpoPushSeamV1,
         Self::ConnectedClientPredicate,
         Self::LiveSubscriptions,
+        Self::OfflineMutationReplay,
         Self::MutationReadSetValidation,
         Self::MixedBundleBootV2,
         Self::PermissionEpochResync,
@@ -10383,6 +10390,7 @@ impl TargetCapabilityId {
             Self::ExpoPushSeamV1 => "notifications.expoPushSeam",
             Self::ConnectedClientPredicate => "realtime.connected-client-predicate",
             Self::LiveSubscriptions => "live_subscriptions",
+            Self::OfflineMutationReplay => "offline_mutation_replay",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
             Self::MixedBundleBootV2 => "mixed_bundle_boot_v2",
             Self::PermissionEpochResync => "permission_epoch_resync",
@@ -10446,6 +10454,7 @@ impl TargetCapabilityId {
             // durable-work capability class or target tuple (claim boundary).
             | Self::JobsOneOffV1
             | Self::MixedBundleBootV2
+            | Self::OfflineMutationReplay
             | Self::RegisteredBundleBootV1
             | Self::SequenceAllocationV1
             | Self::SnapshotBatchV1
@@ -10621,6 +10630,13 @@ impl TargetCapabilityId {
                         })
             }
             Self::LiveSubscriptions => manifest.live_subscriptions,
+            // @ref LLP 0058#target-capability-registry-amendment--offline-mutation-replay-2026-08-12 —
+            // only targets registering the atomic settlement ledger may
+            // advertise the outbox replay prerequisite. Cloudflare/default
+            // facts remain false even though that target accepts mutations.
+            Self::OfflineMutationReplay => {
+                facts.client_mutation_settlement_ledger_registered
+            }
             Self::MutationReadSetValidation => {
                 manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
                     && facts.mutation_read_set_validator_registered
@@ -12066,6 +12082,7 @@ pub struct TargetCapabilityFacts {
     jobs_one_off_v1_registered: bool,
     expo_push_seam_v1_registered: bool,
     connected_client_predicate_registered: bool,
+    client_mutation_settlement_ledger_registered: bool,
     result_contract_v1_registered: bool,
     structured_stored_value_v1_registered: bool,
     settlement_bounded_skew_registered: bool,
@@ -12239,6 +12256,10 @@ impl TargetCapabilityFacts {
             jobs_one_off_v1_registered: true,
             expo_push_seam_v1_registered: true,
             connected_client_predicate_registered: true,
+            // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+            // local SQLite owns `_snapback_client_mutations` in the same
+            // transaction as the application write and can safely redeliver.
+            client_mutation_settlement_ledger_registered: true,
             result_contract_v1_registered: true,
             // @ref LLP 0211#capability-and-maturity-the-llp-0134-publication-contract
             //   — the support flip is the separate reviewed act the Spec
@@ -16345,6 +16366,10 @@ mod membership_manifest_grammar_tests {
                 CapabilityMaturity::Experimental,
             ),
             (
+                TargetCapabilityId::OfflineMutationReplay,
+                CapabilityMaturity::Experimental,
+            ),
+            (
                 TargetCapabilityId::MixedBundleBootV2,
                 CapabilityMaturity::Experimental,
             ),
@@ -16397,10 +16422,6 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::WriteActivityV1,
-                CapabilityMaturity::Experimental,
-            ),
-            (
-                TargetCapabilityId::ConnectedClientPredicate,
                 CapabilityMaturity::Experimental,
             ),
             (

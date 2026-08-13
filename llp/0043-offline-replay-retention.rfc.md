@@ -5,7 +5,10 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-10 (LLP 0218 P3 React dispatch handoff: a queued React
+**Revised:** 2026-08-12 (target settlement-ledger capability gate: durable
+JS outbox enqueue and replay require the target's positive
+`offline_mutation_replay` advertisement; Cloudflare remains fail-loud while
+local SQLite retains its exactly-once replay path). 2026-08-10 (LLP 0218 P3 React dispatch handoff: a queued React
 resolution relinquishes foreground settlement to this RFC's durable status,
 custody, recovery, and acknowledgement lifecycle). 2026-08-10 (JS/React M1 lease-custody implementation leg:
 generated protected live queries now use an owned atomic RQS-v3 sibling
@@ -308,6 +311,28 @@ write. The client persists confirmed ids as auth-tagged records. Auth/artifact
 scope changes retain those opaque GC proofs but expose and send only records
 matching the current authority, so returning to the prior user can finish GC
 without sending their ids under another user.
+
+#### Target settlement-ledger capability gate (2026-08-12)
+
+Durable queueing is safe only when duplicate delivery of the same
+`clientMutationId` resolves through the atomic server settlement ledger just
+described. The target therefore advertises the positive closed capability
+`offline_mutation_replay` only when that ledger is registered. Accepting a
+mutation id, omitting a capability gap, or successfully handling an ordinary
+mutation is not equivalent evidence.
+
+Before creating durable intent, `queue: true` requires that positive fact and
+otherwise refuses with the typed client error
+`SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`. `queue: 'auto'` degrades
+to `queue: false` when support is absent or cannot be inspected: an ambiguous
+transport failure remains the caller-visible error and no outbox record is
+created. Before any queued record is reconciled or re-POSTed,
+`replayQueuedMutations()` performs the same check and refuses with that typed
+error, leaving the record pending and unchanged. Local SQLite advertises the
+capability because `_snapback_client_mutations` settles the id in the
+application-write transaction. The Cloudflare coordinator does not own that
+ledger and continues to report `offline_mutation_replay` as a gap, so its JS
+clients fail loudly instead of accepting at-least-once replay corruption.
 
 Every newly written server settlement also stores a nullable authoritative
 version beside the legacy settlement cursor. A non-null value — including

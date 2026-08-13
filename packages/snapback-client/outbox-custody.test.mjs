@@ -6,7 +6,7 @@ import {
   createMemoryAuthCustodyStorage,
 } from '@expo/snapback-contract/auth-coordinator';
 
-import { isSnapbackDiagnosticError, SnapbackClient } from './index.mjs';
+import { SnapbackClient as InspectingSnapbackClient, isSnapbackDiagnosticError } from './index.mjs';
 import {
   OUTBOX_MAX_RECORD_BYTES,
   emptyOutboxState,
@@ -14,6 +14,15 @@ import {
   outboxRecordBytes,
 } from './outbox-shared.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+
+class SnapbackClient extends InspectingSnapbackClient {
+  constructor(baseUrl, options = {}) {
+    super(baseUrl, {
+      __offlineMutationReplayCapability: true,
+      ...options,
+    });
+  }
+}
 
 const originalFetch = globalThis.fetch;
 const fixtures = new Map();

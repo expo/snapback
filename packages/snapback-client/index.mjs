@@ -2056,6 +2056,39 @@ const clientCodedError = (error, code) => {
   return new SnapbackDiagnosticError(diagnostic, { message, cause: error });
 };
 
+const OFFLINE_MUTATION_REPLAY_CAPABILITY = 'offline_mutation_replay';
+const OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED =
+  'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED';
+
+const offlineQueueSettlementLedgerError = ({
+  cause = undefined,
+  reason,
+  targetProfileId = null,
+} = {}) => {
+  const message = reason === 'inspection-unavailable'
+    ? 'the target settlement-ledger capability could not be verified; durable mutation queueing and replay are disabled'
+    : `target ${targetProfileId ?? '(unknown)'} does not advertise ${OFFLINE_MUTATION_REPLAY_CAPABILITY}; durable mutation queueing and replay are unsafe`;
+  const error = new Error(
+    `${OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED}: ${message}`,
+    cause === undefined ? undefined : { cause },
+  );
+  error.name = 'SnapbackOfflineQueueCapabilityError';
+  error.code = OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED;
+  error.diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED,
+    severity: 'error',
+    subsystem: 'outbox',
+    message,
+    details: Object.freeze({
+      capability: OFFLINE_MUTATION_REPLAY_CAPABILITY,
+      reason,
+      targetProfileId,
+    }),
+  });
+  return error;
+};
+
 export const SNAPBACK_QUERY_OFFLINE_UNAVAILABLE =
   'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE';
 export const SNAPBACK_STORE_RUNTIME_LOAD_FAILED =
@@ -2258,6 +2291,10 @@ export class SnapbackClient {
     __allowLegacyDevAssertion = false,
     __clientDiagnosticsOptions = null,
     __devDiagnosticsReporterOptions = null,
+    // Deterministic package-test seam. Product callers omit this and use the
+    // served `/inspect` capability manifest; it is intentionally undeclared
+    // in the public TypeScript surface.
+    __offlineMutationReplayCapability = null,
     // Deterministic construction seam for the LLP 0166 background runtime.
     // Production callers omit it; wiring tests inject clocks/carriers without
     // replacing any policy or broker object.
@@ -2375,7 +2412,14 @@ export class SnapbackClient {
     if (offlineQueue !== 'auto' && typeof offlineQueue != 'boolean') {
       throw new TypeError("offlineQueue must be 'auto', true, or false");
     }
+    if (
+      __offlineMutationReplayCapability !== null
+      && typeof __offlineMutationReplayCapability !== 'boolean'
+    ) {
+      throw new TypeError('__offlineMutationReplayCapability must be null or boolean');
+    }
     this.__offlineQueue = offlineQueue;
+    this.__offlineMutationReplayCapability = __offlineMutationReplayCapability;
     if (operationIdentityProtocol !== null && operationIdentityProtocol !== 1) {
       throw new TypeError('operationIdentityProtocol must be null or 1');
     }
@@ -5135,6 +5179,54 @@ export class SnapbackClient {
   health() { return this.#req('GET', '/health'); }
   inspect() {
     return this.#req('GET', '/inspect', undefined, this.#authOfferHeaders(false));
+  }
+
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+  // durable enqueue/replay requires a positive server-ledger advertisement.
+  // @ref LLP 0058#target-capability-registry-amendment--offline-mutation-replay-2026-08-12 —
+  // a missing capability gap is never positive support; inspect the closed
+  // supportedCapabilities set on both local and Cloudflare payload shapes.
+  async #offlineMutationReplayCapabilityFact() {
+    if (this.__offlineMutationReplayCapability !== null) {
+      return Object.freeze({
+        supported: this.__offlineMutationReplayCapability,
+        reason: this.__offlineMutationReplayCapability ? null : 'not-advertised',
+        targetProfileId: null,
+      });
+    }
+    let inspection;
+    try {
+      inspection = await this.inspect();
+    } catch (cause) {
+      return Object.freeze({
+        supported: false,
+        reason: 'inspection-unavailable',
+        targetProfileId: null,
+        cause,
+      });
+    }
+    // Local `/inspect` nests the manifest in PublicInspect; the Cloudflare
+    // proof serves that same manifest directly at `/inspect` and `/capability`.
+    const manifest = inspection?.capabilityManifest
+      ?? (Array.isArray(inspection?.supportedCapabilities) ? inspection : null);
+    const targetProfileId = typeof manifest?.targetProfileId === 'string'
+      ? manifest.targetProfileId
+      : typeof inspection?.targetProfileId === 'string'
+        ? inspection.targetProfileId
+        : null;
+    const supported = Array.isArray(manifest?.supportedCapabilities)
+      && manifest.supportedCapabilities.includes(OFFLINE_MUTATION_REPLAY_CAPABILITY);
+    return Object.freeze({
+      supported,
+      reason: supported ? null : 'not-advertised',
+      targetProfileId,
+    });
+  }
+
+  async #requireOfflineMutationReplayCapability() {
+    const fact = await this.#offlineMutationReplayCapabilityFact();
+    if (!fact.supported) throw offlineQueueSettlementLedgerError(fact);
+    return fact;
   }
 
   // @ref LLP 0107#package-and-acceptance — retained cleanup evidence inspects
@@ -8019,6 +8111,27 @@ export class SnapbackClient {
       }
       clearWriterPollTimer();
 
+      try {
+        // Gate the controller before custody reconciliation or a freshness
+        // barrier can touch a ledger-less target. The private replay core
+        // repeats this check because callers may use it without a controller.
+        await this.#requireOfflineMutationReplayCapability();
+      } catch (error) {
+        if (running) {
+          const code = error?.diagnostic?.code ?? error?.code ?? 'unavailable';
+          if (code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED) {
+            this.__outboxLastReplayStop = Object.freeze({
+              kind: 'terminal',
+              reason: `target-capability-refused:${code}`,
+            });
+            pause(`target-capability-refused:${code}`);
+          } else {
+            scheduleBackoff(`capability-transient:${code}`);
+          }
+        }
+        return lastOutcome;
+      }
+
       const custody = await this.#reconcileQueueCustody(store);
       if (!running) return lastOutcome;
       if (!custody.settled) {
@@ -8049,7 +8162,16 @@ export class SnapbackClient {
         lastOutcome = Object.freeze(await this.#replayQueuedMutationsWithOptions());
       } catch (error) {
         if (running) {
-          scheduleBackoff(`replay-transient:${error?.diagnostic?.code ?? error?.code ?? 'unavailable'}`);
+          const code = error?.diagnostic?.code ?? error?.code ?? 'unavailable';
+          if (code === OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED) {
+            this.__outboxLastReplayStop = Object.freeze({
+              kind: 'terminal',
+              reason: `target-capability-refused:${code}`,
+            });
+            pause(`target-capability-refused:${code}`);
+          } else {
+            scheduleBackoff(`replay-transient:${code}`);
+          }
         }
         return lastOutcome;
       }
@@ -8125,7 +8247,11 @@ export class SnapbackClient {
     };
 
     handle = Object.freeze({
-      drainNow: () => requestCycle('manual', { manual: true }),
+      drainNow: async () => {
+        const pending = await scanPending();
+        if (pending.length > 0) await this.#requireOfflineMutationReplayCapability();
+        return requestCycle('manual', { manual: true });
+      },
       stop,
       status: controller.status,
     });
@@ -8281,6 +8407,22 @@ export class SnapbackClient {
       return {
         replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining, stopped: true,
       };
+    }
+    let queuedBeforeCustody;
+    try {
+      queuedBeforeCustody = await store.outboxPending();
+    } catch (error) {
+      this.__outboxLastReplayStop = Object.freeze({
+        kind: 'transient',
+        reason: `store-transient:${error?.code ?? 'unavailable'}`,
+      });
+      return { replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining: 0 };
+    }
+    if (queuedBeforeCustody.length > 0) {
+      // The check precedes every queue-state reconciliation and mutation
+      // transport: a target without the ledger cannot double-apply an old
+      // record or mutate its custody disposition as a side effect of drain.
+      await this.#requireOfflineMutationReplayCapability();
     }
     const headCustody = await this.#reconcileQueueCustody(store);
     if (!headCustody.settled) {
@@ -8882,6 +9024,27 @@ export class SnapbackClient {
     if (queue !== 'auto' && queue !== false && queue !== true) {
       throw new TypeError("mutate queue option must be 'auto', true, or false");
     }
+    let queueCapabilityVerified = queue === false ? false : null;
+    if (queue === true) {
+      // Preserve the existing local-custody error ordering: an explicit queue
+      // request with no durable store fails locally before any target probe.
+      this.#offlineQueueStore(true);
+      await this.#requireOfflineMutationReplayCapability();
+      queueCapabilityVerified = true;
+    } else if (
+      queue === 'auto'
+      && (
+        ref?.mutationIr?.format === 'snapback.generated-mutation-ir.v1'
+        || clientMutationId !== null
+        || optimisticOperation !== null
+        || this.__operationIdentityProtocol === 1
+      )
+      && this.#offlineQueueStore(false) !== null
+    ) {
+      const capability = await this.#offlineMutationReplayCapabilityFact();
+      if (capability.supported) queueCapabilityVerified = true;
+      else queue = false;
+    }
     let generatedMutation = null;
     let generatedComposedStore = null;
     if (ref?.mutationIr?.format === 'snapback.generated-mutation-ir.v1') {
@@ -9368,6 +9531,23 @@ export class SnapbackClient {
             throw error;
           }
           if (queueStore && isConnectivityFailureError(error)) {
+            if (queueCapabilityVerified !== true) {
+              const capability = await this.#offlineMutationReplayCapabilityFact();
+              if (!capability.supported) {
+                this.#recordOutboxDiagnostic({
+                  code: OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED,
+                  mutation: name,
+                  clientMutationId,
+                  reason: capability.reason,
+                  targetProfileId: capability.targetProfileId,
+                });
+                // `queue:'auto'` degrades to `queue:false`: the original
+                // ambiguous transport failure remains the caller-visible
+                // error, and no durable intent is created.
+                throw error;
+              }
+              queueCapabilityVerified = true;
+            }
             // LLP 0043 M2 / LLP 0129 Phase 0: delivery refused at the
             // transport — queue the intent durably under a client-minted
             // durable identity and settle it by ordered replay after the

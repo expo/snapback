@@ -28,3 +28,21 @@ Client must refuse `queue: 'auto'` / outbox drain unless the target advertises a
 ## Confidence
 
 High. Hosted “no ledger” is documented as a shape/capability gap (`issues/closed/20260808-guide-gap-mutation-settlement-identity.md`), not as this client double-apply bug.
+
+## Resolution (2026-08-12)
+
+Added the closed `offline_mutation_replay` target capability, backed only by
+the registered atomic client-mutation settlement ledger. Local SQLite-derived
+profiles advertise it through `/inspect`; the Cloudflare target keeps its
+existing gap. `SnapbackClient` now requires that positive advertisement before
+durable enqueue or drain. Default `queue: 'auto'` degrades to fail-loud
+`queue: false` behavior when the fact is absent/unavailable, while explicit
+`queue: true` and replay refuse with the typed
+`SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED` error. An existing queue is
+left unchanged and the automatic drain gates before custody reconciliation or
+its freshness barrier.
+
+Coverage exercises ledger-less auto queueing, explicit queue refusal, direct
+replay refusal, and the ledger-advertising local payload shape retaining
+enqueue/replay behavior. The final affected-suite command reported verbatim:
+`tests 128`, `pass 128`, `fail 0`, `cancelled 0`, `skipped 0`, `todo 0`.

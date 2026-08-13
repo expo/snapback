@@ -156,6 +156,7 @@ fn agent_registration_policy_is_sessions_only_closed_and_defaults_disabled() {
                 invited_by: InvitedBy::Operators,
                 mode_explicit: true,
             }),
+            password_identifier_mode: None,
         }),
         ..SchemaManifest::default()
     };
@@ -182,6 +183,7 @@ fn sessions_schema() -> SchemaManifest {
         auth: Some(AuthManifest {
             mode: AuthMode::Sessions,
             agents: None,
+            password_identifier_mode: None,
         }),
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         ..SchemaManifest::default()
@@ -396,6 +398,7 @@ fn schema_version_and_auth_mode_form_a_closed_pair() {
     v1_dev.auth = Some(AuthManifest {
         mode: AuthMode::Sessions,
         agents: None,
+        password_identifier_mode: None,
     });
     assert_eq!(
         v1_dev.validate_artifact().unwrap_err().diagnostic.code,
@@ -545,7 +548,9 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "inline_handler_v1",
             "jobs_one_off_v1",
             "notifications.expoPushSeam",
+            "realtime.connected-client-predicate",
             "live_subscriptions",
+            "offline_mutation_replay",
             "mutation_read_set_validation",
             "mixed_bundle_boot_v2",
             "permission_epoch_resync",
@@ -564,6 +569,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             // acknowledgement.
             "vector_search_v1",
             "result_contract_v1",
+            "structured_stored_value_v1",
             "settlement.bounded_skew",
             "args_contract_v1",
             "versioned_seed_install_v1",
@@ -578,7 +584,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "asset_video_finalization_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 38);
+    assert_eq!(TargetCapabilityId::ALL.len(), 40);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),

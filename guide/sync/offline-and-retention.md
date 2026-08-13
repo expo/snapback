@@ -215,6 +215,17 @@ proof of the same contracts. The headless witness proves:
   constructor (undici throws `TypeError`; Expo/RN fetch rejects a plain
   `Error`). Caller-owned aborts/timeouts and anything the server answered
   never queue.
+- **The target settlement ledger is a prerequisite, not an assumption.** The
+  local SQLite target positively advertises `offline_mutation_replay` in its
+  `/inspect` capability manifest because it atomically settles and republishes
+  a replayed `clientMutationId`. `queue: 'auto'` behaves as `queue: false` for
+  any target that does not advertise that capability (or whose manifest cannot
+  be inspected): an ambiguous transport failure surfaces and nothing is
+  enqueued. Explicit `queue: true` and a non-empty
+  `replayQueuedMutations()` drain instead refuse with
+  `SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`, leaving existing intent
+  pending. In particular, the current Cloudflare proof does not have this
+  ledger; accepting mutations there does not make durable replay safe.
 - **Per-record sessions and agent custody.** A settled authority fence adds
   the exact server-issued `authorityDescriptor`, server-proven
   `principalScope`, and durable fence lineage to the queued record; no bearer,

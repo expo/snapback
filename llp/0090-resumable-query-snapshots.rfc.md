@@ -5,7 +5,9 @@
 **Systems:** Sync, Realtime, API, Client integration, Deployment, Auth
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-04 (mixed-route v2 successor amendment promoted to
+**Revised:** 2026-08-12 (D3 Node file carrier hardening: owner-only creation
+modes plus best-effort permission tightening on open; Q4 application-level
+encryption remains open). 2026-08-04 (mixed-route v2 successor amendment promoted to
 normative by Charlie Cheever's explicit author direction; capability maturity
 and publication claims remain gated as specified); 2026-08-03
 (`single_table_v1@1` owner amendment: Channel B's
@@ -991,6 +993,19 @@ in-memory one. Encryption-at-rest posture is Q4. Persisted state is untrusted
 input: corrupt, truncated, or digest-mismatched snapshots fail closed to a
 fresh subscribe (with the D1 threat-model caveat: this is corruption
 detection, not tamper-proofing).
+
+#### D3 owner-only file permissions amendment (2026-08-12)
+
+The Node file-backed carrier creates its RQS/outbox directory with mode `0700`
+and every state blob, atomic-write temporary, and writer lock with mode `0600`.
+Opening a pre-existing store best-effort tightens the directory, blob, and lock
+to those modes before using them. A filesystem or injected native adapter that
+does not implement meaningful POSIX chmod semantics may refuse that tightening
+without making the store unavailable; the Node adapter's restrictive creation
+modes remain mandatory. This closes accidental same-host readability of resume
+tokens and queued mutation payloads. It does not add application-level
+encryption or resolve Q4, which remains the owner of stronger shared-device
+threat protection.
 
 ### D4. Channel C — fetched snapshot bundles
 
