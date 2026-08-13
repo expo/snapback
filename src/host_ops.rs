@@ -10,8 +10,8 @@
 //!   source of truth for `hostOpsResult`; the committed schema in `schemas/`
 //!   is generated from them (tests/artifact_schemas_v0.rs).
 
-use crate::contract_types::ServerProfile;
 use crate::auth::invocation::{InvocationSource, PreparedAuthority};
+use crate::contract_types::ServerProfile;
 use crate::diagnostic::{Diagnostic, SnapbackError};
 use crate::local::LocalSnapback;
 use crate::manifest::{
@@ -100,12 +100,7 @@ pub const SERVED_HOST_OPS: [&str; 49] = [
 // @ref LLP 0024#core-operation-ids — process lifecycle and trusted ready-file
 // coordination are CLI-owned; a running server cannot perform them over its
 // own host-ops endpoint.
-pub const CLI_ONLY_HOST_OPS: [&str; 4] = [
-    "host.start",
-    "host.stop",
-    "host.restart",
-    "host.wait",
-];
+pub const CLI_ONLY_HOST_OPS: [&str; 4] = ["host.start", "host.stop", "host.restart", "host.wait"];
 
 /// Pinned by LLP 0024, not yet built anywhere. Requests return a structured
 /// `SNAPBACK_HOST_OP_UNIMPLEMENTED` envelope so aspiration cannot be mistaken
@@ -589,7 +584,9 @@ fn host_ops_result(
             app_id: snapback.loaded_app_id(),
             app_root: None,
             target_profile: match profile {
-                crate::contract_types::ServerProfile::Dev => TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                crate::contract_types::ServerProfile::Dev => {
+                    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
+                }
                 other => format!("local-{}-sqlite-ibex", other.as_str()),
             },
             server_url,
@@ -2670,6 +2667,7 @@ mod tests {
             auth: Some(crate::manifest::AuthManifest {
                 mode: crate::manifest::AuthMode::Sessions,
                 agents: None,
+                password_identifier_mode: None,
             }),
             required_capabilities: vec![
                 crate::manifest::TargetCapabilityId::AuthSessionsV1.to_string(),

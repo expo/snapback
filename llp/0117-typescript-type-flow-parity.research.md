@@ -5,7 +5,10 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Client integration, Runtime
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-30 (v0.3, round-2 delta review corrections — Fable
+**Revised:** 2026-08-12 (disposition update: Draft LLP 0245 takes up option C,
+infer-then-freeze, and Draft LLP 0246 takes up first-class TypeScript custody
+for the bounded module graph; neither update changes this Research document's
+findings). 2026-07-30 (v0.3, round-2 delta review corrections — Fable
 READY; Codex NOT READY on two new material items in the v0.2-added text,
 with all round-1 concerns resolved. Round-2 deltas in
 `reviews/0117-typescript-type-flow-parity.fable.md` and
@@ -45,7 +48,8 @@ figure's plus-acceptance qualifier restored; Convex runtime
 args-validation added to the background list; the value-expression IR
 scalars-only parenthetical corrected (`ValueExpr::Args`); the Diary 0022
 citation disambiguated to 0022-backend-bakeoff.)
-**Related:** LLP 0004, LLP 0093, LLP 0108, LLP 0115, LLP 0116, LLP 0118, LLP 0119, Diary 0022, Diary 0027, Diary 0032–0039
+**Related:** LLP 0004, LLP 0093, LLP 0108, LLP 0115, LLP 0116, LLP 0118,
+LLP 0119, LLP 0245, LLP 0246, Diary 0022, Diary 0027, Diary 0032–0039
 
 ## Summary
 

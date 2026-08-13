@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# @ref LLP 0041#runtime-distribution — contributor repair rebuilds one clean,
+# source-matched binary/admin/native closure before the runtime package swaps.
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/assemble-runtime-package [--help]
+
+Rebuild and assemble the host platform runtime package from a clean Snapback
+checkout. The public package seal refuses dirty or source-mismatched inputs.
+EOF
+}
+
+case "${1:-}" in
+  '') ;;
+  --help|-h) usage; exit 0 ;;
+  *)
+    printf '[snapback-runtime-assembly] error: unknown argument: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+[ "$#" -le 1 ] || { usage >&2; exit 2; }
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+cd "$ROOT"
+
+log() {
+  printf '[snapback-runtime-assembly] %s\n' "$*"
+}
+
+fail() {
+  printf '[snapback-runtime-assembly] error: %s\n' "$*" >&2
+  exit 1
+}
+
+dirty="$(git status --porcelain --untracked-files=normal --ignore-submodules=untracked)"
+if [ -n "$dirty" ]; then
+  fail 'the checkout is dirty; commit or otherwise preserve those changes and rerun from clean HEAD because a dirty binary/admin snapshot cannot receive a runtime package seal'
+fi
+
+case "$(uname -s):$(uname -m)" in
+  Darwin:arm64)
+    runtime_package='packages/snapback-runtime-darwin-arm64'
+    ;;
+  Linux:x86_64|Linux:amd64)
+    runtime_package='packages/snapback-runtime-linux-x64'
+    ;;
+  *)
+    fail "no runtime package assembler exists for $(uname -s)-$(uname -m)"
+    ;;
+esac
+
+log 'step 1/4: preparing and qualifying the vendored Ibex/Hermes runtime'
+if ! scripts/bootstrap-ibex-runtime; then
+  fail 'step 1/4 failed: scripts/bootstrap-ibex-runtime did not prepare a qualified runtime'
+fi
+
+log 'step 2/4: building the clean release binary'
+if ! cargo build --release --bin snapback; then
+  fail 'step 2/4 failed: cargo build --release --bin snapback did not produce the release runtime'
+fi
+
+log 'step 3/4: installing the locked admin console dependencies'
+if ! bun install --frozen-lockfile --cwd admin-ui; then
+  fail 'step 3/4 failed: the locked admin-ui dependency install failed'
+fi
+log 'step 3/4: building the source-matched admin console snapshot'
+if ! bun run --cwd admin-ui build; then
+  fail 'step 3/4 failed: the source-matched admin-ui build failed'
+fi
+
+log "step 4/4: validating and swapping ${runtime_package}"
+if ! node "${runtime_package}/prepare-runtime.mjs" --source-test-staging; then
+  fail "step 4/4 failed: ${runtime_package} was not assembled; any prior valid assembly was retained"
+fi
+
+log "assembled ${runtime_package}"

@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-12
+reviewed-commit: HEAD
 ---
 
 # Retrieval eval protocol
@@ -523,18 +523,32 @@ Case 47 absorbs the npm-only generated-typecheck gap recorded in
     Route terms: "@exact/contract unavailable", "npm-only typecheck",
     "contractMetadata", "contract-meta".
 
-Cases 48–51 exercise LLP 0237 rollout 1's cold path from familiar module and
+Case 48 absorbs the replicated 2026-08-12 sweep miss
+(`issues/closed/20260812-guide-gap-auth-client-surface-and-whoami.md`):
+three lanes reverse-engineered `coordinator.settledView()` /
+`session.authority.userId` because no page named the blessed whoami.
+
+48. **Signed-in principal whoami:** "After boot, am I signed in, and as
+    whom? Use `settledView` / `currentAuthorizationScope` / who am I."
+    The run fails if it enumerates coordinator prototypes, treats
+    `authSession()` as the identity read, or tells a TypeScript app to
+    cast the client for these methods.
+    Expected pages: `auth/sessions-and-principals.md`.
+    Route terms: "who am I", "am I signed in", "settledView",
+    "currentAuthorizationScope", "whoami".
+
+Cases 49–52 exercise LLP 0237 rollout 1's cold path from familiar module and
 Node vocabulary, plus both new definition-attribution codes, to the generated
 restriction profile.
 
-48. **Handler helper import:** "Can I import a helper into a Snapback handler?"
+49. **Handler helper import:** "Can I import a helper into a Snapback handler?"
     The run fails if it claims relative imports are already admitted, adds a
     bundler alias, or misses the current same-file function-declaration path.
     Expected pages: `backend/handler-runtime.md`.
     Route terms: "Can I import a helper?", "BUNDLE_UNSUPPORTED_IMPORT",
     "same-file helper".
 
-49. **Node crypto in handlers:** "Can I use Node crypto in a Snapback
+50. **Node crypto in handlers:** "Can I use Node crypto in a Snapback
     handler?" The run fails if it treats an engine ambient as Node
     compatibility or omits the generated profile's per-operation capability
     answer.
@@ -542,7 +556,7 @@ restriction profile.
     Route terms: "Can I use Node crypto?", "node:crypto",
     "BUNDLE_UNSUPPORTED_PROCESS".
 
-50. **Unexported definition:** "Generation reports
+51. **Unexported definition:** "Generation reports
     `SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED`; what exactly should I export?"
     The run must use the structured binding/span/remediation and must not edit
     a generated manifest.
@@ -550,7 +564,7 @@ restriction profile.
     Route terms: "SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED",
     "unexported top-level operation", "definition path".
 
-51. **Unserializable definition value:** "Generation reports
+52. **Unserializable definition value:** "Generation reports
     `SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE`; how do I find the bad
     option?" The run must follow the exported binding and nested property path
     to the authored span rather than inspecting evaluator internals.

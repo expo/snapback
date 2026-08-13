@@ -3000,10 +3000,17 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         },
         Some(HostCommand::Data { command }) => data_command(command),
         Some(HostCommand::Auth { command }) => match command {
-            AuthCommand::Export { db, output } => auth_logical_export(&db, &output),
-            AuthCommand::Import { from, db } => auth_logical_import(&from, &db),
+            AuthCommand::Export { db, output } => {
+                // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening —
+                // logical transfer opens and reads SQLite beneath the async
+                // CLI entrypoint, so it uses the sanctioned blocking lane.
+                startup_blocking(|| auth_logical_export(&db, &output))
+            }
+            AuthCommand::Import { from, db } => {
+                startup_blocking(|| auth_logical_import(&from, &db))
+            }
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
-            AuthCommand::Restore { from, db } => auth_restore(&from, &db),
+            AuthCommand::Restore { from, db } => startup_blocking(|| auth_restore(&from, &db)),
             AuthCommand::Rehearse { command } => auth_rehearse_command(command),
             AuthCommand::Password { command } => auth_password_command(command),
             AuthCommand::Recovery { command } => auth_recovery_command(command),
@@ -4529,7 +4536,15 @@ fn auth_cli_post<T: serde::Serialize>(
         "SNAPBACK_AUTH_CLI_REQUEST_FAILED: --url must not be empty"
     );
     let agent = ureq::AgentBuilder::new().redirects(0).build();
-    let mut request = agent.post(&format!("{base_url}{path}"));
+    // The six public password/recovery verbs are sessions-profile clients even
+    // when issuance starts anonymously. Offer the same required protocol as
+    // the first-party client arm; AdminWrite unlock uses `admin_json_post` and
+    // its independent admin credential contract.
+    // @ref LLP 0058#bootstrap-handshake — every online caller repeats the exact
+    //   auth-client protocol offer at the request boundary.
+    let mut request = agent
+        .post(&format!("{base_url}{path}"))
+        .set(crate::auth::handshake::AUTH_CLIENT_PROTOCOL_HEADER, "1");
     let mut authorization = None;
     if let Some(token) = session_token {
         authorization = Some(zeroize::Zeroizing::new(format!("Bearer {token}")));

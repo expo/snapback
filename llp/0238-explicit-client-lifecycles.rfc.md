@@ -7,7 +7,10 @@ Live Queries, Offline sync, Ephemeral state, Diagnostics, Code generation,
 Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered Review for the author-directed single-family
+**Revised:** 2026-08-12 (post-acceptance evidence amendment: records the later
+Clique auth-gate, optional-`undefined`, presence-stop, and refusal-carrier
+findings and routes new semantics through Draft LLP 0247 rather than silently
+widening this accepted v1). 2026-08-12 (entered Review for the author-directed single-family
 `llp-super-refine` loop: Codex GPT-5.6-sol xhigh only; Claude intentionally
 skipped). 2026-08-12 (mechanically renumbered from LLP 0236 to LLP 0238 after
 origin assigned LLPs 0234–0235). 2026-08-12 (author-directed acceptance after
@@ -20,6 +23,7 @@ LLP 0236 P4, P5, P11, and P12)
 **Related:** LLP 0012, LLP 0043, LLP 0059, LLP 0061, LLP 0101, LLP 0107,
 LLP 0114, LLP 0146, LLP 0155, LLP 0178, LLP 0218, LLP 0219, LLP 0227,
 LLP 0236, LLP 0237, LLP 0239, LLP 0240, LLP 0241, LLP 0242, LLP 0243,
+LLP 0247,
 Diary 0067, Diary 0071, Diary 0073, Diary 0075
 
 ## Summary
@@ -66,6 +70,25 @@ LLP 0218 makes the mutation dispatch union truthful, and LLP 0219 detects the
 worst client dark loops. Those fixes should not remain islands. The generated
 facade should use their distinctions as its primary vocabulary, and the same
 lifecycle should appear in headless, React, Expo, docs, and diagnostics.
+
+### Post-acceptance implementation evidence
+
+Later isolated Clique builders exposed four narrower lifecycle failures after
+this RFC's accepted snapshot: an authenticated read attempted while anonymous
+could leave the client unable to perform a later valid auth exchange; a
+protected React read could oscillate between pending and error while authority
+was unchanged; changing a published presence value to `skip` stopped renewal
+without promptly withdrawing the old member; and the ordinary TypeScript shape
+`{ optionalField: maybeUndefined }` refused even when the generated contract
+knew the field was optional. One builder also had to probe whether a failure
+would throw or arrive as an action envelope.
+
+The authority poisoning and unchanged-authority retry loop are defects against
+D6's typed, settled principal-state model and must receive regression coverage
+in this implementation. Contract-directed `undefined` omission, presence-stop
+semantics, and one public refusal carrier are new compatibility decisions.
+Draft LLP 0247 owns those decisions and composes with this RFC after acceptance;
+this evidence note does not silently add them to accepted v1.
 
 ## Design constraints
 

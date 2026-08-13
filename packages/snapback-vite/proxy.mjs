@@ -6,7 +6,8 @@
 // structured JSON diagnostic, never a bare proxy error.
 
 import http from 'node:http';
-import net from 'node:net';
+
+import { WebSocket, WebSocketServer } from 'ws';
 
 import { matchAppRoute } from './allowlist.mjs';
 
@@ -180,9 +181,19 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
     return undefined;
   }
 
+  // @ref LLP 0030#proxy-surface — ws-layer relay because Bun's node:http shim
+  // black-holes raw upgrade-socket writes.
   // WebSocket upgrades for the live stream. The refusal path answers with a
   // real HTTP response before closing, so a browser sees a structured error
   // instead of a dropped socket.
+  // Browser-side handshake completion is delegated to `ws` in noServer mode.
+  // Under `bun --bun`, raw writes on the upgrade socket are silently dropped
+  // by Bun's node:http shim, while the `ws` package resolves to Bun's native
+  // implementation and works — the same path Vite's own HMR socket uses. A
+  // ws-level relay is therefore the only tunnel that behaves identically
+  // under Node and Bun.
+  const browserWss = new WebSocketServer({ noServer: true });
+
   function handleUpgrade(req, socket, head) {
     const target = relayTarget(req.url ?? '/', base);
     if (target === null) return false;
@@ -192,6 +203,8 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
       const diagnostic = refusalDiagnostic({ method: req.method, path: pathname ?? req.url, route: base, mode });
       emitRefusal(diagnostic, 'websocket');
       const body = JSON.stringify({ diagnostic });
+      // Best-effort diagnostic body (a no-op under Bun's http shim), then a
+      // hard close either way — the refusal must never leave a half-open socket.
       socket.write(
         'HTTP/1.1 403 Forbidden\r\n'
           + 'content-type: application/json; charset=utf-8\r\n'
@@ -204,39 +217,42 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
     }
     const state = getState();
     if (!state.serverUrl) {
-      socket.write('HTTP/1.1 502 Bad Gateway\r\nconnection: close\r\n\r\n');
       socket.destroy();
       return true;
     }
     // Same restart tolerance as handleRequest: one re-resolve-and-reconnect
-    // pass before giving up. The browser socket is untouched until a backend
-    // connection succeeds, so retrying never replays consumed data.
+    // pass before giving up. The browser handshake is not completed until a
+    // backend connection succeeds, so retrying never replays consumed data.
     const connectBackend = (serverUrl, mayRetry) => {
       const upstream = new URL(serverUrl);
-      const backend = net.connect(Number(upstream.port), upstream.hostname, () => {
-        let requestHead = `${req.method} ${pathname}${search} HTTP/1.1\r\n`;
-        for (let index = 0; index < req.rawHeaders.length; index += 2) {
-          const name = req.rawHeaders[index];
-          const value = req.rawHeaders[index + 1];
-          if (name.toLowerCase() === 'host') {
-            requestHead += `host: ${upstream.host}\r\n`;
-            continue;
-          }
-          requestHead += `${name}: ${value}\r\n`;
-        }
-        requestHead += '\r\n';
-        backend.write(requestHead);
-        if (head && head.length > 0) backend.write(head);
-        socket.pipe(backend);
-        backend.pipe(socket);
-      });
+      const wsProtocol = upstream.protocol === 'https:' ? 'wss:' : 'ws:';
+      const headers = {};
+      for (let index = 0; index < req.rawHeaders.length; index += 2) {
+        const name = req.rawHeaders[index].toLowerCase();
+        if (HOP_BY_HOP.has(name) || name === 'host'
+          || name.startsWith('sec-websocket-')) continue;
+        headers[req.rawHeaders[index]] = req.rawHeaders[index + 1];
+      }
+      const protocolHeader = req.headers['sec-websocket-protocol'];
+      const protocols = typeof protocolHeader === 'string'
+        ? protocolHeader.split(',').map((value) => value.trim()).filter(Boolean)
+        : [];
+      const backend = new WebSocket(
+        `${wsProtocol}//${upstream.host}${pathname}${search}`,
+        protocols,
+        { headers },
+      );
+      let browser = null;
       const teardown = () => {
-        socket.destroy();
-        backend.destroy();
+        try { backend.close(); } catch { /* already closing */ }
+        if (browser) {
+          try { browser.close(); } catch { /* already closing */ }
+        } else {
+          socket.destroy();
+        }
       };
       backend.on('error', (error) => {
         if (mayRetry && refreshTarget && RETRYABLE_CONNECT_CODES.has(error.code)) {
-          backend.destroy();
           void Promise.resolve(refreshTarget()).then((refreshed) => {
             if (refreshed?.serverUrl) connectBackend(refreshed.serverUrl, false);
             else socket.destroy();
@@ -245,7 +261,30 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
         }
         teardown();
       });
-      socket.on('error', teardown);
+      backend.on('unexpected-response', (_request, response) => {
+        // The backend refused the stream at HTTP level (e.g. an unknown
+        // connection id). There is no browser websocket yet to carry the
+        // status, so close the raw socket; the client treats it as a failed
+        // connect and falls back or retries.
+        response.resume();
+        teardown();
+      });
+      backend.on('open', () => {
+        browserWss.handleUpgrade(req, socket, head, (client) => {
+          browser = client;
+          client.on('message', (data, isBinary) => backend.send(data, { binary: isBinary }));
+          backend.on('message', (data, isBinary) => client.send(data, { binary: isBinary }));
+          client.on('close', () => { try { backend.close(); } catch { /* closing */ } });
+          backend.on('close', (code, reason) => {
+            try {
+              client.close(code, reason);
+            } catch {
+              client.terminate();
+            }
+          });
+          client.on('error', teardown);
+        });
+      });
     };
     connectBackend(state.serverUrl, true);
     return true;

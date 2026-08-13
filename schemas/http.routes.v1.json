@@ -221,6 +221,19 @@
       "class": "SystemApi",
       "credential_resolution": "AdminCredential",
       "inputSchema": {
+        "$ref": "auth.password-attempt-admin.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "auth.password-attempt-admin.output.schema.json"
+      },
+      "path": "/_snapback/api/auth/password/attempt",
+      "path_policy": "AdminRead"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": {
         "$ref": "auth.password-unlock.input.schema.json"
       },
       "method": "POST",

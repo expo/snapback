@@ -972,6 +972,7 @@ const GENERATED_API_RESERVED_EXPORTS = new Set([
 const SCHEMA_VERSION = 'snapback.v0';
 const SESSIONS_SCHEMA_VERSION = 'snapback.v1';
 const AUTH_MODES = new Set(['dev', 'sessions']);
+const AUTH_PASSWORD_IDENTIFIER_MODES = new Set(['username-v1', 'email-v1']);
 const AGENT_REGISTRATION_MODES = new Set(['disabled', 'invited', 'open']);
 const AGENT_INVITERS = new Set(['operators', 'users']);
 const API_DISCLOSURES = new Set(['exposed-only', 'full']);
@@ -1299,8 +1300,17 @@ function validateSchemaAuthDefinition(schemaDef, err) {
     return 'dev';
   }
   const keys = Object.keys(auth);
-  if (!Object.hasOwn(auth, 'mode') || keys.some((key) => !['mode', 'agents'].includes(key)) || !AUTH_MODES.has(auth.mode)) {
-    err('SCHEMA_AUTH_MODE_INVALID', 'auth', 'schema auth accepts mode: dev | sessions and optional agents', { authMode: auth.mode });
+  if (!Object.hasOwn(auth, 'mode') || keys.some((key) => !['mode', 'agents', 'passwordIdentifierMode'].includes(key)) || !AUTH_MODES.has(auth.mode)) {
+    err('SCHEMA_AUTH_MODE_INVALID', 'auth', 'schema auth accepts mode: dev | sessions, optional agents, and generated passwordIdentifierMode', { authMode: auth.mode });
+  }
+  if (auth.passwordIdentifierMode !== undefined
+    && (auth.mode !== 'sessions' || !AUTH_PASSWORD_IDENTIFIER_MODES.has(auth.passwordIdentifierMode))) {
+    err(
+      'SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_INVALID',
+      'auth',
+      'auth passwordIdentifierMode must be username-v1 or email-v1 in sessions mode',
+      { passwordIdentifierMode: auth.passwordIdentifierMode },
+    );
   }
   if (auth.agents !== undefined) {
     const agents = auth.agents;

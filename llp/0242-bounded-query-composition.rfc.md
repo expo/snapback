@@ -7,7 +7,9 @@ planning, Authorization, Code generation, Client integration, Diagnostics,
 Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered Review for the author-directed single-family
+**Revised:** 2026-08-12 (post-acceptance authoring-program amendment: names
+Draft LLP 0248 as the imperative bounded-batch fallback; no new projection node
+or accepted v1 semantic changes). 2026-08-12 (entered Review for the author-directed single-family
 `llp-super-refine` loop: Codex GPT-5.6-sol xhigh only; Claude intentionally
 skipped). 2026-08-12 (mechanically renumbered from LLP 0240 to LLP 0242 after
 origin assigned LLPs 0234–0235). 2026-08-12 (author-directed acceptance after
@@ -20,7 +22,7 @@ with a bounded 257th-scope refusal and cursor-bound witness). 2026-08-12
 LLP 0120)
 **Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0053, LLP 0061, LLP 0080,
 LLP 0100, LLP 0110, LLP 0115, LLP 0118, LLP 0120, LLP 0131, LLP 0155,
-LLP 0178, LLP 0208, LLP 0231, LLP 0236, LLP 0237, LLP 0240, LLP 0243,
+LLP 0178, LLP 0208, LLP 0231, LLP 0236, LLP 0237, LLP 0240, LLP 0243, LLP 0248,
 Diary 0033, Diary 0036, Diary 0039, Diary 0073
 
 ## Summary
@@ -326,6 +328,11 @@ containing:
 
 The scaffold is ordinary bounded handler-module code under LLP 0237, not a
 return to string registries or untyped handlers.
+
+When the shape is naturally imperative but consists of repeated exact id or
+unique-index lookups, the separately versioned batch host operations proposed
+by LLP 0248 are the bounded fallback. They do not add a fifth projection node,
+infer a join, or grant local/retained eligibility.
 
 ### D7. Live, local, and retained capability are separate facts
 

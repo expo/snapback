@@ -91,6 +91,10 @@ export async function startServer({
   // Closed cold-start carrier used by sessions-mode acceptance tests. The
   // child validates ownership, exact schema/functions identity, and shape.
   startupArtifacts = null,
+  // Closed LLP 0057 restore carrier emitted by `snapback auth restore`.
+  // The lifecycle helper still owns readiness and teardown; it only projects
+  // the native pre-bind declaration flag needed by backup acceptance.
+  restoredFromBackup = null,
   // Optional LLP 0157/P1 trust root installed beside the exact generated
   // manifest pair. Acceptance launchers use this after
   // composition-activation-prepare; ordinary demos leave it absent.
@@ -128,6 +132,7 @@ export async function startServer({
     serverBinary,
     bindPortExactly,
     startupArtifacts,
+    restoredFromBackup,
     trustedCompositionActivation,
     captureImpersonationCapability,
     onUnexpectedExit,
@@ -155,6 +160,7 @@ async function startServerWithDeps({
   serverBinary = null,
   bindPortExactly = false,
   startupArtifacts = null,
+  restoredFromBackup = null,
   trustedCompositionActivation = null,
   captureImpersonationCapability = false,
   onUnexpectedExit = null,
@@ -177,6 +183,12 @@ async function startServerWithDeps({
       throw new TypeError('startupArtifacts must be a non-empty path');
     }
     resolvedStartupArtifacts = resolve(cwd, startupArtifacts);
+  }
+  if (
+    restoredFromBackup !== null
+    && (typeof restoredFromBackup !== 'string' || restoredFromBackup.length === 0)
+  ) {
+    throw new TypeError('restoredFromBackup must be a non-empty declaration id');
   }
   let resolvedTrustedCompositionActivation = null;
   if (trustedCompositionActivation !== null) {
@@ -296,6 +308,7 @@ async function startServerWithDeps({
     db,
     bindPortExactly,
     resolvedStartupArtifacts,
+    restoredFromBackup,
     resolvedTrustedCompositionActivation,
     cwd,
     childEnv,
@@ -551,6 +564,7 @@ async function launchServerAttempt(plan, {
   db,
   bindPortExactly,
   resolvedStartupArtifacts,
+  restoredFromBackup,
   resolvedTrustedCompositionActivation,
   cwd,
   childEnv,
@@ -582,6 +596,9 @@ async function launchServerAttempt(plan, {
   else serverArgs.push('--db', db);
   if (resolvedStartupArtifacts !== null) {
     serverArgs.push('--startup-artifacts', resolvedStartupArtifacts);
+  }
+  if (restoredFromBackup !== null) {
+    serverArgs.push('--restored-from-backup', restoredFromBackup);
   }
   if (resolvedTrustedCompositionActivation !== null) {
     serverArgs.push('--trusted-composition-activation', resolvedTrustedCompositionActivation);

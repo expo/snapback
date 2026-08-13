@@ -9,12 +9,12 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
-examples: [demos/browser-auth, demos/card-game, demos/party-wall]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapback-client/auth-identity-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-10
+reviewed: 2026-08-12
 reviewed-commit: HEAD
 ---
 
@@ -453,6 +453,74 @@ a cold boot only until the signed lease's exact deadline; see the
 [protecting data](./protecting-data.md) for connection grants, invalidation,
 retry, and lease mechanics.
 
+## Ask who I am (am I signed in)
+
+<!-- since: 0.1.20 -->
+
+After boot or restore, the blessed whoami / **am I signed in** read is
+`currentAuthorizationScope()`. Do not walk `AuthCoordinator` prototypes or
+treat `authSession()` as identity.
+
+```ts source=packages/snapback-client/auth-identity-types.fixture.ts
+async function askWhoIAm(client: SnapbackClient) {
+  const scope = await client.currentAuthorizationScope();
+  const signedIn = scope.principalScope.userId !== null;
+  const userId = scope.principalScope.userId;
+  const authMode = scope.principalScope.authMode;
+  const descriptor = await client.currentAuthorityDescriptor();
+  const session = await client.authSession();
+  const mode = session.activeMode;
+  const handshakeAuthenticated = session.authority.isAuthenticated;
+  return { signedIn, userId, authMode, descriptor, mode, handshakeAuthenticated };
+}
+```
+
+`principalScope.userId` is the server-issued principal when a sessions
+caller is authenticated, and `null` when the client is anonymous or signed
+out. `principalScope.authMode` is `'sessions'` or `'dev'`. In dev mode the
+optional `{ devUserId }` argument is the trusted-local impersonation the
+scope reports; sessions mode ignores it and uses the server-resolved
+principal. `signedIn` is `principalScope.userId !== null`.
+
+`currentAuthorityDescriptor()` is the same call's authority-instance half
+(generation + instance id) without the principal scope. Use it for the
+queue/instance axis, not the user id.
+
+`authSession()` is the mode/authority handshake projection (`activeMode`,
+`modeState`, `authority.kind` / `isAuthenticated`). It is how the client
+learns the server's settled mode — not the app-level whoami. Reading
+`session.authority.userId` is that same handshake projection; prefer
+`currentAuthorizationScope().principalScope.userId`.
+
+`AuthCoordinator.settledView()` is the coordinator's lower-level custody
+capture (epoch, authority key, and the coordinator's own `anonymous` |
+`session` authority). Apps should not enumerate it. The client methods
+above wait for coordinator settle internally.
+
+**Restored / settled semantics**, witnessed by
+`packages/snapback-client/unrecognized-authority-recovery.test.mjs` and
+`demos/card-game/tests/acceptance/authority-scope.mjs`:
+
+- After `authExchange` (or the test `asUser` mint),
+  `currentAuthorizationScope().principalScope.userId` is the
+  server-issued principal and matches `credential.session.userId`.
+- The same methods work after a new process reconstructs the client with
+  the same coordinator storage: the first `authSession()` /
+  `currentAuthorizationScope()` waits for coordinator settle and returns
+  the restored principal when the bearer is still recognized.
+- After a store reset the server witnesses as a different-incarnation
+  anonymous handshake, `authSession({ force: true })` recovers custody to
+  anonymous and `currentAuthorizationScope().principalScope.userId` is
+  `null`.
+- `authRefresh` keeps the same `authorityDescriptor`; a newly minted
+  session for the same user keeps `principalScope.userId` and rotates
+  `authorityDescriptor.authorityInstanceId`.
+
+These methods exist on the published 0.1.20+ runtime. Precise TypeScript
+declarations for the identity accessors land with this change; a consumer
+of the 0.1.20 `.d.mts` may still not see them on `SnapbackClient` until
+the next published closure.
+
 ## Ask the server what auth is actually on
 
 Don't guess from docs — the capability manifest's runtime facts carry
@@ -483,6 +551,11 @@ witnesses. For the shipped local role-per-resource surface, continue to
   route's existence means its behavior is on.
 - **Do not treat retained offline data as unconditionally readable** — the
   lease deadline is exact and enforced client-side too.
+- **Do not treat `authSession()` as whoami.** It is the mode/authority
+  handshake projection. Ask `currentAuthorizationScope()`.
+- **Do not enumerate `coordinator.settledView()` or
+  `session.authority.userId` as the app identity read.** `settledView`
+  stays the coordinator's internal projection.
 
 ---
 
@@ -841,7 +914,7 @@ id: auth.passwords
 order: 2
 audience: agent-first
 capabilities: [auth.passwords, auth.sessions, auth.browser-session-custody]
-authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/provider.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs]
+authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/provider.rs, src/auth/wire.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-admin-client/index.mjs]
 examples: [demos/browser-auth]
 status: current
 targets: [local]
@@ -865,6 +938,40 @@ and no separate session shape** — one principal, several credentials.
 This is the first sign-in method a browser app can offer end users without a
 mail adapter. Email-code login still has no self-serve production path (no
 delivery), so if you need a real user to sign themselves in today, this is it.
+
+<!-- since: 0.1.21 unreleased -->
+> **Unreleased.** The declarative email-identifier selector is newer than the
+> newest published closure, 0.1.20.
+
+## Declare email identifiers before activation
+
+Choose the password identifier in the app's `defineAuth` program and pass that
+program to `defineSchema(..., { auth: { mode: 'sessions' }, authProgram })`.
+Use `identifier: 'email'` for the email-v1 canonicalizer:
+
+```js source=demos/rbac/snapback/schema.mjs
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: {
+    password: {
+      kind: 'password',
+      identifier: 'email',
+      provider: 'builtIn',
+      recovery: 'recoveryCodes',
+    },
+  },
+  assuranceRequirements: {},
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
+```
+
+`identifier: 'username'` selects username-v1. An app with no declared password
+mechanism keeps the existing username-v1 default. The choice is stored in
+catalog v4 at the first sessions activation and is immutable afterward;
+codegen/startup refuses a later contradictory declaration with
+`SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE` instead of reinterpreting
+existing identities.
 
 ## Sign up, then sign in
 
@@ -998,6 +1105,17 @@ while a missing address's never does, so lock behavior would diverge across
 histories and disclose successful-authentication activity. Lock existence,
 threshold, and expiry are observable only through the authenticated admin
 projection and `authProgramReadiness`.
+
+<!-- since: 0.1.21 unreleased -->
+> **Unreleased.** The authenticated password-attempt projection is newer than
+> the newest published closure, 0.1.20.
+
+An operator can call `admin.passwordAttempt(email)`. Its AdminRead response
+contains the declared `failureThreshold`, `failureWindowMs`, and
+`lockDurationMs`, plus either `attempt: null` or the canonical identifier,
+window start, failed count, lock deadline, and current `locked` bit. It never
+contains the password hash. The corresponding AdminWrite
+`snapback auth password unlock` verb deletes that ledger row early.
 
 Declared v1 posture — **every threshold is a profile parameter, not a fixed
 constant**, so acceptance suites and benchmark envelopes can raise them:
@@ -2218,11 +2336,13 @@ snapback auth export \
   --output auth-logical.json
 ```
 
-The command requires an exact auth catalog (version 2 or 3), takes the database
+The command requires an exact auth catalog (version 2, 3, or 4), takes the database
 instance lock, reads one SQLite snapshot, and refuses to overwrite an existing
-output path. Fresh catalogs use version 3; exact version-2 catalogs remain
-supported without migration. The format is `snapback.auth-logical-export.v1`,
-and its `authCatalogVersion` records whether the source was version 2 or 3.
+output path. Fresh catalogs use version 4; exact version-2 and version-3 catalogs
+remain supported without migration. The format is
+`snapback.auth-logical-export.v1`, and its `authCatalogVersion` records the
+source version. Version 4 additionally records its immutable
+`passwordIdentifierMode`; import refuses a target with a contradictory mode.
 Every row set is deterministically sorted and validated against the generated
 `schemas/auth.logical-export.v1.schema.json` shape.
 
@@ -2250,6 +2370,7 @@ authority. In particular, it excludes:
 - sessions and session-token tombstones;
 - verification challenges, digests, and the capture mailbox;
 - credential hashes and credential generations;
+- password-attempt and lockout state;
 - grants, scoped-token hashes, and durable grant carriers;
 - creation or recovery invitations and pairing requests;
 - auth keyring bytes, integration/OAuth carrier state, rehearsal authority,
@@ -2261,10 +2382,13 @@ registration provenance can still be sensitive.
 
 ## Import into a fresh auth catalog
 
-Prepare the destination through the app's normal sessions-mode activation, so
-its database already contains an exact auth catalog but no auth rows. Fresh
-destinations use version 3; an exact version-2 destination remains supported
-without migration. Stop that server, then import:
+Prepare the destination through the same app's normal sessions-mode activation,
+so its database already contains an exact auth catalog but no principal or
+credential rows. Fresh destinations use version 4; exact version-2 and
+version-3 destinations remain supported without migration. Activation may
+already have seeded the app's `_auth_scope_bases`; import accepts those schema
+facts only when every seeded row exactly matches the incoming artifact. Stop
+that server, then import:
 
 ```sh
 snapback auth import \

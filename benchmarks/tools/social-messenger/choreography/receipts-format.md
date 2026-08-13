@@ -74,7 +74,8 @@ outer run harness:
     "supplementalExternal": [],
     "pass": false
   },
-  "green": false
+  "green": false,
+  "nonGreenCause": "required-unimplemented"
 }
 ```
 
@@ -93,6 +94,21 @@ The normative aggregation is:
 4. `green` is true only when `suite.pass === true && choreography.pass === true`.
    A missing suite-status input is represented as `suite.pass:null` and cannot
    produce green.
+5. `nonGreenCause` is the closed recording convention for a non-green
+   segment. It is optional on the schema (default `null` when omitted) so
+   existing `0.3.0-m8` receipts remain valid; the current emitter always
+   writes it. Allowed values:
+   - `null` — `green` is true. There is no second green label.
+   - `required-unimplemented` — a required assertion was skipped.
+   - `choreography-failed` — an implemented assertion failed.
+   - `suite-failed` — suite evidence is `pass:false`.
+   - `instrument` — non-green for a harness/input reason (missing suite
+     status, or another instrument defect) rather than an app failure.
+
+   Lanes MUST copy `nonGreenCause` from this summary into the run record.
+   Do not invent labels such as "functionally green". `green` stays a
+   boolean; `capability-failure` remains the brief's cap-exhausted
+   milestone status, not a synonym for instrument-caused non-green.
 
 The optional suite-status input is an object keyed by milestone:
 
@@ -114,4 +130,6 @@ by the benchmark brief.
 Consumers must reject an unknown major receipt version and validate with the
 schema matching the declared version; unknown fields are rejected. Stable
 `(segment, assertion)` names must not be silently repurposed;
-changed semantics require a version bump.
+changed semantics require a version bump. `nonGreenCause` is an optional
+additive field on `0.3.0-m8` segment summaries (default `null` when omitted);
+it does not bump the receipt version.

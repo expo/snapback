@@ -87,7 +87,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     packageDir: 'packages/snapback-vite',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['channel-a.test.mjs', 'package.test.mjs', 'rqs-serializer.test.mjs'],
+    expectedFiles: ['bun-relay.test.mjs', 'channel-a.test.mjs', 'package.test.mjs', 'rqs-serializer.test.mjs'],
   },
   {
     id: '@expo/snapback-client',
@@ -157,6 +157,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'search.test.mjs',
       'store-policy.test.mjs',
       'store-runtime-wiring.test.mjs',
+      'unrecognized-authority-recovery.test.mjs',
       'webcrypto-fallback.test.mjs',
       'wire-version.test.mjs',
     ],
@@ -435,7 +436,7 @@ export function auditInventory({ root = ROOT, inventory }) {
   }
   discovered.sort();
   const declared = commands.flatMap((command) => [
-    ...command.matchAll(/(?:^|&&)\s*node\s+([^\s&]+\.mjs)(?=\s|$)/g),
+    ...command.matchAll(/(?:^|&&)\s*(?:node|bun)\s+([^\s&]+\.mjs)(?=\s|$)/g),
   ])
     .map((match) => match[1].replace(/^\.\//, ''))
     .filter((path) => path.endsWith(inventory.suffix))
@@ -474,7 +475,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 263,
+  expectedTotal = 265,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -814,18 +815,25 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-client gains anonymous-issuance adoption, same-authority
 // password rotation, strict recovery-code projection, and secret-redaction
 // coverage.
-// 255 -> 257 (2026-08-12, LLP 0237 rollout 1): @expo/snapback-codegen gains
+// 255 -> 256 (2026-08-12, unrecognized session custody recovery):
+// @expo/snapback-client gains cold/warm reset recovery and the negative
+// different-incarnation witness suite.
+// 256 -> 257 (2026-08-12,
+// issues/closed/20260812-vite-ws-relay-black-holed-under-bun.md):
+// @expo/snapback-vite gains the Bun-runtime real-Vite websocket relay and
+// refused-upgrade regression suite.
+// 257 -> 259 (2026-08-12, LLP 0237 rollout 1): @expo/snapback-codegen gains
 // generated handler-profile, preflight, and definition-attribution coverage;
 // @expo/snapback-cli gains packaged `generate --check` no-replacement proof.
-// 257 -> 258 (2026-08-12, LLP 0237 rollout 2): @expo/snapback-codegen gains
+// 259 -> 260 (2026-08-12, LLP 0237 rollout 2): @expo/snapback-codegen gains
 // the same-file graph representation byte-parity, identity, refusal, and demo
 // golden corpus.
-// 258 -> 260 (2026-08-12, LLP 0241 rollout 1): @expo/snapback-codegen gains
+// 260 -> 262 (2026-08-12, LLP 0241 rollout 1): @expo/snapback-codegen gains
 // semantic-generation golden/no-self-hash and rotation/envelope coverage.
-// 260 -> 262 (2026-08-12, LLP 0238 rollout 1): @expo/snapback-codegen gains
+// 262 -> 264 (2026-08-12, LLP 0238 rollout 1): @expo/snapback-codegen gains
 // lifecycle-manifest/JSDoc parity proof; @expo/snapback-client gains the
 // complete pre-transport generated-reference mismatch matrix.
-// 262 -> 263 (2026-08-12, LLP 0244 media projection):
+// 264 -> 265 (2026-08-12, LLP 0244 media projection):
 // @expo/snapback-codegen gains descriptor/lowering, result-contract identity,
 // RQS demotion, and action-refusal coverage for v.media().
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

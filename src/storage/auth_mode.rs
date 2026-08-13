@@ -23,6 +23,18 @@ use crate::manifest::{AuthMode, FunctionManifest, SchemaManifest, SeedData};
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use std::collections::BTreeMap;
 
+fn manifest_password_identifier_mode(
+    manifest: &SchemaManifest,
+) -> super::auth::PasswordIdentifierMode {
+    manifest.effective_auth_password_identifier_mode().into()
+}
+
+fn manifest_explicitly_declares_password_identifier_mode(manifest: &SchemaManifest) -> bool {
+    manifest
+        .auth
+        .is_some_and(|auth| auth.password_identifier_mode.is_some())
+}
+
 pub const META_LEGACY_SCHEMA_MANIFEST: &str = "schema_manifest";
 pub const META_CAPABILITY_AWARE_SCHEMA_MANIFEST: &str = "schema_manifest_capability_aware";
 pub const META_STAGED_AUTH_MODE_MANIFEST: &str = "schema_manifest_staged_auth_mode";
@@ -621,6 +633,11 @@ impl LocalDatabase {
                     ));
                 }
                 require_transition_source(&current.state, requested_deployment.auth_mode)?;
+                super::auth::require_password_identifier_mode_declaration_on(
+                    tx,
+                    manifest_password_identifier_mode(&schema_manifest),
+                    manifest_explicitly_declares_password_identifier_mode(&schema_manifest),
+                )?;
                 if seed.is_some() {
                     require_fresh_seed_target(tx, &current.state)?;
                 }
@@ -866,7 +883,14 @@ impl LocalDatabase {
                 functions,
             )?;
         }
-        crate::storage::auth::activate_current_auth_catalog_in(&tx)?;
+        if manifest_explicitly_declares_password_identifier_mode(&staged.schema_manifest) {
+            crate::storage::auth::activate_current_auth_catalog_with_password_identifier_mode_in(
+                &tx,
+                manifest_password_identifier_mode(&staged.schema_manifest),
+            )?;
+        } else {
+            crate::storage::auth::activate_current_auth_catalog_in(&tx)?;
+        }
         // @ref LLP 0143#d1-device-token-custody — schema staging precedes the
         // sessions catalog. Install the generation-fenced token-retirement
         // triggers after their auth tables exist, in this same activation cut.
@@ -1164,6 +1188,11 @@ impl LocalDatabase {
                 "same-mode deployment differs from active auth mode",
             ));
         }
+        super::auth::require_password_identifier_mode_declaration_on(
+            &tx,
+            manifest_password_identifier_mode(&manifest),
+            manifest_explicitly_declares_password_identifier_mode(&manifest),
+        )?;
         validate_enum_domain_evolution(&tx, &self.schema, &manifest)?;
         let activation_changed = current.active_manifest.as_ref() != Some(&manifest)
             || current.state.active_deployment.as_ref() != Some(&deployment);
@@ -2052,9 +2081,9 @@ fn valid_quarantine_code(value: &str) -> bool {
 mod tests {
     use super::*;
     use crate::manifest::{
-        AuthManifest, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionRuntime,
-        IbexModule, MembershipLastHolder, MembershipManifest, MembershipScope, SequenceDeclaration,
-        SequenceScopeAccess, TableManifest,
+        AuthManifest, AuthPasswordIdentifierMode, FieldManifest, FieldType, FunctionDefinition,
+        FunctionKind, FunctionRuntime, IbexModule, MembershipLastHolder, MembershipManifest,
+        MembershipScope, SequenceDeclaration, SequenceScopeAccess, TableManifest,
     };
     use serde_json::Map;
     use tempfile::tempdir;
@@ -2095,6 +2124,7 @@ mod tests {
             auth: Some(AuthManifest {
                 mode: AuthMode::Sessions,
                 agents: None,
+                password_identifier_mode: None,
             }),
             schema_hash: Some(schema_hash.clone()),
             inputs_hash: Some(inputs_hash.clone()),
@@ -3324,6 +3354,43 @@ mod tests {
                 .state
                 .active_deployment,
             Some(identity)
+        );
+    }
+
+    #[test]
+    fn declared_email_password_mode_activates_v4_and_cannot_be_changed() {
+        let mut database = LocalDatabase::memory().unwrap();
+        let (identity, mut manifest) = sessions_pair(None);
+        manifest
+            .auth
+            .as_mut()
+            .expect("sessions auth declaration")
+            .password_identifier_mode = Some(AuthPasswordIdentifierMode::EmailV1);
+        database
+            .stage_auth_mode(identity.clone(), manifest.clone(), None)
+            .unwrap();
+        database.consume_sessions_auth_mode(&ready()).unwrap();
+        assert_eq!(
+            database.auth_password_identifier_mode().unwrap(),
+            crate::storage::auth::PasswordIdentifierMode::EmailV1
+        );
+
+        let mut contradictory = manifest;
+        contradictory
+            .auth
+            .as_mut()
+            .expect("sessions auth declaration")
+            .password_identifier_mode = Some(AuthPasswordIdentifierMode::UsernameV1);
+        let successor_schema_hash = digest(crate::auth::mode::SCHEMA_V1_PREFIX, 'e');
+        contradictory.schema_hash = Some(successor_schema_hash.clone());
+        let mut successor = identity;
+        successor.schema_hash = successor_schema_hash;
+        let error = database
+            .apply_same_mode_schema(successor, contradictory)
+            .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE"
         );
     }
 

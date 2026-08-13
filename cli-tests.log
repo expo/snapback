@@ -1,0 +1,46 @@
+
+> @expo/snapback-cli@0.1.0 test
+> node package.test.mjs && node cli-help.test.mjs && node generate-check.test.mjs && node reference-lookup.test.mjs && node packaged-store-qualification.test.mjs && node fake-expo-push.test.mjs && node hosted-control.test.mjs && node load-generated.test.mjs && node sessions-dev-loop.test.mjs && node expo-device-forwarding.test.mjs && node expo-metro-watch-advisory.test.mjs && node expo-bootstrap-exchange.test.mjs && node expo-dev-loop.test.mjs && node reset-dev-fresh.test.mjs && node application-ready.test.mjs && node comparator-profile.test.mjs && node verify.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node agent-setup.test.mjs && node dev-cli-diagnostics.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs
+
+package.test.mjs: doctor, scaffold, pre-provision remote-drill planning, positive qualification/prepared-release production, deploy lifecycle, interruption resume, standalone backup, mandatory audit, code-only rollback, destructive restore/activation, bounded logs, authenticated inspection, backup verification, target fencing, attach fencing, seed-once reload, and dev control channels pass
+cli-help.test.mjs: dispatch parity and non-executing root/per-command/nested help pass
+✔ packaged generate --check runs the full preflight without replacing artifacts (1191.670917ms)
+✔ packaged generate --check preserves the same-file helper-cycle refusal (453.550917ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1648.559458
+reference-lookup.test.mjs: exact diagnostic/member, bounded symbol/module, identity, and fallback pass
+fake-expo-push.test.mjs: shared fixture and full local seam acceptance passed
+hosted control package tests passed
+load-generated.test.mjs: dev load framing, routes, sessions provisioning, and runtime/artifact mismatch diagnostics passed
+sessions-dev-loop.test.mjs: sessions restart, explicit comment-successor activation with preserved rows, stale-runtime refusal, and invalid-successor refusal pass
+expo-device-forwarding.test.mjs: Android emulator/USB/TCP-IP selection, exact reverse verify/rollback/remove, readiness shape, iOS USB/network inventory, and honest tool-direction refusal pass
+expo-metro-watch-advisory.test.mjs: Metro watch-inertness advisories pass
+expo-bootstrap-exchange.test.mjs: scoped loopback CORS, preflight, payload, refusal, and route handling pass
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: real Snapback runtime is missing: /Users/ccheever/projects/snapback-g0-land/target/debug/snapback
+    at file:///Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/packages/snapback-cli/expo-dev-loop.test.mjs:40:8 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v25.9.0
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path /Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/packages/snapback-cli
+npm error workspace @expo/snapback-cli@0.1.0
+npm error location /Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/packages/snapback-cli
+npm error command failed
+npm error command sh -c node package.test.mjs && node cli-help.test.mjs && node generate-check.test.mjs && node reference-lookup.test.mjs && node packaged-store-qualification.test.mjs && node fake-expo-push.test.mjs && node hosted-control.test.mjs && node load-generated.test.mjs && node sessions-dev-loop.test.mjs && node expo-device-forwarding.test.mjs && node expo-metro-watch-advisory.test.mjs && node expo-bootstrap-exchange.test.mjs && node expo-dev-loop.test.mjs && node reset-dev-fresh.test.mjs && node application-ready.test.mjs && node comparator-profile.test.mjs && node verify.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node agent-setup.test.mjs && node dev-cli-diagnostics.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs

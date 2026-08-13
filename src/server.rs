@@ -1,5 +1,4 @@
 use crate::admin::{AppState, ServerContext};
-use crate::contract_types::{RevocationReason, ServerProfile};
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
@@ -27,9 +26,9 @@ use crate::auth::lease::{
 };
 use crate::auth::provider::{
     AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
-    PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout, PlannedRefresh,
-    PlannedRevocationCommit, ProviderError, ProviderSessionIssuancePlan, StepUpBinding,
-    PasswordIssuanceCustody, auth_required as provider_auth_required,
+    PasswordIssuanceCustody, PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout,
+    PlannedRefresh, PlannedRevocationCommit, ProviderError, ProviderSessionIssuancePlan,
+    StepUpBinding, auth_required as provider_auth_required,
     credential_superseded as provider_credential_superseded,
     refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
     session_revoked as provider_session_revoked,
@@ -53,9 +52,11 @@ use crate::auth::session_projection::{
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
     MailboxResponse, MintSessionRequest, PasswordChangeRequest, PasswordCredentialRequest,
+    PasswordAttemptAdminRecord, PasswordAttemptAdminRequest, PasswordAttemptAdminResponse,
     PasswordResetRequest, PasswordUnlockRequest, PasswordUnlockResponse, RecoveryConsumeRequest,
     RequestCodeRequest, RequestCodeResponse, RescueCollidingTableRequest, SecretInput,
 };
+use crate::contract_types::{RevocationReason, ServerProfile};
 use crate::cron::{CronRunMetadata, CronRunRecord};
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{
@@ -141,9 +142,8 @@ use oauth::*;
 pub use response_types::*;
 use writer_gate::lock_managed_snapback;
 pub(crate) use writer_gate::{
-    with_read_lane, with_snapback_authorization_write,
-    with_snapback_staged_authorization_write, with_snapback_stream_reset_admission_effect,
-    with_snapback_then,
+    with_read_lane, with_snapback_authorization_write, with_snapback_staged_authorization_write,
+    with_snapback_stream_reset_admission_effect, with_snapback_then,
 };
 
 /// Delegates to the writer gate. Kept as a `server.rs` item (not a re-export)
@@ -9537,6 +9537,15 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
             get(admin_integrations).layer(DefaultBodyLimit::max(0)),
         ),
         RegisteredRoute::new(
+            system_api_route(
+                "POST",
+                "/_snapback/api/auth/password/attempt",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_password_attempt).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
             write(
                 "/_snapback/api/auth/password/unlock",
                 ResponseSensitivity::OperatorMetadata,
@@ -14136,13 +14145,11 @@ async fn auth_step_up_request(
         StepUpRequest::EffectApproval { effect_id } => {
             effect_step_up_binding(&authority, effect_id)?
         }
-        StepUpRequest::PasswordSet { identity_id } => {
-            password_set_step_up_binding(
-                &authority,
-                identity_id,
-                InvocationSource::AgentGrantManagement,
-            )?
-        }
+        StepUpRequest::PasswordSet { identity_id } => password_set_step_up_binding(
+            &authority,
+            identity_id,
+            InvocationSource::AgentGrantManagement,
+        )?,
     };
     let admission = provider.admit().await;
     let now_ms = provider.now_ms();
@@ -16173,23 +16180,20 @@ async fn auth_password_signup(
         .map_err(map_provider_error)?;
     let planning_provider = provider.clone();
     let identifier = request.email.clone();
-    let (address_admission, preparation) =
-        with_snapback(&runtime.snapback, move |snapback| {
-            let preparation = planning_provider.prepare_password_registration(
-                snapback.auth_database_mut(),
-                &identifier,
-                PasswordIssuanceCustody::Bearer,
-            );
-            (address_admission, preparation)
-        })
-        .await;
+    let (address_admission, preparation) = with_snapback(&runtime.snapback, move |snapback| {
+        let preparation = planning_provider.prepare_password_registration(
+            snapback.auth_database_mut(),
+            &identifier,
+            PasswordIssuanceCustody::Bearer,
+        );
+        (address_admission, preparation)
+    })
+    .await;
     let now_ms = provider.now_ms();
     let plan = provider
         .finish_password_registration_with_active_recovery_key(
             preparation?,
-            crate::auth::identity_core::PasswordSecret::new(
-                request.password.as_str().to_owned(),
-            ),
+            crate::auth::identity_core::PasswordSecret::new(request.password.as_str().to_owned()),
             now_ms,
             PasswordIssuanceCustody::Bearer,
         )
@@ -16221,23 +16225,20 @@ async fn auth_password_signin(
     let planning_provider = provider.clone();
     let identifier = request.email.clone();
     let now_ms = provider.now_ms();
-    let (address_admission, preparation) =
-        with_snapback(&runtime.snapback, move |snapback| {
-            let preparation = planning_provider.prepare_password_authentication(
-                snapback.auth_database_mut(),
-                &identifier,
-                now_ms,
-                PasswordIssuanceCustody::Bearer,
-            );
-            (address_admission, preparation)
-        })
-        .await;
+    let (address_admission, preparation) = with_snapback(&runtime.snapback, move |snapback| {
+        let preparation = planning_provider.prepare_password_authentication(
+            snapback.auth_database_mut(),
+            &identifier,
+            now_ms,
+            PasswordIssuanceCustody::Bearer,
+        );
+        (address_admission, preparation)
+    })
+    .await;
     let plan = provider
         .finish_password_authentication(
             preparation?,
-            crate::auth::identity_core::PasswordSecret::new(
-                request.password.as_str().to_owned(),
-            ),
+            crate::auth::identity_core::PasswordSecret::new(request.password.as_str().to_owned()),
             now_ms,
             PasswordIssuanceCustody::Bearer,
         )
@@ -16308,15 +16309,9 @@ async fn auth_password_reset(
         )
         .await?
         .ok_or_else(password_credential_invalid)?;
-    let finish = commit_password_reset_plan(
-        &runtime,
-        &provider,
-        exchange,
-        plan,
-        code,
-        &route_admission,
-    )
-    .await?;
+    let finish =
+        commit_password_reset_plan(&runtime, &provider, exchange, plan, code, &route_admission)
+            .await?;
     match finish {
         IssuanceFinish::CodeInvalid
         | IssuanceFinish::CodeLocked
@@ -16423,7 +16418,7 @@ async fn auth_password_change(
     match request {
         PasswordChangeRequest::Rotate(request) => {
             let planning_provider = provider.clone();
-            let preparation = with_snapback(&runtime.snapback, move |snapback| {
+            let discovery = with_snapback(&runtime.snapback, move |snapback| {
                 planning_provider.prepare_password_change(
                     snapback.auth_database_mut(),
                     &bearer,
@@ -16432,9 +16427,33 @@ async fn auth_password_change(
                 )
             })
             .await?;
+            let identifier = discovery.canonical_identifier().to_owned();
+            let address_admission = provider
+                .admit_email(&identifier)
+                .await
+                .map_err(map_provider_error)?;
+            // A sign-in that owned this address stripe first may have minted a
+            // session after the discovery timestamp. Re-sample the durable
+            // change cut after admission so revoking that freshly re-planned
+            // session cannot predate its creation.
+            let now_ms = provider.now_ms();
+            let planning_bearer =
+                SessionBearer::parse_any_version(auth_bearer(&headers).unwrap_or_default())
+                    .map_err(|_| password_credential_invalid())?;
+            let (address_admission, preparation) =
+                with_snapback(&runtime.snapback, move |snapback| {
+                    let preparation = address_admission.prepare_password_change(
+                        snapback.auth_database_mut(),
+                        &planning_bearer,
+                        now_ms,
+                        PasswordIssuanceCustody::Bearer,
+                    );
+                    (address_admission, preparation)
+                })
+                .await;
             let plan = provider
                 .finish_password_change(
-                    preparation,
+                    preparation?,
                     crate::auth::identity_core::PasswordSecret::new(
                         request.current_password.as_str().to_owned(),
                     ),
@@ -16445,15 +16464,15 @@ async fn auth_password_change(
                     PasswordIssuanceCustody::Bearer,
                 )
                 .await?;
-            match commit_password_change_plan(&runtime, &provider, plan, &authority).await? {
+            let finish = commit_password_change_plan(&runtime, &provider, plan, &authority).await?;
+            drop(address_admission);
+            match finish {
                 PasswordChangeFinish::Committed(issue) => {
                     let (response, _committed_revocation) = issue.into_parts();
                     Ok(Json(response).into_response())
                 }
                 PasswordChangeFinish::CredentialInvalid
-                | PasswordChangeFinish::PredecessorChanged => {
-                    Err(password_credential_invalid())
-                }
+                | PasswordChangeFinish::PredecessorChanged => Err(password_credential_invalid()),
                 PasswordChangeFinish::CredentialThrottled => Err(password_throttled()),
                 PasswordChangeFinish::CandidateCollision => Err(auth_provider_unavailable()),
             }
@@ -16466,13 +16485,12 @@ async fn auth_password_change(
             )?;
             let admission = provider.admit().await;
             let challenge_id = request.step_up.challenge_id.clone();
-            let (admission, coordination) =
-                with_snapback(&runtime.snapback, move |snapback| {
-                    let coordination = admission
-                        .step_up_coordination(snapback.auth_database_mut(), &challenge_id);
-                    (admission, coordination)
-                })
-                .await;
+            let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
+                let coordination =
+                    admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+                (admission, coordination)
+            })
+            .await;
             let proof_admission = admission
                 .for_step_up(
                     coordination.map_err(map_provider_error)?,
@@ -17289,6 +17307,43 @@ async fn admin_password_unlock(
     })
     .await?;
     Ok(Json(PasswordUnlockResponse { unlocked }))
+}
+
+/// Authenticated operator projection of the account-existence-blind lockout
+/// ledger. The identifier remains in the JSON body so it does not enter an URL
+/// or query-string access log; the route registry enforces AdminRead before
+/// body parsing.
+///
+/// @ref LLP 0227#lockout-and-rate-posture-a-declared-testable-contract — lock
+///   state is internal and visible only through authenticated admin/readiness
+///   projections, never through a password refusal.
+async fn admin_password_attempt(
+    State(runtime): State<AppState>,
+    input: Result<Json<PasswordAttemptAdminRequest>, JsonRejection>,
+) -> Result<Json<PasswordAttemptAdminResponse>, ApiError> {
+    let Json(input) = input.map_err(ApiError::from_json_rejection)?;
+    let provider = installed_auth_provider(&runtime)?;
+    let profile = provider.password_security_profile();
+    let now_ms = provider.now_ms();
+    let attempt = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .password_attempt_admin_projection(&input.email, now_ms)
+    })
+    .await?
+    .map(|attempt| PasswordAttemptAdminRecord {
+        canonical_identifier: attempt.canonical_identifier,
+        window_start_ms: attempt.window_start_ms,
+        failed_count: attempt.failed_count,
+        locked_until_ms: attempt.locked_until_ms,
+        locked: attempt.locked,
+    });
+    Ok(Json(PasswordAttemptAdminResponse {
+        attempt,
+        failure_threshold: profile.failure_threshold,
+        failure_window_ms: profile.failure_window_ms,
+        lock_duration_ms: profile.lock_duration_ms,
+    }))
 }
 
 #[derive(Deserialize)]
@@ -21463,8 +21518,9 @@ fn capture_operational_readiness_facts(
         auth_mode_state: runtime.auth_mode_state,
         effective_active_deployment,
         auth_program_readiness: runtime.auth_program_readiness,
-        capability_manifest_digest:
-            crate::operational_readiness::capability_manifest_digest(&capability_manifest)?,
+        capability_manifest_digest: crate::operational_readiness::capability_manifest_digest(
+            &capability_manifest,
+        )?,
         artifacts: crate::host_ops::HostOpsArtifacts {
             schema_hash: snapback.loaded_schema_hash(),
             bundle_hash: snapback.loaded_bundle_hash(),
@@ -21485,10 +21541,12 @@ async fn evaluate_operational_readiness_for_runtime(
     let expected = runtime.expected_activation_target();
     with_snapback(&runtime.snapback, move |snapback| {
         let facts = capture_operational_readiness_facts(snapback, runtime_facts)?;
-        Ok(crate::operational_readiness::evaluate_operational_readiness(
-            &facts,
-            expected.as_deref(),
-        ))
+        Ok(
+            crate::operational_readiness::evaluate_operational_readiness(
+                &facts,
+                expected.as_deref(),
+            ),
+        )
     })
     .await
 }
@@ -21562,13 +21620,12 @@ async fn host_ops_handler(
             conformance,
         });
     }
-    let operational_readiness = if operation == "app.inspect"
-        && matches!(&result, Ok(Json(envelope)) if envelope.ok)
-    {
-        Some(evaluate_operational_readiness_for_runtime(&runtime).await)
-    } else {
-        None
-    };
+    let operational_readiness =
+        if operation == "app.inspect" && matches!(&result, Ok(Json(envelope)) if envelope.ok) {
+            Some(evaluate_operational_readiness_for_runtime(&runtime).await)
+        } else {
+            None
+        };
     match result {
         Ok(Json(mut envelope)) => {
             if operation == "app.inspect" && envelope.ok {
@@ -21655,8 +21712,7 @@ async fn host_ops_handler_inner(
         // No secret-read preflight: the readiness fact is OperatorMetadata
         // (see the registry row) and its envelope carries no secret reads.
 
-        let expected = if crate::host_ops::versioned_seed_wrapper_has_forbidden_siblings(&request)
-        {
+        let expected = if crate::host_ops::versioned_seed_wrapper_has_forbidden_siblings(&request) {
             Err(SnapbackError::error(
                 crate::operational_readiness::READINESS_DECLARATION_INVALID_CODE,
                 "app-readiness",
@@ -21689,17 +21745,15 @@ async fn host_ops_handler_inner(
         let result = with_snapback(&state, move |snapback| {
             let outcome = expected.and_then(|expected| {
                 let facts = capture_operational_readiness_facts(snapback, runtime_facts)?;
-                Ok(crate::operational_readiness::evaluate_operational_readiness(
-                    &facts,
-                    expected.as_deref(),
-                ))
+                Ok(
+                    crate::operational_readiness::evaluate_operational_readiness(
+                        &facts,
+                        expected.as_deref(),
+                    ),
+                )
             });
             crate::host_ops::operational_readiness_result(
-                snapback,
-                &request,
-                server_url,
-                profile,
-                outcome,
+                snapback, &request, server_url, profile, outcome,
             )
         })
         .await;

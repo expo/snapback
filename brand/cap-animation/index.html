@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#e9e3d8" />
+    <meta
+      name="description"
+      content="An editable 3D Expo cap that spins into the Snapback identity."
+    />
+    <title>Expo to Snapback cap</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="stage">
+      <canvas id="cap-canvas" aria-label="Animated black Expo snapback cap"></canvas>
+
+      <div class="eyebrow" aria-hidden="true">
+        <span>EXPO</span>
+        <span class="eyebrow-rule"></span>
+        <span>SNAPBACK</span>
+      </div>
+
+      <p class="hint" id="hint">Drag to inspect</p>
+
+      <section class="controls" aria-label="Animation controls">
+        <button id="play" type="button" aria-label="Pause animation">Pause</button>
+        <label class="scrubber-label" for="scrubber">Animation position</label>
+        <input id="scrubber" type="range" min="0" max="1" value="0" step="0.001" />
+        <button id="restart" type="button">Restart</button>
+        <button id="export" type="button">Export GLB</button>
+      </section>
+
+      <div class="loading" id="loading" role="status">Building cap…</div>
+      <div class="vignette" aria-hidden="true"></div>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

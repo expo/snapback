@@ -35,6 +35,66 @@
       "buildTargets": [],
       "runner": "node demos/rbac/tests/acceptance/rbac.mjs",
       "toolchain": "node>=24, cargo"
+    },
+    "passwordDefinitionOfDone": {
+      "requirement": "blocked-until-email-v1-activation",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/password-auth-definition-of-done.mjs",
+      "toolchain": "node>=24, qualified Snapback runtime"
+    },
+    "passwordUniformity": {
+      "requirement": "integration",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/password-auth-uniformity.mjs",
+      "toolchain": "node>=24, qualified Snapback runtime"
+    },
+    "passwordConcurrency": {
+      "requirement": "integration-with-named-public-surface-gap",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/password-auth-concurrency.mjs",
+      "toolchain": "node>=24, qualified Snapback runtime"
+    },
+    "passwordChangeConsequences": {
+      "requirement": "integration",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/password-auth-change-consequences.mjs",
+      "toolchain": "node>=24, qualified Snapback runtime"
+    },
+    "passwordPackagedClient": {
+      "requirement": "integration",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/password-auth-packaged-client.mjs",
+      "toolchain": "node>=24, qualified Snapback runtime"
+    },
+    "passwordCliStdin": {
+      "requirement": "integration",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/password-auth-cli-stdin.mjs",
+      "toolchain": "node>=24, qualified Snapback runtime"
+    },
+    "passwordRecovery": {
+      "requirement": "integration",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/password-auth-recovery.mjs",
+      "toolchain": "node>=24, qualified Snapback runtime"
+    },
+    "passwordTransfer": {
+      "requirement": "integration",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/password-auth-transfer.mjs",
+      "toolchain": "node>=24, qualified Snapback runtime"
+    },
+    "passwordLogicalTransfer": {
+      "requirement": "integration",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/password-auth-logical-transfer.mjs",
+      "toolchain": "node>=24, qualified Snapback runtime"
+    },
+    "passwordLockoutWire": {
+      "requirement": "integration-with-named-admin-projection-gap",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/password-auth-lockout-wire.mjs",
+      "toolchain": "node>=24, qualified Snapback runtime"
     }
   },
   "acceptanceChecks": {
@@ -43,6 +103,39 @@
       "declaration-bound memberOf query returns existing rows to a member and no rows to a non-member",
       "ctx.permissions requireRole permits a member mutation and returns the invariant denial to a non-member",
       "raw ctx.db roster insertion is refused and grants no authority"
+    ],
+    "passwordDefinitionOfDone": [
+      "fresh sessions activation must report catalog-v4 email-v1 before password signup is accepted as the commissioned definition of done",
+      "signup custody, protected live-query read, logout, and signin use only public package APIs"
+    ],
+    "passwordUniformity": [
+      "wrong-password and missing-identity responses have identical status, bytes, and headers",
+      "paired KDF timings remain inside the declared envelope with comparable medians"
+    ],
+    "passwordConcurrency": [
+      "parallel signins mint distinct ordinary sessions for one principal",
+      "exactly one parallel password change wins and signin/change races have only safe public outcomes"
+    ],
+    "passwordChangeConsequences": [
+      "change rotates acting custody, revokes other same-user sessions, and preserves a different-user bystander"
+    ],
+    "passwordPackagedClient": [
+      "the installed public package methods complete signup, protected application calls, signin, and change without source inspection"
+    ],
+    "passwordCliStdin": [
+      "signup and signin take the password on stdin and the harness asserts the exact spawned argv excludes it"
+    ],
+    "passwordRecovery": [
+      "signup discloses eight codes once, consume mints a session and replacement set, and reuse refuses"
+    ],
+    "passwordTransfer": [
+      "format-2 physical backup preserves credentials and lockout history while catalog-v4 logical transfer excludes credentials, sessions, and the attempt ledger"
+    ],
+    "passwordLogicalTransfer": [
+      "catalog-v4 logical transfer preserves identity facts while excluding credentials, sessions, recovery custody, and password attempt history"
+    ],
+    "passwordLockoutWire": [
+      "existing and missing identifiers stay public-wire uniform through and past threshold and the admin unlock verb clears both ledgers"
     ]
   },
   "capabilityGaps": [

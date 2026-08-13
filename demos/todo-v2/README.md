@@ -114,6 +114,9 @@ The browser surface talks to the Snapback API directly at
 kept in vite.config.ts is a non-bun fallback — under `bun --bun` a hung
 WebSocket upgrade wedges proxied HTTP) and provisions/seeds the demo backend
 idempotently on page boot.
+That built-in `server.proxy` fallback is separate from `@expo/snapback-vite`:
+the package relay now completes both WebSocket legs above Bun's raw socket
+shim, while this todo-v2 fallback remains unchanged.
 
 On macOS, run `scripts/bootstrap-ibex-runtime` from the repo root first, or set
 `HERMES_INCLUDE_DIR`, `HERMES_LIB_DIR`, and `HERMESC` to a prepared Ibex

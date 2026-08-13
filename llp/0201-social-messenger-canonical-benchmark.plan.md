@@ -5,7 +5,8 @@
 **Systems:** Competitive evaluation, Benchmarks, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-11 (l — additive milestone M8: insights/aggregation,
+**Revised:** 2026-08-12 (m — factual pin: scoring DAG M3 requires M1 only;
+reduced-run protocol still sequences M1→M2→M3); 2026-08-11 (l — additive milestone M8: insights/aggregation,
 scheduled digest, celebrity fan-out envelope extension, multi-device and
 durable-offline obligations; author direction, recorded in the dated
 amendments); 2026-08-10 (k — P2 F2 choreography hardening: M6 native
@@ -292,7 +293,9 @@ invocations, and correction loops under the protocol's attribution rule
   `blocked-by-M{n}`, never counted as an additional independent
   capability failure; the prerequisite DAG is pinned in the brief
   (M6 requires M2–M5, so its checklist's likes/media/view-once/search
-  dependencies are honest; M7's regression item is conditional on
+  dependencies are honest; scoring DAG: M3 requires M1 only, not M2;
+  reduced-run protocol still sequences M1 then M2 then M3, and
+  skipping M2 is non-conforming; M7's regression item is conditional on
   previously-green milestones — prior failures are preserved, never
   repaired under M7's budget). A milestone abandoned mid-attempt
   (agent or environment abort before cap exhaustion) records
@@ -666,6 +669,9 @@ probes are non-scored continuity diagnostics, with the holdout claim
 scoped to the wave's secret rotated probes.
 
 ## Revision history
+
+**Revised:** 2026-08-12 (m — factual pin only: scoring DAG M3 requires M1
+only; reduced-run protocol still executes M1 then M2 then M3.)
 
 **Revised:** 2026-08-09 (j — author clarification after the P2 pilot:
 Following includes the viewer's own posts and reposts as feed-only implicit

@@ -10,18 +10,22 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  closeSync,
   constants as fsConstants,
   cpSync,
   existsSync,
+  fsyncSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readlinkSync,
   readFileSync,
   readdirSync,
   renameSync,
   rmSync,
   rmdirSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -39,10 +43,17 @@ const ZERO_SHA = /^0{40}$/u;
 const SHA = /^[0-9a-f]{40}$/u;
 const BYPASS_ENV = 'SNAPBACK_DRIFT_GATES_BYPASS';
 const FULL_ENV = 'SNAPBACK_DRIFT_GATES_FULL';
+const INFRASTRUCTURE_FAILOPEN_ENV = 'SNAPBACK_DRIFT_INFRA_FAILOPEN';
+const TICKET_REQUESTS_ENV = 'SNAPBACK_DRIFT_TICKET_REQUESTS';
 const DEPENDENCY_MIRROR_SCHEMA = 'snapback.drift-dependency-mirror.v1';
+const TICKET_REQUEST_SCHEMA = 'snapback.drift-ticket-request.v1';
+const RUNNER_IDENTITY = 'snapback-drift-prone-gates.d3.v1';
+const TICKET_REQUEST_LOCK_WAIT = new Int32Array(new SharedArrayBuffer(4));
+const TICKET_REQUEST_STALE_LOCK_MS = 60_000;
 const DEFAULT_TICKET_DATE = () => new Date().toISOString().slice(0, 10);
 const INFRASTRUCTURE_TICKET_THRESHOLD = 3;
 const INFRASTRUCTURE_OUTPUT = /^(?:Error \[(?:ERR_MODULE_NOT_FOUND|MODULE_NOT_FOUND)\]: Cannot find (?:package|module)[^\r\n]*|Error: Cannot find module[^\r\n]*|error: couldn't read [^\r\n]*: No such file or directory(?: \(os error \d+\))?|fatal: this operation must be run in a work tree|\[(?:snapback-bootstrap|runtime-link-smoke|ibex-doctor)\] (?:error: |ERROR )?SNAPBACK_(?:CAPABILITY_IBEX|IBEX)_[A-Z0-9_]+[^\r\n]*)$/mu;
+const RUNNER_CONTROLLED_OUTPUT = /^(?:fatal: this operation must be run in a work tree|\[(?:snapback-bootstrap|runtime-link-smoke|ibex-doctor)\] (?:error: |ERROR )?SNAPBACK_(?:CAPABILITY_IBEX_HERMES_MISSING|IBEX_(?:HERMES_DOWNLOAD_FAILED|HERMES_ARTIFACTS_UNUSABLE|HOST_UNSUPPORTED|SUBMODULE_INIT_FAILED|RUNTIME_LINK_INTERRUPTED|RUNTIME_LINK_PROBE_FAILED))[^\r\n]*)$/u;
 // Git exports these repository-local variables to hooks. They must not leak
 // into commands whose cwd is a detached revision worktree, or Git will keep
 // resolving the hook caller's index/HEAD instead of the isolated checkout.
@@ -192,12 +203,19 @@ export function runPrePush({
   const started = performance.now();
   const bypass = env[BYPASS_ENV] ?? '';
   const full = env[FULL_ENV] ?? '';
+  const infrastructureFailOpen = env[INFRASTRUCTURE_FAILOPEN_ENV] ?? '';
   if (bypass !== '' && bypass !== '1') {
     console.error(`[snapback-drift] REFUSED: ${BYPASS_ENV} must be exactly 1 when used`);
     return 2;
   }
   if (full !== '' && full !== '1') {
     console.error(`[snapback-drift] REFUSED: ${FULL_ENV} must be exactly 1 when used`);
+    return 2;
+  }
+  if (!['', '0', '1'].includes(infrastructureFailOpen)) {
+    console.error(
+      `[snapback-drift] REFUSED: ${INFRASTRUCTURE_FAILOPEN_ENV} must be 0 or 1 when used`,
+    );
     return 2;
   }
   const updates = parsePrePushUpdates(input);
@@ -232,6 +250,7 @@ export function runPrePush({
   }
 
   const preExistingGates = new Set();
+  const corroboratedInfrastructureGates = new Set();
   for (const plan of plans) {
     if (plan.gates.length === 0) continue;
     const ownershipBaselines = plan.gates.includes('module-ownership')
@@ -294,33 +313,202 @@ export function runPrePush({
             environmentRoot: root,
             requiredEnvironmentPaths: metadata.requiredEnvironmentPaths,
             requiredModules: metadata.requiredModules,
+            infrastructureClassification: infrastructureFailOpen === '0'
+              || gate === 'module-ownership'
+              ? 'legacy'
+              : 'd3',
           });
           if (!execution.ok) {
-            if (execution.infrastructureReason) {
-              writeCapturedOutput(execution);
-              printInfrastructureFailure({
+            // @ref LLP 0232#rollout-success-and-rollback — the tripwire restores the
+            // complete pre-D-3 classifier and attribution protocol, not only the
+            // new infrastructure proceed decision.
+            if (infrastructureFailOpen === '0') {
+              if (execution.infrastructureReason) {
+                writeCapturedOutput(execution);
+                printInfrastructureFailure({
+                  gate,
+                  revision: plan.revision,
+                  command,
+                  execution,
+                });
+                return 2;
+              }
+              if (gate === 'module-ownership') {
+                writeCapturedOutput(execution, { stripJavaScriptStack: true });
+                printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
+                return 1;
+              }
+              writeCapturedOutput(execution, { stripJavaScriptStack: true });
+              const baseline = baselineRevisionsForPlan(root, plan);
+              if (baseline.error) {
+                console.error(
+                  `[snapback-drift] attribution unavailable: ${baseline.error}; blocking fail-closed`,
+                );
+                printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
+                return 1;
+              }
+              let preExisting = true;
+              for (const revision of baseline.revisions) {
+                console.error(
+                  `[snapback-drift] ATTRIBUTION CHECK ${gate} at baseline ${revision.slice(0, 12)}`,
+                );
+                let baselineExecution;
+                try {
+                  baselineExecution = runGateAtRevision(
+                    root,
+                    revision,
+                    gate,
+                    command,
+                    metadata,
+                    env,
+                  );
+                } catch (error) {
+                  console.error(
+                    `[snapback-drift] attribution baseline ${revision.slice(0, 12)} `
+                      + `could not be evaluated: ${error?.message ?? error}`,
+                  );
+                  preExisting = false;
+                  break;
+                }
+                writeCapturedOutput(baselineExecution, { stripJavaScriptStack: true });
+                if (baselineExecution.ok) {
+                  console.error(
+                    `[snapback-drift] attribution baseline ${revision.slice(0, 12)} passes ${gate}; `
+                      + 'the pushed revision introduced the staleness',
+                  );
+                  preExisting = false;
+                  break;
+                }
+                if (baselineExecution.infrastructureReason) {
+                  console.error(
+                    `[snapback-drift] attribution baseline ${revision.slice(0, 12)} could not `
+                      + `faithfully run ${gate}: ${baselineExecution.infrastructureReason}`,
+                  );
+                  preExisting = false;
+                  break;
+                }
+              }
+              if (!preExisting) {
+                printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
+                return 1;
+              }
+              printLegacyPreExistingStaleness({
                 gate,
-                revision: plan.revision,
-                command,
-                execution,
+                baselines: baseline.revisions,
+                root,
               });
-              return 2;
+              preExistingGates.add(gate);
+              continue;
             }
+
+            // @ref LLP 0232#d-3-closed-outcome-classification-and-ticketing — module ownership keeps its set-based
+            // predecessor protocol and never enters generic outcome typing.
             if (gate === 'module-ownership') {
+              if (execution.infrastructureReason) {
+                writeCapturedOutput(execution);
+                printInfrastructureFailure({
+                  gate,
+                  revision: plan.revision,
+                  command,
+                  execution,
+                });
+                return 2;
+              }
               writeCapturedOutput(execution, { stripJavaScriptStack: true });
               printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
               return 1;
             }
-            writeCapturedOutput(execution, { stripJavaScriptStack: true });
+
+            const pushedEvidence = failureEvidence(execution);
+            const closureAfterFailure = safeWorktreeChanges(cwd);
+            const closureCleanAfterFailure = closureAfterFailure.error === null
+              && closureAfterFailure.paths.length === 0;
+            if (pushedEvidence.kind === 'content' && closureCleanAfterFailure) {
+              console.error(
+                `[snapback-drift] DETERMINISM CHECK ${gate} at ${plan.revision.slice(0, 12)}`,
+              );
+              const repeated = executeGate(cwd, gate, command, {
+                env: gateEnvironment,
+                prepareCommand: metadata.prepareCommand,
+                environmentRoot: root,
+                requiredEnvironmentPaths: metadata.requiredEnvironmentPaths,
+                requiredModules: metadata.requiredModules,
+                infrastructureClassification: 'd3',
+              });
+              const closureAfterRepeat = safeWorktreeChanges(cwd);
+              if (repeated.ok
+                && closureAfterRepeat.error === null
+                && closureAfterRepeat.paths.length === 0) {
+                writeCapturedOutput(execution, { stripJavaScriptStack: true });
+                writeCapturedOutput(repeated);
+                const nondeterministicEvidence = contradictionEvidence({
+                  gate,
+                  revision: plan.revision,
+                  command,
+                  metadata,
+                  first: pushedEvidence,
+                  second: passEvidence(repeated),
+                });
+                const ticketRequest = recordTicketRequest({
+                  root,
+                  env,
+                  gate,
+                  outcomeType: 'NONDETERMINISTIC',
+                  normalizedSignature: nondeterministicEvidence.normalizedSignature,
+                  pushedRevision: plan.revision,
+                  baselineRevisions: [],
+                  failureOutputDigest: pushedEvidence.outputDigest,
+                  baselineOutputsDigest: null,
+                  corroboration: nondeterministicEvidence.corroboration,
+                  attribution: null,
+                });
+                printTicketRequest(root, ticketRequest);
+                printNondeterministicFailure({
+                  gate,
+                  revision: plan.revision,
+                  command,
+                  evidence: nondeterministicEvidence,
+                });
+                return 2;
+              }
+            }
+
+            writeCapturedOutput(execution, {
+              stripJavaScriptStack: pushedEvidence.kind !== 'runner-setup',
+            });
+            if (pushedEvidence.kind === 'unknown') {
+              printUnknownClassification({
+                gate,
+                revision: plan.revision,
+                command,
+                execution,
+                reason: pushedEvidence.reason,
+              });
+              return 2;
+            }
             const baseline = baselineRevisionsForPlan(root, plan);
             if (baseline.error) {
               console.error(
                 `[snapback-drift] attribution unavailable: ${baseline.error}; blocking fail-closed`,
               );
+              if (pushedEvidence.kind === 'runner-setup') {
+                printUncorroboratedInfrastructure({
+                  gate,
+                  revision: plan.revision,
+                  command,
+                  execution,
+                  reason: 'runner setup failure could not be corroborated at every merge-base',
+                });
+                return 2;
+              }
+              printContentRed({ gate, revision: plan.revision, reason: baseline.error });
               printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
               return 1;
             }
-            let preExisting = true;
+
+            const baselineEvidence = [];
+            let reproduced = true;
+            let reproductionFailure = null;
             for (const revision of baseline.revisions) {
               console.error(
                 `[snapback-drift] ATTRIBUTION CHECK ${gate} at baseline ${revision.slice(0, 12)}`,
@@ -334,41 +522,125 @@ export function runPrePush({
                   command,
                   metadata,
                   env,
+                  { infrastructureClassification: 'd3' },
                 );
               } catch (error) {
                 console.error(
                   `[snapback-drift] attribution baseline ${revision.slice(0, 12)} `
                     + `could not be evaluated: ${error?.message ?? error}`,
                 );
-                preExisting = false;
+                reproductionFailure = `baseline ${revision.slice(0, 12)} unavailable`;
+                reproduced = false;
                 break;
               }
-              writeCapturedOutput(baselineExecution, { stripJavaScriptStack: true });
+              const evidence = baselineExecution.ok
+                ? passEvidence(baselineExecution)
+                : failureEvidence(baselineExecution);
+              baselineEvidence.push({ revision, ...evidence });
+              writeCapturedOutput(baselineExecution, {
+                stripJavaScriptStack: evidence.kind !== 'runner-setup',
+              });
               if (baselineExecution.ok) {
                 console.error(
                   `[snapback-drift] attribution baseline ${revision.slice(0, 12)} passes ${gate}; `
                     + 'the pushed revision introduced the staleness',
                 );
-                preExisting = false;
+                reproductionFailure = `baseline ${revision.slice(0, 12)} passed`;
+                reproduced = false;
                 break;
               }
-              if (baselineExecution.infrastructureReason) {
+              if (evidence.kind !== pushedEvidence.kind) {
                 console.error(
-                  `[snapback-drift] attribution baseline ${revision.slice(0, 12)} could not `
-                    + `faithfully run ${gate}: ${baselineExecution.infrastructureReason}`,
+                  `[snapback-drift] attribution baseline ${revision.slice(0, 12)} classified `
+                    + `${evidence.kind}, expected ${pushedEvidence.kind}`,
                 );
-                preExisting = false;
+                reproductionFailure = `baseline ${revision.slice(0, 12)} classification mismatch`;
+                reproduced = false;
+                break;
+              }
+              if (evidence.normalizedSignature !== pushedEvidence.normalizedSignature) {
+                console.error(
+                  `[snapback-drift] attribution baseline ${revision.slice(0, 12)} signature `
+                    + `${evidence.normalizedSignature ?? '<unavailable>'} does not match pushed `
+                    + `${pushedEvidence.normalizedSignature}`,
+                );
+                reproductionFailure = `baseline ${revision.slice(0, 12)} signature mismatch`;
+                reproduced = false;
                 break;
               }
             }
-            if (!preExisting) {
+
+            if (!reproduced) {
+              if (pushedEvidence.kind === 'runner-setup') {
+                printUncorroboratedInfrastructure({
+                  gate,
+                  revision: plan.revision,
+                  command,
+                  execution,
+                  reason: reproductionFailure,
+                });
+                return 2;
+              }
+              printContentRed({
+                gate,
+                revision: plan.revision,
+                reason: reproductionFailure,
+              });
               printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
               return 1;
+            }
+
+            const baselineOutputsDigest = digestJson(baselineEvidence.map((evidence) => ({
+              revision: evidence.revision,
+              outputDigest: evidence.outputDigest,
+              normalizedSignature: evidence.normalizedSignature,
+            })));
+            const corroboration = baselineEvidence.map((evidence) => ({
+              revision: evidence.revision,
+              phase: evidence.phase,
+              status: evidence.status,
+              signal: evidence.signal,
+              kind: evidence.kind,
+              reason: evidence.reason,
+              normalizedSignature: evidence.normalizedSignature,
+              outputDigest: evidence.outputDigest,
+            }));
+            const outcomeType = pushedEvidence.kind === 'runner-setup'
+              ? 'INFRASTRUCTURE'
+              : 'INHERITED_RED';
+            const ticketRequest = recordTicketRequest({
+              root,
+              env,
+              gate,
+              outcomeType,
+              normalizedSignature: pushedEvidence.normalizedSignature,
+              pushedRevision: plan.revision,
+              baselineRevisions: baseline.revisions,
+              failureOutputDigest: pushedEvidence.outputDigest,
+              baselineOutputsDigest,
+              corroboration,
+              attribution: outcomeType === 'INHERITED_RED'
+                ? { type: 'merge-base-signature-reproduction', revisions: baseline.revisions }
+                : null,
+            });
+            printTicketRequest(root, ticketRequest);
+            if (outcomeType === 'INFRASTRUCTURE') {
+              printCorroboratedInfrastructure({
+                gate,
+                revision: plan.revision,
+                command,
+                pushedEvidence,
+                baselineOutputsDigest,
+                corroboration,
+              });
+              corroboratedInfrastructureGates.add(gate);
+              continue;
             }
             printPreExistingStaleness({
               gate,
               baselines: baseline.revisions,
               root,
+              normalizedSignature: pushedEvidence.normalizedSignature,
             });
             preExistingGates.add(gate);
             continue;
@@ -386,8 +658,15 @@ export function runPrePush({
       `[snapback-drift] ALLOWED WITH PRE-EXISTING STALENESS: ${preExistingGates.size} `
         + `gate(s) stale on the baseline; see issues/ tickets (${elapsed(started)})`,
     );
-    return 0;
   }
+  if (corroboratedInfrastructureGates.size > 0) {
+    console.error(
+      `[snapback-drift] ALLOWED WITH CORROBORATED INFRASTRUCTURE: `
+        + `${corroboratedInfrastructureGates.size} gate(s); durable ticket request(s) recorded `
+        + `(${elapsed(started)})`,
+    );
+  }
+  if (preExistingGates.size > 0 || corroboratedInfrastructureGates.size > 0) return 0;
   console.log(
     `[snapback-drift] ALLOWED: ${selected.length} selected drift-prone gate(s) passed `
       + `(${elapsed(started)})`,
@@ -431,7 +710,31 @@ function baselineRevisionsForPlan(root, plan) {
   return { revisions: [...revisions], error: null };
 }
 
-function printPreExistingStaleness({ gate, baselines, root }) {
+function printPreExistingStaleness({ gate, baselines, root, normalizedSignature }) {
+  console.error('[snapback-drift] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  console.error(
+    `[snapback-drift] OUTCOME INHERITED_RED ${gate}: signature ${normalizedSignature} `
+      + 'reproduced at every required merge-base; proceeding with ticket request',
+  );
+  for (const baseline of baselines) {
+    console.error(
+      `[snapback-drift] PRE-EXISTING STALE ${gate}: also fails at baseline `
+        + `${baseline.slice(0, 12)} (not caused by this push)`,
+    );
+  }
+  const ticket = findOpenTicket(join(root, 'issues'), gate);
+  if (ticket) {
+    console.error(`[snapback-drift] open backstop ticket: ${relative(root, ticket)}`);
+  } else {
+    console.error(
+      '[snapback-drift] no open backstop ticket found; the scheduled complete backstop will file one',
+    );
+  }
+  console.error('[snapback-drift] continuing with the remaining selected gates');
+  console.error('[snapback-drift] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+}
+
+function printLegacyPreExistingStaleness({ gate, baselines, root }) {
   console.error('[snapback-drift] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
   for (const baseline of baselines) {
     console.error(
@@ -500,6 +803,400 @@ function printInfrastructureFailure({ gate, revision, command, execution }) {
   console.error(`[snapback-drift] infrastructure reason: ${execution.infrastructureReason}`);
   console.error(`[snapback-drift] check command: ${command}`);
   console.error('[snapback-drift] no stale-record conclusion was made; repair the gate environment and retry');
+}
+
+function printContentRed({ gate, revision, reason }) {
+  console.error(
+    `[snapback-drift] OUTCOME CONTENT_RED ${gate} at ${revision.slice(0, 12)}: ${reason}`,
+  );
+}
+
+function printUnknownClassification({ gate, revision, command, execution, reason }) {
+  console.error(
+    `[snapback-drift] OUTCOME UNKNOWN ${gate} at ${revision.slice(0, 12)}: `
+      + `${reason ?? 'the execution did not yield classifiable evidence'}; blocking control-plane failure`,
+  );
+  console.error(`[snapback-drift] unknown phase: ${execution.phase}`);
+  console.error(`[snapback-drift] unknown status: ${execution.status ?? 'none'}`);
+  console.error(`[snapback-drift] unknown signal: ${execution.signal ?? 'none'}`);
+  console.error(`[snapback-drift] check command: ${command}`);
+}
+
+function printUncorroboratedInfrastructure({ gate, revision, command, execution, reason }) {
+  console.error(
+    `[snapback-drift] OUTCOME INFRASTRUCTURE-UNCORROBORATED ${gate} `
+      + `at ${revision.slice(0, 12)}: ${reason}; blocking as content evidence`,
+  );
+  console.error(`[snapback-drift] pushed runner-setup phase: ${execution.phase}`);
+  console.error(`[snapback-drift] pushed runner-setup reason: ${execution.infrastructureReason}`);
+  console.error(`[snapback-drift] check command: ${command}`);
+  console.error(
+    '[snapback-drift] no stale-record or infrastructure conclusion was made; '
+      + 'inspect the pushed change and runner inputs before retrying',
+  );
+}
+
+function printNondeterministicFailure({ gate, revision, command, evidence }) {
+  console.error(
+    `[snapback-drift] OUTCOME NONDETERMINISTIC ${gate} at ${revision.slice(0, 12)}: `
+      + 'contradictory determinate executions over the same gate/revision closure; '
+      + 'blocking control-plane failure with no attribution',
+  );
+  console.error(`[snapback-drift] nondeterministic signature: ${evidence.normalizedSignature}`);
+  console.error(`[snapback-drift] closure digest: ${evidence.closureDigest}`);
+  console.error(`[snapback-drift] check command: ${command}`);
+}
+
+function printCorroboratedInfrastructure({
+  gate,
+  revision,
+  command,
+  pushedEvidence,
+  baselineOutputsDigest,
+  corroboration,
+}) {
+  const receipt = {
+    outcome: 'INFRASTRUCTURE',
+    gate,
+    pushedRevision: revision,
+    normalizedSignature: pushedEvidence.normalizedSignature,
+    reason: pushedEvidence.reason,
+    fullFailureOutputDigest: pushedEvidence.outputDigest,
+    baselineOutputsDigest,
+    corroboration,
+  };
+  console.error('[snapback-drift] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+  console.error(
+    `[snapback-drift] OUTCOME INFRASTRUCTURE ${gate}: runner-controlled failure `
+      + `reproduced at every required merge-base; proceeding with ticket request`,
+  );
+  console.error(`[snapback-drift] infrastructure reason: ${pushedEvidence.reason}`);
+  console.error(`[snapback-drift] infrastructure receipt: ${JSON.stringify(receipt)}`);
+  console.error(`[snapback-drift] check command: ${command}`);
+  console.error('[snapback-drift] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+}
+
+function printTicketRequest(root, result) {
+  console.error(
+    `[snapback-drift] TICKET REQUEST ${result.created ? 'RECORDED' : 'RETAINED'}: `
+      + `${relative(root, result.path)} outcome=${result.request.outcomeType} `
+      + `signature=${result.request.normalizedSignature}`,
+  );
+}
+
+function passEvidence(execution) {
+  return {
+    kind: 'pass',
+    phase: execution.phase,
+    status: execution.status,
+    signal: execution.signal,
+    normalizedSignature: digestJson({ kind: 'pass', status: execution.status }),
+    outputDigest: executionOutputDigest(execution),
+  };
+}
+
+function failureEvidence(execution) {
+  const normalizedOutput = {
+    stdout: normalizeFailureText(execution.stdout ?? '', execution.normalizationPaths),
+    stderr: normalizeFailureText(execution.stderr ?? '', execution.normalizationPaths),
+  };
+  let kind = execution.failureKind ?? 'unknown';
+  let reason = execution.infrastructureReason ?? null;
+  if (kind === 'content' && normalizedOutput.stdout === '' && normalizedOutput.stderr === '') {
+    kind = 'unknown';
+    reason = 'nonzero execution supplied no diagnostic output';
+  }
+  if (kind === 'runner-setup' && !execution.infrastructureReason) {
+    kind = 'unknown';
+    reason = 'runner setup classification lacked a positive infrastructure reason';
+  }
+  const normalized = {
+    kind,
+    phase: execution.phase,
+    status: execution.status,
+    signal: execution.signal,
+    reason: normalizeFailureText(
+      execution.infrastructureReason ?? '',
+      execution.normalizationPaths,
+    ),
+    output: normalizedOutput,
+  };
+  return {
+    ...normalized,
+    reason,
+    normalizedSignature: kind === 'unknown' ? null : digestJson(normalized),
+    outputDigest: executionOutputDigest(execution),
+  };
+}
+
+function contradictionEvidence({ gate, revision, command, metadata, first, second }) {
+  const closureDigest = digestJson({
+    gate,
+    revision,
+    command,
+    prepareCommand: metadata.prepareCommand ?? null,
+    requiredEnvironmentPaths: metadata.requiredEnvironmentPaths ?? [],
+    requiredModules: metadata.requiredModules ?? [],
+    requiredSubmodules: metadata.requiredSubmodules ?? [],
+  });
+  const corroboration = [
+    {
+      ordinal: 1,
+      outcome: 'red',
+      kind: first.kind,
+      normalizedSignature: first.normalizedSignature,
+      outputDigest: first.outputDigest,
+    },
+    {
+      ordinal: 2,
+      outcome: 'green',
+      kind: second.kind,
+      normalizedSignature: second.normalizedSignature,
+      outputDigest: second.outputDigest,
+    },
+  ];
+  return {
+    closureDigest,
+    corroboration,
+    normalizedSignature: digestJson({
+      outcome: 'NONDETERMINISTIC',
+      closureDigest,
+      executions: corroboration.map(({ outcome, kind, normalizedSignature }) => ({
+        outcome,
+        kind,
+        normalizedSignature,
+      })),
+    }),
+  };
+}
+
+function recordTicketRequest({
+  root,
+  env,
+  gate,
+  outcomeType,
+  normalizedSignature,
+  pushedRevision,
+  baselineRevisions,
+  failureOutputDigest,
+  baselineOutputsDigest,
+  corroboration,
+  attribution,
+}) {
+  // @ref LLP 0232#d-3-closed-outcome-classification-and-ticketing — proceeding is bound to a durable, signature-keyed
+  // request; committed ticket projection remains the backstop's authority.
+  const configuredPath = env[TICKET_REQUESTS_ENV]
+    ?? 'target/proof/drift-ticket-requests.jsonl';
+  const path = resolve(root, configuredPath);
+  if (path === resolve(root) || !path.startsWith(`${resolve(root)}${sep}`)) {
+    fail(`${TICKET_REQUESTS_ENV} escapes repository: ${configuredPath}`);
+  }
+  const observedAt = new Date().toISOString();
+  const requestKey = digestJson({ gate, normalizedSignature });
+  const core = {
+    schemaVersion: TICKET_REQUEST_SCHEMA,
+    requestKey,
+    gateId: gate,
+    normalizedSignature,
+    outcomeType,
+    pushedRevision,
+    baselineRevisions: [...baselineRevisions],
+    observedAt,
+    recordedAt: observedAt,
+    projectionDueBy: new Date(Date.parse(observedAt) + 2 * 60 * 60 * 1000).toISOString(),
+    runnerIdentity: {
+      id: RUNNER_IDENTITY,
+      mode: 'pre-push',
+      platform: process.platform,
+      architecture: process.arch,
+      nodeVersion: process.version,
+    },
+    failureOutputDigest,
+    baselineOutputsDigest,
+    corroboration,
+    attribution,
+  };
+  const request = { ...core, requestDigest: digestJson(core) };
+  mkdirSync(dirname(path), { recursive: true });
+  return withTicketRequestLock(path, () => {
+    const existing = readTicketRequests(path);
+    const retained = existing.find((candidate) => candidate.requestKey === requestKey);
+    if (retained) {
+      if (retained.gateId !== gate
+        || retained.normalizedSignature !== normalizedSignature
+        || retained.outcomeType !== outcomeType) {
+        fail(`ticket request key collision for ${gate} ${normalizedSignature}`);
+      }
+      return { path, request: retained, created: false };
+    }
+    const descriptor = openSync(path, 'a', 0o600);
+    try {
+      writeFileSync(descriptor, `${JSON.stringify(request)}\n`);
+      fsyncSync(descriptor);
+    } finally {
+      closeSync(descriptor);
+    }
+    return { path, request, created: true };
+  });
+}
+
+function withTicketRequestLock(path, callback) {
+  const lock = `${path}.lock`;
+  let acquired = false;
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    try {
+      mkdirSync(lock);
+      acquired = true;
+      break;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+      if (breakStaleTicketRequestLock(lock)) continue;
+      Atomics.wait(TICKET_REQUEST_LOCK_WAIT, 0, 0, 25);
+    }
+  }
+  if (!acquired) fail(`timed out acquiring ticket request lock ${lock}`);
+  try {
+    return callback();
+  } finally {
+    rmdirSync(lock);
+  }
+}
+
+function breakStaleTicketRequestLock(lock) {
+  let age;
+  try {
+    age = Date.now() - statSync(lock).mtimeMs;
+  } catch (error) {
+    if (error?.code === 'ENOENT') return true;
+    throw error;
+  }
+  if (age <= TICKET_REQUEST_STALE_LOCK_MS) return false;
+  const stale = `${lock}.stale-${process.pid}-${Date.now()}`;
+  try {
+    renameSync(lock, stale);
+  } catch (error) {
+    if (error?.code === 'ENOENT' || error?.code === 'EEXIST') return true;
+    throw error;
+  }
+  rmSync(stale, { recursive: true, force: true });
+  return true;
+}
+
+function readTicketRequests(path) {
+  if (!existsSync(path)) return [];
+  let content;
+  try {
+    content = readFileSync(path, 'utf8');
+  } catch (error) {
+    fail(`could not read ticket requests ${path}: ${error?.message ?? error}`);
+  }
+  const requests = [];
+  const validLines = [];
+  const quarantined = [];
+  for (const [index, line] of content.split(/\r?\n/u).entries()) {
+    if (line.trim() === '') continue;
+    let request;
+    try {
+      request = JSON.parse(line);
+    } catch (error) {
+      quarantined.push({
+        schemaVersion: 'snapback.drift-ticket-request-quarantine.v1',
+        observedAt: new Date().toISOString(),
+        lineNumber: index + 1,
+        rawLine: line,
+        rawLineDigest: digestText(line),
+        reason: `invalid JSON: ${error?.message ?? error}`,
+      });
+      continue;
+    }
+    if (request?.schemaVersion !== TICKET_REQUEST_SCHEMA
+      || typeof request.requestKey !== 'string'
+      || typeof request.normalizedSignature !== 'string') {
+      fail(`invalid ticket request entry in ${path}`);
+    }
+    const { requestDigest, ...core } = request;
+    if (requestDigest !== digestJson(core)
+      || request.requestKey !== digestJson({
+        gate: request.gateId,
+        normalizedSignature: request.normalizedSignature,
+      })) {
+      fail(`ticket request integrity mismatch in ${path}`);
+    }
+    requests.push(request);
+    validLines.push(JSON.stringify(request));
+  }
+  if (quarantined.length > 0) {
+    appendTicketRequestQuarantine(path, quarantined);
+    replaceTicketRequests(path, validLines);
+  }
+  return requests;
+}
+
+function appendTicketRequestQuarantine(path, entries) {
+  const descriptor = openSync(`${path}.quarantine.jsonl`, 'a', 0o600);
+  try {
+    writeFileSync(descriptor, `${entries.map((entry) => JSON.stringify(entry)).join('\n')}\n`);
+    fsyncSync(descriptor);
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+function replaceTicketRequests(path, lines) {
+  const temporary = `${path}.repair-${process.pid}-${Date.now()}`;
+  let descriptor;
+  try {
+    descriptor = openSync(temporary, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY, 0o600);
+    writeFileSync(descriptor, lines.length > 0 ? `${lines.join('\n')}\n` : '');
+    fsyncSync(descriptor);
+    closeSync(descriptor);
+    descriptor = undefined;
+    renameSync(temporary, path);
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+    rmSync(temporary, { force: true });
+  }
+}
+
+function executionOutputDigest(execution) {
+  return digestJson({
+    phase: execution.phase,
+    status: execution.status,
+    signal: execution.signal,
+    infrastructureReason: execution.infrastructureReason,
+    stdout: execution.stdout ?? '',
+    stderr: execution.stderr ?? '',
+  });
+}
+
+function normalizeFailureText(value, paths = []) {
+  let normalized = value;
+  for (const path of [...new Set(paths)].sort((left, right) => right.length - left.length)) {
+    normalized = normalized.split(path).join('<runner-root>');
+  }
+  return normalized
+    .replace(/\u001b\[[0-9;]*m/gu, '')
+    .replace(/\r\n?/gu, '\n')
+    .replace(/[0-9a-f]{40}/gu, '<sha>')
+    .replace(/[^\s'"`]*\.snapback-drift-worktree-[^/\s:'"`]+/gu, '<worktree>')
+    .replace(/\/var\/folders\/[^\s'"`]+/gu, '<temp-path>')
+    .replace(/\b\d+(?:\.\d+)?m?s\b/gu, '<duration>')
+    .replace(/\b(pid|process id)\s*[=:]?\s*\d+\b/giu, '$1 <pid>')
+    .replace(/\bport\s*[=:]?\s*\d{1,5}\b/giu, 'port <port>')
+    .replace(/\b(localhost|127\.0\.0\.1):\d{1,5}\b/gu, '$1:<port>')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line, index, lines) => line !== '' || (index > 0 && index < lines.length - 1))
+    .join('\n')
+    .trim();
+}
+
+function digestJson(value) {
+  return digestText(JSON.stringify(value));
+}
+
+function digestText(value) {
+  return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
 
 export function runBackstop({
@@ -603,7 +1300,15 @@ export function runBackstop({
   return failures === 0 ? 0 : 1;
 }
 
-function runGateAtRevision(root, revision, gate, command, metadata, env) {
+function runGateAtRevision(
+  root,
+  revision,
+  gate,
+  command,
+  metadata,
+  env,
+  { infrastructureClassification = 'legacy' } = {},
+) {
   return withRevisionWorktree(
     root,
     revision,
@@ -615,6 +1320,7 @@ function runGateAtRevision(root, revision, gate, command, metadata, env) {
         environmentRoot: root,
         requiredEnvironmentPaths: metadata.requiredEnvironmentPaths,
         requiredModules: metadata.requiredModules,
+        infrastructureClassification,
       });
       return { ...result, changedPaths: safeWorktreeChanges(cwd).paths };
     },
@@ -643,6 +1349,7 @@ export function runRegisteredGateAtRevision({
     prepareCommand: metadata.prepareCommand,
     requiredEnvironmentPaths: metadata.requiredEnvironmentPaths,
     requiredModules: metadata.requiredModules,
+    infrastructureClassification: 'legacy',
   });
   return { ...result, changedPaths: safeWorktreeChanges(root).paths };
 }
@@ -868,8 +1575,15 @@ function executeGate(cwd, gate, command, {
   prepareCommand,
   requiredEnvironmentPaths = [],
   requiredModules = [],
+  infrastructureClassification = 'legacy',
 }) {
   const executionEnvironment = sanitizedGitEnvironment(env);
+  const infrastructureReasonFor = infrastructureClassification === 'd3'
+    ? d3ExecutionInfrastructureReason
+    : executionInfrastructureReason;
+  const normalizationPaths = [...new Set(
+    [cwd, environmentRoot].filter(Boolean).map((path) => resolve(path)),
+  )];
   const environmentPathFailure = provisionEnvironmentPaths(
     environmentRoot,
     cwd,
@@ -884,6 +1598,8 @@ function executeGate(cwd, gate, command, {
       stdout: '',
       stderr: '',
       infrastructureReason: environmentPathFailure,
+      failureKind: 'runner-setup',
+      normalizationPaths,
     };
   }
   const missingModules = unresolvedModules(cwd, requiredModules);
@@ -896,6 +1612,8 @@ function executeGate(cwd, gate, command, {
       stdout: '',
       stderr: '',
       infrastructureReason: `required Node module(s) unavailable: ${missingModules.join(', ')}`,
+      failureKind: 'runner-setup',
+      normalizationPaths,
     };
   }
   let prepared = { status: 0, signal: null, stdout: '', stderr: '', error: null };
@@ -909,6 +1627,7 @@ function executeGate(cwd, gate, command, {
       maxBuffer: 64 * 1024 * 1024,
     });
     if (prepared.status !== 0) {
+      const infrastructureReason = infrastructureReasonFor(prepared, 'prepare command failed');
       return {
         ok: false,
         phase: 'prepare',
@@ -916,7 +1635,9 @@ function executeGate(cwd, gate, command, {
         signal: prepared.signal,
         stdout: prepared.stdout ?? '',
         stderr: prepared.stderr ?? '',
-        infrastructureReason: executionInfrastructureReason(prepared, 'prepare command failed'),
+        infrastructureReason,
+        failureKind: processFailureKind(prepared, infrastructureReason),
+        normalizationPaths,
       };
     }
   }
@@ -927,6 +1648,9 @@ function executeGate(cwd, gate, command, {
     stdio: ['ignore', 'pipe', 'pipe'],
     maxBuffer: 64 * 1024 * 1024,
   });
+  const infrastructureReason = result.status === 0
+    ? null
+    : infrastructureReasonFor(result);
   return {
     ok: result.status === 0,
     phase: 'check',
@@ -934,9 +1658,11 @@ function executeGate(cwd, gate, command, {
     signal: result.signal,
     stdout: `${prepared.stdout ?? ''}${result.stdout ?? ''}`,
     stderr: `${prepared.stderr ?? ''}${result.stderr ?? ''}`,
-    infrastructureReason: result.status === 0
+    infrastructureReason,
+    failureKind: result.status === 0
       ? null
-      : executionInfrastructureReason(result),
+      : processFailureKind(result, infrastructureReason),
+    normalizationPaths,
   };
 }
 
@@ -1261,13 +1987,40 @@ function unresolvedModules(cwd, modules) {
 function executionInfrastructureReason(execution, fallback = null) {
   if (execution.error) return execution.error.message;
   if (execution.signal) return `gate process terminated by ${execution.signal}`;
-  if (execution.status === null) return fallback ?? 'gate process did not report an exit status';
+  if (execution.status === null || execution.status === undefined) {
+    return fallback ?? 'gate process did not report an exit status';
+  }
   if (execution.status === 126 || execution.status === 127) {
     return `gate process exited ${execution.status} (command unavailable)`;
   }
   const output = `${execution.stdout ?? ''}\n${execution.stderr ?? ''}`;
   const match = output.match(INFRASTRUCTURE_OUTPUT);
   return match ? `gate output reported ${match[0]}` : fallback;
+}
+
+function d3ExecutionInfrastructureReason(execution) {
+  if (execution.error) return execution.error.message;
+  if (execution.signal) return `gate process terminated by ${execution.signal}`;
+  if (execution.status === null || execution.status === undefined) {
+    return 'gate process did not report an exit status';
+  }
+  if (execution.status === 126 || execution.status === 127) {
+    return `gate process exited ${execution.status} (command unavailable)`;
+  }
+  const output = `${execution.stdout ?? ''}\n${execution.stderr ?? ''}`;
+  const match = output.match(INFRASTRUCTURE_OUTPUT);
+  return match && RUNNER_CONTROLLED_OUTPUT.test(match[0])
+    ? `gate output reported ${match[0]}`
+    : null;
+}
+
+function processFailureKind(execution, infrastructureReason) {
+  if (execution.error) return 'runner-setup';
+  if (execution.signal || execution.status === null || execution.status === undefined) return 'unknown';
+  if (infrastructureReason) return 'runner-setup';
+  return Number.isInteger(execution.status) && execution.status !== 0
+    ? 'content'
+    : 'unknown';
 }
 
 function pathExists(path) {

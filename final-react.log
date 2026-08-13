@@ -1,0 +1,91 @@
+
+> @expo/snapback-react@0.1.0 pretest
+> node commands.test.mjs
+
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+commands.test.mjs: hook/surface commands and provider disposal share command ownership
+
+> @expo/snapback-react@0.1.0 test
+> node ../../scripts/ensure-workspace-hoist.mjs && node binding-development-sync.test.mjs && node package.test.mjs && node dev-diagnostics.test.mjs && node dev-diagnostics-acceptance.test.mjs && node optimistic.test.mjs && node optimistic-create.test.mjs && node authorization-denial.test.mjs && node subscribe-retry.test.mjs && node subscribe-runtime-import-failure.test.mjs && node webcrypto-fallback.test.mjs && node cold-boot-binding.test.mjs && node cold-boot-binding-indexeddb.test.mjs && node presence.test.mjs && node surface.test.mjs && node lifecycle.test.mjs && node hmr-generation-handoff.test.mjs && node assets.test.mjs && node offline.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-result-types.fixture.ts optimistic-create-types.fixture.ts asset-upload-types.fixture.ts
+
+snapback-react binding development synchronization tests: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+package.test.mjs: prepared binding, provider registry, exact caps, groups, mutation, custody blanking, and cleanup pass
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+dev-diagnostics.test.mjs: churn, queued projection, channel parity, and production silence pass
+dev diagnostics acceptance: churn surfaced at captured line 1
+dev diagnostics acceptance: queued surfaced at captured line 1
+dev diagnostics acceptance: wedge surfaced at captured line 2 after 25ms threshold
+optimistic.test.mjs: overlap, rollback, matcher ordering, rebase failure, install refusal, the toggle recipe, the replay advisory, and projectRecordFields pass
+optimistic.test.mjs: strand backstop, custom matcher preservation, and confirmed-layer inspection pass
+optimistic.test.mjs: query-first row-absence confirmation pass
+optimistic-create.test.mjs: typed provider projection, ordering, settlement, replay, authority, Strict Mode, and cleanup pass
+snapback-react authorization denial tests: ok
+snapback-react subscribe retry window tests: ok
+snapback-react runtime import failure fallback tests: ok
+snapback-react webcrypto fallback tests: ok
+snapback-react cold-boot binding tests: ok
+snapback-react IndexedDB cold-boot binding tests: ok
+presence.test.mjs: shared rooms, managed intent, conflicts, refusal, api-reference admission, and cleanup pass
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+snapback-react surface tests passed
+lifecycle.test.mjs: reconnect, auth revocation, HMR replacement, and zero-leak cleanup pass
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+[Snapback] SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN: useSnapbackQuery(timeline) received a new args object with unchanged contents for 5 consecutive renders. Memoize the args object at this hook site. See guide/clients/react.md. Site: timeline:args-identity.
+[Snapback] SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN: useSnapbackQuery(about) received a new args object with unchanged contents for 5 consecutive renders. Memoize the args object at this hook site. See guide/clients/react.md. Site: about:args-identity.
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+hmr-generation-handoff.test.mjs: atomic dev handoff, mutation deferral, controlled reload, and strict production/foreign admission pass
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+asset issued URL snapshot, denied diagnostic, refresh, unmount: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+asset issued URL equal keys share one neutral-store issuance loop: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+asset issued URL inline options are content-keyed: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+asset issued URL authority generation adopts a successor store: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+media hook null is synchronous empty with zero issuance: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+media hook empty string names the nullable argument spelling: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+media hook ready/refresh and authority successor blanking: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+asset upload hook reactivity, retry stability: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+asset upload authority blanking + generation fence: ok
+thumbhash decode vs committed Rust vectors: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+asset renderer ladder preview → rendition → blank: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+public-immutable renderer chooses one concrete ready rendition URL: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+public-immutable renderer holds underlay during rendition publication: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+public-immutable renderer accepts a ready widthless rendition: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+sessions strict-delivery diagnostic warns once per provider asset: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+asset renderer placeholder-only ladder: ok
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+asset renderer server-provided placeholder: ok
+assets.test.mjs passed
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+react-test-renderer is deprecated. See https://react.dev/warnings/react-test-renderer
+offline.test.mjs: retained freshness, retention facts, outbox projection, and capability refusal pass

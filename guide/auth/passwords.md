@@ -4,7 +4,7 @@ id: auth.passwords
 order: 2
 audience: agent-first
 capabilities: [auth.passwords, auth.sessions, auth.browser-session-custody]
-authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/provider.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs]
+authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/provider.rs, src/auth/wire.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-admin-client/index.mjs]
 examples: [demos/browser-auth]
 status: current
 targets: [local]
@@ -28,6 +28,40 @@ and no separate session shape** — one principal, several credentials.
 This is the first sign-in method a browser app can offer end users without a
 mail adapter. Email-code login still has no self-serve production path (no
 delivery), so if you need a real user to sign themselves in today, this is it.
+
+<!-- since: 0.1.21 unreleased -->
+> **Unreleased.** The declarative email-identifier selector is newer than the
+> newest published closure, 0.1.20.
+
+## Declare email identifiers before activation
+
+Choose the password identifier in the app's `defineAuth` program and pass that
+program to `defineSchema(..., { auth: { mode: 'sessions' }, authProgram })`.
+Use `identifier: 'email'` for the email-v1 canonicalizer:
+
+```js source=demos/rbac/snapback/schema.mjs
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: {
+    password: {
+      kind: 'password',
+      identifier: 'email',
+      provider: 'builtIn',
+      recovery: 'recoveryCodes',
+    },
+  },
+  assuranceRequirements: {},
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
+```
+
+`identifier: 'username'` selects username-v1. An app with no declared password
+mechanism keeps the existing username-v1 default. The choice is stored in
+catalog v4 at the first sessions activation and is immutable afterward;
+codegen/startup refuses a later contradictory declaration with
+`SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE` instead of reinterpreting
+existing identities.
 
 ## Sign up, then sign in
 
@@ -161,6 +195,17 @@ while a missing address's never does, so lock behavior would diverge across
 histories and disclose successful-authentication activity. Lock existence,
 threshold, and expiry are observable only through the authenticated admin
 projection and `authProgramReadiness`.
+
+<!-- since: 0.1.21 unreleased -->
+> **Unreleased.** The authenticated password-attempt projection is newer than
+> the newest published closure, 0.1.20.
+
+An operator can call `admin.passwordAttempt(email)`. Its AdminRead response
+contains the declared `failureThreshold`, `failureWindowMs`, and
+`lockDurationMs`, plus either `attempt: null` or the canonical identifier,
+window start, failed count, lock deadline, and current `locked` bit. It never
+contains the password hash. The corresponding AdminWrite
+`snapback auth password unlock` verb deletes that ledger row early.
 
 Declared v1 posture — **every threshold is a profile parameter, not a fixed
 constant**, so acceptance suites and benchmark envelopes can raise them:

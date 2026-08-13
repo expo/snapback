@@ -32,6 +32,7 @@ import {
   readElfDynamicInfo,
   verifyLinuxPackagePortability,
 } from './elf-portability.mjs';
+import { prepareLinuxRuntimePackage } from './prepare-runtime.mjs';
 import {
   RUNTIME_PACKAGE_QUALIFICATION_FAILED_CODE,
   produceRuntimePackageSeal,
@@ -634,6 +635,130 @@ process.exit(ok ? 0 : 1);
   rmSync(sealRoot, { recursive: true, force: true });
 }
 
+const assemblyRoot = mkdtempSync(join(tmpdir(), 'snapback-linux-staged-assembly-'));
+try {
+  const packageRoot = join(assemblyRoot, 'package');
+  const sourceRoot = join(assemblyRoot, 'source');
+  const sourceBinary = join(sourceRoot, 'snapback');
+  const sourceHermes = join(sourceRoot, 'libhermesvm.so');
+  const sourceHeader = join(sourceRoot, 'hermes.h');
+  const sourceAttestation = join(sourceRoot, 'build-attestation.json');
+  const sourceAdmin = join(sourceRoot, 'admin');
+  const sourceRevision = 'e'.repeat(40);
+  const buildIdentity = {
+    schemaVersion: 'snapback.binary-identity.v1',
+    binary: {
+      crateVersion: '0.1.0',
+      gitCommit: sourceRevision,
+      gitDirty: false,
+      buildProfile: 'release',
+      startupNonce: 'build-identity-process',
+    },
+    buildDistribution: 'public-package',
+  };
+  const qualificationVerdict = {
+    schemaVersion: 'snapback.runtime-qualify.v1',
+    probe: 'restricted-no-eval-handler-vm',
+    ok: true,
+    binary: {
+      ...buildIdentity.binary,
+      startupNonce: 'qualification-process',
+    },
+  };
+  mkdirSync(packageRoot, { recursive: true });
+  mkdirSync(sourceRoot, { recursive: true });
+  writeFileSync(sourceBinary, syntheticElf64({
+    needed: ['libc.so.6'],
+    rpath: '$ORIGIN/../lib',
+  }));
+  writeFileSync(sourceHermes, syntheticElf64({
+    needed: ['libc.so.6'],
+    soname: 'libhermesvm.so',
+  }));
+  writeFileSync(sourceHeader, 'candidate Linux Hermes header bytes');
+  writeFileSync(sourceAttestation, `${JSON.stringify(createLinuxRuntimeArtifactAttestation({
+    binaryPath: sourceBinary,
+    hermesPath: sourceHermes,
+    hermesHeaderPath: sourceHeader,
+    buildIdentity,
+    qualificationVerdict,
+    sourceRevision,
+    bundledLibraries: [],
+  }))}\n`);
+  mkdirSync(join(sourceAdmin, '__exact'), { recursive: true });
+  writeFileSync(join(sourceAdmin, 'index.html'), '<title>Candidate Admin Console</title>');
+  writeFileSync(join(sourceAdmin, '__exact', 'platform-manifest.json'), '{}\n');
+  writeAdminConsoleSnapshotManifest({
+    root: sourceAdmin,
+    sourceRevision,
+    sourceDirty: false,
+  });
+
+  const preparation = {
+    packageRoot,
+    sourceBinary,
+    sourceHermes,
+    sourceHermesHeader: sourceHeader,
+    sourceAttestation,
+    sourceRevision,
+    sourceAdminDist: sourceAdmin,
+    args: ['--source-test-staging'],
+    environment: { ...process.env, SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS: '1' },
+    platform: 'darwin',
+    architecture: 'arm64',
+  };
+  prepareLinuxRuntimePackage(preparation);
+  const verifyAssembly = () => verifyRuntimePackageSeal({
+    root: packageRoot,
+    binaryPath: join(packageRoot, 'bin', 'snapback'),
+    packageName: PACKAGE_NAME,
+    platform: 'linux',
+    architecture: 'x64',
+  });
+  assert.equal(verifyAssembly().ok, true);
+  const originalReceipt = readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8');
+
+  assert.throws(
+    () => prepareLinuxRuntimePackage({
+      ...preparation,
+      sourceAdminDist: join(sourceRoot, 'missing-admin'),
+    }),
+    (error) => error.code === 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID',
+  );
+  assert.equal(verifyAssembly().ok, true);
+  assert.equal(readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'), originalReceipt);
+
+  const nonPortableBinary = join(sourceRoot, 'snapback-non-portable');
+  const nonPortableAttestation = join(sourceRoot, 'non-portable-attestation.json');
+  writeFileSync(nonPortableBinary, syntheticElf64({ needed: ['libc.so.6'] }));
+  writeFileSync(nonPortableAttestation, `${JSON.stringify(createLinuxRuntimeArtifactAttestation({
+    binaryPath: nonPortableBinary,
+    hermesPath: sourceHermes,
+    hermesHeaderPath: sourceHeader,
+    buildIdentity,
+    qualificationVerdict,
+    sourceRevision,
+    bundledLibraries: [],
+  }))}\n`);
+  assert.throws(
+    () => prepareLinuxRuntimePackage({
+      ...preparation,
+      sourceBinary: nonPortableBinary,
+      sourceAttestation: nonPortableAttestation,
+    }),
+    (error) => error.code === 'SNAPBACK_RUNTIME_LINUX_PORTABILITY_VIOLATION',
+  );
+  assert.equal(verifyAssembly().ok, true);
+  assert.deepEqual(
+    readdirSync(packageRoot).filter((name) => (
+      name.startsWith('.staging-') || name.startsWith('.assembly-backup-')
+    )),
+    [],
+  );
+} finally {
+  rmSync(assemblyRoot, { recursive: true, force: true });
+}
+
 const binary = fileURLToPath(new URL('./bin/snapback', import.meta.url));
 const hermes = fileURLToPath(new URL('./lib/libhermesvm.so', import.meta.url));
 if (existsSync(binary) || existsSync(hermes)) {
@@ -681,4 +806,4 @@ if (existsSync(binary) || existsSync(hermes)) {
   }
   assert.equal(resolveRuntimeBinary().binary, binary);
 }
-console.log('package.test.mjs: Linux x64 ELF portability + attestation v3 + complete lib seal pass');
+console.log('package.test.mjs: Linux x64 portability + attestation v3 + non-destructive staged assembly pass');

@@ -1,0 +1,13 @@
+SERVER BINARY IDENTITY MISMATCH: health commit 4333ceab3e1d0d7695112be44ade6ce5e1561443 does not match checkout c6a8be9699e6a8ca5b8f89eed14316588a963945. Booting anyway because this binary was explicitly configured (serverBinary / SNAPBACK_SERVER_BINARY); the handle reports identity.verdict "stamp-mismatch".
+fleet fixture: 25000/25000 vehicles committed
+fleet fixture: 25200/250000 events committed
+fleet fixture: 50400/250000 events committed
+fleet fixture: 75600/250000 events committed
+fleet fixture: 100800/250000 events committed
+fleet fixture: 125100/250000 events committed
+fleet fixture: 150300/250000 events committed
+fleet fixture: 175500/250000 events committed
+fleet fixture: 200700/250000 events committed
+fleet fixture: 225000/250000 events committed
+fleet fixture: 250000/250000 events committed
+{"ok":true,"pass":8,"blocked":0,"receipt":"tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json","budget":"tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json","evidence":"tests/acceptance/fleet-observatory-move1-v1-evidence.md"}

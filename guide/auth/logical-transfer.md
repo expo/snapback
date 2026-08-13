@@ -38,11 +38,13 @@ snapback auth export \
   --output auth-logical.json
 ```
 
-The command requires an exact auth catalog (version 2 or 3), takes the database
+The command requires an exact auth catalog (version 2, 3, or 4), takes the database
 instance lock, reads one SQLite snapshot, and refuses to overwrite an existing
-output path. Fresh catalogs use version 3; exact version-2 catalogs remain
-supported without migration. The format is `snapback.auth-logical-export.v1`,
-and its `authCatalogVersion` records whether the source was version 2 or 3.
+output path. Fresh catalogs use version 4; exact version-2 and version-3 catalogs
+remain supported without migration. The format is
+`snapback.auth-logical-export.v1`, and its `authCatalogVersion` records the
+source version. Version 4 additionally records its immutable
+`passwordIdentifierMode`; import refuses a target with a contradictory mode.
 Every row set is deterministically sorted and validated against the generated
 `schemas/auth.logical-export.v1.schema.json` shape.
 
@@ -70,6 +72,7 @@ authority. In particular, it excludes:
 - sessions and session-token tombstones;
 - verification challenges, digests, and the capture mailbox;
 - credential hashes and credential generations;
+- password-attempt and lockout state;
 - grants, scoped-token hashes, and durable grant carriers;
 - creation or recovery invitations and pairing requests;
 - auth keyring bytes, integration/OAuth carrier state, rehearsal authority,
@@ -81,10 +84,13 @@ registration provenance can still be sensitive.
 
 ## Import into a fresh auth catalog
 
-Prepare the destination through the app's normal sessions-mode activation, so
-its database already contains an exact auth catalog but no auth rows. Fresh
-destinations use version 3; an exact version-2 destination remains supported
-without migration. Stop that server, then import:
+Prepare the destination through the same app's normal sessions-mode activation,
+so its database already contains an exact auth catalog but no principal or
+credential rows. Fresh destinations use version 4; exact version-2 and
+version-3 destinations remain supported without migration. Activation may
+already have seeded the app's `_auth_scope_bases`; import accepts those schema
+facts only when every seeded row exactly matches the incoming artifact. Stop
+that server, then import:
 
 ```sh
 snapback auth import \

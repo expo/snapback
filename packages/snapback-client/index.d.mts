@@ -1,5 +1,13 @@
 import type { SnapbackDiagnosticCode } from './diagnostic-codes.d.mts';
 import type { SnapbackClientDiagnosticsChannel } from './client-diagnostics.mjs';
+import type {
+  AgentAuthorityCapture,
+  AgentAuthorityCredentialInput,
+} from './agent-authority.mjs';
+import type {
+  AuthCoordinator,
+  SnapbackAuthBarrierParticipant,
+} from '@expo/snapback-contract/auth-coordinator';
 
 export type { SnapbackDiagnosticCode } from './diagnostic-codes.d.mts';
 export {
@@ -403,6 +411,57 @@ export interface AuthorityDescriptorV1 {
   readonly descriptorVersion: 1;
   readonly authorityInstanceId: string;
   readonly sessionGeneration: number;
+}
+
+/** Principal half of `currentAuthorizationScope()` — the blessed whoami. */
+export interface PrincipalScopeV1 {
+  readonly authMode: AuthMode;
+  readonly authorizationStreamIncarnation: string;
+  readonly userId: string | null;
+}
+
+/** Frozen return of `SnapbackClient.currentAuthorizationScope()`. */
+export interface AuthorizationScopeV1 {
+  readonly principalScope: PrincipalScopeV1;
+  readonly authorityDescriptor: AuthorityDescriptorV1;
+  readonly queryAuthorization: Readonly<Record<string, never>>;
+}
+
+/** Handshake authority block on `GET /auth/session` (mode projection). */
+export interface AuthSessionAuthorityProjectionV1 {
+  readonly kind: 'anonymous' | 'humanSession' | 'servicePrincipal';
+  readonly userId: string | null;
+  readonly sessionId: string | null;
+  readonly isAuthenticated: boolean;
+}
+
+/** Closed `authSession()` projection. This is mode/authority, not whoami. */
+export interface AuthSessionProjectionV1 {
+  readonly protocolVersion: 1;
+  readonly serverStartupNonce: string;
+  readonly authorizationStreamIncarnation: string;
+  readonly transitionGeneration: number;
+  readonly activeMode: AuthMode;
+  readonly desiredMode: AuthMode;
+  readonly modeState: 'settled' | 'pendingRestart' | 'quarantined';
+  readonly appDataAvailability: 'available' | 'refusedPending';
+  readonly quarantineCode: string | null;
+  readonly clientProtocols: Readonly<{
+    readonly authClient: 1 | null;
+    readonly authInvalidation: 1 | null;
+    readonly authorityDescriptor: 1 | null;
+    readonly authorizedLease: 1 | null;
+  }>;
+  readonly availability: Readonly<Record<string, unknown>>;
+  readonly provider: Readonly<{
+    readonly key: string;
+    readonly available: boolean;
+  }>;
+  readonly transports: readonly ['bearer'];
+  readonly authority: AuthSessionAuthorityProjectionV1;
+  readonly authorityDescriptor: AuthorityDescriptorV1;
+  readonly deploymentIdentity: Readonly<Record<string, unknown>> | null;
+  readonly authorizedLease: Readonly<Record<string, unknown>> | null;
 }
 
 export interface AuthSessionCredentialProjectionV1 {
@@ -919,7 +978,7 @@ export interface SnapbackClientOptions {
   readonly authorizedLeaseProtocol?: number | null;
   readonly ephemeralAuthorityProtocol?: number | null;
   readonly ephemeralExpiryProtocol?: number | null;
-  readonly authCoordinator?: unknown;
+  readonly authCoordinator?: AuthCoordinator | null;
   readonly agentAuthority?: unknown;
   readonly senderConstrained?: boolean;
   readonly clientStoreId?: string;
@@ -1336,7 +1395,7 @@ export class SnapbackClient {
   /** Final auth/client cleanup. Disposes the diagnostics channel and releases
    * a client-owned default RQS store; an injected store remains caller-owned. */
   closeAuth(): Promise<void>;
-  authSession(options?: Readonly<{ readonly force?: boolean }>): Promise<Readonly<Record<string, unknown>>>;
+  authSession(options?: Readonly<{ readonly force?: boolean }>): Promise<AuthSessionProjectionV1>;
   authRequestCode(email: string): Promise<AuthChallengePublicProjectionV1>;
   authExchange(input: Readonly<{
     readonly challengeId: string;
@@ -1372,6 +1431,21 @@ export class SnapbackClient {
     readonly senderChallengeRetry?: boolean;
   }>): Promise<AuthCredentialPublicProjectionV1 | Readonly<{ readonly superseded: true }>>;
   authLogout(): Promise<null>;
+  /** Blessed identity read: principal scope plus the authority descriptor. */
+  currentAuthorityDescriptor(): Promise<AuthorityDescriptorV1>;
+  currentAuthorizationScope(options?: {
+    readonly devUserId?: string | null;
+  }): Promise<AuthorizationScopeV1>;
+  registerAuthBarrierParticipant(
+    participant: SnapbackAuthBarrierParticipant,
+  ): () => Promise<void>;
+  /** Same-token no-op; any other value throws — use `replaceBearerToken`. */
+  setBearerToken(token: string | null): void;
+  replaceBearerToken(token: string | null): Promise<void>;
+  clearAuthSession(): void;
+  replaceAgentCredential(
+    credential: AgentAuthorityCredentialInput,
+  ): Promise<AgentAuthorityCapture>;
   health(): Promise<unknown>;
   inspect(): Promise<unknown>;
   captureAuthority(): unknown;

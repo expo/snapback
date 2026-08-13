@@ -1,0 +1,12 @@
+SERVER BINARY IDENTITY MISMATCH: health commit 4333ceab3e1d0d7695112be44ade6ce5e1561443 does not match checkout c6a8be9699e6a8ca5b8f89eed14316588a963945. Booting anyway because this binary was explicitly configured (serverBinary / SNAPBACK_SERVER_BINARY); the handle reports identity.verdict "stamp-mismatch".
+triage fixture: 25000/250000 events committed
+triage fixture: 50000/250000 events committed
+triage fixture: 75000/250000 events committed
+triage fixture: 100000/250000 events committed
+triage fixture: 125000/250000 events committed
+triage fixture: 150000/250000 events committed
+triage fixture: 175000/250000 events committed
+triage fixture: 200000/250000 events committed
+triage fixture: 225000/250000 events committed
+triage fixture: 250000/250000 events committed
+{"ok":true,"pass":8,"blocked":0,"receipt":"tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json","budget":"tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json","evidence":"tests/acceptance/triage-graph-move1-v1-evidence.md"}

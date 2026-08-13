@@ -22,6 +22,10 @@
       "current-binary-readiness",
       "runtime-package-stage"
     ],
+    "snapback-vite-bun-relay": [
+      "current-binary-readiness",
+      "runtime-package-stage"
+    ],
     "versioned-seed-conformance": [
       "current-binary-readiness",
       "runtime-package-stage"
@@ -1100,6 +1104,7 @@
         "current-binary-readiness",
         "runtime-package-stage",
         "snapback-cli-real-server",
+        "snapback-vite-bun-relay",
         "snapback-vite-real-server",
         "asset-conformance",
         "app-cli-served-journey",
@@ -1165,6 +1170,7 @@
         "snapback-app-cli-package",
         "snapback-cli-real-server",
         "snapback-contract-package",
+        "snapback-vite-bun-relay",
         "snapback-vite-real-server",
         "template-portfolio-self-check",
         "typed-search-wrapper-qualification"
@@ -1249,6 +1255,7 @@
         "required-surface-builds",
         "server-process-lifecycle-fixtures",
         "snapback-cli-real-server",
+        "snapback-vite-bun-relay",
         "snapback-vite-real-server",
         "todo-headless",
         "todo-v2-headless",

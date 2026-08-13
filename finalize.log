@@ -1,0 +1,308 @@
+(node:50009) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Triage Graph retained receipt: 8/8 PASS, 0 BLOCKED
+(node:50064) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS LLP 0166 retained carrier-exit receipt: 17 PASS / 0 GAP / 0 SKIPPED
+[refresh-publication-carrier] refreshed src/local/auth_room_kick_acceptance.rs
+[refresh-publication-carrier] refreshed src/local/authorization_acceptance.rs
+[refresh-publication-carrier] refreshed src/local/tests.rs
+[refresh-publication-carrier] refreshed src/storage/auth.rs
+[refresh-publication-carrier] refreshed src/storage/auth_mode.rs
+[refresh-publication-carrier] refreshed src/storage/auth_rescue.rs
+[refresh-publication-carrier] refreshed src/storage/authorization.rs
+[refresh-publication-carrier] refreshed src/storage/authorized_lease.rs
+[refresh-publication-carrier] refreshed src/storage/migration_executor.rs
+[refresh-publication-carrier] refreshed src/storage/tests.rs
+[refresh-publication-carrier] refreshed packages/snapback-codegen/define.mjs
+[refresh-publication-carrier] src/local-relation-activity-publication.v1.json: 2c0e510e9305 -> e93acd6410e2
+[refresh-publication-carrier] now run node tests/conformance/relation-activity-publication-v1.mjs
+[refresh-publication-carrier] refreshed src/local/auth_room_kick_acceptance.rs
+[refresh-publication-carrier] refreshed src/local/authorization_acceptance.rs
+[refresh-publication-carrier] refreshed src/local/tests.rs
+[refresh-publication-carrier] refreshed src/runtime.rs
+[refresh-publication-carrier] refreshed src/storage/auth.rs
+[refresh-publication-carrier] refreshed src/storage/auth_mode.rs
+[refresh-publication-carrier] refreshed src/storage/auth_rescue.rs
+[refresh-publication-carrier] refreshed src/storage/authorization.rs
+[refresh-publication-carrier] refreshed src/storage/authorized_lease.rs
+[refresh-publication-carrier] refreshed src/storage/migration_executor.rs
+[refresh-publication-carrier] refreshed src/storage/tests.rs
+[refresh-publication-carrier] refreshed packages/snapback-codegen/define.mjs
+[refresh-publication-carrier] src/local-sequence-allocation-publication.v1.json: 6ebffc385137 -> 8e29fde3ff19
+[refresh-publication-carrier] now run node tests/conformance/sequence-allocation-publication-v1.mjs
+[refresh-publication-carrier] refreshed src/local/auth_room_kick_acceptance.rs
+[refresh-publication-carrier] refreshed src/local/authorization_acceptance.rs
+[refresh-publication-carrier] refreshed src/local/tests.rs
+[refresh-publication-carrier] refreshed src/storage/auth.rs
+[refresh-publication-carrier] refreshed src/storage/auth_mode.rs
+[refresh-publication-carrier] refreshed src/storage/auth_rescue.rs
+[refresh-publication-carrier] refreshed src/storage/authorization.rs
+[refresh-publication-carrier] refreshed src/storage/authorized_lease.rs
+[refresh-publication-carrier] refreshed src/storage/migration_executor.rs
+[refresh-publication-carrier] refreshed src/storage/tests.rs
+[refresh-publication-carrier] refreshed packages/snapback-codegen/index.mjs
+[refresh-publication-carrier] refreshed tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json
+[refresh-publication-carrier] refreshed tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json
+[refresh-publication-carrier] refreshed tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json
+[refresh-publication-carrier] src/local-persistent-store-publication.v1.json: d06be5f9a592 -> a1ac1cc2addd
+[refresh-publication-carrier] now run node tests/conformance/local-persistent-store-publication-v1.mjs
+   Compiling unicode-ident v1.0.24
+   Compiling snapback v0.1.0 (/Users/ccheever/projects/snapback/.claude/worktrees/aw-integ)
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.46
+   Compiling syn v2.0.118
+   Compiling synstructure v0.13.2
+   Compiling swc_macros_common v1.0.1
+   Compiling serde_derive_internals v0.29.1
+   Compiling serde_derive v1.0.228
+   Compiling zerovec-derive v0.11.3
+   Compiling displaydoc v0.2.6
+   Compiling thiserror-impl v2.0.18
+   Compiling tracing-attributes v0.1.31
+   Compiling tokio-macros v2.7.0
+   Compiling oxc-miette-derive v3.0.1
+   Compiling futures-macro v0.3.32
+   Compiling swc_eq_ignore_macros v1.0.1
+   Compiling phf_macros v0.14.0
+   Compiling ast_node v5.0.0
+   Compiling from_variant v3.0.0
+   Compiling oxc_ast_macros v0.140.0
+   Compiling phf_macros v0.11.3
+   Compiling is-macro v0.3.7
+   Compiling zerofrom-derive v0.1.7
+   Compiling yoke-derive v0.8.2
+   Compiling string_enum v1.0.2
+   Compiling thiserror-impl v1.0.69
+   Compiling swc_config_macro v1.0.1
+   Compiling ref-cast-impl v1.0.25
+   Compiling phf v0.14.0
+   Compiling async-trait v0.1.89
+   Compiling snafu-derive v0.8.9
+   Compiling phf v0.11.3
+   Compiling futures-util v0.3.32
+   Compiling clap_derive v4.6.1
+   Compiling openssl-macros v0.1.1
+   Compiling ref-cast v1.0.25
+   Compiling swc_ecma_codegen_macros v2.0.2
+   Compiling openssl v0.10.81
+   Compiling schemars_derive v1.2.1
+   Compiling zerofrom v0.1.8
+   Compiling tracing v0.1.44
+   Compiling thiserror v2.0.18
+   Compiling thiserror v1.0.69
+   Compiling snafu v0.8.9
+   Compiling clap v4.6.1
+   Compiling serde v1.0.228
+   Compiling yoke v0.8.3
+   Compiling futures-executor v0.3.32
+   Compiling futures v0.3.32
+   Compiling axum-core v0.5.6
+   Compiling oxc-miette v3.0.1
+   Compiling cobs v0.3.0
+   Compiling tungstenite v0.29.0
+   Compiling clap_complete v4.6.5
+   Compiling smallvec v1.15.2
+   Compiling ahash v0.8.12
+   Compiling num-bigint v0.4.6
+   Compiling bytes-str v0.2.8
+   Compiling triomphe v0.1.15
+   Compiling debugid v0.8.0
+   Compiling oxc_index v5.0.0
+   Compiling serde_urlencoded v0.7.1
+   Compiling postcard v1.1.3
+   Compiling capsec-semantics v0.1.0 (/Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/vendor/ibex/crates/capsec-semantics)
+   Compiling chrono v0.4.45
+   Compiling quick-xml v0.37.5
+   Compiling fluent-uri v0.4.1
+   Compiling email_address v0.2.9
+   Compiling schemars v1.2.1
+   Compiling oxc_sourcemap v8.1.1
+   Compiling parking_lot_core v0.9.12
+   Compiling zerovec v0.11.6
+   Compiling zerotrie v0.2.4
+   Compiling hashbrown v0.14.5
+   Compiling ropey v1.6.1
+   Compiling unicode-normalization v0.1.10
+   Compiling wasmi v0.46.0
+   Compiling oxc-browserslist v3.0.12
+   Compiling parking_lot v0.12.5
+   Compiling tokio v1.52.3
+   Compiling referencing v0.46.9
+   Compiling oxc_data_structures v0.140.0
+   Compiling hstr v3.0.6
+   Compiling dashmap v6.2.1
+   Compiling caseless v0.2.1
+   Compiling oxc_allocator v0.140.0
+   Compiling swc_atoms v9.0.3
+   Compiling oxc_diagnostics v0.140.0
+   Compiling swc_config v5.0.0
+   Compiling num-rational v0.4.2
+   Compiling hashlink v0.9.1
+   Compiling swc_allocator v4.0.1
+   Compiling oxc_str v0.140.0
+   Compiling num v0.4.3
+   Compiling rusqlite v0.31.0
+   Compiling oxc_resolver v11.24.2
+   Compiling fraction v0.15.4
+   Compiling oxc_span v0.140.0
+   Compiling tinystr v0.8.3
+   Compiling potential_utf v0.1.5
+   Compiling icu_collections v2.2.0
+   Compiling icu_locale_core v2.2.0
+   Compiling icu_provider v2.2.0
+   Compiling oxc_syntax v0.140.0
+   Compiling oxc_regular_expression v0.140.0
+   Compiling icu_normalizer v2.2.0
+   Compiling icu_properties v2.2.0
+   Compiling oxc_compat v0.140.0
+   Compiling oxc_ast v0.140.0
+   Compiling idna_adapter v1.2.2
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+   Compiling jsonschema v0.46.9
+   Compiling swc_sourcemap v10.0.2
+   Compiling tungstenite v0.21.0
+   Compiling ureq v2.12.1
+   Compiling tokio-util v0.7.18
+   Compiling tower v0.5.3
+   Compiling tokio-rustls v0.26.4
+   Compiling tokio-tungstenite v0.21.0
+   Compiling tokio-tungstenite v0.29.0
+   Compiling swc_common v23.0.2
+   Compiling tower-http v0.6.11
+   Compiling h2 v0.4.15
+   Compiling oxc_ecmascript v0.140.0
+   Compiling oxc_ast_visit v0.140.0
+   Compiling swc_ecma_ast v25.0.0
+   Compiling swc_ecma_loader v24.0.1
+   Compiling oxc_semantic v0.140.0
+   Compiling oxc_parser v0.140.0
+   Compiling ibex-sfe-format v0.1.0 (/Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/vendor/ibex/crates/sfe-format)
+   Compiling hyper v1.10.1
+   Compiling oxc_traverse v0.140.0
+   Compiling oxc_codegen v0.140.0
+   Compiling hyper-util v0.1.20
+   Compiling ibex-sfe-catalog v0.1.0 (/Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/vendor/ibex/crates/sfe-catalog)
+   Compiling oxc_transformer v0.140.0
+   Compiling hyper-rustls v0.27.9
+   Compiling axum v0.8.9
+   Compiling reqwest v0.12.28
+   Compiling swc_ecma_visit v25.0.0
+   Compiling swc_ecma_parser v41.1.2
+   Compiling swc_ecma_codegen v28.0.2
+   Compiling ibex-runtime v0.1.0 (/Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/vendor/ibex)
+   Compiling object_store v0.11.2
+   Compiling swc_ecma_utils v31.0.1
+   Compiling swc_ecma_hooks v0.9.0
+   Compiling swc_ecma_transforms_base v44.0.3
+   Compiling celld-ltx v0.0.0 (/Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/vendor/celld-ltx)
+   Compiling swc_ecma_transforms_react v49.0.0
+   Compiling swc_ecma_transforms_module v49.0.1
+   Compiling swc_ecma_transforms_typescript v49.0.0
+warning: type `SourceGraphRecordV1` is more private than the item `CommittedPublicationAdmissionV1::records`
+    --> vendor/ibex/src/module_loader/runner_pipeline.rs:3380:5
+     |
+3380 |     pub(crate) records: BTreeMap<SourceId, SourceGraphRecordV1>,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CommittedPublicationAdmissionV1::records` is reachable at visibility `pub(crate)`
+     |
+note: but type `SourceGraphRecordV1` is only usable at visibility `pub(self)`
+    --> vendor/ibex/src/module_loader/runner_pipeline.rs:266:1
+     |
+ 266 | struct SourceGraphRecordV1 {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = note: `#[warn(private_interfaces)]` on by default
+
+warning: fields `hbc_carrier_count` and `javascript_carrier_count` are never read
+    --> vendor/ibex/src/module_loader/runner_pipeline.rs:3386:16
+     |
+3378 | pub(crate) struct CommittedPublicationAdmissionV1 {
+     |                   ------------------------------- fields in this struct
+...
+3386 |     pub(crate) hbc_carrier_count: usize,
+     |                ^^^^^^^^^^^^^^^^^
+3387 |     /// Carriers admitted under `javascript-factory-table`.
+3388 |     pub(crate) javascript_carrier_count: usize,
+     |                ^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `unmappable_link` is never used
+   --> vendor/ibex/src/vfs/mod.rs:251:8
+    |
+124 | impl VfsError {
+    | ------------- associated function in this implementation
+...
+251 |     fn unmappable_link(operation: &str, path: Arc<str>) -> Self {
+    |        ^^^^^^^^^^^^^^^
+
+warning: variant `Directory` is never constructed
+    --> vendor/ibex/src/vfs/mod.rs:2286:5
+     |
+2284 | enum RetainedFinalAccess {
+     |      ------------------- variant in this enum
+2285 |     AppendOnly,
+2286 |     Directory,
+     |     ^^^^^^^^^
+     |
+     = note: `RetainedFinalAccess` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: variant `MalformedBytes` is never constructed
+    --> vendor/ibex/src/vfs/mod.rs:2775:5
+     |
+2773 | pub(crate) enum AuthenticatedDirectoryEntry {
+     |                 --------------------------- variant in this enum
+2774 |     Utf8(String),
+2775 |     MalformedBytes(Vec<u8>),
+     |     ^^^^^^^^^^^^^^
+     |
+     = note: `AuthenticatedDirectoryEntry` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `commit_directory_no_follow` is never used
+    --> vendor/ibex/src/vfs/mod.rs:4310:8
+     |
+2879 | impl VirtualFileSystem {
+     | ---------------------- method in this implementation
+...
+4310 |     fn commit_directory_no_follow(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `ibex-runtime` (lib) generated 6 warnings
+warning: methods `has_committed_generation_record`, `awaits_committed_generation_reload`, and `awaiting_generation_high_water` are never used
+     --> src/local.rs:20597:19
+      |
+ 3498 | impl LocalSnapback {
+      | ------------------ methods in this implementation
+...
+20597 |     pub(crate) fn has_committed_generation_record(&self) -> bool {
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+20606 |     pub(crate) fn awaits_committed_generation_reload(&self) -> bool {
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+20615 |     pub(crate) fn awaiting_generation_high_water(&self) -> Option<u64> {
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+      = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback` (lib) generated 1 warning
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `snapback` (bin "snapback-schemagen") generated 1 warning
+warning: `snapback` (bin "snapback-local") generated 1 warning (1 duplicate)
+warning: `snapback` (bin "snapback") generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 26s
+     Running tests/capability_v0.rs (target/debug/deps/capability_v0-6893fc99ce3d4486)
+
+running 3 tests
+test p2_committed_cloudflare_manifest_matches_the_declared_target ... ok
+test p2_committed_capability_manifest_matches_the_declared_server_manifest ... ok
+test p2_live_inspect_manifest_matches_committed_modulo_instance_fields ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.02s
+
+(node:72265) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"schemaVersion":"snapback.local-persistent-store-publication-evidence.v1","status":"published","targetProfileId":"local-dev-sqlite-ibex","capabilityIds":["single_table_v1"],"maturity":"experimental","carrierSha256":"sha256:a1ac1cc2addd871131755d05e99107eb7b8fd3169f5d1aeed6ea6a8f0cb2d89f","carrierExit":"17 PASS / 0 GAP","triageMove1":"8/8 PASS","fleetMove1":"8/8 PASS","withholdingReason":null,"publicPackage":"withheld-structured-gap","hostedTargets":"withheld-structured-gap"}

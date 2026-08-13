@@ -6,7 +6,10 @@
 Client integration, Auth, Developer experience, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered Review for the author-directed single-family
+**Revised:** 2026-08-12 (post-acceptance implementation clarification: the
+Expo/Metro custodian must exclude mutable `.snapback/` runtime state from its
+watch graph while retaining semantic inputs; adds a rebuild-storm acceptance
+case without changing generation identity). 2026-08-12 (entered Review for the author-directed single-family
 `llp-super-refine` loop: Codex GPT-5.6-sol xhigh only; Claude intentionally
 skipped). 2026-08-12 (mechanically renumbered from LLP 0239 to LLP 0241 after
 origin assigned LLPs 0234–0235). 2026-08-12 (author-directed acceptance after
@@ -364,6 +367,14 @@ over server/generator facts, not separate diagnoses.
 - prints one settled summary; and
 - tears down all owned processes/receipts deterministically.
 
+For Expo/Metro, the scaffold or supervisor-owned Metro composition excludes
+mutable `.snapback/` state (SQLite database, WAL/SHM, telemetry, readiness,
+leases, and transient receipts) from the application source watch graph. It
+continues to watch authored Snapback sources and generated client modules whose
+semantic cut can affect the bundle. A target where Metro cannot express that
+partition relocates mutable runtime state outside the watched project root.
+Runtime-state churn is never treated as an authored generation input.
+
 Detached/physical-device development continues to use supervisor rendezvous and
 binding receipts from LLP 0223; this RFC adds generation identity/reload to the
 same carrier rather than writing ambient `.env` state.
@@ -509,6 +520,10 @@ boundaries.
   and instrument incompleteness are independently reproducible and never
   collapse into one green/red state.
 - Legacy client/server skew retains exact safety through the negotiation period.
+- With a running local database producing WAL/readiness/telemetry churn, an
+  otherwise idle Expo app performs zero Metro rebuilds in ten minutes; one
+  authored client or generated-module change still causes exactly the expected
+  rebuild and converges to the current generation.
 
 ## Risks
 

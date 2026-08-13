@@ -5,6 +5,10 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-12 (runtime-readiness refusal recovery is custody-aware:
+installed package seals name exact-package reinstall and never an in-package
+source script, while contributor checkout repair names the complete clean
+runtime/admin/package assembly command).
 **Revised:** 2026-08-11 (runtime capability gaps are inspectable facts, not
 diagnostic occurrences by themselves; an unavailable capability emits a
 stable actionable diagnostic only when an operation actually requests it,
@@ -244,6 +248,22 @@ not take that shortcut because a commit id cannot identify uncommitted source
 bytes. [LLP 0175](./0175-local-proof-economics.rfc.md) D3.1–D3.2 owns the
 economic rationale.
 
+[observed] A package manager path dependency whose target is
+`packages/snapback-cli` is a third custody shape: it is neither a published
+install nor an implicit developer-machine override. The linked CLI recognizes
+that it is executing inside the owning source checkout and selects only
+`target/release/snapback`. Selection requires the checkout's scoped runtime
+inputs to be clean, the binary's independent stamp to match the checkout
+commit and crate version with a `release` profile, and the ordinary sibling
+`snapback.runtime-readiness.v1` receipt to reopen against the current binary
+and Hermes artifacts. Missing or stale state emits the bootstrap, release
+build, and receipt-issuance commands. It never falls through to or manufactures
+a package-production seal. A CLI without that exact source topology continues
+to require its platform runtime package and production seal. When an
+application persists its own verify receipt for this source runtime, the
+artifact root remains the checkout (including the bootstrapped Hermes inputs),
+not the binary's `target/` parent.
+
 ### Bootstrap diagnostic codes
 
 `scripts/bootstrap-ibex-runtime` fails with a stable `SNAPBACK_*` code prefix on
@@ -320,10 +340,12 @@ The remaining (non-submodule) bootstrap failure paths carry codes too
   every consumer — doctor's read-only served-binary check, the demo
   harness's `configured`/`prebuilt`/`reused` rungs, and
   `scripts/verify-local-proof` — with the machine classification in
-  `details.reason` and both recoveries named
-  (`packages/snapback-cli/runtime-readiness.mjs issue` for a
-  qualify-and-reissue in milliseconds; `scripts/bootstrap-ibex-runtime` for
-  the full repair).
+  `details.reason` and custody in `details.custody`. A source-checkout refusal
+  names `packages/snapback-cli/runtime-readiness.mjs issue` for the narrow
+  qualify-and-reissue operation and `scripts/assemble-runtime-package` for
+  the complete clean binary/admin/package repair. A runtime-package refusal
+  instead names reinstalling the exact platform package from the consumer's
+  lockfile and exposes no in-package requalification command.
 
 The bootstrap validation step links, launches, and handler-VM-qualifies the
 final binary — not just `cargo check` — so the last three are caught at
@@ -1065,6 +1087,16 @@ read-only packaged binary. The artifact set is the selected package's binary
 and Hermes framework/library; verification recomputes both and refuses drift.
 An explicit `--receipt` path remains app-owned. Acceptance:
 `packages/snapback-cli/package.test.mjs`.
+
+**CV-3 custody-aware repair amendment (2026-08-12).** Read-only package-seal
+verification and source-checkout receipt verification retain the shared
+diagnostic code and reason taxonomy, but recovery is now selected by explicit
+custody. Installed package bytes are immutable consumer artifacts: repair is
+exact runtime-package reinstall, and the diagnostic does not pretend a source
+bootstrap or sibling receipt can rewrite the package-owned seal. Contributor
+repair is `scripts/assemble-runtime-package`, whose clean-tree four-stage path
+rebuilds the runtime and source-matched admin snapshot before non-destructive
+package assembly. Trust remains digest recomputation, never file presence.
 
 ## Open Questions
 

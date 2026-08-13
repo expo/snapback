@@ -185,6 +185,21 @@
       ],
       "additionalProperties": false
     },
+    "nonGreenCause": {
+      "description": "Closed cause of green:false. Optional; default null when omitted. The current emitter always writes it. Lanes MUST copy this field from the segment-summary and must not invent a second green label such as 'functionally green'. Null when green is true.",
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "enum": [
+            "suite-failed",
+            "choreography-failed",
+            "required-unimplemented",
+            "instrument"
+          ]
+        }
+      ]
+    },
     "assertionCounts": {
       "type": "object",
       "required": [
@@ -315,7 +330,8 @@
         "assertions": { "$ref": "#/$defs/assertionCounts" },
         "suite": { "$ref": "#/$defs/suiteStatus" },
         "choreography": { "$ref": "#/$defs/choreographyStatus" },
-        "green": { "type": "boolean" }
+        "green": { "type": "boolean" },
+        "nonGreenCause": { "$ref": "#/$defs/nonGreenCause" }
       },
       "allOf": [
         {
@@ -381,6 +397,31 @@
                   "properties": { "pass": { "const": true } },
                   "required": ["pass"]
                 }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "green": { "const": true } }, "required": ["green"] },
+          "then": {
+            "properties": { "nonGreenCause": { "type": "null" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "green": { "const": false } },
+            "required": ["green", "nonGreenCause"]
+          },
+          "then": {
+            "properties": {
+              "nonGreenCause": {
+                "type": "string",
+                "enum": [
+                  "suite-failed",
+                  "choreography-failed",
+                  "required-unimplemented",
+                  "instrument"
+                ]
               }
             }
           }

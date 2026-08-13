@@ -10,17 +10,16 @@ use super::{
     MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION,
     MaintenanceOperation, PendingLiveFanout, PendingLiveLane, PendingLiveScheduler,
     PendingLiveWork, PublicInspect, RetryEpisodeKey, RetryReservationKind, SEARCH_ANALYZER,
-    SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1,
-    SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1, SnapbackError, SnapbackResult,
-    StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
-    bounded_projection_result_contract, enforce_snapshot_batch_cursor_budget,
-    next_secret_read_reset_generation, now_millis, order_field_bounds_from_functions,
-    refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
-    settlement_id_map, snapshot_batch_max_boundary, snapshot_batch_max_plaintext_len,
-    telemetry_correlation, validate_bounded_children_node_schema_references,
-    validate_bounded_children_schema_plan, validate_function_schema_references,
+    SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1, SearchQueryPlanV1,
+    SearchTextFieldV1, SearchVisibilityV1, SnapbackError, SnapbackResult, StagedMutationExecution,
+    StagedNestedMutation, StagedRecordedMutation, bounded_projection_result_contract,
+    enforce_snapshot_batch_cursor_budget, next_secret_read_reset_generation, now_millis,
+    order_field_bounds_from_functions, refuse_unprovenanced_host_plan_authority_creation,
+    reserve_unique_generation, settlement_id_map, snapshot_batch_max_boundary,
+    snapshot_batch_max_plaintext_len, telemetry_correlation,
+    validate_bounded_children_node_schema_references, validate_bounded_children_schema_plan,
+    validate_function_schema_references,
 };
-use crate::contract_types::ServerProfile;
 use crate::auth::admission::AdmissionController;
 use crate::auth::crypto::{CryptoError, RandomSource};
 use crate::auth::invalidation::{
@@ -35,6 +34,7 @@ use crate::auth::mode::{
     AuthModeStateRecord, AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX,
     INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX, STARTUP_ARTIFACT_FORMAT_VERSION, StartupArtifacts,
 };
+use crate::contract_types::ServerProfile;
 use crate::live_wire::{Receipt, SettlementIdMapDisposition};
 use crate::manifest::{
     ActionPlan, ActionStep, ArtifactGeneration, AuthInput, AuthManifest, AuthMode, AuthRequirement,
@@ -1904,6 +1904,7 @@ fn auth_artifact_pair(mode: AuthMode, marker: char) -> (SchemaManifest, Function
                 Some(AuthManifest {
                     mode: AuthMode::Sessions,
                     agents: None,
+                    password_identifier_mode: None,
                 }),
                 format!(
                     "{}{}",
@@ -5506,9 +5507,9 @@ fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
         "conn-sess-a",
         &managed_session_admission(),
     )
-        .into_iter()
-        .filter_map(|text| serde_json::from_str::<Value>(&text).ok())
-        .collect::<Vec<_>>();
+    .into_iter()
+    .filter_map(|text| serde_json::from_str::<Value>(&text).ok())
+    .collect::<Vec<_>>();
     let snapshot = frames
         .iter()
         .rev()
@@ -5536,9 +5537,9 @@ fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
         "conn-sess-a",
         &managed_session_admission(),
     )
-        .into_iter()
-        .filter_map(|text| serde_json::from_str::<Value>(&text).ok())
-        .collect::<Vec<_>>();
+    .into_iter()
+    .filter_map(|text| serde_json::from_str::<Value>(&text).ok())
+    .collect::<Vec<_>>();
     let blanked = frames
         .iter()
         .rev()
@@ -10909,11 +10910,7 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
             .expect("resolve activation token");
         let publication = db
             .service_authority_fence_registry()
-            .register(
-                resolved.service_authority_witness(),
-                now_ms,
-                Instant::now(),
-            )
+            .register(resolved.service_authority_witness(), now_ms, Instant::now())
             .expect("register activation token fence");
         (resolved, publication)
     };
@@ -23790,11 +23787,8 @@ fn auth_scoped_removal_is_atomic_obligation_and_exact_ack() {
         },
     )
     .expect("delete visible row");
-    let messages = project_authorization_frames_through_test_sink(
-        &mut snapback,
-        "session-remove",
-        &admission,
-    );
+    let messages =
+        project_authorization_frames_through_test_sink(&mut snapback, "session-remove", &admission);
     let frame = messages
         .iter()
         .filter_map(|message| serde_json::from_str::<Value>(message).ok())
@@ -23922,10 +23916,10 @@ fn mutation_fanout_resolution_supersession_never_reuses_frame_key() {
         "session-overlap",
         &admission,
     )
-        .into_iter()
-        .filter_map(|message| serde_json::from_str::<Value>(&message).ok())
-        .find(|message| message["kind"] == "authorization_invalidation")
-        .expect("first unacknowledged resolution frame");
+    .into_iter()
+    .filter_map(|message| serde_json::from_str::<Value>(&message).ok())
+    .find(|message| message["kind"] == "authorization_invalidation")
+    .expect("first unacknowledged resolution frame");
 
     // This commit is disjoint from the filtered query, so fan-out leaves
     // the prior obligation pending. The next level-triggered drain still
@@ -24036,7 +24030,10 @@ fn overflow_root_waits_for_every_auth_scoped_child() {
     let overflowed = snapback
         .ephemeral
         .enqueue_durable("session-overflow", b"{}".to_vec());
-    assert!(overflowed.overflowed_now, "fixture must cross the queue bound");
+    assert!(
+        overflowed.overflowed_now,
+        "fixture must cross the queue bound"
+    );
     snapback
         .raise_connection_overflow("session-overflow", deletion.version)
         .expect("physical overflow raises the retained connection root");
@@ -24731,6 +24728,7 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         auth: Some(AuthManifest {
             mode: AuthMode::Sessions,
             agents: None,
+            password_identifier_mode: None,
         }),
         schema_hash: Some(deployment.schema_hash.clone()),
         inputs_hash: Some(deployment.inputs_hash.clone()),
@@ -27912,7 +27910,8 @@ fn rqs_witness_of_rows(rows: &[Value]) -> crate::live_wire::MembershipWitnessWir
             id: crate::rqs_contract::row_wire_id(row)
                 .expect("wire row id")
                 .to_owned(),
-            old_row_hash: URL_SAFE_NO_PAD.encode(crate::rqs_contract::row_hash(row).expect("row hash")),
+            old_row_hash: URL_SAFE_NO_PAD
+                .encode(crate::rqs_contract::row_hash(row).expect("row hash")),
         })
         .collect();
     entries.sort_by(|a, b| a.id.encode_utf16().cmp(b.id.encode_utf16()));
@@ -29539,7 +29538,8 @@ fn rqs_delta_replay_strict_subset_mints_root_with_untouched_leaves() {
         })
         .collect();
     let recomputed =
-        crate::rqs::ResultDigest::from_rows(crate::rqs_contract::DigestKind::Mset1, &replayed).unwrap();
+        crate::rqs::ResultDigest::from_rows(crate::rqs_contract::DigestKind::Mset1, &replayed)
+            .unwrap();
     assert_eq!(fresh.meta.content_digest, recomputed.published());
 }
 
@@ -29735,8 +29735,9 @@ fn rqs_adversarial_witnesses_never_suppress_a_removal() {
             id: "zzz-fabricated".to_owned(),
             old_row_hash: {
                 use base64::Engine as _;
-                base64::engine::general_purpose::URL_SAFE_NO_PAD
-                    .encode(crate::rqs_contract::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap())
+                base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
+                    crate::rqs_contract::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap(),
+                )
             },
         });
     extra.count = extra.entries.len() as u32;
@@ -29751,8 +29752,9 @@ fn rqs_adversarial_witnesses_never_suppress_a_removal() {
         .unwrap();
     target.old_row_hash = {
         use base64::Engine as _;
-        base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(crate::rqs_contract::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap())
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
+            crate::rqs_contract::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap(),
+        )
     };
     cases.push(("correct-id-wrong-hash", substituted));
     // Hash permutation: two valid hashes swapped between valid ids — the

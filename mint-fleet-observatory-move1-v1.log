@@ -1,0 +1,15 @@
+(node:19971) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+SERVER BINARY IDENTITY MISMATCH: health commit 6fa857834f5f6e2272cb952d648feb9c8891e2bc does not match checkout e3e477aa2616e00889ad7ba9fc5b5ff4e20686a1. Booting anyway because this binary was explicitly configured (serverBinary / SNAPBACK_SERVER_BINARY); the handle reports identity.verdict "stamp-mismatch".
+fleet fixture: 25000/25000 vehicles committed
+fleet fixture: 25200/250000 events committed
+fleet fixture: 50400/250000 events committed
+fleet fixture: 75600/250000 events committed
+fleet fixture: 100800/250000 events committed
+fleet fixture: 125100/250000 events committed
+fleet fixture: 150300/250000 events committed
+fleet fixture: 175500/250000 events committed
+fleet fixture: 200700/250000 events committed
+fleet fixture: 225000/250000 events committed
+fleet fixture: 250000/250000 events committed
+{"ok":true,"pass":8,"blocked":0,"receipt":"tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json","budget":"tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json","evidence":"tests/acceptance/fleet-observatory-move1-v1-evidence.md"}

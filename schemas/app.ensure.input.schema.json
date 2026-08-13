@@ -926,6 +926,16 @@
         },
         "mode": {
           "$ref": "#/$defs/AuthMode"
+        },
+        "passwordIdentifierMode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthPasswordIdentifierMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -938,6 +948,14 @@
       "enum": [
         "dev",
         "sessions"
+      ],
+      "type": "string"
+    },
+    "AuthPasswordIdentifierMode": {
+      "description": "App-declared canonicalization contract for local-password identities.\nThe catalog stores the versioned value on first activation and refuses a\ncontradictory declaration thereafter.",
+      "enum": [
+        "username-v1",
+        "email-v1"
       ],
       "type": "string"
     },

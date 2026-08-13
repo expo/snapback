@@ -6,7 +6,10 @@
 Templates, Error handling, Operations, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (e — **Accepted by author ruling** (Charlie
+**Revised:** 2026-08-12 (post-acceptance owner-map amendment: routes the later
+Clique ordinary-TypeScript residuals to Draft LLPs 0245–0249 and preserves P4
+as the existing operations decision owner; no claim rung or threshold changes).
+2026-08-08 (e — **Accepted by author ruling** (Charlie
 Cheever, 2026-08-08), applied at revision (d) with the loop's terminal
 state on the record: revision (d) is the unreviewed post-loop residue
 repair; the Claude-family READY binds to revision (c). The run journal
@@ -49,7 +52,9 @@ extends), LLP 0187 (discoverability), LLP 0189 (verification cadence and
 claim gating — governs every claim below), LLP 0193 (errors-as-docs),
 LLP 0194 (generated API reference), LLP 0195 (public documentation and
 training surface), LLP 0196 (template portfolio), LLP 0197 (benchmark
-publication standard), LLP 0130 (Convex parity standing decisions),
+publication standard), LLP 0130 (Convex parity standing decisions), LLP 0236,
+LLP 0237, LLP 0238, LLP 0241, LLP 0242, LLP 0245, LLP 0246, LLP 0247,
+LLP 0248, LLP 0249,
 diaries 0057–0060, 0065–0066, and 0068–0069, `benchmarks/` (harness
 and records)
 
@@ -453,6 +458,25 @@ measurement price what Snapback actually delivers — in both directions
 (equal proof bars, trust-boundary brief, day-2 brief → P3), name an
 owner for the one structural deficit (operations → P4), and claim
 nothing before the instrument supports it (P0 first, publication last).
+
+#### 2026-08-12 ordinary-TypeScript successor owner map
+
+The later multi-model Clique sweep found a residual layer below the original
+orientation term. The accepted LLP 0237–0243 set remains the primary delivery
+program; these Draft follow-ons own only boundaries that the set explicitly
+deferred or that later runs exposed:
+
+| Owner | Residual | Relationship to this Plan |
+| --- | --- | --- |
+| LLP 0245 | infer, show, and freeze explicit declarations | attacks authored transcription after schema-reference compression without making inference authoritative |
+| LLP 0246 | `.ts`/`.mts` custody in the bounded handler graph | closes the TypeScript module/IDE path that LLP 0237 deliberately deferred |
+| LLP 0247 | auth-gate recovery, optional-`undefined` normalization, presence withdrawal, and refusal access | removes repeated ordinary React/TypeScript traps under LLP 0238's lifecycle vocabulary |
+| LLP 0248 | same-snapshot bounded batch id/unique-index reads | makes the imperative fallback avoid handler-side N+1 host calls without widening LLP 0242's projection algebra |
+| LLP 0249 | explicit package-capable trusted actions | forces the Node/package escape-hatch decision without weakening the portable deterministic profile |
+
+None changes a claim rung. P0/P3 must measure them from a published external
+package, and P4 remains the sole owner of the broader shareable-deployment and
+operations posture rather than acquiring a duplicate plan.
 
 ### II.3 Phases
 

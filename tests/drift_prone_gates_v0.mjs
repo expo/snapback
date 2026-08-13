@@ -12,6 +12,7 @@ import {
   renameSync,
   rmSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -25,6 +26,8 @@ import {
 } from '../scripts/select-local-proof.mjs';
 import {
   printRefusal,
+  runBackstop,
+  runPrePush,
   runRegisteredGateAtRevision,
 } from '../scripts/drift-prone-gates.mjs';
 
@@ -39,7 +42,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const IMPLEMENTATION_FILES = [
   '.githooks/pre-push',
   'issues/20260809-0199-ownership-ratchet-worklist.md',
-  'issues/20260810-main-module-ownership-red-rehearsal-edges.md',
+  'issues/closed/20260810-main-module-ownership-red-rehearsal-edges.md',
   'ownership.baseline.json',
   'ownership.manifest.json',
   'scripts/check-module-ownership.mjs',
@@ -230,6 +233,195 @@ function setupCommittedClone() {
   return { scratch, repo };
 }
 
+const OUTCOME_GATE_SOURCE = `import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+const phase = process.argv[2];
+const state = JSON.parse(readFileSync(new URL('./state.json', import.meta.url), 'utf8'));
+const mode = state[phase] ?? 'pass';
+if (mode === 'pass') {
+} else if (mode.startsWith('content:')) {
+  console.error('fixture content failure: ' + mode.slice('content:'.length));
+  process.exitCode = 1;
+} else if (mode.startsWith('infra:')) {
+  console.error('[snapback-bootstrap] error: SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING ' + process.cwd() + ' ' + mode.slice('infra:'.length));
+  process.exitCode = 1;
+} else if (mode.startsWith('snapback:')) {
+  const [code, ...detail] = mode.slice('snapback:'.length).split(':');
+  console.error('[runtime-link-smoke] ' + code + ': ' + detail.join(':'));
+  process.exitCode = 1;
+} else if (mode === 'module-missing') {
+  console.error("Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'fixture-missing' imported from " + process.cwd());
+  process.exitCode = 1;
+} else if (mode === 'unknown') {
+  process.exitCode = 1;
+} else if (mode === 'nondeterministic') {
+  const counter = process.env.SNAPBACK_DRIFT_FIXTURE_COUNTER;
+  if (existsSync(counter)) {
+    console.log('fixture pass after determinate red');
+  } else {
+    writeFileSync(counter, 'red observed\\n');
+    console.error('fixture content failure: transient contradiction');
+    process.exitCode = 1;
+  }
+} else {
+  console.error('fixture invalid mode: ' + mode);
+  process.exitCode = 2;
+}
+`;
+
+function fixtureOutcomeContext(gateId = 'guide') {
+  const context = structuredClone(loadSelectionContext());
+  context.policy.driftAlwaysRunGates = [];
+  context.policy.driftFailClosedCoreGates = [];
+  context.policy.driftProneGates = {
+    [gateId]: {
+      records: ['fixture/frozen-record.json'],
+      recordPaths: ['fixture/frozen-record.json'],
+      triggerRules: { prefixes: ['fixture/'] },
+      regenerateCommand: 'node fixture/gate.mjs regenerate',
+      prepareCommand: 'node fixture/gate.mjs prepare',
+    },
+  };
+  context.calls = [{
+    gateId,
+    command: 'node fixture/gate.mjs check',
+    prerequisites: [],
+  }];
+  return context;
+}
+
+function capturePrePush(callback) {
+  const chunks = [];
+  const originalLog = console.log;
+  const originalError = console.error;
+  const originalWrite = process.stderr.write;
+  console.log = (...args) => chunks.push(`${args.join(' ')}\n`);
+  console.error = (...args) => chunks.push(`${args.join(' ')}\n`);
+  process.stderr.write = (chunk) => {
+    chunks.push(`${chunk}`);
+    return true;
+  };
+  try {
+    return { status: callback(), output: chunks.join('') };
+  } finally {
+    console.log = originalLog;
+    console.error = originalError;
+    process.stderr.write = originalWrite;
+  }
+}
+
+function runOutcomeFixture({
+  baseline,
+  pushed,
+  attempts = 1,
+  unavailableBaseline = false,
+  gateId = 'guide',
+  staleRequestLock = false,
+  tornRequestLine = null,
+  env: envOverrides = {},
+}) {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-drift-outcome-'));
+  const repo = join(scratch, 'repo');
+  mkdirSync(repo);
+  try {
+    git(repo, ['init', '--quiet']);
+    git(repo, ['config', 'user.name', 'Snapback drift outcome fixture']);
+    git(repo, ['config', 'user.email', 'snapback-drift-outcome@example.invalid']);
+    mkdirSync(join(repo, 'fixture'));
+    writeFileSync(join(repo, '.gitignore'), '/target\n');
+    writeFileSync(join(repo, 'fixture/gate.mjs'), OUTCOME_GATE_SOURCE);
+    writeFileSync(join(repo, 'fixture/frozen-record.json'), '{}\n');
+    writeFileSync(join(repo, 'fixture/state.json'), `${JSON.stringify(baseline)}\n`);
+    const baselineRevision = commitAll(repo, 'test: outcome baseline');
+    writeFileSync(join(repo, 'fixture/state.json'), `${JSON.stringify(pushed)}\n`);
+    writeFileSync(join(repo, 'fixture/trigger.txt'), 'pushed revision\n');
+    const pushedRevision = commitAll(repo, 'test: outcome pushed revision');
+    const remoteRevision = unavailableBaseline
+      ? git(repo, [
+          'commit-tree',
+          git(repo, ['rev-parse', `${baselineRevision}^{tree}`]).trim(),
+          '-m',
+          'unrelated baseline',
+        ]).trim()
+      : baselineRevision;
+    const requestPath = join(repo, 'target/proof/drift-ticket-requests.jsonl');
+    if (tornRequestLine !== null) {
+      mkdirSync(dirname(requestPath), { recursive: true });
+      writeFileSync(requestPath, `${tornRequestLine}\n`);
+    }
+    if (staleRequestLock) {
+      mkdirSync(`${requestPath}.lock`, { recursive: true });
+      const staleTime = new Date(Date.now() - 2 * 60 * 1000);
+      utimesSync(`${requestPath}.lock`, staleTime, staleTime);
+    }
+    const env = {
+      ...process.env,
+      SNAPBACK_DRIFT_FIXTURE_COUNTER: join(scratch, 'counter'),
+      SNAPBACK_DRIFT_TICKET_REQUESTS: 'target/proof/drift-ticket-requests.jsonl',
+      ...envOverrides,
+    };
+    const input = `refs/heads/main ${pushedRevision} refs/heads/main ${remoteRevision}\n`;
+    const runs = [];
+    for (let index = 0; index < attempts; index += 1) {
+      runs.push(capturePrePush(() => runPrePush({
+        input,
+        remoteName: 'origin',
+        root: repo,
+        context: fixtureOutcomeContext(gateId),
+        env,
+      })));
+    }
+    const requests = existsSync(requestPath)
+      ? readFileSync(requestPath, 'utf8').trim().split(/\r?\n/u).filter(Boolean).map(JSON.parse)
+      : [];
+    const quarantinePath = `${requestPath}.quarantine.jsonl`;
+    const quarantined = existsSync(quarantinePath)
+      ? readFileSync(quarantinePath, 'utf8').trim().split(/\r?\n/u).filter(Boolean).map(JSON.parse)
+      : [];
+    return { runs, requests, quarantined, baselineRevision, pushedRevision };
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+function runBackstopOutcomeFixture(state) {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-drift-backstop-outcome-'));
+  const repo = join(scratch, 'repo');
+  mkdirSync(repo);
+  try {
+    git(repo, ['init', '--quiet']);
+    git(repo, ['config', 'user.name', 'Snapback drift backstop fixture']);
+    git(repo, ['config', 'user.email', 'snapback-drift-backstop@example.invalid']);
+    mkdirSync(join(repo, 'fixture'));
+    writeFileSync(join(repo, '.gitignore'), '/target\n');
+    writeFileSync(join(repo, 'fixture/gate.mjs'), OUTCOME_GATE_SOURCE);
+    writeFileSync(join(repo, 'fixture/frozen-record.json'), '{}\n');
+    writeFileSync(join(repo, 'fixture/state.json'), `${JSON.stringify(state)}\n`);
+    const revision = commitAll(repo, 'test: backstop outcome fixture');
+    const result = capturePrePush(() => runBackstop({
+      head: revision,
+      gate: 'guide',
+      issuesDir: 'issues',
+      root: repo,
+      context: fixtureOutcomeContext(),
+      env: {
+        ...process.env,
+        SNAPBACK_DRIFT_FIXTURE_COUNTER: join(scratch, 'counter'),
+        SNAPBACK_DRIFT_TICKET_DATE: '2026-08-11',
+      },
+    }));
+    return {
+      result,
+      issues: existsSync(join(repo, 'issues')) ? readdirSync(join(repo, 'issues')) : [],
+    };
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+function outcomeLines(output) {
+  return output.split(/\r?\n/u).filter((line) => line.includes('[snapback-drift] OUTCOME '));
+}
+
 test('drift selection preserves mapped triggers and tiers fail-closed paths', () => {
   const context = loadSelectionContext();
   const registered = context.inventory.canonicalGates.filter((gate) => (
@@ -314,7 +506,256 @@ test('refusal keeps the regenerate command actionable when Git status is unavail
   assert.doesNotMatch(output, /\n\s+at /u);
 });
 
-test('missing declared dependencies are infrastructure, never stale records', { timeout: 60_000 }, () => {
+test('pushed-revision prepare build failure blocks as CONTENT_RED', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'content:pushed build broke', check: 'pass' },
+  });
+  assert.equal(runs[0].status, 1, runs[0].output);
+  assert.match(runs[0].output, /OUTCOME CONTENT_RED guide/u);
+  assert.match(runs[0].output, /attribution baseline .* passes guide/u);
+  assert.deepEqual(requests, []);
+});
+
+test('baseline-reproducing setup failure proceeds with an auditable ticket request', () => {
+  const { runs, requests, baselineRevision, pushedRevision } = runOutcomeFixture({
+    baseline: { prepare: 'infra:shared setup outage', check: 'pass' },
+    pushed: { prepare: 'infra:shared setup outage', check: 'pass' },
+  });
+  assert.equal(runs[0].status, 0, runs[0].output);
+  assert.match(runs[0].output, /OUTCOME INFRASTRUCTURE guide/u);
+  assert.match(runs[0].output, /infrastructure receipt: .*fullFailureOutputDigest/u);
+  assert.match(runs[0].output, /ALLOWED WITH CORROBORATED INFRASTRUCTURE/u);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].outcomeType, 'INFRASTRUCTURE');
+  assert.equal(requests[0].pushedRevision, pushedRevision);
+  assert.deepEqual(requests[0].baselineRevisions, [baselineRevision]);
+  assert.match(requests[0].normalizedSignature, /^sha256:[0-9a-f]{64}$/u);
+  assert.match(requests[0].failureOutputDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.match(requests[0].baselineOutputsDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.match(requests[0].requestDigest, /^sha256:[0-9a-f]{64}$/u);
+  assert.ok(Date.parse(requests[0].observedAt));
+  assert.equal(requests[0].recordedAt, requests[0].observedAt);
+  assert.equal(
+    Date.parse(requests[0].projectionDueBy) - Date.parse(requests[0].observedAt),
+    2 * 60 * 60 * 1000,
+  );
+  assert.equal(requests[0].runnerIdentity.id, 'snapback-drift-prone-gates.d3.v1');
+  assert.equal(requests[0].corroboration.length, 1);
+});
+
+test('signature-reproducing content failure proceeds as ticketed INHERITED_RED', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'content:shared stale record' },
+    pushed: { prepare: 'pass', check: 'content:shared stale record' },
+  });
+  assert.equal(runs[0].status, 0, runs[0].output);
+  assert.match(runs[0].output, /OUTCOME INHERITED_RED guide/u);
+  assert.match(runs[0].output, /PRE-EXISTING STALE guide/u);
+  assert.match(runs[0].output, /ALLOWED WITH PRE-EXISTING STALENESS/u);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].outcomeType, 'INHERITED_RED');
+  assert.equal(requests[0].attribution.type, 'merge-base-signature-reproduction');
+});
+
+test('setup signature mismatch blocks instead of admitting INFRASTRUCTURE', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'infra:baseline outage', check: 'pass' },
+    pushed: { prepare: 'infra:pushed outage', check: 'pass' },
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(runs[0].output, /signature .* does not match pushed/u);
+  assert.match(runs[0].output, /OUTCOME INFRASTRUCTURE-UNCORROBORATED guide/u);
+  assert.doesNotMatch(runs[0].output, /OUTCOME INFRASTRUCTURE guide/u);
+  assert.doesNotMatch(runs[0].output, /OUTCOME UNKNOWN guide/u);
+  assert.doesNotMatch(runs[0].output, /repair the gate environment/u);
+  assert.equal(outcomeLines(runs[0].output).length, 1, runs[0].output);
+  assert.deepEqual(requests, []);
+});
+
+test('unavailable baseline blocks setup failure corroboration', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'infra:shared setup outage', check: 'pass' },
+    pushed: { prepare: 'infra:shared setup outage', check: 'pass' },
+    unavailableBaseline: true,
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(runs[0].output, /attribution unavailable: merge-base/u);
+  assert.match(runs[0].output, /OUTCOME INFRASTRUCTURE-UNCORROBORATED guide/u);
+  assert.doesNotMatch(runs[0].output, /OUTCOME UNKNOWN guide/u);
+  assert.equal(outcomeLines(runs[0].output).length, 1, runs[0].output);
+  assert.deepEqual(requests, []);
+});
+
+test('runner-controlled pushed failure over a green baseline blocks as content evidence', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'infra:pushed-only setup diagnostic', check: 'pass' },
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(runs[0].output, /attribution baseline .* passes guide/u);
+  assert.match(
+    runs[0].output,
+    /OUTCOME INFRASTRUCTURE-UNCORROBORATED guide .* blocking as content evidence/u,
+  );
+  assert.equal(outcomeLines(runs[0].output).length, 1, runs[0].output);
+  assert.doesNotMatch(runs[0].output, /repair the gate environment/u);
+  assert.deepEqual(requests, []);
+});
+
+test('content-ambiguous SNAPBACK cargo build code is not runner-controlled evidence', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: {
+      prepare: 'snapback:SNAPBACK_IBEX_CARGO_BUILD_FAILED:pushed compile failed',
+      check: 'pass',
+    },
+  });
+  assert.equal(runs[0].status, 1, runs[0].output);
+  assert.match(runs[0].output, /OUTCOME CONTENT_RED guide/u);
+  assert.doesNotMatch(runs[0].output, /OUTCOME INFRASTRUCTURE/u);
+  assert.equal(outcomeLines(runs[0].output).length, 1, runs[0].output);
+  assert.deepEqual(requests, []);
+});
+
+test('contradictory determinate executions block as NONDETERMINISTIC without attribution', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'nondeterministic' },
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(runs[0].output, /OUTCOME NONDETERMINISTIC guide/u);
+  assert.match(runs[0].output, /same gate\/revision closure/u);
+  assert.doesNotMatch(runs[0].output, /ATTRIBUTION CHECK/u);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].outcomeType, 'NONDETERMINISTIC');
+  assert.deepEqual(requests[0].baselineRevisions, []);
+  assert.equal(requests[0].attribution, null);
+});
+
+test('unclassifiable failure output blocks as an unknown control-plane failure', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'pass', check: 'unknown' },
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(runs[0].output, /OUTCOME UNKNOWN guide/u);
+  assert.match(runs[0].output, /nonzero execution supplied no diagnostic output/u);
+  assert.deepEqual(requests, []);
+});
+
+test('ticket requests are signature-idempotent across retries', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'infra:shared setup outage', check: 'pass' },
+    pushed: { prepare: 'infra:shared setup outage', check: 'pass' },
+    attempts: 2,
+  });
+  assert.deepEqual(runs.map(({ status }) => status), [0, 0]);
+  assert.match(runs[0].output, /TICKET REQUEST RECORDED/u);
+  assert.match(runs[1].output, /TICKET REQUEST RETAINED/u);
+  assert.equal(requests.length, 1);
+});
+
+test('infrastructure kill-switch restores broad module-not-found fail-closed behavior', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'module-missing', check: 'pass' },
+    env: { SNAPBACK_DRIFT_INFRA_FAILOPEN: '0' },
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(runs[0].output, /INFRASTRUCTURE ERROR: .* could not faithfully run guide/u);
+  assert.match(runs[0].output, /ERR_MODULE_NOT_FOUND/u);
+  assert.doesNotMatch(runs[0].output, /ATTRIBUTION CHECK/u);
+  assert.doesNotMatch(runs[0].output, /DETERMINISM CHECK/u);
+  assert.deepEqual(outcomeLines(runs[0].output), []);
+  assert.deepEqual(requests, []);
+});
+
+test('infrastructure kill-switch restores prepare-failed fallback before reruns', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'content:pushed prepare failure', check: 'pass' },
+    env: { SNAPBACK_DRIFT_INFRA_FAILOPEN: '0' },
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(runs[0].output, /infrastructure reason: prepare command failed/u);
+  assert.doesNotMatch(runs[0].output, /ATTRIBUTION CHECK|DETERMINISM CHECK/u);
+  assert.deepEqual(outcomeLines(runs[0].output), []);
+  assert.deepEqual(requests, []);
+});
+
+test('infrastructure kill-switch restores the old attribution loop without tickets', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'content:old baseline failure' },
+    pushed: { prepare: 'pass', check: 'content:different pushed failure' },
+    env: { SNAPBACK_DRIFT_INFRA_FAILOPEN: '0' },
+  });
+  assert.equal(runs[0].status, 0, runs[0].output);
+  assert.match(runs[0].output, /PRE-EXISTING STALE guide/u);
+  assert.doesNotMatch(runs[0].output, /DETERMINISM CHECK|TICKET REQUEST/u);
+  assert.deepEqual(outcomeLines(runs[0].output), []);
+  assert.deepEqual(requests, []);
+});
+
+test('module-ownership retains the broad prepare-failure infrastructure path', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: { prepare: 'pass', check: 'pass' },
+    pushed: { prepare: 'content:transient ownership prepare failure', check: 'pass' },
+    gateId: 'module-ownership',
+  });
+  assert.equal(runs[0].status, 2, runs[0].output);
+  assert.match(
+    runs[0].output,
+    /INFRASTRUCTURE ERROR: .* could not faithfully run module-ownership/u,
+  );
+  assert.match(runs[0].output, /infrastructure reason: prepare command failed/u);
+  assert.doesNotMatch(runs[0].output, /ATTRIBUTION CHECK|DETERMINISM CHECK|OUTCOME /u);
+  assert.deepEqual(requests, []);
+});
+
+test('backstop keeps transient prepare failures out of stale-ticket attribution', () => {
+  const { result, issues } = runBackstopOutcomeFixture({
+    prepare: 'content:transient backstop prepare failure',
+    check: 'pass',
+  });
+  assert.equal(result.status, 2, result.output);
+  assert.match(result.output, /INFRASTRUCTURE ERROR guide/u);
+  assert.match(result.output, /no stale-record ticket was filed/u);
+  assert.doesNotMatch(result.output, /\bSTALE guide\b|main-drift-guide|\bFILED\b/u);
+  assert.deepEqual(issues, []);
+});
+
+test('failure normalization strips volatile durations, temp paths, PIDs, and ports', () => {
+  const { runs, requests } = runOutcomeFixture({
+    baseline: {
+      prepare: 'infra:outage after 1.25s /var/folders/aa/one/T/job-1 PID 123 port 4100',
+      check: 'pass',
+    },
+    pushed: {
+      prepare: 'infra:outage after 8ms /var/folders/bb/two/T/job-2 PID 987 port 6200',
+      check: 'pass',
+    },
+  });
+  assert.equal(runs[0].status, 0, runs[0].output);
+  assert.match(runs[0].output, /OUTCOME INFRASTRUCTURE guide/u);
+  assert.equal(requests.length, 1);
+});
+
+test('ticket request writer recovers a stale lock and quarantines a torn JSONL line', () => {
+  const { runs, requests, quarantined } = runOutcomeFixture({
+    baseline: { prepare: 'infra:shared setup outage', check: 'pass' },
+    pushed: { prepare: 'infra:shared setup outage', check: 'pass' },
+    staleRequestLock: true,
+    tornRequestLine: '{"schemaVersion":"snapback.drift-ticket-request.v1"',
+  });
+  assert.equal(runs[0].status, 0, runs[0].output);
+  assert.equal(requests.length, 1);
+  assert.equal(quarantined.length, 1);
+  assert.equal(quarantined[0].lineNumber, 1);
+  assert.match(quarantined[0].reason, /invalid JSON/u);
+});
+
+test('missing declared dependencies reproduce as corroborated infrastructure', { timeout: 60_000 }, () => {
   const { scratch, repo } = setupCommittedClone();
   const savedModules = join(scratch, 'saved-node-modules');
   try {
@@ -325,8 +766,8 @@ test('missing declared dependencies are infrastructure, never stale records', { 
     );
     commitAll(repo, 'test: committed client gate with unavailable dependencies');
     const result = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main']);
-    assert.equal(result.status, 1, result.output);
-    assert.match(result.output, /INFRASTRUCTURE ERROR: .* could not faithfully run client-bundle-metrology/u);
+    assert.equal(result.status, 0, result.output);
+    assert.match(result.output, /OUTCOME INFRASTRUCTURE client-bundle-metrology/u);
     assert.match(result.output, /required Node module\(s\) unavailable: esbuild/u);
     assert.doesNotMatch(result.output, /stale record:/u);
   } finally {

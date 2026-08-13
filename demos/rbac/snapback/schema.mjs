@@ -1,7 +1,22 @@
 // Small source-authored RBAC app: appMembers is the global-role (app singleton)
 // form of the same membership primitive used for role-per-resource tables.
 
-import { defineSchema, defineTable, v } from '../../_kit/define.mjs';
+import { defineAuth, defineSchema, defineTable, v } from '../../_kit/define.mjs';
+
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: {
+    password: {
+      kind: 'password',
+      identifier: 'email',
+      provider: 'builtIn',
+      recovery: 'recoveryCodes',
+    },
+  },
+  assuranceRequirements: {},
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
 
 export const appMembers = defineTable({
   userId: v.principal(),
@@ -27,4 +42,4 @@ export default defineSchema({
     authorId: v.principal(),
     message: v.string(),
   }).sync(),
-}, { auth: { mode: 'sessions' } });
+}, { auth: { mode: 'sessions' }, authProgram });

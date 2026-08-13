@@ -860,7 +860,7 @@ id: recipes.browser-auth
 order: 5
 audience: agent-first
 capabilities: [auth.sessions, auth.external-identity-broker, auth.browser-session-custody, auth.scoped-queries, auth.invalidation-barrier]
-authorities: [llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0060-hosted-auth-security.rfc.md, llp/0151-first-party-identity-integrations.rfc.md, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs]
+authorities: [llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0060-hosted-auth-security.rfc.md, llp/0151-first-party-identity-integrations.rfc.md, packages/snapback-client/index.mjs, packages/snapback-contract/auth-coordinator.mjs, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs]
 examples: [demos/browser-auth, demos/pointing-room/surfaces/contract, demos/file-drop/vite.config.ts]
 status: current
 targets: [local]
@@ -1121,6 +1121,39 @@ Bearer-v1 IndexedDB custody survives reload, but page JavaScript can still use
 the credential. It is not XSS-resistant or sender constrained — see
 [target claims](../auth/targets.md).
 
+## Recover browser custody after a dev reset
+
+Resetting the local Snapback store rotates its authorization-stream
+incarnation and removes its sessions. A browser profile may still hold the old
+bearer in IndexedDB, but the first-party client now recovers automatically; the
+app should not delete the custody database or reconstruct the client itself.
+
+The recovery is deliberately narrower than “401 means logout”:
+
+1. the stale bearer receives a terminal `carrier` refusal, which by itself
+   preserves durable custody;
+2. the client makes one bearerless `GET /auth/session` probe;
+3. only a valid settled anonymous handshake whose
+   `authorizationStreamIncarnation` differs from stored custody may enter the
+   coordinator barrier; and
+4. the standard quiesce, blank, durable clear, settle, and resume sequence
+   reopens the app directly on the observed anonymous incarnation.
+
+This also repairs a cold-reload coordinator whose initial resume failed closed,
+so anonymous-eligible operations such as `health()`, `authRequestCode()`, and
+logout can proceed without app-side custody surgery. A concurrent tab that has
+already signed in wins the coordinator's exact durable comparison; the stale
+tab cannot blank or replace it.
+
+The incarnation difference is the security predicate. A network intermediary
+can strip an `Authorization` header and provoke a refusal, but cannot fabricate
+the origin's valid anonymous handshake at a new incarnation. A failed probe or
+a same-incarnation anonymous response therefore leaves custody untouched.
+Unsupported partial deletion that removes session rows while preserving the
+stream incarnation does not use this recovery path; use the supported reset or
+declared-restore workflow, which rotates the incarnation, instead of weakening
+the witness.
+
 ## Treat logout as a visibility barrier
 
 Remove app-visible protected state before awaiting logout, then let
@@ -1166,6 +1199,8 @@ specs; do not generalize this fixture into those contracts.
 - Do not key identity by email or auto-link across providers by matching email.
 - Do not return a broker-minted bearer to browser app state and call it
   coordinator custody.
+- Do not recover a dev reset with `indexedDB.deleteDatabase(...)`; it is
+  database-scoped rather than app-scoped and bypasses the coordinator barrier.
 - Do not put mailbox/admin/impersonation material in browser code or logs.
 - Do not expose the mailbox as a generic proxy or publish its private backend
   origin through Vite environment replacement.

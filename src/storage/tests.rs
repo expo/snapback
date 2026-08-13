@@ -11015,6 +11015,7 @@ mod guarded_commit_tests {
             auth: Some(crate::manifest::AuthManifest {
                 mode: crate::manifest::AuthMode::Sessions,
                 agents: None,
+                password_identifier_mode: None,
             }),
             tables: vec![table],
             ephemeral_collections: vec![collection],
@@ -14455,6 +14456,7 @@ mod membership_write_tests {
         db.schema.auth = Some(crate::manifest::AuthManifest {
             mode: AuthMode::Sessions,
             agents: None,
+            password_identifier_mode: None,
         });
         seed_agent(&mut db, "agent-a");
         seed_agent(&mut db, "agent-b");

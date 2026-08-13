@@ -1,7 +1,7 @@
 # LLP 0212: Agent-native identity and rehearsal grants
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Auth, Identity, Developer experience, Agent tooling, Testing,
 Security, CLI, Email delivery
 **Author:** Charlie Cheever / Claude (Fable 5), with a commissioned
@@ -9,9 +9,15 @@ independent brainstorm from Codex (gpt-5.6-sol, xhigh) on 2026-08-09 —
 idea provenance is tagged throughout ([C] Claude, [X] Codex, [=] both
 families converged independently)
 **Date:** 2026-08-09
-**Revised:** 2026-08-09 (v0.5, round-4 dispositions — the v0.5 delta
-itself is UNREVIEWED; final loop verdicts bind to v0.4. See §Revision
-history). 2026-08-09 (v0.4, round-3 delta dispositions). 2026-08-09
+**Revised:** 2026-08-12 (ACCEPTED by the author (Charlie Cheever) on the
+scoped delta-rule convergence of the super-refine loop — rounds 2/3/4
+each found zero pre-existing MATERIAL across both families, and the
+v0.5 delta closed Codex's final in-delta finding; not dual-READY on one
+revision, accepted knowingly on that basis. The commissioned wave-1a
+Specs (LLP 0213/0214/0215) are Implemented and landed on main;
+acceptance ratifies the design as built.) 2026-08-09 (v0.5, round-4
+dispositions — the v0.5 delta itself is UNREVIEWED; final loop verdicts
+bind to v0.4. See §Revision history). 2026-08-09 (v0.4, round-3 delta dispositions). 2026-08-09
 (v0.3, round-2 delta dispositions). 2026-08-09 (v0.2, round-1
 dispositions). 2026-08-09 (author sitting: all six open questions
 ruled; see §Author decisions.)

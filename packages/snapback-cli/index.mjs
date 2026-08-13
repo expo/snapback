@@ -70,6 +70,7 @@ import {
   createRuntimeRecoveryRecord,
   inspectRuntimeBinary,
   qualifyRuntimeBinary,
+  readCheckoutRuntimeIdentity,
 } from './runtime-recovery.mjs';
 import {
   digestRuntimeArtifacts,
@@ -187,6 +188,97 @@ const RUNTIME_PACKAGES = new Map([
   ['linux-x64', '@expo/snapback-runtime-linux-x64'],
 ]);
 
+function sourceCheckoutRoot(cliPackageRoot = packageRoot) {
+  const candidate = resolve(cliPackageRoot, '..', '..');
+  try {
+    const expectedCliRoot = join(candidate, 'packages', 'snapback-cli');
+    if (!existsSync(join(candidate, 'Cargo.toml'))
+        || realpathSync(cliPackageRoot) !== realpathSync(expectedCliRoot)) {
+      return null;
+    }
+    return realpathSync(candidate);
+  } catch {
+    return null;
+  }
+}
+
+function sourceRuntimeRepairCommands(root, binary) {
+  return [
+    join(root, 'scripts', 'bootstrap-ibex-runtime'),
+    `cargo build --release --bin snapback --manifest-path ${JSON.stringify(join(root, 'Cargo.toml'))}`,
+    `node ${JSON.stringify(join(root, 'packages/snapback-cli/runtime-readiness.mjs'))} issue --root ${JSON.stringify(root)} --binary ${JSON.stringify(binary)}`,
+  ];
+}
+
+// A committed external workspace containing the CLI package is visible repository state, unlike
+// `bun link`, but it deliberately does not turn a contributor build into a
+// package-production artifact. Select the checkout's own qualified release
+// binary and prove its scoped source identity instead. Published installs do
+// not have this topology and continue through the sealed platform-package
+// path below.
+//
+// @ref LLP 0010#native-runtime-bootstrap — source custody uses the sibling
+// readiness receipt and the checkout's runtime-input identity.
+function resolveSourceCheckoutRuntime(platform, options = {}) {
+  if (platform !== `${process.platform}-${process.arch}`) return null;
+  const root = sourceCheckoutRoot(options.cliPackageRoot ?? packageRoot);
+  if (!root) return null;
+  const binary = join(
+    root,
+    'target',
+    'release',
+    process.platform === 'win32' ? 'snapback.exe' : 'snapback',
+  );
+  const repairCommands = sourceRuntimeRepairCommands(root, binary);
+  if (!existsSync(binary)) {
+    throw diagnosticError(
+      'SNAPBACK_RUNTIME_BINARY_MISSING',
+      `the linked Snapback source checkout has no release runtime at ${binary}`,
+      { binary, checkoutRoot: root, repairCommands },
+    );
+  }
+  const expected = readCheckoutRuntimeIdentity(root);
+  const inspected = inspectRuntimeBinary(binary, options.env);
+  const actual = inspected.stamp;
+  const identityMatches = inspected.runnable
+    && expected.gitCommit !== null
+    && expected.gitDirty === false
+    && actual?.gitCommit === expected.gitCommit
+    && actual?.gitDirty === false
+    && actual?.crateVersion === expected.crateVersion
+    && actual?.buildProfile === 'release';
+  if (!identityMatches) {
+    throw diagnosticError(
+      'SNAPBACK_BUILD_IDENTITY_MISMATCH',
+      `the linked Snapback source runtime does not match the checkout's scoped build identity: ${binary}`,
+      {
+        binary,
+        checkoutRoot: root,
+        expected,
+        actual,
+        runnable: inspected.runnable,
+        reason: inspected.reason,
+        repairCommands,
+      },
+    );
+  }
+  const readiness = verifyRuntimeReadinessReceipt({ root, binaryPath: binary });
+  if (!readiness.ok) {
+    throw diagnosticError(
+      readiness.diagnostic.code,
+      `the linked Snapback source runtime is not qualified: ${readiness.diagnostic.message}`,
+      {
+        binary,
+        checkoutRoot: root,
+        reason: readiness.reason,
+        readiness: readiness.diagnostic.details,
+        repairCommands,
+      },
+    );
+  }
+  return { binary, source: 'source-checkout', platform, checkoutRoot: root };
+}
+
 export function diagnosticError(code, message, details = undefined) {
   const inferredCommand = code === 'SNAPBACK_CLI_ARGUMENT_INVALID'
     ? message.match(/(?:usage:\s*)?snapback\s+([a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?)/u)?.[1] ?? ''
@@ -282,6 +374,8 @@ export function resolveRuntimeBinary(options = {}) {
       { platform, supported: [...RUNTIME_PACKAGES.keys()] },
     );
   }
+  const sourceRuntime = resolveSourceCheckoutRuntime(platform, options);
+  if (sourceRuntime) return sourceRuntime;
   let manifestPath;
   try {
     manifestPath = require.resolve(`${packageName}/package.json`);
@@ -322,8 +416,14 @@ export function resolveRuntimeBinary(options = {}) {
   return { binary, source: packageName, platform };
 }
 
-function packagedRuntimeArtifacts(binary) {
-  const runtimeRoot = dirname(dirname(resolve(binary)));
+function runtimeReadinessRoot(runtime) {
+  return runtime.checkoutRoot ?? dirname(dirname(resolve(runtime.binary)));
+}
+
+function runtimeReadinessArtifacts(runtime, runtimeRoot) {
+  if (runtime.source === 'source-checkout') {
+    return digestRuntimeArtifacts(runtimeRoot);
+  }
   const candidates = packagedRuntimeArtifactCandidates(runtimeRoot);
   return digestRuntimeArtifacts(runtimeRoot, { candidates });
 }
@@ -338,8 +438,8 @@ export function packagedRuntimeReadiness(options = {}) {
   const receiptPath = resolve(
     options.receiptPath ?? join(projectRoot, '.snapback', 'runtime-readiness.json'),
   );
-  const runtimeRoot = dirname(dirname(runtime.binary));
-  const artifacts = packagedRuntimeArtifacts(runtime.binary);
+  const runtimeRoot = runtimeReadinessRoot(runtime);
+  const artifacts = runtimeReadinessArtifacts(runtime, runtimeRoot);
   if (options.verify === true) {
     const verdict = verifyRuntimeReadinessReceipt({
       root: runtimeRoot,
@@ -402,13 +502,19 @@ function installedRuntimeRecovery(runtime, {
   actualStamp = null,
   diagnostic = null,
   reason = null,
+  packageName = null,
 } = {}) {
+  const installedPackage = runtime?.source === 'override'
+    ? null
+    : runtime?.source ?? packageName;
   return createRuntimeRecoveryRecord({
     selectedBinary: runtime?.binary ?? null,
     selectionRung: !runtime
       ? 'none'
       : runtime.source === 'override'
         ? 'configured'
+        : runtime.source === 'source-checkout'
+          ? 'source-checkout-release'
         : 'packaged-runtime',
     actualStamp,
     buildable: null,
@@ -417,11 +523,19 @@ function installedRuntimeRecovery(runtime, {
     reuseReason: reason,
     diagnostic,
     producerInputs: runtime
-      ? { platform: runtime.platform, runtimeSource: runtime.source }
+      ? {
+          platform: runtime.platform,
+          runtimeSource: runtime.source,
+          ...(runtime.checkoutRoot ? { checkoutRoot: runtime.checkoutRoot } : {}),
+        }
       : null,
     repairCommand: runtime?.source === 'override'
       ? 'unset SNAPBACK_RUNTIME_BINARY && reinstall @expo/snapback-cli'
-      : 'reinstall @expo/snapback-cli and its platform runtime package',
+      : runtime?.source === 'source-checkout'
+        ? sourceRuntimeRepairCommands(runtime.checkoutRoot, runtime.binary).join(' && ')
+        : installedPackage
+          ? `reinstall ${installedPackage} from the consumer project's lockfile`
+          : 'reinstall @expo/snapback-cli and its platform runtime package',
     overrideCommand: runtime?.binary
       ? `SNAPBACK_RUNTIME_BINARY=${JSON.stringify(runtime.binary)}`
       : null,
@@ -444,6 +558,7 @@ export async function doctor(options = {}) {
         runnable: false,
         diagnostic: { code: error.diagnostic?.code ?? 'SNAPBACK_RUNTIME_BINARY_MISSING' },
         reason: error.message,
+        packageName: error.diagnostic?.details?.package ?? null,
       }),
     };
   }
@@ -4699,6 +4814,7 @@ export async function runCli(argv, options = {}) {
         '--expo-dir, --expo-platform, --email, --expo-command, --android-serial, and --ios-udid require --expo',
       );
     }
+    let expoSelectedPlatform = expoPlatform ?? 'ios';
     if (expo) {
       if (noWatch || clientDirectory !== null || clientCommand !== null) {
         throw diagnosticError(
@@ -4706,27 +4822,38 @@ export async function runCli(argv, options = {}) {
           'snapback dev --expo is a long-running supervisor and cannot be combined with --no-watch, --client, or --client-command',
         );
       }
-      const platform = expoPlatform ?? 'ios';
-      if (!['ios', 'android', 'web'].includes(platform)) {
+      if (!['ios', 'android', 'web'].includes(expoSelectedPlatform)) {
         throw diagnosticError(
           'SNAPBACK_CLI_ARGUMENT_INVALID',
           '--expo-platform must be ios, android, or web',
-          { expoPlatform: platform },
+          { expoPlatform: expoSelectedPlatform },
         );
       }
-      if (androidSerial !== null && platform !== 'android') {
+      if (androidSerial !== null && expoSelectedPlatform !== 'android') {
         throw diagnosticError(
           'SNAPBACK_CLI_ARGUMENT_INVALID',
           '--android-serial requires --expo-platform android',
         );
       }
-      if (iosUdid !== null && platform !== 'ios') {
+      if (iosUdid !== null && expoSelectedPlatform !== 'ios') {
         throw diagnosticError(
           'SNAPBACK_CLI_ARGUMENT_INVALID',
           '--ios-udid requires --expo-platform ios',
         );
       }
-      const { runExpoDev } = await import('./expo-dev.mjs');
+    }
+    // Advisory only — Metro started outside the supervisor still inherits a
+    // truthy CI and serves a stale bundle. Warn before either spawn path.
+    const expoDevModule = await import('./expo-dev.mjs');
+    expoDevModule.emitCliMetroWatchInertAdvisory({
+      env: options.env ?? process.env,
+      clientCommand,
+      json,
+    });
+    if (expo) {
+      const runExpoDev = typeof options.runExpoDev === 'function'
+        ? options.runExpoDev
+        : expoDevModule.runExpoDev;
       let criticalExit = null;
       let rejectCritical = null;
       const result = await runExpoDev({
@@ -4740,7 +4867,7 @@ export async function runCli(argv, options = {}) {
         ...(expoCommand ? { metroCommand: expoCommand } : {}),
         ...(androidSerial ? { androidSerial } : {}),
         ...(iosUdid ? { iosUdid } : {}),
-        platform,
+        platform: expoSelectedPlatform,
         onEvent(event) { console.log(JSON.stringify(event)); },
         onCriticalExit(error) {
           criticalExit = error;
@@ -4789,7 +4916,8 @@ export async function runCli(argv, options = {}) {
     // through runDev's onServerExit callback instead of a listener pinned to
     // the first child process.
     let onUnexpectedServerExit = null;
-    const result = await runDev({
+    const startDev = typeof options.runDev === 'function' ? options.runDev : runDev;
+    const result = await startDev({
       backendDirectory,
       attach,
       watch: !noWatch,
@@ -4974,6 +5102,8 @@ export const __test = {
   loadGenerated,
   readReadyDescriptor,
   runtimePackages: Object.fromEntries(RUNTIME_PACKAGES),
+  runtimeReadinessRoot,
+  sourceCheckoutRoot,
   runtimeSpawnEnvironment,
   scrubDynamicLoaderEnvironment,
 };

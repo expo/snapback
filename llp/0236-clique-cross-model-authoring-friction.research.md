@@ -8,7 +8,9 @@ Offline sync, Assets, Memberships, Code generation, Runtime, Packaging,
 Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (mechanically renumbered from LLP 0234 to LLP 0236
+**Revised:** 2026-08-12 (post-snapshot routing amendment: records provisional
+later Sonnet/Kimi successor findings without upgrading cross-model confidence,
+and routes them to LLPs 0245–0249). 2026-08-12 (mechanically renumbered from LLP 0234 to LLP 0236
 after origin assigned LLPs 0234–0235). 2026-08-12 (initial Draft: synthesizes the completed Fable 5,
 Opus 5, and GPT-5.6 sol paired exploratory lanes, the in-progress Sonnet 5
 Snapback lane, the LLP 0201 P2 pilot, and the surrounding comparative diaries)
@@ -16,6 +18,7 @@ Snapback lane, the LLP 0201 P2 pilot, and the surrounding comparative diaries)
 LLP 0118, LLP 0119, LLP 0120, LLP 0122, LLP 0123, LLP 0131, LLP 0146,
 LLP 0151, LLP 0155, LLP 0178, LLP 0189, LLP 0193, LLP 0198, LLP 0201,
 LLP 0208, LLP 0210, LLP 0218, LLP 0219, LLP 0220, LLP 0221, LLP 0229,
+LLP 0245, LLP 0246, LLP 0247, LLP 0248, LLP 0249,
 Diary 0039, Diary 0057, Diary 0058 (both slugs), Diary 0059, Diary 0060,
 Diary 0067, Diary 0070, Diary 0071, Diary 0073, Diary 0074, Diary 0075,
 Diary 0076 (pre-publication at research time)
@@ -609,6 +612,31 @@ should be:
 10. Extend errors-as-docs from refusal paths into runtime and client lifecycle
     failures.
 
+### Post-snapshot successor findings (provisional)
+
+Later Sonnet and in-progress Kimi lanes arrived after the evidence snapshot
+above. They do not change this Research document's confidence labels until the
+complete sweep artifacts are imported and adjudicated, but they are concrete
+enough to route without waiting:
+
+- protected reads attempted while anonymous can destabilize the React auth gate
+  and, in one isolated reproduction, poison a later valid auth exchange on the
+  same client;
+- optional own-property `undefined`, published-presence withdrawal, and
+  one-shot refusal access remain surprising under ordinary TypeScript/React;
+- a feed hydration fallback can require several `ctx.db` host calls per card;
+- the portable engine is not a practical substitute for native/package compute
+  such as a password KDF; and
+- Expo scaffolds can let mutable `.snapback/` runtime state enter Metro's watch
+  graph.
+
+LLP 0238 and LLP 0241 receive evidence/acceptance clarifications for the defects
+already inside their accepted intent. Draft LLP 0247 owns the new client
+compatibility choices. Draft LLP 0248 owns bounded batch reads, and Draft LLP
+0249 owns the explicit trusted package-action decision. The broader two gaps
+this snapshot already left open—declaration transcription and direct
+TypeScript helper custody—are Draft LLP 0245 and LLP 0246.
+
 ## Open questions
 
 1. When the exploratory sweep publishes, which findings remain convergent
@@ -635,4 +663,6 @@ LLP 0208 for the Clique pilot gap program, LLP 0151 and the password-auth
 program for P1/P5, LLP 0108/0118 for P2, LLP 0210/0220 for P3, LLP 0218/0219
 and LLP 0155/0221 for P4/P8, LLP 0056/0100/0172 for P6, LLP 0131 for P7,
 LLP 0122/0123 for P9/P13, LLP 0080/0120 for P10, LLP 0193/0178 for P11,
-LLP 0061 for P12, and LLP 0189/0201 for P14 and publication posture.
+LLP 0061 for P12, and LLP 0189/0201 for P14 and publication posture. The
+post-snapshot residuals route through LLP 0245–0249 as stated above; this does
+not create a second umbrella plan.

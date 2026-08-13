@@ -1,0 +1,57 @@
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/todo/snapback
+[warning] SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT (auth) todos: table visibility is implicit. Add .visibility({ kind: 'public-read' }), .visibility({ kind: 'owner', field: 'ownerId' }), or .visibility({ kind: 'membership', declaration: 'members', resourceField: 'resourceId', roles: ['member'] }) to the todos defineTable(...) chain (guide/auth/protecting-data.md#declare-who-can-read-each-table).
+Codegen summary for todo
+  tables 1; operations 6 (query 1, live query 1, mutation 4, action 0); live 1; ephemeral 0
+  files 39 (review manifest 1, consumer committed 2, ignored cache 36); warnings 1
+  degraded createTodo: functions.mjs:47:14 -> generated/api.d.ts#GeneratedApi["createTodo"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createTodo` in functions.mjs and regenerate.
+  degraded deleteTodo: functions.mjs:68:14 -> generated/api.d.ts#GeneratedApi["deleteTodo"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `deleteTodo` in functions.mjs and regenerate.
+  degraded editTitle: functions.mjs:62:14 -> generated/api.d.ts#GeneratedApi["editTitle"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `editTitle` in functions.mjs and regenerate.
+  degraded setCompleted: functions.mjs:54:14 -> generated/api.d.ts#GeneratedApi["setCompleted"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `setCompleted` in functions.mjs and regenerate.
+  table visibility 0 declared; 1 implicit
+    todos: add .visibility(...) to the table definition; see guide/auth/protecting-data.md#declare-who-can-read-each-table
+codegen ok: /Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/demos/todo/snapback/generated  (inputsHash 4c5d758074b2…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/todo-v2/snapback
+[warning] SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT (auth) todos: table visibility is implicit. Add .visibility({ kind: 'public-read' }), .visibility({ kind: 'owner', field: 'ownerId' }), or .visibility({ kind: 'membership', declaration: 'members', resourceField: 'resourceId', roles: ['member'] }) to the todos defineTable(...) chain (guide/auth/protecting-data.md#declare-who-can-read-each-table).
+Codegen summary for todo-v2
+  tables 1; operations 8 (query 1, live query 2, mutation 5, action 0); live 2; ephemeral 1
+  files 50 (review manifest 1, consumer committed 2, ignored cache 47); warnings 1
+  degraded createTodo: functions.mjs:61:14 -> generated/api.d.ts#GeneratedApi["createTodo"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createTodo` in functions.mjs and regenerate.
+  degraded deleteTodo: functions.mjs:94:14 -> generated/api.d.ts#GeneratedApi["deleteTodo"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `deleteTodo` in functions.mjs and regenerate.
+  degraded editTitle: functions.mjs:82:14 -> generated/api.d.ts#GeneratedApi["editTitle"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `editTitle` in functions.mjs and regenerate.
+  degraded setCompleted: functions.mjs:76:14 -> generated/api.d.ts#GeneratedApi["setCompleted"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `setCompleted` in functions.mjs and regenerate.
+  degraded setPriority: functions.mjs:88:14 -> generated/api.d.ts#GeneratedApi["setPriority"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `setPriority` in functions.mjs and regenerate.
+  table visibility 0 declared; 1 implicit
+    todos: add .visibility(...) to the table definition; see guide/auth/protecting-data.md#declare-who-can-read-each-table
+codegen ok: /Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/demos/todo-v2/snapback/generated  (inputsHash d6df8e98bb7b…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/todo-v2/snapback --target-profile remote-service-sqlite-ibex
+[warning] SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT (auth) todos: table visibility is implicit. Add .visibility({ kind: 'public-read' }), .visibility({ kind: 'owner', field: 'ownerId' }), or .visibility({ kind: 'membership', declaration: 'members', resourceField: 'resourceId', roles: ['member'] }) to the todos defineTable(...) chain (guide/auth/protecting-data.md#declare-who-can-read-each-table).
+Codegen summary for todo-v2
+  tables 1; operations 8 (query 1, live query 2, mutation 5, action 0); live 2; ephemeral 1
+  files 53 (review manifest 1, consumer committed 2, ignored cache 50); warnings 1
+  degraded createTodo: functions.mjs:61:14 -> generated-remote-service/api.d.ts#GeneratedApi["createTodo"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createTodo` in functions.mjs and regenerate.
+  degraded deleteTodo: functions.mjs:94:14 -> generated-remote-service/api.d.ts#GeneratedApi["deleteTodo"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `deleteTodo` in functions.mjs and regenerate.
+  degraded editTitle: functions.mjs:82:14 -> generated-remote-service/api.d.ts#GeneratedApi["editTitle"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `editTitle` in functions.mjs and regenerate.
+  degraded setCompleted: functions.mjs:76:14 -> generated-remote-service/api.d.ts#GeneratedApi["setCompleted"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `setCompleted` in functions.mjs and regenerate.
+  degraded setPriority: functions.mjs:88:14 -> generated-remote-service/api.d.ts#GeneratedApi["setPriority"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `setPriority` in functions.mjs and regenerate.
+  table visibility 0 declared; 1 implicit
+    todos: add .visibility(...) to the table definition; see guide/auth/protecting-data.md#declare-who-can-read-each-table
+codegen ok: /Users/ccheever/projects/snapback/.claude/worktrees/aw-integ/demos/todo-v2/snapback/generated-remote-service  (inputsHash 18e698b7ce4c…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/latency-kanban/snapback
+[warning] SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT (auth) boards: table visibility is implicit. Add .visibility({ kind: 'public-read' }), .visibility({ kind: 'owner', field: 'ownerId' }), or .visibility({ kind: 'membership', declaration: 'members', resourceField: 'resourceId', roles: ['member'] }) to the boards defineTable(...) chain (guide/auth/protecting-data.md#declare-who-can-read-each-table).
+[warning] SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT (auth) cards: table visibility is implicit. Add .visibility({ kind: 'public-read' }), .visibility({ kind: 'owner', field: 'ownerId' }), or .visibility({ kind: 'membership', declaration: 'members', resourceField: 'resourceId', roles: ['member'] }) to the cards defineTable(...) chain (guide/auth/protecting-data.md#declare-who-can-read-each-table).
+[error] TRUSTED_COMPOSITION_ACTIVATION_INVALID (composition) trusted-composition-activation.json is invalid: trusted composition activation does not bind this generated deployment
+codegen failed: no artifacts written (no silent stale output).

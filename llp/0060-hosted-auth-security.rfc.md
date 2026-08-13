@@ -5,7 +5,10 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-24 (D5 hosted-startup implementation reconciliation:
+**Revised:** 2026-08-12 (browser custody recovery requires one bearerless,
+valid anonymous handshake at a different authorization-stream incarnation;
+the witness prevents a bearer-stripping intermediary from authorizing custody
+deletion). 2026-07-24 (D5 hosted-startup implementation reconciliation:
 the target-neutral server consumes a strict owner-only, MAC-authenticated
 admission envelope and secret-manager key before target state or listener
 authority, reconciles the external LLP 0077 replay floor, and refreshes the
@@ -1099,6 +1102,16 @@ material.
   bytes of its own response.
 - The documented IndexedDB record is explicitly treated as JavaScript-readable
   bearer custody, not encrypted/XSS-safe storage.
+- When a stored bearer receives a terminal `carrier` refusal, the browser
+  proves first-party recovery with at most one bearerless session probe and one
+  barrier attempt. Only a valid settled anonymous handshake at a different
+  authorization-stream incarnation may replace custody; a refusal alone and a
+  same-incarnation response preserve it. This is not a token-stripping
+  downgrade: stripping can suppress the carrier, but cannot mint the origin's
+  valid anonymous successor-incarnation witness. Cold/warm clients converge to
+  app-scoped settled anonymous custody without deleting the shared IndexedDB
+  database, and a peer fresh sign-in wins the exact durable CAS without being
+  blanked.
 - The future v2 conformance suite proves non-extractable key generation,
   method/URI/token binding, proof replay refusal, nonce handling, refresh-family
   binding, and fail-closed downgrade behavior.
@@ -1211,6 +1224,10 @@ local target remains explicitly not hosted-auth ready.
 
 ## Changelog
 
+- **2026-08-12 (unrecognized session custody recovery):** required a
+  different-incarnation anonymous handshake before first-party capture-free
+  recovery, with one-shot throttling, peer-wins CAS, and no database-wide
+  deletion fallback.
 - **2026-07-15 (FINAL5 review archive and minor closure):** archived both exact
   targeted FINAL5 review artifacts with provenance and added an embedded setup
   negative control proving ordinary non-issuer fetch rejections redact the

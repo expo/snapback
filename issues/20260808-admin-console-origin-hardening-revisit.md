@@ -58,3 +58,14 @@ as a revisit anchor, not an urgent defect.
 
 ## Progress (2026-08-08 Lane J) — part C fixed
 Part C landed on main: src/admin/setup.html renders the app-manifest acquisition.url <a href> only for http(s) URLs (mirrors linkify), and src/server.rs SETUP_SCRIPT_SHA256 was recomputed so the CSP still matches (independently verified; CSP test passes). Parts A (app-origin console-credential custody) and B (loopback read exposure / DNS rebinding) remain OPEN as documented, author-gated hardening tradeoffs.
+
+## Blast-radius note (2026-08-12 review)
+
+Part B's missing Host check and loopback CORS reflection also reach surfaces this ticket did not list:
+
+- Dev body `auth.userId` impersonation from any localhost origin — `issues/20260812-dev-body-impersonation-loopback-cors.md`
+- OAuth metadata `issuer` / token endpoints taken from request `Host` — `issues/20260812-oauth-metadata-trusts-host-header.md`
+- `POST /mcp` (`require_mcp_origin` allows any loopback Origin; missing Origin is fail-open for native clients)
+- `POST /connection/open` (public capability grant)
+
+A Host allowlist / CORS pin on the main listener should cover these together rather than per-route.

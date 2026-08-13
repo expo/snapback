@@ -1725,7 +1725,11 @@ export function defineAuth(program) {
       exactObject(mechanism, `defineAuth mechanisms.${name}`, new Set(['kind']));
     } else if (mechanism.kind === 'password') {
       exactObject(mechanism, `defineAuth mechanisms.${name}`, new Set(['kind', 'identifier', 'provider', 'recovery']));
-      assert(mechanism.identifier === 'username', `defineAuth mechanisms.${name}.identifier must be username`);
+      assert(
+        mechanism.identifier === 'username' || mechanism.identifier === 'email',
+        `defineAuth mechanisms.${name}.identifier must be username or email`,
+        'SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_INVALID',
+      );
       assert(typeof mechanism.provider === 'string' && mechanism.provider.length > 0, `defineAuth mechanisms.${name}.provider is required`);
       assert(typeof mechanism.recovery === 'string' && mechanism.recovery.length > 0, `defineAuth mechanisms.${name}.recovery is required`);
     } else if (mechanism.kind === 'email-code') {
@@ -1742,6 +1746,16 @@ export function defineAuth(program) {
     }
     mechanisms[name] = { ...mechanism };
   }
+  const passwordIdentifiers = new Set(
+    Object.values(mechanisms)
+      .filter((mechanism) => mechanism.kind === 'password')
+      .map((mechanism) => mechanism.identifier),
+  );
+  assert(
+    passwordIdentifiers.size <= 1,
+    'defineAuth password mechanisms must use one identifier mode',
+    'SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_CONFLICT',
+  );
 
   const assuranceRequirements = {};
   assert(program.assuranceRequirements && typeof program.assuranceRequirements === 'object' && !Array.isArray(program.assuranceRequirements), 'defineAuth assuranceRequirements must be an object');
@@ -1938,6 +1952,18 @@ export function defineSchema(tables, options = {}) {
     assert(AUTH_PROGRAMS.has(options.authProgram), 'defineSchema option "authProgram" must be defineAuth(...)');
     assert(auth?.mode === 'sessions', 'defineSchema authProgram requires auth.mode sessions');
     authProgram = options.authProgram;
+    const passwordMechanism = Object.values(authProgram.mechanisms)
+      .find((mechanism) => mechanism.kind === 'password');
+    if (passwordMechanism) {
+      // @ref LLP 0214#21-amendment-2026-08-11-catalog-v4-and-what-the-reconciliation-actually-cost — the authored
+      // password mechanism selects the immutable catalog-v4 mode.
+      auth = {
+        ...auth,
+        passwordIdentifierMode: passwordMechanism.identifier === 'email'
+          ? 'email-v1'
+          : 'username-v1',
+      };
+    }
     const cleanup = authProgram.guestPolicy.reaping?.cleanup;
     if (authProgram.guestPolicy.enabled && cleanup?.kind === 'declarative') {
       for (const [tableName, table] of Object.entries(tables)) {

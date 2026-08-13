@@ -13,7 +13,12 @@
   "bugs": {
     "url": "https://github.com/expo/snapback/issues"
   },
-  "keywords": ["snapback", "backend", "vite", "local-development"],
+  "keywords": [
+    "snapback",
+    "backend",
+    "vite",
+    "local-development"
+  ],
   "files": [
     "README.md",
     "index.d.mts",
@@ -53,7 +58,8 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@expo/snapback-cli": "workspace:*"
+    "@expo/snapback-cli": "workspace:*",
+    "ws": "^8.18.0"
   },
   "peerDependencies": {
     "vite": "^8.0.0"
@@ -74,6 +80,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node channel-a.test.mjs && node rqs-serializer.test.mjs"
+    "test": "node package.test.mjs && node channel-a.test.mjs && node rqs-serializer.test.mjs && bun bun-relay.test.mjs"
   }
 }

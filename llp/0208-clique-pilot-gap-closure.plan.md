@@ -6,7 +6,10 @@
 Schema, Memberships, Assets, Push, Relational queries, Operations, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
-**Revised:** 2026-08-10 (G1 closed by LLP 0218 P3's provider-owned drain and
+**Revised:** 2026-08-12 (successor routing amendment: the cross-model Clique
+sweep and accepted LLP 0237–0243 program supersede the original pilot-only
+Wave-C map where they overlap; Draft LLPs 0245–0249 own the later ordinary-
+TypeScript residuals, while unresolved G10 remains here). 2026-08-10 (G1 closed by LLP 0218 P3's provider-owned drain and
 LLP 0219's client diagnostics channel); 2026-08-09, later same day
 (asset-surface tickets filed —
 G11 papercuts, the G4 asset-authority slice, and the G8 multi-asset
@@ -27,7 +30,8 @@ aggregation), LLP 0056 / LLP 0100 (memberships), LLP 0044 / LLP 0180
 (assets), LLP 0143 / LLP 0045 (push), LLP 0036 (app config), LLP 0108
 (inline handler dialect), LLP 0061 (guide), LLP 0189 (verification
 cadence), LLP 0218 (platform-owned outbox drain), LLP 0219 (client dev
-diagnostics channel)
+diagnostics channel), LLP 0236 (cross-model synthesis), LLP 0237–0243
+(accepted improvement set), LLP 0245, LLP 0246, LLP 0247, LLP 0248, LLP 0249
 
 ## Summary
 
@@ -417,6 +421,24 @@ G2 and G5 are therefore likely to survive reprioritization at the top).
 Verification follows LLP 0189: each closure lands with its own scoped
 evidence; the benchmark rubric is re-scored only by future instrument
 runs, not claimed from fixes.
+
+### 2026-08-12 successor overlay
+
+The original G-register remains the provenance record for the first pilot. For
+new commissioning, the accepted LLP 0237–0243 set owns handler modules, client
+lifecycles, media, authority profiles, artifact generations, bounded query
+composition, and protected retention. The later cross-model residuals are
+routed as follows:
+
+- LLP 0245 — infer/show/freeze declaration assistance;
+- LLP 0246 — bounded TypeScript handler-module custody;
+- LLP 0247 — ordinary client normalization and authority/presence recovery;
+- LLP 0248 — bounded imperative batch reads; and
+- LLP 0249 — the trusted package-capable action decision.
+
+These Drafts are not implementation authority until accepted. G10's readable
+configuration question remains an open item in this Plan; LLP 0198 P4 remains
+the owner of the broader hosted/dev operations posture.
 
 ## Non-goals
 

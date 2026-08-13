@@ -693,7 +693,7 @@ export declare function defineTable<const Fields extends Record<string, Validato
 export type AuthAssuranceKind = 'authenticated' | 'email_verified' | 'phone_verified' | 'recent_auth' | 'phishing_resistant';
 export type AuthMechanism =
   | { readonly kind: 'guest' }
-  | { readonly kind: 'password'; readonly identifier: 'username'; readonly provider: string; readonly recovery: string }
+  | { readonly kind: 'password'; readonly identifier: 'username' | 'email'; readonly provider: string; readonly recovery: string }
   | { readonly kind: 'email-code'; readonly identityKind: 'email'; readonly provider: string; readonly canonicalization?: 'email-v1'; readonly delivery: string }
   | { readonly kind: 'passkey'; readonly provider: string };
 export interface AuthProgramV1 {

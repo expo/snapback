@@ -550,13 +550,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.micro]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-commit: 03125be6a3dc51f7e20d9b7db01bdc225735d0cf
+reviewed-commit: HEAD
 ---
 
 # The headless client
@@ -916,60 +916,6 @@ returns the same phased command task documented in
 `useSnapbackCommand` and `provider.surface(...)` compose this same owner
 rather than a second one.
 
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Generated nominal reference kinds, lifecycle metadata, and
-> pre-transport kind diagnostics are not present in the newest published
-> closure, 0.1.20. They are expected in 0.1.21.
-
-## Generated reference kinds and legal verbs
-
-Generated function references are nominally distinct `QueryRef`,
-`LiveQueryRef`, `MutationRef`, and `ActionRef` values. Generated command
-descriptors are `CommandRef` values with the runtime discriminator
-`asset-bearing-command.v1`. The current legal surface is closed:
-
-| Reference kind | Legal headless verb | Meaning |
-| --- | --- | --- |
-| `QueryRef` | `query()` or `liveQuery()` | One authoritative read, or the existing live-subscription compatibility path. |
-| `LiveQueryRef` | `query()` or `liveQuery()` | One-shot read or authoritative snapshot followed by updates. |
-| `MutationRef` | `mutate()` | Dispatch; a queued result is pending, not settled. |
-| `ActionRef` | `action()` | One online action response. |
-| `CommandRef` | `commandClient.start()` | One process-local command task over its ordinary mutation and optional asset transfer. |
-
-TypeScript rejects cross-kind calls. JavaScript, stale generated modules, and
-other skewed callers receive
-`SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH` before auth discovery, store
-preparation, command-task creation, or transport. Its structured details name
-`receivedKind`, the verb's `acceptedKinds`, the received kind's `correctVerb`,
-and this guide anchor. Legacy string names remain untyped compatibility input
-because they carry no kind discriminator. Structured diagnostics are always
-available through `diagnosticsChannel()`; the default console projection is
-attached only under a positive development/HMR signal.
-
-Codegen writes `client-lifecycle.v1.json` beside the other generated
-artifacts. It is currently a developer-tooling, regenerable-cache artifact:
-no rollout-1 runtime consumer requires a committed copy. The artifact and
-generated JSDoc come from the same lifecycle table and bind every operation's
-semantic id, implementation and contract hashes, auth requirement, required
-capabilities, legal verbs, freshness, retention, and guide anchor to the
-generated build.
-
-Mutation dispatch and settlement remain separate. Durable dispositions are
-exactly `pending | settled | failed | stranded | quarantined | resultGone |
-unknown`; do not infer another state from promise completion. Live handles use
-connection states `connecting | live | polling | stale | disconnected` and
-stop publishing after disposal. Command tasks progress through `preparing |
-transferring | committing` and terminate as `succeeded | failed | cancelled |
-ambiguous`.
-
-Resource keys combine reference semantic identity, canonical argument
-contract and bytes, authority partition, normalized lifecycle options, and
-build identity. A later class-M handle may expose `snapshotVersion`; when it
-does, that value means the authorized principal/query `viewRevision`, never a
-raw row version, app commit, or storage snapshot. Rollout 1 does not add that
-handle or any new client verb.
-
 ## Subscribe to durable state
 
 `liveQuery(ref, options)` is the author-facing composite. It performs the
@@ -1113,7 +1059,13 @@ The session entry points are:
   release a store resolved by the default persistence ladder (an injected
   `rqsStore` remains caller-owned);
 - `currentAuthorityDescriptor()` and `currentAuthorizationScope()` for
-  adapter fences;
+  adapter fences and the blessed **who I am** / **am I signed in**
+  identity read — after boot or restore, call
+  `await client.currentAuthorizationScope()` and read
+  `principalScope.userId` ([Ask who I am](../auth/sessions-and-principals.md#ask-who-i-am-am-i-signed-in)).
+  `authSession()` remains the mode/authority projection, not that identity
+  read. `AuthCoordinator.settledView()` is the coordinator's lower-level
+  equivalent, not the app whoami;
 - `registerAuthBarrierParticipant(participant)` for a state owner that must
   quiesce, blank, durably clear/quarantine, and resume with the coordinator.
 
@@ -1554,13 +1506,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react, clients.dev-diagnostics]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-react/dev-diagnostics.test.mjs, packages/snapback-react/dev-diagnostics-acceptance.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-commit: 03125be6a3dc51f7e20d9b7db01bdc225735d0cf
+reviewed: 2026-08-10
+reviewed-commit: 308414f8da2c05bc267c8df02a45a2395ab895e9
 ---
 
 # The React client
@@ -1722,35 +1674,6 @@ Keep importing from `@expo/snapback-react` when the application uses an
 [application surface](./surfaces.md), command task, or asset projection. Those
 APIs remain synchronous and unchanged on the root; the core entry does not
 replace them with lazy proxies.
-
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Generated nominal reference kinds and their lifecycle JSDoc
-> are not present in the newest published closure, 0.1.20. They are expected
-> in 0.1.21.
-
-## Pass each hook the reference kind it owns
-
-`useSnapbackQuery` accepts a generated `LiveQueryRef`; `useSnapbackMutation`
-and `useSnapbackSettledMutation` accept a generated `MutationRef`; and
-`useSnapbackCommand` accepts a generated `CommandRef`. The nominal brands make
-cross-kind TypeScript calls fail even when two operations happen to have the
-same argument and result shape. The generated reference JSDoc lists the legal
-headless verbs and React hooks, auth requirement, required capabilities,
-freshness and retention meaning, semantic identity, and the build-bound guide
-anchor.
-
-`useSnapbackQuery` remains the current exported live-query hook name. The
-clearer `useSnapbackLiveQuery` spelling is only a planned compatibility alias:
-rollout 1 does not emit it. The current name has no removal date; removal can
-be considered only in a declared major version after stage-2 usage
-measurement. No one-shot `QueryRef` hook and no future watch, mutation-handle,
-or action-handle hook ships in this rollout.
-
-For imperative calls below a hook, the headless client enforces the same
-matrix before transport and reports
-`SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH`; see
-[generated reference kinds and legal verbs](./headless.md#generated-reference-kinds-and-legal-verbs).
 
 ## Bind a generated query
 
@@ -3070,8 +2993,8 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-12
+reviewed-commit: 27d3a9cd9b54f4b45b5c0ca50c8d85796dc06b59
 ---
 
 # React Expo Online clients
@@ -3385,7 +3308,7 @@ Use the generic arm for independently configured clients; use `--expo` whenever
 `SnapbackExpoProvider` should discover the supervisor without an app-authored
 origin.
 
-When Metro's file watching is inert — `CI` truthy in the effective Metro environment (the supervisor itself defaults `CI=1`), or the project under a watcher-blind root such as `/private/tmp` — the readiness stream carries one advisory `SNAPBACK_EXPO_METRO_WATCH_INERT` event naming the condition and the fix, so a stale bundle is not misread as an application bug.
+When Metro's file watching is inert — `CI` truthy in the effective Metro environment, or the project under a watcher-blind root such as `/private/tmp` — the supervised readiness stream carries one advisory `SNAPBACK_EXPO_METRO_WATCH_INERT` event naming the condition and the fix, so a stale bundle is not misread as an application bug. The same code is also printed as an advisory, not a refusal, on every `snapback dev` invocation when the CLI process itself has a truthy `CI`, including unsupervised `--client-command` launches: if you start Metro or Expo yourself, do not inherit `CI=1`; unset `CI` or pass `CI=0`.
 
 Metro receives only the credential-free rendezvous origin. At runtime the Expo
 facade performs a `GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`;

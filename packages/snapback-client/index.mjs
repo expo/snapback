@@ -2339,6 +2339,7 @@ export class SnapbackClient {
     this.__authSessionLastSuccessful = null;
     this.__authSessionInFlight = null;
     this.__authSessionCacheGeneration = 0;
+    this.__unrecognizedAuthorityRecovery = null;
     this.__authCounterCeiling = authCounterCeiling;
     this.__authCounterError = null;
     this.__authCounterCut = false;
@@ -3646,15 +3647,7 @@ export class SnapbackClient {
     return { session: this.#validateAuthSession(session, bearer, offer), capture };
   }
 
-  async #recoverSenderStreamReplacement(capture, cacheGeneration) {
-    const coordinator = this.authCoordinator;
-    if (
-      !this.senderConstrained
-      || !coordinator
-      || !capture
-      || !coordinator.isCurrent(capture)
-    ) return null;
-    const predecessor = coordinator.credentialFor(capture).authority;
+  async #probeUnrecognizedAuthority(predecessor) {
     let session;
     try {
       ({ session } = await this.#fetchAuthSessionWithBearer(null));
@@ -3667,12 +3660,52 @@ export class SnapbackClient {
       || observed.authorizationStreamIncarnation
         === predecessor.authorizationStreamIncarnation
     ) return null;
+    return { session, observed };
+  }
+
+  async #recoverUnrecognizedAuthority(capture, cacheGeneration, reason) {
+    const coordinator = this.authCoordinator;
+    if (
+      !coordinator
+      || !capture
+      || !coordinator.isCurrent(capture)
+    ) return null;
+    const predecessor = coordinator.credentialFor(capture).authority;
+    const witness = await this.#probeUnrecognizedAuthority(predecessor);
+    if (witness === null) return null;
     const successor = await coordinator.transition(capture, {
-      authority: observed,
+      authority: witness.observed,
       bearer: null,
       refreshAfterMs: null,
-    }, 'sender_authorization_stream_replaced');
-    return this.#commitAuthSession(session, successor, cacheGeneration);
+    }, reason);
+    return this.#commitAuthSession(witness.session, successor, cacheGeneration);
+  }
+
+  async #synchronizeAuthCoordinatorWithRecovery() {
+    const coordinator = this.authCoordinator;
+    // A witness belongs only to a refusal raised by this synchronize call.
+    // Discard anything left by a transition whose caller already observed the
+    // failure; a later unrelated resume must never consume stale evidence.
+    this.__unrecognizedAuthorityRecovery = null;
+    try {
+      const capture = await coordinator.synchronize();
+      this.__unrecognizedAuthorityRecovery = null;
+      return capture;
+    } catch (error) {
+      const recovery = this.__unrecognizedAuthorityRecovery;
+      this.__unrecognizedAuthorityRecovery = null;
+      if (recovery === null) throw error;
+      try {
+        return await coordinator.recoverUnrecognizedAuthority(
+          recovery.observed,
+          recovery.reason,
+        );
+      } finally {
+        // A refusal while resuming the recovery successor is a new terminal
+        // observation, but this caller must never turn it into a retry loop.
+        this.__unrecognizedAuthorityRecovery = null;
+      }
+    }
   }
 
   async #coordinatedAuthSession({
@@ -3680,7 +3713,7 @@ export class SnapbackClient {
     cacheGeneration = this.__authSessionCacheGeneration,
   } = {}) {
     const coordinator = this.authCoordinator;
-    const synchronized = await coordinator.synchronize();
+    const synchronized = await this.#synchronizeAuthCoordinatorWithRecovery();
     let capture = synchronized;
 
     if (capture === null) {
@@ -3749,9 +3782,21 @@ export class SnapbackClient {
         this.__authSessionCapture = null;
       }
       if (code === 'SNAPBACK_AUTH_SENDER_PROOF_INVALID') {
-        const recovered = await this.#recoverSenderStreamReplacement(
+        const recovered = await this.#recoverUnrecognizedAuthority(
           capture,
           cacheGeneration,
+          'sender_authorization_stream_replaced',
+        );
+        if (recovered !== null) return recovered;
+      }
+      if (
+        TERMINAL_AUTH_CODES.has(code)
+        && error?.authorityDisposition === 'carrier'
+      ) {
+        const recovered = await this.#recoverUnrecognizedAuthority(
+          capture,
+          cacheGeneration,
+          'terminal_carrier_authority_unrecognized',
         );
         if (recovered !== null) return recovered;
       }
@@ -3770,7 +3815,31 @@ export class SnapbackClient {
 
   async #resumeAuthTransport(capture, stagePublication) {
     const credential = this.authCoordinator.credentialFor(capture);
-    const fetched = await this.#fetchAuthSessionWithBearer(credential.bearer, capture);
+    let fetched;
+    try {
+      fetched = await this.#fetchAuthSessionWithBearer(credential.bearer, capture);
+    } catch (error) {
+      const code = error?.diagnostic?.code ?? error?.code;
+      if (
+        TERMINAL_AUTH_CODES.has(code)
+        && error?.authorityDisposition === 'carrier'
+      ) {
+        const witness = await this.#probeUnrecognizedAuthority(credential.authority);
+        if (witness !== null) {
+          // The coordinator is still inside the failed resume barrier here;
+          // retain only the server-witnessed anonymous authority. The outer
+          // synchronize boundary consumes it after the barrier fails closed.
+          // @ref LLP 0059#unrecognized-authority-recovery — one bearerless
+          //   probe plus the incarnation witness may enter capture-free
+          //   recovery; a bare carrier refusal never destroys custody.
+          this.__unrecognizedAuthorityRecovery = {
+            observed: witness.observed,
+            reason: 'resume_terminal_carrier_authority_unrecognized',
+          };
+        }
+      }
+      throw error;
+    }
     const session = fetched.session;
     capture = fetched.capture;
     const observed = clientAuthorityFromHandshake(session);
@@ -4398,7 +4467,7 @@ export class SnapbackClient {
     try {
       if (this.authorityFence) {
         this.#ensureAgentTransportParticipant();
-        if (!this.agentAuthority) await this.authorityFence.synchronize();
+        if (!this.agentAuthority) await this.#synchronizeAuthCoordinatorWithRecovery();
         try { capture = this.authorityFence.capture(); } catch { /* bootstrap handshake below */ }
         if (
           expectedAuthorityCapture
@@ -11041,17 +11110,16 @@ export class SnapbackClient {
           handle.rows = event.rows;
           handle.version = event.version;
           handle.authorizationDisposition = 'retain';
-          if (preparedMaterialization) {
-            handle.answerClass = 'authoritative';
-            handle.freshness = 'current';
-          }
+          // An authorization-fenced snapshot is authoritative whether or not
+          // this client installed an optional durable materialization adapter.
+          // Freshness describes the server answer, not its retention owner.
+          handle.answerClass = 'authoritative';
+          handle.freshness = 'current';
         } else if (event.kind === 'quarantine' || event.kind === 'delete') {
           handle.rows = [];
           handle.authorizationDisposition = event.kind;
-          if (preparedMaterialization) {
-            handle.answerClass = 'unknown';
-            handle.freshness = null;
-          }
+          handle.answerClass = 'unknown';
+          handle.freshness = null;
         } else if (event.kind === 'retain') {
           handle.authorizationDisposition = 'retain';
         } else {

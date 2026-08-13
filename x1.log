@@ -1,0 +1,797 @@
+
+> @expo/snapback-client@0.1.0 pretest
+> node generated-mutation-ir.test.mjs && node commands.test.mjs && node reference-kind.test.mjs && node remediation.test.mjs
+
+✔ generated mutate owns IR preparation, paints before settlement, and replays once on boot (184.044667ms)
+✔ generated mutate degrades to server dispatch without durable outbox composition (19.771959ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 207.696375
+commands.test.mjs: command phase/outcome, retry, cancellation, residue, and authority cases passed
+✔ every wrong generated reference/verb pair refuses before transport (9.080625ms)
+✔ missing, future, and malformed object kinds refuse every verb before transport (1.405583ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 43.508125
+remediation.test.mjs: version, tolerance, registry-axis, and hash-binding cases passed
+
+> @expo/snapback-client@0.1.0 test
+> node package.test.mjs && node export-parity.test.mjs && node client-diagnostics.test.mjs && node ir-evaluator.test.mjs && node local-read-admission.test.mjs && node optimistic-rebase.test.mjs && node optimistic-rebase-acceptance.test.mjs && node result-transform.test.mjs && node micro.test.mjs && node micro-operational.test.mjs && node push-registry.test.mjs && node attribution.test.mjs && node app-data.test.mjs && node assets.test.mjs && node assets-watch-authorization.test.mjs && node authorization-invalidation.test.mjs && node lifecycle-disposal.test.mjs && node bearer-rotation.test.mjs && node auth-exchange-concurrency.test.mjs && node password-auth.test.mjs && node webcrypto-fallback.test.mjs && node argument-validation.test.mjs && node reservation-retry.test.mjs && node search.test.mjs && node external-store.test.mjs && node evaluation-floor.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node connection-open-stream-reset-retry.test.mjs && node hosted-browser.test.mjs && node hosted-ephemeral.test.mjs && node ephemeral-room.test.mjs && node rqs-digest-parity.test.mjs && node mixed-route-v2.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-store-v3.test.mjs && node logout-v3-bridge.test.mjs && node materialization-store.test.mjs && node materialization-bridge.test.mjs && node registration-ledger.test.mjs && node answer-classes.test.mjs && node carrier-capability-honesty.test.mjs && node demand-broker.test.mjs && node store-policy.test.mjs && node store-runtime-wiring.test.mjs && node lease-convergence.test.mjs && node outbox-store.test.mjs && node outbox-custody.test.mjs && node outbox-drain.test.mjs && node outbox-quarantine.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node rqs-resume-memory.test.mjs && node rqs-store-expo.test.mjs && node rqs-resume-expo.test.mjs && node bundle.test.mjs && node browser-closure.test.mjs && node wire-version.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-reference-types.fixture.ts push-registry-types.fixture.ts
+
+SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED: the server at http://live-transition.test did not establish the offered snapback.v1 binding (missing wireVersion response echo); this client is using a legacy (implicitly v1) connection and will stay offerless toward this endpoint for the process lifetime {
+  endpoint: 'http://live-transition.test',
+  offered: 'snapback.v1',
+  detection: 'missing wireVersion response echo'
+}
+package.test.mjs: packaged client exports are consumable
+export-parity.test.mjs: 289 declared symbols verified across 34 export entries.
+snapback client diagnostics tests pass
+✔ history ring stays bounded and accounts for overwritten events (1.8925ms)
+✔ same code and site coalesce inside cooldown while a different site appends (0.219375ms)
+✔ details normalization structurally excludes payloads and unsafe values (0.27275ms)
+✔ active conditions update and clear independently from history (0.261167ms)
+✔ v2 error projection is exact and v2 warnings are filtered from frozen v1 (0.313041ms)
+✔ the single deadline scheduler re-arms and dispose cancels its only handle (0.149708ms)
+✔ uncovered-range queued transition arms one wedge and one deduplicated line with status facts (2.7725ms)
+✔ SnapbackClient bridges queued outbox diagnostics into its owned v2 channel (3.499959ms)
+✔ SnapbackClient bridges uncovered-range queued diagnostics as warnings (1.251417ms)
+✔ positive dev gating enables the default reporter and production absence stays silent (2.2475ms)
+✔ wedged condition is per durable head and unchanged replay notifications do not clear it (27.796916ms)
+✔ result-gone keeps the same head active and switches to acknowledge recovery (2.786625ms)
+✔ client close clears active conditions and cancels an armed wedge deadline (0.579875ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 48.230667
+✔ M1 evaluates the four-step ceiling into an immutable private layer (2.892875ms)
+✔ M1 exposes all four admission classes without fabricating effects (0.2115ms)
+✔ M1 predicts a present-row single Delete (0.149417ms)
+✔ M1 predicts an absent-row single Delete as a soft no-op (0.1205ms)
+✔ M1 keeps fanout and multiple Delete effects above the local ceiling (0.0925ms)
+✔ a typed guard rejection atomically discards the private write set (0.908417ms)
+✔ the shipping executor replays all 37 D5 v1 cases exactly (22.574083ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30.31975
+✔ M2 admission matrix: five store states plus two live-source states x four evaluator paths (15.182167ms)
+✔ membership-restricted coverage cannot prove point absence (0.141292ms)
+✔ released demand cannot lend grace-held bytes to mutation admission (0.492958ms)
+✔ SnapbackClient resolves active generated demand through its checked QMK answer seam (10.845542ms)
+✔ live_replace advances admission without rewriting the durable establishment fragment (5.318333ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 38.217417
+✔ private layers fold in application order without mutating base or layer (1.235625ms)
+✔ a private delete fold removes present rows and ignores missing rows (1.082125ms)
+✔ rebase replays by outbox sequence through M2 and records a changed prediction (6.900041ms)
+✔ an M2 degradation keeps intent queued-only and remains inspectable (1.9345ms)
+✔ async admission publishes base, layers, and outcome exactly once (2.0165ms)
+✔ the durable identity includes the immutable optimistic operation (1.035ms)
+✔ mutate mints one settlement/layer identity and persists replayable IR (5.823542ms)
+✔ closed optimistic rebase engines reject with a stable diagnostic (0.449292ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26.757209
+✔ M3 gate: 20 rapid moves with interleaved deliveries converge to server outcome (55.370708ms)
+✔ M3 gate: locked-card refusal is surfaced and does not corrupt sibling layer (1.666583ms)
+✔ M3 gate: reload during settlement neither loses nor double-applies a layer (1.940375ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 64.559
+result-transform D5 extension: 56 JavaScript cases exact
+✔ result-transform D5 extension is generated, pinned, and exact in JavaScript (18.932541ms)
+✔ S6 ship gate runs all 56 cases on each claiming carrier and floors non-claiming carriers (6.38525ms)
+✔ the shipped client invocation seam preserves the floor before request inspection (12.81425ms)
+✔ the shipped client invocation seam evaluates only proof-verified reclassified bytes (0.523667ms)
+✔ client-only overlay callbacks compose in owner order before the pure transform (0.63225ms)
+✔ the shipped evaluator source is browser-safe (0.376333ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 48.397583
+micro client tests passed
+{"artifactKind":"snapback.micro-phase-b-operational.v1","workload":"poll/local resync_required followed by exact superseding snapshot; UTF-8 JSON body bytes exclude equal transport framing and headers","fullReconnect":{"requestBodyBytes":508,"responseBodyBytes":534,"totalBodyBytes":1042,"roundTrips":2,"exchanges":[{"method":"GET","path":"/outbox/comparison-wire","requestBodyBytes":0,"responseBodyBytes":413},{"method":"POST","path":"/live/watchTodos/subscribe","requestBodyBytes":508,"responseBodyBytes":121}],"latencyMillisecondsP50":0.21241699999995944,"latencySamplesMilliseconds":[0.6877080000000007,0.468166999999994,0.3197089999999889,0.253791000000092,0.1598749999999427,0.21241699999995944,0.1483330000000933,0.15000000000009095,0.16791699999998855]},"microReconnect":{"requestBodyBytes":508,"responseBodyBytes":534,"totalBodyBytes":1042,"roundTrips":2,"exchanges":[{"method":"GET","path":"/outbox/comparison-wire","requestBodyBytes":0,"responseBodyBytes":413},{"method":"POST","path":"/live/watchTodos/subscribe","requestBodyBytes":508,"responseBodyBytes":121}],"latencyMillisecondsP50":0.08887500000003001,"latencySamplesMilliseconds":[0.6128750000000025,0.14354100000002745,0.07404199999996308,0.08887500000003001,0.09191699999996672,0.0687919999999167,0.09545800000000781,0.06570899999996982,0.061916999999994005]},"startup":{"samples":9,"fullMillisecondsP50":32.778083,"microMillisecondsP50":2.5329580000000007,"fullSamplesMilliseconds":[26.891,33.190167,34.665958999999994,34.158334,32.778083,32.179167,32.40691700000001,28.298916999999996,32.833124999999995],"microSamplesMilliseconds":[2.155000000000001,3.240040999999998,3.0432499999999933,3.464291000000003,2.0655830000000037,1.9025000000000034,3.346166999999994,2.5329580000000007,2.4080840000000023]}}
+push-registry.test.mjs: all cases passed
+attribution.test.mjs: non-2xx retention, byte-level pass-through, and per-class parity pass
+app-data anonymous-public custody assertions pass
+app-data.test.mjs: façade posture, redirect-terminal, ingress bounds, and bare artifact path pass
+media empty, argument contract, ready/refresh/denied, authority blank: ok
+media unavailable state: ok
+assets.test.mjs passed
+✔ incremental sha256 fallback matches node:crypto (6.173708ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8.849167
+assets-watch-authorization.test.mjs passed
+✔ liveQuery applies same-envelope authorization resolution without a blank boundary (45.20575ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 79.764125
+snapback-client lifecycle disposal tests: ok
+snapback-client bearer rotation tests: ok
+▶ authExchange terminates across interleaved internal authSession custody changes
+  ✔ uses a fresh anonymous capture and completes login (41.278958ms)
+  ✔ rejects typed stale instead of queueing behind the internal refresh barrier (3.718042ms)
+  ✔ rejects typed stale after custody advances to another session (3.093ms)
+✔ authExchange terminates across interleaved internal authSession custody changes (48.7715ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 57.699417
+snapback-client password auth tests: ok
+✔ password signup adopts the server principal without exposing the bearer (39.395583ms)
+▶ password change uses credential rotation and rejects authority mismatch
+  ✔ preserves the authority instance and replaces only bearer custody (4.5305ms)
+  ✔ refuses a changed authority instance without replacing custody (3.925084ms)
+✔ password change uses credential rotation and rejects authority mismatch (8.790292ms)
+▶ recovery credential projection stays six-key strict and secret-safe
+  ✔ accepts the exact recovery shape and rejects every other extra key (4.402292ms)
+  ✔ redacts recovery-code fields from server error payloads (0.891625ms)
+✔ recovery credential projection stays six-key strict and secret-safe (5.612333ms)
+✔ password methods refuse sender-constrained custody with a typed error (0.343333ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 63.969166
+snapback-client webcrypto fallback tests: ok
+argument-validation.test.mjs: all cases passed
+snapback client effect-free authorization reservation retry tests pass
+snapback-client search parser: pass
+external-store.test.mjs: lifecycle, identity, StrictMode, settlement, and handshake checks passed
+✔ S6 pre-gate floor registers one refusal and serves retained bytes opaquely (121.15625ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 124.991584
+sender-proof.test.mjs: non-extractable ES256 custody and exact proof shape pass
+SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED: the server at https://app.example.test did not establish the offered snapback.v1 binding (missing wireVersion response echo); this client is using a legacy (implicitly v1) connection and will stay offerless toward this endpoint for the process lifetime {
+  endpoint: 'https://app.example.test',
+  offered: 'snapback.v1',
+  detection: 'missing wireVersion response echo'
+}
+sender-transport.test.mjs: issuance, resource, challenge recovery, refresh, expiry/reset/logout/tombstone/invalidation recovery, in-band WebSocket successor release, and reflected-secret redaction pass
+snapback-client connection-open stream-reset retry tests passed
+hosted-browser.test.mjs: direct bearer and non-HTTPS seams are excluded
+snapback-client hosted ephemeral authority corpus passed
+ephemeral-room.test.mjs: negotiation, immediate handle, late cleanup, pre-opened socket readiness, and settlement pass
+✔ obligation 1 — canonical encoding parity: identical RFC 8785 (JCS) bytes and identical mint-time refusals; -0 serializes as 0 (5.771583ms)
+✔ obligation 2 — leaf parity: identical domain-separated length-framed leaves, including prefix-of-one-another row ids (0.259583ms)
+✔ obligation 3 — multiset digest parity: identical LtHash-16 mset1: roots; commutativity; incremental equals recompute; strict-subset change preserves untouched leaves (7.172375ms)
+✔ obligation 4 — sequence digest parity: identical seq1: digests; permuted order changes the digest (0.161958ms)
+✔ obligation 5 — token MAC transcript parity: identical tokenWire (length-framed transcript + HMAC-SHA256 tag) for the fixture key (0.483292ms)
+✔ argsHash carries its domain tag (spot check against the digest algebra) (0.308458ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19.331916
+✔ 0157-A3 byte-identical plans classify only from bound liveness (596.202125ms)
+✔ mixed consumption refuses unknown versions, open records, and shape inference (3.336209ms)
+✔ LLP 0112 format-1 registry behavior stays unchanged (0.297042ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 611.025291
+✔ rqsEntryKey is canonical over arg ordering and null on refused args (0.940375ms)
+✔ commit/load roundtrip is atomic {rows, meta, token} and clears in-progress; recency survives rewrites (14.52975ms)
+✔ React binding receipt is detached, bounded, writer-gated, uncounted, and cleared by wipe (5.149ms)
+✔ React binding receipt commit before election defers, keeps the latest, and lands (0.889375ms)
+✔ deferred React binding receipt flush on takeover keeps the newest savedAt (7.374167ms)
+✔ wipe drops a React binding receipt deferred before writer election (29.713ms)
+✔ an entry found in-progress at relaunch is refused (interrupted delta sequence) (4.767292ms)
+✔ corrupt, truncated, tampered, or identity-mismatched persisted state fails closed (2.899625ms)
+✔ budget eviction removes least-recently-resumed entries at the cap, atomically with the commit (4.726541ms)
+✔ byte budget binds too, and a single over-budget entry refuses to persist (dropping its predecessor) (6.92525ms)
+✔ two tabs: single writer under the Web Lock; the reader adopts but cannot write; takeover on close (32.321ms)
+✔ reader close aborts its queued lock request without waiting for the writer (1.597083ms)
+✔ remove and wipe purge persisted copies; a missing lock manager refuses construction (10.296417ms)
+✔ A-vs-B arbitration: higher version within matching identity wins; any identity mismatch discards both (2.908667ms)
+✔ defaults: budget constants and the structural outbox hook (2.852708ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 132.039833
+✔ commit/load roundtrip is atomic {rows, meta, token} and clears in-progress; recency survives rewrites (73.746ms)
+✔ operation identity range counter and queued intent survive file-store reopen atomically (67.810958ms)
+✔ React binding receipt is atomic, detached, bounded, uncounted, writer-gated, and durable (49.410666ms)
+✔ an entry found in-progress at relaunch is refused (interrupted delta sequence) (49.872792ms)
+✔ budget eviction removes least-recently-resumed entries at the cap, atomically with the commit (89.146916ms)
+✔ byte budget binds too, and a single over-budget entry refuses to persist (dropping its predecessor) (95.592542ms)
+✔ two instances, one directory: single writer; the reader adopts but cannot write; takeover on close (40.855ms)
+✔ a stale lock (dead pid, our own crashed pid, or unreadable) is taken over; a live foreign holder is not (49.746458ms)
+✔ corrupt blob bytes are preserved in place until identity-rotating reset (50.026ms)
+✔ a future/unknown blob format is the same corrupt verdict, never empty success (7.116667ms)
+✔ per-identity keying separates blobs; the user-switch wipe clears every identity (LLP 0053) with §D1 survivals for its own domain (79.222833ms)
+✔ a leftover temp file from a crashed write never shadows the blob and is cleared by wipe (39.863458ms)
+✔ defaults, construction validation, and the structural outbox hook (29.040583ms)
+✔ sweepStaleRqsBlobs unlinks only provably abandoned sibling origins (108.622791ms)
+✔ sweepStaleRqsBlobs keeps an old origin holding only a quarantined intent (54.844125ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 889.8865
+✔ IndexedDB v2 -> v3 adds the four stores and preserves entries/outbox/receipt byte-exact (10.238417ms)
+✔ IndexedDB older-client open against v3 fails closed with VersionError and leaves v3 intact (3.07575ms)
+✔ IndexedDB wipe clears five resident stores, preserves high-waters, rotates handle key, and allocator stays monotone (4.114708ms)
+✔ IndexedDB unreadable metadata resets only through identity rotation (3.534292ms)
+✔ file v2 -> v3 preserves entries, pending intent, acknowledgements, and receipt exactly (35.324333ms)
+✔ file migration crash cuts leave the prior or successor blob, never a hybrid (39.108458ms)
+✔ file wipe has the exact v3 projection and allocator remains monotone across it (79.871875ms)
+✔ memory carrier mirrors v3 sections with durable false and exact wipe survivals (2.457958ms)
+✔ unparseable file reset preserves evidence until authorization, then rotates store identity (16.290666ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 197.616083
+▶ public authLogout runs the v3 client-wide wipe on memory, IndexedDB, and file carriers
+  ✔ memory (37.4175ms)
+  ✔ indexeddb (13.037292ms)
+  ✔ file (212.723458ms)
+✔ public authLogout runs the v3 client-wide wipe on memory, IndexedDB, and file carriers (265.9465ms)
+✔ logout keeps the documented availability-only posture when the v3 wipe fails (9.236875ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 277.431
+✔ single-table legacy adoption atomically switches stores and waits for outbox on file (172.457791ms)
+✔ single-table legacy adoption atomically switches stores and waits for outbox on indexeddb (19.525375ms)
+✔ A5 installs Rust-server golden proof bytes and rejects binding near misses (11.868292ms)
+✔ finite carriers verify Rust-minted proof bytes and reject tamper or wrong identity (1.810833ms)
+✔ v2 trusted activation verifies proof custody with provenance generation drift (3.949458ms)
+✔ A5 proof installation and invalid-proof refusals are atomic on memory (23.283ms)
+✔ A5 proof installation and invalid-proof refusals are atomic on file (288.982042ms)
+✔ A5 proof installation and invalid-proof refusals are atomic on indexeddb (48.320666ms)
+✔ page-set manifest validates a same-version first-to-terminal proof chain (12.291958ms)
+✔ A7 retained boot executes every failure-table store effect with zero render on file (490.025625ms)
+✔ A7 retained boot executes every failure-table store effect with zero render on indexeddb (72.874709ms)
+✔ A8 fence, quarantine/release, delete, observation, and terminal-retirement races fail closed on memory (6.259875ms)
+✔ A8 fence, quarantine/release, delete, observation, and terminal-retirement races fail closed on file (172.033209ms)
+✔ A8 fence, quarantine/release, delete, observation, and terminal-retirement races fail closed on indexeddb (13.39125ms)
+✔ S3 payload compaction preserves fences, registrations, tombstones, and same instance on memory (6.793125ms)
+✔ S3 payload compaction preserves fences, registrations, tombstones, and same instance on file (133.155416ms)
+✔ S3 payload compaction preserves fences, registrations, tombstones, and same instance on indexeddb (10.672833ms)
+✔ store authority barrier covers every predecessor before its receipt initializes a successor (2.863ms)
+✔ single-record materialization budget refusal atomically leaves a compacted same-instance stub (2.494458ms)
+✔ integration regression: a non-writer context constructs the shipped read surface (2.805625ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1501.195708
+✔ offline volatile query and liveQuery establishment expose the D4 unknown answer (5.368666ms)
+✔ single_table_v1 maps to durable no-lease retention without consuming AuthorizedLease (3.520084ms)
+✔ composition activation v2 uses current generated identity after minted-generation drift (1.163125ms)
+✔ single-table connected prove arm atomically adopts legacy bytes and discards its token (583.199ms)
+✔ P2 public liveQuery establishes, retains, and relaunches authoritative-retained through qmk1 (530.269584ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1126.936542
+✔ S1 registration record is closed and source x ownerContext pairing refuses exactly (2.401083ms)
+✔ S1 qmk1 and grandfathered legacy registrations resolve into one exact sync set (7.995584ms)
+✔ S1 source durability is exact across restart (5.077042ms)
+✔ preload producer derives route ownership and atomically replaces the manifest set (3.202916ms)
+✔ preload manifest over the durable ceilings refuses without truncation or mutation (19.644542ms)
+✔ S1 durable registration caps refuse the 513th and a >16 KiB record without mutation (817.199792ms)
+✔ S1 merge lattice, final-release two-axis pin, and durable-to-volatile transition are exact (2.125209ms)
+✔ S1 scope serialization gives page-set precedence and marks superseded page demands unknown (2.07625ms)
+✔ S1 hydration calls L2 beginEstablishment with a four-attempt bound (2.130083ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 865.778084
+SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED: the server at https://answer-table.test did not establish the offered snapback.v1 binding (missing wireVersion response echo); this client is using a legacy (implicitly v1) connection and will stay offerless toward this endpoint for the process lifetime {
+  endpoint: 'https://answer-table.test',
+  offered: 'snapback.v1',
+  detection: 'missing wireVersion response echo'
+}
+SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED: the server at https://headless-stream.test did not establish the offered snapback.v1 binding (missing wireVersion response echo); this client is using a legacy (implicitly v1) connection and will stay offerless toward this endpoint for the process lifetime {
+  endpoint: 'https://headless-stream.test',
+  offered: 'snapback.v1',
+  detection: 'missing wireVersion response echo'
+}
+✔ S2 row 1 — qmk1: valid proof, retain disposition, valid witness and lease — connected (3.108667ms)
+✔ S2 row 1 — qmk1: valid proof, retain disposition, valid witness and lease — offline (0.36275ms)
+✔ S2 row 2 — qmk1: proof, binding, signature, or result integrity invalid — connected (0.308875ms)
+✔ S2 row 2 — qmk1: proof, binding, signature, or result integrity invalid — offline (0.322291ms)
+✔ S2 row 3 — qmk1: stored activation mismatches trusted artifact — connected (0.284083ms)
+✔ S2 row 3 — qmk1: stored activation mismatches trusted artifact — offline (0.198667ms)
+✔ S2 row 4 — qmk1: auth-scoped lease invalid — connected (0.157334ms)
+✔ S2 row 4 — qmk1: auth-scoped lease invalid — offline (0.121916ms)
+✔ S2 row 5 — qmk1: same witness stream with a newer epoch expected — connected (0.175333ms)
+✔ S2 row 5 — qmk1: same witness stream with a newer epoch expected — offline (0.727042ms)
+✔ S2 row 6 — qmk1: witness missing or bound to the wrong authority identity — connected (0.158833ms)
+✔ S2 row 6 — qmk1: witness missing or bound to the wrong authority identity — offline (0.158625ms)
+✔ S2 row 7 — qmk1: current establishment attempt refused without a valid proof — connected (0.085125ms)
+✔ S2 row 7 — qmk1: current establishment attempt refused without a valid proof — offline (0.180042ms)
+✔ S2 row 8 — qmk1: requested scope or version superseded — connected (0.09475ms)
+✔ S2 row 8 — qmk1: requested scope or version superseded — offline (0.063833ms)
+✔ S2 row 9 — legacy resume: verified entry with an empty outbox — connected (0.114166ms)
+✔ S2 row 9 — legacy resume: verified entry with an empty outbox — offline (0.031ms)
+✔ S2 row 10 — legacy resume: verified entry with pending outbox intents — connected (0.034ms)
+✔ S2 row 10 — legacy resume: verified entry with pending outbox intents — offline (0.037333ms)
+✔ S2 row 11 — legacy resume: entry verification fails — connected (0.039ms)
+✔ S2 row 11 — legacy resume: entry verification fails — offline (0.019375ms)
+✔ S2 row 12 — legacy resume: server-admission token expired — connected (0.025167ms)
+✔ S2 row 12 — legacy resume: server-admission token expired — offline (0.015583ms)
+✔ S2 row 13 — legacy resume: authorization invalidation requires retained-state purge — connected (0.0225ms)
+✔ S2 row 13 — legacy resume: authorization invalidation requires retained-state purge — offline (0.015334ms)
+✔ S2 row 14 — legacy lease: all LLP 0043 M1 authorization conditions hold — connected (0.04ms)
+✔ S2 row 14 — legacy lease: all LLP 0043 M1 authorization conditions hold — offline (0.0155ms)
+✔ S2 row 15 — legacy lease: lease authorization condition fails — connected (0.026125ms)
+✔ S2 row 15 — legacy lease: lease authorization condition fails — offline (0.019875ms)
+✔ S2 row 16 — qmk1 / single_table_v1@1: authority-independent snapshot has valid proof and no lease — connected (0.237708ms)
+✔ S2 row 16 — qmk1 / single_table_v1@1: authority-independent snapshot has valid proof and no lease — offline (0.089542ms)
+✔ S2 legacy rows 9-12 consume the shipped verifier without changing its behavior (3.797625ms)
+✔ S2 qmk1 client read wiring calls L2 readRenderable and returns bytes only as authoritative (11.232417ms)
+✔ S2 shipped liveQuery exposes labeled-retained then authoritative without altering Channel B (32.441333ms)
+✔ headless stream liveQuery works with rqsStore disabled against a reachable server (1.4385ms)
+✔ missing liveQuery connectionId is not mislabeled as offline (0.494042ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 65.209083
+▶ S8 — per-carrier capability honesty
+  ✔ memory is volatile, claims no transform carrier, and refuses durable fragments with a structured GAP (4.508209ms)
+  ✔ Expo file is volatile, claims no transform carrier, and refuses durable fragments with the same GAP (6.968584ms)
+  ✔ Node file is power-loss durable and admits the file-node transform profile (75.233375ms)
+  ✔ IndexedDB is durable, admits the browser profile, and an older opener gets VersionError without mutation (7.100708ms)
+  ✔ Node file preserves a future-format blob and refuses it with the stable corrupt-store diagnostic (6.758625ms)
+✔ S8 — per-carrier capability honesty (101.937083ms)
+ℹ tests 5
+ℹ suites 1
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 105.763417
+✔ closed broker records enforce UTF-8 identifier and serialized-message byte ceilings (1.38825ms)
+✔ full-set announces are pair-scoped, monotone, atomic, and heartbeat-reaped (11.878333ms)
+✔ malformed announce applies nothing and does not consume its revision (2.127ms)
+✔ durable forwarding/release is partition-safe, replayable, and generation-fenced (3.310125ms)
+✔ a pre-broker durable registration keeps its owner partition on release (2.099792ms)
+✔ release-before-forward tombstones are partition-keyed and evict at 1,025 total (3104.018875ms)
+✔ previously-consumed-forward replay requires both 1,025-entry windows to evict (8588.035667ms)
+✔ writer crash before outcome retries from durable consumed state (2.50225ms)
+✔ handoff reconciliation is pair-scoped and the 129th pair refuses (202.370584ms)
+✔ carrier qualification reports browser proof and file honest degradation (3.376042ms)
+✔ BroadcastChannel-shaped browser carrier protects a non-writer tab demand (3.708833ms)
+✔ a seam-refused registration refuses the whole announce without consuming the revision (LLP 0166 §D2) (5.051084ms)
+✔ a REAL BroadcastChannel delivers announces and handoff confirmations (fake-vs-real regression) (23.981125ms)
+✔ integration regression: a broker constructed as reader promotes through writer handoff (3.411375ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11961.688875
+✔ canonical materialization projection counts payload only (8.173459ms)
+✔ release grace pins the last snapshot in both release orders and rollback never accelerates GC (7.267541ms)
+✔ none-pinned release compacts at the next pass instead of retaining payload for the TTL window (3.626458ms)
+✔ budget pressure order and address-byte tie-break are carrier-identical on memory (8.832333ms)
+✔ budget pressure order and address-byte tie-break are carrier-identical on file (494.843167ms)
+✔ blocker-held custody reports safety blocker then compacts on the next pass (3.972958ms)
+✔ handoff suppression anchors release grace at suppression end and suspends maintenance (2.661375ms)
+✔ owner quarantine wins over demand-axis compaction policy (2.852583ms)
+✔ legacy envelope never competes with materializations and reports the grandfathered reason (3.497084ms)
+✔ StorePolicyInspectionV1 exposes enforced ceilings, one reason, and no secret or foreign partition data (2.669667ms)
+✔ integration regression: synchronizeFacts reads the ledger nested durable-registration layout (2.646583ms)
+✔ integration regression: policy inspection stays read-only in a non-writer context (2.177583ms)
+✔ synchronizeFacts prunes record-less registration-less grace-less policy facts (2.146834ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 548.903833
+✔ shipped boot reaps active, reloads programmatic, and re-derives preload registrations (30.984042ms)
+✔ shipped route boot projects each concrete generated query into owner-partitioned qmk1 preload demand (8.378417ms)
+✔ shipped runtime starts release grace and deadline-scheduled GC compacts at expiry (8.077ms)
+✔ expired release grace over an empty record clears the deadline without a zero-delay loop (6.0305ms)
+✔ shipped runtime pressure-compacts undemanded then idle and refuses demanded-active (13.107917ms)
+✔ second shipped context demand protects custody until heartbeat expiry reaps it (10.370625ms)
+✔ reader-forwarded register and release outcomes replay across writer death (8.914834ms)
+✔ writer handoff keeps policy suppression active until every roster pair reconciles (15.7955ms)
+✔ retentionRequest downgrade compacts at the next shipped maintenance pass (6.190375ms)
+✔ quiet shipped client allocates no broker/channel/timer when no qmk1 policy facts exist (1.853125ms)
+✔ idle non-writer runtime does not wake every heartbeat interval (3.346333ms)
+✔ legacy-only inline preload boot stays outside the Full store-runtime chunk (0.260375ms)
+✔ store runtime initialization preserves the constructor boot promise (1.8505ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 118.708958
+✔ S5 convergence resumes monotonically after crash cut before-begin (26.16825ms)
+✔ S5 convergence resumes monotonically after crash cut begin (10.499916ms)
+✔ S5 convergence resumes monotonically after crash cut successor (10.690958ms)
+✔ S5 convergence resumes monotonically after crash cut finalize (10.579334ms)
+✔ S5 pending-intent and connectivity refusals touch neither intent nor owner state (7.132208ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 68.165041
+snapback client outbox store tests pass
+✔ memory arm carries the outbox contract (6.524459ms)
+✔ operation range, next counter, and intent move in one outbox transition (0.368792ms)
+✔ ACK pressure refuses settlement publication without losing pending intent (1.107666ms)
+✔ ACK custody is scoped by authority instance as well as user (0.226042ms)
+✔ memory arm carries the optional React binding receipt outside entry accounting (1.39575ms)
+✔ indexeddb arm carries the outbox contract atomically (13.814792ms)
+✔ file arm outbox survives relaunch and refuses non-writers (338.993833ms)
+✔ file arm retains a consumed settlement and ACK obligation across relaunch (52.446ms)
+✔ file arm migrates a v1 blob in place (entries kept, empty outbox) (38.840834ms)
+✔ default store resolution ladder (1.991667ms)
+✔ client constructor reports the resolved store (DK-9 degradation fact) (0.927042ms)
+✔ volatile store never claims the durable settlement-publication path (2.232375ms)
+✔ closeAuth releases an owned default store for the next sequential client (44.049958ms)
+✔ mutate queues on connectivity failure and replays exactly-once (22.567334ms)
+✔ checked sidecar adoption drains one injected store against the candidate origin (1.241458ms)
+✔ sidecar adoption refuses freshness, store, writer, and artifact divergence before replay (25.79125ms)
+✔ sidecar adoption keeps identity-divergent intent pending for rollback (1.489709ms)
+✔ opt-in client range transport allocates before first mutation and reuses one retry carrier (1.365708ms)
+✔ uncovered offline intent obtains and durably assigns a range before reconnect admission (0.860417ms)
+✔ server epoch-capacity refusal keeps uncovered intent queued for fresh authority (0.662875ms)
+✔ fresh same-principal authority atomically covers capacity-stranded intent (2.165917ms)
+✔ sessions mode automatically carries authority through range issuance and ACK custody (0.928334ms)
+✔ authority rotation allocates a disjoint range without rebinding old queued identity (1.325709ms)
+✔ mixed lane-Q and lane-L intents replay in sequence with immutable per-item policy (2.4905ms)
+✔ LLP 0133 sketch 3 rewrites mapped speculative-id leaves before dependent submission (1.469667ms)
+✔ LLP 0133 sketch 3 rejection cascades transitively without dependent submission (0.964667ms)
+✔ LLP 0133 sketch 3 unmapped successful mint takes the same local cascade (0.148459ms)
+✔ LLP 0133 speculative-id submission fence blocks a pending mint predecessor (0.075625ms)
+✔ queued generated mutation retains its call-time artifact generation through replay (0.409416ms)
+✔ explicit-id online publication is durable before delivery and retires only after ACK (0.899583ms)
+✔ standalone ACK confirms only its exact authority cohort (0.213125ms)
+✔ explicit-id server refusal is failed locally and never acknowledged (0.264959ms)
+✔ mutate teardown preserves the real refusal when failure marking races store close (1.993083ms)
+✔ explicit id cannot be rebound to another durable replay identity (0.605625ms)
+✔ server settlement descriptor enriches ACK custody without rebinding request identity (0.153792ms)
+✔ crash recovery exposes and consumes only the re-attested authority cohort (0.427542ms)
+✔ post-response persistence failure remains pending and is never published as failed (0.531542ms)
+✔ replay persistence failure stops without drop-and-mark-failed (0.411375ms)
+✔ identity horizon outcome-unknown remains pending online and during replay (0.483209ms)
+✔ committed result-expired becomes durable result-gone and blocks ordered successors (0.41275ms)
+✔ recreated file-backed client preserves result-gone without redelivery (48.26675ms)
+✔ replay drop-and-mark-failed on server refusal, pending kept on connectivity (1.316084ms)
+✔ mutate queues when the carrier fetch rejects a plain Error (Expo shape) (0.590208ms)
+✔ caller aborts and server answers are never classified as connectivity (0.467167ms)
+✔ connectivity classification excludes custody and answered refusals (0.07275ms)
+✔ mutationStatus reports pending durable intent without inferring outcome-unknown (0.184083ms)
+✔ restart settlement recovery reports settled with the complete retained payload (0.617167ms)
+✔ mutationStatus reports a retained terminal failure (0.128667ms)
+✔ mutationStatus reports a payload-free quarantined disposition (0.113625ms)
+✔ mutationStatus maps result-gone and carries its retained outcome facts (0.1255ms)
+✔ result-gone acknowledgement is payload-free and releases its ordered-successor fence (0.2735ms)
+✔ mutationStatus reports unknown after ACK consumption and collection (0.176084ms)
+✔ subscribeMutation delivers current pending then settled during replay (2.347417ms)
+✔ mutation observation never consumes settlement or changes ACK eligibility (0.2555ms)
+✔ outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-arm seam) (0.970292ms)
+ℹ tests 55
+ℹ suites 0
+ℹ pass 55
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 634.66675
+✔ sessions enqueue captures only descriptor, principal scope, and durable custody (35.833791ms)
+✔ clearing fence refuses post-connectivity enqueue and preserves the original error (20.495584ms)
+✔ capture-validate-commit race compensates the write and surfaces connectivity (5.06ms)
+✔ authority resume remains available when queue custody reconciliation is refused (4.100292ms)
+✔ cold-process replay uses the stored descriptor and applies one delivery (11.147375ms)
+✔ same principal on a new authority instance strands pending and failed records (6.300208ms)
+✔ principal switch deletes every predecessor disposition before successor observation (7.750542ms)
+✔ server authority-stale strands and continues to an ordinary failed refusal (6.748709ms)
+✔ session-generation advance and bearer refresh preserve same-instance pending work (3.981084ms)
+✔ stranded recovery reads, discards, and rerecords as a new current intent (10.248875ms)
+✔ anonymous settled sessions custody queues and replays without actor assumptions (2.540792ms)
+✔ queued values beyond 16 KiB round-trip a post-boundary lone surrogate exactly (4.345334ms)
+✔ null and absent optional fields share one durable replay identity (0.519333ms)
+✔ stranded records are terminal and do not hold the LLP 0090 D3 gate (0.1195ms)
+✔ stranding a valid near-limit record cannot wedge an authority transition (6.111916ms)
+✔ unattributable queue records are privacy-deleted at fenced reconciliation (1.43175ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 131.345167
+✔ resync-before-replay: replay waits for the fresh authoritative barrier cut (34.455916ms)
+✔ cold-start drain: restored pending intent drains with no fresh external event (1.340375ms)
+✔ transient-failure retry: connectivity replay failure retries on backoff without an event (2.343334ms)
+✔ no-mounted-query drain: controller resyncs retained registrations itself (2.110208ms)
+✔ two-tab writer refusal + takeover: reader wakes on writer acquisition and projections converge (5.417084ms)
+✔ auth replacement wake: successor bearer bind wakes a paused drain without another edge (2.36575ms)
+✔ terminal refusal: typed replay refusal stops that record and remains observable (1.300291ms)
+✔ bounded backoff: repeated transient failures never schedule beyond the cap (3.915416ms)
+✔ dedup/teardown: double start shares one controller and stop removes every listener/timer (0.9765ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58.323833
+✔ upgrade-required replay quarantines every pending intent as a redacted tombstone (31.222542ms)
+✔ explicit successor re-entry restores pending payloads and drains each identity once (2.857917ms)
+✔ non-upgrade replay refusal remains drop-and-mark-failed (0.948959ms)
+✔ quarantined records retain the unchanged 1024-record capacity bound (70.974542ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 110.09125
+SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED: the server at https://rqs.example.test did not establish the offered snapback.v1 binding (missing wireVersion response echo); this client is using a legacy (implicitly v1) connection and will stay offerless toward this endpoint for the process lifetime {
+  endpoint: 'https://rqs.example.test',
+  offered: 'snapback.v1',
+  detection: 'missing wireVersion response echo'
+}
+✔ relaunch renders persisted rows as retained with the wire showing only CurrentAsOf (rung 1) [web/indexeddb] (48.72925ms)
+✔ stream CurrentAsOf may overtake the rowless subscribe acknowledgement [web/indexeddb] (10.290833ms)
+✔ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (11.9125ms)
+✔ relaunch AFTER live deltas resumes from the refreshed token without discarding persisted state [web/indexeddb] (9.127083ms)
+✔ relaunch with an mset1 entry sends the membership witness and rung-2 delta replay applies a predicate exit [web/indexeddb] (9.858458ms)
+✔ a seq1 persisted entry sends no membership witness [web/indexeddb] (4.372125ms)
+✔ a rung-2 delta whose post-replay digest mismatches is discarded: client-side rung 3 (T8 failure) [web/indexeddb] (11.36175ms)
+✔ a replace-only (seq1) persisted entry takes rung 3 without error and the refused state is replaced [web/indexeddb] (4.8995ms)
+✔ storage reset rotates versionStream: the stale token is refused (rung 3) and persisted state discarded [web/indexeddb] (9.520083ms)
+✔ corrupt persisted state fails closed: no retained render, no token, entry invalidated [web/indexeddb] (8.28ms)
+✔ an entry left in-progress by an interrupted delta sequence falls back to fresh subscribe [web/indexeddb] (6.175041ms)
+✔ token persistence failure falls back to fresh subscribe and never surfaces (T9) [web/indexeddb] (5.1785ms)
+✔ auth-scoped/non-eligible data is never persisted: no token minted, nothing stored, relaunch renders nothing stale [web/indexeddb] (2.518208ms)
+✔ a time-dependent (non-eligible) query re-executes on relaunch instead of receiving CurrentAsOf [web/indexeddb] (1.078958ms)
+✔ a non-empty relaunch outbox suppresses resumeFromToken but still renders retained pre-intent rows (LLP 0090 D3 outbox rule, 2026-08-01 rendering note) [web/indexeddb] (5.88325ms)
+✔ ResyncRequired with clear_retained purges the persisted copy, not just memory [web/indexeddb] (2.654959ms)
+✔ two contexts racing persistence respect the single-writer lock; the reader adopts the store token [web/indexeddb] (9.672042ms)
+✔ preloadedResume (Channel A) arbitrates against the persisted entry per LLP 0090 D3 [web/indexeddb] (10.343542ms)
+✔ persistence rides the debounce cadence without an explicit flush [web/indexeddb] (1205.874834ms)
+✔ per-subscription opt-out (persistResume: false) keeps the store empty — the 0C manifest hook stand-in [web/indexeddb] (1104.17925ms)
+✔ membershipWitnessOfRows is exact, sorted, capped, and fail-closed (unit) (1.1165ms)
+✔ an auth-scoped subscription refuses retention with SNAPBACK_RETENTION_NOT_RETAINABLE and persists nothing (3.851791ms)
+✔ protected query custody renders only inside its lease and deletes before expiry/mismatch exposure (21.311583ms)
+✔ SnapbackClient projects a lease-valid protected record on a cold offline handle (23.3045ms)
+✔ rqsRetentionIneligibilityReason names the failed eligibility layer from the generated reference (0.241708ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2536.554959
+SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED: the server at https://rqs.example.test did not establish the offered snapback.v1 binding (missing wireVersion response echo); this client is using a legacy (implicitly v1) connection and will stay offerless toward this endpoint for the process lifetime {
+  endpoint: 'https://rqs.example.test',
+  offered: 'snapback.v1',
+  detection: 'missing wireVersion response echo'
+}
+✔ relaunch renders persisted rows as retained with the wire showing only CurrentAsOf (rung 1) [native/file] (228.10725ms)
+✔ stream CurrentAsOf may overtake the rowless subscribe acknowledgement [native/file] (185.432458ms)
+✔ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [native/file] (97.024917ms)
+✔ relaunch AFTER live deltas resumes from the refreshed token without discarding persisted state [native/file] (50.841042ms)
+✔ relaunch with an mset1 entry sends the membership witness and rung-2 delta replay applies a predicate exit [native/file] (91.099875ms)
+✔ a seq1 persisted entry sends no membership witness [native/file] (55.058709ms)
+✔ a rung-2 delta whose post-replay digest mismatches is discarded: client-side rung 3 (T8 failure) [native/file] (163.679167ms)
+✔ a replace-only (seq1) persisted entry takes rung 3 without error and the refused state is replaced [native/file] (183.704792ms)
+✔ storage reset rotates versionStream: the stale token is refused (rung 3) and persisted state discarded [native/file] (105.861709ms)
+✔ corrupt persisted state fails closed: no retained render, no token, entry invalidated [native/file] (102.956875ms)
+✔ an entry left in-progress by an interrupted delta sequence falls back to fresh subscribe [native/file] (93.665209ms)
+✔ token persistence failure falls back to fresh subscribe and never surfaces (T9) [native/file] (28.330416ms)
+✔ auth-scoped/non-eligible data is never persisted: no token minted, nothing stored, relaunch renders nothing stale [native/file] (19.483792ms)
+✔ a time-dependent (non-eligible) query re-executes on relaunch instead of receiving CurrentAsOf [native/file] (14.743417ms)
+✔ a non-empty relaunch outbox suppresses resumeFromToken but still renders retained pre-intent rows (LLP 0090 D3 outbox rule, 2026-08-01 rendering note) [native/file] (42.471541ms)
+✔ ResyncRequired with clear_retained purges the persisted copy, not just memory [native/file] (54.715042ms)
+✔ two contexts racing persistence respect the single-writer lock; the reader adopts the store token [native/file] (45.406167ms)
+✔ preloadedResume (Channel A) arbitrates against the persisted entry per LLP 0090 D3 [native/file] (69.988792ms)
+✔ persistence rides the debounce cadence without an explicit flush [native/file] (1218.766959ms)
+✔ per-subscription opt-out (persistResume: false) keeps the store empty — the 0C manifest hook stand-in [native/file] (1123.137625ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3979.543208
+SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED: the server at https://rqs.example.test did not establish the offered snapback.v1 binding (missing wireVersion response echo); this client is using a legacy (implicitly v1) connection and will stay offerless toward this endpoint for the process lifetime {
+  endpoint: 'https://rqs.example.test',
+  offered: 'snapback.v1',
+  detection: 'missing wireVersion response echo'
+}
+✔ relaunch renders persisted rows as retained with the wire showing only CurrentAsOf (rung 1) [memory] (47.503708ms)
+✔ stream CurrentAsOf may overtake the rowless subscribe acknowledgement [memory] (8.276583ms)
+✔ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [memory] (7.655ms)
+✔ relaunch AFTER live deltas resumes from the refreshed token without discarding persisted state [memory] (7.956125ms)
+✔ relaunch with an mset1 entry sends the membership witness and rung-2 delta replay applies a predicate exit [memory] (7.869333ms)
+✔ a seq1 persisted entry sends no membership witness [memory] (2.314416ms)
+✔ a rung-2 delta whose post-replay digest mismatches is discarded: client-side rung 3 (T8 failure) [memory] (6.773584ms)
+✔ a replace-only (seq1) persisted entry takes rung 3 without error and the refused state is replaced [memory] (4.105458ms)
+✔ storage reset rotates versionStream: the stale token is refused (rung 3) and persisted state discarded [memory] (5.114833ms)
+✔ corrupt persisted state fails closed: no retained render, no token, entry invalidated [memory] (6.610084ms)
+✔ an entry left in-progress by an interrupted delta sequence falls back to fresh subscribe [memory] (4.133333ms)
+✔ token persistence failure falls back to fresh subscribe and never surfaces (T9) [memory] (3.539542ms)
+✔ auth-scoped/non-eligible data is never persisted: no token minted, nothing stored, relaunch renders nothing stale [memory] (2.012875ms)
+✔ a time-dependent (non-eligible) query re-executes on relaunch instead of receiving CurrentAsOf [memory] (1.97775ms)
+✔ a non-empty relaunch outbox suppresses resumeFromToken but still renders retained pre-intent rows (LLP 0090 D3 outbox rule, 2026-08-01 rendering note) [memory] (4.4795ms)
+✔ ResyncRequired with clear_retained purges the persisted copy, not just memory [memory] (2.637125ms)
+✔ two contexts racing persistence respect the single-writer lock; the reader adopts the store token [memory] (5.991792ms)
+✔ preloadedResume (Channel A) arbitrates against the persisted entry per LLP 0090 D3 [memory] (9.930917ms)
+✔ persistence rides the debounce cadence without an explicit flush [memory] (1200.955875ms)
+✔ per-subscription opt-out (persistResume: false) keeps the store empty — the 0C manifest hook stand-in [memory] (1103.507083ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2447.85025
+✔ adapter refuses a module without the pinned File/Directory shape (0.899917ms)
+✔ exclusive writes preserve the first writer and utf8 reads roundtrip (3.04375ms)
+✔ rename replaces, unlink reports absence, and readdir returns URI-decoded names (2.863041ms)
+✔ the launch id is stable and exactly defines mobile-process liveness (0.771333ms)
+✔ cryptoless RN keeps Online clients usable and reports the optional store unavailable (1.874208ms)
+✔ Expo crypto injection enables the native store without mutating global crypto (2.51725ms)
+✔ Expo store defaults under Paths.document, survives relaunch, and reclaims a crashed lock (6.917458ms)
+✔ corrupt bytes fail closed in place until identity-rotating reset (3.645917ms)
+✔ default ladder registers Expo for RN without claiming power-loss durability, isolates origins, resets, and leaves node intact (17.806125ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 43.818167
+SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED: the server at https://rqs.example.test did not establish the offered snapback.v1 binding (missing wireVersion response echo); this client is using a legacy (implicitly v1) connection and will stay offerless toward this endpoint for the process lifetime {
+  endpoint: 'https://rqs.example.test',
+  offered: 'snapback.v1',
+  detection: 'missing wireVersion response echo'
+}
+✔ relaunch renders persisted rows as retained with the wire showing only CurrentAsOf (rung 1) [native/expo-file-system] (49.1805ms)
+✔ stream CurrentAsOf may overtake the rowless subscribe acknowledgement [native/expo-file-system] (8.099583ms)
+✔ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [native/expo-file-system] (9.456459ms)
+✔ relaunch AFTER live deltas resumes from the refreshed token without discarding persisted state [native/expo-file-system] (8.201708ms)
+✔ relaunch with an mset1 entry sends the membership witness and rung-2 delta replay applies a predicate exit [native/expo-file-system] (7.542625ms)
+✔ a seq1 persisted entry sends no membership witness [native/expo-file-system] (3.837875ms)
+✔ a rung-2 delta whose post-replay digest mismatches is discarded: client-side rung 3 (T8 failure) [native/expo-file-system] (7.452542ms)
+✔ a replace-only (seq1) persisted entry takes rung 3 without error and the refused state is replaced [native/expo-file-system] (3.845ms)
+✔ storage reset rotates versionStream: the stale token is refused (rung 3) and persisted state discarded [native/expo-file-system] (5.885333ms)
+✔ corrupt persisted state fails closed: no retained render, no token, entry invalidated [native/expo-file-system] (7.230208ms)
+✔ an entry left in-progress by an interrupted delta sequence falls back to fresh subscribe [native/expo-file-system] (4.846541ms)
+✔ token persistence failure falls back to fresh subscribe and never surfaces (T9) [native/expo-file-system] (4.327458ms)
+✔ auth-scoped/non-eligible data is never persisted: no token minted, nothing stored, relaunch renders nothing stale [native/expo-file-system] (2.619292ms)
+✔ a time-dependent (non-eligible) query re-executes on relaunch instead of receiving CurrentAsOf [native/expo-file-system] (1.971084ms)
+✔ a non-empty relaunch outbox suppresses resumeFromToken but still renders retained pre-intent rows (LLP 0090 D3 outbox rule, 2026-08-01 rendering note) [native/expo-file-system] (4.554375ms)
+✔ ResyncRequired with clear_retained purges the persisted copy, not just memory [native/expo-file-system] (3.562416ms)
+✔ two contexts racing persistence respect the single-writer lock; the reader adopts the store token [native/expo-file-system] (6.685209ms)
+✔ preloadedResume (Channel A) arbitrates against the persisted entry per LLP 0090 D3 [native/expo-file-system] (12.680292ms)
+✔ persistence rides the debounce cadence without an explicit flush [native/expo-file-system] (1205.837792ms)
+✔ per-subscription opt-out (persistResume: false) keeps the store empty — the 0C manifest hook stand-in [native/expo-file-system] (1103.266042ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2464.934625
+bundle.test.mjs passed
+browser-closure.test.mjs passed
+snapback-client wire-version tests passed

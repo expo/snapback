@@ -1012,9 +1012,15 @@ export class AuthCoordinator {
   get phase() { return this.#counterExhaustionError ? 'exhausted' : (this.#record?.phase ?? 'blank'); }
 
   get authority() {
-    return !this.#counterExhaustionError && this.#record?.phase === 'settled'
-      ? clone(this.#record.authority)
-      : null;
+    if (this.#counterExhaustionError || this.#record?.phase !== 'settled') return null;
+    // The durable authority is deliberately a smaller, exact record than the
+    // public projection. Derive the convenience authentication fact at this
+    // read boundary so custody written by older clients remains valid and an
+    // anonymous transition (including logout) is unambiguous to app code.
+    return {
+      ...clone(this.#record.authority),
+      isAuthenticated: this.#record.authority.kind === 'session',
+    };
   }
 
   capture() {
@@ -1872,6 +1878,109 @@ export class AuthCoordinator {
     }
   }
 
+  /**
+   * Recover publication-closed custody from a server-witnessed anonymous
+   * authority on a different authorization-stream incarnation.
+   *
+   * @ref LLP 0059#unrecognized-authority-recovery — capture-free recovery is
+   *   admitted only after ordinary publication has failed closed, and the
+   *   witnessed successor still enters the standard transition barrier.
+   */
+  async recoverUnrecognizedAuthority(
+    observedAnonymousAuthority,
+    reason = 'unrecognized_authority',
+  ) {
+    this.#assertOperationAllowed();
+    const observed = normalizeClientAuthority(observedAnonymousAuthority);
+    if (observed.kind !== 'anonymous') {
+      throw coordinatorError(
+        'SNAPBACK_AUTH_CUSTODY_BOOTSTRAP_INVALID',
+        'unrecognized-authority recovery requires an anonymous server handshake',
+      );
+    }
+    if (
+      !this.#publicationPaused
+      || this.#activeBarrier !== null
+      || this.#record === null
+      || !['settled', 'clearing'].includes(this.#record.phase)
+    ) {
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'capture-free authority recovery requires failed-closed or stuck-clearing custody',
+      );
+    }
+    this.#assertParticipantRegistrationsReady();
+    const local = validateAuthCustody(this.#record, this.#appId);
+    const localAuthority = local.phase === 'settled'
+      ? local.authority
+      : local.pendingAuthority;
+    const localFingerprint = Object.freeze({
+      phase: local.phase,
+      revision: local.revision,
+      authorityEpoch: local.authorityEpoch,
+      authorityKey: canonicalAuthorityKey(this.#appId, localAuthority),
+      transitionId: local.transitionIntent?.transitionId ?? null,
+    });
+    const normalized = {
+      authority: observed,
+      bearer: null,
+      refreshAfterMs: null,
+      senderConstraint: null,
+    };
+    const owned = await this.#withOwnership(async (owner) => {
+      const current = await this.#readOwned(owner);
+      const currentAuthority = current?.phase === 'settled'
+        ? current.authority
+        : current?.phase === 'clearing'
+          ? current.pendingAuthority
+          : null;
+      const localStillExact = this.#publicationPaused
+        && this.#activeBarrier === null
+        && this.#record?.phase === localFingerprint.phase
+        && this.#record?.revision === localFingerprint.revision
+        && this.#record?.authorityEpoch === localFingerprint.authorityEpoch
+        && canonicalAuthorityKey(
+          this.#appId,
+          this.#record?.phase === 'settled'
+            ? this.#record.authority
+            : this.#record.pendingAuthority,
+        ) === localFingerprint.authorityKey
+        && (this.#record?.transitionIntent?.transitionId ?? null)
+          === localFingerprint.transitionId;
+      const durableExact = currentAuthority !== null
+        && current.phase === localFingerprint.phase
+        && current.revision === localFingerprint.revision
+        && current.authorityEpoch === localFingerprint.authorityEpoch
+        && canonicalAuthorityKey(this.#appId, currentAuthority)
+          === localFingerprint.authorityKey
+        && (current.transitionIntent?.transitionId ?? null)
+          === localFingerprint.transitionId;
+      if (!localStillExact || !durableExact) {
+        throw coordinatorError(
+          'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          'durable authority changed before unrecognized-authority recovery',
+        );
+      }
+      if (
+        observed.authorizationStreamIncarnation
+        === currentAuthority.authorizationStreamIncarnation
+      ) {
+        throw coordinatorError(
+          'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          'anonymous recovery handshake did not witness a different authorization-stream incarnation',
+        );
+      }
+      return this.#beginClearingTransitionOwned(
+        owner,
+        current,
+        normalized,
+        reason,
+        currentAuthority,
+      );
+    });
+    return this.#resumeAfterOwnership(owned);
+  }
+
   async transition(expected, successor, reason = 'authority_change') {
     this.#assertOperationAllowed();
     const normalized = await normalizeSuccessor(successor);
@@ -1945,81 +2054,102 @@ export class AuthCoordinator {
           'an existing bearer-only session cannot gain a sender constraint in place',
         );
       }
-      const senderFormat = (
-        current.formatVersion === SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
-        || normalized.senderConstraint !== null
+      return this.#beginClearingTransitionOwned(
+        owner,
+        current,
+        normalized,
+        reason,
+        current.authority,
       );
-      if (senderFormat && normalized.authority.kind === 'session' && normalized.senderConstraint === null) {
-        throw coordinatorError(
-          'SNAPBACK_AUTH_SENDER_CUSTODY_REQUIRED',
-          'a sender-constrained session transition requires its new sender constraint',
-        );
-      }
-      let nextEpoch;
-      let clearingRevision;
-      try {
-        nextEpoch = nextAuthorityEpoch(current.authorityEpoch);
-        clearingRevision = nextRevision(current.revision);
-        // A transition requires two durable increments. Check both before
-        // publishing clearing so exhaustion cannot strand a half-transition.
-        nextRevision(clearingRevision);
-      } catch (error) {
-        if (!isCounterExhaustion(error)) throw error;
-        await this.#terminalizeOwned(owner, current, error);
-        throw error;
-      }
-      const expectedAuthorityKey = canonicalAuthorityKey(this.#appId, current.authority);
-      const senderConstraintThumbprint = normalized.senderConstraint?.thumbprint ?? null;
-      const transitionIntent = {
-        formatVersion: senderFormat ? 2 : 1,
-        transitionId: transitionIdFor(
-          this.#appId,
-          current.revision,
-          nextEpoch,
-          successorKey,
-          senderFormat ? senderConstraintThumbprint : undefined,
-        ),
-        expectedEpoch: current.authorityEpoch,
-        expectedAuthorityKey,
-        nextEpoch,
-        nextAuthorityKey: successorKey,
-        reason,
-        disposition: 'delete',
-        previousAuthority: clone(current.authority),
-        nextAuthority: clone(normalized.authority),
-        ...(senderFormat ? { senderConstraintThumbprint } : {}),
-      };
-      const clearing = await owner.replace(current.revision, {
-        formatVersion: senderFormat
-          ? SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
-          : SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
-        appId: this.#appId,
-        authorityEpoch: nextEpoch,
-        revision: clearingRevision,
-        phase: 'clearing',
-        authority: null,
-        pendingAuthority: normalized.authority,
-        bearer: null,
-        pendingBearer: normalized.bearer,
-        refreshAfterMs: normalized.refreshAfterMs,
-        transitionIntent,
-        ...(senderFormat ? {
-          senderConstraint: null,
-          pendingSenderConstraint: normalized.senderConstraint,
-        } : {}),
-      });
-      return this.#prepareClearingBarrierOwned(owner, clearing, {
-        expectedEpoch: current.authorityEpoch,
-        expectedAuthorityKey,
-        nextEpoch,
-        nextAuthorityKey: successorKey,
-        reason,
-        disposition: 'delete',
-        previousAuthority: clone(current.authority),
-        nextAuthority: clone(normalized.authority),
-      });
     });
     return this.#resumeAfterOwnership(owned);
+  }
+
+  async #beginClearingTransitionOwned(
+    owner,
+    current,
+    normalized,
+    reason,
+    previousAuthority,
+  ) {
+    const successorKey = canonicalAuthorityKey(this.#appId, normalized.authority);
+    const senderFormat = (
+      current.formatVersion === SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+      || normalized.senderConstraint !== null
+    );
+    if (
+      senderFormat
+      && normalized.authority.kind === 'session'
+      && normalized.senderConstraint === null
+    ) {
+      throw coordinatorError(
+        'SNAPBACK_AUTH_SENDER_CUSTODY_REQUIRED',
+        'a sender-constrained session transition requires its new sender constraint',
+      );
+    }
+    let nextEpoch;
+    let clearingRevision;
+    try {
+      nextEpoch = nextAuthorityEpoch(current.authorityEpoch);
+      clearingRevision = nextRevision(current.revision);
+      // A transition requires two durable increments. Check both before
+      // publishing clearing so exhaustion cannot strand a half-transition.
+      nextRevision(clearingRevision);
+    } catch (error) {
+      if (!isCounterExhaustion(error)) throw error;
+      await this.#terminalizeOwned(owner, current, error);
+      throw error;
+    }
+    const expectedAuthorityKey = canonicalAuthorityKey(this.#appId, previousAuthority);
+    const senderConstraintThumbprint = normalized.senderConstraint?.thumbprint ?? null;
+    const transitionIntent = {
+      formatVersion: senderFormat ? 2 : 1,
+      transitionId: transitionIdFor(
+        this.#appId,
+        current.revision,
+        nextEpoch,
+        successorKey,
+        senderFormat ? senderConstraintThumbprint : undefined,
+      ),
+      expectedEpoch: current.authorityEpoch,
+      expectedAuthorityKey,
+      nextEpoch,
+      nextAuthorityKey: successorKey,
+      reason,
+      disposition: 'delete',
+      previousAuthority: clone(previousAuthority),
+      nextAuthority: clone(normalized.authority),
+      ...(senderFormat ? { senderConstraintThumbprint } : {}),
+    };
+    const clearing = await owner.replace(current.revision, {
+      formatVersion: senderFormat
+        ? SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+        : SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+      appId: this.#appId,
+      authorityEpoch: nextEpoch,
+      revision: clearingRevision,
+      phase: 'clearing',
+      authority: null,
+      pendingAuthority: normalized.authority,
+      bearer: null,
+      pendingBearer: normalized.bearer,
+      refreshAfterMs: normalized.refreshAfterMs,
+      transitionIntent,
+      ...(senderFormat ? {
+        senderConstraint: null,
+        pendingSenderConstraint: normalized.senderConstraint,
+      } : {}),
+    });
+    return this.#prepareClearingBarrierOwned(owner, clearing, {
+      expectedEpoch: current.authorityEpoch,
+      expectedAuthorityKey,
+      nextEpoch,
+      nextAuthorityKey: successorKey,
+      reason,
+      disposition: 'delete',
+      previousAuthority: clone(previousAuthority),
+      nextAuthority: clone(normalized.authority),
+    });
   }
 
   registerParticipant(participant, { before = null } = {}) {

@@ -23,6 +23,10 @@ export type SnapbackClientAuthority =
       userId: string;
     };
 
+export type SnapbackClientAuthorityView = SnapbackClientAuthority & {
+  readonly isAuthenticated: boolean;
+};
+
 export interface SnapbackSenderPublicJwk {
   crv: 'P-256';
   kty: 'EC';
@@ -192,7 +196,7 @@ export class AuthCoordinator {
 
   get appId(): string;
   get phase(): SnapbackAuthCustodyPhase | 'blank';
-  get authority(): SnapbackClientAuthority | null;
+  get authority(): SnapbackClientAuthorityView | null;
 
   capture(): SnapbackAuthorityCapture;
   isCurrent(capture: SnapbackAuthorityCapture | null | undefined): boolean;
@@ -322,6 +326,16 @@ export class AuthCoordinator {
     capture: SnapbackAuthorityCapture,
     reason?: string,
   ): Promise<{ cleared: boolean }>;
+
+  /**
+   * Replace failed-closed or stuck-clearing custody from a server-witnessed
+   * anonymous authority on a different authorization-stream incarnation.
+   * Healthy settled custody must use capture-scoped transition/compare-clear.
+   */
+  recoverUnrecognizedAuthority(
+    observedAnonymousAuthority: SnapbackClientAuthority | Readonly<Record<string, unknown>>,
+    reason?: string,
+  ): Promise<SnapbackAuthorityCapture>;
 
   transition(
     expected: SnapbackAuthorityCapture,

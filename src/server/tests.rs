@@ -430,7 +430,6 @@ use crate::auth::service_fence::{
     ServiceAuthorityCommitInterlock, ServiceAuthorityFenceRegistry,
     with_service_authority_terminal_gate,
 };
-use crate::storage::auth::PasswordIdentifierMode;
 use crate::contract_types::{AuthProviderProfile, RevocationReason, ServerProfile};
 use crate::cron::CronRunOutcome;
 use crate::diagnostic::SnapbackError;
@@ -453,6 +452,7 @@ use crate::manifest::{
 use crate::runtime::{ActionStreamRequest, IbexActionHost};
 use crate::storage::ClientMutationIdentity;
 use crate::storage::auth::AuthTransactionAttempt;
+use crate::storage::auth::PasswordIdentifierMode;
 use axum::Json;
 use axum::body::{Body, Bytes, to_bytes};
 use axum::extract::{ConnectInfo, Extension, Path as AxumPath, State};
@@ -2080,6 +2080,7 @@ fn protected_room_server_fixture() -> (AppState, tempfile::TempDir) {
         auth: Some(AuthManifest {
             mode: AuthMode::Sessions,
             agents: None,
+            password_identifier_mode: None,
         }),
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         schema_hash: Some(format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64))),
@@ -3384,6 +3385,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode(
         auth: Some(AuthManifest {
             mode: AuthMode::Sessions,
             agents,
+            password_identifier_mode: None,
         }),
         api,
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
@@ -11438,8 +11440,11 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(unknown["diagnostic"]["code"], "SNAPBACK_UNKNOWN_FUNCTION");
     assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
-    // Rotates with the embedded todo demo's generated artifacts.
-    assert_eq!(details["artifactHash"], "sha256:fe9ff786585e6212");
+    // Rotates with the embedded todo demo's generated artifacts. Rotated
+    // 2026-08-12 by the `identifier: "email"` codegen seam (LLP 0227): the
+    // password identifier mode is a codegen input, so every demo's manifest
+    // hash moves even where the demo declares no password mechanism.
+    assert_eq!(details["artifactHash"], "sha256:b21da1d0f6183ec8");
     assert_eq!(
         details["remediationSet"]["schemaVersion"],
         "snapback.remediation-set.v1"
@@ -15019,7 +15024,10 @@ async fn password_routes_signup_authorize_signin_and_recover_end_to_end() {
         )
     })
     .await;
-    assert!(durable.is_ok(), "recovery bearer missing durably: {durable:?}");
+    assert!(
+        durable.is_ok(),
+        "recovery bearer missing durably: {durable:?}"
+    );
     let projected = state
         .auth_coordinator
         .as_ref()
@@ -15071,7 +15079,10 @@ async fn password_routes_signup_authorize_signin_and_recover_end_to_end() {
         .await
         .expect("duplicate signup response");
     assert_eq!(duplicate.status(), StatusCode::CONFLICT);
-    assert_eq!(duplicate.headers()[header::CACHE_CONTROL], "no-store, private");
+    assert_eq!(
+        duplicate.headers()[header::CACHE_CONTROL],
+        "no-store, private"
+    );
     let duplicate = response_json(duplicate).await;
     assert_eq!(
         duplicate["diagnostic"]["code"],
@@ -15104,12 +15115,14 @@ async fn password_public_invalid_refusal_is_uniform_and_admin_unlock_clears_earl
     }
     let now_ms = provider.now_ms();
     with_snapback(&state.snapback, move |snapback| {
-        snapback.auth_database_mut().insert_password_attempt_for_test(
-            "locked-password@example.com",
-            now_ms,
-            99,
-            Some(now_ms + 60_000),
-        )
+        snapback
+            .auth_database_mut()
+            .insert_password_attempt_for_test(
+                "locked-password@example.com",
+                now_ms,
+                99,
+                Some(now_ms + 60_000),
+            )
     })
     .await
     .expect("install early-unlock fixture");
@@ -15157,6 +15170,28 @@ async fn password_public_invalid_refusal_is_uniform_and_admin_unlock_clears_earl
         "SNAPBACK_AUTH_CREDENTIAL_INVALID"
     );
     assert!(!body.to_string().contains("locked"));
+
+    let projection = router
+        .clone()
+        .oneshot(auth_http_request(
+            "POST",
+            "/_snapback/api/auth/password/attempt",
+            serde_json::to_vec(&json!({ "email": "locked-password@example.com" })).unwrap(),
+            true,
+            Some("auth-http-admin"),
+            None,
+        ))
+        .await
+        .expect("admin password-attempt projection");
+    assert_eq!(projection.status(), StatusCode::OK);
+    let projection = response_json(projection).await;
+    assert_eq!(projection["failureThreshold"], 10);
+    assert_eq!(projection["attempt"]["failedCount"], 99);
+    assert_eq!(projection["attempt"]["locked"], true);
+    assert_eq!(
+        projection["attempt"]["canonicalIdentifier"],
+        "locked-password@example.com"
+    );
 
     let unlock = router
         .clone()
@@ -15284,8 +15319,8 @@ async fn password_change_closed_union_rotates_and_requires_step_up_for_first_set
         .as_str()
         .unwrap()
         .to_owned();
-    let mailbox = serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap())
-        .unwrap();
+    let mailbox =
+        serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap()).unwrap();
     let code = mailbox["code"].as_str().unwrap();
     let set = router
         .clone()
@@ -15366,8 +15401,7 @@ async fn password_reset_refuses_password_only_email_only_and_two_principal_squat
 
     let mut refusal_body = None;
     for email in [password_only, email_only, squat] {
-        let (challenge_id, code) =
-            password_test_email_challenge(&router, &provider, email).await;
+        let (challenge_id, code) = password_test_email_challenge(&router, &provider, email).await;
         let response = router
             .clone()
             .oneshot(password_auth_http_request(
@@ -15381,7 +15415,10 @@ async fn password_reset_refuses_password_only_email_only_and_two_principal_squat
             .await
             .expect("same-principal reset refusal");
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store, private");
+        assert_eq!(
+            response.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
         let body = response_json(response).await;
         assert_eq!(
             body["diagnostic"]["code"],
@@ -15435,7 +15472,10 @@ async fn production_password_signup_and_capture_reset_are_typed_unready_boundari
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{path}");
-        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store, private");
+        assert_eq!(
+            response.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
         let body = response_json(response).await;
         assert_eq!(body["diagnostic"]["code"], code);
         assert!(!body.to_string().contains("must-never-be-observed"));

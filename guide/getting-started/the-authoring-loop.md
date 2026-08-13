@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-12
+reviewed-commit: 27d3a9cd9b54f4b45b5c0ca50c8d85796dc06b59
 ---
 
 # The authoring loop
@@ -99,7 +99,12 @@ Vite and watches both sides. Browser code uses only Vite's relative
 `/__snapback` relay; it does not receive the loopback origin, admin token,
 runtime path, or repository path. The template uses generated query/mutation
 references and the first-party React provider/hooks; it does not add
-application-owned subscription cleanup.
+application-owned subscription cleanup. If you launch Metro or Expo yourself
+— including `CI=1 snapback dev --client-command "npx expo start"` — do not
+inherit a truthy `CI`: Expo/Metro disable file watching and you will serve a
+stale bundle. Prefer `snapback dev --expo`, or unset `CI` / pass `CI=0`.
+`snapback dev` prints `SNAPBACK_EXPO_METRO_WATCH_INERT` as an advisory when
+it can see that environment; it does not refuse.
 
 The React/Vite templates import the relative relay base from the generated
 development virtual module:
@@ -363,3 +368,7 @@ failures everywhere carry stable `SNAPBACK_*` diagnostic codes
 - **Do not set `SNAPBACK_RUNTIME_BINARY` in ordinary installed projects.** It
   is a contributor/test override. Installed apps should exercise the selected
   platform runtime package so `doctor` verifies the artifact users receive.
+- **Do not inherit `CI=1` when you launch Metro or Expo yourself.** File
+  watching is inert and the served bundle goes stale. Prefer
+  `snapback dev --expo`, or unset `CI` / pass `CI=0`
+  ([React Expo clients](../clients/react-expo.md#know-what-the-supervisor-owns)).

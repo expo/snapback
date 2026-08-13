@@ -1,0 +1,137 @@
+(node:1778) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS Triage Graph retained receipt: 8/8 PASS, 0 BLOCKED
+(node:1838) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS LLP 0166 retained carrier-exit receipt: 17 PASS / 0 GAP / 0 SKIPPED
+[refresh-publication-carrier] refreshed src/local.rs
+[refresh-publication-carrier] refreshed src/local/tests.rs
+[refresh-publication-carrier] refreshed src/storage.rs
+[refresh-publication-carrier] refreshed src/storage/tests.rs
+[refresh-publication-carrier] refreshed packages/snapback-codegen/define.mjs
+[refresh-publication-carrier] src/local-relation-activity-publication.v1.json: e93acd6410e2 -> 4976bedbb8c5
+[refresh-publication-carrier] now run node tests/conformance/relation-activity-publication-v1.mjs
+[refresh-publication-carrier] refreshed src/local/tests.rs
+[refresh-publication-carrier] refreshed src/runtime.rs
+[refresh-publication-carrier] refreshed src/storage.rs
+[refresh-publication-carrier] refreshed src/storage/tests.rs
+[refresh-publication-carrier] refreshed packages/snapback-codegen/define.mjs
+[refresh-publication-carrier] src/local-sequence-allocation-publication.v1.json: 8e29fde3ff19 -> 72a46d06036f
+[refresh-publication-carrier] now run node tests/conformance/sequence-allocation-publication-v1.mjs
+[refresh-publication-carrier] refreshed src/local.rs
+[refresh-publication-carrier] refreshed src/local/tests.rs
+[refresh-publication-carrier] refreshed src/storage.rs
+[refresh-publication-carrier] refreshed src/storage/tests.rs
+[refresh-publication-carrier] refreshed packages/snapback-codegen/index.mjs
+[refresh-publication-carrier] refreshed tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json
+[refresh-publication-carrier] refreshed tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json
+[refresh-publication-carrier] refreshed tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json
+[refresh-publication-carrier] src/local-persistent-store-publication.v1.json: a1ac1cc2addd -> 109a7ee0e7b1
+[refresh-publication-carrier] now run node tests/conformance/local-persistent-store-publication-v1.mjs
+   Compiling snapback v0.1.0 (/Users/ccheever/projects/snapback/.claude/worktrees/aw-integ)
+warning: type `SourceGraphRecordV1` is more private than the item `CommittedPublicationAdmissionV1::records`
+    --> vendor/ibex/src/module_loader/runner_pipeline.rs:3380:5
+     |
+3380 |     pub(crate) records: BTreeMap<SourceId, SourceGraphRecordV1>,
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `CommittedPublicationAdmissionV1::records` is reachable at visibility `pub(crate)`
+     |
+note: but type `SourceGraphRecordV1` is only usable at visibility `pub(self)`
+    --> vendor/ibex/src/module_loader/runner_pipeline.rs:266:1
+     |
+ 266 | struct SourceGraphRecordV1 {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = note: `#[warn(private_interfaces)]` on by default
+
+warning: fields `hbc_carrier_count` and `javascript_carrier_count` are never read
+    --> vendor/ibex/src/module_loader/runner_pipeline.rs:3386:16
+     |
+3378 | pub(crate) struct CommittedPublicationAdmissionV1 {
+     |                   ------------------------------- fields in this struct
+...
+3386 |     pub(crate) hbc_carrier_count: usize,
+     |                ^^^^^^^^^^^^^^^^^
+3387 |     /// Carriers admitted under `javascript-factory-table`.
+3388 |     pub(crate) javascript_carrier_count: usize,
+     |                ^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `unmappable_link` is never used
+   --> vendor/ibex/src/vfs/mod.rs:251:8
+    |
+124 | impl VfsError {
+    | ------------- associated function in this implementation
+...
+251 |     fn unmappable_link(operation: &str, path: Arc<str>) -> Self {
+    |        ^^^^^^^^^^^^^^^
+
+warning: variant `Directory` is never constructed
+    --> vendor/ibex/src/vfs/mod.rs:2286:5
+     |
+2284 | enum RetainedFinalAccess {
+     |      ------------------- variant in this enum
+2285 |     AppendOnly,
+2286 |     Directory,
+     |     ^^^^^^^^^
+     |
+     = note: `RetainedFinalAccess` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: variant `MalformedBytes` is never constructed
+    --> vendor/ibex/src/vfs/mod.rs:2775:5
+     |
+2773 | pub(crate) enum AuthenticatedDirectoryEntry {
+     |                 --------------------------- variant in this enum
+2774 |     Utf8(String),
+2775 |     MalformedBytes(Vec<u8>),
+     |     ^^^^^^^^^^^^^^
+     |
+     = note: `AuthenticatedDirectoryEntry` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `commit_directory_no_follow` is never used
+    --> vendor/ibex/src/vfs/mod.rs:4310:8
+     |
+2879 | impl VirtualFileSystem {
+     | ---------------------- method in this implementation
+...
+4310 |     fn commit_directory_no_follow(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `ibex-runtime` (lib) generated 6 warnings
+warning: methods `has_committed_generation_record`, `awaits_committed_generation_reload`, and `awaiting_generation_high_water` are never used
+     --> src/local.rs:20601:19
+      |
+ 3498 | impl LocalSnapback {
+      | ------------------ methods in this implementation
+...
+20601 |     pub(crate) fn has_committed_generation_record(&self) -> bool {
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+20610 |     pub(crate) fn awaits_committed_generation_reload(&self) -> bool {
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+20619 |     pub(crate) fn awaiting_generation_high_water(&self) -> Option<u64> {
+      |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+      = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback` (lib) generated 1 warning
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `snapback` (bin "snapback-schemagen") generated 1 warning
+warning: `snapback` (bin "snapback-local") generated 1 warning (1 duplicate)
+warning: `snapback` (bin "snapback") generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 38s
+     Running tests/capability_v0.rs (target/debug/deps/capability_v0-6893fc99ce3d4486)
+
+running 3 tests
+test p2_committed_cloudflare_manifest_matches_the_declared_target ... ok
+test p2_committed_capability_manifest_matches_the_declared_server_manifest ... ok
+test p2_live_inspect_manifest_matches_committed_modulo_instance_fields ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.03s
+
+(node:25236) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"schemaVersion":"snapback.local-persistent-store-publication-evidence.v1","status":"published","targetProfileId":"local-dev-sqlite-ibex","capabilityIds":["single_table_v1"],"maturity":"experimental","carrierSha256":"sha256:109a7ee0e7b1f46bdefe10d40cac3f512b2522d05395715857f48739630c62cb","carrierExit":"17 PASS / 0 GAP","triageMove1":"8/8 PASS","fleetMove1":"8/8 PASS","withholdingReason":null,"publicPackage":"withheld-structured-gap","hostedTargets":"withheld-structured-gap"}

@@ -6,7 +6,10 @@
 API, Developer experience, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered Review for the author-directed single-family
+**Revised:** 2026-08-12 (post-acceptance authoring-program amendment: names
+LLP 0246 as the separately reviewed TypeScript-custody owner and LLP 0249 as
+the explicitly non-portable trusted-package boundary; neither widens this
+accepted portable profile). 2026-08-12 (entered Review for the author-directed single-family
 `llp-super-refine` loop: Codex GPT-5.6-sol xhigh only; Claude intentionally
 skipped). 2026-08-12 (mechanically renumbered from LLP 0235 to LLP 0237 after
 origin assigned LLPs 0234–0235). 2026-08-12 (author-directed acceptance after
@@ -16,7 +19,7 @@ custody, profile-selection evidence, and graph-edge identity shared with LLP
 the option space in LLP 0118)
 **Related:** LLP 0009, LLP 0010, LLP 0061, LLP 0108, LLP 0115, LLP 0118,
 LLP 0146, LLP 0178, LLP 0193, LLP 0203, LLP 0236, LLP 0238, LLP 0239,
-LLP 0240, LLP 0241, LLP 0242, LLP 0243, Diary 0032, Diary 0033,
+LLP 0240, LLP 0241, LLP 0242, LLP 0243, LLP 0246, LLP 0249, Diary 0032, Diary 0033,
 Diary 0039, Diary 0057, Diary 0058
 
 ## Summary
@@ -147,7 +150,10 @@ rules are entries in the generated runtime profile, not bundler accidents.
 V1 custody is only emitted `.js`/`.mjs` ESM bytes plus source maps. Direct
 `.ts` custody is deferred until a separately reviewed transform pins compiler,
 configuration, source-map, and transform identity; v1 does not add an in-runtime
-TypeScript compiler.
+TypeScript compiler. LLP 0246 owns that follow-on without changing this v1
+compatibility contract. Package-capable host execution, if admitted, is the
+separate target-specific action profile proposed by LLP 0249; it never makes a
+package import legal inside `bounded-handler-modules-v1`.
 
 ### D2. Closed graph and frozen bounds
 

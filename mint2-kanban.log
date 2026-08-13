@@ -1,0 +1,2 @@
+SERVER BINARY IDENTITY MISMATCH: health commit 4333ceab3e1d0d7695112be44ade6ce5e1561443 does not match checkout c6a8be9699e6a8ca5b8f89eed14316588a963945. Booting anyway because this binary was explicitly configured (serverBinary / SNAPBACK_SERVER_BINARY); the handle reports identity.verdict "stamp-mismatch".
+{"ok":true,"pass":5,"blocked":0,"receipt":"tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json","evidence":"tests/acceptance/latency-kanban-move3-v1-evidence.md"}
