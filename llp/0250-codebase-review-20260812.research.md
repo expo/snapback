@@ -5,20 +5,19 @@
 **Systems:** Project, Runtime, Security, Auth, Storage, Live queries, Assets, Client integration, Cloudflare, CLI, Testing
 **Author:** Charlie Cheever / Grok 4.6
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered an author-directed, single-family Codex
-super-refine loop; Draft → Review is the loop's one authorized status
-transition)
-**Related:** LLP 0008, LLP 0009, LLP 0038, LLP 0044, LLP 0047, LLP 0049, LLP 0060, LLP 0076, LLP 0172, LLP 0188, LLP 0200, LLP 0216, LLP 0231, LLP 0251
+**Revised:** 2026-08-12 (single-family super-refine final-budget r3 by
+Codex; remains Review)
+**Related:** LLP 0008, LLP 0009, LLP 0038, LLP 0044, LLP 0047, LLP 0049, LLP 0060, LLP 0076, LLP 0172, LLP 0188, LLP 0200, LLP 0204, LLP 0216, LLP 0231, LLP 0251
 
 ## Summary
 
 A whole-codebase review of Snapback on 2026-08-12, scoped to security,
-correctness, and performance. Four parallel read-only passes covered auth,
-execution isolation, storage/live/assets, and clients/CLI/Cloudflare. Every
-load-bearing claim below was spot-verified against the code. This is a Research
-document in the corpus's own sense — findings with file references, not a
-proposal — and it is the 2026-08-12 successor to [LLP 0038](./0038-snapback-system-review.research.md)
-for *defects and risks*, not for product-strategy scoring.
+correctness, and performance. Every load-bearing claim below was spot-verified
+against the code. This is a high-confidence defect inventory, not an exhaustive
+assurance claim. It is a Research document in the corpus's own sense — findings
+with file references, not a proposal — and the 2026-08-12 successor to
+[LLP 0038](./0038-snapback-system-review.research.md) for *defects and risks*,
+not for product-strategy scoring.
 
 **The verdict, up front.** The local security floor is unusually disciplined
 for a young backend: constant-time compares on secrets, owner-only capability
@@ -47,7 +46,20 @@ LLP 0231 / 0172 so visibility and function auth stop being warn-only.
 Primary sources: `src/`, `packages/snapback-{client,contract,react,cli,codegen,expo}/`,
 `cloudflare/src/`, `llp/0009`, `llp/0060`, `llp/0047`, `llp/0216`, `llp/0231`,
 and the open `issues/` tree (to avoid duplicates). Provenance: `[observed]`
-for facts in this repository; `[inferred]` for reviewer judgment.
+for facts in this repository; `[inferred]` for reviewer judgment. The evidence
+snapshot is repository commit
+`b5b5d2d5b931634a718a72aba44a3dbd7e39ac09`. Symbol names and LLP section
+anchors are the stable lookup keys below; any line number is only a hint within
+that snapshot.
+
+The four read-only passes were: auth (`src/auth/` plus server admission and
+routes); execution isolation (`src/runtime.rs`, local action hosts, Ibex and
+workerd/Cloudflare execution); storage/live/assets (`src/storage/`, live-query
+matching, replication, and asset backends); and clients/CLI/Cloudflare
+(`packages/`, CLI surfaces, and `cloudflare/`). P1 means a shipped path can
+cause an authorization/confidentiality/integrity failure or duplicate external
+effect once its documented capability is enabled; P2 is material but
+target-limited, conditional, or presently masked; P3 has narrower impact.
 
 Already-open tickets that this review **does not re-file**:
 
@@ -91,7 +103,7 @@ Already-open tickets that this review **does not re-file**:
 | R10 | Ibex `ex_hermes_eval` copies an unbounded C string; `DID_NOT_SETTLE` echoes it in details. Workerd caps at 8 MiB before parse. | `issues/20260812-ibex-eval-output-unbounded.md` |
 | R11 | Invocation IIFE is assembled by sequential global `str::replace`. User/secret bytes containing a later placeholder become SyntaxError or rewritten secrets. Workerd passes JSON. Not a claimed RCE. | `issues/20260812-invocation-iife-global-str-replace.md` |
 | R12 | Search live Query deps have `predicate: None` → ConservativeFallback on every commit, including disjoint tables. | `issues/20260812-search-live-query-dep-missing-predicate.md` |
-| R13 | `asset_read_authorized` still emits dead `CapturedReadKind::Permission` (ignored by matcher and read-set validation). Today's reserved asset live path always re-runs, so the symptom is masked. | `issues/20260812-asset-read-emits-dead-permission-kind.md` |
+| R13 | `asset_read_authorized` still emits dead `CapturedReadKind::Permission` (ignored by matcher and read-set validation). This is a dormant authorization-boundary defect: today's production reserved-asset live path always re-runs, so its symptom is masked. | `issues/20260812-asset-read-emits-dead-permission-kind.md` |
 | R14 | Fork clone/scrub openers do not set LLP 0188 persist-WAL. Last-opener close can checkpoint/unlink `-wal` that LTX still names. | `issues/20260812-fork-clone-skips-replication-persist-wal.md` |
 
 ### P3
@@ -124,8 +136,9 @@ Already-open tickets that this review **does not re-file**:
 
 Do not spend a landing on these as if they were missing:
 
-- Constant-time compares on admin tokens, session hashes, signed-url HMAC,
-  impersonation capability, secret-read leases (`subtle` / `token_eq`).
+- Local-target constant-time compares on admin tokens, session hashes,
+  signed-url HMAC, impersonation capability, and secret-read leases
+  (`token_eq`). Cloudflare's proof compare is R9.
 - Owner-only files: `O_NOFOLLOW`, euid, mode `0600`, nlink==1, ACL
   fail-closed.
 - Hosted effective source: loopback terminator only, single
@@ -147,10 +160,16 @@ Do not spend a landing on these as if they were missing:
 
 ## Broader issues (LLP, not ticket)
 
-1. **Outbound destination policy is three different products.** Webhooks,
-   local `ctx.fetch`/`fetchStream`, Cloudflare `hostActionFetch`, and
-   (eventually) push/workerd each invent their own URL rules. That split is
-   how R1 shipped. Design: [LLP 0251](./0251-outbound-destination-policy.rfc.md).
+1. **Application/integration destination policy is several products.**
+   Webhooks, local and Cloudflare action fetch, current Expo push, and
+   `src/ask.rs` each carry URL/transport rules. Ask accepts a manifest-selected
+   OpenAI-compatible base, sends a bearer credential, and disables redirects,
+   but does not classify/pin DNS or refuse environment proxies. It belongs in
+   [LLP 0251](./0251-outbound-destination-policy.rfc.md)'s shared floor because
+   LLP 0204 D5 puts provider HTTP on the egress machinery. It is not folded
+   retroactively into R1's ticket: unlike that P1's handler-authored URL, Ask's
+   destination is manifest-selected, so this review records it as architectural
+   scope rather than claiming the existing user-URL defect ticket covered it.
 2. **Matcher vocabulary is the live-auth ceiling.** Owner-visibility exits,
    search missing predicates, and dead `Permission` captures are the same
    class: the incremental lane only knows what the capture recorded. LLP

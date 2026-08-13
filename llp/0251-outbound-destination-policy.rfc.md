@@ -2,213 +2,199 @@
 
 **Type:** RFC
 **Status:** Review
-**Systems:** Runtime, Security, Actions, Webhooks, Cloudflare, Push, Jobs, Cron
+**Systems:** Runtime, Security, Actions, Webhooks, Ask, Cloudflare, Push, Jobs, Cron
 **Author:** Charlie Cheever / Grok 4.6
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered an author-directed, single-family Codex
-super-refine loop; Draft → Review is the loop's one authorized status
-transition)
-**Related:** LLP 0009, LLP 0036, LLP 0047, LLP 0049, LLP 0076, LLP 0143, LLP 0216, LLP 0250
+**Revised:** 2026-08-12 (single-family super-refine final-budget r3 by
+Codex; remains Review)
+**Related:** LLP 0009, LLP 0036, LLP 0047, LLP 0049, LLP 0070, LLP 0076, LLP 0143, LLP 0204, LLP 0216, LLP 0250
 
 ## Summary
 
-Every host-mediated outbound hop — `ctx.fetch`, `ctx.fetchStream`, webhook
-delivery, Cloudflare `hostActionFetch`, and later push-provider calls —
-should share one destination policy. Today webhooks enforce it and action
-fetch does not. That split is how
-[`issues/20260812-host-fetch-ssrf-parity-with-webhooks.md`](../issues/20260812-host-fetch-ssrf-parity-with-webhooks.md)
-shipped.
+This RFC governs **application/integration egress**: HTTP selected by app input
+or declaration and carrying app effects, data, or provider credentials. It
+covers webhooks, local/Cloudflare action fetch, LLP 0204 Ask, Expo push, and
+future app-facing workerd fetch. Only webhooks enforce the full invariant;
+that split produced
+[`issues/20260812-host-fetch-ssrf-parity-with-webhooks.md`](../issues/20260812-host-fetch-ssrf-parity-with-webhooks.md).
 
-This RFC does not change *who* may call outbound (still action-only, still
-`SNAPBACK_OUTBOUND_ACTIONS` / hosted allowlists). It defines *where* a
-permitted call may go, and which sibling path is the source of truth.
+Caller admission remains with each consumer's governing contract. This RFC
+defines *where* an admitted call may go, sourcing webhook `prepare_target`:
+canonicalize once, require public HTTPS, classify all DNS answers, connect only
+to the validated set, and disable redirects/proxies. Exact-authority allowlists
+only narrow the floor. Loopback HTTP requires an internal test capability that
+served applications cannot obtain.
 
-**Proposal:** lift `src/webhooks.rs` `prepare_target` / `is_public_ip` /
-pinned resolver / `redirects(0)` / `try_proxy_from_env(false)` into a
-shared outbound-destination module. Every host-mediated HTTP client
-consumes it. Cloudflare's coordinator applies the same predicates before
-`fetch()`. Loopback HTTP is an explicit local-dev exception, not the
-default. App-level host allowlists (511.org, Expo push) compose *on top*
-of this floor; they never replace it.
+Outside this class are S3-compatible assets/MinIO, deployment and CLI/control-
+plane clients, and private workerd invocation/readiness. These operator/target
+infrastructure transports need subsystem policies and inherit **no** claim from
+this RFC. Rust can enforce the floor; Cloudflare cannot inspect/pin DNS, applies
+the lexical/allowlist/redirect subset, and reports `Missing` for hostnames.
 
 ## Motivation
 
-[LLP 0009](./0009-code-execution-security.rfc.md) says query/mutation
-handlers cannot perform arbitrary network I/O, and that actions have gated
-outbound fetch. [LLP 0049](./0049-all-aboard-cloudflare-live.plan.md)
-§Action Egress and [LLP 0076](./0076-bounded-streamed-actions.rfc.md) own
-the call shape, settlement, and secret placement. None of them pin a
-destination classifier.
+[LLP 0009](./0009-code-execution-security.rfc.md),
+[LLP 0049](./0049-all-aboard-cloudflare-live.plan.md), and
+[LLP 0076](./0076-bounded-streamed-actions.rfc.md) govern action egress;
+[LLP 0143](./0143-expo-push-notification-seam.rfc.md) owns push; and
+[LLP 0204](./0204-app-external-surfaces.rfc.md) puts Ask provider HTTP on the
+egress machinery. None supplies this common classifier.
 
-The webhook path already did the work (`src/webhooks.rs:80-218`):
+Webhook `prepare_target` rejects malformed/credential-bearing URLs,
+special/private or mixed DNS answers, redirects, and env proxies, then pins.
+Local action fetch uses bare ureq; Cloudflare uses platform `fetch()`. Ask uses
+a manifest provider base and bearer with redirects off, but no DNS classification/
+pinning or proxy refusal. Handler-authored `args.url` makes action fetch the P1
+SSRF; fixed-provider Ask is a distinct instance of the architectural omission.
 
-- refuse empty / oversized / control-character URLs
-- refuse userinfo, passwords, and fragments
-- HTTPS only, except an explicit test-loopback-HTTP exception
-- refuse `localhost`, `*.localhost`, `metadata`, `metadata.google.internal`
-- resolve, sort, dedup; refuse any non-public answer (RFC1918, link-local
-  including `169.254.169.254`, CGNAT 100.64/10, multicast, IPv6 ULA/link-local,
-  IPv4-mapped non-public)
-- pin those addresses into the agent resolver so a later DNS answer cannot
-  swing the connection
-- `redirects(0)` and `try_proxy_from_env(false)`
-
-`ctx.fetch` / `ctx.fetchStream` (`src/server.rs:1572`, `:1813`) and
-Cloudflare `hostActionFetch` (`cloudflare/src/coordinator.js:2808`, `:3187`)
-check only “bounded absolute http(s).” ureq 2 follows five redirects and
-honors `HTTP(S)_PROXY`. `fetchStream` returns the post-redirect URL.
-
-Ibex ambient `fetch` denies `PeerClass::Metadata | Unspecified`. Host-mediated
-fetch never enters that classifier, so enabling outbound actions *weakens*
-the peer policy relative to the denied ambient path.
-
-The official guide fixture takes `args.url` and fetches it. Default function
-admission is `optional-user`. Jobs and cron run as System. Combined with a
-tunnelled loopback server, this is a public SSRF of the developer machine.
-
-Capability manifests already declare `egress_destination_allowlist` /
-`action_egress_per_host_allowlist` as gaps. Those rows mean “this app may
-only call these hosts.” They do not mean “this runtime may hit the IMDS.”
-Both are required; they are not substitutes.
+This conservative admission classifier is not a global-routability claim. It
+rejects loopback, private, link-local/metadata, CGNAT, multicast, unspecified,
+documentation/reserved, IPv6 ULA/link-local, and mapped non-public IPv4;
+reserved-range updates may narrow admission.
 
 ## Design
 
-### Floor vs allowlist
+### Canonical admission algorithm
 
-Two layers, always both:
+Consumers may tighten size/method limits but must preserve this order:
 
-1. **Floor (this RFC).** Destination is a public Internet address, or an
-   explicit local-dev exception. No metadata, no unspecified, no
-   non-public, no env-proxy surprise, no unvalidated redirect.
-2. **Allowlist (existing capability vocabulary).** After the floor, the
-   deployment or app may further restrict hosts (511.org, Expo push,
-   author-declared). A missing allowlist on a trusted-local target is
-   “any public Internet host.” A hosted/untrusted target must not claim
-   outbound until an allowlist is Enforced (LLP 0047 / 0216).
+1. Parse once with Rust `url`/ureq or JavaScript WHATWG `URL`; reject empty,
+   oversized/control-bearing, non-HTTP(S), credentialed, fragmented, zoned, or
+   hostless input.
+2. Derive one canonical authority: parser-emitted ASCII/IDNA lowercase host,
+   one terminal DNS dot removed, canonical IP spelling, and explicit effective
+   port (`443`/`80`). Shared fixtures cover unusual IPv4 and default ports.
+3. Reject caller-supplied `Host` or `:authority` headers. Match any configured
+   allowlist against exact `{host, port}`; no wildcard, suffix, path, or implicit
+   port. Reject floor-violating literal entries at generation/admission.
+4. Select the consumer/profile scheme and loopback rule from the matrix below.
+   Public destinations are HTTPS-only.
+5. Resolve once, deduplicate, and classify **every** answer; refuse empty,
+   mixed, or non-public sets except under the test-only all-loopback capability.
+6. Connect with the same authority and prepared address set, with no second
+   lookup. Only after preparation may any credential materialize: action
+   secret slots may alter query parameters or non-authority headers; Ask's
+   bearer, webhook signing key, and push credential likewise appear only at
+   send. None may alter the prepared destination.
 
-An allowlist that contains `169.254.169.254` or `localhost` is refused at
-generate or admit time. The floor is not overridable by the app.
+Steps 5–6 are mandatory for an `Enforced` floor result. A target that cannot
+perform them does not conform merely by blocking literal IPs.
 
-### Shared primitive
+### Consumer/profile contract
 
-One Rust module (suggested: `src/outbound.rs`) exports:
+| Consumer/profile | Public scheme | Loopback HTTP | 3xx result |
+|---|---|---|---|
+| Webhook production | HTTPS | Refused | No follow; existing permanent delivery classification |
+| Local `ctx.fetch` and `ctx.fetchStream` | HTTPS | Refused to served apps; internal test fixture only | Both refuse `SNAPBACK_OUTBOUND_REDIRECT_REFUSED` before exposing headers/body |
+| Cloudflare buffered/streamed action fetch | HTTPS | Refused | Same action refusal, using `redirect: 'manual'` and discarding `Location` |
+| Ask provider | HTTPS; exact manifest authority | Refused to served apps; internal test fixture only | No follow; closed Ask provider failure, no `Location` |
+| Expo push production | HTTPS; exact Expo authority | Refused | No follow; closed provider-failure classification |
+| Expo push deterministic fixture | n/a | Internal test fixture only | No follow; closed fixture/provider classification |
+| Future app-facing workerd fetch | HTTPS | Refused | Same action refusal |
 
-- `prepare_http_target(url, policy) -> PreparedTarget`
-- `is_public_ip(IpAddr) -> bool` (the webhook classifier, including
-  IPv4-mapped IPv6)
-- a ureq `Agent` builder that pins `PreparedTarget.addresses`, sets
-  `redirects(0)`, `try_proxy_from_env(false)`, and the caller's timeouts
+Only test code constructs unexported `TestLoopbackHttp`. It is absent from
+env/config, manifests, CLI/HTTP/host operations, and handler arguments; bind,
+Dev profile, or tunnel assertions never imply it.
+This narrows LLP 0076's HTTP(S) shape: public action callers migrate to HTTPS.
+Ask and Expo fake carriers receive the capability directly from their test
+harness, never through a running application's configuration.
 
-`policy` is a closed enum:
-
-- `PublicHttpsOnly` — production / webhook default
-- `PublicHttpOrHttps` — only if a future product decision admits plaintext
-  to public addresses (not proposed here)
-- `LocalDevLoopbackHttp` — all resolved addresses loopback, HTTP allowed,
-  still no metadata / RFC1918 mix
-
-Cloudflare JS gets a port of the same predicates (or a generated JSON
-fixture of the blocked networks) applied *before* `fetch()`, plus
-`redirect: 'manual'` or `'error'`. Workers cannot pin a resolver the way
-ureq can; refuse any URL whose hostname is a literal non-public IP, and
-document that hostname→private-IP is a residual on that target until a
-fetch-with-pinned-addresses API exists.
-
-### Consumers
-
-| Path | Today | After |
-|---|---|---|
-| Webhooks | Floor already | Call the shared primitive; behavior unchanged |
-| `ctx.fetch` | Shape only | Floor required; echo **authored** URL (already the buffered rule) |
-| `ctx.fetchStream` | Shape only | Floor required; do **not** return post-redirect URL |
-| Cloudflare `hostActionFetch` / stream | Shape only + arg scrub | Floor + `redirect: 'error'`; keep production arg scrub as defense in depth |
-| Expo push | Fixed provider URL | Floor on that URL (should already be public); no user URL |
-| Future workerd host fetch | n/a | Same primitive |
-
-### Redirects
-
-v1: do not follow. A 3xx is a response the handler sees (buffered fetch)
-or a typed refusal (webhooks already treat non-2xx). If a later revision
-admits following, every hop re-runs `prepare_http_target` and the hop
-count is bounded (webhook-style, ≤5). Authorization headers never
-propagate across hops (ureq's default; keep it).
+Redirects are never followed in v1. The shared transport returns an internal
+`redirect_refused`; action consumers map it to the same public code above,
+while webhook/push retain their closed outcome vocabularies. No `Location`
+value enters an action result, diagnostic, or receipt. Any future follow mode
+must re-run the complete admission algorithm at every bounded hop and strip
+all sensitive headers and secret placements on authority change.
 
 ### Proxies
 
-v1: ignore `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` unless the operator
-sets an explicit Snapback proxy config. Env-inherited proxies are how a
-developer laptop's corporate MITM or a compromised env becomes an
-exfil path.
+v1 is proxy-free: Rust uses `try_proxy_from_env(false)` and explicit proxy
+settings fail `proxy_unsupported`. A later profile must define proxy endpoint
+classification, resolution/allowlist authority, and truthful capability state.
 
-### Loopback exception
+### Cloudflare degradation and existing claims
 
-Local-dev only, and only when **all** resolved addresses are loopback.
-Never a mix of public + loopback. Never `169.254/16`. The exception is
-off unless `SNAPBACK_OUTBOUND_LOOPBACK=1` or the process is the test
-harness. A tunnelled loopback server
-(`issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`) must
-not inherit this exception just because the bind address is loopback.
+Cloudflare applies steps 1–4, rejects canonical literal non-public IPs and
+special hosts, requires exact-authority allowlists on hosted/untrusted use, and
+refuses redirects. Platform `fetch()` still resolves hostname destinations and
+offers no address pinning seam, so `egress_ssrf_floor` is `Missing` there.
 
-### Secrets
+LLP 0049's implemented `refreshFeed`/`routeEstimate` action and secret-placement
+shapes are retained, not withdrawn. Their migration adds exact provider
+authorities and may claim only “destination-constrained fixed-provider egress,
+relying on Cloudflare platform DNS”; it may not claim the SSRF floor or general
+outbound safety. User-selected/general hostname egress remains unclaimed.
 
-Unchanged from LLP 0036: local value-mode refuses descriptor slots;
-hosted unwraps only at the fetch boundary and redacts. This RFC adds:
-the redactor also covers `runtime.log` / stderr
-(`issues/20260812-runtime-log-skips-secret-redactor.md`), which is a
-sibling hygiene landing, not a destination-policy change.
+### Secret-safe refusals
 
-### Capability honesty
+Destination parsing, authority-header rejection, allowlist matching, and (where
+available) DNS classification/pinning happen **before any credential unwrap**.
+This includes action descriptors, Ask bearer keys, webhook signing material,
+and push credentials. They materialize only immediately before send, after the
+prepared target is fixed. The internal reason vocabulary is closed:
+`invalid_url`, `scheme_refused`, `authority_refused`, `allowlist_refused`,
+`dns_unavailable`, `address_refused`, `redirect_refused`, and
+`proxy_unsupported`; consumers may map these to their existing public codes.
 
-After the floor lands:
+Every refusal is value-free or passes through the invocation's staged-value
+redactor. Raw URLs, `Location`, headers, bodies, substituted values, and
+provider prose never enter diagnostics or retained receipts. LLP 0036's
+`runtime.log`/stderr redaction gap remains a separately ticketed prerequisite;
+this RFC does not claim to fix it.
 
-- local trusted-dev reports `egress_ssrf_floor: Enforced`
-- `egress_destination_allowlist` stays Missing until an app/deploy
-  allowlist exists
-- hosted/untrusted still cannot claim outbound until both the floor and
-  an allowlist are Enforced, plus LLP 0047's kill/limit battery
+### Capabilities and migration
 
-Do not advertise the floor as “SSRF-proof hosted multi-tenant.” DNS
-rebinding on Cloudflare without a pinned resolver is a named residual.
+`egress_ssrf_floor: Enforced` means every in-scope served request executes the
+full algorithm, including pinning (or equivalent), proxy refusal, and no-follow.
+Every served target reports loopback `off`; `test-only` may appear only in an
+internal fixture receipt, never a runtime manifest. `egress_destination_allowlist`
+is independently `Enforced` only for exact canonical authorities.
 
-## Open questions
-
-1. Should local-dev loopback HTTP be on by default for `snapback start`
-   on 127.0.0.1, or always opt-in? Default-off is safer; default-on is
-   what authors expect when they `ctx.fetch('http://127.0.0.1:3001')`.
-2. Does the Cloudflare residual (hostname resolves to private IP after
-   admit) block a hosted-outbound claim, or is it accepted until Workers
-   grow a pin API?
-3. Are webhook HTTP-to-loopback tests enough of a fixture, or does
-   action fetch need its own matrix (metadata, redirect-to-metadata,
-   env proxy, mixed A records)?
-4. Should push-provider base URLs go through the same primitive even
-   though they are not user-controlled? (This RFC says yes.)
+A local served target may omit an action allowlist and reach floor-admitted
+public HTTPS; hosted/untrusted use requires one, but an allowlist cannot upgrade
+a Missing floor. Ask always uses its exact manifest provider authority.
+Webhooks retain behavior; local actions and Ask migrate to the shared primitive
+and HTTPS; Expo production and its directly injected fake carrier migrate too;
+Cloudflare apps add exact authorities and degraded facts. No generalized hosted
+claim exists until floor, allowlist, and LLP 0047/0216 limits are Enforced.
 
 ## Non-goals
 
-- Who may call outbound (still LLP 0009 / 0049 / 0076).
-- Query/mutation preemption (still LLP 0009 / 0047 / 0216).
-- App-declared per-host allowlist authoring UX (existing capability
-  vocabulary; a later slice).
-- Making `/api/v1/run` untrusted code launchable.
+- Deciding who may call outbound or making `/api/v1/run` launchable.
+- Query/mutation preemption.
+- Rich allowlist authoring UX beyond v1 exact canonical authorities.
+- Claiming Cloudflare hostname egress is DNS-pinned.
 
 ## Acceptance
 
-A landing that claims this RFC is Implemented must:
+A landing claiming this RFC Implemented must provide executable evidence that:
 
-1. Put local `host_fetch` and `open_response_stream` on the shared
-   primitive (no bare `AgentBuilder::new()`).
-2. Keep webhook behavior byte-identical on its existing SSRF tests.
-3. Add action-fetch tests for: metadata IPv4/IPv6, `localhost`,
-   RFC1918, mixed public+loopback A records, `https://evil.test` → 302
-   to `169.254.169.254`, and `HTTP_PROXY` ignored.
-4. Cloudflare: refuse literal non-public IPs and set redirect error;
-   document the hostname residual.
-5. Manifest: `egress_ssrf_floor: Enforced` on local; no hosted-outbound
-   claim.
+1. webhook delivery, local buffered/streamed action fetch, Ask, and Expo
+   production plus fake carriers use the shared Rust primitive; webhook
+   outcomes remain compatible with existing tests;
+2. one Rust/JS fixture matrix proves canonical authority agreement (IDNA,
+   terminal dots, default ports, IPv4/IPv6 spellings), malformed credentials/
+   fragments, exact allowlists, and `Host`/`:authority` refusal;
+3. local tests cover metadata IPv4/IPv6, localhost/private/reserved ranges,
+   mixed answers, and a resolve-once/connect-pinned TOCTOU witness;
+4. local and Cloudflare buffered **and** streamed actions produce the same 3xx
+   refusal without `Location`; Ask no-follows under its closed failure. Rejected
+   targets/redirects containing action, Ask, webhook, or push secrets leave no
+   values in boundary-governed errors, logs, or receipts;
+5. environment proxies are ignored, explicit proxy configuration refuses,
+   and loopback succeeds only when a test directly supplies the unexported
+   fixture capability; env/config, bind/profile, tunnels, and every served app
+   cannot enable or obtain it;
+6. Cloudflare blocks canonical literal non-public/special hosts, enforces exact
+   provider authorities, uses manual redirects, and reports
+   `egress_ssrf_floor: Missing`; and
+7. target manifests separately assert floor and allowlist, report served
+   loopback `off`, and include Ask's exact provider authority; local may report
+   the floor Enforced, fixed-provider Cloudflare uses the residual wording, and
+   excluded infrastructure transports gain no claim from these results.
 
 ## Status
 
-Draft. Filed from the 2026-08-12 review ([LLP 0250](./0250-codebase-review-20260812.research.md)).
-The concrete local/Cloudflare hole is already a P1 filesystem ticket and
-can land against this Draft; ratification can follow the landing.
+Review. Filed from the 2026-08-12 review
+([LLP 0250](./0250-codebase-review-20260812.research.md)); the concrete P1 may
+land while author acceptance remains a separate action.
