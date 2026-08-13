@@ -39,11 +39,21 @@ export const OUTBOX_QUARANTINE_TOMBSTONE_FORMAT = 'snapback.outbox-quarantine-to
 // expiries are not outages; anything the server answered — refusals,
 // conflicts, rejections — is NOT connectivity and is never queued.
 export const isConnectivityFailureError = (error) => (
-  (error?.fetchDispatchFailed === true || error instanceof TypeError)
+  (
+    (
+      (error?.fetchDispatchFailed === true || error?.cause?.fetchDispatchFailed === true)
+      && (
+        error?.diagnostic === undefined
+        || error?.diagnostic?.code === 'SNAPBACK_CLIENT_REFUSED'
+      )
+    )
+    || (error instanceof TypeError && error?.diagnostic === undefined)
+  )
   && error?.name !== 'AbortError'
+  && error?.cause?.name !== 'AbortError'
   && error?.name !== 'TimeoutError'
+  && error?.cause?.name !== 'TimeoutError'
   && error?.status === undefined
-  && error?.diagnostic === undefined
   && error?.receipt === undefined
 );
 
@@ -176,6 +186,20 @@ export function normalizeOutboxRecordInput(record) {
     }
     optimisticOperation.layerId = id;
   }
+  let argsContract = null;
+  let argumentSchema = null;
+  try {
+    if (record.argsContract != null) {
+      argsContract = JSON.parse(canonicalizeClientValueV1(record.argsContract));
+    }
+    if (record.argumentSchema != null) {
+      argumentSchema = JSON.parse(canonicalizeClientValueV1(record.argumentSchema));
+    }
+  } catch {
+    throw invalidOutboxRecord(
+      'outbox generated argument contracts must be finite canonical client values',
+    );
+  }
   return {
     id,
     function: functionName,
@@ -200,6 +224,8 @@ export function normalizeOutboxRecordInput(record) {
     // the generation that authored the queued args; it never silently adopts
     // the currently discovered same-named mutation.
     expectedGeneration: record.expectedGeneration ?? null,
+    ...(argsContract === null ? {} : { argsContract }),
+    ...(argumentSchema === null ? {} : { argumentSchema }),
     // @ref LLP 0133#the-two-settlement-lanes — mixed queues retain one
     //   immutable policy and claim carrier per sequence-ordered mutation.
     settlementLane,

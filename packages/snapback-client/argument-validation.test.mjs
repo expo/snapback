@@ -40,8 +40,8 @@ const expectRefusal = async (args, problem) => {
   await assert.rejects(
     () => new SnapbackClient('http://127.0.0.1:9').mutate(ref, { args }),
     (error) => {
-      assert.equal(error.code, 'SNAPBACK_ARGUMENT_VALIDATION_FAILED');
-      assert(error.diagnostic.details.problems.some((entry) => entry.includes(problem)));
+      assert.equal(error.code, 'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED');
+      assert(error.diagnostic.details.path.includes(problem));
       return true;
     },
   );
@@ -77,15 +77,15 @@ try {
   ];
   for (const [family, call] of generatedCallFamilies) {
     await assert.rejects(Promise.resolve().then(call), (error) => {
-      assert.equal(error.code, 'SNAPBACK_ARGUMENT_VALIDATION_FAILED', family);
-      assert(error.diagnostic.details.problems.includes('args.forged is not declared'), family);
+      assert.equal(error.code, 'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED', family);
+      assert.equal(error.diagnostic.details.key, 'forged', family);
       return true;
     });
   }
-  await expectRefusal({ count: 1 }, 'args.title is required');
+  await expectRefusal({ count: 1 }, 'args.title');
   await expectRefusal({ title: 'x', count: 1.5 }, 'args.count');
   await expectRefusal({ title: 'x', count: 1, options: { enabled: 'yes' } }, 'args.options.enabled');
-  await expectRefusal({ title: 'x', count: 1, options: { enabled: true, extra: 1 } }, 'args.options.extra');
+  await expectRefusal({ title: 'x', count: 1, options: { enabled: true, extra: 1 } }, 'args.options');
   assert.equal(requests, 0, 'invalid generated calls must fail before network I/O');
 
   await client.query({

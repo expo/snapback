@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/draft/isolated-node-action-source-profile.v1.json",
+  "title": "IsolatedNodeActionSourceProfileV1",
+  "description": "Draft LLP 0249 action-only source/tool profile. This is spike evidence, not Rust-generated schema authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profileName", "typescript", "resolver", "bundler", "sourceMaps", "limits", "allowedExtensions", "refusedFeatures"],
+  "properties": {
+    "schemaVersion": { "const": "isolated-node-action-source-profile.v1" },
+    "profileName": { "const": "isolated-node-action-v1" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageVersion", "packageIntegrity", "syntaxErasureOnly", "compilerOptions"],
+      "properties": {
+        "packageVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "packageIntegrity": { "$ref": "#/$defs/integrity" },
+        "syntaxErasureOnly": { "const": true },
+        "compilerOptions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["module", "target", "moduleResolution", "verbatimModuleSyntax", "sourceMap"],
+          "properties": {
+            "module": { "const": "ESNext" },
+            "target": { "const": "ES2022" },
+            "moduleResolution": { "const": "Bundler" },
+            "verbatimModuleSyntax": { "const": true },
+            "sourceMap": { "const": true }
+          }
+        }
+      }
+    },
+    "resolver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "conditions", "explicitExtensions", "bareEdges"],
+      "properties": {
+        "algorithm": { "const": "snapback-esm-exact-v1" },
+        "conditions": { "const": ["node", "import", "default"] },
+        "explicitExtensions": { "const": true },
+        "bareEdges": { "const": "declared-lockfile-closure-only" }
+      }
+    },
+    "bundler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "integrity", "format", "platform"],
+      "properties": {
+        "name": { "const": "esbuild" },
+        "version": { "type": "string" },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "format": { "const": "esm" },
+        "platform": { "const": "node" }
+      }
+    },
+    "sourceMaps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["external", "sourcesContent", "absolutePaths"],
+      "properties": {
+        "external": { "const": true },
+        "sourcesContent": { "const": true },
+        "absolutePaths": { "const": false }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appFiles", "appDepth", "appSourceBytes", "packageInstances", "packageDepth", "packageUnpackedBytes", "bundleBytes"],
+      "properties": {
+        "appFiles": { "const": 64 },
+        "appDepth": { "const": 16 },
+        "appSourceBytes": { "const": 524288 },
+        "packageInstances": { "const": 256 },
+        "packageDepth": { "const": 32 },
+        "packageUnpackedBytes": { "const": 67108864 },
+        "bundleBytes": { "const": 33554432 }
+      }
+    },
+    "allowedExtensions": { "const": [".ts", ".mts", ".js", ".mjs"] },
+    "refusedFeatures": {
+      "type": "array",
+      "uniqueItems": true,
+      "contains": { "const": "dynamic-import" },
+      "items": { "enum": ["commonjs", "dynamic-import", "decorators", "jsx", "aliases", "custom-transforms", "url-edges", "git-edges", "workspace-edges", "path-edges"] }
+    }
+  },
+  "$defs": {
+    "integrity": { "type": "string", "pattern": "^sha(256|384|512)-[A-Za-z0-9+/=]+$" }
+  }
+}
+

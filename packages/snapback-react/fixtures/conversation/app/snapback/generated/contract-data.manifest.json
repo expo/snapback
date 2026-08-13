@@ -1,7 +1,7 @@
 {
   "artifactKind": "contractDataManifest",
   "authoredSourceHash": "sha256:cfb54cf932c230a1377913a9b7cf6db5630b41b5d189b1ff1199b895b07eab5b",
-  "bundleHash": "snapback.v1:sessions:function:sha256:136f46b28868b1658f4c2f9c57f6262a1be92079c21339fd18403c4047da9147",
+  "bundleHash": "snapback.v1:sessions:function:sha256:021294c9c1a1bdc658eb0ed98977cd35aaf2144459f69fd57b76f5009965ffbb",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -35,10 +35,11 @@
       ],
       "scopeFields": [
         "conversationId"
-      ]
+      ],
+      "withdrawalVisibilityDeadlineMs": 2000
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:8325aff648ad2068a4d71d1abd7721299c7ad2b9f0515eaf3775755815157b1f",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:797321077da0f3cc6c75feb8a2054aba34d39fc183ef3f79c44e4fd4323f6a91",
   "manifestVersion": 2,
   "mutations": {
     "addReaction": {
@@ -1261,7 +1262,8 @@
         "conversationId"
       ],
       "serverRunnable": false,
-      "subscription": "initial-snapshot"
+      "subscription": "initial-snapshot",
+      "withdrawalVisibilityDeadlineMs": 2000
     },
     "users": {
       "argOrder": [],
@@ -1391,6 +1393,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:72aed5ad99d4ec2cf6e1d1e328600b36722b931d901248d868767257a91708d0",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:0b2dd51cffb8c7604ee1f684dc3bc2a9bae4284f2e5848fbec00c0b91c3e4b93",
   "schemaVersion": "snapback.v1"
 }

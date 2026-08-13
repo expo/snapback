@@ -86,16 +86,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **152 operations** at digest `sha256:47abff5d9167671a8b952b6d653bc50328f3b5eee1e290b8be5bb4743cdd5c68`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **153 operations** at digest `sha256:705535ba641db455ac21619a05838308a306a575c9cfb0558a86393e58de771a`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 54 |
-| surfaceAccess | `cliOnly` | 50 |
+| surfaceAccess | `cliOnly` | 51 |
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 42 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 113 |
+| operability | `direct` | 114 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 21 |
@@ -169,6 +169,7 @@ The embedded build catalog contains **152 operations** at digest `sha256:47abff5
 | `cli.packaged.accept` | `cliOnly` | `direct` | `shipped` | snapback accept | — | testing/acceptance.md#the-backend-comparator-profile |
 | `cli.packaged.agent` | `cliOnly` | `direct` | `shipped` | snapback agent | — | operating/agent-controls.md#native-resource-availability |
 | `cli.packaged.audit` | `cliOnly` | `direct` | `shipped` | snapback audit | — | deploying/releases.md#verify-the-control-audit-chain |
+| `cli.packaged.author` | `cliOnly` | `direct` | `shipped` | snapback author | — | getting-started/the-authoring-loop.md#suggest-review-and-apply-a-result-contract |
 | `cli.packaged.backup` | `cliOnly` | `direct` | `shipped` | snapback backup | — | deploying/releases.md#inspect-retained-backups |
 | `cli.packaged.deploy` | `cliOnly` | `direct` | `shipped` | snapback deploy | — | deploying/releases.md#build-and-verify-the-release-closure |
 | `cli.packaged.dev` | `cliOnly` | `direct` | `shipped` | snapback dev | — | getting-started/the-authoring-loop.md |

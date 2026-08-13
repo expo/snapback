@@ -154,6 +154,11 @@ const QUERY_BUILDER_VERBS = new Set([
 // runtime "undefined is not a function" failure.
 const CTX_DB_MEMBERS = new Set([
   'get',
+  // @ref LLP 0248#d1-exact-id-batch-reads — inline handlers share the generated/runtime
+  // ctx.db surface; batch reads are finite first-class members, not query
+  // builder verbs.
+  'getMany',
+  'uniqueMany',
   'query',
   'insert',
   'patch',
@@ -264,7 +269,7 @@ function ctxDbMemberProblem(node, checker, boundary) {
   const member = staticMemberName(node, checker, boundary);
   if (member === null || CTX_DB_MEMBERS.has(member)) return null;
   return `${member} is not a ctx.db member in inline_handler_v1 `
-    + '(use query, get, insert, patch, or delete; use patch for partial updates)';
+    + '(use query, get, getMany, uniqueMany, insert, patch, or delete; use patch for partial updates)';
 }
 
 function reflectionProblem(node, checker, boundary) {

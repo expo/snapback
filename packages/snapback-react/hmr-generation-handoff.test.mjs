@@ -77,6 +77,7 @@ const definition = (name, kind, suffix, resultContract) => Object.freeze({
   kind,
   implementationHash: `sha256:impl-${name}-${suffix}`,
   argsContractHash: `sha256:args-${name}-${suffix}`,
+  argsContract: { kind: 'object', fields: [] },
   resultContractHash: resultContractHash(resultContract),
   resultContract,
 });

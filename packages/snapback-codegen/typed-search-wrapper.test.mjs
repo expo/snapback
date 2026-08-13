@@ -117,7 +117,7 @@ export const searchMessages = defineSearchQuery({
   const query = { all: [{ Term: { value: 'release' } }] };
   try {
     const client = new SnapbackClient('http://snapback.test', {
-      custody: 'anonymous-public',
+      bearerToken: 'sbses_typed_search_wrapper',
     });
     await client.search(api.searchIncidents, { query });
     await client.search(api.searchMessages, { roomId: 'room_01', query });
@@ -138,7 +138,8 @@ export const searchMessages = defineSearchQuery({
     );
     await assert.rejects(
       client.search(api.searchMessages, { query }),
-      (error) => error.code === 'SNAPBACK_ARGUMENT_VALIDATION_FAILED',
+      (error) => error.code === 'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED'
+        && error.diagnostic?.details?.path === 'args.roomId',
     );
     assert.equal(requests.length, 2, 'reference and complete-argument validation must refuse before I/O');
   } finally {

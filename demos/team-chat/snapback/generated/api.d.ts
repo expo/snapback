@@ -35,6 +35,7 @@ export interface GeneratedMutationIrV1 {
   readonly usesRuntimeNow: boolean;
   readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;
 }
+/** Optional own-property `undefined` is normalized exactly as omission; required, array, and open-JSON undefined still refuse before dispatch. */
 export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
@@ -42,8 +43,10 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   id: string;
   name: Name;
   kind: Kind;
+  authRequirement: 'public' | 'optional-user' | 'authenticated';
   implementationHash: string;
   argsContractHash: string;
+  argsContract: Readonly<{ fields: readonly Readonly<{ name: string; required: boolean; value: Readonly<Record<string, unknown>> }>[] }>;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
   authoredSourceHash: `sha256:${string}`;
@@ -137,6 +140,7 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value,
   routingFields: readonly string[];
   defaultTtlMs: number;
   maxTtlMs: number;
+  withdrawalVisibilityDeadlineMs: number;
   maxValueBytes: number;
   publishRate: { readonly sustainedHz: number; readonly burst: number };
   deliveryMode: 'latest';
@@ -173,13 +177,20 @@ export interface GeneratedIndexNames {
   "messages": "by_room_page_key";
   "deliveries": "by_recipient_page_key" | "by_recipient_room" | "by_message_recipient";
 }
+export interface GeneratedUniqueIndexKeys {
+  "rooms": {  };
+  "roomMembers": {  };
+  "roomParticipants": { "by_room_user": Readonly<{ "roomId": NonNullable<GeneratedDataModel["roomParticipants"]["roomId"]>; "userId": NonNullable<GeneratedDataModel["roomParticipants"]["userId"]> }> };
+  "messages": { "by_room_page_key": Readonly<{ "roomId": NonNullable<GeneratedDataModel["messages"]["roomId"]>; "pageKey": NonNullable<GeneratedDataModel["messages"]["pageKey"]> }> };
+  "deliveries": { "by_recipient_page_key": Readonly<{ "recipientId": NonNullable<GeneratedDataModel["deliveries"]["recipientId"]>; "pageKey": NonNullable<GeneratedDataModel["deliveries"]["pageKey"]> }>; "by_message_recipient": Readonly<{ "messageId": NonNullable<GeneratedDataModel["deliveries"]["messageId"]>; "recipientId": NonNullable<GeneratedDataModel["deliveries"]["recipientId"]> }> };
+}
 export interface GeneratedTableAdmissionMaps {
   readonly read: Record<GeneratedReadableTableName, true>;
   readonly insert: Record<GeneratedInsertableTableName, true>;
   readonly patch: Record<GeneratedPatchableTableName, true>;
   readonly delete: Record<GeneratedDeletableTableName, true>;
 }
-export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps>;
+export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps, GeneratedUniqueIndexKeys>;
 export type GeneratedQueryBuilder<Table extends GeneratedReadableTableName> = QueryBuilder<GeneratedHandlerSchema, Table>;
 export type GeneratedQueryDatabase = QueryDatabase<GeneratedHandlerSchema>;
 export type GeneratedMutationDatabase = MutationDatabase<GeneratedHandlerSchema>;

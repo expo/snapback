@@ -134,7 +134,7 @@ function generatedRegistrationReference(ref, bridge) {
   const fields = [
     'artifactKind', 'schemaVersion', 'appId', 'id', 'name', 'kind',
     'implementationHash', 'argsContractHash', 'resultContractHash',
-    'expectedGeneration', 'authoredSourceHash',
+    'expectedGeneration', 'authoredSourceHash', 'authRequirement',
   ];
   const reference = {};
   for (const field of fields) {

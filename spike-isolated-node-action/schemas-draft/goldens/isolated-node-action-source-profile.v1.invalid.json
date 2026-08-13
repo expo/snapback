@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "isolated-node-action-source-profile.v1",
+  "profileName": "portable-handler-v1",
+  "typescript": {},
+  "resolver": {},
+  "bundler": {},
+  "sourceMaps": {},
+  "limits": {},
+  "allowedExtensions": [".cjs"],
+  "refusedFeatures": []
+}
+

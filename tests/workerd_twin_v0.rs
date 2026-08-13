@@ -16,7 +16,8 @@ use serde_json::{Map, Value, json};
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
-    FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, SeedData, TableManifest,
+    FunctionRuntime, HandlerInput, IbexModule, IndexManifest, SchemaManifest, SeedData,
+    TableManifest,
 };
 use snapback::runtime::with_development_handler_error_exposure;
 use snapback::workerd_exec::{
@@ -161,6 +162,34 @@ globalThis.__snapbackHandlers = {
 };
 "#;
 
+const BATCH_TWIN_SOURCE: &str = r#"
+function publicRows(rows) {
+  return rows.map(function(row) {
+    return row === null ? null : { id: row._id, key: row.key, payload: row.payload };
+  });
+}
+
+globalThis.__snapbackHandlers = {
+  async batchAgreement(ctx) {
+    return [{
+      getMany: publicRows(await ctx.db.getMany('batch_items', ['item-b', 'missing', 'item-a', 'item-b'])),
+      uniqueMany: publicRows(await ctx.db.uniqueMany('batch_items', 'byKey', [
+        { key: 'beta' }, { key: 'missing' }, { key: 'alpha' }, { key: 'beta' }
+      ]))
+    }];
+  },
+  async batchUnknownIndex(ctx) {
+    return await ctx.db.uniqueMany('batch_items', 'missing', [{ key: 'alpha' }]);
+  },
+  async batchNonUniqueIndex(ctx) {
+    return await ctx.db.uniqueMany('batch_items', 'byPayload', [{ payload: 1 }]);
+  },
+  async batchMalformedKey(ctx) {
+    return await ctx.db.uniqueMany('batch_items', 'byKey', [{ wrong: 'alpha' }]);
+  }
+};
+"#;
+
 fn schema() -> SchemaManifest {
     SchemaManifest {
         schema_hash: Some("workerd-twin-v0".to_owned()),
@@ -244,6 +273,97 @@ fn configured() -> LocalSnapback {
     let mut snapback = LocalSnapback::memory().expect("snapback");
     snapback.apply_schema(schema()).expect("schema");
     snapback.load_functions(functions());
+    snapback
+}
+
+fn configured_batch_twin() -> LocalSnapback {
+    let mut snapback = LocalSnapback::memory().expect("batch twin snapback");
+    snapback
+        .apply_schema(SchemaManifest {
+            schema_hash: Some("workerd-batch-twin-v1".to_owned()),
+            tables: vec![TableManifest {
+                name: "batch_items".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "key".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "payload".to_owned(),
+                        field_type: FieldType::Integer,
+                        optional: false,
+                    },
+                ],
+                indexes: vec![
+                    IndexManifest {
+                        name: "byKey".to_owned(),
+                        fields: vec!["key".to_owned()],
+                        unique: true,
+                        where_applicable: false,
+                    },
+                    IndexManifest {
+                        name: "byPayload".to_owned(),
+                        fields: vec!["payload".to_owned()],
+                        unique: false,
+                        where_applicable: false,
+                    },
+                ],
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                visibility: None,
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("batch twin schema");
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "batch_items".to_owned(),
+                vec![
+                    Map::from_iter([
+                        ("_id".to_owned(), json!("item-a")),
+                        ("key".to_owned(), json!("alpha")),
+                        ("payload".to_owned(), json!(1)),
+                    ]),
+                    Map::from_iter([
+                        ("_id".to_owned(), json!("item-b")),
+                        ("key".to_owned(), json!("beta")),
+                        ("payload".to_owned(), json!(2)),
+                    ]),
+                ],
+            )]),
+        })
+        .expect("batch twin seed");
+    let define = |name: &str| {
+        let mut function = FunctionDefinition::new(
+            name,
+            FunctionKind::Query,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: BATCH_TWIN_SOURCE.to_owned(),
+                export: name.to_owned(),
+            }),
+        );
+        function.required_capabilities = vec!["bounded_batch_reads_v1".to_owned()];
+        function
+    };
+    snapback.load_functions(FunctionManifest {
+        acknowledged_experimental_capabilities: vec!["bounded_batch_reads_v1".to_owned()],
+        functions: vec![
+            define("batchAgreement"),
+            define("batchUnknownIndex"),
+            define("batchNonUniqueIndex"),
+            define("batchMalformedKey"),
+        ],
+        ..FunctionManifest::default()
+    });
     snapback
 }
 
@@ -469,6 +589,42 @@ fn v8_and_ibex_agree_on_query_and_read_your_writes() {
         );
         assert_eq!(patch.result.get("removed"), Some(&json!(true)), "{label}");
     }
+}
+
+// @ref LLP 0248#rollout — the shared local dispatch
+// must keep the Ibex and workerd/V8 execution legs byte- and code-equivalent.
+#[test]
+fn bounded_batch_reads_are_engine_neutral() {
+    require_workerd!();
+    let mut encoded_results = Vec::new();
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let snapback = configured_batch_twin();
+        let output = with_forced_backend(backend, || {
+            snapback.invoke_query("batchAgreement", input(json!({})))
+        })
+        .unwrap_or_else(|error| panic!("{backend:?} batch agreement failed: {error}"));
+        encoded_results
+            .push(serde_json::to_vec(&output.rows).expect("serialize engine-neutral batch result"));
+
+        for (function, expected_code) in [
+            ("batchUnknownIndex", "SNAPBACK_BATCH_READ_INDEX_INVALID"),
+            ("batchNonUniqueIndex", "SNAPBACK_BATCH_READ_INDEX_INVALID"),
+            ("batchMalformedKey", "SNAPBACK_BATCH_READ_KEY_INVALID"),
+        ] {
+            let error = with_forced_backend(backend, || {
+                snapback.invoke_query(function, input(json!({})))
+            })
+            .expect_err("invalid batch descriptor must fail closed");
+            assert_eq!(
+                error.diagnostic.code, expected_code,
+                "{backend:?}/{function}"
+            );
+        }
+    }
+    assert_eq!(
+        encoded_results[0], encoded_results[1],
+        "Ibex and workerd/V8 batch results must be byte-identical",
+    );
 }
 
 #[test]

@@ -4,13 +4,13 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-harness/ctx-bootstrap.js, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0245-infer-show-freeze-declarations.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-harness/ctx-bootstrap.js, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:3c633addc68c63da88f6f8eadc26412c91fd5d08a55ae6fc7729cf8b59e0a310
+reviewed: 2026-08-12
+reviewed-authorities-digest: sha256:f4949c42aecb1f52adce18aaf2336512ddd971a5e028f12d7f5cc6de91a06dff
 ---
 
 # Queries
@@ -329,6 +329,13 @@ polling contract. See [live queries](../realtime/live-queries.md).
 - **Do not respell a complete stored row with `v.object`.** Use
   `results.documents(table)` at the top level, or `v.doc(table)` when the
   complete stored shape appears inside a result validator.
+- **Do not treat a manually pasted suggestion patch as stale-safe.** Manual
+  paste remains ordinary authoring; only `snapback author suggestion apply`
+  rechecks the complete analysis identity immediately before its atomic write.
+- **Do not accept a candidate without reading its evidence class.** Review
+  `exact`, `schema-derived`, `widened`, and `unresolved` proportions and resolve
+  every hole; the analyzer never invents bounds, numeric refinements, or table
+  identity.
 - **Do not capture imports or arbitrary top-level bindings in an inline
   handler.** Statically reachable same-file function declarations—including
   context-reader helpers that receive `ctx.db`—are admitted. Imported helpers,

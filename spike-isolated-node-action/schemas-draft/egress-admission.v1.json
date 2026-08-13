@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/draft/egress-admission.v1.json",
+  "title": "EgressAdmissionV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "classifier", "grant", "resolution", "tls", "redirects", "decision"],
+  "properties": {
+    "schemaVersion": { "const": "egress-admission.v1" },
+    "classifier": {
+      "type": "object", "additionalProperties": false, "required": ["id", "factTableDigest"],
+      "properties": { "id": { "const": "globally-routable-unicast-v1" }, "factTableDigest": { "$ref": "#/$defs/digest" } }
+    },
+    "grant": {
+      "type": "object", "additionalProperties": false, "required": ["protocol", "host", "port"],
+      "properties": {
+        "protocol": { "const": "https" },
+        "host": { "type": "string", "pattern": "^(?=.{1,253}$)(?!-)[a-z0-9-]+(\\.[a-z0-9-]+)+$" },
+        "port": { "const": 443 }
+      }
+    },
+    "resolution": {
+      "type": "object", "additionalProperties": false, "required": ["answers", "allAnswersAdmitted", "selectedAddress"],
+      "properties": {
+        "answers": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "$ref": "#/$defs/addressFact" } },
+        "allAnswersAdmitted": { "type": "boolean" },
+        "selectedAddress": { "type": ["string", "null"] }
+      }
+    },
+    "tls": {
+      "type": "object", "additionalProperties": false, "required": ["sni", "certificateDnsName"],
+      "properties": { "sni": { "type": "string" }, "certificateDnsName": { "type": "string" } }
+    },
+    "redirects": {
+      "type": "object", "additionalProperties": false, "required": ["followed", "maximum"],
+      "properties": { "followed": { "type": "integer", "minimum": 0, "maximum": 5 }, "maximum": { "const": 5 } }
+    },
+    "decision": { "enum": ["admitted", "refused"] },
+    "refusalCode": { "type": ["string", "null"], "pattern": "^SNAPBACK_ISOLATED_NODE_" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "decision": { "const": "admitted" } }, "required": ["decision"] },
+      "then": {
+        "properties": {
+          "resolution": { "type": "object", "properties": { "allAnswersAdmitted": { "const": true }, "selectedAddress": { "type": "string" } } },
+          "refusalCode": { "type": "null" }
+        }
+      },
+      "else": { "required": ["refusalCode"] }
+    }
+  ],
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "addressFact": {
+      "type": "object", "additionalProperties": false, "required": ["answer", "canonicalAddress", "family", "classification", "admitted"],
+      "properties": {
+        "answer": { "type": "string" },
+        "canonicalAddress": { "type": ["string", "null"] },
+        "family": { "enum": ["ipv4", "ipv6", "mapped-ipv4", "translated-ipv4", "unknown"] },
+        "classification": { "enum": ["globally-routable-unicast", "non-global-unicast", "metadata", "target-reserved", "noncanonical", "scoped", "unknown"] },
+        "admitted": { "type": "boolean" }
+      }
+    }
+  }
+}

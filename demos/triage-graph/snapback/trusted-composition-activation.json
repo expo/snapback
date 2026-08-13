@@ -2,7 +2,7 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v2",
-    "databaseId": "019ff95a-c157-7812-a8af-7011696c0f52",
+    "databaseId": "019ff9d5-052f-7552-9783-79480419998b",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
@@ -10,20 +10,20 @@
     "mintedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "triage-graph",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:ff52fe07174994505b8f7e13b799147b37cc9f53dd239355b9699cffc181320d",
-      "bundleHash": "snapback.v1:sessions:function:sha256:051e6eecad158ff104a03e5320b6a656de13a0b2448fee590aca52213836c458",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:51581f507632ed318eb14cafed0f7b8b48be121f30a65f84a27cb30bf479daf6"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:07e639a9c66b45f0e4021ae66ecbff525c67398f6a83f45bb156f442ce547bb4",
+      "bundleHash": "snapback.v1:sessions:function:sha256:a5ce5119096ca00f9b673fe87dc7934269df82d03c29fa58a10233a1fa89e026",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:937082f13885e68e1ba79e96036c7a3bebe4200fe7ec30ad1445e94d6cc0b200"
     },
-    "proofKeyManifestDigest": "sha256:fff0fefe66482782ba286de07dc85f900e968260b7bf4c5c8c3f7b2b2397227b"
+    "proofKeyManifestDigest": "sha256:b193b42475ab92d452d2d0d1a76cc7eeb6a36545773eea5fdbf106b29a75f065"
   },
-  "activationHash": "sha256:17c07f83f831415f0203bc6b17bb18c84a9d49027e676df4fbdf5071abb7c249",
+  "activationHash": "sha256:c57ba142adcf8f42ddd73d638c66038bb242ded368571e495d54aa63b3236c2d",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.rQ2aInmRNqK2Bru3H7wEGg",
+        "proofKeyId": "sbpk1.3l1f94l79rPbXRdKFh2Obw",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "8Vv87fDIlAZ2TXvx7BCX0i4U0c-qRmhVH32jd26l_K8"
+        "publicKeyBase64url": "KuUoLHRpQRzoPLbfGbu3PhPR_ldklsVz16VCRMTYJZw"
       }
     ]
   }

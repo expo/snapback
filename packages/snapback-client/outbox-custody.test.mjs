@@ -6,7 +6,7 @@ import {
   createMemoryAuthCustodyStorage,
 } from '@expo/snapback-contract/auth-coordinator';
 
-import { SnapbackClient } from './index.mjs';
+import { isSnapbackDiagnosticError, SnapbackClient } from './index.mjs';
 import {
   OUTBOX_MAX_RECORD_BYTES,
   emptyOutboxState,
@@ -356,8 +356,9 @@ test('clearing fence refuses post-connectivity enqueue and preserves the origina
   fixture.offlineMutations = true;
   await assert.rejects(
     client.mutate('refusedWhileClearing', { args: { value: 1 } }),
-    (error) => error instanceof TypeError
-      && /original fixture connectivity failure/u.test(error.message),
+    (error) => isSnapbackDiagnosticError(error)
+      && error.cause instanceof TypeError
+      && /original fixture connectivity failure/u.test(error.cause.message),
   );
   assert.deepEqual(await fixture.store.outboxRecords(), []);
   assert.equal(client.outboxDiagnostics.at(-1)?.code, 'SNAPBACK_OFFLINE_MUTATION_QUEUE_REFUSED');
@@ -392,8 +393,9 @@ test('capture-validate-commit race compensates the write and surfaces connectivi
   fixture.offlineMutations = true;
   await assert.rejects(
     racingClient.mutate('racingIntent'),
-    (error) => error instanceof TypeError
-      && /original fixture connectivity failure/u.test(error.message),
+    (error) => isSnapbackDiagnosticError(error)
+      && error.cause instanceof TypeError
+      && /original fixture connectivity failure/u.test(error.cause.message),
   );
   assert.equal(raced, true);
   assert.deepEqual(await underlying.outboxRecords(), []);

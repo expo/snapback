@@ -42,7 +42,6 @@ import { arg, defineLiveQuery, defineMutation, insert, v } from ${JSON.stringify
 export const listTodos = defineLiveQuery({ table: 'todos', args: {} });
 export const createTodo = defineMutation({
   args: { title: v.string() },
-  writes: ['todos'],
   plan: insert('todos', { title: arg('title') }),
 });
 `);

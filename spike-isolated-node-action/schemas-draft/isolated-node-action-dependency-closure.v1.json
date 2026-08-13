@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/draft/isolated-node-action-dependency-closure.v1.json",
+  "title": "IsolatedNodeActionDependencyClosureV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "lockfileFormat", "rootPackages", "packages", "limits", "bundle"],
+  "properties": {
+    "schemaVersion": { "const": "isolated-node-action-dependency-closure.v1" },
+    "lockfileFormat": { "const": "npm-lockfile-v3" },
+    "rootPackages": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "packages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "version", "lockPath", "integrity", "dependencies", "unpackedBytes", "esm"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+" },
+          "lockPath": { "type": "string", "pattern": "^node_modules/" },
+          "integrity": { "type": "string", "pattern": "^sha(256|384|512)-[A-Za-z0-9+/=]+$" },
+          "dependencies": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+          "unpackedBytes": { "type": "integer", "minimum": 0, "maximum": 67108864 },
+          "esm": { "const": true }
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lockedInstances", "maximumDepth", "unpackedBytes"],
+      "properties": {
+        "lockedInstances": { "type": "integer", "minimum": 1, "maximum": 256 },
+        "maximumDepth": { "type": "integer", "minimum": 1, "maximum": 32 },
+        "unpackedBytes": { "type": "integer", "minimum": 0, "maximum": 67108864 }
+      }
+    },
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "bytes", "sourceMapSha256"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/digest" },
+        "bytes": { "type": "integer", "minimum": 1, "maximum": 33554432 },
+        "sourceMapSha256": { "$ref": "#/$defs/digest" }
+      }
+    }
+  },
+  "$defs": { "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" } }
+}
+

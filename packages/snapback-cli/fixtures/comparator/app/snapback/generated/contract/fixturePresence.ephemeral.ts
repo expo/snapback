@@ -11,6 +11,7 @@ export const keyMode = 'Connection';
 export const scopeFields = ["roomId"];
 export const defaultTtlMs = 5000;
 export const maxTtlMs = 30000;
+export const withdrawalVisibilityDeadlineMs = 2500;
 export const maxDeltaRateHz = 30;
 export const coalesce = true;
 export type FixturePresenceScope = { roomId: string };

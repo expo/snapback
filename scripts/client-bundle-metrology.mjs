@@ -132,6 +132,19 @@ const COMMANDS_LOCAL_SYNC_ABSENCE_PROFILE_IDS = Object.freeze([
   'public-subpath-commands',
   'resolved-public-subpath-commands',
 ]);
+const ORDINARY_CLIENT_NORMALIZATION_LOCAL_SYNC_ABSENCE_PROFILE_IDS = Object.freeze([
+  'public-subpath-argument-normalization',
+  'public-subpath-diagnostic-error',
+  'resolved-public-subpath-argument-normalization',
+  'resolved-public-subpath-diagnostic-error',
+]);
+const ORDINARY_CLIENT_NORMALIZATION_LOCAL_SYNC_ABSENCE_PROFILES = Object.freeze(
+  RESOLVED_NARROW_SUBPATH_PROFILES.filter(
+    (profile) => (
+      ORDINARY_CLIENT_NORMALIZATION_LOCAL_SYNC_ABSENCE_PROFILE_IDS.includes(profile.id)
+    ),
+  ),
+);
 const BEHAVIOR_COMMANDS = Object.freeze([
   ['node', ['packages/snapback-client/package.test.mjs']],
   ['node', ['packages/snapback-client/browser-closure.test.mjs']],
@@ -2114,6 +2127,165 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/dev-diagnostics.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.ordinary-client-normalization.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'ordinary-client-normalization.2026-08-12.v1',
+    worktreeCarrierPolicy: 'same-head',
+    profileIds: Object.freeze([
+      'external-react-application',
+      ...ORDINARY_CLIENT_NORMALIZATION_LOCAL_SYNC_ABSENCE_PROFILE_IDS,
+      'public-subpath-canonical-client-value',
+      'public-subpath-outbox-shared',
+      'public-subpath-react-binding',
+      'public-subpath-result-transform',
+      'public-subpath-rqs-preload',
+      'public-subpath-rqs-registered',
+      'public-subpath-rqs-store',
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-expo',
+      'public-subpath-rqs-store-file',
+      'react-core-application',
+      'react-core-capabilities-negative',
+      'react-core-query',
+      'react-external',
+      'react-full-capabilities-positive',
+      'resolved-public-subpath-agent-authority',
+      'resolved-public-subpath-canonical-client-value',
+    ]),
+    derivedProfiles: ORDINARY_CLIENT_NORMALIZATION_LOCAL_SYNC_ABSENCE_PROFILES,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.client-dev-diagnostics.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'public-subpath-react-binding',
+          'public-subpath-rqs-registered',
+          'react-core-application',
+          'react-core-capabilities-negative',
+          'react-core-query',
+          'react-external',
+          'react-full-capabilities-positive',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.v1.json',
+        profileIds: Object.freeze(['public-subpath-canonical-client-value']),
+      }),
+      Object.freeze({
+        filename: 'baseline.sessions-custody-offline-queue.v1.json',
+        profileIds: Object.freeze(['public-subpath-outbox-shared']),
+      }),
+      Object.freeze({
+        filename: 'baseline.result-transform.v1.json',
+        profileIds: Object.freeze(['public-subpath-result-transform']),
+      }),
+      Object.freeze({
+        filename: 'baseline.lease-custody-and-remediation.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-rqs-preload',
+          'public-subpath-rqs-store-expo',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.outbox-drain-controller.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-rqs-store',
+          'public-subpath-rqs-store-default',
+          'public-subpath-rqs-store-file',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.local-sync-absence.v1.json',
+        profileIds: Object.freeze([
+          'resolved-public-subpath-agent-authority',
+          'resolved-public-subpath-canonical-client-value',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0247#d1-contract-directed-optional-omission',
+      'LLP 0247#d4-one-public-typed-refusal-exception',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-12',
+      fix: 'LLP 0247 D1/D4 adds the public argument-normalization surface '
+        + 'and the common SnapbackDiagnosticError refusal carrier used by '
+        + 'the ordinary client read/dispatch/run surface.',
+      ticket: 'issues/20260812-0247-0248-measurement-reruns.md',
+      byteDeltas: 'public-subpath-argument-normalization first run min 7648, '
+        + 'gzip 2853, brotli 2526; resolved-public-subpath-argument-normalization '
+        + 'first run min 7657, gzip 2860, brotli 2531; '
+        + 'public-subpath-diagnostic-error first run min 2935, gzip 1130, '
+        + 'brotli 992; resolved-public-subpath-diagnostic-error first run min '
+        + '2944, gzip 1136, brotli 997; external-react-application min '
+        + '124408->133855 (+9447), gzip 37626->40092 (+2466), brotli '
+        + '32803->34940 (+2137); public-subpath-canonical-client-value min '
+        + '4651->10755 (+6104), gzip 2030->3891 (+1861), brotli 1820->3432 '
+        + '(+1612); public-subpath-outbox-shared min 21340->21813 (+473), '
+        + 'gzip 7320->7455 (+135), brotli 6573->6681 (+108); '
+        + 'public-subpath-react-binding min 65483->66813 (+1330), gzip '
+        + '19712->20020 (+308), brotli 17456->17724 (+268); '
+        + 'public-subpath-result-transform min 14803->14803 (+0), gzip '
+        + '5243->5244 (+1), brotli 4674->4662 (-12); '
+        + 'public-subpath-rqs-preload min 5624->5625 (+1), gzip 2606->2606 '
+        + '(+0), brotli 2183->2189 (+6); public-subpath-rqs-registered min '
+        + '32312->32439 (+127), gzip 10708->10741 (+33), brotli 9420->9460 '
+        + '(+40); public-subpath-rqs-store min 41833->42129 (+296), gzip '
+        + '14237->14327 (+90), brotli 12606->12695 (+89); '
+        + 'public-subpath-rqs-store-default min 63764->64061 (+297), gzip '
+        + '18841->18929 (+88), brotli 16584->16713 (+129); '
+        + 'public-subpath-rqs-store-expo min 43304->43600 (+296), gzip '
+        + '14301->14384 (+83), brotli 12671->12768 (+97); '
+        + 'public-subpath-rqs-store-file min 41842->42138 (+296), gzip '
+        + '14004->14088 (+84), brotli 12430->12513 (+83); '
+        + 'react-core-application min 69599->79083 (+9484), gzip '
+        + '21593->24210 (+2617), brotli 18917->21157 (+2240); '
+        + 'react-core-capabilities-negative min 80570->90184 (+9614), gzip '
+        + '24751->27327 (+2576), brotli 21630->23748 (+2118); '
+        + 'react-core-query min 68650->78129 (+9479), gzip 21315->23944 '
+        + '(+2629), brotli 18660->20884 (+2224); react-external min '
+        + '124210->133657 (+9447), gzip 37563->40035 (+2472), brotli '
+        + '32731->34874 (+2143); react-full-capabilities-positive min '
+        + '68516->68632 (+116), gzip 22577->22606 (+29), brotli '
+        + '19596->19641 (+45); resolved-public-subpath-agent-authority min '
+        + '73297->73297 (+0), gzip 18777->18777 (+0), brotli 16287->16317 '
+        + '(+30); resolved-public-subpath-canonical-client-value min '
+        + '4026->10764 (+6738), gzip 1945->3898 (+1953), brotli '
+        + '1739->3439 (+1700).',
+      summary: 'Enroll the four new public and resolved narrow-subpath '
+        + 'profiles and advance exactly the 18 existing closures grown by '
+        + 'LLP 0247 D1/D4; every other active ceiling and all seven '
+        + 'predecessor receipts remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-canonical-client-value',
+      'public-subpath-outbox-shared',
+      'public-subpath-react-binding',
+      'public-subpath-result-transform',
+      'public-subpath-rqs-preload',
+      'public-subpath-rqs-registered',
+      'public-subpath-rqs-store',
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-expo',
+      'public-subpath-rqs-store-file',
+      'react-core-application',
+      'react-core-capabilities-negative',
+      'react-core-query',
+      'react-external',
+      'react-full-capabilities-positive',
+      'resolved-public-subpath-agent-authority',
+      'resolved-public-subpath-canonical-client-value',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/argument-normalization.test.mjs']],
+      ['node', ['packages/snapback-client/diagnostic-error.test.mjs']],
+      ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {
@@ -2580,6 +2752,12 @@ function assertDeclaredRolloverProfiles(rolloverConfigs, profiles) {
       'snapback.client-bundle-metrology-rollover-profiles.v1',
     );
     assert.deepEqual(config.profiles, [], `${spec.filename}: rollover profile config is declarative only`);
+    for (const profile of spec.derivedProfiles ?? []) {
+      assert.ok(
+        spec.profileIds.includes(profile.id),
+        `${spec.filename}: derived rollover profile ${profile.id} is declared`,
+      );
+    }
     for (const id of spec.profileIds) assert.ok(measured.has(id), `${id}: rollover profile exists`);
     const predecessorIds = spec.predecessors.flatMap((entry) => entry.profileIds);
     assert.equal(
@@ -2820,6 +2998,7 @@ async function measure() {
     ...additiveConfigs.flatMap((entry) => entry.config.profiles),
     ...additiveConfigs.flatMap((entry) => entry.spec.derivedProfiles ?? []),
     ...rolloverConfigs.flatMap((entry) => entry.config.profiles),
+    ...rolloverConfigs.flatMap((entry) => entry.spec.derivedProfiles ?? []),
     ...publicSubpathProfiles(config),
   ];
   const ids = profiles.map((profile) => profile.id);
@@ -3488,7 +3667,16 @@ if (mode === '--write-rollover-baseline') {
 }
 const supplementals = readSupplementalBaselines();
 const rollovers = readRolloverBaselines();
-compareToBaselines(report, baseline, supplementals, rollovers);
+compareToBaselines(report, baseline, supplementals, rollovers, {
+  // This exact-source exception supports no-commit metrology handoffs. A
+  // committed receipt still resolves through its one reachable introduction;
+  // an uncommitted one must name the exact current HEAD as its source.
+  uncommittedCarrierRevisions: new Map(
+    rollovers
+      .filter(({ spec }) => spec.worktreeCarrierPolicy === 'same-head')
+      .map(({ spec, baseline: rollover }) => [spec.filename, rollover.source.revision]),
+  ),
+});
 const current = withSavings(report, baseline, supplementals, rollovers);
 if (mode === '--write-current') {
   runBehaviorTrain();

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "isolated-action-diagnostics.v1",
+  "codeTable": [
+    {
+      "code": "SNAPBACK_ISOLATED_NODE_DEPENDENCY_INSTALL_SCRIPT",
+      "severity": "error",
+      "subsystem": "isolated-node-action",
+      "phase": "dependency",
+      "summary": "A locked package declares an install lifecycle script.",
+      "remediation": "Choose a pure-JS ESM package without install, prepare, or postinstall scripts.",
+      "detailsSchema": null
+    },
+    {
+      "code": "SNAPBACK_ISOLATED_NODE_ATTESTATION_REFUSED",
+      "severity": "fatal",
+      "subsystem": "isolated-node-action",
+      "phase": "attestation",
+      "summary": "The live worker receipt failed trust, freshness, challenge, revocation, or session binding.",
+      "remediation": "Restart through the privileged target launcher and inspect the named failed attestation fact.",
+      "detailsSchema": "isolation-profile.v1"
+    }
+  ]
+}
+

@@ -57,6 +57,17 @@ const reference = (name, kind, resultContract) => Object.freeze({
   kind,
   implementationHash: `sha256:${name}-implementation`,
   argsContractHash: `sha256:${name}-args`,
+  argumentSchema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      channel: { type: 'string' },
+      filter: {},
+      renderCounter: { type: 'integer' },
+      logicalTimestamp: { type: 'integer' },
+      body: { type: 'string' },
+    },
+  },
   resultContractHash: resultContractHash(resultContract),
   resultContract,
 });

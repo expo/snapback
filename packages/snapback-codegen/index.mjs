@@ -36,6 +36,15 @@ import {
 } from './api-envelope-members.mjs';
 import { build as esbuild } from 'esbuild';
 import ts from 'typescript';
+import {
+  HANDLER_TYPESCRIPT_PROFILE,
+  HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE,
+} from './typescript-profile.mjs';
+import {
+  mapGeneratedTypeScriptPosition,
+  transformTypeScriptHandler,
+  typecheckTypeScriptHandler,
+} from './typescript-transform.mjs';
 import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS, v } from './define.mjs';
 import {
   decodeUtf8Source,
@@ -88,6 +97,8 @@ const AUTH_ASSURANCE_KINDS = new Set([
   'authenticated', 'email_verified', 'phone_verified', 'recent_auth',
   'phishing_resistant',
 ]);
+const CLIENT_LIFECYCLE_SCHEMA_VERSION = 'snapback.client-lifecycle.v1';
+const ARGUMENT_NORMALIZATION_VERSION = 'snapback.argument-normalization.v1';
 import {
   argsContractHash,
   canonicalJson as canonicalResultJson,
@@ -128,6 +139,14 @@ export {
   SURFACE_MAX_PER_APP,
   SURFACE_MAX_SCOPE_RECORD_FIELDS,
 };
+export {
+  DECLARATION_SUGGESTION_REASON_CODES,
+  applyDeclarationSuggestion,
+  formatDeclarationSuggestionPatch,
+  readDeclarationSuggestionFile,
+  resolveDeclarationSuggestionTarget,
+  suggestDeclarations,
+} from './declaration-suggestion.mjs';
 
 const CAPABILITY_UNSUPPORTED_GUIDE_URL = 'https://github.com/expo/snapback/blob/main/guide/operating/diagnostics.md#diagnose-snapbackcapabilityunsupported';
 
@@ -957,6 +976,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'agent_safe_storage_v1',
   'auth.sessions.v1',
   'bounded_response_stream_v1',
+  'bounded_batch_reads_v1',
   'bounded_children_v1',
   'cron',
   'cron_action_run_mutation',
@@ -1009,6 +1029,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'asset_reference_gc_v1',
   'asset_video_finalization_v1',
   'bounded_children_v1',
+  'bounded_batch_reads_v1',
   'inline_handler_v1',
   'jobs_one_off_v1',
   'live_full_text_search_v1',
@@ -2798,11 +2819,13 @@ async function generateInProcessLocked({
         sourceSpan: extracted.sourceSpan,
       };
     }
+    const loaded = loadHandlerSource(def.js?.source, name);
     return {
-      source: loadHandlerSource(def.js?.source, name) ?? '',
+      source: loaded?.source ?? '',
       exportName: def.js?.exportName,
       handlerForm: 'module',
       sourceSpan: null,
+      typescriptIdentity: loaded?.typescriptIdentity ?? null,
     };
   };
 
@@ -3628,6 +3651,7 @@ async function generateInProcessLocked({
       const resolvedHandler = resolveJsHandler(def, name);
       const handlerSource = resolvedHandler?.source ?? '';
       const handlerExportName = resolvedHandler?.exportName ?? name;
+      validateStaticUniqueManyCalls(handlerSource, name, tables, err);
       if (handlerSource) {
         for (const problem of scanStaticallyInvalidJsQueryResults(
           handlerSource,
@@ -3731,6 +3755,7 @@ async function generateInProcessLocked({
         handlerForm: resolvedHandler?.handlerForm ?? 'module',
         inlineAst: resolvedHandler?.inlineAst,
         inlineHelpers: resolvedHandler?.inlineHelpers,
+        typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: readTables,
         declaredWrites: [],
@@ -4021,6 +4046,7 @@ async function generateInProcessLocked({
         }
       }
       const resolvedHandler = resolveJsHandler(def, name);
+      validateStaticUniqueManyCalls(resolvedHandler?.source ?? '', name, tables, err);
       functions.push({
         name,
         kind: 'Mutation',
@@ -4034,6 +4060,7 @@ async function generateInProcessLocked({
         handlerForm: resolvedHandler?.handlerForm ?? 'module',
         inlineAst: resolvedHandler?.inlineAst,
         inlineHelpers: resolvedHandler?.inlineHelpers,
+        typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: reads,
         declaredWrites: writes,
@@ -4278,6 +4305,7 @@ async function generateInProcessLocked({
         }
       }
       const resolvedHandler = resolveJsHandler(def, name);
+      validateStaticUniqueManyCalls(resolvedHandler?.source ?? '', name, tables, err);
       functions.push({
         name,
         kind: 'Action',
@@ -4293,6 +4321,7 @@ async function generateInProcessLocked({
         handlerForm: resolvedHandler?.handlerForm ?? 'module',
         inlineAst: resolvedHandler?.inlineAst,
         inlineHelpers: resolvedHandler?.inlineHelpers,
+        typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: [],
         declaredWrites: writes,
@@ -4793,11 +4822,13 @@ async function generateInProcessLocked({
           sourceSpan: extracted.sourceSpan,
         };
       } else {
+        const loaded = loadHandlerSource(def.source, exportName);
         resolvedAuthorizer = {
-          source: loadHandlerSource(def.source, exportName) ?? '',
+          source: loaded?.source ?? '',
           exportName: def.exportName,
           handlerForm: 'module',
           sourceSpan: null,
+          typescriptIdentity: loaded?.typescriptIdentity ?? null,
         };
       }
       const policyIdentity = {
@@ -4853,6 +4884,9 @@ async function generateInProcessLocked({
               form: 'module',
               sourceHash: `sha256:${sha256(resolvedAuthorizer.source)}`,
               export: resolvedAuthorizer.exportName,
+              ...(resolvedAuthorizer.typescriptIdentity
+                ? { typescript: resolvedAuthorizer.typescriptIdentity }
+                : {}),
             },
         policy: policyIdentity,
         reads: [...(def.reads ?? [])].sort(),
@@ -5074,8 +5108,22 @@ async function generateInProcessLocked({
   // bundleHash, so committed artifacts only reproduced from the checkout that
   // generated them.
   const handlerInputs = [];
+  const handlerTypeScriptExecutableInputs = [];
   for (const [sourcePath, entry] of [...handlerSourceCache.entries()].sort(([a], [b]) => compareCodeUnits(a, b))) {
     handlerInputs.push(sourcePath, entry.bytes);
+    if (entry.typescriptIdentity) {
+      // @ref LLP 0246#d5-identity-binds-source-profile-and-output — authored
+      // bytes remain the evidence input above; executable identity also binds
+      // the closed profile/toolchain and the exact JavaScript Hermes receives.
+      handlerTypeScriptExecutableInputs.push(
+        sourcePath,
+        entry.typescriptIdentity.sourceProfile,
+        entry.typescriptIdentity.transformVersion,
+        entry.typescriptIdentity.compilerVersion,
+        entry.typescriptIdentity.compilerIntegrity,
+        entry.runtimeBytes,
+      );
+    }
   }
   const schemaGraphInputs = moduleGraphIdentity(schemaGraph, backendRoot);
   const functionsGraphInputs = moduleGraphIdentity(functionsGraph, backendRoot);
@@ -5118,6 +5166,7 @@ async function generateInProcessLocked({
     canonicalCapability.source,
     ...(remoteServiceInputs?.identityInputs ?? []),
     ...handlerInputs,
+    ...handlerTypeScriptExecutableInputs,
   ];
   // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
   // — this separate identity covers only the existing authored byte items;
@@ -5150,6 +5199,7 @@ async function generateInProcessLocked({
     'functions-isolated-evaluation',
     functionsEvaluationIdentity,
     ...handlerInputs,
+    ...handlerTypeScriptExecutableInputs,
   ];
   const generatedAt = generatedAtMillis();
   const appIdentity = demoMetadata.identity;
@@ -5409,6 +5459,12 @@ async function generateInProcessLocked({
   const functionSourceSpans = exportedDefinitionSourceSpans(
     graphEntrySource(functionsGraph, functionsPath),
   );
+  const clientLifecycleManifest = buildClientLifecycleManifest({
+    appId,
+    inputsHash,
+    functions: functionManifest.functions,
+    ephemeralCollections,
+  });
   const generatedReferences = buildGeneratedReferences(
     appId,
     functionManifest.functions,
@@ -5530,6 +5586,37 @@ async function generateInProcessLocked({
     return { ok: false, diagnostics };
   }
   const providerBindingTypes = renderProviderBindingTypes(providerBindingMetadata);
+  for (const [sourcePath, entry] of handlerSourceCache) {
+    if (!entry.typescriptIdentity) continue;
+    const typeDiagnostics = typecheckTypeScriptHandler({
+      source: entry.authoredSource,
+      sourcePath,
+      // Rollout 2 is deliberately single-file, but it checks in the same
+      // lib-bearing program as the declarations generated for this candidate.
+      // Application tsconfig files never enter this program.
+      declarations: {
+        '/__snapback_generated_app.d.ts': appTypes,
+        '/__snapback_generated_api.d.ts': apiTypes,
+        '/__snapback_generated_provider_bindings.d.ts': providerBindingTypes,
+      },
+    });
+    for (const issue of typeDiagnostics) {
+      const functions = [...entry.functions].sort(compareCodeUnits);
+      err(issue.code, 'bundle', `${functions.join(', ')}: ${issue.message}`, {
+        ...(functions.length === 1 ? { function: functions[0] } : { functions }),
+        source: sourcePath,
+        sourceSpan: {
+          file: sourcePath,
+          line: issue.line,
+          column: issue.column,
+        },
+        details: issue.details,
+      });
+    }
+  }
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
   const renderedContractModules = renderContractModules(
     contractManifest,
     functionManifest.functions,
@@ -5610,6 +5697,7 @@ async function generateInProcessLocked({
       './schema': './schema.manifest.json',
       './functions': './functions.manifest.json',
       './capabilities': './capability.manifest.json',
+      './client-lifecycle': './client-lifecycle.manifest.json',
       ...(trustedCompositionActivation
         ? { './trusted-composition-activation': `./${TRUSTED_COMPOSITION_ACTIVATION_FILE}` }
         : {}),
@@ -5652,7 +5740,7 @@ async function generateInProcessLocked({
     bundleHash,
     authoredSourceHash,
     ...(activationGenerationAdvanced === null ? {} : { activationGenerationAdvanced }),
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, 'client-lifecycle.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -5679,6 +5767,8 @@ async function generateInProcessLocked({
       schemaManifest,
       functionManifest,
       capabilityManifest,
+      handlerTypeScriptProfile: HANDLER_TYPESCRIPT_PROFILE,
+      clientLifecycleManifest,
       routesManifest,
       providerIntrospection,
       providerBindingMetadata,
@@ -5756,6 +5846,7 @@ async function generateInProcessLocked({
     schemaManifest,
     functionManifest,
     capabilityManifest,
+    clientLifecycleManifest,
     trustedCompositionActivation,
     microProfile: microArtifacts?.profile ?? null,
     providerIntrospection,
@@ -5768,7 +5859,9 @@ async function generateInProcessLocked({
   };
 
   // Cache and hash by the fd-attested target's canonical backend-relative POSIX
-  // identity, never an authored alias or absolute checkout path.
+  // identity, never an authored alias or absolute checkout path. TypeScript
+  // entries retain both byte streams: authored bytes are identity/evidence;
+  // emitted bytes are the only bytes handed to the runtime.
   function loadHandlerSource(sourcePath, functionName) {
     let capability;
     try {
@@ -5807,9 +5900,102 @@ async function generateInProcessLocked({
           });
         }
       }
-      handlerSourceCache.set(capability.identity, { bytes, source });
+      if (/\.(?:ts|mts|tsx|cts)$/iu.test(capability.identity)) {
+        const transformed = transformTypeScriptHandler({
+          source,
+          sourcePath: capability.identity,
+        });
+        if (!transformed.ok) {
+          for (const issue of transformed.diagnostics) {
+            err(issue.code, 'bundle', `${functionName}: ${issue.message}`, {
+              function: functionName,
+              source: capability.identity,
+              sourceSpan: {
+                file: capability.identity,
+                line: issue.line,
+                column: issue.column,
+              },
+              details: issue.details,
+            });
+          }
+          handlerSourceCache.set(capability.identity, {
+            bytes,
+            authoredSource: source,
+            runtimeBytes: Buffer.alloc(0),
+            source: '',
+            sourceMap: null,
+            typescriptIdentity: null,
+            functions: new Set([functionName]),
+          });
+        } else {
+          const authoredIssueKeys = new Set(blocked.map((issue) => `${issue.code}\0${issue.token}`));
+          // @ref LLP 0246#d4-type-only-and-runtime-edges-are-distinct — the
+          // existing capability scan runs again over the exact emitted JS so
+          // erasure cannot smuggle in a helper, import, global, or capability.
+          for (const issue of scanUnsupportedHandlerSource(
+            transformed.javascript,
+            transformed.javascriptPath,
+          )) {
+            if (authoredIssueKeys.has(`${issue.code}\0${issue.token}`)) continue;
+            const mapped = mapGeneratedTypeScriptPosition(
+              transformed.sourceMap,
+              issue.line,
+              issue.column,
+            );
+            if (!mapped) {
+              err(
+                'SNAPBACK_CODEGEN_TYPESCRIPT_SOURCE_MAP_FAILED',
+                'bundle',
+                `${functionName}: emitted TypeScript refusal could not be mapped to authored source`,
+                {
+                  function: functionName,
+                  source: capability.identity,
+                  generatedSourceSpan: {
+                    file: transformed.javascriptPath,
+                    line: issue.line,
+                    column: issue.column,
+                  },
+                },
+              );
+              continue;
+            }
+            err(issue.code, 'bundle', `${functionName}: ${issue.message}`, {
+              function: functionName,
+              source: capability.identity,
+              token: issue.token,
+              sourceSpan: {
+                file: capability.identity,
+                line: mapped.line,
+                column: mapped.column,
+              },
+            });
+          }
+          handlerSourceCache.set(capability.identity, {
+            bytes,
+            authoredSource: source,
+            runtimeBytes: transformed.javascriptBytes,
+            source: transformed.javascript,
+            sourceMap: transformed.sourceMap,
+            sourceMapText: transformed.sourceMapText,
+            typescriptIdentity: transformed.identity,
+            functions: new Set([functionName]),
+          });
+        }
+      } else {
+        handlerSourceCache.set(capability.identity, {
+          bytes,
+          authoredSource: source,
+          runtimeBytes: bytes,
+          source,
+          sourceMap: null,
+          typescriptIdentity: null,
+          functions: new Set([functionName]),
+        });
+      }
     }
-    return handlerSourceCache.get(capability.identity).source;
+    const entry = handlerSourceCache.get(capability.identity);
+    entry.functions.add(functionName);
+    return entry;
   }
 }
 
@@ -5888,6 +6074,23 @@ function buildEphemeralCollections(ephemeralDef, err, targetProfile) {
       err('EPHEMERAL_INVALID_BUDGET', 'ephemeral', `${name} maxTtlMs exceeds the local paved-path ceiling`, { collection: name, field: 'maxTtlMs', value: def.maxTtlMs, maximum: 30_000 });
     } else if (def.maxTtlMs < def.ttlMs) {
       err('EPHEMERAL_INVALID_TTL', 'ephemeral', `${name} maxTtlMs is below ttlMs`, { collection: name, ttlMs: def.ttlMs, maxTtlMs: def.maxTtlMs });
+    }
+    if (
+      !isPositiveSafeInteger(def.withdrawalVisibilityDeadlineMs)
+      || !isPositiveSafeInteger(def.ttlMs)
+      || def.withdrawalVisibilityDeadlineMs > Math.floor(def.ttlMs / 2)
+    ) {
+      err(
+        'EPHEMERAL_INVALID_BUDGET',
+        'ephemeral',
+        `${name} withdrawalVisibilityDeadlineMs must be a positive integer no greater than ttlMs/2`,
+        {
+          collection: name,
+          field: 'withdrawalVisibilityDeadlineMs',
+          value: def.withdrawalVisibilityDeadlineMs,
+          maximum: isPositiveSafeInteger(def.ttlMs) ? Math.floor(def.ttlMs / 2) : null,
+        },
+      );
     }
     for (const [field, value, maximum] of [
       ['maxValueBytes', def.maxValueBytes, 4_096],
@@ -5982,6 +6185,7 @@ function buildEphemeralCollections(ephemeralDef, err, targetProfile) {
       routingFields,
       defaultTtlMs: def.ttlMs ?? 0,
       maxTtlMs: def.maxTtlMs,
+      withdrawalVisibilityDeadlineMs: def.withdrawalVisibilityDeadlineMs,
       maxValueBytes: def.maxValueBytes,
       hardMaxValueBytes: def.hardMaxValueBytes,
       sustainedHz: def.publishRate?.sustainedHz ?? 20,
@@ -6037,6 +6241,7 @@ function contractEphemeralDescriptor(collection, schemaDef) {
     scopeFields: collection.scopeFields,
     defaultTtlMs: collection.defaultTtlMs,
     maxTtlMs: collection.maxTtlMs,
+    withdrawalVisibilityDeadlineMs: collection.withdrawalVisibilityDeadlineMs,
   };
 }
 
@@ -6074,6 +6279,7 @@ function contractEphemeralSection(ephemeralCollections) {
       routingFields: collection.routingFields,
       defaultTtlMs: collection.defaultTtlMs,
       maxTtlMs: collection.maxTtlMs,
+      withdrawalVisibilityDeadlineMs: collection.withdrawalVisibilityDeadlineMs,
       deliveryMode: 'latest',
       maxDeltaRateHz: Math.round(1_000 / collection.dispatchMs),
       coalesce: true,
@@ -8544,6 +8750,12 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
               form: 'module',
               sourceHash: `sha256:${sha256(fn.runtime.IbexModule.source ?? '')}`,
               export: fn.runtime.IbexModule.export,
+              // @ref LLP 0108#identity-artifacts-and-public-custody — a
+              // transformed module binds the compiler custody facts beside
+              // the exact runtime bytes already represented by sourceHash.
+              // Presence-only keeps every JS/MJS implementation preimage.
+              // @ref LLP 0246#d5-identity-binds-source-profile-and-output
+              ...(fn.typescriptIdentity ? { typescript: fn.typescriptIdentity } : {}),
             }
           : { form: 'plan', plan: fn.runtime?.HostPlan ?? null },
       argsContractHash: fn.argsContractHash,
@@ -8732,6 +8944,9 @@ function requiredCapabilities(fn) {
     // does not run the fail-closed ingress seam refuses outright.
     'args_contract_v1',
     ...(fn.handlerForm === 'inline' ? ['inline_handler_v1'] : []),
+    ...(moduleUsesBoundedBatchReads(fn.runtime?.IbexModule?.source ?? '')
+      ? ['bounded_batch_reads_v1']
+      : []),
   ];
   if (fn.runtime?.HostPlan?.SearchQuery) {
     return fn.kind === 'LiveQuery'
@@ -8912,6 +9127,239 @@ function moduleUsesFetchStream(source) {
   return found;
 }
 
+// @ref LLP 0248#d4-dependency-and-cost-evidence-remain-conservative — an
+// imperative handler using either batch-read member requires the dedicated
+// experimental target capability. AST member/property recognition avoids
+// comments and unrelated string literals; parse failure over-requires via a
+// conservative textual fallback and never manufactures target support.
+function moduleUsesBoundedBatchReads(source) {
+  if (!source) return false;
+  let program;
+  try {
+    program = parseJavaScript(source, {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      allowAwaitOutsideFunction: true,
+      allowHashBang: true,
+      allowImportExportEverywhere: true,
+    });
+  } catch (_) {
+    return /\b(?:getMany|uniqueMany)\s*\(/u.test(source);
+  }
+  const names = new Set(['getMany', 'uniqueMany']);
+  let found = false;
+  const walk = (node) => {
+    if (found || !node || typeof node.type !== 'string') return;
+    if (node.type === 'MemberExpression') {
+      const property = node.property;
+      if (
+        (!node.computed && property?.type === 'Identifier' && names.has(property.name))
+        || (node.computed && property?.type === 'Literal' && names.has(property.value))
+      ) {
+        found = true;
+        return;
+      }
+    }
+    if (node.type === 'Property') {
+      const key = node.key;
+      if (
+        (key?.type === 'Identifier' && names.has(key.name))
+        || (key?.type === 'Literal' && names.has(key.value))
+      ) {
+        found = true;
+        return;
+      }
+    }
+    for (const value of Object.values(node)) {
+      if (found) return;
+      if (Array.isArray(value)) {
+        for (const child of value) {
+          if (child && typeof child.type === 'string') walk(child);
+        }
+      } else if (value && typeof value.type === 'string') {
+        walk(value);
+      }
+    }
+  };
+  walk(program);
+  return found;
+}
+
+function scanStaticUniqueManyCalls(source) {
+  if (!source) return [];
+  let program;
+  try {
+    program = parseJavaScript(source, {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      locations: true,
+      allowAwaitOutsideFunction: true,
+      allowHashBang: true,
+      allowImportExportEverywhere: true,
+    });
+  } catch (_) {
+    return [];
+  }
+  const calls = [];
+  const literalString = (node) => (
+    node?.type === 'Literal' && typeof node.value === 'string' ? node.value : null
+  );
+  const propertyName = (property) => {
+    if (!property || property.computed || property.kind !== 'init' || property.type !== 'Property') {
+      return null;
+    }
+    if (property.key?.type === 'Identifier') return property.key.name;
+    if (property.key?.type === 'Literal' && typeof property.key.value === 'string') {
+      return property.key.value;
+    }
+    return null;
+  };
+  const walk = (node) => {
+    if (!node || typeof node.type !== 'string') return;
+    if (node.type === 'CallExpression' && node.callee?.type === 'MemberExpression') {
+      const member = node.callee;
+      const name = !member.computed && member.property?.type === 'Identifier'
+        ? member.property.name
+        : member.computed && member.property?.type === 'Literal'
+          ? member.property.value
+          : null;
+      if (name === 'uniqueMany') {
+        const table = literalString(node.arguments[0]);
+        const index = literalString(node.arguments[1]);
+        if (table !== null && index !== null) {
+          let literalKeys = null;
+          const keys = node.arguments[2];
+          if (keys?.type === 'ArrayExpression') {
+            literalKeys = keys.elements.map((element) => {
+              if (element?.type !== 'ObjectExpression') {
+                return {
+                  malformed: 'key-not-object', fields: [], nullFields: [], literalValues: [],
+                };
+              }
+              const fields = [];
+              const nullFields = [];
+              const literalValues = [];
+              for (const property of element.properties) {
+                const field = propertyName(property);
+                if (field === null) {
+                  return {
+                    malformed: 'key-property-not-static', fields, nullFields, literalValues,
+                  };
+                }
+                fields.push(field);
+                if (property.value?.type === 'Literal') {
+                  literalValues.push([field, property.value.value]);
+                  if (property.value.value === null) nullFields.push(field);
+                }
+              }
+              return { malformed: null, fields, nullFields, literalValues };
+            });
+          }
+          calls.push({
+            table,
+            index,
+            literalKeys,
+            line: node.loc?.start.line ?? null,
+            column: node.loc?.start.column == null ? null : node.loc.start.column + 1,
+          });
+        }
+      }
+    }
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) {
+        for (const child of value) {
+          if (child && typeof child.type === 'string') walk(child);
+        }
+      } else if (value && typeof value.type === 'string') {
+        walk(value);
+      }
+    }
+  };
+  walk(program);
+  return calls;
+}
+
+function staticBatchKeyLiteralMatchesField(value, field) {
+  if (!field) return false;
+  const type = field.field_type;
+  if (value === null) return field.optional === true;
+  if (type === 'String' || type === 'Principal') return typeof value === 'string';
+  if (type === 'Boolean') return typeof value === 'boolean';
+  if (type === 'Integer') return Number.isSafeInteger(value);
+  if (type === 'Real') return typeof value === 'number' && Number.isFinite(value);
+  if (type === 'Json') return true;
+  if (!type || typeof type !== 'object' || Array.isArray(type)) return false;
+  if (type.Id || type.AssetRef || type.RelationIncarnation) return typeof value === 'string';
+  if (type.Enum) {
+    return typeof value === 'string' && (type.Enum.values ?? []).includes(value);
+  }
+  return false;
+}
+
+function validateStaticUniqueManyCalls(source, functionName, tables, err) {
+  for (const call of scanStaticUniqueManyCalls(source)) {
+    const table = tables[call.table];
+    const index = table?.indexes?.find((candidate) => candidate.name === call.index) ?? null;
+    if (!index || index.unique !== true) {
+      err(
+        'SNAPBACK_BATCH_READ_INDEX_INVALID',
+        'function',
+        `${functionName}: ctx.db.uniqueMany requires a declared unique index; ${call.table}.${call.index} is ${index ? 'non-unique' : 'unknown'}`,
+        {
+          function: functionName,
+          table: call.table,
+          index: call.index,
+          line: call.line,
+          column: call.column,
+          reason: index ? 'non-unique-index' : 'unknown-index',
+        },
+      );
+      continue;
+    }
+    if (call.literalKeys === null) continue;
+    const expected = [...index.fields].sort();
+    for (const [position, key] of call.literalKeys.entries()) {
+      const actual = [...key.fields].sort();
+      const malformed = key.malformed !== null
+        || actual.length !== expected.length
+        || actual.some((field, fieldIndex) => field !== expected[fieldIndex]);
+      const whereApplicableNull = index.whereApplicable === true
+        && key.nullFields.some((field) => expected.includes(field));
+      const literalTypeMismatch = key.literalValues.find(([field, value]) => (
+        !staticBatchKeyLiteralMatchesField(
+          value,
+          table.fields?.find((candidate) => candidate.name === field),
+        )
+      ));
+      if (!malformed && !whereApplicableNull && literalTypeMismatch === undefined) continue;
+      err(
+        'SNAPBACK_BATCH_READ_KEY_INVALID',
+        'function',
+        `${functionName}: ctx.db.uniqueMany literal key ${position} must be a closed, complete key for ${call.table}.${call.index}${index.whereApplicable === true ? ' with no null components' : ''}`,
+        {
+          function: functionName,
+          table: call.table,
+          index: call.index,
+          position,
+          expectedFields: index.fields,
+          actualFields: key.fields,
+          line: call.line,
+          column: call.column,
+          reason: key.malformed
+            ?? (whereApplicableNull
+              ? 'where-applicable-component-null'
+              : literalTypeMismatch !== undefined
+                ? 'component-type-mismatch'
+                : 'component-set-mismatch'),
+          ...(literalTypeMismatch === undefined
+            ? {}
+            : { field: literalTypeMismatch[0], value: literalTypeMismatch[1] }),
+        },
+      );
+    }
+  }
+}
+
 function syncabilityClass(fn) {
   if (fn.syncabilityClass) return fn.syncabilityClass;
   if (fn.kind === 'LiveQuery') return 'syncable-live';
@@ -8954,7 +9402,7 @@ function unsupportedAmbientDependencyMessage(code, token) {
 }
 
 function scanUnsupportedHandlerSource(source, sourcePath = 'handler.mjs') {
-  if (/\.(?:ts|mts)$/iu.test(sourcePath)) {
+  if (/\.(?:ts|mts|tsx|cts)$/iu.test(sourcePath)) {
     return scanUnsupportedTypeScriptHandlerSource(source, sourcePath);
   }
   const allowEgress = egressAllowedAtCodegen();
@@ -9264,9 +9712,9 @@ function scanUnsupportedHandlerSource(source, sourcePath = 'handler.mjs') {
     .map(({ offset: _offset, ...issue }) => issue);
 }
 
-// TypeScript handler files are a declared authoring surface. Parse them with
-// the pinned TypeScript AST so type syntax is accepted without losing authored
-// source locations; the emitted JavaScript is still produced by esbuild later.
+// TypeScript handler files are a declared authoring surface. Parse authored
+// bytes with the pinned TypeScript AST for capability diagnostics; the closed
+// syntax-erasure transform later emits the separate JavaScript runtime bytes.
 function scanUnsupportedTypeScriptHandlerSource(source, sourcePath) {
   const allowEgress = egressAllowedAtCodegen();
   const sourceFile = ts.createSourceFile(
@@ -10361,6 +10809,7 @@ function renderQueryGroupReferences(
           id: fn.id,
           name: fn.name,
           kind: fn.kind,
+          authRequirement: fn.authRequirement ?? 'optional-user',
           implementationHash: fn.implementationHash,
           argsContractHash: fn.argsContractHash,
           resultContractHash: fn.resultContractHash,
@@ -10718,8 +11167,10 @@ function buildMicroArtifacts({
       id: fn.id,
       name: fn.name,
       kind: fn.kind,
+      authRequirement: fn.authRequirement ?? 'optional-user',
       implementationHash: fn.implementationHash,
       argsContractHash: fn.argsContractHash,
+      argsContract: fn.argsContract,
       resultContractHash: fn.resultContractHash,
     })),
     expectedGeneration,
@@ -11426,6 +11877,118 @@ function buildGeneratedSurfaces({
   return surfaces;
 }
 
+function lifecycleOptionalPaths(contract, prefix = 'args') {
+  const paths = [];
+  const visit = (node, path) => {
+    const object = Array.isArray(node?.fields)
+      ? { kind: 'object', fields: node.fields }
+      : node;
+    if (object?.kind === 'union') {
+      for (const variant of object.variants ?? []) visit(variant, path);
+      return;
+    }
+    if (object?.kind === 'array') {
+      visit(object.element, `${path}[]`);
+      return;
+    }
+    if (object?.kind === 'tuple') {
+      for (const [index, element] of (object.elements ?? []).entries()) {
+        visit(element, `${path}[${index}]`);
+      }
+      return;
+    }
+    if (object?.kind === 'object') {
+      for (const field of object.fields ?? []) {
+        const childPath = `${path}.${field.name}`;
+        if (field.required !== true) paths.push(childPath);
+        if (field.value?.kind !== 'json') visit(field.value, childPath);
+      }
+    }
+  };
+  visit(contract, prefix);
+  return [...new Set(paths)].sort();
+}
+
+// Origin artifact for the ordinary-client lifecycle table.
+//
+// @ref LLP 0247#d5-generated-lifecycle-metadata-owns-normalization-and-failure-tables
+// — this file is the manifest origin; LLP 0238 D7 may extend its closed rows
+// later without creating a competing lifecycle.json symbol-lifecycle artifact.
+function buildClientLifecycleManifest({
+  appId,
+  inputsHash,
+  functions,
+  ephemeralCollections,
+}) {
+  const verbForKind = (kind) => ({
+    Query: 'query',
+    LiveQuery: 'liveQuery',
+    Mutation: 'mutate',
+    Action: 'run',
+  })[kind];
+  return {
+    schemaVersion: CLIENT_LIFECYCLE_SCHEMA_VERSION,
+    appId,
+    inputsHash,
+    rows: {
+      argumentNormalization: {
+        version: ARGUMENT_NORMALIZATION_VERSION,
+        operations: functions.map((fn) => ({
+          functionId: fn.id,
+          name: fn.name,
+          kind: fn.kind,
+          verb: verbForKind(fn.kind),
+          optionalPropertyPaths: lifecycleOptionalPaths(fn.argsContract),
+        })),
+      },
+      authorityAdmission: {
+        operations: functions.map((fn) => ({
+          functionId: fn.id,
+          name: fn.name,
+          kind: fn.kind,
+          verb: verbForKind(fn.kind),
+          authRequirement: fn.authRequirement ?? 'optional-user',
+          outcome: (fn.authRequirement ?? 'optional-user') === 'authenticated'
+            ? 'local-refusal-until-authenticated'
+            : 'dispatch-under-captured-authority',
+        })),
+      },
+      presenceLifecycle: {
+        stopAction: 'fenced-withdrawal',
+        disposeAction: 'fenced-withdrawal',
+        neverPublishedAction: 'none',
+        authorityLossBarrierOwner: 'server-connection-cleanup',
+        collections: ephemeralCollections.map((collection) => ({
+          collection: collection.name,
+          withdrawalVisibilityDeadlineMs: collection.withdrawalVisibilityDeadlineMs,
+        })),
+      },
+      primaryFailureCarrier: {
+        publicErrorType: 'SnapbackDiagnosticError',
+        verbs: [
+          { verb: 'query', operationKind: 'Query', carrier: 'throw' },
+          { verb: 'run', operationKind: 'Action', carrier: 'throw' },
+          { verb: 'mutate', operationKind: 'Mutation', carrier: 'throw-immediate' },
+          { verb: 'action', operationKind: 'Action', carrier: 'raw-envelope-deprecated' },
+          { verb: 'queued-mutate', operationKind: 'Mutation', carrier: 'resolved-queued-union' },
+        ],
+      },
+      anchors: {
+        guide: [
+          'guide/clients/headless.md',
+          'guide/clients/react.md',
+          'guide/realtime/ephemeral-state.md',
+        ],
+        diagnostics: [
+          'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED',
+          'SNAPBACK_ARGUMENT_VALIDATION_FAILED',
+          'SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID',
+        ],
+      },
+    },
+  };
+}
+
 function buildGeneratedReferences(
   appId,
   functions,
@@ -11481,8 +12044,10 @@ function buildGeneratedReferences(
       id: fn.id,
       name: fn.name,
       kind: fn.kind,
+      authRequirement: fn.authRequirement ?? 'optional-user',
       implementationHash: fn.implementationHash,
       argsContractHash: fn.argsContractHash,
+      argsContract: fn.argsContract,
       resultContractHash: fn.resultContractHash,
       ...(searchRequestContractHash === null ? {} : {
         searchRequestContractHash,
@@ -11531,6 +12096,7 @@ function buildGeneratedReferences(
       routingFields: collection.routingFields,
       defaultTtlMs: collection.defaultTtlMs,
       maxTtlMs: collection.maxTtlMs,
+      withdrawalVisibilityDeadlineMs: collection.withdrawalVisibilityDeadlineMs,
       maxValueBytes: collection.maxValueBytes,
       publishRate: {
         sustainedHz: collection.sustainedHz,
@@ -11886,6 +12452,7 @@ function renderApiTypes(
     "  readonly usesRuntimeNow: boolean;",
     "  readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;",
     "}",
+    '/** Optional own-property `undefined` is normalized exactly as omission; required, array, and open-JSON undefined still refuse before dispatch. */',
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",
     '  schemaVersion: SchemaVersion;',
@@ -11893,8 +12460,10 @@ function renderApiTypes(
     '  id: string;',
     '  name: Name;',
     '  kind: Kind;',
+    "  authRequirement: 'public' | 'optional-user' | 'authenticated';",
     '  implementationHash: string;',
     '  argsContractHash: string;',
+    '  argsContract: Readonly<{ fields: readonly Readonly<{ name: string; required: boolean; value: Readonly<Record<string, unknown>> }>[] }>;',
     '  resultContractHash: string;',
     '  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;',
     '  authoredSourceHash: `sha256:${string}`;',
@@ -11992,6 +12561,7 @@ function renderApiTypes(
     '  routingFields: readonly string[];',
     '  defaultTtlMs: number;',
     '  maxTtlMs: number;',
+    '  withdrawalVisibilityDeadlineMs: number;',
     '  maxValueBytes: number;',
     '  publishRate: { readonly sustainedHz: number; readonly burst: number };',
     "  deliveryMode: 'latest';",
@@ -12054,13 +12624,27 @@ function renderApiTypes(
   }
   lines.push(
     '}',
+    'export interface GeneratedUniqueIndexKeys {',
+  );
+  for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
+    const indexes = (table.indexes ?? []).filter((index) => index.unique === true);
+    const entries = indexes.map((index) => {
+      const fields = index.fields.map((field) => (
+        `${JSON.stringify(field)}: NonNullable<GeneratedDataModel[${JSON.stringify(tableName)}][${JSON.stringify(field)}]>`
+      ));
+      return `${JSON.stringify(index.name)}: Readonly<{ ${fields.join('; ')} }>`;
+    });
+    lines.push(`  ${JSON.stringify(tableName)}: { ${entries.join('; ')} };`);
+  }
+  lines.push(
+    '}',
     'export interface GeneratedTableAdmissionMaps {',
     '  readonly read: Record<GeneratedReadableTableName, true>;',
     '  readonly insert: Record<GeneratedInsertableTableName, true>;',
     '  readonly patch: Record<GeneratedPatchableTableName, true>;',
     '  readonly delete: Record<GeneratedDeletableTableName, true>;',
     '}',
-    'export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps>;',
+    'export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps, GeneratedUniqueIndexKeys>;',
     'export type GeneratedQueryBuilder<Table extends GeneratedReadableTableName> = QueryBuilder<GeneratedHandlerSchema, Table>;',
     'export type GeneratedQueryDatabase = QueryDatabase<GeneratedHandlerSchema>;',
     'export type GeneratedMutationDatabase = MutationDatabase<GeneratedHandlerSchema>;',
@@ -12473,6 +13057,7 @@ function renderContractEphemeralModule(collection, def) {
     `export const scopeFields = ${jsonLiteral(collection.scopeFields)};`,
     `export const defaultTtlMs = ${collection.defaultTtlMs};`,
     `export const maxTtlMs = ${collection.maxTtlMs};`,
+    `export const withdrawalVisibilityDeadlineMs = ${collection.withdrawalVisibilityDeadlineMs};`,
     `export const maxDeltaRateHz = ${Math.round(1_000 / collection.dispatchMs)};`,
     `export const coalesce = true;`,
     `export type ${pascalName}Scope = ${scopeType};`,
@@ -13147,6 +13732,7 @@ const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   'SNAPBACK_FIELD_BOUNDARY_CONDITION_INVALID',
   'SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID',
   'SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID',
+  'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN',
   'SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED',
   'SNAPBACK_TABLE_VISIBILITY_ALREADY_DECLARED',
   'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID',
@@ -13923,6 +14509,8 @@ function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
   capabilityManifest,
+  handlerTypeScriptProfile,
+  clientLifecycleManifest,
   routesManifest,
   providerIntrospection,
   providerBindingMetadata,
@@ -13956,6 +14544,14 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
   writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
+  writeFileSync(
+    join(outDir, HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE),
+    stableJson(handlerTypeScriptProfile) + '\n',
+  );
+  writeFileSync(
+    join(outDir, 'client-lifecycle.manifest.json'),
+    stableJson(clientLifecycleManifest) + '\n',
+  );
   if (trustedCompositionActivation) {
     writeFileSync(
       join(outDir, TRUSTED_COMPOSITION_ACTIVATION_FILE),

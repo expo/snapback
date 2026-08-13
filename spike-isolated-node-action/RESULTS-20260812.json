@@ -1,0 +1,399 @@
+{
+  "schemaVersion": "isolated-node-action-spike.result.v1",
+  "runAt": "2026-08-12T20:58:54.463Z",
+  "evidenceLabel": "CALIBRATION ONLY — NOT A CAPABILITY CLAIM",
+  "nodeVersion": "v25.9.0",
+  "platform": "darwin-arm64",
+  "npmVersion": "11.12.1",
+  "npmCache": "/private/tmp/llp0249-npm-cache",
+  "vendorSdk": {
+    "package": "@octokit/auth-token",
+    "version": "6.0.0",
+    "installCommand": "npm install --ignore-scripts --no-audit --no-fund",
+    "installEnvironment": "registry.npmjs.org pinned; user npm config and credential variables excluded",
+    "installStdout": "up to date in 163ms",
+    "installStderr": "",
+    "closure": {
+      "admitted": true,
+      "lockfileVersion": 3,
+      "lockedInstances": 1,
+      "maximumDepth": 1,
+      "unpackedBytes": 19138,
+      "files": 16,
+      "integrityList": [
+        {
+          "name": "@octokit/auth-token",
+          "version": "6.0.0",
+          "path": "node_modules/@octokit/auth-token",
+          "integrity": "sha512-P4YJBPdPSpWTQ1NU4XYdvHvXJJDxM6YwpS0FZHRgP7YFkdVxsWcpWGy/NVqlAA7PcPCnMacXlRm1y2PFZRWL/w=="
+        }
+      ],
+      "integrityListDigest": "sha256:451a5989c636e65ec33fe4ac9df386419d8009efae2555aca6dbb433ba176c6e",
+      "lifecycleScriptsReRead": true,
+      "installedTreeReRead": true,
+      "commonJsOnlyInstances": 0,
+      "nativeAddonInstances": 0
+    },
+    "bundle": {
+      "outputPath": "/Users/ccheever/projects/snapback/.claude/worktrees/ots-isolated/spike-isolated-node-action/artifacts/bundle/vendor-action.bundle.mjs",
+      "mapPath": "/Users/ccheever/projects/snapback/.claude/worktrees/ots-isolated/spike-isolated-node-action/artifacts/bundle/vendor-action.bundle.mjs.map",
+      "bytes": 5499,
+      "mapBytes": 10020,
+      "sha256": "sha256:20e525f48cad9d58f8a83a0da95de760fc5828c3f6e64d8479882a60d8574f77",
+      "mapSha256": "sha256:f048ef5e9429126d4b99d6aec1f82ad3c8a4ef794abbf1c7e6599b0def0b07a1",
+      "sourceCount": 2,
+      "absoluteSourcePaths": [],
+      "checkoutPathPresent": false,
+      "residualImports": [
+        "node:crypto"
+      ],
+      "esbuildVersion": "0.28.1",
+      "inputCount": 2,
+      "output": "artifacts/bundle/vendor-action.bundle.mjs"
+    },
+    "worker": {
+      "package": "@octokit/auth-token",
+      "responseStatus": 200,
+      "responseIdentity": {
+        "id": 10249,
+        "login": "spike-user"
+      },
+      "wallMs": 22.68275,
+      "brokerRequests": [
+        {
+          "method": "GET",
+          "url": "https://api.github.com/user",
+          "admittedAddress": "broker-stub:no-network"
+        }
+      ]
+    }
+  },
+  "nativeCrypto": {
+    "implementation": "node:crypto.scryptSync",
+    "thirdPartyPackage": null,
+    "parameters": {
+      "N": 16384,
+      "r": 8,
+      "p": 1,
+      "maxmem": 67108864
+    },
+    "samples": 5,
+    "wallSamplesMs": [
+      28.910708,
+      26.409541999999988,
+      26.17458399999998,
+      25.802708999999993,
+      25.881833999999998
+    ],
+    "digestPrefix": "d7590aca2c9801cf",
+    "wallMs": 26.17458399999998,
+    "wallStatistic": "median",
+    "embeddedEngineComparisonMs": {
+      "citedLower": 8000,
+      "citedUpper": 11000,
+      "source": "LLP 0249#motivation; not re-measured"
+    },
+    "speedupVsCitedRange": {
+      "lowerBound": 305.6400055870995,
+      "upperBound": 420.25500768226186
+    }
+  },
+  "nativeAddonRefusal": {
+    "admitted": false,
+    "code": "SNAPBACK_ISOLATED_NODE_DEPENDENCY_INSTALL_SCRIPT",
+    "message": "bcrypt@6.0.0 refused before install: install=\"node-gyp-build\"",
+    "remediation": "choose a pure-JS ESM package with no install/prepare/postinstall lifecycle and no binding.gyp/.node payload",
+    "evidence": {
+      "metadataUrl": "https://registry.npmjs.org/bcrypt/6.0.0",
+      "tarballUrl": "https://registry.npmjs.org/bcrypt/-/bcrypt-6.0.0.tgz",
+      "integrity": "sha512-cU8v/EGSrnH+HnxV2z0J7/blxH8gq7Xh2JFT6Aroax7UohdmiJJlxApMxtKfuI7z68NvvVcmR78k2LbT6efhRg==",
+      "integrityVerified": true,
+      "registryScripts": {
+        "test": "jest",
+        "build": "prebuildify --napi --tag-libc --strip",
+        "install": "node-gyp-build"
+      },
+      "tarballScripts": {
+        "test": "jest",
+        "install": "node-gyp-build",
+        "build": "prebuildify --napi --tag-libc --strip"
+      },
+      "gypfile": null,
+      "nativeEntries": [
+        "package/binding.gyp",
+        "package/prebuilds/linux-arm/bcrypt.glibc.node",
+        "package/prebuilds/linux-arm64/bcrypt.glibc.node",
+        "package/prebuilds/linux-x64/bcrypt.glibc.node",
+        "package/prebuilds/linux-arm/bcrypt.musl.node",
+        "package/prebuilds/linux-arm64/bcrypt.musl.node",
+        "package/prebuilds/linux-x64/bcrypt.musl.node",
+        "package/prebuilds/darwin-arm64/bcrypt.node",
+        "package/prebuilds/darwin-x64/bcrypt.node",
+        "package/prebuilds/win32-arm64/bcrypt.node",
+        "package/prebuilds/win32-x64/bcrypt.node"
+      ],
+      "tarballEntriesInspected": 38,
+      "installAttempted": false
+    }
+  },
+  "portableProfile": {
+    "refused": true,
+    "cases": [
+      {
+        "name": "packageImport",
+        "refused": true,
+        "diagnostics": [
+          {
+            "code": "BUNDLE_UNSUPPORTED_IMPORT",
+            "message": "packageImport: unsupported ambient dependency import"
+          },
+          {
+            "code": "BUNDLE_UNSUPPORTED_EXPORT",
+            "message": "packageImport: handler source files are closed scripts, not ES modules; remove the export and register the function on globalThis.__snapbackHandlers = { <exportName>: async (ctx, args) => { ... } } (guide/backend/actions-and-fetch.md#the-handler-file-is-a-closed-script)"
+          }
+        ]
+      },
+      {
+        "name": "nodeImport",
+        "refused": true,
+        "diagnostics": [
+          {
+            "code": "BUNDLE_UNSUPPORTED_IMPORT",
+            "message": "nodeImport: unsupported ambient dependency import"
+          },
+          {
+            "code": "BUNDLE_UNSUPPORTED_EXPORT",
+            "message": "nodeImport: handler source files are closed scripts, not ES modules; remove the export and register the function on globalThis.__snapbackHandlers = { <exportName>: async (ctx, args) => { ... } } (guide/backend/actions-and-fetch.md#the-handler-file-is-a-closed-script)"
+          }
+        ]
+      },
+      {
+        "name": "dynamicAuthority",
+        "refused": true,
+        "diagnostics": [
+          {
+            "code": "BUNDLE_UNSUPPORTED_EXPORT",
+            "message": "dynamicAuthority: handler source files are closed scripts, not ES modules; remove the export and register the function on globalThis.__snapbackHandlers = { <exportName>: async (ctx, args) => { ... } } (guide/backend/actions-and-fetch.md#the-handler-file-is-a-closed-script)"
+          },
+          {
+            "code": "BUNDLE_UNSUPPORTED_REQUIRE",
+            "message": "dynamicAuthority: unsupported ambient dependency require"
+          },
+          {
+            "code": "BUNDLE_UNSUPPORTED_WEBASSEMBLY",
+            "message": "dynamicAuthority: unsupported ambient dependency WebAssembly"
+          }
+        ]
+      },
+      {
+        "name": "inlineAmbient",
+        "refused": true,
+        "diagnostics": [
+          {
+            "code": "SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER",
+            "message": "inlineAmbient references identifiers outside its handler expression: WebAssembly, require",
+            "path": "functions.mjs",
+            "line": 3,
+            "column": 62
+          }
+        ]
+      }
+    ],
+    "codes": [
+      "BUNDLE_UNSUPPORTED_EXPORT",
+      "BUNDLE_UNSUPPORTED_IMPORT",
+      "BUNDLE_UNSUPPORTED_REQUIRE",
+      "BUNDLE_UNSUPPORTED_WEBASSEMBLY",
+      "SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER"
+    ],
+    "diagnostics": [
+      {
+        "fixture": "packageImport",
+        "code": "BUNDLE_UNSUPPORTED_IMPORT",
+        "message": "packageImport: unsupported ambient dependency import"
+      },
+      {
+        "fixture": "packageImport",
+        "code": "BUNDLE_UNSUPPORTED_EXPORT",
+        "message": "packageImport: handler source files are closed scripts, not ES modules; remove the export and register the function on globalThis.__snapbackHandlers = { <exportName>: async (ctx, args) => { ... } } (guide/backend/actions-and-fetch.md#the-handler-file-is-a-closed-script)"
+      },
+      {
+        "fixture": "nodeImport",
+        "code": "BUNDLE_UNSUPPORTED_IMPORT",
+        "message": "nodeImport: unsupported ambient dependency import"
+      },
+      {
+        "fixture": "nodeImport",
+        "code": "BUNDLE_UNSUPPORTED_EXPORT",
+        "message": "nodeImport: handler source files are closed scripts, not ES modules; remove the export and register the function on globalThis.__snapbackHandlers = { <exportName>: async (ctx, args) => { ... } } (guide/backend/actions-and-fetch.md#the-handler-file-is-a-closed-script)"
+      },
+      {
+        "fixture": "dynamicAuthority",
+        "code": "BUNDLE_UNSUPPORTED_EXPORT",
+        "message": "dynamicAuthority: handler source files are closed scripts, not ES modules; remove the export and register the function on globalThis.__snapbackHandlers = { <exportName>: async (ctx, args) => { ... } } (guide/backend/actions-and-fetch.md#the-handler-file-is-a-closed-script)"
+      },
+      {
+        "fixture": "dynamicAuthority",
+        "code": "BUNDLE_UNSUPPORTED_REQUIRE",
+        "message": "dynamicAuthority: unsupported ambient dependency require"
+      },
+      {
+        "fixture": "dynamicAuthority",
+        "code": "BUNDLE_UNSUPPORTED_WEBASSEMBLY",
+        "message": "dynamicAuthority: unsupported ambient dependency WebAssembly"
+      },
+      {
+        "fixture": "inlineAmbient",
+        "code": "SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER",
+        "message": "inlineAmbient references identifiers outside its handler expression: WebAssembly, require",
+        "path": "functions.mjs",
+        "line": 3,
+        "column": 62
+      }
+    ],
+    "requiredCodesObserved": true
+  },
+  "workerIsolationCalibration": {
+    "nodeArguments": [
+      "--permission",
+      "--no-addons",
+      "--enable-source-maps",
+      "--allow-fs-read=<preload>",
+      "--allow-fs-read=<bundle>",
+      "--allow-fs-read=<source-map>",
+      "--import <preload>",
+      "<bundle>"
+    ],
+    "processWallMs": 227.28775000000007,
+    "coldStartMs": 1.7788749999999993,
+    "rssBytes": 75661312,
+    "absentSurfaces": {
+      "process": {
+        "absent": true
+      },
+      "env": {
+        "absent": true
+      },
+      "require": {
+        "absent": true
+      },
+      "module": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:module; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "WebAssembly": {
+        "absent": true
+      },
+      "fs": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:fs; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "net": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:net; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "tls": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:tls; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "dns": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:dns; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "http": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:http; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "https": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:https; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "dgram": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:dgram; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "child_process": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:child_process; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "worker_threads": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:worker_threads; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "cluster": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:cluster; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      },
+      "vm": {
+        "absent": true,
+        "import": {
+          "absent": true,
+          "code": "SNAPBACK_ISOLATED_NODE_BUILTIN_REFUSED",
+          "message": "isolated-node-action-v1 refuses runtime import node:vm; bundle an admitted ESM package or request a reviewed facade/grant"
+        }
+      }
+    },
+    "stderr": "",
+    "sourceMapFidelity": {
+      "expectedPath": "fixtures/vendor-action.mjs",
+      "expectedLine": 16,
+      "observedLine": 16,
+      "observedColumn": 9,
+      "passed": true,
+      "stack": "Error: ISOLATED_NODE_SOURCE_MAP_PROBE\n    at sourceMapProbe (/Users/ccheever/projects/snapback/.claude/worktrees/ots-isolated/spike-isolated-node-action/fixtures/vendor-action.mjs:16:9)\n    at <anonymous> (/Users/ccheever/projects/snapback/.claude/worktrees/ots-isolated/spike-isolated-node-action/fixtures/vendor-action.mjs:21:3)"
+    },
+    "qualificationLimit": "Node --permission plus module hooks is not OS isolation; same-UID and kernel/container adversarial qualification remain unimplemented."
+  },
+  "schemaGoldens": {
+    "passed": true,
+    "cases": 12,
+    "validCases": 6,
+    "invalidCases": 6,
+    "vectorCases": 13,
+    "vectorCoveragePassed": true
+  }
+}

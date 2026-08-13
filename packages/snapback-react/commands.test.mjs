@@ -254,7 +254,7 @@ assert.strictEqual(fixture.assets.at(-1).authorityCapture, fixture.mutations.at(
 assert.equal(fixture.assets.at(-1).declaredFilename, pickerSource.fileName);
 assert.equal(fixture.assets.at(-1).declaredContentType, pickerSource.mimeType);
 assert.equal(fixture.assets.at(-1).previewUrl, pickerSource.uri);
-assert.deepEqual(fixture.mutations.at(-1).options.args, {
+assert.deepEqual({ ...fixture.mutations.at(-1).options.args }, {
   conversationId: 'conversation-one',
   senderId: 'user-ada',
   body: 'with image',

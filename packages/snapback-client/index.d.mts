@@ -9,6 +9,22 @@ import type {
   SnapbackAuthBarrierParticipant,
 } from '@expo/snapback-contract/auth-coordinator';
 
+export {
+  SnapbackDiagnosticError,
+  isSnapbackDiagnosticError,
+} from './diagnostic-error.mjs';
+export type {
+  SnapbackDiagnosticLike,
+  SnapbackDiagnosticOperation,
+} from './diagnostic-error.mjs';
+export {
+  ARGUMENT_NORMALIZATION_VERSION,
+  exactArgumentContract,
+  normalizeArgumentsAgainstContractV1,
+  normalizeGeneratedArgumentsV1,
+  optionalPropertyPathsV1,
+} from './argument-normalization.mjs';
+
 export type { SnapbackDiagnosticCode } from './diagnostic-codes.d.mts';
 export {
   createClientDevConsoleReporter,
@@ -155,8 +171,21 @@ export interface SnapbackFunctionReference<
   readonly id: string;
   readonly name: Name;
   readonly kind: Kind;
+  /** Generated authority admission. Optional only for compatibility with
+   * references emitted before LLP 0247 rollout 1. */
+  readonly authRequirement?: 'public' | 'optional-user' | 'authenticated';
   readonly implementationHash: string;
   readonly argsContractHash: string;
+  /** Exact generated contract. Optional only for one-release compatibility
+   * with older references that carry a closed `argumentSchema`. */
+  readonly argsContract?: Readonly<{
+    readonly fields: readonly Readonly<{
+      readonly name: string;
+      readonly required: boolean;
+      readonly value: Readonly<Record<string, unknown>>;
+    }>[];
+  }>;
+  readonly argumentSchema?: Readonly<Record<string, unknown>>;
   readonly resultContractHash: string;
   readonly authoredSourceHash?: `sha256:${string}`;
   readonly searchRequestContractHash?: string;
@@ -237,9 +266,15 @@ export interface SnapbackEphemeralReference<
   readonly name: Name;
   readonly keyMode: KeyMode;
   readonly scopeFields: readonly string[];
+  /** Exact contracts emitted by LLP 0247 codegen. Optional in the structural
+   * public type so pre-rollout references remain assignable for one release;
+   * runtime admission still refuses generated ephemeral calls without them. */
+  readonly scopeContract?: Readonly<Record<string, unknown>>;
+  readonly valueContract?: Readonly<Record<string, unknown>>;
   readonly routingFields: readonly string[];
   readonly defaultTtlMs: number;
   readonly maxTtlMs: number;
+  readonly withdrawalVisibilityDeadlineMs?: number;
   readonly maxValueBytes: number;
   readonly publishRate: Readonly<{ sustainedHz: number; burst: number }>;
   readonly deliveryMode: 'latest';
@@ -930,8 +965,8 @@ export interface EphemeralRoomHandle<Value> {
   getServerSnapshot(): EphemeralRoomSnapshot<Value>;
   readonly grantedConnectionId: string | null;
   started(): Promise<void>;
-  publish(value: Value, options?: { readonly ttlMs?: number }): Promise<unknown>;
-  delete(): Promise<unknown>;
+  publish(value: Value, options?: { readonly ttlMs?: number }): Promise<EphemeralPublishOutcome>;
+  delete(options?: EphemeralWithdrawalOptions): Promise<EphemeralDeleteSettlement | unknown>;
   dispose(): void;
   settled(): Promise<void>;
   inspection(): Readonly<Record<string, unknown>>;
@@ -942,12 +977,33 @@ export class EphemeralOverlay<Scope = Record<string, unknown>, Value = unknown> 
   onChange(
     listener: (result: string, overlay: EphemeralOverlay<Scope, Value>) => void,
   ): () => void;
-  publish(value: Value, options?: { ttlMs?: number; connectionId?: string }): Promise<unknown>;
-  delete(options?: { connectionId?: string }): Promise<unknown>;
+  publish(value: Value, options?: { ttlMs?: number; connectionId?: string }): Promise<EphemeralPublishOutcome>;
+  delete(options?: { connectionId?: string } & EphemeralWithdrawalOptions): Promise<EphemeralDeleteSettlement | unknown>;
   drain(): Promise<unknown>;
   currentEntries(options?: { prune?: boolean }): EphemeralEntry<Value>[];
   dispose(): void;
 }
+
+export interface EphemeralPublishOutcome {
+  readonly scope_epoch: number;
+  readonly entry_version: number;
+  readonly [member: string]: unknown;
+}
+
+export interface EphemeralWithdrawalOptions {
+  readonly expectedScopeEpoch?: number | null;
+  readonly expectedEntryVersion?: number | null;
+  readonly authorityCapture?: unknown;
+}
+
+export type EphemeralDeleteSettlement = Readonly<{
+  readonly status: 'deleted' | 'absent' | 'superseded';
+  readonly message?: unknown;
+  readonly expectedScopeEpoch?: number;
+  readonly expectedEntryGeneration?: number;
+  readonly actualScopeEpoch?: number;
+  readonly actualEntryGeneration?: number;
+}>;
 
 export interface SnapbackClientOptions {
   readonly adminToken?: string | null;
@@ -1707,6 +1763,16 @@ export class SnapbackClient {
     ref: NamedReference,
     options?: { readonly args?: Record<string, unknown>; readonly userId?: string },
   ): Promise<ActionOutput<Result>>;
+  /** Primary one-shot action verb. Returns the typed result and throws
+   * SnapbackDiagnosticError for application, protocol, or transport refusal. */
+  run<Ref extends FunctionRef<'Action'>>(
+    ref: Ref,
+    options?: { readonly args?: FunctionArgs<Ref>; readonly userId?: string },
+  ): Promise<FunctionResult<Ref>>;
+  run<Result = unknown>(
+    ref: NamedReference,
+    options?: { readonly args?: Record<string, unknown>; readonly userId?: string },
+  ): Promise<Result>;
   liveQuery<Ref extends FunctionRef<'Query' | 'LiveQuery'>>(
     ref: Ref,
     options: {
@@ -1765,7 +1831,7 @@ export class SnapbackClient {
       readonly authorityCapture?: unknown;
       readonly resumeFromToken?: string | null;
     },
-  ): Promise<unknown>;
+  ): Promise<EphemeralPublishOutcome>;
   unsubscribeLive<Ref extends FunctionRef<'LiveQuery'>>(
     ref: Ref,
     options?: {
@@ -1811,7 +1877,7 @@ export class SnapbackClient {
       readonly userId?: string;
       readonly permissions?: readonly string[];
     },
-  ): Promise<unknown>;
+  ): Promise<EphemeralPublishOutcome>;
   deleteEphemeral<
     Ref extends string | SnapbackEphemeralReference<string, unknown, unknown>,
   >(
@@ -1821,8 +1887,11 @@ export class SnapbackClient {
       readonly scope?: EphemeralScope<Ref>;
       readonly userId?: string;
       readonly permissions?: readonly string[];
+      readonly expectedScopeEpoch?: number | null;
+      readonly expectedEntryVersion?: number | null;
+      readonly authorityCapture?: unknown;
     },
-  ): Promise<unknown>;
+  ): Promise<EphemeralDeleteSettlement | unknown>;
   disconnect(connectionId: string): Promise<unknown>;
   startEphemeralRoom<
     Ref extends SnapbackEphemeralReference<string, unknown, unknown, 'Connection'>,

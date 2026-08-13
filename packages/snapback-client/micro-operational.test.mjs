@@ -20,6 +20,7 @@ const operation = Object.freeze({
   artifactKind: 'functionReference',
   name: 'watchTodos',
   kind: 'LiveQuery',
+  argsContract: { kind: 'object', fields: [] },
   expectedGeneration: generation,
 });
 const resync = {

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "action-attempt-receipt.v1",
+  "attemptId": "attempt-1",
+  "attemptToken": "attempt-token-0001",
+  "actionId": "deliver",
+  "generationId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "bundleId": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "executableId": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "workerSessionId": "worker-session-001",
+  "idempotencyKeyDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "effectClass": "vendor-delivery",
+  "deadlineMs": 1786500060000,
+  "startedAtMs": 1786500000000,
+  "settledAtMs": 1786500000123,
+  "outcome": "succeeded",
+  "initiationState": "response_observed",
+  "effectMayHaveExecuted": true,
+  "settledBy": "worker",
+  "retryDisposition": "not_needed",
+  "resultDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "diagnostics": []
+}
+

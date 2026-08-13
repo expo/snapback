@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "isolated-node-action-dependency-closure.v1",
+  "lockfileFormat": "npm-lockfile-v3",
+  "rootPackages": ["native-addon"],
+  "packages": [{ "name": "native-addon", "version": "1.0.0", "lockPath": "../native-addon", "integrity": "missing", "dependencies": [], "unpackedBytes": 70000000, "esm": false }],
+  "limits": { "lockedInstances": 1, "maximumDepth": 33, "unpackedBytes": 70000000 },
+  "bundle": { "sha256": "bad", "bytes": 40000000, "sourceMapSha256": "bad" }
+}
+

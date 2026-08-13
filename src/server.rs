@@ -29334,6 +29334,10 @@ pub struct SessionDeleteRequest {
     collection: String,
     scope: Scope,
     connection_id: String,
+    #[serde(default)]
+    expected_scope_epoch: Option<u64>,
+    #[serde(default)]
+    expected_entry_generation: Option<u64>,
 }
 
 impl SessionSubscribeRequest {
@@ -29376,6 +29380,8 @@ impl SessionDeleteRequest {
             session_id: auth.session_id.clone(),
             user_id: auth.user_id.clone(),
             custom_key: None,
+            expected_scope_epoch: self.expected_scope_epoch,
+            expected_entry_generation: self.expected_entry_generation,
             auth,
         }
     }
@@ -29994,23 +30000,31 @@ fn handle_live_socket_text_authorized(
         LiveSocketClientMessage::EphemeralDelete {
             request_id,
             request,
-        } => match ephemeral.delete_with_room_authority(
-            request,
-            now_millis(),
-            admitted_room_authority,
-        ) {
-            Ok(message) => admitted_socket_ack(
-                ephemeral,
-                request_id,
-                "delete",
-                json!({ "message": &message }),
-                message.as_ref(),
+        } => {
+            let fenced_withdrawal = request.expected_scope_epoch.is_some()
+                || request.expected_entry_generation.is_some();
+            match ephemeral.delete_with_room_authority(
+                request,
+                now_millis(),
                 admitted_room_authority,
-            ),
-            Err(error) => {
-                socket_error(request_id, "delete", diagnostic_from_ephemeral(error)).into()
+            ) {
+                Ok(settlement) => admitted_socket_ack(
+                    ephemeral,
+                    request_id,
+                    "delete",
+                    if fenced_withdrawal {
+                        json!({ "settlement": &settlement })
+                    } else {
+                        json!({ "message": &settlement.message })
+                    },
+                    settlement.message.as_ref(),
+                    admitted_room_authority,
+                ),
+                Err(error) => {
+                    socket_error(request_id, "delete", diagnostic_from_ephemeral(error)).into()
+                }
             }
-        },
+        }
         LiveSocketClientMessage::EphemeralUnsubscribe {
             request_id,
             request,
@@ -30376,6 +30390,10 @@ struct WireDeleteRequest {
     session_id: Option<String>,
     user_id: Option<String>,
     custom_key: Option<String>,
+    #[serde(default)]
+    expected_scope_epoch: Option<u64>,
+    #[serde(default)]
+    expected_entry_generation: Option<u64>,
     auth: Option<AuthContext>,
 }
 
@@ -30457,6 +30475,8 @@ impl WireDeleteRequest {
             session_id,
             user_id,
             custom_key,
+            expected_scope_epoch: self.expected_scope_epoch,
+            expected_entry_generation: self.expected_entry_generation,
             auth,
         })
     }
@@ -30696,6 +30716,8 @@ async fn delete_ephemeral_inner(
         PolicyAuthMode::Dev => parse_ephemeral_json::<WireDeleteRequest>(&headers, body)?
             .resolve(policy_mode, authority.resolved())?,
     };
+    let fenced_withdrawal =
+        request.expected_scope_epoch.is_some() || request.expected_entry_generation.is_some();
     let room_authority = if policy_mode == PolicyAuthMode::Sessions {
         let authorized = authorize_bound_ephemeral_room(
             &runtime,
@@ -30722,7 +30744,7 @@ async fn delete_ephemeral_inner(
     let authority_instance = runtime
         .connections
         .ephemeral_authority_instance(&connection_act.connection_id);
-    if let Some(message) = &mut output {
+    if let Some(message) = &mut output.message {
         message.install_ephemeral_authority_instance(authority_instance.as_deref());
     }
     let observed = (runtime
@@ -30730,7 +30752,15 @@ async fn delete_ephemeral_inner(
         .ephemeral_expiry_protocol(&connection_act.connection_id)
         == Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1))
     .then_some(epoch_now_ms);
-    let response = ephemeral_http_json(output, observed, authority_instance.as_deref());
+    let response = if fenced_withdrawal {
+        ephemeral_http_json(output, observed, authority_instance.as_deref())
+    } else {
+        ephemeral_http_json(
+            output.legacy_message(),
+            observed,
+            authority_instance.as_deref(),
+        )
+    };
     Ok(retain_room_authority(response, room_authority))
 }
 

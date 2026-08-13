@@ -464,14 +464,14 @@ title: The authoring loop
 id: getting-started.the-authoring-loop
 order: 2
 audience: agent-first
-capabilities: [backend.codegen, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, src/cli.rs, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
+capabilities: [backend.codegen, authoring.declaration-suggestions, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, src/cli.rs, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
 examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, packages/snapback-cli/sessions-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:7862c2f40d1ad8936ea30fe5cdf8bcb51676fca5c5ac41a3897b1977e72ab31e
+reviewed-authorities-digest: sha256:0af8f5acd5cd1550dd9e76f0f7bd95bafe486035c46d59b08ca37aba0bd02d16
 ---
 
 # The authoring loop
@@ -701,6 +701,42 @@ closed verbs, transport flags, and current availability gate.
 Bare `snapback` is also discovery-only and prints root help. Start the normal
 authoring loop explicitly with `snapback dev`; use native `snapback start` only
 when a lower-level harness deliberately owns server loading and lifecycle.
+
+<!-- since: 0.1.21 unreleased -->
+> **Unreleased.** Declaration suggestions are newer than the newest published
+> `@expo/snapback-*` closure, 0.1.20; use them from this source checkout until
+> a later closure is published.
+
+## Suggest, review, and apply a result contract
+
+After generation has produced current context types, ask Snapback to derive a
+result-only candidate from one operation's TypeScript/JSDoc return evidence.
+Review the ordinary patch and its grouped runtime/type consequences first:
+
+```sh
+snapback author suggest snapback/functions.mjs#createTodo --format patch
+```
+
+Retain the machine record when you want the stale-safe apply seam:
+
+```sh
+snapback author suggest snapback/functions.mjs#createTodo --json > suggestion.json
+```
+
+Then apply exactly that one suggestion. The command rereads the complete
+definition/helper/type/schema/compiler input closure and writes atomically
+only when its identity and exact patch target still match:
+
+```sh
+snapback author suggestion apply suggestion.json --json
+```
+
+An `exact` or `schema-derived` candidate has a complete patch. `widened`
+evidence deserves extra review; `holed` and `refused` candidates deliberately
+have no patch until an author supplies the missing bound, refinement, or
+closed shape. The suggestion receipt never becomes runtime authority: normal
+generation freezes the accepted `result:` declaration and derives runtime
+validation plus generated-client types from that source.
 
 When `snapback dev` runs without a TTY, stdin accepts optional
 `snapback.dev-command.v1` JSON lines while it remains open. EOF only closes

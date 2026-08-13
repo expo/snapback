@@ -42,12 +42,14 @@ const stableDigest = (value) => digest(normalizeVolatile(value));
 // These are SHA-256 over the exact JSON.stringify bytes of the generated
 // runtime artifacts. Format 1 is deliberately frozen beside the v2 golden so
 // later mixed-profile work cannot add, remove, reorder, or reinterpret a v1
-// byte without an explicit regression failure. The pins rotate whenever
-// generation inputs legitimately rotate (expectedGeneration hashes ride
-// every reference); re-pin only after verifying the SHAPE is unchanged —
-// a new field on format 1 is the defect this guard exists to catch.
-const FORMAT_1_BYTES_SHA256 = '25685fda1552796e18513315d350d459463e630d845bd84d0737e6bdd23e01ed';
-const FORMAT_2_BYTES_SHA256 = 'c3f8a326b4d73a969146aca400550ef2c682fddd0528b3dabd76835ce1ddb7d9';
+// byte without an explicit regression failure. LLP 0247's generated
+// authRequirement is the one sanctioned format-1 shape extension. The pins
+// rotate whenever generation inputs legitimately rotate (expectedGeneration
+// hashes ride every reference); re-pin only after verifying the SHAPE is
+// unchanged — any further unreviewed field on format 1 is the defect this
+// guard exists to catch.
+const FORMAT_1_BYTES_SHA256 = 'fd7d82b5298eba82cb6c68157476df43addcb9fda061ab6ae829430d0012c757';
+const FORMAT_2_BYTES_SHA256 = '19c2e49b0fc33b3e62c4784ea35268ec2f8b60d6905ff13f829ecaf24df85090';
 
 test('mixed route emits format 2 from bound liveness while format 1 stays byte-exact', async (t) => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-mixed-route-v2-'));
@@ -89,11 +91,19 @@ export default defineRoutes([
   assert.equal(allLive.planHash, undefined);
   assert.equal(allLive.id, 'golden-app:query-group:/all-live');
   assert.equal(stableDigest(allLive), FORMAT_1_BYTES_SHA256, 'LLP 0112 format-1 shape/literals changed');
+  assert.deepEqual(
+    allLive.queries.map((child) => child.ref.authRequirement),
+    ['optional-user', 'optional-user'],
+  );
 
   assert.equal(mixed.formatVersion, 2);
   assert.equal(mixed.profile, 'mixed-route.v2');
   assert.equal(mixed.id, 'golden-app:query-group-v2:/mixed');
   assert.equal(stableDigest(mixed), FORMAT_2_BYTES_SHA256, 'mixed-route v2 emission shape/literals changed');
+  assert.deepEqual(
+    mixed.queries.map((child) => child.ref.authRequirement),
+    ['optional-user', 'optional-user'],
+  );
   assert.deepEqual(
     mixed.queries.map((child) => child.liveness),
     [

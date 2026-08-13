@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/client-lifecycle/v1.schema.json",
+  "$comment": "@ref LLP 0247#d5-generated-lifecycle-metadata-owns-normalization-and-failure-tables — origin schema; LLP 0238 D7 may extend this artifact later.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "appId", "inputsHash", "rows"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.client-lifecycle.v1" },
+    "appId": { "type": "string", "minLength": 1 },
+    "inputsHash": { "type": "string", "minLength": 1 },
+    "rows": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "argumentNormalization",
+        "authorityAdmission",
+        "presenceLifecycle",
+        "primaryFailureCarrier",
+        "anchors"
+      ],
+      "properties": {
+        "argumentNormalization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "operations"],
+          "properties": {
+            "version": { "const": "snapback.argument-normalization.v1" },
+            "operations": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/operationNormalization" }
+            }
+          }
+        },
+        "authorityAdmission": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operations"],
+          "properties": {
+            "operations": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/authorityOperation" }
+            }
+          }
+        },
+        "presenceLifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stopAction",
+            "disposeAction",
+            "neverPublishedAction",
+            "authorityLossBarrierOwner",
+            "collections"
+          ],
+          "properties": {
+            "stopAction": { "const": "fenced-withdrawal" },
+            "disposeAction": { "const": "fenced-withdrawal" },
+            "neverPublishedAction": { "const": "none" },
+            "authorityLossBarrierOwner": { "const": "server-connection-cleanup" },
+            "collections": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["collection", "withdrawalVisibilityDeadlineMs"],
+                "properties": {
+                  "collection": { "type": "string", "minLength": 1 },
+                  "withdrawalVisibilityDeadlineMs": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "primaryFailureCarrier": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["publicErrorType", "verbs"],
+          "properties": {
+            "publicErrorType": { "const": "SnapbackDiagnosticError" },
+            "verbs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["verb", "operationKind", "carrier"],
+                "properties": {
+                  "verb": { "type": "string", "minLength": 1 },
+                  "operationKind": { "enum": ["Query", "LiveQuery", "Mutation", "Action"] },
+                  "carrier": {
+                    "enum": [
+                      "throw",
+                      "throw-immediate",
+                      "raw-envelope-deprecated",
+                      "resolved-queued-union"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "anchors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["guide", "diagnostics"],
+          "properties": {
+            "guide": { "$ref": "#/$defs/stringList" },
+            "diagnostics": { "$ref": "#/$defs/stringList" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "functionIdentity": {
+      "type": "object",
+      "required": ["functionId", "name", "kind", "verb"],
+      "properties": {
+        "functionId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["Query", "LiveQuery", "Mutation", "Action"] },
+        "verb": { "enum": ["query", "liveQuery", "mutate", "run"] }
+      }
+    },
+    "operationNormalization": {
+      "allOf": [
+        { "$ref": "#/$defs/functionIdentity" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["functionId", "name", "kind", "verb", "optionalPropertyPaths"],
+          "properties": {
+            "functionId": true,
+            "name": true,
+            "kind": true,
+            "verb": true,
+            "optionalPropertyPaths": { "$ref": "#/$defs/stringList" }
+          }
+        }
+      ]
+    },
+    "authorityOperation": {
+      "allOf": [
+        { "$ref": "#/$defs/functionIdentity" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "functionId",
+            "name",
+            "kind",
+            "verb",
+            "authRequirement",
+            "outcome"
+          ],
+          "properties": {
+            "functionId": true,
+            "name": true,
+            "kind": true,
+            "verb": true,
+            "authRequirement": {
+              "enum": ["public", "optional-user", "authenticated"]
+            },
+            "outcome": {
+              "enum": ["local-refusal-until-authenticated", "dispatch-under-captured-authority"]
+            }
+          }
+        }
+      ]
+    },
+    "stringList": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  }
+}

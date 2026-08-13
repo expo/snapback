@@ -143,7 +143,11 @@ pub struct SchemaArtifact {
 /// @ref LLP 0049#deployment-identity-freshness-gate-2026-07-25 — the
 ///   Cloudflare deploy workflow owns its version-attested success receipt;
 ///   it is not a Rust server artifact.
+/// @ref LLP 0246#d2-snapback-owns-the-effective-compiler-configuration — the
+///   handler TypeScript profile is emitted and consumed wholly inside the JS
+///   codegen boundary, like the codegen-owned app descriptor.
 pub const EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS: &[&str] = &[
+    "../packages/snapback-codegen/handler-typescript-profile.schema.json",
     "cloudflare.deploy-receipt-v1.schema.json",
     "control-catalog-instance.v1.schema.json",
     "control-catalog.v1.schema.json",

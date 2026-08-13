@@ -1121,7 +1121,84 @@ pub struct DeleteRequest {
     pub session_id: Option<String>,
     pub user_id: Option<String>,
     pub custom_key: Option<String>,
+    #[serde(default)]
+    pub expected_scope_epoch: Option<u64>,
+    #[serde(default)]
+    pub expected_entry_generation: Option<u64>,
     pub auth: AuthContext,
+}
+
+/// Idempotent app-path delete settlement. Fenced withdrawal treats a stale
+/// predecessor as successful supersession, never as an operational error.
+///
+/// @ref LLP 0247#d3-presence-has-explicit-active-and-withdrawn-states — the
+/// acknowledged epoch+entry pair is checked together under the room lock.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteSettlement {
+    pub status: DeleteSettlementStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<EphemeralMessage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_scope_epoch: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_entry_generation: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actual_scope_epoch: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actual_entry_generation: Option<u64>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum DeleteSettlementStatus {
+    Deleted,
+    Absent,
+    Superseded,
+}
+
+impl DeleteSettlement {
+    fn deleted(message: EphemeralMessage) -> Self {
+        Self {
+            status: DeleteSettlementStatus::Deleted,
+            message: Some(message),
+            expected_scope_epoch: None,
+            expected_entry_generation: None,
+            actual_scope_epoch: None,
+            actual_entry_generation: None,
+        }
+    }
+
+    fn absent() -> Self {
+        Self {
+            status: DeleteSettlementStatus::Absent,
+            message: None,
+            expected_scope_epoch: None,
+            expected_entry_generation: None,
+            actual_scope_epoch: None,
+            actual_entry_generation: None,
+        }
+    }
+
+    fn superseded(
+        expected_scope_epoch: u64,
+        expected_entry_generation: u64,
+        actual_scope_epoch: Option<u64>,
+        actual_entry_generation: Option<u64>,
+    ) -> Self {
+        Self {
+            status: DeleteSettlementStatus::Superseded,
+            message: None,
+            expected_scope_epoch: Some(expected_scope_epoch),
+            expected_entry_generation: Some(expected_entry_generation),
+            actual_scope_epoch,
+            actual_entry_generation,
+        }
+    }
+
+    pub fn legacy_message(self) -> Option<EphemeralMessage> {
+        self.message
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -6046,7 +6123,7 @@ impl LocalEphemeralBackend {
         &self,
         request: DeleteRequest,
         now_ms: Millis,
-    ) -> Result<Option<EphemeralMessage>, EphemeralError> {
+    ) -> Result<DeleteSettlement, EphemeralError> {
         self.delete_with_room_authority(request, now_ms, None)
     }
 
@@ -6055,7 +6132,7 @@ impl LocalEphemeralBackend {
         request: DeleteRequest,
         now_ms: Millis,
         admitted: Option<&RoomAuthorityPermit>,
-    ) -> Result<Option<EphemeralMessage>, EphemeralError> {
+    ) -> Result<DeleteSettlement, EphemeralError> {
         let _generation = self.lifecycle_read("ephemeral delete");
         self.validate_request_metadata(RequestMetadata {
             collection: &request.collection,
@@ -6066,6 +6143,20 @@ impl LocalEphemeralBackend {
             user_id: request.user_id.as_deref(),
             custom_key: request.custom_key.as_deref(),
         })?;
+        // @ref LLP 0013#stored-entry-shape — every client-visible fence stays
+        // inside the shipped plain-JSON counter domain, including ingress.
+        if request
+            .expected_scope_epoch
+            .is_some_and(|value| value > crate::manifest::PORTABLE_STORAGE_VERSION_MAX)
+            || request
+                .expected_entry_generation
+                .is_some_and(|value| value > crate::manifest::PORTABLE_STORAGE_VERSION_MAX)
+        {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::InvalidScope,
+                "ephemeral delete fence values must not exceed the JSON safe-integer maximum",
+            ));
+        }
         let collection = self.collection(&request.collection)?;
         let room_id = room_id_for(&collection, &request.scope)?;
         self.ensure_authorized(&collection.publish, &request.scope, &request.auth)?;
@@ -6073,8 +6164,24 @@ impl LocalEphemeralBackend {
             self.room_authority_for_act(&collection, &room_id, admitted)?;
         let key = entry_key_for_delete(&collection, &request)?;
         let owner = entry_owner_for_delete(&collection, &request)?;
+        let expected_pair = match (
+            request.expected_scope_epoch,
+            request.expected_entry_generation,
+        ) {
+            (Some(scope_epoch), Some(entry_generation)) => Some((scope_epoch, entry_generation)),
+            (None, None) => None,
+            _ => {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::InvalidScope,
+                    "ephemeral delete expected_scope_epoch and expected_entry_generation must be supplied together",
+                ));
+            }
+        };
 
         let result = match self.with_existing_room(&room_id, |room| {
+            // @ref LLP 0013#authorization-and-privacy — ownership is also an
+            // information boundary: authorize the live key before observing
+            // its fence pair or distinguishing absent from superseded.
             if let Some(record) = room.entries.get(&key)
                 && record.expires_at_ms > now_ms
                 && record.owner != owner
@@ -6083,6 +6190,24 @@ impl LocalEphemeralBackend {
                     EphemeralErrorCode::Unauthorized,
                     "ephemeral entry is owned by another authenticated identity",
                 ));
+            }
+            if let Some((expected_scope_epoch, expected_entry_generation)) = expected_pair {
+                let actual_entry_generation =
+                    room.entries.get(&key).map(|entry| entry.entry_version);
+                if room.scope_epoch != expected_scope_epoch
+                    || actual_entry_generation
+                        .is_some_and(|actual| actual != expected_entry_generation)
+                {
+                    return Ok((
+                        DeleteSettlement::superseded(
+                            expected_scope_epoch,
+                            expected_entry_generation,
+                            Some(room.scope_epoch),
+                            actual_entry_generation,
+                        ),
+                        BTreeSet::new(),
+                    ));
+                }
             }
             let expired = room
                 .entries
@@ -6108,7 +6233,7 @@ impl LocalEphemeralBackend {
                 room_authority_generation,
             )?;
             let Some(record) = room.entries.get(&key) else {
-                return Ok((None, BTreeSet::new()));
+                return Ok((DeleteSettlement::absent(), BTreeSet::new()));
             };
             if record.owner != owner {
                 return Err(EphemeralError::new(
@@ -6131,12 +6256,15 @@ impl LocalEphemeralBackend {
             if let Some(message) = &removed {
                 self.fan_out_locked(room, &room_id, &collection, message.clone());
             }
-            Ok((removed, affected))
+            Ok((
+                removed.map_or_else(DeleteSettlement::absent, DeleteSettlement::deleted),
+                affected,
+            ))
         }) {
             Some(result) => result,
-            None => Ok((None, BTreeSet::new())),
+            None => Ok((DeleteSettlement::absent(), BTreeSet::new())),
         };
-        let (removed, affected_connections) = match result {
+        let (settlement, affected_connections) = match result {
             Ok(result) => result,
             Err(error) => {
                 if error.code == EphemeralErrorCode::GenerationExhausted {
@@ -6149,7 +6277,7 @@ impl LocalEphemeralBackend {
             self.unindex_connection_room_if_unused(&connection_id, &room_id);
         }
         self.prune_room_if_empty(&room_id);
-        Ok(removed)
+        Ok(settlement)
     }
 
     /// Operator-only ephemeral-entry delete (LLP 0184 §C). Distinct from
@@ -10628,6 +10756,8 @@ mod tests {
             session_id: None,
             user_id: None,
             custom_key: None,
+            expected_scope_epoch: None,
+            expected_entry_generation: None,
         }
     }
 
@@ -12321,6 +12451,8 @@ mod tests {
             session_id: None,
             user_id: None,
             custom_key: Some(key.to_owned()),
+            expected_scope_epoch: None,
+            expected_entry_generation: None,
             auth: auth_for(&scope()),
         };
         backend.delete(delete("first"), 1_003).unwrap();
@@ -12534,6 +12666,8 @@ mod tests {
             session_id: None,
             user_id: None,
             custom_key: None,
+            expected_scope_epoch: None,
+            expected_entry_generation: None,
             auth: publish.auth.clone(),
         };
         assert_eq!(
@@ -12603,6 +12737,8 @@ mod tests {
             session_id: None,
             user_id: Some("user-a".to_owned()),
             custom_key: None,
+            expected_scope_epoch: None,
+            expected_entry_generation: None,
             auth: publish.auth.clone(),
         };
         assert_eq!(
@@ -12646,6 +12782,8 @@ mod tests {
                         session_id: None,
                         user_id: None,
                         custom_key: Some("shared-name".to_owned()),
+                        expected_scope_epoch: None,
+                        expected_entry_generation: None,
                         auth: publish.auth,
                     },
                     1_005,
@@ -12687,6 +12825,8 @@ mod tests {
                     session_id: None,
                     user_id: None,
                     custom_key: Some("first".to_owned()),
+                    expected_scope_epoch: None,
+                    expected_entry_generation: None,
                     auth: auth_for(&scope),
                 },
                 1_002,
@@ -14306,6 +14446,223 @@ mod tests {
             "the ordinary subscriber fan-out must carry the same Remove message"
         );
         assert_eq!(backend.diagnostics().entry_count, 0);
+    }
+
+    /// @ref LLP 0247#d3-presence-has-explicit-active-and-withdrawn-states — app
+    /// withdrawals use the same epoch+entry tuple as the operator path, but
+    /// stale tuples settle as superseded instead of surfacing an error.
+    #[test]
+    fn app_delete_fenced_match_removes_and_settles_deleted() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let published = backend
+            .publish(publish_request("owner", b"cursor"), 1_000)
+            .unwrap();
+        let settlement = backend
+            .delete(
+                DeleteRequest {
+                    expected_scope_epoch: Some(published.scope_epoch),
+                    expected_entry_generation: Some(published.entry_version),
+                    ..delete_request("owner")
+                },
+                1_001,
+            )
+            .unwrap();
+        assert_eq!(settlement.status, DeleteSettlementStatus::Deleted);
+        assert!(settlement.message.is_some());
+        assert_eq!(backend.diagnostics().entry_count, 0);
+    }
+
+    #[test]
+    fn app_delete_non_owner_fences_match_unfenced_refusal_without_pair_or_presence_oracle() {
+        let backend = LocalEphemeralBackend::new();
+        let mut custom = collection();
+        custom.name = "customPresence".to_owned();
+        custom.key_mode = KeyMode::Custom;
+        backend.register_collection(custom).unwrap();
+        let scope = scope();
+        let published = backend
+            .publish(
+                PublishRequest {
+                    collection: "customPresence".to_owned(),
+                    scope: scope.clone(),
+                    connection_id: "owner".to_owned(),
+                    session_id: None,
+                    user_id: None,
+                    custom_key: Some("shared-name".to_owned()),
+                    value: b"cursor".to_vec(),
+                    ttl_ms: None,
+                    auth: auth_for(&scope),
+                },
+                1_000,
+            )
+            .unwrap();
+        let request = |expected_scope_epoch, expected_entry_generation| DeleteRequest {
+            collection: "customPresence".to_owned(),
+            scope: scope.clone(),
+            connection_id: "other".to_owned(),
+            session_id: None,
+            user_id: None,
+            custom_key: Some("shared-name".to_owned()),
+            expected_scope_epoch,
+            expected_entry_generation,
+            auth: auth_for(&scope),
+        };
+
+        let unfenced = backend
+            .delete(request(None, None), 1_001)
+            .expect_err("another connection cannot delete the custom key");
+        let stale = backend
+            .delete(
+                request(
+                    Some(published.scope_epoch),
+                    Some(published.entry_version + 1),
+                ),
+                1_001,
+            )
+            .expect_err("a stale fence cannot bypass key ownership");
+        let exact = backend
+            .delete(
+                request(
+                    Some(published.scope_epoch),
+                    Some(published.entry_version),
+                ),
+                1_001,
+            )
+            .expect_err("an exact fence cannot bypass key ownership");
+
+        assert_eq!(unfenced.code, EphemeralErrorCode::Unauthorized);
+        assert_eq!(stale, unfenced, "stale fences must reveal no current pair");
+        assert_eq!(exact, unfenced, "exact fences must reveal no key presence");
+        assert_eq!(backend.diagnostics().entry_count, 1);
+    }
+
+    #[test]
+    fn app_delete_fence_values_above_json_safe_integer_refuse_before_room_work() {
+        let backend = LocalEphemeralBackend::new();
+        let maximum = crate::manifest::PORTABLE_STORAGE_VERSION_MAX;
+        for (expected_scope_epoch, expected_entry_generation) in
+            [(maximum + 1, 1), (1, maximum + 1)]
+        {
+            let error = backend
+                .delete(
+                    DeleteRequest {
+                        expected_scope_epoch: Some(expected_scope_epoch),
+                        expected_entry_generation: Some(expected_entry_generation),
+                        ..delete_request("owner")
+                    },
+                    1_000,
+                )
+                .expect_err("an unrepresentable fence must refuse at ingress");
+            assert_eq!(error.code, EphemeralErrorCode::InvalidScope);
+            assert_eq!(
+                error.message,
+                "ephemeral delete fence values must not exceed the JSON safe-integer maximum"
+            );
+        }
+        assert_eq!(backend.diagnostics().room_count, 0);
+    }
+
+    #[test]
+    fn app_delete_stale_generation_settles_superseded_and_preserves_successor() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let predecessor = backend
+            .publish(publish_request("owner", b"old"), 1_000)
+            .unwrap();
+        let successor = backend
+            .publish(publish_request("owner", b"new"), 1_001)
+            .unwrap();
+        assert!(successor.entry_version > predecessor.entry_version);
+
+        let settlement = backend
+            .delete(
+                DeleteRequest {
+                    expected_scope_epoch: Some(predecessor.scope_epoch),
+                    expected_entry_generation: Some(predecessor.entry_version),
+                    ..delete_request("owner")
+                },
+                1_002,
+            )
+            .unwrap();
+        assert_eq!(settlement.status, DeleteSettlementStatus::Superseded);
+        assert_eq!(settlement.actual_scope_epoch, Some(successor.scope_epoch));
+        assert_eq!(
+            settlement.actual_entry_generation,
+            Some(successor.entry_version)
+        );
+        assert_eq!(backend.diagnostics().entry_count, 1);
+    }
+
+    #[test]
+    fn app_delete_old_epoch_settles_superseded_for_reborn_room() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let predecessor = backend
+            .publish(publish_request("owner", b"old"), 1_000)
+            .unwrap();
+        backend
+            .delete(
+                DeleteRequest {
+                    expected_scope_epoch: Some(predecessor.scope_epoch),
+                    expected_entry_generation: Some(predecessor.entry_version),
+                    ..delete_request("owner")
+                },
+                1_001,
+            )
+            .unwrap();
+        let successor = backend
+            .publish(publish_request("owner", b"new"), 1_002)
+            .unwrap();
+        assert!(successor.scope_epoch > predecessor.scope_epoch);
+        assert_eq!(successor.entry_version, 1);
+
+        let settlement = backend
+            .delete(
+                DeleteRequest {
+                    expected_scope_epoch: Some(predecessor.scope_epoch),
+                    expected_entry_generation: Some(predecessor.entry_version),
+                    ..delete_request("owner")
+                },
+                1_003,
+            )
+            .unwrap();
+        assert_eq!(settlement.status, DeleteSettlementStatus::Superseded);
+        assert_eq!(settlement.actual_scope_epoch, Some(successor.scope_epoch));
+        assert_eq!(backend.diagnostics().entry_count, 1);
+    }
+
+    #[test]
+    fn delayed_app_withdrawal_after_republish_cannot_delete_successor() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let predecessor = backend
+            .publish(publish_request("owner", b"typing"), 1_000)
+            .unwrap();
+        let successor = backend
+            .publish(publish_request("owner", b"typing-again"), 1_001)
+            .unwrap();
+
+        let delayed = backend
+            .delete(
+                DeleteRequest {
+                    expected_scope_epoch: Some(predecessor.scope_epoch),
+                    expected_entry_generation: Some(predecessor.entry_version),
+                    ..delete_request("owner")
+                },
+                1_002,
+            )
+            .unwrap();
+        assert_eq!(delayed.status, DeleteSettlementStatus::Superseded);
+        let EphemeralMessage::Snapshot { entries, .. } = backend
+            .subscribe(subscribe_request("observer"), 1_003)
+            .unwrap()
+        else {
+            panic!("expected room snapshot");
+        };
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].entry_version, successor.entry_version);
+        assert_eq!(entries[0].value, b"typing-again");
     }
 
     #[test]

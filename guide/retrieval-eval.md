@@ -4,7 +4,7 @@ id: meta.retrieval-eval
 order: 91
 audience: agent-first
 capabilities: []
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md]
 examples: []
 status: current
 targets: [all]
@@ -536,6 +536,15 @@ three lanes reverse-engineered `coordinator.settledView()` /
     Expected pages: `auth/sessions-and-principals.md`.
     Route terms: "who am I", "am I signed in", "settledView",
     "currentAuthorizationScope", "whoami".
+
+49. **Declaration suggestions:** "How do I get Snapback to write my result
+    contract?" The run fails if the plan invents bounds or table identity,
+    treats suggestion provenance as runtime authority, bulk-applies operations,
+    or claims a manually pasted patch received the stale-safe apply check.
+    Expected pages: `getting-started/the-authoring-loop.md` or
+    `backend/queries.md`.
+    Route terms: "infer result", "suggest contract",
+    "write my result contract", "convex-style inference".
 
 ## Static routing check
 

@@ -27,7 +27,16 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { SnapbackClient } from '@expo/snapback-client';
-import { formatCodegenSummary, generate } from '@expo/snapback-codegen';
+import {
+  applyDeclarationSuggestion,
+  DECLARATION_SUGGESTION_REASON_CODES,
+  formatCodegenSummary,
+  formatDeclarationSuggestionPatch,
+  generate,
+  readDeclarationSuggestionFile,
+  resolveDeclarationSuggestionTarget,
+  suggestDeclarations,
+} from '@expo/snapback-codegen';
 import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
@@ -3509,6 +3518,27 @@ function printResult(result, json) {
   else console.error(JSON.stringify(result, null, 2));
 }
 
+function declarationSuggestionCliFailure(message, details = {}) {
+  const code = 'SNAPBACK_AUTHORING_SUGGESTION_INPUT_INVALID';
+  if (!DECLARATION_SUGGESTION_REASON_CODES.includes(code)) {
+    throw new Error(`declaration suggestion schema does not admit ${code}`);
+  }
+  return {
+    schemaVersion: 'snapback.declaration-suggestion-result.v1',
+    artifactKind: 'declarationSuggestionResult',
+    ok: false,
+    suggestions: [],
+    diagnostics: [{
+      schemaVersion: 'snapback.declaration-suggestion-diagnostic.v1',
+      code,
+      severity: 'error',
+      subsystem: 'codegen',
+      message,
+      details,
+    }],
+  };
+}
+
 // This registry is the package-owned half of the composed CLI surface. Keep it
 // data-only: root/per-command help is rendered from it before command dispatch,
 // so asking for help can never scaffold, generate, diagnose, verify, deploy, or
@@ -3518,6 +3548,12 @@ function printResult(result, json) {
 // @ref LLP 0041#cli-commands — the package owns these orchestration verbs while
 // established host operations remain delegated to the native CLI.
 export const PACKAGED_CLI_COMMANDS = Object.freeze([
+  {
+    name: 'author', usage: 'snapback author suggest <operation-or-file> <--format patch|--json> | snapback author suggestion apply <suggestion.json> --json',
+    description: 'Derive reviewable result declarations and apply one identity-bound suggestion with stale-safe compare-and-write.', lifecycle: 'one-shot (suggest is read-only; apply writes one exact source patch)',
+    output: 'snapback.declaration-suggestion-result.v1 or snapback.declaration-suggestion-apply.v1; unified source patch with --format patch', exits: '0 analysis/application completed (including explicit holes/refused candidate classes); 1 invalid input or stale/refused write',
+    recovery: 'Resolve every evidence hole before manual authoring, or regenerate the suggestion after any stale-input refusal.',
+  },
   {
     name: 'guide', usage: 'snapback guide <ExactSymbolName|module> [--slice <n>] [--json]',
     description: 'Return a build-bound exact API symbol or bounded module slice; fuzzy queries delegate to the native Guide search.', lifecycle: 'one-shot/read-only',
@@ -3660,6 +3696,26 @@ const HOSTED_LIFECYCLE_HELP_DETAILS = Object.freeze([
 // @ref LLP 0111#closed-request-and-command-registry — hosted lifecycle verb
 // spellings are derived from the exhaustive authority registry.
 export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
+  nestedCliHelp(
+    ['author', 'suggest'],
+    'snapback author suggest <operation-or-file> <--format patch|--json>',
+    'Read a stable backend snapshot and derive result-only DeclarationSuggestionV1 records without editing source.',
+    [
+      'Use <file>#<operation> for one operation, a definition file for all operations in it, or an operation name from inside a backend directory.',
+      '--format patch includes semantic consequences, unresolved holes, exact post-acceptance checks, and an ordinary unified source diff.',
+    ],
+  ),
+  nestedCliHelp(
+    ['author', 'suggestion'],
+    'snapback author suggestion apply <suggestion.json> --json',
+    'Operate on one retained declaration suggestion.',
+  ),
+  nestedCliHelp(
+    ['author', 'suggestion', 'apply'],
+    'snapback author suggestion apply <suggestion.json> --json',
+    'Recompute the complete analysis identity and atomically apply exactly one unchanged suggestion.',
+    ['Manual paste remains possible, but only this command makes the stale-safe compare-and-write claim.'],
+  ),
   nestedCliHelp(['accept', 'comparator'], 'snapback accept comparator <--config <profile.mjs>|--verify-receipt <receipt.json>> [--receipt <receipt.json>] [--timeout-ms <ms>] [--max-age-ms <ms>] [--json]', 'Run a comparator profile or verify its retained receipt.'),
   nestedCliHelp(
     ['agent', 'setup'],
@@ -3848,6 +3904,59 @@ export async function runCli(argv, options = {}) {
   if (json) args.splice(args.indexOf('--json'), 1);
   const auditActorId = takeFlag(args, '--audit-actor');
   if (auditActorId !== null) options = { ...options, auditActorId };
+  if (command === 'author') {
+    const subcommand = args.shift();
+    if (subcommand === 'suggest') {
+      const format = takeFlag(args, '--format');
+      const target = args.shift();
+      if (
+        !target
+        || args.length > 0
+        || (json && format !== null)
+        || (!json && format !== 'patch')
+      ) {
+        const failure = declarationSuggestionCliFailure(
+          'usage: snapback author suggest <operation-or-file> <--format patch|--json>',
+        );
+        process.stdout.write(json ? `${JSON.stringify(failure, null, 2)}\n` : formatDeclarationSuggestionPatch(failure));
+        return 1;
+      }
+      const resolvedTarget = resolveDeclarationSuggestionTarget(target, { cwd: options.cwd ?? process.cwd() });
+      const result = resolvedTarget
+        ? suggestDeclarations(resolvedTarget)
+        : declarationSuggestionCliFailure(
+          'operation targets require an existing definition file/path or an operation name from inside a backend directory',
+          { target },
+        );
+      process.stdout.write(json ? `${JSON.stringify(result, null, 2)}\n` : formatDeclarationSuggestionPatch(result));
+      return result.ok ? 0 : 1;
+    }
+    if (subcommand === 'suggestion' && args.shift() === 'apply') {
+      const suggestionPath = args.shift();
+      if (!json || !suggestionPath || args.length > 0) {
+        const result = applyDeclarationSuggestion(null);
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        return 1;
+      }
+      let input;
+      try {
+        input = readDeclarationSuggestionFile(suggestionPath, { cwd: options.cwd ?? process.cwd() });
+      } catch {
+        const result = applyDeclarationSuggestion(null);
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        return 1;
+      }
+      const result = applyDeclarationSuggestion(input);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return result.ok ? 0 : 1;
+    }
+    const failure = declarationSuggestionCliFailure(
+      'usage: snapback author suggest <operation-or-file> <--format patch|--json> | snapback author suggestion apply <suggestion.json> --json',
+      { subcommand: subcommand ?? null },
+    );
+    process.stdout.write(`${JSON.stringify(failure, null, 2)}\n`);
+    return 1;
+  }
   if (command === 'guide') {
     const lookup = lookupGuideReference(args, options);
     if (lookup !== null) {

@@ -201,7 +201,7 @@ export function handleSubscribeFailure(input) {
   const [
     store, error, generation, handle, clearUnadoptedSubscription,
     allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
-    registryActive, retry,
+    registryActive, retry, authBlockedSnapshot,
   ] = input;
   if (
     store.retry === null
@@ -211,6 +211,14 @@ export function handleSubscribeFailure(input) {
   clearUnadoptedSubscription(store);
   store.handle = null;
   allHandles.delete(handle);
+  const blocked = authBlockedSnapshot();
+  if (blocked !== null) {
+    store.retry = null;
+    store.freshness = 'unknown';
+    store.retention = null;
+    publish(store, blocked, generation);
+    return;
+  }
   if (error?.code === 'SNAPBACK_REACT_GROUP_ATTACH_EXPIRED') {
     store.retry = null;
     void recoverExpiredRegisteredConnection();

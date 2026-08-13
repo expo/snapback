@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/draft/isolated-action-diagnostics.v1.json",
+  "title": "IsolatedActionDiagnosticsV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "codeTable"],
+  "properties": {
+    "schemaVersion": { "const": "isolated-action-diagnostics.v1" },
+    "codeTable": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["code", "severity", "subsystem", "phase", "summary", "remediation"],
+        "properties": {
+          "code": { "$ref": "#/$defs/code" },
+          "severity": { "enum": ["error", "fatal"] },
+          "subsystem": { "const": "isolated-node-action" },
+          "phase": { "enum": ["declaration", "dependency", "bundle", "activation", "attestation", "egress", "attempt", "result"] },
+          "summary": { "type": "string", "minLength": 1 },
+          "remediation": { "type": "string", "minLength": 1 },
+          "detailsSchema": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "code": {
+      "enum": [
+        "SNAPBACK_ISOLATED_NODE_PROFILE_UNSUPPORTED",
+        "SNAPBACK_ISOLATED_NODE_DIRECT_SPECIFIER_REFUSED",
+        "SNAPBACK_ISOLATED_NODE_DEPENDENCY_INSTALL_SCRIPT",
+        "SNAPBACK_ISOLATED_NODE_COMMONJS_ONLY_REFUSED",
+        "SNAPBACK_ISOLATED_NODE_NATIVE_ADDON_REFUSED",
+        "SNAPBACK_ISOLATED_NODE_CLOSURE_LIMIT",
+        "SNAPBACK_ISOLATED_NODE_BUNDLE_REFUSED",
+        "SNAPBACK_ISOLATED_NODE_ATTESTATION_REFUSED",
+        "SNAPBACK_ISOLATED_NODE_DESTINATION_REFUSED",
+        "SNAPBACK_ISOLATED_NODE_WORKER_LOST",
+        "SNAPBACK_ISOLATED_NODE_ATTEMPT_TIMED_OUT",
+        "SNAPBACK_ISOLATED_NODE_RESULT_INVALID"
+      ]
+    }
+  }
+}
+

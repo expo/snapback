@@ -49,7 +49,12 @@ fn write_schema_artifacts(schemas_dir: &Path, artifacts: &[SchemaArtifact]) -> s
     let expected = artifacts
         .iter()
         .map(|artifact| artifact.file)
-        .chain(EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS.iter().copied())
+        .chain(
+            EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS
+                .iter()
+                .copied()
+                .filter(|file| !file.contains('/')),
+        )
         .collect::<BTreeSet<_>>();
     for artifact in artifacts {
         let path = schemas_dir.join(artifact.file);

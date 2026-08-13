@@ -175,30 +175,30 @@ export const retainedJs = defineJsQuery({
   )), JSON.stringify(result.diagnostics));
 }
 
-for (const functions of [
-  `
+for (const [functions, expectedCode] of [
+  [`
 import { defineQuery } from '${defineUrl}';
 export const typo = defineQuery({ table: 'todos', retianable: true });
-`,
-  `
+`, 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN'],
+  [`
 import { defineJsQuery } from '${defineUrl}';
 export const unknown = defineJsQuery({
   source: 'handler.js', exportName: 'retainedJs', reads: ['todos'],
   authorizationDependence: ['futureAuthority'],
 });
-`,
-  `
+`, 'CODEGEN_MODULE_EVALUATION_FAILED'],
+  [`
 import { defineMutation, insert, lit } from '${defineUrl}';
 export const mutation = defineMutation({
   retainable: true,
   plan: insert('todos', { ownerId: lit('u'), title: lit('t') }),
 });
-`,
+`, 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN'],
 ]) {
   const result = await generate(backend(functions, handler));
   assert.equal(result.ok, false, 'unknown/non-query retainability must fail loudly');
   assert(result.diagnostics.some((diagnostic) => (
-    diagnostic.code === 'CODEGEN_MODULE_EVALUATION_FAILED'
+    diagnostic.code === expectedCode
   )), JSON.stringify(result.diagnostics));
 }
 

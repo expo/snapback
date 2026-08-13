@@ -1113,3 +1113,12 @@ Omission means no application refusal is issue-eligible. This amendment does
 not change `ctx.refuse` admission, effect semantics, result-contract or
 implementation hashes, retries, quarantine, or the generic treatment of an
 undeclared or forged claim.
+
+## Dev-time declaration suggestions — 2026-08-12
+
+<!-- @ref LLP 0245#d2-result-contracts-are-the-first-authoritative-candidate-class -->
+Dev-time authoring assistance may derive candidate declarations from closed
+TypeScript evidence and present them for explicit author acceptance. The
+frozen committed declaration remains the sole authority: suggestion evidence,
+confidence, provenance, and apply receipts gain no runtime authority. Omission
+and unresolved evidence remain fail-closed exactly as this Spec requires.

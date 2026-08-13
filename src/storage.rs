@@ -5713,6 +5713,279 @@ pub(crate) fn get_on(
     })
 }
 
+pub(crate) fn get_many_on(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    table: &str,
+    ids: &[String],
+) -> SnapbackResult<Vec<Option<Value>>> {
+    let table = schema_table(schema, table)?;
+    if let Some(membership) = &table.membership {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
+            &table.name,
+            membership.effective_id(&table.name),
+            "a membership table cannot be read through the generic batch-read surface without an explicit visibility preset",
+        ));
+    }
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let distinct = ids.iter().cloned().collect::<BTreeSet<_>>();
+    with_pinned_read_snapshot(conn, |conn| {
+        crate::exec_guard::debug_assert_off_async_worker("a SQLite batch point read");
+        let snapshot_version = current_version_on(conn)?;
+        let placeholders = (1..=distinct.len())
+            .map(|index| format!("?{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!(
+            "SELECT * FROM {} WHERE _id IN ({placeholders})",
+            quote_ident(&table.name)?
+        );
+        let values = distinct
+            .iter()
+            .cloned()
+            .map(SqlValue::Text)
+            .collect::<Vec<_>>();
+        let mut statement = conn.prepare(&sql)?;
+        let columns = statement
+            .column_names()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let mut rows = statement.query(params_from_iter(values.iter()))?;
+        let mut documents = BTreeMap::new();
+        while let Some(row) = rows.next()? {
+            let document = row_to_document(row, table, &columns)?;
+            let id = document
+                .get("_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| point_read_identity_corrupt(&table.name))?;
+            if !distinct.contains(id) {
+                return Err(point_read_identity_corrupt(&table.name));
+            }
+            validate_point_read_identity(&document, id, &table.name)?;
+            validate_document_version_at_most(&document, snapshot_version, &table.name)?;
+            documents.insert(id.to_owned(), document);
+        }
+        Ok(ids.iter().map(|id| documents.get(id).cloned()).collect())
+    })
+}
+
+#[derive(Clone, Debug)]
+struct PreparedUniqueManyKey {
+    identity: String,
+    values: Vec<SqlValue>,
+}
+
+fn unique_many_key_identity(values: &[Value]) -> SnapbackResult<String> {
+    crate::rqs_contract::jcs(&Value::Array(values.to_vec())).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_BATCH_READ_KEY_INVALID",
+            "storage",
+            "ctx.db.uniqueMany key could not be canonically encoded",
+        )
+    })
+}
+
+fn prepare_unique_many_keys(
+    table: &TableManifest,
+    index_name: &str,
+    keys: &[Map<String, Value>],
+) -> SnapbackResult<(
+    crate::contract_types::IndexManifest,
+    Vec<PreparedUniqueManyKey>,
+)> {
+    validate_user_identifier("index", index_name)?;
+    let Some(index) = table.indexes.iter().find(|index| index.name == index_name) else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_BATCH_READ_INDEX_INVALID",
+            "storage",
+            format!(
+                "ctx.db.uniqueMany names unknown index {index_name:?} on table {:?}",
+                table.name
+            ),
+        )
+        .with_details(json!({
+            "table": table.name,
+            "requestedIndex": index_name,
+            "knownUniqueIndexes": table.indexes.iter().filter(|index| index.unique).map(|index| &index.name).collect::<Vec<_>>(),
+            "reason": "unknown-index",
+        })));
+    };
+    if !index.unique {
+        return Err(SnapbackError::error(
+            "SNAPBACK_BATCH_READ_INDEX_INVALID",
+            "storage",
+            format!(
+                "ctx.db.uniqueMany requires a declared unique index; {}.{} is non-unique",
+                table.name, index.name
+            ),
+        )
+        .with_details(json!({
+            "table": table.name,
+            "requestedIndex": index_name,
+            "reason": "non-unique-index",
+        })));
+    }
+    let expected = index.fields.iter().cloned().collect::<BTreeSet<_>>();
+    let mut prepared = Vec::with_capacity(keys.len());
+    for (position, key) in keys.iter().enumerate() {
+        let actual = key.keys().cloned().collect::<BTreeSet<_>>();
+        if actual != expected {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BATCH_READ_KEY_INVALID",
+                "storage",
+                "ctx.db.uniqueMany key must contain exactly the declared index components",
+            )
+            .with_details(json!({
+                "table": table.name,
+                "index": index.name,
+                "position": position,
+                "expectedFields": index.fields,
+                "actualFields": key.keys().collect::<Vec<_>>(),
+                "reason": "component-set-mismatch",
+            })));
+        }
+        let mut canonical_values = Vec::with_capacity(index.fields.len());
+        let mut sql_values = Vec::with_capacity(index.fields.len());
+        for field_name in &index.fields {
+            let value = key
+                .get(field_name)
+                .expect("component-set equality proves every declared field is present");
+            // @ref LLP 0248#d2-complete-unique-index-batch-reads — a
+            // unique-where-applicable key addresses no row unless every
+            // declared component participates in the uniqueness invariant.
+            if index.where_applicable && value.is_null() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_BATCH_READ_KEY_INVALID",
+                    "storage",
+                    "ctx.db.uniqueMany whereApplicable key components must be present and non-null",
+                )
+                .with_details(json!({
+                    "table": table.name,
+                    "index": index.name,
+                    "position": position,
+                    "field": field_name,
+                    "reason": "where-applicable-component-null",
+                })));
+            }
+            validate_query_filter_value(table, field_name, value).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_BATCH_READ_KEY_INVALID",
+                    "storage",
+                    "ctx.db.uniqueMany key component is incompatible with its declared field type",
+                )
+                .with_details(json!({
+                    "table": table.name,
+                    "index": index.name,
+                    "position": position,
+                    "field": field_name,
+                    "reason": "component-type-invalid",
+                    "cause": error.diagnostic.code,
+                }))
+            })?;
+            let field_type = table.field(field_name).map(|field| &field.field_type);
+            canonical_values.push(value.clone());
+            sql_values.push(json_to_sql_value(value, field_type)?);
+        }
+        prepared.push(PreparedUniqueManyKey {
+            identity: unique_many_key_identity(&canonical_values)?,
+            values: sql_values,
+        });
+    }
+    Ok((index.clone(), prepared))
+}
+
+pub(crate) fn unique_many_on(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    table_name: &str,
+    index_name: &str,
+    keys: &[Map<String, Value>],
+) -> SnapbackResult<Vec<Option<Value>>> {
+    let table = schema_table(schema, table_name)?;
+    if let Some(membership) = &table.membership {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
+            &table.name,
+            membership.effective_id(&table.name),
+            "a membership table cannot be read through the generic batch-read surface without an explicit visibility preset",
+        ));
+    }
+    // All manifest/key validation intentionally precedes the first SQLite
+    // operation. The host has already enforced item/canonical-byte bounds.
+    let (index, prepared) = prepare_unique_many_keys(table, index_name, keys)?;
+    if prepared.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut distinct = BTreeMap::new();
+    for key in &prepared {
+        distinct
+            .entry(key.identity.clone())
+            .or_insert_with(|| key.values.clone());
+    }
+    with_pinned_read_snapshot(conn, |conn| {
+        crate::exec_guard::debug_assert_off_async_worker("a SQLite unique batch read");
+        let snapshot_version = current_version_on(conn)?;
+        let max_keys_per_statement = (999 / index.fields.len().max(1)).max(1);
+        let distinct_entries = distinct.iter().collect::<Vec<_>>();
+        let mut documents = BTreeMap::new();
+        for chunk in distinct_entries.chunks(max_keys_per_statement) {
+            let mut predicates = Vec::with_capacity(chunk.len());
+            let mut values = Vec::with_capacity(chunk.len() * index.fields.len());
+            for (_, components) in chunk {
+                let mut terms = Vec::with_capacity(index.fields.len());
+                for (field, value) in index.fields.iter().zip(components.iter()) {
+                    terms.push(format!("{} = ?", quote_ident(field)?));
+                    values.push(value.clone());
+                }
+                predicates.push(format!("({})", terms.join(" AND ")));
+            }
+            let sql = format!(
+                "SELECT * FROM {} WHERE {}",
+                quote_ident(&table.name)?,
+                predicates.join(" OR ")
+            );
+            let mut statement = conn.prepare(&sql)?;
+            let columns = statement
+                .column_names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>();
+            let mut rows = statement.query(params_from_iter(values.iter()))?;
+            while let Some(row) = rows.next()? {
+                let document = row_to_document(row, table, &columns)?;
+                let id = document
+                    .get("_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| point_read_identity_corrupt(&table.name))?;
+                validate_point_read_identity(&document, id, &table.name)?;
+                validate_document_version_at_most(&document, snapshot_version, &table.name)?;
+                let key_values = index
+                    .fields
+                    .iter()
+                    .map(|field| document.get(field).cloned().unwrap_or(Value::Null))
+                    .collect::<Vec<_>>();
+                let identity = unique_many_key_identity(&key_values)?;
+                if documents.insert(identity, document).is_some() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_BATCH_READ_UNIQUE_INVARIANT_CORRUPT",
+                        "storage",
+                        "ctx.db.uniqueMany observed more than one row for a declared unique key",
+                    )
+                    .with_details(json!({ "table": table.name, "index": index.name })));
+                }
+            }
+        }
+        Ok(prepared
+            .iter()
+            .map(|key| documents.get(&key.identity).cloned())
+            .collect())
+    })
+}
+
 pub(crate) fn current_version_on(conn: &Connection) -> SnapbackResult<u64> {
     crate::exec_guard::debug_assert_off_async_worker("a SQLite version read");
     let version: Option<SqlValue> = conn
@@ -6043,6 +6316,19 @@ impl DbRead<'_> {
         }
     }
 
+    /// Execute one compound read against this view's existing snapshot, or
+    /// pin an operation-scoped snapshot when the invocation is on the live
+    /// serialized connection (mutation lane).
+    pub(crate) fn with_pinned_read_view<T>(
+        &self,
+        read: impl FnOnce(DbRead<'_>) -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        match self {
+            DbRead::Pinned { .. } => read(self.reborrow()),
+            DbRead::Live(db) => db.query_reads_read().with_pinned_read_view(read),
+        }
+    }
+
     /// The schema backing this read view — used by LLP 0056 membership helpers
     /// to resolve a declaration id to its table and field names.
     pub(crate) fn schema(&self) -> &SchemaManifest {
@@ -6227,6 +6513,25 @@ impl DbRead<'_> {
                 .expect("live db")
                 .query_reads_read()
                 .get(table, id),
+        }
+    }
+
+    pub fn get_many(&self, table: &str, ids: &[String]) -> SnapbackResult<Vec<Option<Value>>> {
+        match self {
+            DbRead::Pinned { conn, schema } => get_many_on(conn, schema, table, ids),
+            DbRead::Live(db) => get_many_on(&db.conn, &db.schema, table, ids),
+        }
+    }
+
+    pub fn unique_many(
+        &self,
+        table: &str,
+        index: &str,
+        keys: &[Map<String, Value>],
+    ) -> SnapbackResult<Vec<Option<Value>>> {
+        match self {
+            DbRead::Pinned { conn, schema } => unique_many_on(conn, schema, table, index, keys),
+            DbRead::Live(db) => unique_many_on(&db.conn, &db.schema, table, index, keys),
         }
     }
 

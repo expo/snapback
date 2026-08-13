@@ -52,6 +52,7 @@ export const APP_DATA_CLIENT_METHODS = Object.freeze([
   'search',
   'mutate',
   'action',
+  'run',
   // The LLP 0043 settlement lifecycle, whole. `acknowledgeMutations` alone
   // (stage 4) was unreachable in practice: without `settledMutations` (stage 3
   // recovery) and `markMutationSettlementsConsumed` (the explicit consumption

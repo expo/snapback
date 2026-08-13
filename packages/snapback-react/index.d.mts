@@ -66,6 +66,11 @@ export type {
 } from '@expo/snapback-client/commands';
 export type SnapbackDiagnostic = import('@expo/snapback-client').SnapbackDiagnostic;
 export type SnapbackDiagnosticsSnapshot = import('@expo/snapback-client').SnapbackClientDiagnosticsSnapshot;
+export {
+  ARGUMENT_NORMALIZATION_VERSION,
+  SnapbackDiagnosticError,
+  isSnapbackDiagnosticError,
+} from '@expo/snapback-client';
 
 /** @deprecated Queued React mutations now resolve `SnapbackMutationDispatchOutcome`.
  * LLP 0218 P6 removes this throw-site-free compatibility export. */
@@ -136,6 +141,7 @@ export type SnapbackRetention = LiveQueryRetention;
 
 export type QueryState<Result> =
   | Readonly<{ status: 'pending'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
+  | Readonly<{ status: 'blocked'; reason: 'authentication-required'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>
   | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection; freshness: 'current' | 'snapshot'; retention: SnapbackRetention | null }>
   | Readonly<{ status: 'refreshing'; data: Result; error: null; connection: SnapbackConnection; freshness: 'retained' | 'current'; retention: SnapbackRetention | null }>
   | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
@@ -572,7 +578,7 @@ export type QueryStates<Entries extends QueryEntryMap> = Readonly<{
 
 export type QueryGroupState<Entries extends QueryEntryMap> = Readonly<{
   queries: QueryStates<Entries>;
-  status: 'pending' | 'ready' | 'refreshing' | 'error';
+  status: 'pending' | 'blocked' | 'ready' | 'refreshing' | 'error';
   connection: SnapbackConnection;
   error: SnapbackDiagnostic | null;
   boot: null | Readonly<{

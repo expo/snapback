@@ -1556,6 +1556,7 @@ fn dk7_every_artifact_has_a_committed_schema_file() {
         .chain(
             EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS
                 .iter()
+                .filter(|file| !file.contains('/'))
                 .map(|file| (*file).to_owned()),
         )
         .collect();
@@ -1570,6 +1571,15 @@ fn dk7_every_artifact_has_a_committed_schema_file() {
         "schemas/ is out of sync with the generator; regenerate with \
          `cargo run --bin snapback-schemagen`"
     );
+    for path in EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS
+        .iter()
+        .filter(|path| path.contains('/'))
+    {
+        assert!(
+            schemas_dir().join(path).is_file(),
+            "externally managed schema {path} is not present at its owning path"
+        );
+    }
 }
 
 /// A representative InspectState literal exercising the full runtime/inspect

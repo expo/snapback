@@ -12,10 +12,11 @@ use crate::live_matcher::{
     compare_sort_keys, query_dependencies_from_plan, row_matches_query_filters, sort_key,
 };
 use crate::manifest::{
-    CtxAnswerLedger, FilterExpr, FilterOp, FunctionKind, HandlerInput, IbexModule, MutationOutput,
-    QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan,
-    SequenceDeclaration, SequenceScopeAccess, TableVisibilityArmV1, TableVisibilityV1, ValueExpr,
-    effective_query_limit,
+    BATCH_READ_MAX_INPUT_BYTES, BATCH_READ_MAX_ITEMS, BATCH_READ_MAX_POLICY_PROBES_PER_ITEM,
+    BATCH_READ_MAX_RESPONSE_BYTES, CtxAnswerLedger, FilterExpr, FilterOp, FunctionKind,
+    HandlerInput, IbexModule, MutationOutput, QUERY_INTERNAL_OVERFETCH_MAX,
+    QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan, SequenceDeclaration, SequenceScopeAccess,
+    TableVisibilityArmV1, TableVisibilityV1, ValueExpr, effective_query_limit,
 };
 use crate::storage::{
     BufferedMembershipCommand, BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead,
@@ -1612,8 +1613,9 @@ impl<'a> IbexHostContext<'a> {
         }
     }
 
-    fn membership_visibility_matches(
-        &self,
+    fn membership_visibility_matches_on(
+        db: &DbRead<'_>,
+        _input: &HandlerInput,
         principal: &str,
         declaration: &str,
         resource_field: &str,
@@ -1627,7 +1629,7 @@ impl<'a> IbexHostContext<'a> {
             return Ok(false);
         };
         let Some((membership_table, membership)) =
-            crate::membership_rules::find_declaration(self.db().schema(), declaration)
+            crate::membership_rules::find_declaration(db.schema(), declaration)
         else {
             return Err(SnapbackError::error(
                 "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
@@ -1643,7 +1645,7 @@ impl<'a> IbexHostContext<'a> {
             return Ok(false);
         }
         let outcome = crate::membership_rules::membership_read(
-            self.db(),
+            db,
             membership,
             &membership_table.name,
             principal,
@@ -1665,12 +1667,13 @@ impl<'a> IbexHostContext<'a> {
     /// EXISTS lowering; they are never approximated by the live matcher's
     /// row-local `unknown` result. Non-text policy values match the SQL
     /// lowering by evaluating false rather than becoming a visible error.
-    fn row_matches_declared_table_visibility(
-        &self,
+    fn row_matches_declared_table_visibility_on(
+        db: &DbRead<'_>,
+        input: &HandlerInput,
         visibility: &TableVisibilityV1,
         row: &Value,
     ) -> SnapbackResult<bool> {
-        let Some(principal) = self.input.auth.user_id.as_deref() else {
+        let Some(principal) = input.auth.user_id.as_deref() else {
             return Ok(false);
         };
         let owner_matches = |field: &str| -> SnapbackResult<bool> {
@@ -1680,7 +1683,15 @@ impl<'a> IbexHostContext<'a> {
                                   resource_field: &str,
                                   roles: &Option<Vec<String>>|
          -> SnapbackResult<bool> {
-            self.membership_visibility_matches(principal, declaration, resource_field, roles, row)
+            Self::membership_visibility_matches_on(
+                db,
+                input,
+                principal,
+                declaration,
+                resource_field,
+                roles,
+                row,
+            )
         };
 
         match visibility {
@@ -1711,6 +1722,14 @@ impl<'a> IbexHostContext<'a> {
                 Ok(false)
             }
         }
+    }
+
+    fn row_matches_declared_table_visibility(
+        &self,
+        visibility: &TableVisibilityV1,
+        row: &Value,
+    ) -> SnapbackResult<bool> {
+        Self::row_matches_declared_table_visibility_on(self.db(), &self.input, visibility, row)
     }
 
     fn capture_visibility_point_read(
@@ -1774,8 +1793,9 @@ impl<'a> IbexHostContext<'a> {
         Ok((stored, visibility, storage_visible))
     }
 
-    fn effective_point_is_visible(
-        &self,
+    fn effective_point_is_visible_on(
+        db: &DbRead<'_>,
+        input: &HandlerInput,
         visibility: Option<&TableVisibilityV1>,
         existed_in_storage: bool,
         storage_visible: bool,
@@ -1789,11 +1809,422 @@ impl<'a> IbexHostContext<'a> {
         }
         match (visibility, effective) {
             (Some(visibility), Some(row)) => {
-                self.row_matches_declared_table_visibility(visibility, row)
+                Self::row_matches_declared_table_visibility_on(db, input, visibility, row)
             }
             (None, Some(_)) => Ok(true),
             (_, None) => Ok(false),
         }
+    }
+
+    fn effective_point_is_visible(
+        &self,
+        visibility: Option<&TableVisibilityV1>,
+        existed_in_storage: bool,
+        storage_visible: bool,
+        effective: Option<&Value>,
+    ) -> SnapbackResult<bool> {
+        Self::effective_point_is_visible_on(
+            self.db(),
+            &self.input,
+            visibility,
+            existed_in_storage,
+            storage_visible,
+            effective,
+        )
+    }
+
+    fn point_read_dependency_on(
+        db: &DbRead<'_>,
+        table: &str,
+        id: &str,
+        row: Option<&Value>,
+    ) -> SnapbackResult<CapturedReadDependency> {
+        if let Some(row) = row {
+            Ok(CapturedReadDependency {
+                kind: CapturedReadKind::Row,
+                table: Some(table.to_owned()),
+                id: Some(id.to_owned()),
+                version: Some(row_version(row)?),
+                predicate: None,
+                rows: Vec::new(),
+                field: None,
+                value: None,
+                order: None,
+                limit: None,
+                result_count: None,
+                boundary: None,
+            })
+        } else {
+            Ok(CapturedReadDependency {
+                kind: CapturedReadKind::MissingRow,
+                table: Some(table.to_owned()),
+                id: Some(id.to_owned()),
+                version: Some(db.table_change_version(table)?),
+                predicate: None,
+                rows: Vec::new(),
+                field: None,
+                value: None,
+                order: None,
+                limit: None,
+                result_count: None,
+                boundary: None,
+            })
+        }
+    }
+
+    fn visibility_point_dependencies_on(
+        db: &DbRead<'_>,
+        input: &HandlerInput,
+        table: &str,
+        id: &str,
+        visibility: &TableVisibilityV1,
+        stored: Option<&Value>,
+        storage_visible: bool,
+    ) -> SnapbackResult<Vec<CapturedReadDependency>> {
+        let plan = QueryPlan {
+            table: table.to_owned(),
+            table_visibility: Some(visibility.clone()),
+            filters: vec![FilterExpr {
+                field: "_id".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(Value::String(id.to_owned())),
+            }],
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: Some(1),
+            indexed_by: None,
+        };
+        let output = QueryOutput {
+            version: db.current_version()?,
+            rows: if storage_visible {
+                stored.cloned().into_iter().collect()
+            } else {
+                Vec::new()
+            },
+            cursor: None,
+        };
+        query_dependencies_from_plan(&plan, input, &output, db)
+    }
+
+    fn unique_key_dependencies_on(
+        db: &DbRead<'_>,
+        input: &HandlerInput,
+        table: &str,
+        index: &str,
+        fields: &[String],
+        key: &Map<String, Value>,
+        visibility: Option<&TableVisibilityV1>,
+        stored: Option<&Value>,
+        storage_visible: bool,
+    ) -> SnapbackResult<Vec<CapturedReadDependency>> {
+        let plan = QueryPlan {
+            table: table.to_owned(),
+            table_visibility: visibility.cloned(),
+            filters: fields
+                .iter()
+                .map(|field| FilterExpr {
+                    field: field.clone(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Literal(
+                        key.get(field)
+                            .expect("storage validation proved the complete unique key")
+                            .clone(),
+                    ),
+                })
+                .collect(),
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: Some(1),
+            indexed_by: Some(index.to_owned()),
+        };
+        let output = QueryOutput {
+            version: db.current_version()?,
+            rows: if storage_visible {
+                stored.cloned().into_iter().collect()
+            } else {
+                Vec::new()
+            },
+            cursor: None,
+        };
+        query_dependencies_from_plan(&plan, input, &output, db)
+    }
+
+    fn finish_batch_read_response(values: Vec<Option<Value>>) -> SnapbackResult<Value> {
+        let output = Value::Array(
+            values
+                .into_iter()
+                .map(|value| value.unwrap_or(Value::Null))
+                .collect(),
+        );
+        let canonical = crate::rqs_contract::jcs(&output).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
+                "runtime",
+                "ctx.db batch-read output could not be canonically serialized",
+            )
+        })?;
+        if canonical.len() > BATCH_READ_MAX_RESPONSE_BYTES {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BATCH_READ_RESPONSE_BYTES_EXCEEDED",
+                "runtime",
+                format!(
+                    "ctx.db batch-read response exceeds the {BATCH_READ_MAX_RESPONSE_BYTES}-byte canonical response ceiling"
+                ),
+            )
+            .with_details(json!({
+                "maxResponseBytes": BATCH_READ_MAX_RESPONSE_BYTES,
+                "responseBytes": canonical.len(),
+            })));
+        }
+        Ok(output)
+    }
+
+    fn get_many_batch(&mut self, table: &str, ids: &[String]) -> SnapbackResult<Value> {
+        let distinct = ids.iter().cloned().collect::<BTreeSet<_>>();
+        let distinct_ids = distinct.iter().cloned().collect::<Vec<_>>();
+        let visibility = self.restricted_table_visibility(table);
+        let (resolved, captures) = self.db().with_pinned_read_view(|db| {
+            let stored_rows = db.get_many(table, &distinct_ids)?;
+            let mut resolved = BTreeMap::new();
+            let mut captures = Vec::with_capacity(distinct_ids.len());
+            for (id, stored) in distinct_ids.iter().zip(stored_rows.into_iter()) {
+                let storage_visible = match (&visibility, stored.as_ref()) {
+                    (Some(visibility), Some(row)) => {
+                        Self::row_matches_declared_table_visibility_on(
+                            &db,
+                            &self.input,
+                            visibility,
+                            row,
+                        )?
+                    }
+                    (Some(_), None) => false,
+                    (None, _) => true,
+                };
+                let dependencies = if let Some(visibility) = &visibility {
+                    Self::visibility_point_dependencies_on(
+                        &db,
+                        &self.input,
+                        table,
+                        id,
+                        visibility,
+                        stored.as_ref(),
+                        storage_visible,
+                    )?
+                } else {
+                    vec![Self::point_read_dependency_on(
+                        &db,
+                        table,
+                        id,
+                        stored.as_ref(),
+                    )?]
+                };
+                let existed_in_storage = stored.is_some();
+                let effective = self.apply_buffered_to_point(table, id, stored);
+                let visible = Self::effective_point_is_visible_on(
+                    &db,
+                    &self.input,
+                    visibility.as_ref(),
+                    existed_in_storage,
+                    storage_visible,
+                    effective.as_ref(),
+                )?;
+                resolved.insert(id.clone(), visible.then_some(effective).flatten());
+                captures.push((id.clone(), dependencies));
+            }
+            Ok((resolved, captures))
+        })?;
+        for (id, dependencies) in captures {
+            for dependency in dependencies {
+                self.push_read_dependency(dependency);
+            }
+            notify_captured_point_read(table, &id);
+        }
+        Self::finish_batch_read_response(
+            ids.iter()
+                .map(|id| resolved.get(id).cloned().flatten())
+                .collect(),
+        )
+    }
+
+    fn unique_many_batch(
+        &mut self,
+        table: &str,
+        index: &str,
+        keys: &[Map<String, Value>],
+    ) -> SnapbackResult<Value> {
+        let visibility = self.restricted_table_visibility(table);
+        // @ref LLP 0003#execution-and-write-semantics — a batch lookup in a
+        // mutation observes the same buffered-write overlay as one query.
+        // @ref LLP 0248#d4-dependency-and-cost-evidence-remain-conservative —
+        // capture every touched point in addition to each unique-key range.
+        let touched_ids = self.buffered_touched_ids_for(table);
+        let (resolved, captures, notify_points) = self.db().with_pinned_read_view(|db| {
+            let stored_rows = db.unique_many(table, index, keys)?;
+            let table_manifest = db.schema().table(table).expect("storage validated table");
+            let index_manifest = table_manifest
+                .indexes
+                .iter()
+                .find(|candidate| candidate.name == index)
+                .expect("storage validated index");
+            let mut resolved = BTreeMap::new();
+            let mut captures = Vec::new();
+            let mut notify_points = Vec::new();
+            let mut touched_storage = BTreeMap::new();
+            for id in &touched_ids {
+                let stored = db.get(table, id)?;
+                let storage_visible = match (&visibility, stored.as_ref()) {
+                    (Some(visibility), Some(row)) => {
+                        Self::row_matches_declared_table_visibility_on(
+                            &db,
+                            &self.input,
+                            visibility,
+                            row,
+                        )?
+                    }
+                    (Some(_), None) => false,
+                    (None, _) => true,
+                };
+                if let Some(visibility) = &visibility {
+                    captures.extend(Self::visibility_point_dependencies_on(
+                        &db,
+                        &self.input,
+                        table,
+                        id,
+                        visibility,
+                        stored.as_ref(),
+                        storage_visible,
+                    )?);
+                } else {
+                    captures.push(Self::point_read_dependency_on(
+                        &db,
+                        table,
+                        id,
+                        stored.as_ref(),
+                    )?);
+                    notify_points.push(id.clone());
+                }
+                touched_storage.insert(id.clone(), (stored, storage_visible));
+            }
+            for (key, stored) in keys.iter().zip(stored_rows.into_iter()) {
+                let identity =
+                    crate::rqs_contract::jcs(&Value::Object(key.clone())).map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_BATCH_READ_KEY_INVALID",
+                            "runtime",
+                            "ctx.db.uniqueMany key could not be canonically encoded",
+                        )
+                    })?;
+                if resolved.contains_key(&identity) {
+                    continue;
+                }
+                let storage_visible = match (&visibility, stored.as_ref()) {
+                    (Some(visibility), Some(row)) => {
+                        Self::row_matches_declared_table_visibility_on(
+                            &db,
+                            &self.input,
+                            visibility,
+                            row,
+                        )?
+                    }
+                    (Some(_), None) => false,
+                    (None, _) => true,
+                };
+                let dependencies = Self::unique_key_dependencies_on(
+                    &db,
+                    &self.input,
+                    table,
+                    index,
+                    &index_manifest.fields,
+                    key,
+                    visibility.as_ref(),
+                    stored.as_ref(),
+                    storage_visible,
+                )?;
+                let key_plan = QueryPlan {
+                    table: table.to_owned(),
+                    table_visibility: None,
+                    filters: index_manifest
+                        .fields
+                        .iter()
+                        .map(|field| FilterExpr {
+                            field: field.clone(),
+                            op: FilterOp::Eq,
+                            value: ValueExpr::Literal(
+                                key.get(field)
+                                    .expect("storage validation proved the complete unique key")
+                                    .clone(),
+                            ),
+                        })
+                        .collect(),
+                    membership_filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: Some(1),
+                    indexed_by: Some(index.to_owned()),
+                };
+                let mut effective_match = None;
+                let mut consider = |id: &str,
+                                    candidate: Option<Value>,
+                                    candidate_storage_visible: bool|
+                 -> SnapbackResult<()> {
+                    let existed_in_storage = candidate.is_some();
+                    let effective = self.apply_buffered_to_point(table, id, candidate);
+                    let visible = Self::effective_point_is_visible_on(
+                        &db,
+                        &self.input,
+                        visibility.as_ref(),
+                        existed_in_storage,
+                        candidate_storage_visible,
+                        effective.as_ref(),
+                    )?;
+                    if visible
+                        && effective.as_ref().is_some_and(|row| {
+                            row_matches_query_filters(&key_plan, &self.input, row) == Some(true)
+                        })
+                    {
+                        if effective_match.is_some() {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_BATCH_READ_UNIQUE_INVARIANT_CORRUPT",
+                                "runtime",
+                                "ctx.db.uniqueMany overlay produced more than one row for a declared unique key",
+                            )
+                            .with_details(json!({ "table": table, "index": index })));
+                        }
+                        effective_match = effective;
+                    }
+                    Ok(())
+                };
+                if let Some(stored) = stored.as_ref() {
+                    let id = stored
+                        .get("_id")
+                        .and_then(Value::as_str)
+                        .expect("storage point identity is validated");
+                    if !touched_storage.contains_key(id) {
+                        consider(id, Some(stored.clone()), storage_visible)?;
+                    }
+                }
+                for (id, (candidate, candidate_storage_visible)) in &touched_storage {
+                    consider(id, candidate.clone(), *candidate_storage_visible)?;
+                }
+                resolved.insert(identity, effective_match);
+                captures.extend(dependencies);
+            }
+            Ok((resolved, captures, notify_points))
+        })?;
+        for dependency in captures {
+            self.push_read_dependency(dependency);
+        }
+        for id in notify_points {
+            notify_captured_point_read(table, &id);
+        }
+        let values = keys
+            .iter()
+            .map(|key| {
+                crate::rqs_contract::jcs(&Value::Object(key.clone()))
+                    .ok()
+                    .and_then(|identity| resolved.get(&identity).cloned().flatten())
+            })
+            .collect();
+        Self::finish_batch_read_response(values)
     }
 
     pub(crate) fn epoch(&self) -> u64 {
@@ -1823,7 +2254,12 @@ impl<'a> IbexHostContext<'a> {
                 // snapshot-bound dependency joins the read summary), so it is
                 // admitted for protected queries exactly like `db.query`.
                 // @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906
-                "db.query" | "db.get" | "runtime.log" | "permissions.requireRole" => {}
+                "db.query"
+                | "db.get"
+                | "db.getMany"
+                | "db.uniqueMany"
+                | "runtime.log"
+                | "permissions.requireRole" => {}
                 "runtime.now" => {
                     return Err(protected_host_input_error(
                         "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
@@ -1976,6 +2412,38 @@ impl<'a> IbexHostContext<'a> {
                     Value::Null
                 })
             }
+            // @ref LLP 0248#d3-one-host-operation-one-authoritative-snapshot
+            // — validate the complete descriptor and both request ceilings
+            // before the single snapshot-bound storage transition; serialize
+            // and enforce the response ceiling before returning any array.
+            "db.getMany" => {
+                if self.mode == IbexInvocationMode::Action {
+                    return Err(action_db_denied("getMany"));
+                }
+                reject_batch_descriptor_extras(&args, &["table", "ids"])?;
+                let table = required_batch_string(&args, "table")?;
+                let ids = required_batch_ids(&args, "ids")?;
+                enforce_batch_read_request_bounds(&args, ids.len())?;
+                if ids.is_empty() {
+                    return Ok(Value::Array(Vec::new()));
+                }
+                self.get_many_batch(&table, &ids)
+            }
+            // @ref LLP 0248#d3-one-host-operation-one-authoritative-snapshot
+            "db.uniqueMany" => {
+                if self.mode == IbexInvocationMode::Action {
+                    return Err(action_db_denied("uniqueMany"));
+                }
+                reject_batch_descriptor_extras(&args, &["table", "index", "keys"])?;
+                let table = required_batch_string(&args, "table")?;
+                let index = required_batch_string(&args, "index")?;
+                let keys = required_batch_keys(&args, "keys")?;
+                enforce_batch_read_request_bounds(&args, keys.len())?;
+                if keys.is_empty() {
+                    return Ok(Value::Array(Vec::new()));
+                }
+                self.unique_many_batch(&table, &index, &keys)
+            }
             "db.insert" => {
                 self.ensure_writable("insert")?;
                 self.ensure_buffered_write_capacity()?;
@@ -2121,8 +2589,8 @@ impl<'a> IbexHostContext<'a> {
                     }
                 }
 
-                let (stored, _, storage_visible) = self
-                    .read_table_visibility_point(&declaration.scope_table, &scope_row_id)?;
+                let (stored, _, storage_visible) =
+                    self.read_table_visibility_point(&declaration.scope_table, &scope_row_id)?;
                 let incarnation = self
                     .db()
                     .active_relation_incarnation(&declaration.scope_table, &scope_row_id)?;
@@ -2314,9 +2782,7 @@ impl<'a> IbexHostContext<'a> {
                     crate::jobs::canonical_push_grant(push_grant.as_ref())?;
                 let rehearsal_provenance = self.rehearsal_provenance.clone();
                 let (_, rehearsal_provenance_digest) =
-                    crate::jobs::canonical_rehearsal_provenance(
-                        rehearsal_provenance.as_ref(),
-                    )?;
+                    crate::jobs::canonical_rehearsal_provenance(rehearsal_provenance.as_ref())?;
                 let queue = crate::jobs::JOBS_DEFAULT_QUEUE.to_owned();
                 if let Some(key) = idempotency_key.as_deref() {
                     // Read-your-enqueues: an identical buffered intent under
@@ -2354,8 +2820,7 @@ impl<'a> IbexHostContext<'a> {
                         if existing.args_digest == digest
                             && existing.max_attempts == max_attempts
                             && existing.push_grant_digest == push_grant_digest
-                            && existing.rehearsal_provenance_digest
-                                == rehearsal_provenance_digest
+                            && existing.rehearsal_provenance_digest == rehearsal_provenance_digest
                         {
                             return Ok(json!({
                                 "jobId": existing.job_id,
@@ -3187,6 +3652,14 @@ impl<'a> IbexHostContext<'a> {
         self.writes.iter().any(|write| write.table() == table)
     }
 
+    fn buffered_touched_ids_for(&self, table: &str) -> BTreeSet<String> {
+        self.writes
+            .iter()
+            .filter(|write| write.table() == table)
+            .map(|write| write.id().to_owned())
+            .collect()
+    }
+
     /// Fold this invocation's buffered writes for `(table, id)` over a stored
     /// row, producing the row the handler should observe. A buffered insert's
     /// system fields mirror `insert_document`'s shape with a provisional
@@ -3459,6 +3932,77 @@ pub struct HostCallTraceEntry {
     pub ok: bool,
     /// The successful result value, or the stable diagnostic code on failure.
     pub outcome: Value,
+    /// Public request/profile/buffered-touch-derived cost facts for one
+    /// logical batch. Match count and authorization outcomes are intentionally
+    /// absent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost: Option<BatchReadCostFactsV1>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchReadCostFactsV1 {
+    pub logical_batch_count: usize,
+    pub item_count: usize,
+    pub distinct_item_count: usize,
+    pub canonical_input_bytes: usize,
+    pub physical_statement_count: usize,
+    pub physical_chunk_count: usize,
+    pub max_policy_probe_count: usize,
+}
+
+fn batch_read_cost_facts(
+    op: &str,
+    args: &Value,
+    buffered_touch_count: usize,
+) -> Option<BatchReadCostFactsV1> {
+    let items = match op {
+        "db.getMany" => args.get("ids")?.as_array()?,
+        "db.uniqueMany" => args.get("keys")?.as_array()?,
+        _ => return None,
+    };
+    let canonical_input_bytes = crate::rqs_contract::jcs(args).ok()?.len();
+    let distinct_item_count = items
+        .iter()
+        .filter_map(|item| crate::rqs_contract::jcs(item).ok())
+        .collect::<BTreeSet<_>>()
+        .len();
+    let index_components = if op == "db.uniqueMany" {
+        items
+            .iter()
+            .find_map(Value::as_object)
+            .map_or(1, Map::len)
+            .max(1)
+    } else {
+        1
+    };
+    let chunk_capacity = (999 / index_components).max(1);
+    let request_chunk_count = distinct_item_count.div_ceil(chunk_capacity);
+    // @ref LLP 0248#d4-dependency-and-cost-evidence-remain-conservative —
+    // uniqueMany resolves every distinct buffered-touched id with a point
+    // statement, then may recheck each touched candidate against each
+    // distinct key. Charge the full profile-bound policy maximum without
+    // consulting whether any stored candidate exists or is visible.
+    let overlay_point_read_count = if op == "db.uniqueMany" {
+        buffered_touch_count
+    } else {
+        0
+    };
+    let physical_statement_count =
+        request_chunk_count.saturating_add(overlay_point_read_count);
+    let max_policy_evaluation_count = distinct_item_count
+        .saturating_add(overlay_point_read_count)
+        .saturating_add(distinct_item_count.saturating_mul(overlay_point_read_count));
+    Some(BatchReadCostFactsV1 {
+        logical_batch_count: 1,
+        item_count: items.len(),
+        distinct_item_count,
+        canonical_input_bytes,
+        physical_statement_count,
+        physical_chunk_count: physical_statement_count,
+        max_policy_probe_count: max_policy_evaluation_count
+            .saturating_mul(BATCH_READ_MAX_POLICY_PROBES_PER_ITEM),
+    })
 }
 
 thread_local! {
@@ -3490,6 +4034,13 @@ pub(crate) fn dispatch_host_call(
 ) -> SnapbackResult<Value> {
     let tracing = HOST_CALL_TRACE.with(|slot| slot.borrow().is_some());
     let traced_args = if tracing { Some(args.clone()) } else { None };
+    let buffered_touch_count = if tracing && op == "db.uniqueMany" {
+        args.get("table")
+            .and_then(Value::as_str)
+            .map_or(0, |table| ctx.buffered_touched_ids_for(table).len())
+    } else {
+        0
+    };
     let result = ctx.handle_host_call(op, args);
     if let Err(error) = &result {
         ctx.host_failure_witness = Some(error.clone());
@@ -3522,6 +4073,7 @@ pub(crate) fn dispatch_host_call(
                 trace.push(HostCallTraceEntry {
                     seq: trace.len(),
                     op: op.to_owned(),
+                    cost: batch_read_cost_facts(op, &args, buffered_touch_count),
                     args,
                     ok,
                     outcome,
@@ -5007,6 +5559,123 @@ fn required_object(args: &Value, key: &str) -> SnapbackResult<Map<String, Value>
         })
 }
 
+fn reject_batch_descriptor_extras(args: &Value, allowed: &[&str]) -> SnapbackResult<()> {
+    let Some(object) = args.as_object() else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_BATCH_READ_INPUT_INVALID",
+            "runtime",
+            "ctx.db batch-read descriptor must be an object",
+        ));
+    };
+    if let Some(unexpected) = object.keys().find(|key| !allowed.contains(&key.as_str())) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_BATCH_READ_INPUT_INVALID",
+            "runtime",
+            "ctx.db batch-read descriptor contains an unknown member",
+        )
+        .with_details(json!({ "member": unexpected })));
+    }
+    Ok(())
+}
+
+fn required_batch_string(args: &Value, key: &str) -> SnapbackResult<String> {
+    args.get(key)
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BATCH_READ_INPUT_INVALID",
+                "runtime",
+                format!("ctx.db batch-read field {key} must be a string"),
+            )
+        })
+}
+
+fn required_batch_ids(args: &Value, key: &str) -> SnapbackResult<Vec<String>> {
+    let values = args.get(key).and_then(Value::as_array).ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_BATCH_READ_INPUT_INVALID",
+            "runtime",
+            format!("ctx.db.getMany field {key} must be an array"),
+        )
+    })?;
+    values
+        .iter()
+        .enumerate()
+        .map(|(position, value)| {
+            value.as_str().map(str::to_owned).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_BATCH_READ_INPUT_INVALID",
+                    "runtime",
+                    "ctx.db.getMany ids must be strings",
+                )
+                .with_details(json!({ "position": position }))
+            })
+        })
+        .collect()
+}
+
+fn required_batch_keys(args: &Value, key: &str) -> SnapbackResult<Vec<Map<String, Value>>> {
+    let values = args.get(key).and_then(Value::as_array).ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_BATCH_READ_INPUT_INVALID",
+            "runtime",
+            format!("ctx.db.uniqueMany field {key} must be an array"),
+        )
+    })?;
+    values
+        .iter()
+        .enumerate()
+        .map(|(position, value)| {
+            value.as_object().cloned().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_BATCH_READ_INPUT_INVALID",
+                    "runtime",
+                    "ctx.db.uniqueMany keys must be objects",
+                )
+                .with_details(json!({ "position": position }))
+            })
+        })
+        .collect()
+}
+
+fn enforce_batch_read_request_bounds(args: &Value, item_count: usize) -> SnapbackResult<()> {
+    if item_count > BATCH_READ_MAX_ITEMS {
+        return Err(SnapbackError::error(
+            "SNAPBACK_BATCH_READ_ITEMS_EXCEEDED",
+            "runtime",
+            format!(
+                "ctx.db batch-read request contains {item_count} items; maximum is {BATCH_READ_MAX_ITEMS}"
+            ),
+        )
+        .with_details(json!({
+            "itemCount": item_count,
+            "maxItems": BATCH_READ_MAX_ITEMS,
+        })));
+    }
+    let canonical = crate::rqs_contract::jcs(args).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_BATCH_READ_INPUT_INVALID",
+            "runtime",
+            "ctx.db batch-read descriptor could not be canonically encoded",
+        )
+    })?;
+    if canonical.len() > BATCH_READ_MAX_INPUT_BYTES {
+        return Err(SnapbackError::error(
+            "SNAPBACK_BATCH_READ_INPUT_BYTES_EXCEEDED",
+            "runtime",
+            format!(
+                "ctx.db batch-read request exceeds the {BATCH_READ_MAX_INPUT_BYTES}-byte canonical input ceiling"
+            ),
+        )
+        .with_details(json!({
+            "inputBytes": canonical.len(),
+            "maxInputBytes": BATCH_READ_MAX_INPUT_BYTES,
+        })));
+    }
+    Ok(())
+}
+
 fn required_nonempty_string_array(args: &Value, key: &str) -> SnapbackResult<Vec<String>> {
     let values = args
         .get(key)
@@ -5151,6 +5820,13 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED"
         | "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
         | "SNAPBACK_QUERY_LIMIT_INVALID"
+        | "SNAPBACK_BATCH_READ_INPUT_INVALID"
+        | "SNAPBACK_BATCH_READ_ITEMS_EXCEEDED"
+        | "SNAPBACK_BATCH_READ_INPUT_BYTES_EXCEEDED"
+        | "SNAPBACK_BATCH_READ_RESPONSE_BYTES_EXCEEDED"
+        | "SNAPBACK_BATCH_READ_INDEX_INVALID"
+        | "SNAPBACK_BATCH_READ_KEY_INVALID"
+        | "SNAPBACK_BATCH_READ_UNIQUE_INVARIANT_CORRUPT"
         | "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH"
         | "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION"
         // A claimed application refusal survives the fold only far enough to
@@ -6018,17 +6694,23 @@ mod handler_result_bridge_tests {
 
 #[cfg(test)]
 mod table_visibility_runtime_tests {
-    use super::{IbexHostContext, run_ibex_handler_with_context};
+    use super::{
+        IbexHostContext, read_dependency_key, run_ibex_handler_with_context, with_host_call_trace,
+    };
     use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
+    use crate::contract_types::IndexManifest;
     use crate::manifest::{
-        AuthInput, FieldManifest, FieldType, HandlerInput, IbexModule, MembershipManifest,
-        MembershipScope, SchemaManifest, SeedData, SequenceDeclaration, SequenceScopeAccess,
-        TableManifest, TableVisibilityArmV1, TableVisibilityV1,
+        AuthInput, BATCH_READ_MAX_POLICY_PROBES_PER_ITEM, FieldManifest, FieldType, HandlerInput,
+        IbexModule, MembershipManifest, MembershipScope, SchemaManifest, SeedData,
+        SequenceDeclaration, SequenceScopeAccess, TableManifest, TableVisibilityArmV1,
+        TableVisibilityV1,
     };
-    use crate::storage::{CapturedReadKind, DbRead, LocalDatabase, MembershipWriter};
+    use crate::storage::{
+        BufferedWrite, CapturedReadKind, DbRead, LocalDatabase, MembershipWriter,
+    };
     use serde_json::{Map, Value, json};
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
 
     fn table(
         name: &str,
@@ -6058,6 +6740,129 @@ mod table_visibility_runtime_tests {
             field_type,
             optional: false,
         }
+    }
+
+    fn optional_field(name: &str, field_type: FieldType) -> FieldManifest {
+        FieldManifest {
+            name: name.to_owned(),
+            field_type,
+            optional: true,
+        }
+    }
+
+    fn unique_ready_db() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("unique batch memory database");
+        let mut unique_docs = table(
+            "unique_docs",
+            vec![
+                field("slug", FieldType::String),
+                optional_field("scope", FieldType::String),
+                optional_field("alias", FieldType::String),
+            ],
+            Some(TableVisibilityV1::PublicRead),
+        );
+        unique_docs.indexes = vec![
+            IndexManifest {
+                name: "bySlug".to_owned(),
+                fields: vec!["slug".to_owned()],
+                unique: true,
+                where_applicable: false,
+            },
+            IndexManifest {
+                name: "byAlias".to_owned(),
+                fields: vec!["alias".to_owned()],
+                unique: true,
+                where_applicable: true,
+            },
+            IndexManifest {
+                name: "byScopeAlias".to_owned(),
+                fields: vec!["scope".to_owned(), "alias".to_owned()],
+                unique: true,
+                where_applicable: true,
+            },
+            IndexManifest {
+                name: "byScope".to_owned(),
+                fields: vec!["scope".to_owned()],
+                unique: false,
+                where_applicable: false,
+            },
+        ];
+        db.schema_seed()
+            .apply_schema(SchemaManifest {
+                tables: vec![unique_docs],
+                ..SchemaManifest::default()
+            })
+            .expect("unique batch schema");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "unique_docs".to_owned(),
+                    vec![
+                        Map::from_iter([
+                            ("_id".to_owned(), json!("unique-one")),
+                            ("slug".to_owned(), json!("one")),
+                            ("scope".to_owned(), json!("global")),
+                            ("alias".to_owned(), json!("first")),
+                        ]),
+                        Map::from_iter([
+                            ("_id".to_owned(), json!("unique-two")),
+                            ("slug".to_owned(), json!("two")),
+                            ("scope".to_owned(), json!("global")),
+                            ("alias".to_owned(), json!("second")),
+                        ]),
+                    ],
+                )]),
+            })
+            .expect("unique batch seed");
+        db
+    }
+
+    fn restricted_unique_overlay_db(include_hidden_touched_rows: bool) -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("restricted unique batch memory database");
+        let mut unique_docs = table(
+            "unique_docs",
+            vec![
+                field("slug", FieldType::String),
+                field("ownerId", FieldType::Principal),
+            ],
+            Some(TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
+        );
+        unique_docs.indexes = vec![IndexManifest {
+            name: "bySlug".to_owned(),
+            fields: vec!["slug".to_owned()],
+            unique: true,
+            where_applicable: false,
+        }];
+        db.schema_seed()
+            .apply_schema(SchemaManifest {
+                tables: vec![unique_docs],
+                ..SchemaManifest::default()
+            })
+            .expect("restricted unique batch schema");
+        if include_hidden_touched_rows {
+            db.schema_seed()
+                .seed(SeedData {
+                    tables: BTreeMap::from([(
+                        "unique_docs".to_owned(),
+                        vec![
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("touched-one")),
+                                ("slug".to_owned(), json!("before-one")),
+                                ("ownerId".to_owned(), json!("bob")),
+                            ]),
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("touched-two")),
+                                ("slug".to_owned(), json!("before-two")),
+                                ("ownerId".to_owned(), json!("bob")),
+                            ]),
+                        ],
+                    )]),
+                })
+                .expect("restricted unique batch seed");
+        }
+        db
     }
 
     fn schema() -> SchemaManifest {
@@ -6382,6 +7187,464 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
+    fn batch_get_many_preserves_order_duplicates_length_and_visibility_nulls() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    return {
+      owners: await ctx.db.getMany('owner_docs', ['owner-bob', 'owner-alice', 'missing', 'owner-alice']),
+      memberships: await ctx.db.getMany('membership_docs', ['membership-hidden', 'membership-visible']),
+      anyOf: await ctx.db.getMany('any_docs', ['any-hidden', 'any-membership-only']),
+      nonText: await ctx.db.getMany('integer_owner_docs', ['integer-owner', 'missing']),
+    };
+  }
+};
+"#;
+        let db = ready_db();
+        let mut alice = context(&db, Some("alice"), false);
+        let result = run_ibex_handler_with_context(&module(SOURCE, "inspect"), &mut alice, None)
+            .expect("batch point visibility handler runs");
+
+        assert_eq!(result["owners"].as_array().unwrap().len(), 4);
+        assert_eq!(result["owners"][0], Value::Null);
+        assert_eq!(result["owners"][1]["_id"], "owner-alice");
+        assert_eq!(result["owners"][2], Value::Null);
+        assert_eq!(result["owners"][3], result["owners"][1]);
+        assert_eq!(result["memberships"][0], Value::Null);
+        assert_eq!(result["memberships"][1]["_id"], "membership-visible");
+        assert_eq!(result["anyOf"][0], Value::Null);
+        assert_eq!(result["anyOf"][1]["_id"], "any-membership-only");
+        assert_eq!(result["nonText"], json!([null, null]));
+
+        let owner_captures = alice
+            .reads
+            .iter()
+            .filter(|dependency| dependency.table.as_deref() == Some("owner_docs"))
+            .map(read_dependency_key)
+            .collect::<BTreeSet<_>>();
+        const DISTINCT_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    return await ctx.db.getMany('owner_docs', ['owner-bob', 'owner-alice', 'missing']);
+  }
+};
+"#;
+        let mut distinct_alice = context(&db, Some("alice"), false);
+        run_ibex_handler_with_context(
+            &module(DISTINCT_SOURCE, "inspect"),
+            &mut distinct_alice,
+            None,
+        )
+        .expect("distinct-only batch point visibility handler runs");
+        let distinct_owner_captures = distinct_alice
+            .reads
+            .iter()
+            .filter(|dependency| dependency.table.as_deref() == Some("owner_docs"))
+            .map(read_dependency_key)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            owner_captures, distinct_owner_captures,
+            "duplicate ids add no dependency beyond the distinct input identities"
+        );
+
+        let (trace_result, trace) = with_host_call_trace(|| {
+            let mut traced = context(&db, Some("alice"), false);
+            run_ibex_handler_with_context(&module(SOURCE, "inspect"), &mut traced, None)
+        });
+        trace_result.expect("traced batch handler runs");
+        let cost = trace
+            .iter()
+            .find(|entry| entry.op == "db.getMany")
+            .and_then(|entry| entry.cost.as_ref())
+            .expect("batch host call publishes bounded cost facts")
+            .clone();
+        assert_eq!(cost.logical_batch_count, 1);
+        assert_eq!(cost.item_count, 4);
+        assert_eq!(cost.distinct_item_count, 3);
+        assert_eq!(cost.physical_statement_count, 1);
+        assert_eq!(cost.physical_chunk_count, 1);
+        assert_eq!(
+            cost.max_policy_probe_count,
+            3 * BATCH_READ_MAX_POLICY_PROBES_PER_ITEM,
+        );
+        let (anonymous_result, anonymous_trace) = with_host_call_trace(|| {
+            let mut anonymous = context(&db, None, false);
+            run_ibex_handler_with_context(&module(SOURCE, "inspect"), &mut anonymous, None)
+        });
+        anonymous_result.expect("same batch runs with different visibility outcomes");
+        let anonymous_cost = anonymous_trace
+            .iter()
+            .find(|entry| entry.op == "db.getMany")
+            .and_then(|entry| entry.cost.as_ref())
+            .expect("anonymous batch publishes cost facts");
+        assert_eq!(
+            anonymous_cost, &cost,
+            "public batch cost facts cannot vary with hidden-row matches",
+        );
+    }
+
+    #[test]
+    fn batch_unique_many_preserves_order_duplicates_and_manifest_key_order() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    return {
+      slugs: await ctx.db.uniqueMany('unique_docs', 'bySlug', [
+        { slug: 'two' }, { slug: 'one' }, { slug: 'two' }, { slug: 'missing' }
+      ]),
+      compound: await ctx.db.uniqueMany('unique_docs', 'byScopeAlias', [
+        { alias: 'second', scope: 'global' }
+      ]),
+    };
+  }
+};
+"#;
+        let db = unique_ready_db();
+        let mut ctx = context(&db, None, false);
+        let result = run_ibex_handler_with_context(&module(SOURCE, "inspect"), &mut ctx, None)
+            .expect("unique batch handler runs");
+        assert_eq!(result["slugs"].as_array().unwrap().len(), 4);
+        assert_eq!(result["slugs"][0]["_id"], "unique-two");
+        assert_eq!(result["slugs"][1]["_id"], "unique-one");
+        assert_eq!(result["slugs"][2], result["slugs"][0]);
+        assert_eq!(result["slugs"][3], Value::Null);
+        assert_eq!(result["compound"][0]["_id"], "unique-two");
+        const DISTINCT_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    return {
+      slugs: await ctx.db.uniqueMany('unique_docs', 'bySlug', [
+        { slug: 'two' }, { slug: 'one' }, { slug: 'missing' }
+      ]),
+      compound: await ctx.db.uniqueMany('unique_docs', 'byScopeAlias', [
+        { alias: 'second', scope: 'global' }
+      ]),
+    };
+  }
+};
+"#;
+        let mut distinct_ctx = context(&db, None, false);
+        run_ibex_handler_with_context(&module(DISTINCT_SOURCE, "inspect"), &mut distinct_ctx, None)
+            .expect("distinct-only unique batch handler runs");
+        assert_eq!(
+            ctx.reads
+                .iter()
+                .map(read_dependency_key)
+                .collect::<BTreeSet<_>>(),
+            distinct_ctx
+                .reads
+                .iter()
+                .map(read_dependency_key)
+                .collect::<BTreeSet<_>>(),
+            "duplicate unique keys add no dependency beyond the distinct input identities",
+        );
+    }
+
+    #[test]
+    fn batch_unique_many_overlays_buffered_insert_and_duplicate_keys() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    const id = await ctx.db.insert('unique_docs', {
+      slug: 'buffered', scope: 'local', alias: 'inserted'
+    });
+    return {
+      id,
+      rows: await ctx.db.uniqueMany('unique_docs', 'bySlug', [
+        { slug: 'buffered' }, { slug: 'buffered' }
+      ]),
+    };
+  }
+};
+"#;
+        let db = unique_ready_db();
+        let mut ctx = context(&db, None, true);
+        let result = run_ibex_handler_with_context(&module(SOURCE, "inspect"), &mut ctx, None)
+            .expect("unique batch sees a buffered insert");
+        assert_eq!(result["rows"].as_array().unwrap().len(), 2);
+        assert_eq!(result["rows"][0]["_id"], result["id"]);
+        assert_eq!(result["rows"][0]["slug"], "buffered");
+        assert_eq!(result["rows"][1], result["rows"][0]);
+        assert!(ctx.reads.iter().any(|dependency| {
+            dependency.kind == CapturedReadKind::MissingRow
+                && dependency.id.as_deref() == result["id"].as_str()
+        }));
+    }
+
+    #[test]
+    fn batch_unique_many_overlays_buffered_unique_key_move_for_old_and_new_keys() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    await ctx.db.patch('unique_docs', 'unique-one', { slug: 'moved' });
+    return await ctx.db.uniqueMany('unique_docs', 'bySlug', [
+      { slug: 'one' }, { slug: 'moved' }
+    ]);
+  }
+};
+"#;
+        let db = unique_ready_db();
+        let mut ctx = context(&db, None, true);
+        let result = run_ibex_handler_with_context(&module(SOURCE, "inspect"), &mut ctx, None)
+            .expect("unique batch sees both sides of a buffered key move");
+        assert_eq!(result[0], Value::Null);
+        assert_eq!(result[1]["_id"], "unique-one");
+        assert_eq!(result[1]["slug"], "moved");
+        assert!(ctx.reads.iter().any(|dependency| {
+            dependency.kind == CapturedReadKind::Row
+                && dependency.id.as_deref() == Some("unique-one")
+        }));
+    }
+
+    #[test]
+    fn batch_unique_many_overlays_buffered_delete() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    await ctx.db.delete('unique_docs', 'unique-two');
+    return await ctx.db.uniqueMany('unique_docs', 'bySlug', [{ slug: 'two' }]);
+  }
+};
+"#;
+        let db = unique_ready_db();
+        let mut ctx = context(&db, None, true);
+        let result = run_ibex_handler_with_context(&module(SOURCE, "inspect"), &mut ctx, None)
+            .expect("unique batch hides a buffered delete");
+        assert_eq!(result, json!([null]));
+        assert!(ctx.reads.iter().any(|dependency| {
+            dependency.kind == CapturedReadKind::Row
+                && dependency.id.as_deref() == Some("unique-two")
+        }));
+    }
+
+    #[test]
+    fn batch_unique_many_cost_accounts_for_overlay_and_hides_presence_outcomes() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    return await ctx.db.uniqueMany('unique_docs', 'bySlug', [
+      { slug: 'requested-one' }, { slug: 'requested-two' }
+    ]);
+  }
+};
+"#;
+        let trace_overlay = |db: &LocalDatabase| {
+            let mut ctx = context(db, Some("alice"), true);
+            for (id, slug) in [
+                ("touched-one", "requested-one"),
+                ("touched-two", "requested-two"),
+            ] {
+                ctx.writes.push(BufferedWrite::Patch {
+                    table: "unique_docs".to_owned(),
+                    id: id.to_owned(),
+                    values: Map::from_iter([("slug".to_owned(), json!(slug))]),
+                });
+            }
+            let (result, trace) = with_host_call_trace(|| {
+                run_ibex_handler_with_context(&module(SOURCE, "inspect"), &mut ctx, None)
+            });
+            let result = result.expect("traced unique overlay batch runs");
+            let cost = trace
+                .iter()
+                .find(|entry| entry.op == "db.uniqueMany")
+                .and_then(|entry| entry.cost.as_ref())
+                .expect("unique overlay batch publishes bounded cost facts")
+                .clone();
+            (result, cost)
+        };
+
+        let hidden_db = restricted_unique_overlay_db(true);
+        let absent_db = restricted_unique_overlay_db(false);
+        let (hidden_result, hidden_cost) = trace_overlay(&hidden_db);
+        let (absent_result, absent_cost) = trace_overlay(&absent_db);
+
+        assert_eq!(hidden_result, json!([null, null]));
+        assert_eq!(absent_result, hidden_result);
+        assert_eq!(hidden_cost.item_count, 2);
+        assert_eq!(hidden_cost.distinct_item_count, 2);
+        assert_eq!(hidden_cost.physical_statement_count, 3);
+        assert_eq!(hidden_cost.physical_chunk_count, 3);
+        assert_eq!(
+            hidden_cost.max_policy_probe_count,
+            // Two request-key evaluations, two touched-row storage checks,
+            // and two keys x two touched-candidate effective rechecks.
+            (2 + 2 + 2 * 2) * BATCH_READ_MAX_POLICY_PROBES_PER_ITEM,
+        );
+        assert_eq!(
+            absent_cost, hidden_cost,
+            "public overlay cost facts cannot distinguish hidden touched rows from absent ones",
+        );
+    }
+
+    #[test]
+    fn batch_unique_many_refuses_index_and_where_applicable_errors_before_reads() {
+        let db = unique_ready_db();
+        for (index, keys, expected_code) in [
+            (
+                "missing",
+                json!([{ "slug": "one" }]),
+                "SNAPBACK_BATCH_READ_INDEX_INVALID",
+            ),
+            (
+                "byScope",
+                json!([{ "scope": "global" }]),
+                "SNAPBACK_BATCH_READ_INDEX_INVALID",
+            ),
+            (
+                "bySlug",
+                json!([{ "wrong": "one" }]),
+                "SNAPBACK_BATCH_READ_KEY_INVALID",
+            ),
+            ("byAlias", json!([{}]), "SNAPBACK_BATCH_READ_KEY_INVALID"),
+            (
+                "byAlias",
+                json!([{ "alias": null }]),
+                "SNAPBACK_BATCH_READ_KEY_INVALID",
+            ),
+            (
+                "byScopeAlias",
+                json!([{ "scope": "global" }]),
+                "SNAPBACK_BATCH_READ_KEY_INVALID",
+            ),
+            (
+                "byScopeAlias",
+                json!([{ "scope": "global", "alias": null }]),
+                "SNAPBACK_BATCH_READ_KEY_INVALID",
+            ),
+        ] {
+            let mut ctx = context(&db, None, false);
+            let error = ctx
+                .handle_host_call(
+                    "db.uniqueMany",
+                    json!({ "table": "unique_docs", "index": index, "keys": keys }),
+                )
+                .expect_err("invalid unique batch must refuse");
+            assert_eq!(error.diagnostic.code, expected_code, "index={index}");
+            assert!(
+                ctx.reads.is_empty(),
+                "refusal must precede dependency/storage evidence"
+            );
+        }
+    }
+
+    #[test]
+    fn batch_read_request_and_response_bounds_are_exact_and_ordered() {
+        use crate::manifest::{
+            BATCH_READ_MAX_INPUT_BYTES, BATCH_READ_MAX_ITEMS, BATCH_READ_MAX_RESPONSE_BYTES,
+        };
+
+        let exact_items = json!({
+            "table": "unique_docs",
+            "ids": (0..BATCH_READ_MAX_ITEMS).map(|index| format!("id-{index}")).collect::<Vec<_>>(),
+        });
+        super::enforce_batch_read_request_bounds(&exact_items, BATCH_READ_MAX_ITEMS)
+            .expect("the exact item ceiling admits");
+        let item_over = super::enforce_batch_read_request_bounds(
+            &json!({ "table": "unique_docs", "ids": [] }),
+            BATCH_READ_MAX_ITEMS + 1,
+        )
+        .expect_err("one item over refuses");
+        assert_eq!(
+            item_over.diagnostic.code,
+            "SNAPBACK_BATCH_READ_ITEMS_EXCEEDED"
+        );
+
+        let empty = json!({ "table": "unique_docs", "ids": [""] });
+        let overhead = crate::rqs_contract::jcs(&empty).unwrap().len();
+        let exact_input = json!({
+            "table": "unique_docs",
+            "ids": ["x".repeat(BATCH_READ_MAX_INPUT_BYTES - overhead)],
+        });
+        assert_eq!(
+            crate::rqs_contract::jcs(&exact_input).unwrap().len(),
+            BATCH_READ_MAX_INPUT_BYTES
+        );
+        super::enforce_batch_read_request_bounds(&exact_input, 1)
+            .expect("the exact canonical input-byte ceiling admits");
+        let input_over = json!({
+            "table": "unique_docs",
+            "ids": ["x".repeat(BATCH_READ_MAX_INPUT_BYTES - overhead + 1)],
+        });
+        let error = super::enforce_batch_read_request_bounds(&input_over, 1)
+            .expect_err("one canonical input byte over refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_BATCH_READ_INPUT_BYTES_EXCEEDED"
+        );
+
+        IbexHostContext::finish_batch_read_response(vec![Some(Value::String(
+            "x".repeat(BATCH_READ_MAX_RESPONSE_BYTES - 4),
+        ))])
+        .expect("the exact canonical response-byte ceiling admits");
+        let error = IbexHostContext::finish_batch_read_response(vec![Some(Value::String(
+            "x".repeat(BATCH_READ_MAX_RESPONSE_BYTES - 3),
+        ))])
+        .expect_err("one canonical response byte over refuses");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_BATCH_READ_RESPONSE_BYTES_EXCEEDED"
+        );
+
+        let db = unique_ready_db();
+        const EMPTY_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    return [await ctx.db.getMany('unique_docs', []), await ctx.db.uniqueMany('unique_docs', 'bySlug', [])];
+  }
+};
+"#;
+        let (empty_result, empty_trace) = with_host_call_trace(|| {
+            let mut empty_ctx = context(&db, None, false);
+            run_ibex_handler_with_context(&module(EMPTY_SOURCE, "inspect"), &mut empty_ctx, None)
+        });
+        assert_eq!(empty_result.unwrap(), json!([[], []]));
+        assert!(
+            empty_trace
+                .iter()
+                .all(|entry| entry.op != "db.getMany" && entry.op != "db.uniqueMany"),
+            "empty JS batches must not cross the host trace boundary",
+        );
+
+        let mut ctx = context(&db, None, false);
+        let error = ctx
+            .handle_host_call("db.getMany", json!({ "ids": [] }))
+            .expect_err("missing table is malformed before the empty fast path");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_BATCH_READ_INPUT_INVALID");
+        let mut malformed = (0..BATCH_READ_MAX_ITEMS)
+            .map(|index| json!(format!("id-{index}")))
+            .collect::<Vec<_>>();
+        malformed.push(json!(42));
+        let error = ctx
+            .handle_host_call(
+                "db.getMany",
+                json!({ "table": "unique_docs", "ids": malformed }),
+            )
+            .expect_err("malformed input wins before item overflow");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_BATCH_READ_INPUT_INVALID");
+    }
+
+    #[test]
+    fn batch_reads_keep_membership_tables_private() {
+        let db = ready_db();
+        let mut ctx = context(&db, Some("alice"), false);
+        for (op, args) in [
+            (
+                "db.getMany",
+                json!({ "table": "resource_members", "ids": ["membership-alice-visible"] }),
+            ),
+            (
+                "db.uniqueMany",
+                json!({ "table": "resource_members", "index": "anything", "keys": [{}] }),
+            ),
+        ] {
+            let error = ctx
+                .handle_host_call(op, args)
+                .expect_err("membership batch reads remain private");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_READ_PRIVATE");
+        }
+    }
+
+    #[test]
     fn table_visibility_effective_point_short_circuits_hidden_storage_policy_errors() {
         let db = ready_db();
         let ctx = context(&db, Some("alice"), false);
@@ -6429,6 +7692,14 @@ globalThis.__snapbackHandlers = {
             Value::Null,
             "patching a hidden row's policy field cannot reveal its stored fields",
         );
+        assert_eq!(
+            ctx.handle_host_call(
+                "db.getMany",
+                json!({ "table": "owner_docs", "ids": ["owner-bob", "missing"] }),
+            )
+            .expect("hidden batch point read after no-op patch"),
+            json!([null, null]),
+        );
 
         let visible_insert = ctx
             .handle_host_call(
@@ -6470,6 +7741,15 @@ globalThis.__snapbackHandlers = {
             .unwrap(),
             Value::Null,
         );
+        let batch = ctx
+            .handle_host_call(
+                "db.getMany",
+                json!({ "table": "owner_docs", "ids": [hidden_insert.clone(), visible_insert.clone(), visible_insert.clone()] }),
+            )
+            .expect("batch overlays buffered inserts");
+        assert_eq!(batch[0], Value::Null);
+        assert_eq!(batch[1]["body"], "buffered-visible");
+        assert_eq!(batch[2], batch[1]);
 
         let member_insert = ctx
             .handle_host_call(
@@ -6563,10 +7843,7 @@ globalThis.__snapbackHandlers = {
             )
             .expect("hidden row remains null after the malformed no-op patch");
         let missing_read = ctx
-            .handle_host_call(
-                "db.get",
-                json!({ "table": "owner_docs", "id": "missing" }),
-            )
+            .handle_host_call("db.get", json!({ "table": "owner_docs", "id": "missing" }))
             .expect("missing row remains null after the malformed no-op patch");
         let hidden_delete = ctx
             .handle_host_call(

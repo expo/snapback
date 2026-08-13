@@ -124,7 +124,10 @@ export function resolveHandlerSourceCapability(backendDir, sourcePath, options =
     codePrefix: 'BUNDLE_SOURCE',
   });
   const identity = relative(backendRoot, capability.realPath).split(sep).join('/');
-  if (!/\.(?:js|mjs|ts|mts)$/iu.test(identity)) {
+  // TypeScript-family spellings that are outside the admitted profile still
+  // pass this capability boundary so the TypeScript validator can return its
+  // stable, profile-specific refusal (for example .tsx, .cts, or .d.ts).
+  if (!/\.(?:js|mjs|ts|mts|tsx|cts)$/iu.test(identity)) {
     throw fileCapabilityError('BUNDLE_SOURCE_UNSUPPORTED_EXTENSION', `handler source ${identity} must be a supported JS/TS file`, { source: sourcePath, identity });
   }
   return { identity, ...capability };

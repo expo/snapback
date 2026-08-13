@@ -95,7 +95,15 @@ async function installRetainedRegistration(store, name = 'listThings') {
         registrationId: 'drain-registration',
         source: 'programmatic',
         ownerContext: { kind: 'api', label: 'outbox-drain-test' },
-        functionReference: { name },
+        functionReference: {
+          artifactKind: 'functionReference',
+          name,
+          argumentSchema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {},
+          },
+        },
         canonicalArgs: {},
         requestedScope: { kind: 'page-set', from: 'first', through: 'terminal' },
         retentionRequest: 'durable',

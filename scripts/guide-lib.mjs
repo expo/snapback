@@ -55,7 +55,11 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // its nonclaims inline (production blind-accept signup and mail-delivered
 // reset are unready, local reset is capture-mailbox only) so the boundary is
 // visible in the index rather than only on the page.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 55808;
+// Bumped 55808 -> 57344 on 2026-08-12 for the LLP 0245-0249 wave: the
+// authoring.declaration-suggestions row plus GAP rows for backend.batch-reads
+// (LLP 0248) and backend.handler-typescript (LLP 0246), and the LLP 0247
+// alias vocabulary on clients.headless / realtime.ephemeral.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 57344;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

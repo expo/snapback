@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/declaration-suggestion/v1.schema.json",
+  "$comment": "Codegen owns this authoring-only artifact because no Rust/runtime component parses it; this is the client/tool-only natural-owner exception in LLP 0037 Revisit triggers, following the AppDescriptor precedent.",
+  "title": "Snapback declaration suggestion protocol v1",
+  "oneOf": [
+    { "$ref": "#/$defs/suggestion" },
+    { "$ref": "#/$defs/suggestResult" },
+    { "$ref": "#/$defs/applyResult" }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "reasonCode": {
+      "type": "string",
+      "enum": [
+        "SNAPBACK_AUTHORING_ANALYSIS_FAILED",
+        "SNAPBACK_AUTHORING_ARRAY_BOUND_UNRESOLVED",
+        "SNAPBACK_AUTHORING_CLASS_INSTANCE_UNSUPPORTED",
+        "SNAPBACK_AUTHORING_COMPILER_CONTEXT_MISSING",
+        "SNAPBACK_AUTHORING_DEFINITION_INVALID",
+        "SNAPBACK_AUTHORING_HANDLER_NOT_FOUND",
+        "SNAPBACK_AUTHORING_INDEX_SIGNATURE_UNSUPPORTED",
+        "SNAPBACK_AUTHORING_NON_JSON_RETURN",
+        "SNAPBACK_AUTHORING_NUMBER_REFINEMENT_UNRESOLVED",
+        "SNAPBACK_AUTHORING_OPERATION_NOT_FOUND",
+        "SNAPBACK_AUTHORING_RECURSIVE_RETURN_UNSUPPORTED",
+        "SNAPBACK_AUTHORING_RESULT_SHAPE_UNSUPPORTED",
+        "SNAPBACK_AUTHORING_RETURN_ANY_UNRESOLVED",
+        "SNAPBACK_AUTHORING_RETURN_UNKNOWN_UNRESOLVED",
+        "SNAPBACK_AUTHORING_STRING_BOUND_UNRESOLVED",
+        "SNAPBACK_AUTHORING_SUGGESTION_INPUT_INVALID",
+        "SNAPBACK_AUTHORING_UNION_UNSUPPORTED"
+      ]
+    },
+    "diagnosticCode": {
+      "oneOf": [
+        { "$ref": "#/$defs/reasonCode" },
+        { "const": "SNAPBACK_DECLARATION_SUGGESTION_STALE" }
+      ]
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "code", "severity", "subsystem", "message", "details"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-diagnostic.v1" },
+        "code": { "$ref": "#/$defs/diagnosticCode" },
+        "severity": { "enum": ["info", "warning", "error"] },
+        "subsystem": { "const": "codegen" },
+        "message": { "type": "string", "minLength": 1 },
+        "details": { "type": "object" }
+      }
+    },
+    "hole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "code", "path", "sourceExpression", "availableChoices"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-hole.v1" },
+        "code": { "$ref": "#/$defs/reasonCode" },
+        "path": { "type": "string", "minLength": 1 },
+        "sourceExpression": { "type": "string", "minLength": 1 },
+        "availableChoices": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "path", "sourceExpression", "contractExpression", "confidence", "basis"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-evidence.v1" },
+        "path": { "type": "string", "minLength": 1 },
+        "sourceExpression": { "type": "string", "minLength": 1 },
+        "contractExpression": { "type": ["string", "null"] },
+        "confidence": { "enum": ["exact", "schema-derived", "widened", "unresolved"] },
+        "basis": { "enum": ["typescript", "schema-reference", "contract-normalization"] }
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "counts", "proportions", "total"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-confidence.v1" },
+        "counts": { "$ref": "#/$defs/confidenceRecord" },
+        "proportions": { "$ref": "#/$defs/confidenceRecord" },
+        "total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "confidenceRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact", "schemaDerived", "widened", "unresolved"],
+      "properties": {
+        "exact": { "type": "number", "minimum": 0 },
+        "schemaDerived": { "type": "number", "minimum": 0 },
+        "widened": { "type": "number", "minimum": 0 },
+        "unresolved": { "type": "number", "minimum": 0 }
+      }
+    },
+    "identityInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "label", "digest", "kind"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-input.v1" },
+        "label": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/digest" },
+        "kind": { "enum": ["source", "schema", "generated-type", "generated-fact", "compiler-lib", "compiler-config", "analyzer", "module-format", "runtime-evidence"] }
+      }
+    },
+    "declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "before", "after"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-freeze.v1" },
+        "before": { "type": ["string", "null"] },
+        "after": { "type": ["string", "null"] }
+      }
+    },
+    "patch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "file", "startOffset", "endOffset", "beforeText", "afterText", "unifiedDiff"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-source-patch.v1" },
+        "file": { "type": "string", "minLength": 1 },
+        "startOffset": { "type": "integer", "minimum": 0 },
+        "endOffset": { "type": "integer", "minimum": 0 },
+        "beforeText": { "type": "string" },
+        "afterText": { "type": "string" },
+        "unifiedDiff": { "type": "string", "minLength": 1 }
+      }
+    },
+    "semanticSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "runtimeValidation", "generatedClientTypes", "unresolvedHoles", "checksAfterAcceptance"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-semantic-summary.v1" },
+        "runtimeValidation": { "type": "string", "minLength": 1 },
+        "generatedClientTypes": { "type": "string", "minLength": 1 },
+        "unresolvedHoles": { "type": "integer", "minimum": 0 },
+        "checksAfterAcceptance": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "suggestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion", "artifactKind", "ok", "status", "operation", "source", "compiler",
+        "analyzer", "analysisInputId", "analysisInputs", "runtimeEvidenceReceipts", "declaration",
+        "evidence", "confidence", "holes", "diagnostics", "patch", "semanticSummary"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion.v1" },
+        "artifactKind": { "const": "declarationSuggestion" },
+        "ok": { "const": true },
+        "status": { "enum": ["exact", "schema-derived", "widened", "holed", "refused"] },
+        "operation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "id", "name", "kind"],
+          "properties": {
+            "schemaVersion": { "const": "snapback.declaration-suggestion-operation.v1" },
+            "id": { "type": "string", "minLength": 1 },
+            "name": { "type": "string", "minLength": 1 },
+            "kind": { "enum": ["Query", "LiveQuery", "Mutation", "Action"] }
+          }
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "backend", "definitionFile", "definitionDigest", "schemaDigest", "generatedTypeDigest", "moduleFormat"],
+          "properties": {
+            "schemaVersion": { "const": "snapback.declaration-suggestion-source.v1" },
+            "backend": { "type": "string", "minLength": 1 },
+            "definitionFile": { "type": "string", "minLength": 1 },
+            "definitionDigest": { "$ref": "#/$defs/digest" },
+            "schemaDigest": { "$ref": "#/$defs/digest" },
+            "generatedTypeDigest": { "$ref": "#/$defs/digest" },
+            "moduleFormat": { "enum": ["module", "commonjs"] }
+          }
+        },
+        "compiler": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "package", "version", "integrity", "effectiveOptions"],
+          "properties": {
+            "schemaVersion": { "const": "snapback.declaration-suggestion-compiler.v1" },
+            "package": { "const": "typescript" },
+            "version": { "type": "string", "minLength": 1 },
+            "integrity": { "type": "string", "minLength": 1 },
+            "effectiveOptions": { "type": "object" }
+          }
+        },
+        "analyzer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "id", "version", "reasonTableDigest"],
+          "properties": {
+            "schemaVersion": { "const": "snapback.declaration-suggestion-analyzer.v1" },
+            "id": { "const": "snapback-declaration-suggestion" },
+            "version": { "const": 1 },
+            "reasonTableDigest": { "$ref": "#/$defs/digest" }
+          }
+        },
+        "analysisInputId": { "$ref": "#/$defs/digest" },
+        "analysisInputs": { "type": "array", "items": { "$ref": "#/$defs/identityInput" } },
+        "runtimeEvidenceReceipts": { "type": "array", "maxItems": 0 },
+        "declaration": { "$ref": "#/$defs/declaration" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "holes": { "type": "array", "items": { "$ref": "#/$defs/hole" } },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
+        "patch": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/patch" }] },
+        "semanticSummary": { "$ref": "#/$defs/semanticSummary" }
+      }
+    },
+    "suggestResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "artifactKind", "ok", "suggestions", "diagnostics"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-result.v1" },
+        "artifactKind": { "const": "declarationSuggestionResult" },
+        "ok": { "type": "boolean" },
+        "suggestions": { "type": "array", "items": { "$ref": "#/$defs/suggestion" } },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+      }
+    },
+    "applyResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "artifactKind", "ok", "operationId", "analysisInputId", "path", "sourceDigest", "diagnostics"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-apply.v1" },
+        "artifactKind": { "const": "declarationSuggestionApplyResult" },
+        "ok": { "type": "boolean" },
+        "operationId": { "type": ["string", "null"] },
+        "analysisInputId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/digest" }] },
+        "path": { "type": ["string", "null"] },
+        "sourceDigest": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/digest" }] },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+      }
+    }
+  }
+}

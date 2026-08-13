@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:47abff5d9167671a8b952b6d653bc50328f3b5eee1e290b8be5bb4743cdd5c68",
+  "catalogDigest": "sha256:705535ba641db455ac21619a05838308a306a575c9cfb0558a86393e58de771a",
   "buildIdentity": {
-    "sourceCommit": "a0e437065b97f0ea09640399abaec502dc8e1772",
+    "sourceCommit": "e5d924c109d670667dd7b862ac2bc1a648a898e3",
     "dirty": true
   },
-  "generatedAtCommit": "a0e437065b97f0ea09640399abaec502dc8e1772",
+  "generatedAtCommit": "e5d924c109d670667dd7b862ac2bc1a648a898e3",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -3903,6 +3903,60 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.audit"
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "cli.packaged.author",
+      "title": "Suggest and freeze result declarations",
+      "intents": [
+        "infer result",
+        "suggest contract",
+        "write my result contract"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "The identity-checked apply seam writes one caller-reviewed repository patch; editor/MCP integration is outside DeclarationSuggestionV1.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "none",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback author",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "getting-started/the-authoring-loop.md#suggest-review-and-apply-a-result-contract",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.author",
+        "packages/snapback-codegen/declaration-suggestion.mjs"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",

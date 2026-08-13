@@ -10,6 +10,11 @@ export type HandlerIndexMap<Rows extends HandlerRowMap> = {
   readonly [Table in keyof Rows]?: PropertyKey;
 };
 
+/** Closed unique-index key shapes keyed by table and unique index name. */
+export type HandlerUniqueIndexKeyMap<Rows extends HandlerRowMap> = {
+  readonly [Table in keyof Rows]?: Readonly<Record<PropertyKey, object>>;
+};
+
 /** Insert or patch value shapes keyed by admitted schema table name. */
 export type HandlerWriteMap<Rows extends HandlerRowMap> = Partial<{
   readonly [Table in keyof Rows]: unknown;
@@ -33,17 +38,20 @@ export interface HandlerSchema<
   Inserts extends HandlerWriteMap<Rows>,
   Patches extends HandlerWriteMap<Rows>,
   Admissions extends HandlerTableAdmissionMaps<Rows>,
+  UniqueIndexKeys extends HandlerUniqueIndexKeyMap<Rows> = HandlerUniqueIndexKeyMap<Rows>,
 > {
   readonly rows: Rows;
   readonly indexes: Indexes;
+  readonly uniqueIndexKeys: UniqueIndexKeys;
   readonly inserts: Inserts;
   readonly patches: Patches;
   readonly admissions: Admissions;
 }
 
-export type AnyHandlerSchema = HandlerSchema<any, any, any, any, any>;
+export type AnyHandlerSchema = HandlerSchema<any, any, any, any, any, any>;
 export type RowsOf<Schema extends AnyHandlerSchema> = Schema['rows'];
 export type IndexesOf<Schema extends AnyHandlerSchema> = Schema['indexes'];
+export type UniqueIndexKeysOf<Schema extends AnyHandlerSchema> = Schema['uniqueIndexKeys'];
 export type InsertsOf<Schema extends AnyHandlerSchema> = Schema['inserts'];
 export type PatchesOf<Schema extends AnyHandlerSchema> = Schema['patches'];
 export type AdmissionsOf<Schema extends AnyHandlerSchema> = Schema['admissions'];
@@ -123,6 +131,18 @@ export interface QueryDatabase<Schema extends AnyHandlerSchema> {
     table: Table,
     id: HandlerRowId<Schema, Table>,
   ): Promise<HandlerRow<Schema, Table> | null>;
+  getMany<Table extends ReadableTable<Schema>>(
+    table: Table,
+    ids: ReadonlyArray<HandlerRowId<Schema, Table>>,
+  ): Promise<Array<HandlerRow<Schema, Table> | null>>;
+  uniqueMany<
+    Table extends ReadableTable<Schema>,
+    Index extends keyof UniqueIndexKeysOf<Schema>[Table] & string,
+  >(
+    table: Table,
+    index: Index,
+    keys: ReadonlyArray<UniqueIndexKeysOf<Schema>[Table][Index]>,
+  ): Promise<Array<HandlerRow<Schema, Table> | null>>;
   query<Table extends ReadableTable<Schema>>(table: Table): QueryBuilder<Schema, Table>;
 }
 

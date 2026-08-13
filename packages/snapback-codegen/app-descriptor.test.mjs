@@ -28,6 +28,8 @@ import {
   SURFACE_MAX_PER_APP,
   SURFACE_MAX_SCOPE_RECORD_FIELDS,
 } from './index.mjs';
+import * as headlessClient from '../snapback-client/index.mjs';
+import * as reactClient from '../snapback-react/index.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageRoot, '..', '..');
@@ -153,6 +155,69 @@ try {
   writeValidSources();
   const generated = await generate(backend);
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+
+  // @ref LLP 0247#d5-generated-lifecycle-metadata-owns-normalization-and-failure-tables
+  // — codegen owns the five-row origin artifact; both first-party JS arms
+  // consume the same normalization version and public refusal class.
+  const lifecycle = JSON.parse(readFileSync(
+    join(backend, 'generated', 'client-lifecycle.manifest.json'),
+    'utf8',
+  ));
+  const lifecycleSchema = JSON.parse(readFileSync(
+    join(packageRoot, 'client-lifecycle.schema.json'),
+    'utf8',
+  ));
+  const validateLifecycle = new Ajv2020({ strict: false }).compile(lifecycleSchema);
+  assert.equal(validateLifecycle(lifecycle), true, JSON.stringify(validateLifecycle.errors));
+  assert.equal(lifecycle.schemaVersion, 'snapback.client-lifecycle.v1');
+  assert.deepEqual(Object.keys(lifecycle.rows), [
+    'anchors',
+    'argumentNormalization',
+    'authorityAdmission',
+    'presenceLifecycle',
+    'primaryFailureCarrier',
+  ]);
+  assert.equal(
+    lifecycle.rows.argumentNormalization.version,
+    headlessClient.ARGUMENT_NORMALIZATION_VERSION,
+  );
+  assert.equal(
+    reactClient.ARGUMENT_NORMALIZATION_VERSION,
+    headlessClient.ARGUMENT_NORMALIZATION_VERSION,
+    'headless and React expose the same normalization behavior version',
+  );
+  assert.deepEqual(
+    lifecycle.rows.argumentNormalization.operations.find(
+      ({ name }) => name === 'createWithAttachment',
+    ).optionalPropertyPaths,
+    ['args.attachment'],
+  );
+  assert.equal(
+    lifecycle.rows.primaryFailureCarrier.publicErrorType,
+    headlessClient.SnapbackDiagnosticError.name,
+  );
+  assert.equal(
+    reactClient.SnapbackDiagnosticError,
+    headlessClient.SnapbackDiagnosticError,
+    'headless and React use one public failure carrier',
+  );
+  assert.deepEqual(lifecycle.rows.primaryFailureCarrier.verbs, [
+    { verb: 'query', operationKind: 'Query', carrier: 'throw' },
+    { verb: 'run', operationKind: 'Action', carrier: 'throw' },
+    { verb: 'mutate', operationKind: 'Mutation', carrier: 'throw-immediate' },
+    { verb: 'action', operationKind: 'Action', carrier: 'raw-envelope-deprecated' },
+    { verb: 'queued-mutate', operationKind: 'Mutation', carrier: 'resolved-queued-union' },
+  ]);
+  assert.deepEqual(lifecycle.rows.anchors.guide, [
+    'guide/clients/headless.md',
+    'guide/clients/react.md',
+    'guide/realtime/ephemeral-state.md',
+  ]);
+  assert.equal(
+    JSON.parse(readFileSync(join(backend, 'generated', 'package.json'), 'utf8'))
+      .exports['./client-lifecycle'],
+    './client-lifecycle.manifest.json',
+  );
 
   // Language-neutral inspection reads JSON only: no React import and no
   // application handler/module execution is needed to enumerate the app.

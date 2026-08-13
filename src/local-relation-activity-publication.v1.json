@@ -7,15 +7,15 @@
   ],
   "qualificationReceiptSha256": "sha256:362ed2bc9443a6a027b224705c21ad516b647583a1dfda7d2056205e3a4fa6da",
   "executorSourceSha256": {
-    "src/local.rs": "sha256:9fc977e860049168c8d01aa74a97c02e9c1cb7aedd976a70dde4d82c1f6fa357",
+    "src/local.rs": "sha256:725cc362ef67d38978a1eb2bcf91cf805f55580753d768b6d28d42a60d6b7e10",
     "src/local/auth_room_kick_acceptance.rs": "sha256:71edea963f2d2dc2217e437c51a99a573e792e0319d3951d3e755893c4f781f9",
     "src/local/authorization_acceptance.rs": "sha256:00a25f3fae6756f8d06dc921366091d44cfc00be32ee0169adebd89427f6dd9c",
     "src/local/config_types.rs": "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85",
     "src/local/inspection.rs": "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679",
     "src/local/live_protocol.rs": "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
-    "src/local/tests.rs": "sha256:c51b4df20fc652168f2dd985f8f78af83e2be7d28b3d471102b1713901b1ce2d",
-    "src/storage.rs": "sha256:69498d0509e041a979bf55d59afdb1d84856c567ad02059ab6896f7d1cb5abf3",
+    "src/local/tests.rs": "sha256:3721bb3b278887db79397e0ef7e14316e307df546731bbb9bed1dc56e3ea7581",
+    "src/storage.rs": "sha256:881ba8ec141633de089724fb34eb10cf490aede98f047954c64c899dd42a0e98",
     "src/storage/auth.rs": "sha256:5839ff8445b0fabcc8212b3732541336e5a1f0d918967567452125896acbf545",
     "src/storage/auth_agent_credentials.rs": "sha256:d2c5f512a26fd2afca8df6202743b51077d15cde9e0fbd1aed48c555f34dbf3e",
     "src/storage/auth_agents.rs": "sha256:8e6223f3da22864215236f6ffafe66c9c1afa557f5179b1e541edc17d74af2b5",
@@ -40,7 +40,7 @@
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/define.mjs": "sha256:f3e0287512fc5cfa142742623339fa897a92fd5f7381cf67b1c7e004783ec538"
+    "packages/snapback-codegen/define.mjs": "sha256:dc189b85e8e2410ca468a00755d0e90f3a41faac273c9bdf55bc1b2d77d02a93"
   },
   "packageClosureSha256": null,
   "buildProvenanceRequirement": "source-commit-and-embedded-carrier-sha256"

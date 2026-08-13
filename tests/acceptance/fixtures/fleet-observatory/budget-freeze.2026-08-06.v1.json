@@ -23,7 +23,7 @@
       "logicalBytes": 51027,
       "resultBytes": 49652,
       "proofBytes": 1375,
-      "physicalCarrierBytes": 129463
+      "physicalCarrierBytes": 129679
     },
     "releasedCustody": {
       "materializationRecords": 21,
@@ -39,8 +39,8 @@
       "firstUsefulRows": 100,
       "rowsInstalled": 200,
       "payloadBytes": 49652,
-      "firstUsefulMs": 291.982,
-      "authoritativeCompleteMs": 291.982
+      "firstUsefulMs": 181.476,
+      "authoritativeCompleteMs": 181.476
     }
   },
   "frozenCeilings": {

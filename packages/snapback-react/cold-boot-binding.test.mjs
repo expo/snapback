@@ -51,6 +51,7 @@ const cellsDefinition = Object.freeze({
   kind: 'LiveQuery',
   implementationHash: 'sha256:cells-implementation',
   argsContractHash: 'sha256:cells-args',
+  argsContract: { kind: 'object', fields: [] },
   resultContractHash: resultContractHash(queryContract),
   resultContract: queryContract,
   authorityIndependent: true,

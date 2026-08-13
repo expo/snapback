@@ -276,7 +276,9 @@ test('the shipped client invocation seam evaluates only proof-verified reclassif
     },
   });
   const rows = await client.evaluateLocalResultTransform({
+    artifactKind: 'functionReference',
     name: 'reclassifiedPlan',
+    argsContract: { kind: 'object', fields: [] },
     composition: {
       normalizedCompositePlan: {
         classification: { retention: RESULT_TRANSFORM_V1_RETENTION_CLASS },

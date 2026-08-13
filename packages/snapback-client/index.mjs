@@ -31,6 +31,16 @@ import {
 } from '@expo/snapback-contract/auth-invalidation';
 import { isAgentAuthorityFence } from './agent-authority-brand.mjs';
 import {
+  normalizeArgumentsAgainstContractV1,
+  normalizeGeneratedArgumentsV1,
+} from './argument-normalization.mjs';
+import {
+  SnapbackDiagnosticError,
+  asSnapbackDiagnosticError,
+  isSnapbackDiagnosticError,
+  snapbackDiagnosticError,
+} from './diagnostic-error.mjs';
+import {
   SEARCH_REQUEST_ARGS_CONTRACT_GENERATION,
   SEARCH_REQUEST_ARGS_CONTRACT_HASH,
 } from './search-contract.generated.mjs';
@@ -79,6 +89,17 @@ export {
   canonicalizeClientValueV1,
   canonicalReactStoreKeyV1,
 } from './canonical-client-value.mjs';
+export {
+  ARGUMENT_NORMALIZATION_VERSION,
+  exactArgumentContract,
+  normalizeArgumentsAgainstContractV1,
+  normalizeGeneratedArgumentsV1,
+  optionalPropertyPathsV1,
+} from './argument-normalization.mjs';
+export {
+  SnapbackDiagnosticError,
+  isSnapbackDiagnosticError,
+} from './diagnostic-error.mjs';
 export {
   compileResultContractValidator,
   RESULT_CONTRACT_LIMITS_V1,
@@ -327,6 +348,108 @@ const isAuthorityFenceUnsettledError = (error) => (
 const isServerAuthorityStaleResult = (error) => (
   authorityErrorCode(error) === 'SNAPBACK_AUTH_STALE_RESULT'
 );
+
+const GENERATED_AUTHENTICATED_REQUIREMENT = 'authenticated';
+const AUTHENTICATION_REQUIRED_REASON = 'authentication-required';
+const AUTHENTICATION_NOT_SETTLED_REASON = 'authentication-not-settled';
+
+const requiresGeneratedAuthenticatedAuthority = (ref) => (
+  ref !== null
+  && typeof ref === 'object'
+  && !Array.isArray(ref)
+  && ref.artifactKind === 'functionReference'
+  && ref.authRequirement === GENERATED_AUTHENTICATED_REQUIREMENT
+);
+
+const oneShotAuthAdmissionError = ({
+  code,
+  message,
+  reason,
+  retryStrategy,
+  cause = undefined,
+  operation = null,
+  refKind = null,
+}) => {
+  const details = Object.freeze({
+    reason,
+    retryable: true,
+    retryStrategy,
+    effectCommitted: false,
+  });
+  const diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code,
+    severity: 'error',
+    subsystem: 'client',
+    message,
+    reason,
+    details,
+  });
+  const error = new SnapbackDiagnosticError(diagnostic, {
+    message,
+    cause,
+    operation,
+    refKind,
+    retryable: true,
+    retryStrategy,
+    effectCommitted: false,
+    effectMayHaveCommitted: false,
+  });
+  error.reason = reason;
+  return error;
+};
+
+const authenticatedOneShotAdmissionError = (ref, {
+  authCoordinator = null,
+  custody = null,
+} = {}, operation = null) => {
+  if (!requiresGeneratedAuthenticatedAuthority(ref)) return null;
+  if (custody === 'anonymous-public') {
+    return oneShotAuthAdmissionError({
+      code: 'SNAPBACK_AUTH_REQUIRED',
+      message: 'authentication is required for this generated operation',
+      reason: AUTHENTICATION_REQUIRED_REASON,
+      retryStrategy: 'after-authentication',
+      operation,
+      refKind: ref.kind ?? null,
+    });
+  }
+  if (!authCoordinator) return null;
+  let capture;
+  try {
+    capture = authCoordinator.capture();
+  } catch (cause) {
+    if (!isAuthorityFenceUnsettledError(cause)) throw cause;
+    return oneShotAuthAdmissionError({
+      code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+      message: 'authentication custody is not settled for this generated operation',
+      reason: AUTHENTICATION_NOT_SETTLED_REASON,
+      retryStrategy: 'after-authentication-settles',
+      cause,
+      operation,
+      refKind: ref.kind ?? null,
+    });
+  }
+  const authority = authCoordinator.credentialFor(capture).authority;
+  if (authority?.kind !== 'anonymous') return null;
+  return oneShotAuthAdmissionError({
+    code: 'SNAPBACK_AUTH_REQUIRED',
+    message: 'authentication is required for this generated operation',
+    reason: AUTHENTICATION_REQUIRED_REASON,
+    retryStrategy: 'after-authentication',
+    operation,
+    refKind: ref.kind ?? null,
+  });
+};
+
+const captureHasAnonymousAuthority = (authorityFence, capture) => {
+  if (!authorityFence || !capture) return false;
+  try {
+    return authorityFence.credentialFor(capture)?.authority?.kind === 'anonymous';
+  } catch {
+    return false;
+  }
+};
 
 const outboxAdoptionError = (code, message, details = {}) => {
   const error = new Error(`${code}: ${message}`);
@@ -622,6 +745,7 @@ const EPHEMERAL_AUTHORITY_INSTANCE_HEADER = 'x-snapback-ephemeral-authority-inst
 // fresh-subscribe work owned by replaceBearerToken(). Public work must wait
 // outside that transition even though these lifecycle operations run inside it.
 const EXTERNAL_BEARER_TRANSITION_PERMIT = Symbol('snapback.externalBearerTransitionPermit');
+let rawActionDeprecationWarned = false;
 
 const senderProofId = () => {
   const value = new Uint8Array(16);
@@ -1195,11 +1319,20 @@ const SUPERSEDED_AUTH_CODES = new Set([
 // renderable outcome of a custody transition — not a lifecycle failure of the
 // barrier itself. Custody-terminal codes are excluded: they have their own
 // owner (handleTerminalAuthLoss) and must stay loud.
-const isSubscribeAuthorizationDenial = (error) => (
+const isSubscribeAuthorizationDenial = (error, {
+  authorityFence = null,
+  capture = null,
+} = {}) => (
   (error?.status === 401 || error?.status === 403)
   && typeof error?.diagnostic?.code === 'string'
   && error.diagnostic.code.startsWith('SNAPBACK_AUTH_')
-  && !TERMINAL_AUTH_CODES.has(error.diagnostic.code)
+  && (
+    !TERMINAL_AUTH_CODES.has(error.diagnostic.code)
+    || (
+      error.diagnostic.code === 'SNAPBACK_AUTH_REQUIRED'
+      && captureHasAnonymousAuthority(authorityFence, capture)
+    )
+  )
 );
 
 const LIVE_TERMINAL_AUTH_CODES = new Set([
@@ -1909,18 +2042,18 @@ export function bindSnapbackAppLifecycle(appState, handle, {
 }
 
 const clientCodedError = (error, code) => {
-  error.code = code;
   const message = error.message.startsWith(`${code}: `)
     ? error.message.slice(code.length + 2)
     : error.message;
-  error.diagnostic = Object.freeze({
+  const diagnostic = Object.freeze({
     schemaVersion: 'snapback.client-diagnostic.v1',
     code,
     severity: 'error',
+    subsystem: 'client',
     message,
     details: Object.freeze({}),
   });
-  return error;
+  return new SnapbackDiagnosticError(diagnostic, { message, cause: error });
 };
 
 export const SNAPBACK_QUERY_OFFLINE_UNAVAILABLE =
@@ -2030,13 +2163,17 @@ function queryOfflineUnavailableError({
       }),
     }),
   });
-  const error = new Error(
-    `${SNAPBACK_QUERY_OFFLINE_UNAVAILABLE}: ${message}`,
-    { cause },
-  );
+  const error = new SnapbackDiagnosticError(diagnostic, {
+    message,
+    cause: isSnapbackDiagnosticError(cause) && cause.cause !== undefined
+      ? cause.cause
+      : cause,
+    operation: 'query',
+    refKind: ref?.kind ?? 'Query',
+    effectCommitted: false,
+    effectMayHaveCommitted: false,
+  });
   error.name = 'SnapbackQueryOfflineUnavailableError';
-  error.code = SNAPBACK_QUERY_OFFLINE_UNAVAILABLE;
-  error.diagnostic = diagnostic;
   return error;
 }
 
@@ -4724,8 +4861,16 @@ export class SnapbackClient {
         && this.bearerToken === externalBearerAtStart
         && this.__authTransportGeneration === externalTransportGenerationAtStart
       );
+      // @ref LLP 0247#d2-protected-continuing-reads-wait-one-shot-reads-refuse-locally
+      // — an anonymous capture owns no authenticated authority to terminate;
+      // a raced server refusal stays scoped to this request/resource.
+      const anonymousAuthRequiredRefusal = (
+        code === 'SNAPBACK_AUTH_REQUIRED'
+        && captureHasAnonymousAuthority(this.authCoordinator, capture)
+      );
       if (
         TERMINAL_AUTH_CODES.has(code)
+        && !anonymousAuthRequiredRefusal
         && (
           (this.authorityFence && capture)
           || currentExternalBearerGeneration
@@ -4755,6 +4900,7 @@ export class SnapbackClient {
         this.authCoordinator
         && capture
         && TERMINAL_AUTH_CODES.has(code)
+        && !anonymousAuthRequiredRefusal
         && error?.authorityDisposition !== 'carrier'
       ) {
         const cleared = await this.authCoordinator.compareAndClear(capture, code);
@@ -4763,7 +4909,7 @@ export class SnapbackClient {
       if (terminalHandle && typeof terminalHandle === 'object') {
         await terminalHandle.settlement;
       }
-      if (!terminalHandle && !custodyCleared && [
+      if (!anonymousAuthRequiredRefusal && !terminalHandle && !custodyCleared && [
         'SNAPBACK_AUTH_MODE_PENDING',
         'SNAPBACK_AUTH_REQUIRED',
         'SNAPBACK_AUTH_SESSION_EXPIRED',
@@ -4773,7 +4919,23 @@ export class SnapbackClient {
       ].includes(code)) {
         this.clearAuthSession();
       }
-      throw error;
+      const effectMayHaveCommitted = error?.effectMayHaveCommitted
+        ?? (error?.effectCommitted === false
+          ? false
+          : (path.startsWith('/mutation/') || path.startsWith('/action/'))
+            && error?.fetchDispatchFailed !== true);
+      throw asSnapbackDiagnosticError(error, {
+        operation: path.startsWith('/mutation/')
+          ? 'mutation'
+          : path.startsWith('/action/')
+            ? 'action'
+            : path.startsWith('/query/')
+              ? 'query'
+              : path.startsWith('/ephemeral/')
+                ? 'ephemeral'
+                : 'request',
+        effectMayHaveCommitted,
+      });
     }
   }
 
@@ -4925,9 +5087,14 @@ export class SnapbackClient {
           ? { code: 'SNAPBACK_HTTP_ERROR', message: `HTTP ${res.status} with non-JSON body: ${bodySnippet(redactKnownSecrets(text, requestSecrets))}` }
           : { code: `HTTP_${res.status}`, message: text };
       const diag = sanitizeProtocolErrorValue(rawDiagnostic, requestSecrets);
-      const error = new Error(`${diag.code}: ${diag.message ?? ''}`);
-      error.diagnostic = diag;
-      error.status = res.status;
+      const error = new SnapbackDiagnosticError(diag, {
+        message: diag.message ?? '',
+        status: res.status,
+        retryable: diag?.details?.retryable,
+        retryStrategy: diag?.details?.retryStrategy,
+        effectCommitted: diag?.details?.effectCommitted,
+        effectMayHaveCommitted: diag?.details?.effectMayHaveCommitted,
+      });
       const authorityDisposition = finiteAuthorityDisposition(diag);
       if (authorityDisposition !== null) error.authorityDisposition = authorityDisposition;
       if (json?.receipt) {
@@ -4949,10 +5116,10 @@ export class SnapbackClient {
         code: 'SNAPBACK_RESPONSE_NOT_JSON',
         message: `HTTP ${res.status} response is not JSON: ${bodySnippet(redactKnownSecrets(text, requestSecrets))}`,
       };
-      const error = new Error(`${diag.code}: ${diag.message}`);
-      error.diagnostic = diag;
-      error.status = res.status;
-      throw error;
+      throw new SnapbackDiagnosticError(diag, {
+        message: diag.message,
+        status: res.status,
+      });
     }
     return includeSenderNonce ? { body: json, senderNonce: responseSenderNonce } : json;
   }
@@ -6027,8 +6194,10 @@ export class SnapbackClient {
 
   query(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
     const name = functionName(ref);
-    validateGeneratedArguments(ref, args, name);
+    args = validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
+    const authAdmissionError = authenticatedOneShotAdmissionError(ref, this, 'query');
+    if (authAdmissionError !== null) return Promise.reject(authAdmissionError);
     return this.#req(
       'POST',
       `/query/${encodeURIComponent(name)}`,
@@ -6345,7 +6514,7 @@ export class SnapbackClient {
     authorityCapture = null,
   } = {}) {
     const name = functionName(ref);
-    validateGeneratedArguments(ref, args, name);
+    args = validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
     const namespace = createLiveQueryNamespace(authorizationNamespace ?? {});
     if (typeof leaseRequestId !== 'string' || leaseRequestId.length === 0) {
@@ -6363,10 +6532,12 @@ export class SnapbackClient {
     }, undefined, { expectedAuthorityCapture: authorityCapture });
   }
 
-  action(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
+  #actionRaw(ref, { args = {}, userId, readSet = [], authorityCapture = null } = {}) {
     const name = functionName(ref);
-    validateGeneratedArguments(ref, args, name);
+    args = validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
+    const authAdmissionError = authenticatedOneShotAdmissionError(ref, this, 'action');
+    if (authAdmissionError !== null) return Promise.reject(authAdmissionError);
     return this.#req(
       'POST',
       `/action/${encodeURIComponent(name)}`,
@@ -6379,6 +6550,45 @@ export class SnapbackClient {
       undefined,
       { expectedAuthorityCapture: authorityCapture },
     );
+  }
+
+  /** @deprecated Use run(), which throws SnapbackDiagnosticError on refusal
+   * and resolves the plain typed action result. */
+  action(ref, options = {}) {
+    if (positiveDevelopmentEnvironment() && !rawActionDeprecationWarned) {
+      rawActionDeprecationWarned = true;
+      console.warn(
+        'SNAPBACK_ACTION_RAW_DEPRECATED: client.action() returns the legacy raw envelope; '
+        + 'use client.run() and isSnapbackDiagnosticError().',
+      );
+    }
+    return this.#actionRaw(ref, options);
+  }
+
+  async run(ref, options = {}) {
+    const outcome = await this.#actionRaw(ref, options);
+    if (outcome?.ok === true) return outcome.result;
+    const diagnostic = outcome?.diagnostic && typeof outcome.diagnostic.code === 'string'
+      ? outcome.diagnostic
+      : Object.freeze({
+          schemaVersion: 'snapback.client-diagnostic.v1',
+          code: 'SNAPBACK_ACTION_REFUSED',
+          severity: 'error',
+          subsystem: 'client',
+          message: 'the action did not return a successful result',
+          details: Object.freeze({}),
+        });
+    throw new SnapbackDiagnosticError(diagnostic, {
+      operation: 'action',
+      refKind: typeof ref === 'object' && ref !== null ? ref.kind ?? 'Action' : 'Action',
+      // An action may have external effects before a result-level refusal is
+      // observed. Absence of an explicit server fact is conservative, never
+      // a safe-retry claim.
+      effectCommitted: diagnostic?.details?.effectCommitted,
+      effectMayHaveCommitted: diagnostic?.details?.effectMayHaveCommitted ?? true,
+      retryable: diagnostic?.details?.retryable,
+      retryStrategy: diagnostic?.details?.retryStrategy,
+    });
   }
 
   async acknowledgeMutations({
@@ -7207,9 +7417,7 @@ export class SnapbackClient {
     // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — explicit re-record mints a
     //   new clientMutationId; there is no cross-authority exactly-once bridge.
     const nextClientMutationId = createClientMutationId();
-    const ref = record.expectedGeneration == null
-      ? record.function
-      : { name: record.function, expectedGeneration: record.expectedGeneration };
+    const ref = outboxReplayReference(record);
     await this.mutate(ref, {
       args: options.args ?? structuredClone(record.args),
       userId: options.userId ?? record.userId ?? undefined,
@@ -8241,9 +8449,7 @@ export class SnapbackClient {
         // duplicate, so a crash between settle and remove cannot double-
         // apply (LLP 0043 M2 exactly-once).
         const settlement = await this.mutate(
-          record.expectedGeneration == null
-            ? record.function
-            : { name: record.function, expectedGeneration: record.expectedGeneration },
+          outboxReplayReference(record),
           {
           args: record.args,
           userId: record.userId ?? undefined,
@@ -8669,8 +8875,10 @@ export class SnapbackClient {
     queue = 'auto',
   } = {}) {
     const name = functionName(ref);
-    validateGeneratedArguments(ref, args, name);
+    args = validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
+    const authAdmissionError = authenticatedOneShotAdmissionError(ref, this, 'mutation');
+    if (authAdmissionError !== null) throw authAdmissionError;
     if (queue !== 'auto' && queue !== false && queue !== true) {
       throw new TypeError("mutate queue option must be 'auto', true, or false");
     }
@@ -8849,6 +9057,12 @@ export class SnapbackClient {
       operationAuthorityPrincipalId,
       ctxLedger: ctxLedger ?? null,
       expectedGeneration: generation,
+      ...(typeof ref !== 'object' || ref === null || ref.argsContract == null
+        ? {}
+        : { argsContract: ref.argsContract }),
+      ...(typeof ref !== 'object' || ref === null || ref.argumentSchema == null
+        ? {}
+        : { argumentSchema: ref.argumentSchema }),
       settlementLane: settlementLane ?? 'replay-accept',
       settlementIdentity,
       settlementClaims,
@@ -9176,6 +9390,12 @@ export class SnapbackClient {
                 operationAuthorityPrincipalId,
                 ctxLedger: ctxLedger ?? null,
                 expectedGeneration: generation,
+                ...(typeof ref !== 'object' || ref === null || ref.argsContract == null
+                  ? {}
+                  : { argsContract: ref.argsContract }),
+                ...(typeof ref !== 'object' || ref === null || ref.argumentSchema == null
+                  ? {}
+                  : { argumentSchema: ref.argumentSchema }),
                 settlementLane: settlementLane ?? 'replay-accept',
                 settlementIdentity,
                 settlementClaims,
@@ -9309,7 +9529,7 @@ export class SnapbackClient {
     resumeFromToken = null,
   } = {}, externalBearerTransitionPermit = null) {
     const name = functionName(ref);
-    validateGeneratedArguments(ref, args, name);
+    args = validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
     const input = { args, auth: SnapbackClient.auth(userId), read_set: [] };
     if (correlation) input.correlation = correlation;
@@ -9426,6 +9646,7 @@ export class SnapbackClient {
     stream: streamOptions = {},
   } = {}) {
     const collection = collectionName(ref);
+    scope = normalizeEphemeralScope(ref, scope);
     if (transport !== 'stream' && transport !== 'poll') {
       throw new TypeError(
         `Snapback ephemeral transport must be "stream" or "poll", got ${JSON.stringify(transport)}`,
@@ -9526,6 +9747,7 @@ export class SnapbackClient {
     ) {
       throw new TypeError('startEphemeralRoom requires an admitted React collection definition');
     }
+    scope = normalizeEphemeralScope(ref, scope, definition.name ?? ref.name);
     const listeners = new Set();
     const manager = this.liveStreamManager(connectionId);
     let overlay = null;
@@ -9748,9 +9970,9 @@ export class SnapbackClient {
         }
         return bounded(overlay.publish(value, options), 'ephemeral publish');
       },
-      delete() {
+      delete(options = {}) {
         if (!overlay) return Promise.resolve();
-        return bounded(overlay.delete(), 'ephemeral delete');
+        return bounded(overlay.delete(options), 'ephemeral delete');
       },
       dispose() {
         if (disposed) return;
@@ -9879,6 +10101,8 @@ export class SnapbackClient {
 
   async publishEphemeral(ref, { connectionId, scope = {}, value, ttlMs = null, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
     const collection = collectionName(ref);
+    scope = normalizeEphemeralScope(ref, scope);
+    value = normalizeEphemeralValue(ref, value);
     const operationCapture = this.authorityFence?.capture?.() ?? null;
     try {
       const outcome = await this.#withGrant(connectionId, (grant) => this.#req('POST', '/ephemeral/publish', {
@@ -9924,6 +10148,7 @@ export class SnapbackClient {
   // if the socket is not open the registration is left to disconnect/reap, and
   // an unknown room/registration is a quiet no-op server-side (removed:false).
   async unsubscribeEphemeral(ref, { connectionId, scope = {}, userId, permissions = [] } = {}) {
+    scope = normalizeEphemeralScope(ref, scope);
     // Teardown must observe an existing manager, never manufacture new socket
     // state after an explicit disconnect merely to discover that no socket is
     // available.
@@ -9956,7 +10181,41 @@ export class SnapbackClient {
     return { removed: ack?.removed ?? false, receipt: ack?.receipt };
   }
 
-  async deleteEphemeral(ref, { connectionId, scope = {}, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
+  async deleteEphemeral(ref, {
+    connectionId,
+    scope = {},
+    userId,
+    permissions = [],
+    sessionId = null,
+    ownerUserId = null,
+    customKey = null,
+    expectedScopeEpoch = null,
+    expectedEntryVersion = null,
+    authorityCapture = null,
+  } = {}) {
+    scope = normalizeEphemeralScope(ref, scope);
+    if ((expectedScopeEpoch === null) !== (expectedEntryVersion === null)) {
+      throw snapbackDiagnosticError(
+        'SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID',
+        'ephemeral withdrawal requires scopeEpoch and entryVersion together',
+        {},
+        { operation: 'ephemeral-delete', effectCommitted: false, effectMayHaveCommitted: false },
+      );
+    }
+    if (expectedScopeEpoch !== null && (
+      !Number.isSafeInteger(expectedScopeEpoch)
+      || expectedScopeEpoch < 1
+      || !Number.isSafeInteger(expectedEntryVersion)
+      || expectedEntryVersion < 1
+    )) {
+      throw snapbackDiagnosticError(
+        'SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID',
+        'ephemeral withdrawal fence values must be positive safe integers',
+        {},
+        { operation: 'ephemeral-delete', effectCommitted: false, effectMayHaveCommitted: false },
+      );
+    }
+    const operationCapture = authorityCapture ?? this.authorityFence?.capture?.() ?? null;
     return this.#withGrant(connectionId, (grant) => this.#req('POST', '/ephemeral/delete', {
       collection: collectionName(ref),
       scope,
@@ -9964,8 +10223,14 @@ export class SnapbackClient {
       session_id: sessionId,
       user_id: ownerUserId,
       custom_key: customKey,
+      ...(expectedScopeEpoch === null ? {} : {
+        expected_scope_epoch: expectedScopeEpoch,
+        expected_entry_generation: expectedEntryVersion,
+      }),
       auth: SnapbackClient.auth(userId, { permissions }),
-    }, connectionTokenHeader(grant)));
+    }, connectionTokenHeader(grant), {
+      expectedAuthorityCapture: operationCapture,
+    }));
   }
 
   // @ref LLP 0031#resolved-decisions — D2: connection teardown is system/control,
@@ -10498,7 +10763,7 @@ export class SnapbackClient {
     // Generated argument validation is a call-boundary refusal. Keep it ahead
     // of auth discovery, local-store preparation, and every establishment
     // transport so an offline caller never sees availability mask bad args.
-    validateGeneratedArguments(ref, args, name);
+    args = validateGeneratedArguments(ref, args, name);
     const client = this;
     let activeRegistration = Object.freeze({
       registrationId: null,
@@ -13202,6 +13467,10 @@ export class SnapbackClient {
         // pending owner.
         //
         // @ref LLP 0092#0d4-attach-grace-reaping-and-pending-owner-bounds
+        if (isSubscribeAuthorizationDenial(error, {
+          authorityFence: client.authorityFence,
+          capture: error?.[AUTHORITY_CAPTURE] ?? handleAuthorityCapture,
+        })) recordAuthorizationDenial(error);
         disposed = true;
         invalidateSubscribeLifecycle('disposed');
         stopFallback();
@@ -13298,7 +13567,10 @@ export class SnapbackClient {
         // An ANSWERED authorization refusal is this handle's completed
         // outcome under the presented authority — project it as a
         // renderable fact before the throw (0137 A1-Expo f4).
-        if (isSubscribeAuthorizationDenial(error)) recordAuthorizationDenial(error);
+        if (isSubscribeAuthorizationDenial(error, {
+          authorityFence: client.authorityFence,
+          capture: error?.[AUTHORITY_CAPTURE] ?? handleAuthorityCapture,
+        })) recordAuthorizationDenial(error);
         throw error;
       }
       const manager = transport === 'stream' ? client.liveStreamManager(connectionId, streamOptions) : null;
@@ -14623,6 +14895,9 @@ export class EphemeralOverlay {
       sessionId: options.sessionId ?? null,
       ownerUserId: options.ownerUserId ?? null,
       customKey: options.customKey ?? null,
+      expectedScopeEpoch: options.expectedScopeEpoch ?? null,
+      expectedEntryVersion: options.expectedEntryVersion ?? null,
+      authorityCapture: options.authorityCapture ?? this.authorityCapture,
     });
   }
 
@@ -14981,27 +15256,39 @@ function expectedGeneration(ref) {
   );
 }
 
+function outboxReplayReference(record) {
+  if (record.expectedGeneration == null) return record.function;
+  return {
+    artifactKind: 'functionReference',
+    name: record.function,
+    expectedGeneration: record.expectedGeneration,
+    ...(record.argsContract == null ? {} : { argsContract: record.argsContract }),
+    ...(record.argumentSchema == null ? {} : { argumentSchema: record.argumentSchema }),
+  };
+}
+
 function validateGeneratedArguments(ref, args, name = functionName(ref)) {
-  if (
-    typeof ref !== 'object'
-    || ref === null
-    || ref.artifactKind !== 'functionReference'
-    || ref.argumentSchema == null
-  ) return;
+  const normalized = normalizeGeneratedArgumentsV1(ref, args);
+  if (typeof ref === 'string') return normalized;
+  if (ref.argumentSchema == null) return normalized;
   const problems = [];
-  validateArgumentSchemaNode(ref.argumentSchema, args, 'args', problems);
-  if (problems.length === 0) return;
+  validateArgumentSchemaNode(ref.argumentSchema, normalized, 'args', problems);
+  if (problems.length === 0) return normalized;
   const diagnostic = {
+    schemaVersion: 'snapback.client-diagnostic.v1',
     code: 'SNAPBACK_ARGUMENT_VALIDATION_FAILED',
     severity: 'error',
     subsystem: 'client',
     message: `arguments for ${name} do not match the generated operation schema`,
     details: { function: name, problems },
   };
-  const error = new TypeError(`${diagnostic.code}: ${diagnostic.message}`);
-  error.code = diagnostic.code;
-  error.diagnostic = diagnostic;
-  throw error;
+  throw new SnapbackDiagnosticError(diagnostic, {
+    message: diagnostic.message,
+    operation: 'argument-validation',
+    refKind: ref.kind ?? null,
+    effectCommitted: false,
+    effectMayHaveCommitted: false,
+  });
 }
 
 function validateArgumentSchemaNode(schema, value, path, problems) {
@@ -15051,6 +15338,24 @@ function collectionName(ref) {
     throw new TypeError(`Snapback collection name must match ${GENERATED_IDENTIFIER}, got ${JSON.stringify(name)}`);
   }
   throw new TypeError(`Snapback ephemeral collection reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
+}
+
+function normalizeEphemeralScope(ref, scope) {
+  if (typeof ref === 'string') return scope;
+  if (ref?.artifactKind !== 'ephemeralCollectionReference') {
+    throw snapbackDiagnosticError(
+      'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED',
+      'generated ephemeral collection reference is required',
+      { path: 'ref' },
+      { operation: 'argument-normalization', effectCommitted: false, effectMayHaveCommitted: false },
+    );
+  }
+  return normalizeArgumentsAgainstContractV1(scope, ref.scopeContract, { path: 'scope' });
+}
+
+function normalizeEphemeralValue(ref, value) {
+  if (typeof ref === 'string') return value;
+  return normalizeArgumentsAgainstContractV1(value, ref?.valueContract, { path: 'value' });
 }
 
 function encodeEphemeralValue(value) {

@@ -32,7 +32,7 @@ const QUERY_KEYS = new Set([
 ]);
 const EPHEMERAL_QUERY_KEYS = new Set([
   ...QUERY_KEYS, 'maxDeltaRateHz', 'coalesce', 'keyMode', 'scopeFields',
-  'defaultTtlMs', 'maxTtlMs',
+  'defaultTtlMs', 'maxTtlMs', 'withdrawalVisibilityDeadlineMs',
 ]);
 const MUTATION_KEYS = new Set([
   'name', 'args', 'argOrder', 'writes', 'invalidates', 'optimistic',
@@ -46,7 +46,7 @@ const ACTION_KEYS = new Set([
 ]);
 const EPHEMERAL_SECTION_KEYS = new Set([
   'name', 'ephemeral', 'keyMode', 'scopeFields', 'routingFields',
-  'defaultTtlMs', 'maxTtlMs', 'deliveryMode', 'maxDeltaRateHz',
+  'defaultTtlMs', 'maxTtlMs', 'withdrawalVisibilityDeadlineMs', 'deliveryMode', 'maxDeltaRateHz',
   'coalesce', 'publishBudget',
 ]);
 const PUBLISH_BUDGET_KEYS = new Set([
@@ -864,6 +864,7 @@ function ephemeralOperation(name, binding, section) {
       routingFields: section?.routingFields,
       defaultTtlMs: section?.defaultTtlMs,
       maxTtlMs: section?.maxTtlMs,
+      withdrawalVisibilityDeadlineMs: section?.withdrawalVisibilityDeadlineMs,
       deliveryMode: section?.deliveryMode,
       maxDeltaRateHz: section?.maxDeltaRateHz,
       coalesce: section?.coalesce,
@@ -937,6 +938,7 @@ function projectQuery(operation, isEphemeral) {
       scopeFields: operation.channel.scopeFields,
       defaultTtlMs: operation.channel.defaultTtlMs,
       maxTtlMs: operation.channel.maxTtlMs,
+      withdrawalVisibilityDeadlineMs: operation.channel.withdrawalVisibilityDeadlineMs,
     };
   }
   return {
@@ -982,6 +984,7 @@ function projectEphemeralSection(operation) {
     routingFields: operation.channel.routingFields,
     defaultTtlMs: operation.channel.defaultTtlMs,
     maxTtlMs: operation.channel.maxTtlMs,
+    withdrawalVisibilityDeadlineMs: operation.channel.withdrawalVisibilityDeadlineMs,
     deliveryMode: operation.channel.deliveryMode,
     maxDeltaRateHz: operation.channel.maxDeltaRateHz,
     coalesce: operation.channel.coalesce,
@@ -1107,9 +1110,11 @@ function validateEphemeral(operation, path, add) {
   validateDelivery(operation?.delivery, `${path}.delivery`, add);
   closedObject(operation?.channel, `${path}.channel`, [
     'keyMode', 'scopeFields', 'routingFields', 'defaultTtlMs', 'maxTtlMs',
+    'withdrawalVisibilityDeadlineMs',
     'deliveryMode', 'maxDeltaRateHz', 'coalesce', 'publish',
   ], [
     'keyMode', 'scopeFields', 'routingFields', 'defaultTtlMs', 'maxTtlMs',
+    'withdrawalVisibilityDeadlineMs',
     'deliveryMode', 'maxDeltaRateHz', 'coalesce', 'publish',
   ], add);
   nonEmptyString(operation?.channel?.keyMode, `${path}.channel.keyMode`, add);
@@ -1117,8 +1122,22 @@ function validateEphemeral(operation, path, add) {
   stringSet(operation?.channel?.routingFields, `${path}.channel.routingFields`, add);
   positiveInteger(operation?.channel?.defaultTtlMs, `${path}.channel.defaultTtlMs`, add);
   positiveInteger(operation?.channel?.maxTtlMs, `${path}.channel.maxTtlMs`, add);
+  positiveInteger(
+    operation?.channel?.withdrawalVisibilityDeadlineMs,
+    `${path}.channel.withdrawalVisibilityDeadlineMs`,
+    add,
+  );
   if (operation?.channel?.defaultTtlMs > operation?.channel?.maxTtlMs) {
     add(`${path}.channel.defaultTtlMs`, 'must not exceed maxTtlMs');
+  }
+  if (
+    operation?.channel?.withdrawalVisibilityDeadlineMs
+      > Math.floor(operation?.channel?.defaultTtlMs / 2)
+  ) {
+    add(
+      `${path}.channel.withdrawalVisibilityDeadlineMs`,
+      'must not exceed defaultTtlMs/2',
+    );
   }
   if (operation?.channel?.deliveryMode !== 'latest') add(`${path}.channel.deliveryMode`, 'must be "latest"');
   positiveInteger(operation?.channel?.maxDeltaRateHz, `${path}.channel.maxDeltaRateHz`, add);

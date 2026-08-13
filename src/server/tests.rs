@@ -20932,6 +20932,9 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED",
     "SNAPBACK_PROJECTION_MAINTENANCE_INVALID",
     "SNAPBACK_PLAN_SOURCE_INVALID",
+    "SNAPBACK_BATCH_READ_INPUT_INVALID",
+    "SNAPBACK_BATCH_READ_INDEX_INVALID",
+    "SNAPBACK_BATCH_READ_KEY_INVALID",
     "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
     "SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED",
     "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
@@ -21391,6 +21394,9 @@ const CONFLICT_DIAGNOSTICS: &[&str] = &[
 ];
 
 const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_BATCH_READ_ITEMS_EXCEEDED",
+    "SNAPBACK_BATCH_READ_INPUT_BYTES_EXCEEDED",
+    "SNAPBACK_BATCH_READ_RESPONSE_BYTES_EXCEEDED",
     "SNAPBACK_STREAM_CHUNK_TOO_LARGE",
     "SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED",
     "SNAPBACK_STREAM_FINAL_TOO_LARGE",
@@ -21645,6 +21651,7 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
 // diagnostics that never normally become an `ApiError`. If one does reach
 // that boundary, the fail-safe class is still 500 rather than a false 4xx.
 const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_BATCH_READ_UNIQUE_INVARIANT_CORRUPT",
     // LLP 0224 host-operation refusals travel inside the HTTP-200 operation
     // envelope, so this row is a fail-safe rather than a live status. Only
     // FACTS_UNAVAILABLE is a server-owned fact: it is a serialization or
@@ -30867,6 +30874,8 @@ fn s1_live_socket_operations_are_all_app_data() {
                 session_id: None,
                 user_id: None,
                 custom_key: None,
+                expected_scope_epoch: None,
+                expected_entry_generation: None,
                 auth: Default::default(),
             },
         },
