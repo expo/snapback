@@ -5,7 +5,9 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-10 (LLP 0204 commissioned the granted-operation
+**Revised:** 2026-08-12 (OAuth advertised-origin hardening: local discovery
+and DCR derive endpoint URLs from bound listener state, never request Host).
+2026-08-10 (LLP 0204 commissioned the granted-operation
 capability-link mint/serve/invoke/revoke operation classes and response
 sensitivity for reads and writes; design only, with no implementation or
 capability claim — see the dated amendment.) 2026-08-10 (LLP 0204 S5 Landing C registers the session-only
@@ -1406,6 +1408,13 @@ URL and makes a conforming generic client miss it. Their root placement does
 not weaken [The invariant](#the-invariant): they are public AppData discovery
 operations, not system/control operations, and every non-metadata facade
 operation remains under the established root `/auth/*` family.
+
+Their advertised issuer, protected resource, and endpoint origins are derived
+from the listener address captured at bind time. Request `Host`, forwarded
+headers, and other client-controlled scheme/authority material never select
+those URLs. The current published LAN relay does not route the OAuth family;
+if a future trusted front does, it must install a server-owned front identity
+rather than infer one from request headers.
 
 ### Durable-watch management family
 

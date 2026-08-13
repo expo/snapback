@@ -335,25 +335,27 @@ impl DataPatchTokenStore {
     }
 
     /// Compare every request-controlled and process-controlled binding field,
-    /// then consume under the same lock. Exactly one concurrent caller can
-    /// leave this method with the stored binding.
+    /// run the commit while retaining exclusive ownership, and consume only
+    /// after the commit succeeds. Exactly one concurrent caller can commit.
     ///
-    /// @ref LLP 0184#a-bounded-direct-row-patch--add-now — consumption is
-    ///   atomic and precedes the ordinary changeset commit.
-    pub fn consume(
+    /// @ref LLP 0184#a-bounded-direct-row-patch--add-now — validation, CAS,
+    ///   and success-only consumption share one process-local turn.
+    pub fn commit<T>(
         &self,
         input: &DataPatchApplyInputV1,
         current: &DataPatchTokenContextV1,
-    ) -> SnapbackResult<(String, DataPatchTokenBindingV1)> {
-        self.consume_at(input, current, now_ms())
+        apply: impl FnOnce(&DataPatchTokenBindingV1) -> SnapbackResult<T>,
+    ) -> SnapbackResult<(String, DataPatchTokenBindingV1, T)> {
+        self.commit_at(input, current, now_ms(), apply)
     }
 
-    fn consume_at(
+    fn commit_at<T>(
         &self,
         input: &DataPatchApplyInputV1,
         current: &DataPatchTokenContextV1,
         now: u64,
-    ) -> SnapbackResult<(String, DataPatchTokenBindingV1)> {
+        apply: impl FnOnce(&DataPatchTokenBindingV1) -> SnapbackResult<T>,
+    ) -> SnapbackResult<(String, DataPatchTokenBindingV1, T)> {
         if input.apply_token.trim().is_empty() {
             return Err(token_error(
                 "SNAPBACK_DATA_PATCH_APPLY_TOKEN_MISSING",
@@ -407,8 +409,10 @@ impl DataPatchTokenStore {
                 "the apply request does not match the previewed binding",
             ));
         }
+        let binding = entry.binding.clone();
+        let committed = apply(&binding)?;
         entry.state = TokenState::Consumed;
-        Ok((token_id, entry.binding.clone()))
+        Ok((token_id, binding, committed))
     }
 }
 
@@ -732,8 +736,10 @@ mod tests {
         let request_right = request.clone();
         let ctx_left = context();
         let ctx_right = context();
-        let a = std::thread::spawn(move || left.consume_at(&request_left, &ctx_left, 11));
-        let b = std::thread::spawn(move || right.consume_at(&request_right, &ctx_right, 11));
+        let a =
+            std::thread::spawn(move || left.commit_at(&request_left, &ctx_left, 11, |_| Ok(())));
+        let b =
+            std::thread::spawn(move || right.commit_at(&request_right, &ctx_right, 11, |_| Ok(())));
         let outcomes = [a.join().unwrap(), b.join().unwrap()];
         assert_eq!(outcomes.iter().filter(|outcome| outcome.is_ok()).count(), 1);
         assert!(outcomes.iter().any(|outcome| {
@@ -749,7 +755,7 @@ mod tests {
         let input = preview("user-a");
         let (expired, _, _) = store.mint_at(binding(&input), 10).unwrap();
         let error = store
-            .consume_at(&apply(&input, expired), &context(), 15)
+            .commit_at(&apply(&input, expired), &context(), 15, |_| Ok(()))
             .unwrap_err();
         assert_eq!(
             error.diagnostic.code,
@@ -759,10 +765,43 @@ mod tests {
         let (token, _, _) = store.mint_at(binding(&input), 20).unwrap();
         let mut other_user = apply(&input, token);
         other_user.authority = authority("user-b");
-        let error = store.consume_at(&other_user, &context(), 21).unwrap_err();
+        let error = store
+            .commit_at(&other_user, &context(), 21, |_| Ok(()))
+            .unwrap_err();
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_DATA_PATCH_APPLY_TOKEN_MISMATCH"
+        );
+    }
+
+    #[test]
+    fn failed_commit_leaves_token_available_for_a_successful_retry() {
+        let store = DataPatchTokenStore::new(1_000, 8);
+        let input = preview("user-a");
+        let (token, _, _) = store.mint_at(binding(&input), 10).unwrap();
+        let request = apply(&input, token);
+
+        let error = store
+            .commit_at(&request, &context(), 11, |_| {
+                Err::<(), _>(SnapbackError::error(
+                    "SNAPBACK_MUTATION_CONFLICT",
+                    "storage",
+                    "injected conflict",
+                ))
+            })
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+
+        let committed = store
+            .commit_at(&request, &context(), 12, |_| Ok("committed"))
+            .expect("failed commit must not consume the token");
+        assert_eq!(committed.2, "committed");
+        let consumed = store
+            .commit_at(&request, &context(), 13, |_| Ok(()))
+            .unwrap_err();
+        assert_eq!(
+            consumed.diagnostic.code,
+            "SNAPBACK_DATA_PATCH_APPLY_TOKEN_CONSUMED"
         );
     }
 

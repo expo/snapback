@@ -63,8 +63,8 @@ Part C landed on main: src/admin/setup.html renders the app-manifest acquisition
 
 Part B's missing Host check and loopback CORS reflection also reach surfaces this ticket did not list:
 
-- Dev body `auth.userId` impersonation from any localhost origin — `issues/20260812-dev-body-impersonation-loopback-cors.md`
-- OAuth metadata `issuer` / token endpoints taken from request `Host` — `issues/20260812-oauth-metadata-trusts-host-header.md`
+- Dev body `auth.userId` impersonation from any localhost origin — `issues/closed/20260812-dev-body-impersonation-loopback-cors.md`
+- OAuth metadata `issuer` / token endpoints taken from request `Host` — `issues/closed/20260812-oauth-metadata-trusts-host-header.md`
 - `POST /mcp` (`require_mcp_origin` allows any loopback Origin; missing Origin is fail-open for native clients)
 - `POST /connection/open` (public capability grant)
 

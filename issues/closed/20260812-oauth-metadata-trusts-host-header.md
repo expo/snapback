@@ -19,3 +19,16 @@ Ignore request `Host`. Use the bound listener origin (and the published LAN-rela
 ## Confidence
 
 High on the mechanism. Adjacent to the existing admin Host/CORS ticket, which only discusses admin reads.
+
+## Resolution (2026-08-12)
+
+OAuth discovery and registration now derive advertised URLs from the listener
+address captured in `ServerContext` at bind time. Request `Host` is ignored;
+IPv4 and IPv6 socket authorities are formatted from trusted server state. The
+current published LAN relay does not route the OAuth facade, so it cannot be
+the front being spoken to; a future OAuth-capable front must provide its own
+trusted server-side origin identity.
+
+The end-to-end OAuth journey now sends a spoofed `Host` to both metadata
+documents and dynamic registration and asserts the bound listener origin in
+every advertised endpoint.

@@ -37,6 +37,22 @@ export function expoSupervisorChildEnvironment(env = process.env) {
   return childEnv;
 }
 
+export function expoBackendDevAuthEnvironment(env, metroPort) {
+  const origins = new Set(
+    String(env?.SNAPBACK_DEV_AUTH_ORIGINS ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  );
+  origins.add(`http://127.0.0.1:${metroPort}`);
+  origins.add(`http://localhost:${metroPort}`);
+  origins.add(`http://[::1]:${metroPort}`);
+  return {
+    ...(env ?? {}),
+    SNAPBACK_DEV_AUTH_ORIGINS: [...origins].join(','),
+  };
+}
+
 export function expoMetroChildEnvironment({ env, bootstrapOrigin, port }) {
   const childEnv = {
     ...(env ?? {}),
@@ -1291,6 +1307,8 @@ export async function runExpoDev(options = {}) {
   let supervisorDescriptorFile = null;
   try {
     const selectedDevice = resolveExpoDeviceSelection({ ...options, env: childEnv });
+    const metroPort = options.metroPort ?? await freeLoopbackPort();
+    const backendEnv = expoBackendDevAuthEnvironment(childEnv, metroPort);
     emit({
       ok: true,
       state: 'device-selected',
@@ -1305,7 +1323,7 @@ export async function runExpoDev(options = {}) {
       applicationReadyFile: options.applicationReadyFile,
       database,
       runtimeBinary: options.runtimeBinary,
-      env: childEnv,
+      env: backendEnv,
       attach: options.attach === true,
       watch: true,
       serverStdio: options.serverStdio ?? ['ignore', 'ignore', 'ignore'],
@@ -1362,7 +1380,6 @@ export async function runExpoDev(options = {}) {
       return authority.status;
     };
     mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL, { emitReplacement: false });
-    const metroPort = options.metroPort ?? await freeLoopbackPort();
     let route = null;
     bootstrap = await startBootstrapExchange(() => (
       binding === null || authority === null

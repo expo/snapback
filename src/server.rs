@@ -9949,6 +9949,28 @@ pub fn legacy_body_auth_field(value: &Value) -> Option<&str> {
     envelope_auth(value)
 }
 
+/// Find the one legacy Dev authority value that can actually select an actor.
+/// Ordinary app arguments remain opaque even when they contain `user_id`.
+fn dev_body_user_id(value: &Value) -> Option<&str> {
+    fn envelope_user_id(value: &Value) -> Option<&str> {
+        let fields = value.as_object()?;
+        if let Some(auth) = fields.get("auth").and_then(Value::as_object)
+            && let Some(user_id) = auth
+                .get("user_id")
+                .or_else(|| auth.get("userId"))
+                .and_then(Value::as_str)
+        {
+            return Some(user_id);
+        }
+        ["request", "input", "ctx_ledger", "ctxLedger"]
+            .into_iter()
+            .filter_map(|name| fields.get(name))
+            .find_map(envelope_user_id)
+    }
+
+    envelope_user_id(value)
+}
+
 fn body_auth_unsupported(field: &str) -> ApiError {
     SnapbackError::error(
         "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
@@ -9956,6 +9978,18 @@ fn body_auth_unsupported(field: &str) -> ApiError {
         "client-provided identity fields are not accepted when session authority is server-resolved",
     )
     .with_details(json!({ "field": field }))
+    .into()
+}
+
+fn dev_body_origin_refused() -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_DEV_ORIGIN_REFUSED",
+        "auth",
+        "cross-origin Dev-mode body impersonation is not enabled for this browser origin",
+    )
+    .with_details(json!({
+        "repair": "serve through the Snapback origin or proxy, or add the exact loopback origin to SNAPBACK_DEV_AUTH_ORIGINS",
+    }))
     .into()
 }
 
@@ -12918,6 +12952,23 @@ async fn enforce_registered_route_policy_inner(
         return finish_registered_response(
             effective,
             body_auth_unsupported(field).into_response(),
+            route_admission.as_ref(),
+            None,
+        );
+    }
+    // @ref LLP 0058#dev-mode — browser Origin is not identity authority. A
+    // legacy Dev user selector remains convenient for same-origin, explicitly
+    // registered local dev servers, and non-browser callers that omit Origin;
+    // every other cross-origin selector is refused before authority resolves.
+    if policy_mode == PolicyAuthMode::Dev
+        && effective.legacy_body_policy == LegacyBodyPolicy::Allowed
+        && policy_body.as_ref().and_then(dev_body_user_id).is_some()
+        && let Some(origin) = request.headers().get(header::ORIGIN)
+        && !runtime.server.permits_dev_body_origin(origin)
+    {
+        return finish_registered_response(
+            effective,
+            dev_body_origin_refused().into_response(),
             route_admission.as_ref(),
             None,
         );
@@ -23018,30 +23069,19 @@ async fn execute_data_patch_host_operation(
         }
     };
     let authority = input.authority.clone();
-    let consumed = runtime.data_patch_tokens.consume(&input, &context);
-    let (token_id, binding) = match consumed {
-        Ok(consumed) => consumed,
-        Err(error) => {
-            return Ok(project_data_patch_result(
-                &state,
-                request,
-                server_url,
-                profile,
-                Some(authority),
-                Err(error),
-            )
-            .await);
-        }
-    };
-    let commit_binding = binding.clone();
+    let token_store = runtime.data_patch_tokens.clone();
     let committed = with_snapback_authorization_write(
         &state,
         |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
-        move |snapback| snapback.apply_direct_data_patch(&commit_binding),
+        move |snapback| {
+            token_store.commit(&input, &context, |binding| {
+                snapback.apply_direct_data_patch(binding)
+            })
+        },
     )
     .await
     .and_then(|outcome| outcome);
-    let outcome = committed.map(|commit| {
+    let outcome = committed.map(|(token_id, binding, commit)| {
         serde_json::to_value(crate::data_patch::receipt(
             token_id,
             binding,

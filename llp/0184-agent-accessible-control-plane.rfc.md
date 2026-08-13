@@ -6,7 +6,9 @@
 Host operations, HTTP API, Guide, Auth, Security, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-10 (LLP 0146 OQ6 ruled projection: ControlCatalog's
+**Revised:** 2026-08-12 (data-patch token/CAS coupling: the token remains
+available across failed commits and is consumed only after a successful CAS,
+within the same serialized process-local turn). 2026-08-10 (LLP 0146 OQ6 ruled projection: ControlCatalog's
 reserved `remediation` field now points to the shared v1 decoder/carrier and
 does not duplicate the global kind registry; see dated amendment). 2026-08-08 (bounded gateway source parity: the compiler now
 extracts the named forwarded-path Set, kit regex constants, app-data fallback
@@ -1011,10 +1013,12 @@ Required contract:
   impersonated users cannot be substituted at apply time; `devAdminBypass`'s
   mode plus its required reason, which is the whole tuple LLP 0024 defines
   for that mode — and the token's expiry;
-- apply requires that exact token; the server compares and atomically
-  consumes it before the ordinary changeset commit, so an apply cannot commit
-  a different patch, version, authority tuple, or target than the one
-  previewed;
+- apply requires that exact token; the server validates it, retains exclusive
+  ownership while performing the ordinary changeset CAS, and consumes it only
+  after that commit succeeds. A failed commit leaves the token available for a
+  retry, while serialized ownership prevents two successful applies from
+  committing a different patch, version, authority tuple, or target than the
+  one previewed;
 - normal schema validation, reserved-field protection, ordinary changeset
   commit, journal/version advancement, and live notification;
 - the authority tuple is LLP 0024's existing `devUser` (evaluated under the

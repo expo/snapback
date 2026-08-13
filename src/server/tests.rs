@@ -5080,7 +5080,13 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
     ] {
         let response = router
             .clone()
-            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .header(header::HOST, "attacker.example:8443")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK, "{path}");
@@ -5094,6 +5100,19 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
             json!(["items.read", "items.write"])
         );
         if path.ends_with("authorization-server") {
+            assert_eq!(metadata["issuer"], json!("http://127.0.0.1:43621"));
+            assert_eq!(
+                metadata["authorization_endpoint"],
+                json!("http://127.0.0.1:43621/auth/oauth/authorize")
+            );
+            assert_eq!(
+                metadata["token_endpoint"],
+                json!("http://127.0.0.1:43621/auth/oauth/token")
+            );
+            assert_eq!(
+                metadata["registration_endpoint"],
+                json!("http://127.0.0.1:43621/auth/oauth/register")
+            );
             assert_eq!(
                 metadata["code_challenge_methods_supported"],
                 json!(["S256"])
@@ -5109,32 +5128,46 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
                     .ends_with("/auth/oauth/register")
             );
         } else {
+            assert_eq!(metadata["resource"], json!("http://127.0.0.1:43621"));
+            assert_eq!(
+                metadata["authorization_servers"],
+                json!(["http://127.0.0.1:43621"])
+            );
             assert_eq!(metadata["bearer_methods_supported"], json!(["header"]));
         }
     }
 
-    let registered = router
-        .clone()
-        .oneshot(oauth_protocol_request(
-            "POST",
-            "/auth/oauth/register",
-            Some("application/json"),
-            serde_json::to_vec(&json!({
-                "redirect_uris": ["http://127.0.0.1:4321/callback"],
-                "client_name": "OAuth Journey",
-                "token_endpoint_auth_method": "none"
-            }))
-            .unwrap(),
-            None,
-        ))
-        .await
-        .unwrap();
+    let mut registration_request = oauth_protocol_request(
+        "POST",
+        "/auth/oauth/register",
+        Some("application/json"),
+        serde_json::to_vec(&json!({
+            "redirect_uris": ["http://127.0.0.1:4321/callback"],
+            "client_name": "OAuth Journey",
+            "token_endpoint_auth_method": "none"
+        }))
+        .unwrap(),
+        None,
+    );
+    registration_request.headers_mut().insert(
+        header::HOST,
+        HeaderValue::from_static("attacker.example:8443"),
+    );
+    let registered = router.clone().oneshot(registration_request).await.unwrap();
     assert_eq!(registered.status(), StatusCode::OK);
     assert_eq!(
         registered.headers()[header::CACHE_CONTROL],
         "no-store, private"
     );
     let registered = response_json(registered).await;
+    assert_eq!(
+        registered["authorization_endpoint"],
+        json!("http://127.0.0.1:43621/auth/oauth/authorize")
+    );
+    assert_eq!(
+        registered["token_endpoint"],
+        json!("http://127.0.0.1:43621/auth/oauth/token")
+    );
     let client_id = registered["client_id"].as_str().unwrap().to_owned();
     assert!(client_id.starts_with("intg_"));
     assert!(registered.get("client_secret").is_none());
@@ -13135,6 +13168,78 @@ async fn route_middleware_installs_generation_and_epoch_bound_prepared_authority
 }
 
 #[tokio::test]
+async fn dev_body_impersonation_requires_a_trusted_browser_origin_but_not_an_origin_header() {
+    async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
+        Json(json!({ "userId": authority.projection().user_id() }))
+    }
+
+    let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+    let context = Arc::make_mut(&mut state.server);
+    context.record_bound_address("127.0.0.1:43621".parse().unwrap());
+    context.allow_dev_auth_origin_for_test("http://127.0.0.1:8081");
+    let router = super::router_from_registrations(
+        vec![super::RegisteredRoute::new(
+            super::app_auth_route("POST", "/query/{name}"),
+            axum::routing::post(echo_authority),
+        )],
+        state.clone(),
+    )
+    .with_state(state);
+    let request = |origin: Option<&'static str>| {
+        let mut builder = Request::builder()
+            .method("POST")
+            .uri("/query/authority")
+            .header(header::CONTENT_TYPE, "application/json");
+        if let Some(origin) = origin {
+            builder = builder.header(header::ORIGIN, origin);
+        }
+        builder
+            .body(Body::from(r#"{"args":{},"auth":{"user_id":"user-1"}}"#))
+            .unwrap()
+    };
+
+    for origin in [
+        None,
+        Some("http://127.0.0.1:43621"),
+        Some("http://127.0.0.1:8081"),
+    ] {
+        let response = router.clone().oneshot(request(origin)).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "origin {origin:?}");
+        assert_eq!(response_json(response).await["userId"], "user-1");
+    }
+
+    let response = router
+        .oneshot(request(Some("http://localhost:5173")))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(response).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_DEV_ORIGIN_REFUSED"
+    );
+
+    let (sessions_state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+    let sessions_router = super::router_from_registrations(
+        vec![super::RegisteredRoute::new(
+            super::app_auth_route("POST", "/query/{name}"),
+            axum::routing::post(echo_authority),
+        )],
+        sessions_state.clone(),
+    )
+    .with_state(sessions_state);
+    let response = sessions_router
+        .oneshot(request(Some("http://127.0.0.1:8081")))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(response).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
+        "the Dev Origin rule must not weaken or reorder Sessions body closure"
+    );
+}
+
+#[tokio::test]
 async fn session_bearer_is_resolved_for_each_online_invocation_request() {
     async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
         Json(json!({
@@ -19863,6 +19968,10 @@ fn production_snapback_literals() -> BTreeSet<String> {
 // helper constructors, embedded runtime source, and macros.
 const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
+        "SNAPBACK_DEV_AUTH_ORIGINS",
+        "comma-separated exact loopback-origin configuration for Dev browser body authority; never an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_HANDLER_ERROR_EXPOSURE",
         "environment variable selecting redacted versus development handler-error rendering; never an HTTP diagnostic",
     ),
@@ -21048,6 +21157,7 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_EFFECT_APPROVAL_DENIED",
     "SNAPBACK_AUTH_ASSURANCE_INADMISSIBLE",
     "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
+    "SNAPBACK_AUTH_DEV_ORIGIN_REFUSED",
     "SNAPBACK_AUTH_PASSWORD_SET_AUTHORITY_INVALID",
     "SNAPBACK_AUTH_PROVISIONING_WRITE_FORBIDDEN",
     "SNAPBACK_REMEDIATION_APPROVAL_REQUIRED",
