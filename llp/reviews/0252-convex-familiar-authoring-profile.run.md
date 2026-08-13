@@ -355,3 +355,55 @@ unreviewed.**
   unreviewed label into reviewed verdicts; or (c) rule on the pins
   individually. Acceptance remains the author's act alone; this loop
   recommends and does not apply it.
+
+## Post-loop addendum — Grok independent review of r4 and revision r5
+
+- **Grok review received (2026-08-12, recorded 2026-08-13):** the author ran
+  Grok 4.6 interactively (Grok Build TUI) against landed r4 and relayed the
+  result. This is an **independent Grok-family review, not a loop round**:
+  the loop had closed, and the session was not capsule-blind — it read the
+  existing 0252 artifacts after its corpus checks, as its own provenance
+  discloses. Preserved in the grok artifact by that session. **NOT READY**
+  (2 MATERIAL, 5 DETAIL) bound to r4
+  `cdc724825c32fe24c488fc443c96581bfdcdb7ef76a9966f8039dfe9692ab001`;
+  direction retained, no dissent. It does not alter the loop's launch
+  counts or its r3-bound verdicts.
+- **Orchestrator verification:** both MATERIALs were re-verified against the
+  shipped code before incorporation. `packages/snapback-harness/
+  ctx-bootstrap.js` defines `action.runMutation` only ("Queries are reads
+  and actions must enter through runMutation") — r4's
+  `ctx.runQuery(api.x.y, …)` pin invented a host op, the same phantom-fact
+  class r3 caught. `guide/backend/queries.md` confirms `withIndex` is a
+  name-only setter, so the D2 example's Convex range callback — present
+  since the initial draft and missed by both loop families across three
+  rounds — would be silently ignored by the shipped builder, dropping the
+  owner filter. The skip pin's `same-shape`-vs-imported-sentinel
+  contradiction is real (Convex spells the string `"skip"`).
+
+### Revision r5 — 2026-08-13 (reviser: the orchestrating Claude session; UNREVIEWED)
+
+- **r5 SHA-256:**
+  `0ec9e231c652d55bf06cb16b6f7eb53e042673509043ad029f40d77514bea46f`
+  (56,862 bytes). `./ref-check` 0 errors.
+- **Applied (grok's recommended pins):** familiar action seam =
+  `ctx.runMutation(api.x.y, args)` only, lowering onto the existing
+  `action.runMutation` host op; `ctx.runQuery` unsupported in v1 with a
+  stable routed refusal, any future query host op explicitly outside 0252;
+  skip second argument closed as `Args | "skip" | typeof skip`, the string
+  as familiar-only sugar over the one canonical sentinel; callback
+  `withIndex` admitted as adapter sugar lowering to the canonical
+  name-setter + chained filters, refuse-on-unlowerable, adversarial no-drop
+  test gated in Phase 1; `useAction` closed to
+  `(args) => Promise<Result>`, call-time only, canonical error carrier;
+  the mutation-routing diagnostic re-triggered on real facts (always-on
+  JSDoc + the offline refusal's route) with the phantom "application
+  offline requirements" fact struck; the `delivery: "read"` →
+  `client.read` route stated in the document; OQ1 notes the
+  deletable-entrypoint withdrawal argument.
+- **Verdict binding after r5:** loop verdicts bind r3; Grok's independent
+  NOT READY binds r4; **r5 is unreviewed by any family.** The two r4 pins
+  previously flagged for ratification are superseded by grok's review and
+  the r5 pins; the r5 pins themselves (runMutation-only seam, skip closed
+  set, callback-withIndex admission) await author ratification or a short
+  delta review of r4→r5 — for which all three families are now available,
+  since Grok works interactively even while the CLI wallet 402s.

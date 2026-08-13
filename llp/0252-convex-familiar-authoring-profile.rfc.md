@@ -7,12 +7,13 @@ TypeScript, Code generation, React, Client integration, Competitive evaluation,
 Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (r4, **unreviewed**: round-3 in-delta fixes —
-`useMutation` pinned as LLP 0218's dispatch-time settled-only convenience
-with the phantom per-operation queue-policy fact struck, skip sentinel
-pinned `same-shape`, `normalizedSchemaId` named, plus the round-3 DETAIL
-one-liners; final reviewed revision is r3, verdicts in
-`llp/reviews/0252-*`; r3/r2/r1 same date)
+**Revised:** 2026-08-13 (r5: post-loop Grok-review repairs — familiar
+action seam pinned to `ctx.runMutation` only (no invented `runQuery` host
+op), skip second argument closed as `Args | "skip" | typeof skip` over the
+one canonical sentinel, callback-`withIndex` admitted as lowering sugar
+with a no-drop gate, closed `useAction` callable, real diagnostic
+triggers; loop verdicts bind to r3, Grok's independent NOT READY binds to
+r4, r5 is unreviewed — see `llp/reviews/0252-*`; r4/r3/r2/r1 2026-08-12)
 **Related:** LLP 0000, LLP 0004, LLP 0037, LLP 0061, LLP 0073, LLP 0074,
 LLP 0108,
 LLP 0115, LLP 0117, LLP 0119, LLP 0127, LLP 0130, LLP 0146, LLP 0186,
@@ -326,6 +327,14 @@ export const create = mutation({
 });
 ```
 
+The example's `withIndex("by_owner", (q) => q.eq(...))` range callback is
+deliberate familiar sugar, not the shipped grammar: the canonical builder's
+`withIndex` is a name-only setter with chained filters, so the adapter
+lowers the callback's predicate chain onto that canonical grammar and
+refuses any callback it cannot lower. A range predicate is never ignored —
+a silently dropped filter would widen reads into an authorization defect —
+and an adversarial no-drop test gates this in Phase 1.
+
 The exact `reads`/`writes` refinement syntax remains owned by LLP 0108,
 LLP 0146, and the authority/query owners; the strings above illustrate the
 compact table-granular first spelling, not a new permission model. Where row,
@@ -356,15 +365,19 @@ The v1 function object closes to this per-kind key matrix:
 `args` and `returns` are frozen ingress/egress validators; `auth` has no
 public-by-omission default; reach, effect, secret, capability, and runtime
 facts are never inferred; `handler` is a bounded `.ts`/`.mts` graph under
-LLP 0237/0246. A v1 familiar `action` receives no `ctx.db`: data work goes
-through the canonical composition seam spelled over familiar-branded refs
-(`ctx.runQuery(api.x.y, args)`, `ctx.runMutation(api.x.y, args)`), an
-effect-free action is legal (effect facts are declared exactly when used,
-never inferred), and LLP 0249's isolated Node action form is unsupported in
-the familiar grammar (disposition 4, refusal routing to the explicit
-profile). Accepted keys are the matrix rows plus the disposition-1 rows of
-the Phase 0 table below; a key with no recorded disposition refuses
-(disposition 4), never ignored.
+LLP 0237/0246. A v1 familiar `action` receives no `ctx.db`. Its only
+composition seam is `ctx.runMutation(api.x.y, args)` — familiar-branded
+sugar lowering onto the existing `action.runMutation` host op. `ctx.runQuery`
+is unsupported in v1 (D6 `unsupported`, stable refusal with a route): the
+shipped action context has no query host op, and this RFC does not smuggle
+one in as familiar spelling — if the familiar lane measurably loses because
+actions cannot read, that is component evidence for a separately owned
+host-op RFC, outside 0252. An effect-free action is legal (effect facts are
+declared exactly when used, never inferred), and LLP 0249's isolated Node
+action form is unsupported in the familiar grammar (disposition 4, refusal
+routing to the explicit profile). Accepted keys are the matrix rows plus the
+disposition-1 rows of the Phase 0 table below; a key with no recorded
+disposition refuses (disposition 4), never ignored.
 
 Every remaining canonical function/application definition field —
 `refusals`, `trackedRefusals`, `sequences`, declarative plan forms,
@@ -484,9 +497,13 @@ introduces no error type of its own. Mid-subscription authority revocation
 follows that line too: the continuing subscription enters a stable
 unavailable state (`undefined`), while a fresh one-shot call of the same
 operation surfaces the typed refusal. Nothing is ever silently converted
-between the two columns. Conditional consumption is supported with the
-canonical skip sentinel: a skipped call holds zero resource demand and
-projects as `undefined` (D6 row: `same-shape`).
+between the two columns. Conditional consumption accepts a closed
+second-argument set — `Args | "skip" | typeof skip`. The Convex-shaped
+string `"skip"` is familiar-only sugar for the canonical imported `skip`
+sentinel (one owner, two spellings); both lower to the canonical
+zero-demand skipped state and project `undefined`. The D6 row is
+`same-shape` honestly because the Convex call shape is admitted verbatim;
+the canonical hooks keep the imported sentinel alone.
 
 What is enforced, by types and runtime together, is the exclusion set: the
 hook never returns retained, optimistic, or queued data through this
@@ -509,8 +526,9 @@ Two owned edges are pinned to Phase 2 with the documented error-boundary
 guidance: post-throw temporal semantics (rethrow while the canonical state
 stays error-class; boundary reset on recovery), and the explicit route for
 `delivery: "read"` queries, which no v1 hook consumes (LLP 0238 ships no
-one-shot hook) — generated JSDoc routes them to the canonical one-shot read
-surface, and D6 carries the row.
+one-shot hook) — generated JSDoc routes them to `client.read`, an event-time
+one-shot rather than a hook, and D6 carries the row. The D5 progression
+states this route so the profile's own escape hatch is not a cliff.
 
 #### `useMutation`
 
@@ -528,15 +546,18 @@ maps a queued intent to a successful result.
 Applications that want offline mutation custody use the canonical
 `useSnapbackMutationDispatch` plus `useSnapbackMutationStatus` lifecycle from
 LLP 0238/0218 — the same operation stays fully available to that lifecycle
-(D5). Generated JSDoc and the mismatch diagnostic route the author there
-when the application's declared offline requirements ask for queued custody
-that settled-only dispatch cannot honor.
+(D5). Generated JSDoc on every familiar mutation names that lifecycle, and
+the runtime offline refusal's diagnostic carries the same route — no
+manifest-level "offline requirements" fact exists, and none is invented for
+this.
 
 #### `useAction`
 
-`useAction` is a direct alias over one-shot `run(ActionRef)`. External effects
-remain non-rollbackable and retain the existing typed refusal/result contract.
-Longer command workflows keep `useSnapbackTask`.
+`useAction(ref)` returns `(args) => Promise<Result>` over one-shot
+`run(ActionRef)` — always call-time, never render-time, owning no task
+state; rejections use the canonical typed diagnostic error. External effects
+remain non-rollbackable and retain the existing typed refusal/result
+contract. Longer command workflows keep `useSnapbackTask`.
 
 #### Provider and generated references
 
@@ -1018,6 +1039,9 @@ changes enter only when they improve Snapback's own measured path.
    experimental subpaths of the existing codegen/React packages? This RFC
    recommends the umbrella because package/import coherence is part of the
    learned surface, but publication inventory cost should be measured.
+   Either way, the familiar React aliases should live in an entrypoint that
+   withdrawal can delete whole, rather than as siblings beside the canonical
+   hooks (round-4 Grok review).
 2. **Client alias value.** Are constrained `useQuery`/`useMutation` aliases a
    useful ordinary lane, or do their exclusions create more mistakes than the
    familiar names save? This is intentionally measured rather than assumed —
