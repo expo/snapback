@@ -24979,7 +24979,7 @@ impl LocalSnapback {
             // how the membership-gated freeze stayed invisible even in tests
             // (LLP 0067 §F2a).
             #[cfg(debug_assertions)]
-            self.debug_assert_delta_membership_converges(subscription, query_dep_index, admission);
+            self.debug_assert_delta_membership_converges(subscription, &plan.table, admission);
             return Ok(Some(DeltaFanout::NoChange));
         }
         // @ref LLP 0200#26-quarantine-recovery-lifecycle — a same-authority
@@ -25080,15 +25080,20 @@ impl LocalSnapback {
         };
 
         // Maintain this subscription's membership by applying the ops to its
-        // captured Query dependency — no re-query. Add/remove change the id
-        // set; update leaves membership unchanged. The exact applied commit
-        // frame is a conservative cursor inseparable from these ops; sampling a
-        // later table head could skip a sibling writer the delta never applied.
+        // captured Query dependency and its matching point-read dependencies —
+        // no re-query. Query.rows lets the delta core classify later exits;
+        // Row dependencies let the shared dependency gate wake on a later
+        // transfer/update even when the new image no longer matches visibility.
+        // Add/remove change both representations; update advances the point
+        // read's version. The exact applied commit frame is a conservative
+        // cursor inseparable from these ops; sampling a later table head could
+        // skip a sibling writer the delta never applied.
+        //
+        // @ref LLP 0008#reactivity-and-read-sets — result membership and row-id
+        //   dependencies advance atomically with delta emission.
         let enqueue = {
             let _publication = admission.effect_guard("live delta publication")?;
-            if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
-                && let Some(dependency) = stored.read_dependencies.get_mut(query_dep_index)
-            {
+            if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                 let mut removes: HashSet<&str> = HashSet::new();
                 let mut adds: Vec<String> = Vec::new();
                 for op in &ops {
@@ -25102,18 +25107,74 @@ impl LocalSnapback {
                         LiveDeltaKind::Update => {}
                     }
                 }
-                if !removes.is_empty() {
-                    dependency.rows.retain(|id| !removes.contains(id.as_str()));
+                if let Some(dependency) = stored.read_dependencies.get_mut(query_dep_index) {
+                    if !removes.is_empty() {
+                        dependency.rows.retain(|id| !removes.contains(id.as_str()));
+                    }
+                    if !adds.is_empty() {
+                        let mut existing: HashSet<String> =
+                            dependency.rows.iter().cloned().collect();
+                        for id in &adds {
+                            if existing.insert(id.clone()) {
+                                dependency.rows.push(id.clone());
+                            }
+                        }
+                    }
+                    dependency.version = Some(frame_version);
                 }
-                if !adds.is_empty() {
-                    let mut existing: HashSet<String> = dependency.rows.iter().cloned().collect();
-                    for id in &adds {
-                        if existing.insert(id.clone()) {
-                            dependency.rows.push(id.clone());
+
+                for op in &ops {
+                    let row_version = op
+                        .row
+                        .as_ref()
+                        .and_then(|row| row.get("_version"))
+                        .and_then(Value::as_u64)
+                        .unwrap_or(frame_version);
+                    match op.kind {
+                        LiveDeltaKind::Add => {
+                            let existing = stored.read_dependencies.iter_mut().find(|dependency| {
+                                dependency.kind == CapturedReadKind::Row
+                                    && dependency.table.as_deref() == Some(plan.table.as_str())
+                                    && dependency.id.as_deref() == Some(op.id.as_str())
+                            });
+                            if let Some(existing) = existing {
+                                existing.version = Some(row_version);
+                            } else {
+                                stored.read_dependencies.push(CapturedReadDependency {
+                                    kind: CapturedReadKind::Row,
+                                    table: Some(plan.table.clone()),
+                                    id: Some(op.id.clone()),
+                                    version: Some(row_version),
+                                    predicate: None,
+                                    rows: Vec::new(),
+                                    field: None,
+                                    value: None,
+                                    order: None,
+                                    limit: None,
+                                    result_count: None,
+                                    boundary: None,
+                                });
+                            }
+                        }
+                        LiveDeltaKind::Remove => {
+                            stored.read_dependencies.retain(|dependency| {
+                                !(dependency.kind == CapturedReadKind::Row
+                                    && dependency.table.as_deref() == Some(plan.table.as_str())
+                                    && dependency.id.as_deref() == Some(op.id.as_str()))
+                            });
+                        }
+                        LiveDeltaKind::Update => {
+                            for dependency in &mut stored.read_dependencies {
+                                if dependency.kind == CapturedReadKind::Row
+                                    && dependency.table.as_deref() == Some(plan.table.as_str())
+                                    && dependency.id.as_deref() == Some(op.id.as_str())
+                                {
+                                    dependency.version = Some(row_version);
+                                }
+                            }
                         }
                     }
                 }
-                dependency.version = Some(frame_version);
             }
             if let Some(digest) = refreshed_digest.take()
                 && let Some(stored) = self.subscriptions.get_mut(&subscription.id)
@@ -25137,7 +25198,7 @@ impl LocalSnapback {
         // membership drift fails the test that exercises this path. (L4 parity
         // pattern.)
         #[cfg(debug_assertions)]
-        self.debug_assert_delta_membership_converges(subscription, query_dep_index, admission);
+        self.debug_assert_delta_membership_converges(subscription, &plan.table, admission);
 
         if enqueue.overflowed_now
             && let Err(error) =
@@ -25155,7 +25216,7 @@ impl LocalSnapback {
     fn debug_assert_delta_membership_converges(
         &mut self,
         subscription: &LiveSubscription,
-        query_dep_index: usize,
+        query_table: &str,
         admission: &AdmissionLease,
     ) {
         let Ok(fresh) = self
@@ -25173,18 +25234,51 @@ impl LocalSnapback {
         let fresh_ids: BTreeSet<&str> = fresh
             .read_dependencies
             .iter()
-            .find(|dependency| dependency.kind == CapturedReadKind::Query)
+            .find(|dependency| {
+                dependency.kind == CapturedReadKind::Query
+                    && dependency.table.as_deref() == Some(query_table)
+            })
             .map(|dependency| dependency.rows.iter().map(String::as_str).collect())
             .unwrap_or_default();
         let maintained_ids: BTreeSet<&str> = self
             .subscriptions
             .get(&subscription.id)
-            .and_then(|stored| stored.read_dependencies.get(query_dep_index))
+            .and_then(|stored| {
+                stored.read_dependencies.iter().find(|dependency| {
+                    dependency.kind == CapturedReadKind::Query
+                        && dependency.table.as_deref() == Some(query_table)
+                })
+            })
             .map(|dependency| dependency.rows.iter().map(String::as_str).collect())
             .unwrap_or_default();
+        let fresh_rows: BTreeMap<&str, Option<u64>> = fresh
+            .read_dependencies
+            .iter()
+            .filter(|dependency| {
+                dependency.kind == CapturedReadKind::Row
+                    && dependency.table.as_deref() == Some(query_table)
+            })
+            .filter_map(|dependency| dependency.id.as_deref().map(|id| (id, dependency.version)))
+            .collect();
+        let maintained_rows: BTreeMap<&str, Option<u64>> = self
+            .subscriptions
+            .get(&subscription.id)
+            .into_iter()
+            .flat_map(|stored| stored.read_dependencies.iter())
+            .filter(|dependency| {
+                dependency.kind == CapturedReadKind::Row
+                    && dependency.table.as_deref() == Some(query_table)
+            })
+            .filter_map(|dependency| dependency.id.as_deref().map(|id| (id, dependency.version)))
+            .collect();
         debug_assert_eq!(
             maintained_ids, fresh_ids,
             "live_delta membership drifted from a fresh re-query for subscription {}",
+            subscription.id
+        );
+        debug_assert_eq!(
+            maintained_rows, fresh_rows,
+            "live_delta Row dependencies drifted from a fresh re-query for subscription {}",
             subscription.id
         );
     }
@@ -30458,7 +30552,10 @@ fn execute_query_invocation(
                 read_dependencies,
             })
         }
-        (FunctionKind::Query, FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan))) => {
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)),
+        ) => {
             // @ref LLP 0073#authorization-and-result-release — the search
             // executor receives only server-resolved authority and evaluates
             // inside this pinned read snapshot; application input cannot
@@ -30521,32 +30618,15 @@ fn execute_query_invocation(
                     cursor_roots: &roots,
                 },
             )?;
-            let mut read_dependencies = vec![CapturedReadDependency {
-                kind: CapturedReadKind::Query,
-                table: Some(plan.table.clone()),
-                id: None,
-                version: Some(output.version),
-                predicate: None,
-                rows: output
-                    .rows
-                    .iter()
-                    .filter_map(|row| {
-                        row.get("rowId")
-                            .and_then(Value::as_str)
-                            .map(ToOwned::to_owned)
-                    })
-                    .collect(),
-                field: None,
-                value: None,
-                order: Some(json!("score-desc-row-id-asc.v1")),
-                limit: input
-                    .args
-                    .get("limit")
-                    .and_then(Value::as_u64)
-                    .map(|value| value as usize),
-                result_count: Some(output.rows.len()),
-                boundary: None,
-            }];
+            // Search has no serializable QueryPlan predicate in the shared
+            // matcher vocabulary. Omitting an incomplete Query dependency lets
+            // the HostPlan::SearchQuery matcher below prove disjoint-table
+            // commits irrelevant while conservatively re-running every commit
+            // on the searched table.
+            //
+            // @ref LLP 0008#reactivity-and-read-sets — incomplete dependency
+            //   facts fall back; they must not disable a coarser correct proof.
+            let mut read_dependencies = Vec::new();
             add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
             Ok(QueryInvocation {
                 output,

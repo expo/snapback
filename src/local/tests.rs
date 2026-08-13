@@ -1386,6 +1386,168 @@ fn live_search_authority_fact_is_exactly_schema_public_read() {
 }
 
 #[test]
+fn live_search_skips_disjoint_table_commits_and_reruns_searched_table_commits() {
+    use crate::search::types::{SearchClauseV1, SearchQueryAstV1, SearchTermV1};
+
+    let search = SearchIndexManifestV1 {
+        format_version: 1,
+        name: "search_events".to_owned(),
+        semantic_version: "events.live.matcher.v1".to_owned(),
+        analyzer: SEARCH_ANALYZER.to_owned(),
+        analyzer_tables_digest: crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST
+            .to_owned(),
+        text_fields: BTreeMap::from([(
+            "title".to_owned(),
+            SearchTextFieldV1 {
+                weight: 1,
+                classification: SearchFieldClassV1::Public,
+            },
+        )]),
+        field_classifications: BTreeMap::new(),
+        equality_filters: Vec::new(),
+        stored_fields: vec!["title".to_owned()],
+        highlight_fields: Vec::new(),
+        visibility: SearchVisibilityV1::PublicRead,
+        tie_break: "score-desc-row-id-asc.v1".to_owned(),
+        source_limits: Default::default(),
+        query_limits: Default::default(),
+        cursor_limits: Default::default(),
+        maintenance_limits: Default::default(),
+        live_limits: None,
+    };
+    let table =
+        |name: &str, field: &str, search_indexes: Vec<SearchIndexManifestV1>| TableManifest {
+            name: name.to_owned(),
+            fields: vec![FieldManifest {
+                name: field.to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            }],
+            indexes: Vec::new(),
+            search_indexes,
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            syncable: false,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+            asset_sharing: None,
+            visibility: None,
+            history: None,
+        };
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback
+        .db
+        .schema_seed()
+        .apply_schema(SchemaManifest {
+            required_capabilities: vec![SEARCH_CAPABILITY.to_owned()],
+            tables: vec![
+                table("events", "title", vec![search]),
+                table("audit", "message", Vec::new()),
+            ],
+            ..SchemaManifest::default()
+        })
+        .expect("search schema");
+
+    let mut live_search = FunctionDefinition::new(
+        "liveSearchEvents",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(SearchQueryPlanV1 {
+            table: "events".to_owned(),
+            index: "search_events".to_owned(),
+            parser: SEARCH_PARSER.to_owned(),
+            result_projection: "search-page-v1".to_owned(),
+            required_capability: SEARCH_CAPABILITY.to_owned(),
+            resource_arg: None,
+        })),
+    );
+    live_search.auth_requirement = Some(AuthRequirement::Public);
+    live_search.authority_independent = true;
+    let insert = |name: &str, table: &str, field: &str| {
+        FunctionDefinition::new(
+            name,
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: table.to_owned(),
+                    values: BTreeMap::from([(field.to_owned(), ValueExpr::Arg(field.to_owned()))]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            })),
+        )
+    };
+    // The capability is intentionally unpublished, so this unit fixture
+    // installs the already-admitted runtime carrier directly rather than
+    // forging a served capability claim through the artifact loader.
+    snapback.functions = FunctionManifest {
+        functions: vec![
+            live_search,
+            insert("insertEvent", "events", "title"),
+            insert("insertAudit", "audit", "message"),
+        ],
+        ..FunctionManifest::default()
+    };
+
+    let query = SearchQueryAstV1 {
+        all: vec![SearchClauseV1::Term(SearchTermV1 {
+            value: "needle".to_owned(),
+            field: None,
+        })],
+    };
+    let established = snapback
+        .subscribe_live(
+            "liveSearchEvents",
+            LiveSubscribeInput {
+                connection_id: "search-conn".to_owned(),
+                input: HandlerInput {
+                    args: json!({ "query": query }),
+                    ..HandlerInput::default()
+                },
+                authorization_namespace: None,
+                supersedes: None,
+                resume_from_token: None,
+            },
+        )
+        .expect("live search subscribes");
+    assert!(established.snapshot.expect("snapshot").rows.is_empty());
+
+    let before = snapback.inspect().expect("inspect before").live_matcher;
+    snapback
+        .invoke_mutation(
+            "insertAudit",
+            HandlerInput {
+                args: json!({ "message": "disjoint" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("disjoint commit");
+    let after_disjoint = snapback.inspect().expect("inspect disjoint").live_matcher;
+    assert_eq!(after_disjoint.skip, before.skip + 1);
+    assert_eq!(
+        after_disjoint.conservative_fallback, before.conservative_fallback,
+        "a disjoint table commit must skip before search execution"
+    );
+    assert!(snapback.drain_outbox("search-conn").is_empty());
+
+    snapback
+        .invoke_mutation(
+            "insertEvent",
+            HandlerInput {
+                args: json!({ "title": "needle in a haystack" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("searched-table commit");
+    let after_event = snapback.inspect().expect("inspect event").live_matcher;
+    assert_eq!(after_event.match_replace, after_disjoint.match_replace + 1);
+    let frames = rqs_drained_envelopes(&mut snapback, "search-conn");
+    assert_eq!(frames.len(), 1, "searched-table commit re-runs once");
+    assert_eq!(frames[0]["kind"], "live_replace");
+    assert_eq!(frames[0]["rows"].as_array().expect("rows").len(), 1);
+}
+
+#[test]
 fn owner_vector_query_requires_authenticated_pair_authority() {
     let index = VectorIndexManifestV1 {
         format_version: 1,
@@ -3460,9 +3622,10 @@ fn asset_finalize(
     )
 }
 
-/// posts.photo restricts to the avatarUpload intent and shares
-/// public-read; drafts.pic is restriction-less with no sharing (the
-/// mixed-table stand-in); owned.photo shares through an owner field.
+/// posts.photo restricts to the avatarUpload intent and shares public-read;
+/// drafts.pic is restriction-less with no sharing (the mixed-table stand-in);
+/// owned.photo shares through an owner field; workspace_files.photo shares
+/// through the declared workspace membership probe.
 fn asset_reference_schema() -> SchemaManifest {
     let table = |name: &str,
                  fields: Vec<crate::manifest::FieldManifest>,
@@ -3516,6 +3679,101 @@ fn asset_reference_schema() -> SchemaManifest {
                     field: "ownerId".to_owned(),
                 }),
             ),
+            TableManifest {
+                name: "workspaces".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                visibility: None,
+                history: None,
+            },
+            TableManifest {
+                name: "workspace_members".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "userId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "workspaceId".to_owned(),
+                        field_type: FieldType::Id {
+                            table: "workspaces".to_owned(),
+                        },
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "role".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: Some(MembershipManifest {
+                    id: Some("workspace_members".to_owned()),
+                    principal: "userId".to_owned(),
+                    resource: Some("workspaceId".to_owned()),
+                    role: "role".to_owned(),
+                    roles: vec!["viewer".to_owned(), "editor".to_owned()],
+                    pending_roles: None,
+                    bootstrap_role: None,
+                    last_holder: None,
+                    expiry: None,
+                    incidental: None,
+                    provenance: None,
+                    transitions: Vec::new(),
+                    scope: MembershipScope::Resource,
+                    resource_table: Some("workspaces".to_owned()),
+                    principal_addressed_writes: None,
+                }),
+                asset_sharing: None,
+                visibility: None,
+                history: None,
+            },
+            TableManifest {
+                name: "workspace_files".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "workspaceId".to_owned(),
+                        field_type: FieldType::Id {
+                            table: "workspaces".to_owned(),
+                        },
+                        optional: false,
+                    },
+                    asset_field("photo", Some("avatarUpload")),
+                ],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: Some(crate::manifest::AssetSharingManifest::Membership {
+                    membership: "workspace_members".to_owned(),
+                    roles: Some(vec!["viewer".to_owned()]),
+                }),
+                visibility: None,
+                history: None,
+            },
         ],
         ..SchemaManifest::default()
     }
@@ -4767,6 +5025,84 @@ fn asset_read_decision_pins_the_empty_edge_range_so_first_attachment_moves_it() 
     assert!(
         moved,
         "the first attachment must move the pinned empty capture"
+    );
+}
+
+#[test]
+fn asset_membership_read_captures_ordinary_query_and_never_permission() {
+    let mut snapback = asset_reference_snapback();
+    snapback.load_functions(FunctionManifest {
+        asset_upload_intents: vec![asset_shared_intent()],
+        ..FunctionManifest::default()
+    });
+    let asset_id = asset_ready(&mut snapback, "user_a", b"membership-shared");
+    asset_handler_commit(
+        &mut snapback,
+        "user_a",
+        vec![crate::storage::BufferedWrite::Insert {
+            table: "workspaces".to_owned(),
+            id: "workspace_1".to_owned(),
+            values: serde_json::Map::from_iter([("title".to_owned(), json!("One"))]),
+        }],
+        Vec::new(),
+    )
+    .expect("workspace commits");
+    asset_handler_commit(
+        &mut snapback,
+        "user_a",
+        vec![crate::storage::BufferedWrite::Insert {
+            table: "workspace_files".to_owned(),
+            id: "workspace_file_1".to_owned(),
+            values: serde_json::Map::from_iter([
+                ("workspaceId".to_owned(), json!("workspace_1")),
+                ("photo".to_owned(), json!(asset_id.clone())),
+            ]),
+        }],
+        vec![crate::assets::AssetAttachmentAdmission {
+            asset_id: asset_id.clone(),
+            upload: Some("avatarUpload".to_owned()),
+        }],
+    )
+    .expect("membership-shared attachment commits");
+
+    let schema = snapback.db.schema().clone();
+    let captured = snapback
+        .db
+        .asset_reads()
+        .read_decision_dependencies(&schema, Some("user_b"), &asset_id)
+        .expect("denied membership decision captures its probe");
+    assert!(
+        captured
+            .iter()
+            .all(|dependency| dependency.kind != crate::storage::CapturedReadKind::Permission),
+        "asset authorization must never emit the matcher/validator-dead Permission kind"
+    );
+    let membership = captured
+        .iter()
+        .find(|dependency| {
+            dependency.kind == crate::storage::CapturedReadKind::Query
+                && dependency.table.as_deref() == Some("workspace_members")
+        })
+        .expect("ordinary membership Query capture");
+    assert_eq!(
+        membership.result_count,
+        Some(0),
+        "empty-result probe is pinned"
+    );
+    let plan: QueryPlan = serde_json::from_value(
+        membership
+            .predicate
+            .clone()
+            .expect("membership Query carries its plan"),
+    )
+    .expect("membership predicate is a QueryPlan");
+    assert_eq!(
+        plan.filters
+            .iter()
+            .map(|filter| filter.field.as_str())
+            .collect::<Vec<_>>(),
+        vec!["userId", "workspaceId", "role"],
+        "the capture binds principal, resource, and admitted roles"
     );
 }
 

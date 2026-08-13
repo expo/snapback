@@ -29,3 +29,20 @@ Either omit the Query dep and let the SearchQuery table-granular arm run, or sto
 ## Confidence
 
 High on the matcher path. Amplifies the existing live-query cost ticket; not called out there as a matcher defect.
+
+## Resolution (2026-08-12)
+
+Fixed search query capture by omitting the predicate-less `Query` dependency.
+Search has no serializable `QueryPlan` predicate in the shared dependency
+vocabulary, so the table-granular `HostPlan::SearchQuery` matcher now remains
+reachable: disjoint-table commits skip, while commits on the indexed table
+conservatively re-run the search. The execution arm also accepts the declared
+`LiveQuery` search carrier.
+
+Regression coverage establishes a live search, proves an `audit` table commit
+increments the matcher skip without producing output, then proves an `events`
+table commit re-runs search and emits one replacement containing the match.
+
+Evidence: `cargo test --lib
+live_search_skips_disjoint_table_commits_and_reruns_searched_table_commits` (1
+passed); `cargo test --lib` (2,635 passed, 0 failed, 2 ignored).

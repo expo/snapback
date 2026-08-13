@@ -377,6 +377,19 @@ fn query_plan_change_outcome(
                 }
             }
         }
+        // A captured result member that no longer passes the current filter or
+        // visibility predicate is an exit, not a disjoint write. This check is
+        // independently load-bearing for subscriptions established before the
+        // delta lane began maintaining point-read dependencies.
+        //
+        // @ref LLP 0008#reactivity-and-read-sets — captured row ids are part of
+        //   the dependency summary; false-negative skips are correctness bugs.
+        Some(false)
+            if dependency
+                .is_some_and(|dependency| dependency.rows.iter().any(|id| id == &change.id)) =>
+        {
+            LiveMatchOutcome::Match
+        }
         Some(false) if update_may_have_changed_query_membership(plan, change) => {
             LiveMatchOutcome::ConservativeFallback
         }
@@ -567,13 +580,32 @@ fn update_may_have_changed_query_membership(plan: &QueryPlan, change: &ChangedRo
     if change.changed_fields.is_empty() {
         return true;
     }
-    plan.filters.iter().any(|filter| {
-        system_field_changes_on_update(&filter.field)
-            || change
-                .changed_fields
-                .iter()
-                .any(|field| field == &filter.field)
-    })
+    let field_may_have_changed = |candidate: &str| {
+        system_field_changes_on_update(candidate)
+            || change.changed_fields.iter().any(|field| field == candidate)
+    };
+    if plan
+        .filters
+        .iter()
+        .any(|filter| field_may_have_changed(&filter.field))
+    {
+        return true;
+    }
+    match plan.table_visibility.as_ref() {
+        Some(crate::manifest::TableVisibilityV1::Owner { field }) => field_may_have_changed(field),
+        Some(crate::manifest::TableVisibilityV1::AnyOf { arms }) => arms.iter().any(|arm| {
+            matches!(
+                arm,
+                crate::manifest::TableVisibilityArmV1::Owner { field }
+                    if field_may_have_changed(field)
+            )
+        }),
+        Some(
+            crate::manifest::TableVisibilityV1::PublicRead
+            | crate::manifest::TableVisibilityV1::Membership { .. },
+        )
+        | None => false,
+    }
 }
 
 fn field_scope_change_is_disjoint(change: &ChangedRow, field: &str, expected: &Value) -> bool {
@@ -1008,6 +1040,79 @@ mod dependency_gate_tests {
             row: Some(row),
             changed_fields: changed_fields.iter().map(|s| s.to_string()).collect(),
         }
+    }
+
+    fn owner_visible_plan() -> QueryPlan {
+        QueryPlan {
+            table_visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
+            table: "documents".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        }
+    }
+
+    fn owner_input() -> HandlerInput {
+        HandlerInput {
+            auth: AuthInput {
+                user_id: Some("ada".to_owned()),
+                ..AuthInput::default()
+            },
+            ..input()
+        }
+    }
+
+    #[test]
+    fn captured_query_member_visibility_exit_is_not_skipped() {
+        let plan = owner_visible_plan();
+        let dependency = CapturedReadDependency {
+            kind: CapturedReadKind::Query,
+            table: Some("documents".to_owned()),
+            version: Some(1),
+            predicate: Some(serde_json::to_value(&plan).expect("serialize plan")),
+            rows: vec!["doc_1".to_owned()],
+            ..empty_dependency(CapturedReadKind::Query)
+        };
+        let change = update(
+            "documents",
+            "doc_1",
+            json!({ "_id": "doc_1", "ownerId": "bob" }),
+            &["ownerId"],
+        );
+
+        assert_eq!(
+            query_plan_change_outcome(&plan, &owner_input(), &change, Some(&dependency)),
+            LiveMatchOutcome::Match,
+            "a retained result member leaving owner visibility must wake even without a Row dependency"
+        );
+    }
+
+    #[test]
+    fn owner_visibility_field_update_falls_back_when_prior_membership_is_unknown() {
+        let plan = owner_visible_plan();
+        let dependency = CapturedReadDependency {
+            kind: CapturedReadKind::Query,
+            table: Some("documents".to_owned()),
+            version: Some(1),
+            predicate: Some(serde_json::to_value(&plan).expect("serialize plan")),
+            ..empty_dependency(CapturedReadKind::Query)
+        };
+        let change = update(
+            "documents",
+            "doc_2",
+            json!({ "_id": "doc_2", "ownerId": "bob" }),
+            &["ownerId"],
+        );
+
+        assert_eq!(
+            query_plan_change_outcome(&plan, &owner_input(), &change, Some(&dependency)),
+            LiveMatchOutcome::ConservativeFallback,
+            "owner visibility fields participate in membership-change detection like filters"
+        );
     }
 
     // ENG-23420: a change landing on a `Row` point-read dependency must wake

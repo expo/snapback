@@ -12989,68 +12989,50 @@ pub(crate) fn asset_read_authorized(
                 else {
                     continue;
                 };
-                let resource_value = match declaration.resource.as_ref() {
+                let resource_binding = match declaration.resource.as_ref() {
                     Some(_) => {
                         let row = get_document_from_tx(tx, table, &edge.row_id, u64::MAX)?;
                         // The membership resource axis correlates through the
                         // referencing row's resource field when the sharing
                         // table declares one with the same name; absent that,
                         // the row id itself is the resource.
-                        row.and_then(|row| {
-                            declaration
-                                .resource
-                                .as_ref()
-                                .and_then(|resource| row.get(resource).cloned())
-                        })
+                        let resource = row
+                            .and_then(|row| {
+                                declaration
+                                    .resource
+                                    .as_ref()
+                                    .and_then(|resource| row.get(resource).cloned())
+                            })
+                            .unwrap_or_else(|| Value::String(edge.row_id.clone()));
+                        crate::membership_rules::ResourceBinding::Fixed(resource)
                     }
-                    None => None,
+                    None => crate::membership_rules::ResourceBinding::AppSingleton,
                 };
-                let role: Option<String> = {
-                    let mut sql = format!(
-                        "SELECT {role} FROM {table} WHERE {principal_col} = ?1",
-                        role = quote_ident(&declaration.role)?,
-                        table = quote_ident(&mtable.name)?,
-                        principal_col = quote_ident(&declaration.principal)?,
-                    );
-                    let mut params: Vec<SqlValue> = vec![SqlValue::Text(principal.to_owned())];
-                    if let (Some(resource_col), Some(resource_value)) =
-                        (declaration.resource.as_ref(), resource_value.as_ref())
-                    {
-                        sql.push_str(&format!(" AND {} = ?2", quote_ident(resource_col)?));
-                        params.push(json_to_sql_value(
-                            resource_value,
-                            field_type(mtable, resource_col),
-                        )?);
-                    }
-                    tx.query_row(&sql, rusqlite::params_from_iter(params), |row| row.get(0))
-                        .optional()?
-                };
-                dependencies.push(CapturedReadDependency {
-                    kind: if role.is_some() {
-                        CapturedReadKind::Permission
-                    } else {
-                        CapturedReadKind::MissingRow
-                    },
-                    table: Some(mtable.name.clone()),
-                    id: None,
-                    version: None,
-                    predicate: Some(serde_json::json!({
-                        "principal": principal,
-                        "resource": resource_value,
-                    })),
-                    rows: Vec::new(),
-                    field: Some(declaration.role.clone()),
-                    value: role.clone().map(Value::String),
-                    order: None,
-                    limit: None,
-                    result_count: None,
-                    boundary: None,
-                });
-                let role_admits = match (role, roles) {
-                    (None, _) => false,
-                    (Some(_), None) => true,
-                    (Some(role), Some(allowed)) => allowed.iter().any(|r| r == &role),
-                };
+                let effective_roles =
+                    crate::membership_rules::effective_roles(declaration, roles.as_deref());
+                let probe = crate::membership_rules::membership_probe_plan(
+                    declaration,
+                    &mtable.name,
+                    principal,
+                    &resource_binding,
+                    &effective_roles,
+                );
+                let output = DbRead::Pinned { conn: tx, schema }
+                    .query_private_membership(&probe, &HandlerInput::default())?;
+                let matching_ids: Vec<String> = output
+                    .rows
+                    .iter()
+                    .filter_map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
+                    .collect();
+                let role_admits = !matching_ids.is_empty();
+                // @ref LLP 0056#what-exists-what-this-adds — membership checks
+                //   capture the ordinary Query probe on both outcomes, never
+                //   the legacy matcher/validator-dead Permission kind.
+                dependencies.push(crate::membership_rules::membership_capture_dependency(
+                    &probe,
+                    output.version,
+                    matching_ids,
+                )?);
                 if role_admits {
                     authorized = true;
                 }
