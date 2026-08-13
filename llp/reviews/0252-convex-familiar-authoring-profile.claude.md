@@ -178,3 +178,93 @@ VERDICT: READY — bound to SHA-256 001ed2dca02e9eb36fc096f84a6c5adffcd7bd14e49e
 ## Self-attestation
 
 I read only paths under `/private/tmp/claude-501/-Users-ccheever-projects-snapback/cacc6372-1db6-4066-a114-318f7e8b68f7/scratchpad/r2-capsule` (the review instructions, the r2 target, and referenced LLPs under the capsule's `llp/` directory). I verified the target's byte count (48,812) and SHA-256 (`001ed2dca02e9eb36fc096f84a6c5adffcd7bd14e49e18f8c03f082f9bd47cd8`) before reading. I used no network access, no WebFetch/WebSearch, and no prior review of this document; I did not seek one. All shell commands were read-only (`ls`, `shasum`, `wc`, `grep`, `sed -n`) inside the capsule. I modified, created, and deleted no files. No deviations.
+
+## Round 3 — 2026-08-12 (final delta round + implementer probe)
+
+- **Runtime:** fresh Claude Fable 5 general-purpose agent (not the
+  orchestrating/revising session, nor either prior-round reviewer),
+  capsule-only instructions, web disabled; 159,043 tokens, 35 tool uses,
+  ~758 s. Claude family launch 3.
+- **Capsule:** base `d87d8d9a9cb0f35208c889784991ce40b2fcfe27` (round-2
+  clone with r3 overlay), inventory SHA-256
+  `12639a4fb639b17e052b51f42aa67b58a5bb7119685214fe6adeb8291bab6b1b`,
+  instruction SHA-256
+  `b5adb87feca5f6254ea04c5abe902ea051038a36f675e052e15307b87780c89c`.
+- **Target under review:** r3 SHA-256
+  `afaff1bc43d7040bd34b81d5b90d42b0e1b345eed79776b2a663342e8c5be312`
+  (53,541 bytes), Status: Review.
+- **Verdict:** NOT READY (1 MATERIAL, IN-DELTA; 10 DETAIL — 9 IN-DELTA,
+  1 PRE-EXISTING; zero PRE-EXISTING MATERIAL). The reviewer disclosed
+  harness-injected repository status metadata in its session context; it
+  read no file outside the capsule.
+
+The complete response follows verbatim (transport HTML-entity escapes
+decoded).
+
+---
+
+All verification is complete. Here is the review.
+
+---
+
+# LLP 0252 r3 review — Claude-family reviewer, round 3 (final delta round)
+
+Target: `llp/0252-convex-familiar-authoring-profile.rfc.md`, 53,541 bytes, SHA-256 `afaff1bc43d7040bd34b81d5b90d42b0e1b345eed79776b2a663342e8c5be312` (both verified in the capsule before reading).
+
+Referenced LLPs checked against their capsule text: 0004, 0073, 0074, 0108 (partial), 0117, 0119, 0127, 0130, 0197, 0198, 0199, 0203, 0218, 0225, 0236, 0237, 0238, 0241, 0242, 0245, 0246, 0247, 0248, 0249, plus the capsule's `guide/` and `schemas/`/`packages/snapback-codegen/` surfaces where the RFC makes claims about the shipped canonical model.
+
+Delta verification: all nine enumerated r2→r3 delta items are present in the text as described. Citation checks that pass: LLP 0119 option 1b is "live by default with an authored escape hatch" as claimed; LLP 0074 is Shelved and LLP 0119 plus LLP 0073's search-live gate (which refuses the unimplemented live path; ordinary search remains non-live) genuinely carry the polling-is-never-proven-push rule; LLP 0130 ER-3 does reserve the 1a pre-registration's acceptance to the author, and the 1a/1b vocabulary matches LLP 0119; LLP 0197 rule 1 requires N≥3 per preregistered configuration, supporting the no-cross-version-pooling cohort rule; LLP 0198 P0.0(c), P0b (N≥3 per condition, tokens never pooled across families), I.5, and P4 all say what the RFC cites them for; LLP 0236's 55/45, smoother-default, and day-two anchors are accurate; LLP 0241's identity vocabulary (`semanticId`/`executableId`/`evidenceId`/`generationId`, custody as evidence identity) is used correctly; LLP 0246 D5 does bind source-profile version into semantic identity, supporting the D1 precedent claim; LLP 0245 v1's proposal scope really is result contracts plus addition-only reads/writes; LLP 0249's isolated Node form is an explicit-vocabulary construct, so refusing it in the familiar grammar is coherent; `refusals`/`trackedRefusals`/`sequences` are real canonical definition fields (guide, LLP 0108); LLP 0238's `{data,status,freshness,diagnostic,refresh}` grammar and LLP 0247's stable-state-vs-error-class line are transcribed correctly into the D4 projection table.
+
+## Concern ledger
+
+1. **MATERIAL — IN-DELTA — D4 (`useMutation`), Terminology (`normalizedContractId` closure), D5, Acceptance 1/3.** The closed `useMutation` contract type-gates on a per-reference fact that does not exist in the canonical model it cites. The r3 text says `useMutation` "type-accepts only familiar-branded mutation references **whose declared queue policy** is the canonical settled-only spelling (`queue: false`, LLP 0218; no familiar queue vocabulary exists); a queue-capable reference is rejected at generation/typecheck." In LLP 0218, `queue: false` is a **dispatch-time option** ("the settled-only convenience hook and the `{queue:false}` compat mode … both dispatch `queue:false`", §4.1 facade contracts); it is not a declared, per-operation reference policy. I verified the shipped canonical surface in the capsule: the mutation definition grammar (`guide/backend/mutations.md`, `packages/snapback-codegen/define.mjs`) and the application manifest schema (`schemas/app.ensure.input.schema.json`) carry **no** definition-level queue-policy key; the only `queue: false` in the client surface is the hook *option* (`useSnapbackMutation(ref, { queue: false })`, `guide/clients/react.md`). Meanwhile r3's Terminology closure newly lists "retention and **queue policy**" among the behavior-bearing normalized fields that must enter `normalizedContractId`, and D4 asserts generated refs "**remain** nominal and carry … delivery, **queue**, authoring profile … facts" — presenting the fact as pre-existing. Consequences as written: (a) the adapter must emit a queue-policy normalized field with no defined source, owner, spelling, or default — the D2 matrix has no `queue` key, unknown keys refuse, "no familiar queue vocabulary exists," and the explicit profile has no spelling either; (b) Acceptance 1's cross-profile equivalence witness now closes over a field neither profile can author; (c) D5's routing trigger ("when a mutation is declared queue-capable") is unreachable inside a familiar application, which also makes the D5/Non-goals promise that offline mutation custody remains an in-profile extension either false or undefined for familiar apps; (d) the LLP 0218 citation misattributes the fact's owner and would propagate into generated JSDoc/diagnostics. Two competent implementers genuinely diverge here: one implements `useMutation` as LLP 0218's settled-only convenience (always dispatches `queue: false`, gate on brand+kind only, no reference-level policy) and drops the field from the hash closure; the other invents a new per-operation queue-policy manifest field with a settled-only profile default and a live generation gate. Those produce different `NormalizedApplicationDefinitionV1` schemas, different `normalizedContractId` closures, different ref metadata, and different diagnostics. This is material underdetermination of a contract-bearing surface introduced by the r3 closure of this exact contract. The fix is small — either pin `useMutation` as the dispatch-level settled-only convenience and strike the reference-level policy language, or explicitly introduce the per-operation queue-policy field, name its owner (LLP 0218/0108 amendment), its default, and its spelling (or non-spellability) in both profiles — but as written the contract cannot be implemented without deciding an unstated design question.
+
+2. **DETAIL — IN-DELTA — D2 (key matrix vs. disposition table).** "The v1 function object **closes to** this per-kind key matrix" and "unknown keys are also disposition 4" conflict with the next paragraph's pin that `refusals`/`trackedRefusals` "reuse the canonical vocabulary unchanged (disposition 1)" — disposition 1 means the source profile spells the fact, so those keys are accepted on a familiar function object yet absent from the matrix that claims to be the closure. The reconciliation (accepted keys = matrix rows plus disposition-1 rows of the Phase 0 generated table; "unknown" = lacking a disposition) is recoverable but should be stated.
+
+3. **DETAIL — IN-DELTA — D2 (matrix, `effects` row).** The distinction between "declared when used" (mutation) and "required when used" (action) is undefined, and whether an effect-free action is legal in v1 is unstated — a common Convex action is pure computation. One sentence pins both.
+
+4. **DETAIL — IN-DELTA — D2 (familiar action `ctx`).** "Database work composes through the queries and mutations it invokes canonically" is the only specification of the familiar action context. The canonical seam exists (`ctx.runMutation('name', args)` in `guide/backend/actions-and-fetch.md` and `jobs.md`), but whether familiar actions receive that string-named form, a familiar-branded ref-based form (`ctx.runMutation(api.x.y, args)` — the actual Convex prior), or only the D5 extension surface is unpinned; the D6 "actions" row and the Phase 0 disposition table must decide it.
+
+5. **DETAIL — IN-DELTA — D4/D6 (conditional/skip consumption).** r3 names conditional/skip query consumption as a covered compatibility-table row but does not pin its state (`same-shape`/`narrower`/`unsupported`). Whether `useQuery` accepts a skip sentinel changes the hook's signature — the strongest single Convex prior after `useQuery(api.x.y)` itself. The normative-table mechanism guarantees the decision cannot ship undefined, so this is a pin-before-Phase-2 item rather than a blocker.
+
+6. **DETAIL — IN-DELTA — D4 (`useQuery` thrown refusals).** Post-throw semantics are unspecified: whether the hook rethrows on every render while the canonical state remains error-class, and how a boundary-caught refusal recovers when the underlying subscription becomes healthy (boundaries do not auto-reset). The projection table is total over states; the temporal contract belongs with the documented error-boundary guidance, but should be named as owned work.
+
+7. **DETAIL — IN-DELTA — D1 vs. D4 (no-branch rule vs. runtime profile discriminant).** D1 forbids any post-normalization subsystem branch on authoring profile "to decide … transport behavior," while D4 makes the profile fact "a runtime discriminant checked before any resource or transport work." The intended line (admission checks mandated by D1's own no-mixing paragraph never change how an admitted operation behaves) is real but should be stated once to keep the Phase 0 item 3 gate implementable without a judgment call.
+
+8. **DETAIL — IN-DELTA — Terminology closure vs. D1 profile identity.** The closure rule permits excluding only "non-semantic custody and formatting facts," yet cross-profile equivalence (D1: matching normalized definitions across profiles; Acceptance 1) requires the authoring-profile fact — which D1 declares "a semantic-identity input in its own right" — to stay out of `normalizedContractId`. The needle is threadable (the profile fact lives in identity/custody, not in the normalized definition), but Phase 0 item 6 should name the profile fact's handling explicitly; a literal reading of the closure rule either forbids the exclusion or forces calling the profile fact non-semantic.
+
+9. **DETAIL — IN-DELTA — D7 (withdrawal cohorts vs. period end).** After a mid-period component withdrawal creates a new named configuration, the text pins claim attribution and the calendar date but not whether prior-configuration rounds count toward the "three complete qualified comparison rounds" period-end trigger. Harmless to dispositions (per-gate eligibility plus the calendar backstop dominate), but worth one clarifying clause.
+
+10. **DETAIL — PRE-EXISTING — D3/D4/D5 (`delivery: "read"` consumption cliff).** A familiar `delivery: "read"` query is rejected by `useQuery` (live-capable refs only) and has no canonical React hook either (LLP 0238 v1 deliberately ships no one-shot hook; `client.read` only). The familiar profile's own escape hatch therefore produces operations with no hook-shaped consumption path — a cliff the Convex prior does not prepare an agent for. This is a deliberate LLP 0238 inheritance and the experiment will price it, but the D5 progression/JSDoc should route it explicitly.
+
+No DIRECTION-DISSENT: the settled round-1 direction (bounded dual-profile experiment over one canonical pipeline, with stop rule and preregistered dispositions) is well-supported by the cited evidence base, which I verified says what the RFC claims it says.
+
+## Implementer probe
+
+**Familiar function-object validation contract (from D2).** One adapter per generation validates the familiar module graph: determine kind from the generated constructor (`query`/`mutation`/`action`); enforce the per-kind matrix — `args`/`returns`/`auth`/`handler` required everywhere; `reads` required for query/mutation, forbidden for action; `writes` forbidden for query, required for mutation, forbidden for action; `delivery` optional on query with the frozen profile default `"live"`, forbidden elsewhere; `effects` forbidden on query, declared/required-when-used on mutation/action; `secrets`/`capabilities`/`runtime` declared when used. Unknown keys refuse with a stable code (disposition 4). Additional canonical fields come from the Phase 0 generated disposition table (pinned now: `refusals`/`trackedRefusals` direct-canonical; `sequences`/plan alternates refused), and a fail-closed completeness gate refuses the profile while any canonical field lacks a disposition. A missing `returns` or reach key may yield a read-only LLP 0245 suggestion; every other missing required key refuses; nothing activates until accepted source carries every frozen fact. Handlers are bounded `.ts`/`.mts` graphs per LLP 0237/0246; familiar actions get no `ctx.db`; LLP 0249's isolated form refuses with routing. Output: `NormalizedApplicationDefinitionV1` plus `normalizedContractId` per the Terminology closure. **Underdeterminations:** (a) the accepted-key set vs. the matrix's "closes to" claim (concern 2); (b) the queue-policy value the adapter must emit for mutations so the Terminology closure and the D4 gate are computable — no source, owner, spelling, or default exists (concern 1); (c) the `effects` wording split and effect-free actions (concern 3); (d) the familiar action `ctx` invocation surface (concern 4).
+
+**`useQuery` behavioral contract (from D4).** `useQuery(FamiliarLiveQueryRef<A,R>, args): R | undefined`; accepts only familiar-branded live-capable refs, with the profile fact checked at runtime before resource/transport work (explicit-generation refs refuse per Acceptance 2). Projection is the normative total table: authoritative data → `R`; loading, retained/stale/optimistic, stable blocked (incl. `authentication-required`, plus a dev routing diagnostic naming `useQueryState`), authority transition/predecessor data, transient transport loss → `undefined`; error-class typed refusals/sealed refusals/contract failures → throw the canonical `SnapbackDiagnosticError` to the documented boundary; mid-subscription revocation → stable `undefined`, while a fresh one-shot surfaces the typed refusal (consistent with LLP 0247 D2). Argument canonicalization and no-second-cache inherit the canonical hook (LLP 0238 D5 / 0247 D1). **Underdeterminations:** skip-sentinel admission (concern 5); post-throw rethrow/recovery semantics (concern 6). Both are implementable-around but two implementations would visibly differ.
+
+**`useMutation` behavioral contract (from D4).** `useMutation(FamiliarMutationRef) → (args) => Promise<Result>`; resolves only the validated authoritative result; offline, protocol, application, and result-validation failures reject with the canonical typed error, offline before durable custody is accepted; queued intent never maps to success; queue-capable references rejected at generation/typecheck. **Underdetermination:** the gate's predicate — the reference-level "declared queue policy" — has no defined canonical source (concern 1). This is the material one: I could not write this contract without choosing between two divergent designs the text does not choose between.
+
+## Altitude dispositions
+
+- Concern 2: reword the matrix introduction to define accepted keys as matrix rows plus disposition-1 table rows; implementation-phase, does not block a decision.
+- Concern 3: pin the `effects` wording split and effect-free-action legality in the Phase 0 disposition table; one sentence.
+- Concern 4: pin the familiar action `ctx` surface in the D6 "actions" row and Phase 0 table before Phase 1 ships actions.
+- Concern 5: pin the conditional/skip row's four-state disposition before Phase 2; the fail-closed table mechanism already prevents shipping it undefined.
+- Concern 6: specify post-throw/boundary-reset semantics with the documented error-boundary guidance during Phase 2.
+- Concern 7: add one clarifying sentence exempting D1-mandated admission checks from the no-branch rule so the Phase 0 item 3 gate is mechanical.
+- Concern 8: have Phase 0 item 6 name the authoring-profile fact's exclusion (or absence from the normalized projection) explicitly.
+- Concern 9: add one clause stating whether pre-withdrawal rounds count toward the three-round period-end trigger.
+- Concern 10: route the `delivery: "read"` React consumption path explicitly in D5's progression and the D6 table; the benchmark prices the cliff either way.
+
+## Verdict
+
+VERDICT: NOT READY — bound to SHA-256 afaff1bc43d7040bd34b81d5b90d42b0e1b345eed79776b2a663342e8c5be312
+
+The single blocking item is concern 1. Every other delta item verified clean against the referenced LLPs' actual text, and the nine DETAIL concerns are implementation-phase material with dispositions above.
+
+## Self-attestation
+
+I read only paths under `/private/tmp/claude-501/-Users-ccheever-projects-snapback/cacc6372-1db6-4066-a114-318f7e8b68f7/scratchpad/r3-capsule` (the r3 target, `REVIEW_INSTRUCTIONS.md`, referenced LLPs under `llp/`, and capsule copies of `guide/`, `schemas/`, and `packages/snapback-codegen/` used solely to verify the RFC's claims about the shipped canonical surface). I verified the target's byte count and SHA-256 before reading. I used no network access, no web search, and no prior review of this document; I neither sought nor saw any other family's review. I modified, created, and deleted no files. One disclosure: my harness-injected session context included repository status metadata for the primary checkout; I did not read any file outside the capsule and no such metadata informed any concern above.

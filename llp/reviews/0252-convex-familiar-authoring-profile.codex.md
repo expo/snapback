@@ -207,3 +207,64 @@ VERDICT: NOT READY — bound to SHA-256 001ed2dca02e9eb36fc096f84a6c5adffcd7bd14
 I verified the target at exactly 48,812 bytes and the bound SHA-256, read all 958 lines, inspected no prior target-review artifact, made no filesystem changes, and used no network access.
 
 One capsule-only deviation occurred before I learned that constraint from `REVIEW_INSTRUCTIONS.md`: the session’s mandatory skill-routing workflow caused me to read `/Users/ccheever/.codex/skills/llp-review/SKILL.md` in the same initial command that opened the instructions. That file contained generic review-process guidance, not any review of LLP 0252. Every subsequent substantive read stayed within the capsule.
+## Round 3 — 2026-08-12 (final delta round + implementer probe)
+
+- **Runtime:** Codex CLI 0.147.0, model `gpt-5.6-sol`, reasoning effort
+  xhigh, read-only sandbox, capsule-only instructions, web disabled. GPT
+  family launch 4 (1 void).
+- **Capsule:** base `d87d8d9a9cb0f35208c889784991ce40b2fcfe27` (round-2
+  clone with r3 overlay), inventory SHA-256
+  `12639a4fb639b17e052b51f42aa67b58a5bb7119685214fe6adeb8291bab6b1b`,
+  instruction SHA-256
+  `b5adb87feca5f6254ea04c5abe902ea051038a36f675e052e15307b87780c89c`.
+- **Target under review:** r3 SHA-256
+  `afaff1bc43d7040bd34b81d5b90d42b0e1b345eed79776b2a663342e8c5be312`
+  (53,541 bytes), Status: Review.
+- **Verdict:** NOT READY (2 MATERIAL, both IN-DELTA; 3 DETAIL, all
+  IN-DELTA; zero PRE-EXISTING MATERIAL).
+
+The complete response follows verbatim.
+
+---
+
+## Concern ledger
+
+1. **MATERIAL — IN-DELTA — D4 `useMutation`, D2 key matrix, D5.** The reference-level queue-policy contract has no canonical carrier. D4 accepts only references whose “declared queue policy” is `queue: false` and rejects queue-capable references, but D2 defines no `queue` declaration and explicitly says no familiar queue vocabulary exists. LLP 0218 defines `queue:false` as a dispatch-time choice: its settled-only hook accepts a mutation reference and forces `queue:false` internally; LLP 0107 exposes that contract for any `MutationReference`. This also preserves D5’s ability to use the same operation through the canonical queued/offline lifecycle. As written, an implementer must invent a new operation-level policy, reject every otherwise queue-capable mutation, or ignore D4’s generation/typecheck rule. Choose either the canonical dispatch-time model—any familiar-branded mutation reference is accepted and `useMutation` always dispatches with `queue:false`—or explicitly define an operation-level declaration/default, reference metadata, and its relationship to D5. The current public contract is underdetermined.
+
+2. **MATERIAL — IN-DELTA — D4 `useQuery`, D6 compatibility enumeration.** Conditional/skip consumption remains undecided. D6 requires a compatibility-table row but does not assign its disposition; D4 supplies neither a skip overload/sentinel nor an explicit `skipped` projection row. The canonical query surface has a zero-demand skipped state, while D4’s broad “stable non-error” rule suggests `undefined` without deciding whether the familiar alias can enter that state. An implementer must choose between accepting canonical `skip` with zero resource demand and `undefined`, or rejecting conditional consumption with a stable route to `useQueryState`. Merely promising a future row does not close this contract-bearing signature.
+
+3. **DETAIL — IN-DELTA — Terminology, D8, Rollout Phase 0.** The narrower data-migration witness is required to be separately named, but no name, preimage, golden-vector requirement, or migration-command field is specified.
+
+4. **DETAIL — IN-DELTA — Rollout Phase 3.** Item 3 starts the evaluation clock before item 4 lands the backstop that must exist before that clock starts. The normative intent is otherwise clear from D7 and Acceptance 9.
+
+5. **DETAIL — IN-DELTA — D7 disposition eligibility.** “When no gate is met” is unreachable because Withdraw is declared always eligible; the intended condition is evidently “when no non-Withdraw gate is met.”
+
+## Implementer probe
+
+The D2 validator otherwise yields this compact contract:
+
+- `query`: require `args`, `returns`, `auth`, `reads`, and `handler`; permit `delivery` with default `"live"` and explicit `"read"`; forbid `writes` and `effects`.
+- `mutation`: require `args`, `returns`, `auth`, `reads`, `writes`, and `handler`; forbid `delivery`; require effect, secret, capability, and non-default runtime declarations when their capabilities are used.
+- `action`: require `args`, `returns`, `auth`, and `handler`; forbid `reads`, `writes`, and `delivery`; expose no `ctx.db`; require declared effects/capabilities when used; reject the isolated Node action form.
+- Temporarily absent `returns` or reach keys may produce an LLP 0245 read-only suggestion, but activation waits for accepted source. Every other missing required key refuses.
+- Unknown keys refuse. Canonical `refusals` and `trackedRefusals` retain their existing vocabulary; `sequences`, declarative plans, and alternate action forms are unsupported. Any other canonical field remains refused until the generated Phase 0 disposition table covers it.
+
+The intended `useQuery` implementation accepts only familiar-branded, live-capable references and checks the runtime profile discriminant before resource creation. It returns current authoritative data as `Result`; loading, retained/optimistic, blocked, authority-transition, transport-loss, and other stable non-error states as `undefined`; and throws error-class refusals through the canonical `SnapbackDiagnosticError`. `useQueryState` delegates to the canonical full-state hook. Conditional/skip admission remains unresolved by Concern 2.
+
+The intended `useMutation` implementation returns `(args) => Promise<Result>`, resolves only validated authoritative settlement, rejects canonical typed failures, and refuses offline before queued custody. Its profile check is clear, but the reference-policy versus dispatch-option decision remains unresolved by Concern 1.
+
+## Altitude dispositions
+
+3. Name the migration witness, freeze its preimage, and add it to Phase 0 goldens, migration output, and Acceptance 7.
+
+4. Move the tested backstop step before qualification starts the evaluation clock.
+
+5. Replace “no gate” with “no non-Withdraw gate.”
+
+## Verdict
+
+VERDICT: NOT READY — bound to SHA-256 afaff1bc43d7040bd34b81d5b90d42b0e1b345eed79776b2a663342e8c5be312
+
+## Self-attestation
+
+I read only within this capsule, used no network or web access, and modified no files. Before review I verified the target is 53,541 bytes with the bound SHA-256, then read it completely and checked its claims against the cited capsule LLPs. I did not inspect any prior review of LLP 0252.
