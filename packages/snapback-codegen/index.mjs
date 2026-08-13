@@ -5121,11 +5121,12 @@ async function generateInProcessLocked({
   ];
   // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
   // — this separate identity covers only the existing authored byte items;
-  // isolated-evaluation and artifact-schema framing remain generation-only.
+  // toolchain module labels preserve graph participation, but their bytes,
+  // isolated-evaluation, and artifact-schema framing remain generation-only.
   const authoredSourceItems = [
-    ...schemaGraphInputs,
-    ...functionsGraphInputs,
-    ...(routesGraphInputs ?? []),
+    ...authoredModuleGraphIdentity(schemaGraph, backendRoot),
+    ...authoredModuleGraphIdentity(functionsGraph, backendRoot),
+    ...(routesBuild ? authoredModuleGraphIdentity(routesBuild.graph, backendRoot) : []),
     ...(seedSource === null ? [] : [seedSource]),
     ...(demoMetadata.source === null ? [] : [demoMetadata.source]),
     ...(codegenPolicy.source === null ? [] : [codegenPolicy.source]),
@@ -13808,6 +13809,15 @@ function moduleGraphIdentity(graph, backendDir) {
     .map(({ path, bytes }) => [moduleIdentityLabel(path, backendDir), bytes])
     .sort(([a], [b]) => compareCodeUnits(a, b))
     .flatMap(([label, source]) => [label, source]);
+}
+
+function authoredModuleGraphIdentity(graph, backendDir) {
+  return [...graph.values()]
+    .map(({ path, bytes }) => [moduleIdentityLabel(path, backendDir), bytes])
+    .sort(([a], [b]) => compareCodeUnits(a, b))
+    .flatMap(([label, source]) => (
+      label?.startsWith('toolchain:') === true ? [label] : [label, source]
+    ));
 }
 
 function moduleIdentityLabel(path, backendDir) {

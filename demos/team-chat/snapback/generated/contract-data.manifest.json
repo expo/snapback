@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "authoredSourceHash": "sha256:43ddd2b8a2bcb289efb932004cb691bc2854076c2366f53c5f0ca7a9f94fead5",
+  "authoredSourceHash": "sha256:0719f817f7da0e8d1ca7a21d75b6cd7ba5a1a0fa02d74d86916b20aa2c2e2b71",
   "bundleHash": "sha256:99c1d6f217df0765",
   "capabilities": {
     "branchableFixtures": false,

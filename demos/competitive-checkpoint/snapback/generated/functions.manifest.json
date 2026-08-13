@@ -5,7 +5,7 @@
   ],
   "appId": "competitive-checkpoint",
   "artifactKind": "functionManifest",
-  "authoredSourceHash": "sha256:638637a02575ccb1faeb715b31573fde889f4a72469de1b63ce28be1b1d23e28",
+  "authoredSourceHash": "sha256:4455ef68ce8584f85c901a570550adbc9c2d0f836262cb84106a8116d369242b",
   "bundleHash": "sha256:f411bdf4515b32b1",
   "config": [],
   "cronJobs": [],

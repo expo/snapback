@@ -5,10 +5,10 @@
   "auth": {
     "mode": "sessions"
   },
-  "authoredSourceHash": "sha256:950aa6724f9f13d0dea6c8b91b53f1956ced8eecc90718ac7b672a29451092a1",
+  "authoredSourceHash": "sha256:f6fd4094065d4a22a89cfd12c95cd21b2c25d1e5d41369c9bfd941ca9ec0abe7",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:35a1b3812dba0407cdcdb45468b0839d754f1827763475c4fa98529d11f5e23d",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:3b055547437fa7f4229c42acd7bc1503a828c33ddc6111af2b3142e1a3fa2581",
   "portabilityFlags": [],
   "pushSeam": {
     "appScope": {
@@ -46,7 +46,7 @@
     "auth.sessions.v1",
     "notifications.expoPushSeam"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:28f6c3f78f673befd939eede7c2a86f127c5c2727ace990e55bc032609355041",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:6165ee6dae8c042d7a376c313799ac182909cd3a05b69ea421ea610fb1cad01c",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
