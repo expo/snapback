@@ -16,6 +16,28 @@ export interface RuntimeArtifactDigest {
   readonly sha256: string;
 }
 
+export interface PreparedRuntimeReuseIdentity {
+  readonly schemaVersion: 'snapback.prepared-runtime-reuse.v1';
+  readonly source: Readonly<{ entryCount: number; sha256: string }>;
+  readonly qualification: Readonly<{
+    entryCount: number;
+    sha256: string;
+    inputs: readonly string[];
+    probe: 'restricted-no-eval-handler-vm';
+  }>;
+  readonly toolchain: Readonly<{
+    cargo: string;
+    cc: string;
+    cxx: string;
+    node: string;
+    rustc: string;
+    hostTarget: string | null;
+  }>;
+  readonly platform: string;
+  readonly buildEnvironment: Readonly<Record<string, string>>;
+  readonly closureSha256: string;
+}
+
 export declare function digestRuntimeArtifacts(
   root: string,
   options?: { platform?: string; candidates?: readonly string[] | null }
@@ -37,6 +59,7 @@ export interface RuntimeReadinessReceipt {
   readonly artifacts: readonly RuntimeArtifactDigest[];
   readonly buildIdentity: Record<string, unknown> | null;
   readonly qualification: Record<string, unknown>;
+  readonly preparedRuntime?: PreparedRuntimeReuseIdentity;
   readonly sourceRevision?: string;
   readonly packageName?: string;
 }
@@ -53,6 +76,7 @@ export declare function issueRuntimeReadinessReceipt(options: {
   sourceRevision?: string | null;
   packageName?: string | null;
   platformId?: string | null;
+  preparedRuntime?: PreparedRuntimeReuseIdentity | null;
 }): { receipt: RuntimeReadinessReceipt; receiptPath: string };
 
 export interface RuntimeReadinessVerification {

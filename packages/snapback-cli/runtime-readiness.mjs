@@ -189,6 +189,7 @@ export function issueRuntimeReadinessReceipt({
   sourceRevision = null,
   packageName = null,
   platformId = null,
+  preparedRuntime = null,
 }) {
   root = resolve(root);
   binaryPath = resolve(binaryPath);
@@ -220,6 +221,7 @@ export function issueRuntimeReadinessReceipt({
     },
     ...(sourceRevision === null ? {} : { sourceRevision }),
     ...(packageName === null ? {} : { packageName }),
+    ...(preparedRuntime === null ? {} : { preparedRuntime }),
   };
   receiptPath = resolvedReceiptPath(binaryPath, receiptPath);
   const temporary = `${receiptPath}.${randomUUID()}.tmp`;

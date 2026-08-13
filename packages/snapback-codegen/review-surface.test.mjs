@@ -123,6 +123,8 @@ try {
     action: 0,
     live: 0,
   });
+  // This fixture declares public-read visibility, so only the deliberately
+  // degraded query result contributes a warning.
   assert.equal(first.summary.counts.warnings, 1);
   assert.equal(first.summary.counts.degradedResults, 1);
   assert.deepEqual(first.summary.degradedResults[0].source, {

@@ -35,6 +35,10 @@ import {
   issueRuntimeReadinessReceipt,
   runtimeArtifactCandidates,
 } from '../packages/snapback-cli/runtime-readiness.mjs';
+import {
+  capturePreparedRuntimeReuse,
+  comparePreparedRuntimeReuse,
+} from '../packages/snapback-cli/prepared-runtime-reuse.mjs';
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
@@ -241,6 +245,18 @@ export async function runRuntimeLinkProbe({
   const cargoArgs = ['build', '--locked', '--bin', 'snapback', '--target-dir', targetDir];
   const expected = readCheckoutRuntimeIdentity(root);
   const inputs = producerInputs(root, cargoCommand, cargoArgs, environment);
+  let preparedRuntimeBefore = null;
+  try {
+    preparedRuntimeBefore = capturePreparedRuntimeReuse({ root, environment });
+  } catch (error) {
+    // Source exports and narrow link-probe fixtures may not carry the
+    // repository's prepared-runtime closure authorities. They can still
+    // receive an ordinary readiness receipt after qualification.
+    console.error(
+      `[runtime-link-smoke] prepared-runtime closure capture before build failed: `
+        + `${error?.message ?? error}; continuing with ordinary readiness qualification`,
+    );
+  }
   const candidate = staleBinaryCandidate(root, environment);
   let result;
   try {
@@ -390,11 +406,36 @@ export async function runRuntimeLinkProbe({
     let receiptPath = null;
     if (keepTarget) {
       try {
+        let preparedRuntime = null;
+        if (preparedRuntimeBefore !== null) {
+          try {
+            const preparedRuntimeAfter = capturePreparedRuntimeReuse({ root, environment });
+            // @ref LLP 0232#d-2-prepared-execution-and-rebase-stable-records — bind reusable preparation only when the
+            // source/toolchain/qualification closure stayed unchanged across
+            // the actual build and qualification window. Otherwise the
+            // ordinary readiness proof remains valid, but it cannot transfer
+            // prepared work to another checkout.
+            if (comparePreparedRuntimeReuse(
+              preparedRuntimeBefore,
+              preparedRuntimeAfter,
+            ).ok) {
+              preparedRuntime = preparedRuntimeAfter;
+            }
+          } catch (error) {
+            // The ordinary receipt remains useful even when the optional
+            // prepared-runtime closure cannot be recaptured after the build.
+            console.error(
+              `[runtime-link-smoke] prepared-runtime closure capture after qualification failed: `
+                + `${error?.message ?? error}; issuing an ordinary non-reusable readiness receipt`,
+            );
+          }
+        }
         ({ receiptPath } = issueRuntimeReadinessReceipt({
           root,
           binaryPath: binary,
           qualification: qualificationRecord,
           issuer: 'runtime-link-smoke',
+          preparedRuntime,
         }));
       } catch (error) {
         const code = RUNTIME_READINESS_INVALID_CODE;

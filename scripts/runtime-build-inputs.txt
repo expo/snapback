@@ -43,6 +43,7 @@ vendor/ibex
 # include_str!/include_bytes! targets outside src/)
 guide
 brand
+schemas/http.routes.v1.json
 packages/snapback-harness
 packages/snapback-admin-client
 tests/conformance

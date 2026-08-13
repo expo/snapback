@@ -19,7 +19,11 @@ const compositionHash = (domain, value) => `sha256:${createHash('sha256')
   .digest('hex')}`;
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
-const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
+const toolchainProbeDir = mkdtempSync(join(packageDir, '.toolchain-identity-probe-'));
+const toolchainProbePath = join(toolchainProbeDir, 'define-probe.mjs');
+const toolchainProbeSource = `export * from '../define.mjs';\n`;
+writeFileSync(toolchainProbePath, toolchainProbeSource);
+const defineUrl = pathToFileURL(toolchainProbePath).href;
 const dir = mkdtempSync(join(tmpdir(), 'snapback-relation-activity-'));
 
 try {
@@ -440,6 +444,17 @@ export const baseline = defineLiveQuery({
     rotated.appDescriptor.api.queries.incidentTasks.authoredSourceHash,
     result.authoredSourceHash,
   );
+
+  writeFileSync(toolchainProbePath, `${toolchainProbeSource}// toolchain-byte-edit\n`);
+  const sourceRotated = await generateInProcess(dir);
+  assert.equal(sourceRotated.ok, true, JSON.stringify(sourceRotated.diagnostics));
+  assert.equal(sourceRotated.authoredSourceHash, result.authoredSourceHash);
+  assert.notEqual(
+    sourceRotated.functionManifest.inputsHash,
+    v2Current.functionManifest.inputsHash,
+    'toolchain source bytes remain part of the generated-artifact staleness identity',
+  );
+  writeFileSync(toolchainProbePath, toolchainProbeSource);
 
   writeFileSync(join(dir, 'functions.mjs'), `${profileSource}\n// authored-byte-edit\n`);
   const edited = await generate(dir);
@@ -896,6 +911,7 @@ export default defineSchema({ incidents, tasks, activity });`,
   );
 } finally {
   rmSync(dir, { recursive: true, force: true });
+  rmSync(toolchainProbeDir, { recursive: true, force: true });
 }
 
 console.log('relation/activity authoring tests passed');

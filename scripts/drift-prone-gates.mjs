@@ -1953,6 +1953,16 @@ function revisionEnvironment(root) {
   if (existsSync(join(root, 'target'))) {
     environment.CARGO_TARGET_DIR = join(root, 'target');
   }
+  const preparedRuntimeBinary = join(root, 'target', 'debug', 'snapback');
+  if (existsSync(preparedRuntimeBinary)
+    && existsSync(`${preparedRuntimeBinary}.runtime-readiness.json`)) {
+    // @ref LLP 0232#d-2-prepared-execution-and-rebase-stable-records — detached heavy gates may propose the invoking
+    // worktree's prepared binary; bootstrap remains the proof consumer and
+    // accepts it only after closure and readiness verification.
+    // The runtime self-reports its invoking build commit and implementation digest, so never extend this advertisement to a future gate that validates served build identity against its pushed revision.
+    environment.SNAPBACK_PREPARED_RUNTIME_ROOT = root;
+    environment.SNAPBACK_PREPARED_RUNTIME_BINARY = preparedRuntimeBinary;
+  }
   return environment;
 }
 
