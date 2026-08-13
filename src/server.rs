@@ -1554,7 +1554,7 @@ impl IbexActionHost for DetachedActionHost {
             return Err(action_deadline_elapsed("fetchStream.open"));
         }
         let request_timeout = remaining.min(Duration::from_millis(ACTION_STREAM_IDLE_MS));
-        // @ref LLP 0251#consumers — destination admission completes before
+        // @ref LLP 0251#consumerprofile-contract — destination admission completes before
         // the stream attempt is pre-marked, then the request uses only the
         // shared pinned/no-redirect/no-env-proxy transport.
         let prepared_target = crate::outbound_policy::prepare_http_target(
@@ -1819,7 +1819,7 @@ impl IbexActionHost for DetachedActionHost {
                 .unwrap_or(15_000),
         );
         let request_timeout = requested_timeout.min(remaining);
-        // @ref LLP 0251#consumers — buffered and streamed action fetch share
+        // @ref LLP 0251#consumerprofile-contract — buffered and streamed action fetch share
         // one destination floor and the same DNS-pinned transport.
         let prepared_target = crate::outbound_policy::prepare_http_target(
             &request.url,

@@ -3307,7 +3307,7 @@ export class Coordinator {
   // diagnostic that re-enters the isolate — error messages, the final URL,
   // even the upstream body — is redacted first. The coordinator owns the
   // scrub; handler-side redaction remains defense in depth, not the line.
-  // @ref LLP 0251#shared-primitive — the last host-owned boundary admits the
+  // @ref LLP 0251#cloudflare-degradation-and-existing-claims — the last host-owned boundary admits the
   // authored destination before placing secret values and refuses redirects.
   // Workers has no DNS-resolution/pinning primitive, so this profile enforces
   // hostname and IP-literal policy only; DNS rebinding remains an explicit

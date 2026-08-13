@@ -10331,7 +10331,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 40] = [
+    pub const ALL: [Self; 41] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -16349,6 +16349,10 @@ mod membership_manifest_grammar_tests {
         let experimental = BTreeMap::from([
             (
                 TargetCapabilityId::BoundedChildrenV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::BoundedBatchReadsV1,
                 CapabilityMaturity::Experimental,
             ),
             (

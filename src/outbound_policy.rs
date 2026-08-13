@@ -11,7 +11,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 
 /// The closed destination profiles currently admitted by the Rust host.
-// @ref LLP 0251#shared-primitive — all Rust HTTP egress consumers share this
+// @ref LLP 0251#canonical-admission-algorithm — all Rust HTTP egress consumers share this
 // public-address floor and the same pinned, no-redirect, no-env-proxy agent.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HttpTargetPolicy {

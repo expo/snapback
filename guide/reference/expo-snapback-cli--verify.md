@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:face6efb56045367f8ab0f326c695f9dfb794cf67f09
 # @expo/snapback-cli/verify
 
 Build-bound public API projection for `@expo/snapback-cli/verify`. Canonical registry identity:
-`sha256:5e5fe63a6c20db6f9c4151d6cd9d158253cb5691db86c2599c5e0afb5e5f87cd`.
+`sha256:b9e1c76577071e70b44214cd84991a79d00ce58d469c91af2857f287a681b797`.
 Runtime parity condition:
 `default` → `packages/snapback-cli/verify.mjs`.
 

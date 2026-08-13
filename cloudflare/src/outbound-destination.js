@@ -7,7 +7,7 @@
 // remains an explicit target residual; this profile must not claim DNS-pinned
 // or multi-tenant-SSRF-proof egress until Workers supplies that primitive.
 //
-// @ref LLP 0251#shared-primitive — port the webhook IP/hostname predicates at
+// @ref LLP 0251#cloudflare-degradation-and-existing-claims — port the webhook IP/hostname predicates at
 //   the last host-owned boundary without pretending Workers can pin DNS.
 
 const MAX_OUTBOUND_URL_BYTES = 4096;

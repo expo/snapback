@@ -541,6 +541,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
         vec![
             "auth.sessions.v1",
             "bounded_children_v1",
+            "bounded_batch_reads_v1",
             "cron",
             "cron_action_run_mutation",
             "host_plan_runtime",
@@ -584,7 +585,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "asset_video_finalization_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 40);
+    assert_eq!(TargetCapabilityId::ALL.len(), 41);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),

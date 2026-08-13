@@ -9,7 +9,7 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/admin.rs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapback-client/auth-identity-types.fixture.ts]
 status: current
 targets: [local]
@@ -280,7 +280,14 @@ local-test material (admin- and impersonation-gated; never in a browser
 bundle). What a web author actually does today is one of these:
 
 - **Dev mode** (`auth: { mode: 'dev' }`) for the authoring loop — trusted
-  client-passed `userId`, no sign-in UI at all.
+  client-passed `userId`, no sign-in UI at all. Browser requests may carry
+  that selector from the Snapback listener's own origin or an exact loopback
+  origin listed in `SNAPBACK_DEV_AUTH_ORIGINS` (comma-separated); another
+  localhost port is refused with `SNAPBACK_AUTH_DEV_ORIGIN_REFUSED`. The
+  supervised Expo loop registers its Metro origin automatically, and the
+  standard Vite composition uses the same-origin `/__snapback` relay. Curl,
+  tests, and server-side clients that send no `Origin` retain the existing
+  trusted-local behavior.
 - **Test/dev personas** for acceptance suites and Vite surfaces — the privileged
   mailbox read stays in the suite harness or the
   [serve-only dev mailbox relay](../recipes/browser-auth.md#get-the-sign-in-code-in-local-development).
