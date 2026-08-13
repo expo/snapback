@@ -9226,6 +9226,11 @@
           "type": "string"
         },
         {
+          "const": "offline_mutation_replay",
+          "description": "The target atomically retains a client-mutation settlement under the\ncaller's replay-stable id and republishes it on duplicate delivery.\nThis is the safety prerequisite for a durable client outbox; it is\nindependent from merely accepting a `clientMutationId` field.",
+          "type": "string"
+        },
+        {
           "const": "snapshot_batch_v2",
           "description": "LLP 0157's mixed bounded-child/relational composite. Registration is\nexperimental and local-only; hosted, remote, and Cloudflare targets\nretain explicit gaps until their own executors and evidence land.",
           "type": "string"

@@ -1,3 +1,6 @@
 (async function() {
-  return await globalThis.__snapbackSettle(__SNAPBACK_EXPORT__, __SNAPBACK_ARGS__, __SNAPBACK_AUTH__, __SNAPBACK_MODE__, __SNAPBACK_RUN__, __SNAPBACK_SECRETS__, __SNAPBACK_EPOCH__);
+  var invocation = JSON.parse("
+__SNAPBACK_INVOCATION_JSON__
+");
+  return await globalThis.__snapbackSettle(invocation.export, invocation.argsJson, invocation.authJson, invocation.mode, invocation.runJson, invocation.secretsJson, invocation.epoch);
 })()

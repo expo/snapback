@@ -62,7 +62,7 @@ export const schema = {
 export const bundleHash = deploymentIdentity.bundleHash;
 
 export const functions = [
-  { name: 'listNotes', kind: 'LiveQuery', export: 'listNotes', tables: ['notes'] },
+  { name: 'listNotes', kind: 'LiveQuery', export: 'listNotes', tables: ['notes'], authRequirement: 'public' },
   // RQS-eligible queries (LLP 0090 rollout step 4). These are declarative
   // HostPlan queries the coordinator evaluates natively — no JS handler, no
   // opaque code — which is what makes the compiled facts honest: the

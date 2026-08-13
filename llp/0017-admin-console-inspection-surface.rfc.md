@@ -5,6 +5,11 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
+**Revised:** 2026-08-12 (ordinary `snapback admin` browser launch now puts only
+the existing process-ephemeral, single-use, thirty-minute `sbcl_` claim in the
+browser helper argv; the same-origin loopback page atomically exchanges it for
+the live `sbcc_` credential after stripping the fragment, while `--no-open`
+retains the explicit stdout-only derived-credential URL)
 **Revised (published console closure):** 2026-08-10 (each published platform
 runtime now carries a closed, build-matched Contract/Exact snapshot; the CLI
 selects it automatically, the runtime package seal binds every console byte,
@@ -548,13 +553,16 @@ Local defaults:
   `snapback_console_credential_v1`, removes it when stale, and sends it only as
   `x-snapback-console-credential`; the master never enters `localStorage`,
   `sessionStorage`, or IndexedDB. `snapback admin --ready-file P` validates the
-  descriptor against the live startup nonce, reads the owner-only token path
-  admitted by that trusted descriptor, exchanges the master in the CLI, and
-  opens `/_snapback/admin/` with only `sbcc_` plus its expiry in the URL
-  fragment; the page removes the fragment before boot and stores the derived
-  record through the same client path. `--no-open` explicitly prints that
-  fragment URL for headless handoff. A URL-only target never selects a local
-  file and requires an explicit token.
+  descriptor against the live startup nonce and reads the owner-only token path
+  admitted by that trusted descriptor. When browser opening is requested, the
+  CLI mints the existing process-ephemeral, single-use, thirty-minute `sbcl_`
+  claim and passes only its `#claim=` URL to `open`/`xdg-open`/`cmd`; no live
+  `sbcc_` credential appears in child-process argv. The same-origin loopback
+  page removes the fragment, atomically exchanges the claim, and stores the
+  derived record through the ordinary client path. `--no-open` is an explicit
+  headless handoff: the CLI instead exchanges the master itself and prints the
+  `sbcc_` fragment URL to its own stdout without spawning a browser helper. A
+  URL-only target never selects a local file and requires an explicit token.
 
   An active derived credential may renew itself only on a loopback local
   target in the `dev` profile and dev auth policy. Renewal slides the ten-minute
@@ -1001,6 +1009,10 @@ The accepted local contract must keep the following acceptance proofs green:
 - `snapback admin --no-open` prints a fragment-bearing URL whose only
   credential is derived `sbcc_`, and that credential authenticates the real
   admin API;
+- ordinary `snapback admin` browser launch never places `sbat_` or `sbcc_`
+  authority on child-process argv: it carries only a valid `sbcl_` claim, that
+  claim exchanges once on the same-origin loopback console path, and reuse,
+  expiry, non-loopback, and hosted attempts fail closed;
 - active console credentials survive a file-backed server restart and renew
   past their base TTL without crossing their absolute lifetime cap;
 - console device codes expire, are single-use, are rate/cap bounded, and release

@@ -17,7 +17,7 @@ use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan,
     MutationPlan, MutationStep, QueryPlan, ResultObjectFieldContract, ResultValueContract,
-    ReturnValue, SchemaManifest, TableManifest, ValueExpr,
+    ReturnValue, SchemaManifest, TableManifest, TableVisibilityV1, ValueExpr,
 };
 use std::collections::BTreeMap;
 
@@ -60,6 +60,41 @@ fn live_delta_is_emitted_for_an_unordered_filtered_query() {
         drain(&mut snapback, "conn").is_empty(),
         "a non-matching commit produces no delta for this subscription"
     );
+}
+
+/// A handwritten owner-visible query has no redundant ownerId filter. Its
+/// retained membership and point dependencies must still turn an ownership
+/// transfer into a remove instead of letting the client retain a forbidden row.
+///
+/// @ref LLP 0008#reactivity-and-read-sets — false-negative matcher skips are
+///   correctness bugs; captured row ids cover result exits as well as entries.
+#[test]
+fn owner_visibility_transfer_emits_remove_on_the_delta_lane() {
+    let mut snapback = configured();
+    let established = snapback
+        .subscribe_live("listOwnerVisible", sub_input("owner-conn", "ada"))
+        .expect("subscribe owner-visible query");
+    assert!(
+        established
+            .snapshot
+            .expect("initial snapshot")
+            .rows
+            .is_empty(),
+        "the subscription starts empty"
+    );
+
+    let id = create_owner_visible(&mut snapback, "owned by ada", "ada");
+    let added = drain_one_update(&mut snapback, "owner-conn");
+    assert_eq!(added["kind"], "live_delta");
+    assert_eq!(added["ops"][0]["op"], "add");
+    assert_eq!(added["ops"][0]["id"], id);
+
+    set_owner_visible_user(&mut snapback, &id, "bob");
+    let removed = drain_one_update(&mut snapback, "owner-conn");
+    assert_eq!(removed["kind"], "live_delta");
+    assert_eq!(removed["ops"].as_array().expect("ops").len(), 1);
+    assert_eq!(removed["ops"][0]["op"], "remove");
+    assert_eq!(removed["ops"][0]["id"], id);
 }
 
 /// An ordered query keeps the honest whole-result `live_replace` path (the
@@ -410,6 +445,28 @@ fn create(snapback: &mut LocalSnapback, title: &str, user: &str) -> String {
         .to_owned()
 }
 
+fn create_owner_visible(snapback: &mut LocalSnapback, title: &str, user: &str) -> String {
+    snapback
+        .invoke_mutation(
+            "createOwnerTodo",
+            input(json!({ "title": title, "userId": user }), user),
+        )
+        .expect("create owner-visible row")
+        .result
+        .as_str()
+        .expect("id")
+        .to_owned()
+}
+
+fn set_owner_visible_user(snapback: &mut LocalSnapback, id: &str, user: &str) {
+    snapback
+        .invoke_mutation(
+            "setOwnerUser",
+            input(json!({ "id": id, "userId": user }), "admin"),
+        )
+        .expect("set owner-visible user");
+}
+
 fn set_user(snapback: &mut LocalSnapback, id: &str, user: &str) {
     snapback
         .invoke_mutation(
@@ -449,7 +506,11 @@ fn todo_id(snapback: &LocalSnapback, title: &str) -> String {
 fn configured() -> LocalSnapback {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
     snapback.apply_schema(schema()).expect("schema");
-    snapback.load_functions(functions());
+    let diagnostics = snapback.load_functions(functions());
+    assert!(
+        diagnostics.is_empty(),
+        "function diagnostics: {diagnostics:#?}"
+    );
     snapback
 }
 
@@ -479,40 +540,52 @@ fn input(args: Value, user: &str) -> HandlerInput {
 fn schema() -> SchemaManifest {
     SchemaManifest {
         schema_hash: Some("delta-v0".to_owned()),
-        tables: vec![TableManifest {
-            name: "todos".to_owned(),
-            fields: vec![
-                FieldManifest {
-                    name: "title".to_owned(),
-                    field_type: FieldType::String,
-                    optional: false,
-                },
-                FieldManifest {
-                    name: "userId".to_owned(),
-                    field_type: FieldType::String,
-                    optional: false,
-                },
-                // Optional → a row that omits it stores SQL NULL (finding A).
-                FieldManifest {
-                    name: "priority".to_owned(),
-                    field_type: FieldType::Integer,
-                    optional: true,
-                },
-            ],
-            indexes: Vec::new(),
-            syncable: true,
-            permission_backing: false,
-            permission_fields: None,
-            search_indexes: Vec::new(),
-            vector_indexes: Vec::new(),
-            search_live_limits: None,
-            membership: None,
-            authority_profile: None,
-            asset_sharing: None,
-            visibility: None,
-            history: None,
-        }],
+        tables: vec![
+            todo_table("todos", None),
+            todo_table(
+                "owner_todos",
+                Some(TableVisibilityV1::Owner {
+                    field: "userId".to_owned(),
+                }),
+            ),
+        ],
         ..SchemaManifest::default()
+    }
+}
+
+fn todo_table(name: &str, visibility: Option<TableVisibilityV1>) -> TableManifest {
+    TableManifest {
+        name: name.to_owned(),
+        fields: vec![
+            FieldManifest {
+                name: "title".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            },
+            FieldManifest {
+                name: "userId".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            },
+            // Optional → a row that omits it stores SQL NULL (finding A).
+            FieldManifest {
+                name: "priority".to_owned(),
+                field_type: FieldType::Integer,
+                optional: true,
+            },
+        ],
+        indexes: Vec::new(),
+        syncable: true,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility,
+        history: None,
     }
 }
 
@@ -544,6 +617,21 @@ fn functions() -> FunctionManifest {
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
             steps: vec![MutationStep::Insert {
                 table: "todos".to_owned(),
+                values: BTreeMap::from([
+                    ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                    ("userId".to_owned(), ValueExpr::Arg("userId".to_owned())),
+                ]),
+                bind_id_as: Some("id".to_owned()),
+            }],
+            return_value: Some(ReturnValue::Binding("id".to_owned())),
+        })),
+    );
+    let owner_insert = FunctionDefinition::new(
+        "createOwnerTodo",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "owner_todos".to_owned(),
                 values: BTreeMap::from([
                     ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
                     ("userId".to_owned(), ValueExpr::Arg("userId".to_owned())),
@@ -630,6 +718,42 @@ fn functions() -> FunctionManifest {
         })),
     );
     install_result_contract(&mut list_version_one, documents_contract());
+    let mut list_owner_visible = FunctionDefinition::new(
+        "listOwnerVisible",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+            table_visibility: Some(TableVisibilityV1::Owner {
+                field: "userId".to_owned(),
+            }),
+            table: "owner_todos".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        })),
+    );
+    list_owner_visible.authorization_dependence =
+        vec![snapback::manifest::AuthorizationInputDimension::UserId];
+    install_result_contract(
+        &mut list_owner_visible,
+        documents_contract_for("owner_todos"),
+    );
+    let owner_patch = FunctionDefinition::new(
+        "setOwnerUser",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            steps: vec![MutationStep::Patch {
+                table: "owner_todos".to_owned(),
+                id: ValueExpr::Arg("id".to_owned()),
+                values: BTreeMap::from([(
+                    "userId".to_owned(),
+                    ValueExpr::Arg("userId".to_owned()),
+                )]),
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        })),
+    );
     let mut list_mine_narrow = filtered_query("listMineNarrow", Vec::new());
     install_result_contract(&mut list_mine_narrow, narrowed_records_contract());
     let mut list_mine_narrow_document = filtered_query("listMineNarrowDocument", Vec::new());
@@ -696,7 +820,10 @@ fn functions() -> FunctionManifest {
             ),
             list_urgent,
             list_version_one,
+            list_owner_visible,
             insert,
+            owner_insert,
+            owner_patch,
             create_with_priority,
             create_then_delete,
             patch("setUser", "userId"),
@@ -723,9 +850,13 @@ fn install_result_contract(function: &mut FunctionDefinition, contract: Function
 }
 
 fn documents_contract() -> FunctionResultContract {
+    documents_contract_for("todos")
+}
+
+fn documents_contract_for(table: &str) -> FunctionResultContract {
     FunctionResultContract::Documents {
-        table: "todos".to_owned(),
-        document: todo_row_contract(1024 * 1024),
+        table: table.to_owned(),
+        document: todo_row_contract_for(table, 1024 * 1024),
     }
 }
 
@@ -737,6 +868,10 @@ fn narrowed_records_contract() -> FunctionResultContract {
 }
 
 fn todo_row_contract(title_max_bytes: usize) -> ResultValueContract {
+    todo_row_contract_for("todos", title_max_bytes)
+}
+
+fn todo_row_contract_for(table: &str, title_max_bytes: usize) -> ResultValueContract {
     let system_integer = || ResultValueContract::Integer {
         min: 0,
         max: 9_007_199_254_740_991,
@@ -751,7 +886,7 @@ fn todo_row_contract(title_max_bytes: usize) -> ResultValueContract {
                 name: "_id".to_owned(),
                 required: true,
                 value: ResultValueContract::Id {
-                    table: "todos".to_owned(),
+                    table: table.to_owned(),
                 },
             },
             ResultObjectFieldContract {

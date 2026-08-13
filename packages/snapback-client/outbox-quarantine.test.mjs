@@ -1,13 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { SnapbackClient } from './index.mjs';
+import { SnapbackClient as InspectingSnapbackClient } from './index.mjs';
 import {
   emptyOutboxState,
   OUTBOX_MAX_RECORDS,
   outboxOps,
 } from './outbox-shared.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+
+class SnapbackClient extends InspectingSnapbackClient {
+  constructor(baseUrl, options = {}) {
+    super(baseUrl, {
+      __offlineMutationReplayCapability: true,
+      ...options,
+    });
+  }
+}
 
 const originalFetch = globalThis.fetch;
 

@@ -33,3 +33,13 @@ Run `SecretRedactor` (the same staging-time one already on `DetachedIbexAction`)
 ## Confidence
 
 High. Closed `issues/closed/20260723-llp0076-secret-scrubbing.md` was about stream **descriptor** slots, not this sink.
+
+## Resolution (2026-08-12)
+
+The runtime observation sink now carries the same staging-time
+`SecretRedactor` snapshot as the action error boundary. `runtime.log` scrubs
+structured string leaves before telemetry capture and optional stderr echo,
+and host-call trace arguments are scrubbed before retention, including
+`host.fetch` header values. An actual handler logging an injected value pins
+telemetry, stderr rendering, and trace redaction without changing successful
+action result semantics.

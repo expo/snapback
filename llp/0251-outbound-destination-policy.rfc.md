@@ -193,6 +193,26 @@ A landing claiming this RFC Implemented must provide executable evidence that:
    the floor Enforced, fixed-provider Cloudflare uses the residual wording, and
    excluded infrastructure transports gain no claim from these results.
 
+## Implementation record
+
+- 2026-08-12 — the concrete P1 parity landing
+  (`issues/closed/20260812-host-fetch-ssrf-parity-with-webhooks.md`): Rust
+  `src/outbound_policy.rs` is the shared primitive behind webhooks and both
+  host action-fetch lanes (metadata/non-public answers refused, resolver
+  pinned at transport time, redirects(0), env proxies ignored, authored URL
+  echoed, loopback denied unless `SNAPBACK_OUTBOUND_LOOPBACK=1` or the
+  `cfg(test)` harness). The Cloudflare coordinator applies a JavaScript port
+  of the public-destination predicates to buffered and streamed
+  `hostActionFetch` before secret placement (absolute HTTP(S) only, URL
+  credentials/fragments refused, metadata/localhost names and non-public
+  IPv4/IPv6 literals refused including v4-mapped v6, manual redirect handling
+  refusing every hop, authored URL echoed). Workers/workerd exposes no DNS
+  answer this code could pin, so the Cloudflare profile retains the
+  DNS-rebinding residual and claims no floor. This landing predates this
+  revision's full acceptance battery: Ask/Expo migration onto the shared
+  primitive, the Rust/JS canonical-authority fixture matrix, and the manifest
+  assertions of item 7 remain open toward Implemented.
+
 ## Status
 
 Review. Filed from the 2026-08-12 review

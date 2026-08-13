@@ -16,7 +16,7 @@
 // Run: node cloudflare/test/acceptance.egress.mjs
 import http from 'node:http';
 import fs from 'node:fs';
-import { startProof, ADMIN_TOKEN } from './harness.mjs';
+import { startProof, ADMIN_TOKEN, proxyOutboundTo } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { bindingNameFor } from '../config-set.mjs';
 import { cloudflareClientOptions } from '../client-options.mjs';
@@ -25,13 +25,14 @@ const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback
 
 const FEED_KEY = 'test-511-key-alpha';
 const DIRECTIONS_KEY = 'test-ors-key-omega';
+const AUTHORED_ORIGIN = 'https://upstream.example';
 const SECRET_BINDINGS = {
   [bindingNameFor('all-aboard', 'caltrainFeed')]: JSON.stringify([FEED_KEY]),
   [bindingNameFor('all-aboard', 'directions')]: JSON.stringify([DIRECTIONS_KEY]),
   SNAPBACK_CONFIG_GENERATION: '1',
 };
 
-const EXPECTED_CHECKS = 29;
+const EXPECTED_CHECKS = 31;
 let checks = 0;
 function check(label, condition) {
   checks += 1;
@@ -72,7 +73,7 @@ function siriBody() {
 // 401 body deliberately echoes the presented key so redaction is tested
 // against an upstream that leaks it back.
 function startMockUpstream() {
-  const seen = { feedKeys: [], directionAuths: [] };
+  const seen = { feedKeys: [], directionAuths: [], streamRequests: 0 };
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1');
     if (url.pathname === '/transit/StopMonitoring') {
@@ -108,7 +109,13 @@ function startMockUpstream() {
       }, 2000);
       return;
     }
+    if (url.pathname === '/stream-redirect') {
+      res.writeHead(302, { location: '/stream' });
+      res.end();
+      return;
+    }
     if (url.pathname === '/stream') {
+      seen.streamRequests += 1;
       res.writeHead(200, { 'content-type': 'application/octet-stream' });
       let index = 0;
       const emit = () => {
@@ -174,14 +181,19 @@ function startMockUpstream() {
 
 async function main() {
   const mock = await startMockUpstream();
-  const proof = await startProof({ app: 'all-aboard', port: 0, bindings: SECRET_BINDINGS });
+  const proof = await startProof({
+    app: 'all-aboard',
+    port: 0,
+    bindings: SECRET_BINDINGS,
+    outboundService: proxyOutboundTo(mock.origin),
+  });
   const base = await proof.url();
   const client = new SnapbackClient(base, cloudflareClientOptions({ adminToken: ADMIN_TOKEN }));
   try {
     await client.ensureApp({ seed });
 
     // --- live 511 path through coordinator query-param substitution -------
-    const feedUrl = `${mock.origin}/transit/StopMonitoring`;
+    const feedUrl = `${AUTHORED_ORIGIN}/transit/StopMonitoring`;
     const refresh = await client.action('refreshFeed', { args: { trigger: 'manual', feedUrl } });
     check('client.action reaches the gateway action route for refreshFeed', refresh.ok === true && refresh.kind === 'Action');
     check(
@@ -233,7 +245,7 @@ async function main() {
     // --- directions path through coordinator header substitution ----------
     const versionBeforeRoute = (await client.query('feedState', {})).version;
     const route = await client.action('routeEstimate', {
-      args: { fromLat: 37.77, fromLng: -122.39, toLat: 37.44, toLng: -122.16, mode: 'walk', baseUrl: `${mock.origin}/` },
+      args: { fromLat: 37.77, fromLng: -122.39, toLat: 37.44, toLng: -122.16, mode: 'walk', baseUrl: `${AUTHORED_ORIGIN}/` },
     });
     check('client.action reaches the gateway action route for routeEstimate', route.ok === true);
     check(
@@ -251,7 +263,7 @@ async function main() {
     const connectionId = 'egress-conn';
     const live = await client.liveQuery('liveTrainStatus', { connectionId, transport: 'stream' });
     const liveVersionBefore = live.version;
-    const slow = client.action('probeSlowFetch', { args: { url: `${mock.origin}/slow` } });
+    const slow = client.action('probeSlowFetch', { args: { url: `${AUTHORED_ORIGIN}/slow` } });
     await new Promise((resolve) => setTimeout(resolve, 150)); // the slow fetch is in flight
     const t0 = Date.now();
     const during = await client.query('stationsQuery', {});
@@ -270,25 +282,43 @@ async function main() {
 
     // --- bounded response stream uses the same authored action surface ----
     const streamed = await client.action('probeResponseStream', {
-      args: { url: `${mock.origin}/stream` },
+      args: { url: `${AUTHORED_ORIGIN}/stream` },
     });
     check(
       'the Workerd action isolate pulls the complete response through ctx.fetchStream',
       streamed.ok === true && streamed.result.totalBytes === 8 * 4096 && streamed.result.reads >= 2
+    );
+    const refusedStreamDestination = await client.action('probeResponseStream', {
+      args: { url: 'http://169.254.169.254/latest/meta-data' },
+    });
+    check(
+      'ctx.fetchStream refuses a metadata IP literal before outbound fetch',
+      refusedStreamDestination.ok === false &&
+        refusedStreamDestination.diagnostic?.code === 'SNAPBACK_ACTION_STREAM_INVALID'
+    );
+    const streamRequestsBeforeRedirect = mock.seen.streamRequests;
+    const refusedStreamRedirect = await client.action('probeResponseStream', {
+      args: { url: `${AUTHORED_ORIGIN}/stream-redirect` },
+    });
+    check(
+      'ctx.fetchStream uses manual redirects and does not fetch the Location target',
+      refusedStreamRedirect.ok === false &&
+        refusedStreamRedirect.diagnostic?.code === 'SNAPBACK_ACTION_STREAM_INVALID' &&
+        mock.seen.streamRequests === streamRequestsBeforeRedirect
     );
     check(
       'every action-visible response chunk respects the 16 KiB v1 ceiling',
       streamed.result.maxChunkBytes > 0 && streamed.result.maxChunkBytes <= 16 * 1024
     );
     const tooLarge = await client.action('probeResponseStream', {
-      args: { url: `${mock.origin}/stream-large` },
+      args: { url: `${AUTHORED_ORIGIN}/stream-large` },
     });
     check(
       'the Cloudflare adapter refuses an upstream response beyond the 1 MiB v1 total',
       tooLarge.ok === false && tooLarge.diagnostic?.code === 'SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED'
     );
     const cancelledStream = await client.action('probeResponseStream', {
-      args: { url: `${mock.origin}/stream-long`, cancelAfterReads: 1 },
+      args: { url: `${AUTHORED_ORIGIN}/stream-long`, cancelAfterReads: 1 },
     });
     check(
       'response-stream cancellation is idempotent and makes the reader terminal',
@@ -298,7 +328,7 @@ async function main() {
         cancelledStream.result.doneAfterCancel === true
     );
     const attemptToken = await client.action('probeStreamAttemptToken', {
-      args: { url: `${mock.origin}/stream` },
+      args: { url: `${AUTHORED_ORIGIN}/stream` },
     });
     check(
       'a stream attempt token is refused fail-closed on a target without the control plane',
@@ -307,7 +337,7 @@ async function main() {
         String(attemptToken.result.code).includes('SNAPBACK_ACTION_STREAM_INVALID')
     );
     const secretStream = await client.action('probeStreamSecret', {
-      args: { url: `${mock.origin}/stream-auth` },
+      args: { url: `${AUTHORED_ORIGIN}/stream-auth` },
     });
     const secretStreamText = JSON.stringify(secretStream);
     check(
@@ -315,14 +345,14 @@ async function main() {
       secretStream.ok === true &&
         secretStream.result.status === 200 &&
         secretStream.result.totalBytes === 3 * 1024 &&
-        secretStream.result.url === `${mock.origin}/stream-auth`
+        secretStream.result.url === `${AUTHORED_ORIGIN}/stream-auth`
     );
     check(
       'the resolved stream secret never re-enters the isolate or the action result',
       !secretStreamText.includes(DIRECTIONS_KEY)
     );
     const rateFence = await client.action('probeStreamRateFence', {
-      args: { url: `${mock.origin}/stream-long` },
+      args: { url: `${AUTHORED_ORIGIN}/stream-long` },
     });
     check(
       'nested mutations above ten per second are refused while a cursor is open',
@@ -330,7 +360,7 @@ async function main() {
         String(rateFence.result.secondCode).includes('SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED')
     );
     const cursorCap = await client.action('probeStreamCursorCap', {
-      args: { url: `${mock.origin}/stream-long` },
+      args: { url: `${AUTHORED_ORIGIN}/stream-long` },
     });
     check(
       'a fifth concurrent cursor is refused at the 4-cursor v1 cap',
@@ -338,7 +368,7 @@ async function main() {
         String(cursorCap.result.fifthCode).includes('SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED')
     );
     const idleStream = await client.action('probeResponseStream', {
-      args: { url: `${mock.origin}/stream-stall` },
+      args: { url: `${AUTHORED_ORIGIN}/stream-stall` },
     });
     check(
       'a stalled upstream settles the exact idle-timeout code',

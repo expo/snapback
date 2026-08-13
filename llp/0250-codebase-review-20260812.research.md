@@ -89,8 +89,8 @@ Already-open tickets that this review **does not re-file**:
 
 | ID | Finding | Ticket |
 |---|---|---|
-| R4 | Dev body `auth.userId` + reflected localhost CORS is unauthenticated impersonation from any other localhost origin. Sessions mode closes this; Dev is the default local profile. | `issues/20260812-dev-body-impersonation-loopback-cors.md` |
-| R5 | OAuth `served_origin` trusts `Host` and always emits `http://`. Local-only facade; Host spoof still redirects token endpoints. | `issues/20260812-oauth-metadata-trusts-host-header.md` |
+| R4 | Dev body `auth.userId` + reflected localhost CORS is unauthenticated impersonation from any other localhost origin. Sessions mode closes this; Dev is the default local profile. | `issues/closed/20260812-dev-body-impersonation-loopback-cors.md` |
+| R5 | OAuth `served_origin` trusts `Host` and always emits `http://`. Local-only facade; Host spoof still redirects token endpoints. | `issues/closed/20260812-oauth-metadata-trusts-host-header.md` |
 | R6 | Default Node RQS/outbox store writes `~/.snapback/rqs` with no `mode` (0644 under umask 022). CLI secrets elsewhere are 0600. | `issues/20260812-rqs-outbox-file-store-world-readable.md` |
 | R7 | `open` / `xdg-open` argv carries `sbcc_` in the URL fragment. Linux `/proc/<pid>/cmdline` is world-readable. | `issues/20260812-admin-console-credential-on-browser-argv.md` |
 | R8 | `runtime.log` / `SNAPBACK_HANDLER_CONSOLE=stderr` skip the action secret redactor. Error envelopes are scrubbed; logs are not. | `issues/20260812-runtime-log-skips-secret-redactor.md` |
@@ -110,7 +110,7 @@ Already-open tickets that this review **does not re-file**:
 
 | ID | Finding | Ticket |
 |---|---|---|
-| R15 | Data-patch apply token is consumed outside the Local lock, before the CAS. Conflict burns the one-shot token with no row change. | `issues/20260812-data-patch-token-consumed-before-cas.md` |
+| R15 | Data-patch apply token is consumed outside the Local lock, before the CAS. Conflict burns the one-shot token with no row change. | `issues/closed/20260812-data-patch-token-consumed-before-cas.md` |
 
 ### Documented tradeoffs / honest gaps (do not re-file)
 

@@ -541,6 +541,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
         vec![
             "auth.sessions.v1",
             "bounded_children_v1",
+            "bounded_batch_reads_v1",
             "cron",
             "cron_action_run_mutation",
             "host_plan_runtime",
@@ -548,7 +549,9 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "inline_handler_v1",
             "jobs_one_off_v1",
             "notifications.expoPushSeam",
+            "realtime.connected-client-predicate",
             "live_subscriptions",
+            "offline_mutation_replay",
             "mutation_read_set_validation",
             "mixed_bundle_boot_v2",
             "permission_epoch_resync",
@@ -567,6 +570,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             // acknowledgement.
             "vector_search_v1",
             "result_contract_v1",
+            "structured_stored_value_v1",
             "settlement.bounded_skew",
             "args_contract_v1",
             "versioned_seed_install_v1",
@@ -581,7 +585,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "asset_video_finalization_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 38);
+    assert_eq!(TargetCapabilityId::ALL.len(), 41);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),

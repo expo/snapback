@@ -87,7 +87,11 @@ try {
   const base = await proof.url();
   const rawRequestInit = ({ body = '{}', contentType = 'application/json', headers = {} } = {}) => ({
     method: 'POST',
-    headers: { ...(contentType === null ? {} : { 'content-type': contentType }), ...headers },
+    headers: {
+      'x-snapback-admin-token': ADMIN_TOKEN,
+      ...(contentType === null ? {} : { 'content-type': contentType }),
+      ...headers,
+    },
     body,
   });
   const readRawResponse = async (response) => ({ status: response.status, body: await response.json() });
@@ -374,7 +378,11 @@ try {
   const post = async (path, body, headers = {}) => {
     const response = await kindProof.raw(path, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: {
+        'content-type': 'application/json',
+        'x-snapback-admin-token': ADMIN_TOKEN,
+        ...headers,
+      },
       body: JSON.stringify(body),
     });
     return { status: response.status, body: await response.json() };

@@ -5,10 +5,14 @@
 //! the storage ledger and LLP 0070 jobs machinery respectively.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::outbound_policy::{
+    HttpTargetPolicy, PrepareTargetError, PrepareTargetErrorKind, PreparedHttpTarget,
+    pinned_http_agent, prepare_http_target_with,
+};
 use hmac::{Hmac, Mac as _};
 use sha2::{Digest, Sha256};
 use std::io;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 
 pub(crate) const MAX_TARGET_BYTES: usize = 2_048;
@@ -18,12 +22,7 @@ pub(crate) const DELIVERY_TIMEOUT: Duration = Duration::from_secs(15);
 pub(crate) const SIGNATURE_HEADER: &str = "X-Snapback-Signature";
 pub(crate) const DELIVERY_HEADER: &str = "X-Snapback-Delivery-Id";
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct PreparedTarget {
-    pub(crate) url: String,
-    pub(crate) addresses: Vec<SocketAddr>,
-    test_loopback_http: bool,
-}
+pub(crate) type PreparedTarget = PreparedHttpTarget;
 
 #[derive(Clone, Eq, PartialEq)]
 pub(crate) struct DeliveryRequest {
@@ -85,96 +84,13 @@ fn prepare_target_with<F>(
 where
     F: FnOnce(&str) -> io::Result<Vec<SocketAddr>>,
 {
-    if url.is_empty()
-        || url.len() > MAX_TARGET_BYTES
-        || url.chars().any(char::is_control)
-    {
-        return Err(target_invalid());
-    }
-    let parsed = ureq::post(url)
-        .request_url()
-        .map_err(|_| target_invalid())?;
-    if parsed.as_url().username() != ""
-        || parsed.as_url().password().is_some()
-        || parsed.as_url().fragment().is_some()
-    {
-        return Err(target_invalid());
-    }
-    if !matches!(parsed.scheme(), "https" | "http") {
-        return Err(target_invalid());
-    }
-    let host = parsed.host();
-    if host.eq_ignore_ascii_case("localhost")
-        || host.to_ascii_lowercase().ends_with(".localhost")
-        || matches!(host.to_ascii_lowercase().as_str(), "metadata" | "metadata.google.internal")
-    {
-        return Err(ssrf_refused());
-    }
-    let port = parsed.port().unwrap_or(if parsed.scheme() == "https" { 443 } else { 80 });
-    let netloc = if host.contains(':') {
-        format!("[{host}]:{port}")
+    let policy = if allow_test_loopback_http {
+        HttpTargetPolicy::LocalDevLoopbackHttp
     } else {
-        format!("{host}:{port}")
+        HttpTargetPolicy::PublicHttpsOnly
     };
-    let mut addresses = resolve(&netloc).map_err(|_| target_unavailable())?;
-    addresses.sort_unstable();
-    addresses.dedup();
-    if addresses.is_empty() {
-        return Err(target_unavailable());
-    }
-    let all_loopback = addresses.iter().all(|address| address.ip().is_loopback());
-    if parsed.scheme() == "http" && !(allow_test_loopback_http && all_loopback) {
-        return Err(target_invalid());
-    }
-    if (!all_loopback || !allow_test_loopback_http)
-        && addresses.iter().any(|address| !is_public_ip(address.ip()))
-    {
-        return Err(ssrf_refused());
-    }
-    Ok(PreparedTarget {
-        url: url.to_owned(),
-        addresses,
-        test_loopback_http: allow_test_loopback_http && parsed.scheme() == "http" && all_loopback,
-    })
-}
-
-fn is_public_ip(ip: IpAddr) -> bool {
-    match ip {
-        IpAddr::V4(ip) => is_public_v4(ip),
-        IpAddr::V6(ip) => is_public_v6(ip),
-    }
-}
-
-fn is_public_v4(ip: Ipv4Addr) -> bool {
-    let octets = ip.octets();
-    !(ip.is_private()
-        || ip.is_loopback()
-        || ip.is_link_local()
-        || ip.is_multicast()
-        || ip.is_unspecified()
-        || ip == Ipv4Addr::BROADCAST
-        || octets[0] == 0
-        || (octets[0] == 100 && (64..=127).contains(&octets[1]))
-        || (octets[0] == 192 && octets[1] == 0 && octets[2] == 0)
-        || (octets[0] == 192 && octets[1] == 0 && octets[2] == 2)
-        || (octets[0] == 198 && (octets[1] == 18 || octets[1] == 19))
-        || (octets[0] == 198 && octets[1] == 51 && octets[2] == 100)
-        || (octets[0] == 203 && octets[1] == 0 && octets[2] == 113)
-        || octets[0] >= 224)
-}
-
-fn is_public_v6(ip: Ipv6Addr) -> bool {
-    if let Some(mapped) = ip.to_ipv4_mapped() {
-        return is_public_v4(mapped);
-    }
-    let segments = ip.segments();
-    !ip.is_loopback()
-        && !ip.is_unspecified()
-        && !ip.is_multicast()
-        && (segments[0] & 0xe000) == 0x2000
-        && (segments[0] & 0xfe00) != 0xfc00
-        && (segments[0] & 0xffc0) != 0xfe80
-        && !(segments[0] == 0x2001 && segments[1] == 0x0db8)
+    prepare_http_target_with(url, policy, MAX_TARGET_BYTES, resolve)
+        .map_err(webhook_target_error)
 }
 
 pub(crate) fn signature(secret: &str, canonical_payload: &str) -> String {
@@ -199,28 +115,18 @@ pub(crate) fn deliver(request: DeliveryRequest) -> DeliveryOutcome {
             http_status: None,
         };
     }
-    let pinned = request.target.addresses.clone();
-    let expected = pinned.clone();
-    let agent = ureq::AgentBuilder::new()
-        .try_proxy_from_env(false)
-        .redirects(0)
-        .timeout_connect(DELIVERY_TIMEOUT)
-        .timeout_read(DELIVERY_TIMEOUT)
-        .timeout_write(DELIVERY_TIMEOUT)
-        .resolver(move |_: &str| Ok(pinned.clone()))
-        .build();
-    let test_loopback_http = request.target.test_loopback_http
-        && request.target.url.starts_with("http://")
-        && expected.iter().all(|address| address.ip().is_loopback());
-    if expected.iter().any(|address| !is_public_ip(address.ip())) && !test_loopback_http {
-        return DeliveryOutcome::Permanent {
-            code: "SNAPBACK_WEBHOOK_SSRF_REFUSED",
-            http_status: None,
-        };
-    }
+    let agent = match pinned_http_agent(&request.target, DELIVERY_TIMEOUT) {
+        Ok(agent) => agent,
+        Err(_) => {
+            return DeliveryOutcome::Permanent {
+                code: "SNAPBACK_WEBHOOK_SSRF_REFUSED",
+                http_status: None,
+            };
+        }
+    };
     let signature = signature(&request.signing_secret, &request.canonical_payload);
     let response = agent
-        .post(&request.target.url)
+        .post(request.target.authored_url())
         .set("Content-Type", "application/json")
         .set("Idempotency-Key", &request.idempotency_key)
         .set(DELIVERY_HEADER, &request.delivery_id)
@@ -273,9 +179,18 @@ fn target_unavailable() -> SnapbackError {
     )
 }
 
+fn webhook_target_error(error: PrepareTargetError) -> SnapbackError {
+    match error.kind() {
+        PrepareTargetErrorKind::Invalid => target_invalid(),
+        PrepareTargetErrorKind::SsrfRefused => ssrf_refused(),
+        PrepareTargetErrorKind::Unavailable => target_unavailable(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
     #[test]
     fn ssrf_policy_revalidates_every_dns_answer() {

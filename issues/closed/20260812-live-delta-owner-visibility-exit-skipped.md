@@ -46,3 +46,19 @@ In `query_plan_change_outcome`, if `dependency.rows` contains `change.id`, treat
 High on the matcher/delta mechanics. Standard-pattern generated CRUD does not hit this; handwritten owner-visible live queries do.
 
 ENG-23420 fixed “Row deps were ignored entirely”; this is the remaining Query.rows / visibility-exit hole.
+
+## Resolution (2026-08-12)
+
+Fixed the shared matcher so a changed id already present in a captured
+`Query.rows` set cannot be skipped when its new image misses the query, and so
+owner-visibility fields participate in update membership detection alongside
+ordinary filters. The incremental lane now keeps matching `Row` dependencies
+in sync with delta Add/Remove operations and advances them on Update.
+
+Regression coverage reproduces the empty subscribe → matching insert → delta
+Add → ownership transfer → delta Remove sequence with a handwritten
+owner-visible live query that has no redundant owner filter.
+
+Evidence: `cargo test --lib live_matcher` (21 passed); `cargo test --test
+live_delta_v0` (10 passed); `cargo test --lib` (2,635 passed, 0 failed, 2
+ignored).

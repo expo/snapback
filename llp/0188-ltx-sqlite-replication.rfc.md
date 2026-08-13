@@ -5,7 +5,12 @@
 **Systems:** Storage, Backup and restore, Deployment, Control plane, CLI, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-08-06
-**Revised:** 2026-08-06 (Review → **Accepted** by the author, Charlie
+**Revised:** 2026-08-12 (fork-path reconciliation: every short-lived SQLite
+backup, scrub, inspection, diff, and retained-base handle now applies the
+connection-local persistent-WAL and no-auto-checkpoint discipline when
+replication is configured; the fork path keeps using SQLite online backup and
+does not issue its own `FULL` checkpoint against a replicated database.)
+2026-08-06 (Review → **Accepted** by the author, Charlie
 Cheever, at r7 — after the six-round dual-family super-refine loop
 (formal verdicts bind to r6; r7 applied the final ledger, unreviewed;
 full record in `llp/reviews/0188-*`). The acceptance ratifies §5's
@@ -233,7 +238,13 @@ auto-checkpoint is disabled on every writer connection, and all
 checkpoint/truncation paths — including non-writer triggers such as
 last-connection-close truncation from the reader pool — are mediated by
 the replicator so no WAL frame is truncated before it is shipped (the
-Litestream model).
+Litestream model). This includes short-lived instance-fork connections:
+source inspection and SQLite online-backup handles, staged-clone scrub and
+retained-base handles, and offline lifecycle/diff readers all set persistent
+WAL and disable auto-checkpoint. The fork path never issues its own `FULL`
+checkpoint while replication is configured; its consistent parent cut remains
+SQLite's online-backup snapshot, and the cloned database receives fresh fork
+identity without inheriting the source replication sidecar (§4).
 
 Object-store I/O goes through a narrow object-store protocol the
 replication lane defines: put/get of immutable keys plus a

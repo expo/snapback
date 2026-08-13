@@ -84,30 +84,17 @@ async fn oauth_manifest(
     .ok_or_else(oauth_not_found)
 }
 
-fn served_origin(runtime: &AppState, headers: &HeaderMap) -> Result<String, Response> {
-    let authority = if let Some(host) = headers.get(header::HOST) {
-        host.to_str()
-            .ok()
-            .and_then(|host| host.parse::<axum::http::uri::Authority>().ok())
-            .ok_or_else(|| {
-                oauth_error_response(
-                    "invalid_request",
-                    "the Host header is invalid",
-                    StatusCode::BAD_REQUEST,
-                )
-            })?
-    } else {
-        format!("{}:{}", runtime.server.host, runtime.server.port)
-            .parse::<axum::http::uri::Authority>()
-            .map_err(|_| {
-                oauth_error_response(
-                    "server_error",
-                    "the served origin is unavailable",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                )
-            })?
-    };
-    Ok(format!("http://{authority}"))
+/// @ref LLP 0031#oauth-facade-and-origin-root-discovery — discovery and DCR
+/// advertise the listener-owned origin; an untrusted request Host cannot mint
+/// attacker-controlled OAuth endpoint URLs.
+fn served_origin(runtime: &AppState) -> Result<String, Response> {
+    runtime.server.listener_http_origin().ok_or_else(|| {
+        oauth_error_response(
+            "server_error",
+            "the served origin is unavailable",
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })
 }
 
 fn bundle_names(oauth: &crate::contract_types::ApiOAuthManifest) -> Vec<String> {
@@ -117,13 +104,12 @@ fn bundle_names(oauth: &crate::contract_types::ApiOAuthManifest) -> Vec<String> 
 /// @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — standards discovery is a no-store projection of the local facade only.
 pub(super) async fn oauth_authorization_server_metadata(
     State(runtime): State<AppState>,
-    headers: HeaderMap,
 ) -> Response {
     let oauth = match oauth_manifest(&runtime).await {
         Ok(oauth) => oauth,
         Err(response) => return response,
     };
-    let origin = match served_origin(&runtime, &headers) {
+    let origin = match served_origin(&runtime) {
         Ok(origin) => origin,
         Err(response) => return response,
     };
@@ -142,15 +128,12 @@ pub(super) async fn oauth_authorization_server_metadata(
     .into_response()
 }
 
-pub(super) async fn oauth_protected_resource_metadata(
-    State(runtime): State<AppState>,
-    headers: HeaderMap,
-) -> Response {
+pub(super) async fn oauth_protected_resource_metadata(State(runtime): State<AppState>) -> Response {
     let oauth = match oauth_manifest(&runtime).await {
         Ok(oauth) => oauth,
         Err(response) => return response,
     };
-    let origin = match served_origin(&runtime, &headers) {
+    let origin = match served_origin(&runtime) {
         Ok(origin) => origin,
         Err(response) => return response,
     };
@@ -300,7 +283,7 @@ pub(super) async fn oauth_register(
             );
         }
     };
-    let served_origin = match served_origin(&runtime, &headers) {
+    let served_origin = match served_origin(&runtime) {
         Ok(origin) => origin,
         Err(response) => return response,
     };

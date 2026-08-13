@@ -5,7 +5,7 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-10 (LLP 0222 connected-client witness amendment: action-only, session-authenticated, fixed-budget, transport-attested, and non-durable). 2026-08-08 (post-commit fan-out coalescing: backlogged commits'
+**Revised:** 2026-08-12 (matcher-capture sufficiency: dependency summaries must prove both entry and exit; owner-visibility fields participate like filters; delta-applied membership and Row dependencies advance atomically; an incomplete fine-grained capture may not shadow a correct table-granular host-plan proof). 2026-08-10 (LLP 0222 connected-client witness amendment: action-only, session-authenticated, fixed-budget, transport-attested, and non-durable). 2026-08-08 (post-commit fan-out coalescing: backlogged commits'
 data fan-out may be merged into one pending frame delivered once at the
 latest version — LLP 0191 §1 rung 1, evidence-driven by the zb5-hot 74 s
 median; see the dated decision section for the deferral rule, exclusions,
@@ -204,6 +204,19 @@ When a changeset commits, the matcher uses this dependency summary to decide
 which subscriptions need re-evaluation. If the matcher cannot prove a change is
 irrelevant, it may re-run the query. False positives are acceptable early; false
 negatives are correctness bugs.
+
+**Capture sufficiency applies to exits as well as entries.** A row id retained
+in the current result is itself a dependency: if the changed image no longer
+passes an ordinary filter or owner-visibility predicate, the matcher must wake
+so the row can be removed. Owner fields therefore participate in update
+membership detection exactly like filter fields. On the incremental lane, an
+emitted add/remove updates both the query membership set and its corresponding
+`Row` dependency (and an update advances the row dependency's version) in the
+same guarded publication cut. A coarse, correct host-plan proof must remain
+reachable when no finer serializable predicate exists: in particular, live
+search records no predicate-less `Query` dependency that would force the
+missing-plan fallback before the `SearchQuery` table check. An incomplete
+fine-grained fact may cause fallback, but may not shadow a sound coarser proof.
 
 Opaque server-executed query functions are not automatically safe for retained
 local-first, authorization-aware sync. Valet's empirical answer sharpens the v1

@@ -29,6 +29,7 @@ import {
   matchManifestRoute,
 } from '../../packages/snapback-vite/channel-a-core.mjs';
 import { serializeBootPayload } from '../../packages/snapback-vite/rqs-serializer.mjs';
+import { admitChannelARate } from './rate-windows.js';
 
 export { Coordinator };
 
@@ -74,15 +75,9 @@ const CHANNEL_A_ANONYMOUS_RATE_PER_MINUTE = 60;
 const channelARateWindows = new Map();
 
 function channelAAdmitRate(key, nowMs) {
-  const window = channelARateWindows.get(key) ?? [];
-  while (window.length > 0 && nowMs - window[0] >= 60_000) window.shift();
-  if (window.length >= CHANNEL_A_ANONYMOUS_RATE_PER_MINUTE) {
-    channelARateWindows.set(key, window);
-    return false;
-  }
-  window.push(nowMs);
-  channelARateWindows.set(key, window);
-  return true;
+  return admitChannelARate(channelARateWindows, key, nowMs, {
+    limit: CHANNEL_A_ANONYMOUS_RATE_PER_MINUTE,
+  });
 }
 
 // Kit wire-protocol prefixes (LLP 0049 Phase 0): the generated Contract
@@ -353,9 +348,22 @@ async function channelAInline(request, env, stub, match) {
 }
 
 async function forward(stub, target, request) {
+  const headers = new Headers();
+  for (const name of [
+    'content-type',
+    'x-snapback-admin-token',
+    'x-snapback-connection-token',
+    'cf-connecting-ip',
+  ]) {
+    const value = request.headers.get(name);
+    if (value !== null) headers.set(name, value);
+  }
   return stub.fetch(target, {
     method: 'POST',
-    headers: { 'content-type': request.headers.get('content-type') || '' },
+    // Data-plane authority is coordinator-owned. Preserve the admin,
+    // connection-grant, and Cloudflare client-address carriers without
+    // forwarding unrelated cookies or authorization headers.
+    headers,
     body: request.body,
   });
 }

@@ -1061,6 +1061,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'jobs_one_off_v1',
   'live_full_text_search_v1',
   'mixed_bundle_boot_v2',
+  'offline_mutation_replay',
   'realtime.connected-client-predicate',
   'sequence_allocation_v1',
   'snapshot_batch_v1',

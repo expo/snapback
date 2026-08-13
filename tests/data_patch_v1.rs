@@ -489,7 +489,7 @@ async fn token_binds_impersonated_user_and_patch_without_consuming_on_mismatch()
 }
 
 #[tokio::test]
-async fn token_expires_and_same_row_concurrency_is_stale_after_consumption() {
+async fn token_expires_and_same_row_conflict_does_not_consume_it() {
     let expired_fixture = fixture(ServerProfile::Test, 1);
     let reason = "expiry test";
     let input = operation_input(
@@ -541,6 +541,16 @@ async fn token_expires_and_same_row_concurrency_is_stale_after_consumption() {
     assert_eq!(
         stale["diagnostics"][0]["code"],
         "SNAPBACK_DATA_PATCH_STALE_VERSION"
+    );
+    let retry = host_op(
+        &fixture,
+        "data.patch.apply",
+        apply_input(&input, &previewed),
+    )
+    .await;
+    assert_eq!(
+        retry["diagnostics"][0]["code"], "SNAPBACK_DATA_PATCH_STALE_VERSION",
+        "a failed CAS must reach CAS again rather than report a consumed token: {retry}"
     );
 }
 

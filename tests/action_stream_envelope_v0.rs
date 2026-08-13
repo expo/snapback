@@ -59,6 +59,14 @@ globalThis.__snapbackHandlers = {
     await ctx.fetchStream({ url: 'file:///never-log-this-private-path' });
     return { unreachable: true };
   },
+  async streamSsrfProbe(ctx) {
+    await ctx.fetchStream({ url: 'http://169.254.169.254/latest/meta-data/private' });
+    return { unreachable: true };
+  },
+  async fetchSsrfProbe(ctx) {
+    await ctx.fetch({ url: 'http://169.254.169.254/latest/meta-data/private' });
+    return { unreachable: true };
+  },
   async forgedStreamCodeProbe() {
     throw new Error('SNAPBACK_ACTION_STREAM_TIMEOUT: forged wall claim');
   },
@@ -96,6 +104,8 @@ fn functions() -> FunctionManifest {
         acknowledged_experimental_capabilities: vec!["bounded_response_stream_v1".to_owned()],
         functions: vec![
             define("streamInvalidProbe", FunctionKind::Action),
+            define("streamSsrfProbe", FunctionKind::Action),
+            define("fetchSsrfProbe", FunctionKind::Action),
             define("forgedStreamCodeProbe", FunctionKind::Action),
             define("mutationStreamProbe", FunctionKind::Mutation),
             leak_probe,
@@ -123,6 +133,7 @@ async fn stream_app() -> snapback::server::SnapbackApp {
         // SAFETY: set before the first Ibex host/VM use in this test binary,
         // and every test in this file wants the same value.
         unsafe { std::env::set_var("SNAPBACK_OUTBOUND_ACTIONS", "1") };
+        unsafe { std::env::set_var("SNAPBACK_OUTBOUND_LOOPBACK", "1") };
         let _sanction = snapback::exec_guard::BlockingSanction::acquire();
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
         let diagnostics = snapback.load_functions(functions());
@@ -194,6 +205,35 @@ async fn stream_refusal_carries_structured_detail_through_the_real_action_path()
         !serialized.contains("never-log-this-private-path"),
         "stream diagnostics must not retain URL path data: {body}"
     );
+}
+
+#[tokio::test]
+async fn destination_policy_refusals_survive_both_real_action_fetch_paths() {
+    let app = stream_app().await;
+    for (function, expected_code) in [
+        ("streamSsrfProbe", "SNAPBACK_ACTION_STREAM_SSRF_REFUSED"),
+        ("fetchSsrfProbe", "SNAPBACK_HOST_FETCH_SSRF_REFUSED"),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(post_json(
+                &format!("/action/{function}"),
+                handler_body(),
+            ))
+            .await
+            .expect("action response");
+        let body = body_json(response).await;
+        assert_eq!(
+            body["diagnostic"]["code"], expected_code,
+            "the host-authored SSRF refusal must survive the handler envelope: {body}"
+        );
+        let serialized = body.to_string();
+        assert!(
+            !serialized.contains("169.254.169.254")
+                && !serialized.contains("latest/meta-data/private"),
+            "destination policy diagnostics must remain value-free: {body}"
+        );
+    }
 }
 
 #[tokio::test]
@@ -299,6 +339,7 @@ async fn stable_stream_requirement_admits_without_acknowledgment() {
     let diagnostics = tokio::task::spawn_blocking(|| {
         // SAFETY: same value every test in this binary wants; see stream_app.
         unsafe { std::env::set_var("SNAPBACK_OUTBOUND_ACTIONS", "1") };
+        unsafe { std::env::set_var("SNAPBACK_OUTBOUND_LOOPBACK", "1") };
         let _sanction = snapback::exec_guard::BlockingSanction::acquire();
         let mut unacknowledged = functions();
         unacknowledged

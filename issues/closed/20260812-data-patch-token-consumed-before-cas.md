@@ -19,3 +19,18 @@ Keep the token Available until the commit returns Ok; consume in the same Local 
 ## Confidence
 
 High on the consume-then-CAS order.
+
+## Resolution (2026-08-12)
+
+Apply-token validation, row CAS, and success-only consumption now run in one
+serialized process-local token turn inside the Local authorization-write turn.
+The token remains `Available` on every returned commit error and on panic; it
+becomes `Consumed` only after the commit returns `Ok`, preserving one-shot
+success semantics.
+
+A unit test injects a mutation conflict, retries successfully with the same
+token, and then proves the successful apply consumed it. The data-patch HTTP
+acceptance test performs a real same-row concurrent write and proves both the
+first apply and its retry reach the stale-version CAS rather than burning the
+token; the existing success journey continues to assert consumed-token reuse
+is refused.

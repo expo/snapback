@@ -21,3 +21,27 @@ If `replication::configured_from_env()`, call `configure_connection_wal_lifetime
 ## Confidence
 
 High on the missing persist-WAL. Pair with `issues/20260810-llp-0188-g2f-fencing-matrix.md`; that ticket is the G2f program, not this fork-opener hole.
+
+## Resolution (2026-08-12)
+
+`src/instance_fork.rs` now routes every production SQLite opener through one
+replication-aware helper. When `SNAPBACK_REPLICATION_TARGET` is configured,
+each backup, scrub, inspection, diff, asset-cut, and retained-base connection
+sets connection-local persistent WAL and disables auto-checkpoint. The two
+fork-owned `wal_checkpoint(FULL)` paths now run only when replication is not
+configured; the replicated-parent copy remains SQLite's online-backup snapshot.
+
+LLP 0188 §2 now records the fork-path obligation, and the code carries an
+`@ref` to that section. No refusal path or new `SNAPBACK_*` code was needed.
+
+Verification:
+
+- `cargo test --test instance_fork_replication_wal_v0`: 1 passed, 0 failed.
+- `cargo test --lib instance_fork::tests`: 52 passed, 0 failed.
+- `cargo test --lib replication::tests`: 8 passed, 0 failed.
+- targeted storage connection test: 1 passed, 0 failed.
+- `cargo test --test shutdown_wal_checkpoint_v0`: 4 passed, 0 failed.
+- `./ref-check --verbose`: 251 LLP docs, 5,110 refs, 0 errors, 0 unchecked.
+- `cargo test --lib -- --quiet`: 2,629 passed, 2 failed, 2 ignored. Both
+  unrelated timing-envelope failures pass in exact isolation; merge base for
+  the pre-existing classification is `b5b5d2d5b931634a718a72aba44a3dbd7e39ac09`.

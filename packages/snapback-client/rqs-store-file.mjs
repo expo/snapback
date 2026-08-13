@@ -35,9 +35,10 @@
 // uses server origin). Each v3 blob carries its exact clientStoreId in
 // storeMeta; wipe affects that one domain, while corrupt reset rotates it.
 //
-// At-rest posture (LLP 0090 Q4, open): the v1 baseline is OS-level
-// protection — the platform app container and platform disk encryption.
-// This store adds no encryption of its own; Q4 owns anything stronger.
+// At-rest posture (LLP 0090 Q4, open): the baseline is OS-level protection —
+// owner-only directories/files, the platform app container, and platform disk
+// encryption. This store adds no encryption of its own; Q4 owns anything
+// stronger.
 //
 // @ref LLP 0090#d3-channel-b--persisted-device-snapshot — the native store
 //   rides the DK-9 store-agnostic interface rather than a parallel artifact,
@@ -84,6 +85,8 @@ const BLOB_SUFFIX = '.v1.json';
 const LOCK_SUFFIX = '.v1.lock';
 const BLOB_FILE_PATTERN = /^rqs-[A-Za-z0-9_-]+\.v1\.json$/;
 const TMP_MARKER = '.tmp-';
+const DIRECTORY_MODE = 0o700;
+const FILE_MODE = 0o600;
 
 function storeError(code, message, details = {}) {
   const error = new Error(`${code}: ${message}`);
@@ -150,7 +153,10 @@ export function createNodeFilesAdapter() {
       exitLockCleanup.paths.delete(path);
     },
     async mkdir(path) {
-      await (await fs()).mkdir(path, { recursive: true });
+      await (await fs()).mkdir(path, { recursive: true, mode: DIRECTORY_MODE });
+    },
+    async chmod(path, mode) {
+      await (await fs()).chmod(path, mode);
     },
     async readFile(path) {
       try {
@@ -163,11 +169,20 @@ export function createNodeFilesAdapter() {
     async writeFile(path, data) {
       // `flush: true` (durability past the page cache) where the Node
       // runtime supports it; older runtimes ignore the extra option.
-      await (await fs()).writeFile(path, data, { encoding: 'utf8', flush: true });
+      await (await fs()).writeFile(path, data, {
+        encoding: 'utf8',
+        flush: true,
+        mode: FILE_MODE,
+      });
     },
     async writeFileExclusive(path, data) {
       try {
-        await (await fs()).writeFile(path, data, { encoding: 'utf8', flag: 'wx', flush: true });
+        await (await fs()).writeFile(path, data, {
+          encoding: 'utf8',
+          flag: 'wx',
+          flush: true,
+          mode: FILE_MODE,
+        });
         return true;
       } catch (error) {
         if (error?.code === 'EEXIST') return false;
@@ -287,6 +302,27 @@ export function createFileRqsResumeStore({
   let migrationMeta = null;
   let competingWriter = null;
 
+  const chmodBestEffort = async (path, mode) => {
+    if (typeof files.chmod !== 'function') return;
+    try {
+      await files.chmod(path, mode);
+    } catch {
+      // Some injected/mobile filesystems expose no useful POSIX permission
+      // model. Availability is preserved there; Node still creates every
+      // carrier owner-only through the mandatory write/mkdir modes above.
+    }
+  };
+
+  // @ref LLP 0090#d3-owner-only-file-permissions-amendment-2026-08-12 —
+  // reopening an older store upgrades directory, blob, and lock permissions
+  // best-effort without turning an exotic-filesystem chmod refusal into data
+  // loss or unavailability.
+  const tightenExistingPermissions = async () => {
+    await chmodBestEffort(directory, DIRECTORY_MODE);
+    await chmodBestEffort(blobPath, FILE_MODE);
+    await chmodBestEffort(lockPath, FILE_MODE);
+  };
+
   const plainRecord = (value) => (
     value !== null && typeof value === 'object' && !Array.isArray(value)
   );
@@ -316,6 +352,7 @@ export function createFileRqsResumeStore({
   const acquireLock = async () => {
     if (writer || closed) return;
     await files.mkdir(directory);
+    await tightenExistingPermissions();
     if (heldLocks.has(lockPath)) {
       // A same-process sibling is just as authoritative as a foreign holder;
       // retain enough identity to make the availability refusal actionable.
@@ -339,6 +376,7 @@ export function createFileRqsResumeStore({
       files.trackLockForExitCleanup?.(lockPath);
     };
     if (await files.writeFileExclusive(lockPath, payload)) {
+      await chmodBestEffort(lockPath, FILE_MODE);
       granted();
       return;
     }
@@ -367,8 +405,10 @@ export function createFileRqsResumeStore({
       }
       await files.unlink(lockPath);
     }
-    if (await files.writeFileExclusive(lockPath, payload)) granted();
-    else competingWriter = { pid: null, lockPath, storePath: blobPath };
+    if (await files.writeFileExclusive(lockPath, payload)) {
+      await chmodBestEffort(lockPath, FILE_MODE);
+      granted();
+    } else competingWriter = { pid: null, lockPath, storePath: blobPath };
   };
 
   const readState = async () => {
@@ -447,6 +487,7 @@ export function createFileRqsResumeStore({
       throw corruptError(blobPath);
     }
     await files.mkdir(directory);
+    await tightenExistingPermissions();
     await files.writeFile(tmpPath, JSON.stringify({
       format: RQS_FILE_STORE_FORMAT,
       entries: state.entries,
@@ -459,7 +500,9 @@ export function createFileRqsResumeStore({
       memberships: state.memberships,
       storeMeta,
     }));
+    await chmodBestEffort(tmpPath, FILE_MODE);
     await files.rename(tmpPath, blobPath);
+    await chmodBestEffort(blobPath, FILE_MODE);
     await files.syncDirectory(directory);
   };
 

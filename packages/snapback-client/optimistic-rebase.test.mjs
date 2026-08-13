@@ -2,13 +2,22 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { BROWSER_IR_LOCAL_EFFECT_CLASS } from './ir-evaluator.mjs';
-import { SnapbackClient } from './index.mjs';
+import { SnapbackClient as InspectingSnapbackClient } from './index.mjs';
 import {
   applyPrivateOptimisticLayerV1,
   applyPrivateOptimisticLayersV1,
   createOptimisticRebaseEngineV1,
 } from './optimistic-rebase.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+
+class SnapbackClient extends InspectingSnapbackClient {
+  constructor(baseUrl, options = {}) {
+    super(baseUrl, {
+      __offlineMutationReplayCapability: true,
+      ...options,
+    });
+  }
+}
 
 const originalFetch = globalThis.fetch;
 

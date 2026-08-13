@@ -280,6 +280,45 @@ fn env_profile(loopback: bool) -> ServerProfile {
     resolve_profile(std::env::var("SNAPBACK_PROFILE").ok().as_deref(), loopback)
 }
 
+fn canonical_loopback_http_origin(raw: &str) -> Option<String> {
+    let uri = raw.trim().parse::<axum::http::Uri>().ok()?;
+    let scheme = uri.scheme_str()?;
+    if !matches!(scheme, "http" | "https") || uri.path() != "/" || uri.query().is_some() {
+        return None;
+    }
+    let authority = uri.authority()?;
+    if authority.as_str().contains('@') || authority.port_u16().is_none() {
+        return None;
+    }
+    let host = authority
+        .host()
+        .strip_prefix('[')
+        .and_then(|host| host.strip_suffix(']'))
+        .unwrap_or_else(|| authority.host());
+    let normalized_authority = if host.eq_ignore_ascii_case("localhost") {
+        format!("localhost:{}", authority.port_u16()?)
+    } else {
+        let address = host.parse::<std::net::IpAddr>().ok()?;
+        if !address.is_loopback() {
+            return None;
+        }
+        std::net::SocketAddr::new(address, authority.port_u16()?).to_string()
+    };
+    Some(format!("{scheme}://{normalized_authority}"))
+}
+
+fn env_dev_auth_origins() -> BTreeSet<String> {
+    std::env::var("SNAPBACK_DEV_AUTH_ORIGINS")
+        .ok()
+        .into_iter()
+        .flat_map(|raw| {
+            raw.split(',')
+                .filter_map(canonical_loopback_http_origin)
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
 /// Resolve the server profile from the raw `SNAPBACK_PROFILE` value (pure, so
 /// the fail-closed behavior is testable without mutating the process
 /// environment). An exact `dev|demo|test|prod` wins; ANY other non-empty value
@@ -2006,6 +2045,10 @@ pub struct ServerContext {
     // Kept private so an embedder cannot turn an assertion into transport
     // authority. Only a bound-listener path may resolve this posture.
     pub(crate) listener_transport: ListenerTransportPosture,
+    /// Exact loopback browser origins permitted to exercise legacy Dev-mode
+    /// body impersonation across origins. No-Origin clients and the listener's
+    /// own origin are handled separately by the request gate.
+    pub(crate) dev_auth_origins: BTreeSet<String>,
     pub profile: ServerProfile,
     /// Must-understand exposure requested at process composition. The local
     /// target can satisfy only `local`; `hosted` is rejected before bind and
@@ -2049,6 +2092,7 @@ impl fmt::Debug for ServerContext {
             .field("port", &self.port)
             .field("loopback", &self.loopback)
             .field("listener_transport", &self.listener_transport)
+            .field("dev_auth_origins", &self.dev_auth_origins)
             .field("profile", &self.profile)
             .field("auth_deployment", &self.auth_deployment)
             .field("pid", &self.pid)
@@ -2094,6 +2138,7 @@ impl ServerContext {
             port,
             loopback,
             listener_transport: ListenerTransportPosture::Unknown,
+            dev_auth_origins: env_dev_auth_origins(),
             profile: env_profile(loopback),
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             pid: std::process::id(),
@@ -2118,6 +2163,7 @@ impl ServerContext {
             port: 0,
             loopback: true,
             listener_transport: ListenerTransportPosture::Unknown,
+            dev_auth_origins: env_dev_auth_origins(),
             profile: env_profile(true),
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             pid: std::process::id(),
@@ -2156,6 +2202,39 @@ impl ServerContext {
             ListenerTransportPosture::Loopback => Some(true),
             ListenerTransportPosture::NonLoopback => Some(false),
         }
+    }
+
+    /// The HTTP origin owned by the listener configuration. `bind` refreshes
+    /// these fields from the consumed socket before any network request can be
+    /// served, so request headers never participate in advertised authority.
+    pub(crate) fn listener_http_origin(&self) -> Option<String> {
+        let authority = match self.host.parse::<std::net::IpAddr>() {
+            Ok(address) => std::net::SocketAddr::new(address, self.port).to_string(),
+            Err(_) => format!("{}:{}", self.host, self.port)
+                .parse::<axum::http::uri::Authority>()
+                .ok()?
+                .to_string(),
+        };
+        Some(format!("http://{authority}"))
+    }
+
+    pub(crate) fn permits_dev_body_origin(&self, origin: &HeaderValue) -> bool {
+        let Some(origin) = origin
+            .to_str()
+            .ok()
+            .and_then(canonical_loopback_http_origin)
+        else {
+            return false;
+        };
+        self.listener_http_origin().as_deref() == Some(origin.as_str())
+            || self.dev_auth_origins.contains(&origin)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn allow_dev_auth_origin_for_test(&mut self, origin: &str) {
+        let origin = canonical_loopback_http_origin(origin)
+            .expect("test Dev auth origin must be an exact loopback HTTP(S) origin");
+        self.dev_auth_origins.insert(origin);
     }
 
     /// Install a serve-time resolved admin token (ENG-23443): the serve path
@@ -5869,6 +5948,21 @@ fn now_millis() -> u64 {
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn dev_auth_origins_are_exact_normalized_loopback_origins() {
+        assert_eq!(
+            canonical_loopback_http_origin("http://LOCALHOST:8081"),
+            Some("http://localhost:8081".to_owned())
+        );
+        assert_eq!(
+            canonical_loopback_http_origin("https://[::1]:8081"),
+            Some("https://[::1]:8081".to_owned())
+        );
+        assert!(canonical_loopback_http_origin("http://localhost").is_none());
+        assert!(canonical_loopback_http_origin("http://localhost:8081/path").is_none());
+        assert!(canonical_loopback_http_origin("https://192.0.2.1:8081").is_none());
+    }
 
     #[test]
     fn fallible_app_state_construction_returns_typed_busy_and_owned_errors() {

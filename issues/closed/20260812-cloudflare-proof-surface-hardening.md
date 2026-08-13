@@ -39,3 +39,22 @@ A long-lived gateway isolate accumulates one entry per distinct IP that requeste
 ## Confidence
 
 High on all four mechanisms. A is a known proof posture with an unexamined public-deploy blast radius; B–D are concrete bugs on that surface.
+
+## Resolution (2026-08-12)
+
+Closed by the Cloudflare surface-hardening landing:
+
+- only explicitly public functions admit anonymous data-plane calls;
+  non-public queries, mutations, and actions require the configured admin
+  token or an expiring connection id/token grant;
+- handler `ctx.auth` now receives a server-derived anonymous, connection,
+  operator, or system projection instead of an empty object;
+- action windows are keyed by action plus caller, with a separate finite
+  scheduled reserve;
+- Channel A expires empty keys and caps its per-isolate map with oldest-key
+  eviction; and
+- admin and connection tokens are compared as equal-length SHA-256 digests
+  with a full manual byte loop in the Workers runtime.
+
+All Aboard exposes only its six read-only board queries anonymously. Feed
+writers, reset, polling claims, and secret-spending actions remain non-public.

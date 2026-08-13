@@ -7,7 +7,15 @@
 // place, refuse reads and writes, wipe() is the caller-authorized reset).
 
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -78,6 +86,8 @@ const blobPathIn = async (directory) => {
   return join(directory, blobs[0]);
 };
 
+const permissionMode = async (path) => (await stat(path)).mode & 0o777;
+
 test('commit/load roundtrip is atomic {rows, meta, token} and clears in-progress; recency survives rewrites', async (t) => {
   const { store, directory } = await makeStore(t);
   assert.equal(store.isWriter(), true);
@@ -104,6 +114,57 @@ test('commit/load roundtrip is atomic {rows, meta, token} and clears in-progress
   assert.equal(names.some((name) => name.includes('.tmp-')), false, 'no temp files survive a commit');
   const raw = JSON.parse(await readFile(await blobPathIn(directory), 'utf8'));
   assert.equal(raw.format, RQS_FILE_STORE_FORMAT);
+  await store.close();
+});
+
+test('file store uses owner-only modes and tightens existing carriers on open', async (t) => {
+  const { store, directory } = await makeStore(t);
+  const key = rqsEntryKey('privateCards', {});
+  await store.commit(key, makeEntry());
+  const blobPath = await blobPathIn(directory);
+  const lockPath = join(directory, 'rqs-anonymous.v1.lock');
+
+  assert.equal(await permissionMode(directory), 0o700, 'store directory is owner-only');
+  assert.equal(await permissionMode(blobPath), 0o600, 'resume/outbox blob is owner-only');
+  assert.equal(await permissionMode(lockPath), 0o600, 'writer lock is owner-only');
+  await store.close();
+
+  // Simulate a store and live foreign lock created by the older permissive
+  // implementation. Opening as a reader must still tighten every carrier.
+  await chmod(directory, 0o777);
+  await chmod(blobPath, 0o666);
+  const adapter = createNodeFilesAdapter();
+  const foreignPid = adapter.processId() + 10_000;
+  await writeFile(lockPath, JSON.stringify({ pid: foreignPid, instanceId: 'foreign-live' }));
+  await chmod(lockPath, 0o666);
+  const readerFiles = {
+    ...adapter,
+    processAlive: (pid) => pid === foreignPid,
+  };
+  const reader = createFileRqsResumeStore({ directory, files: readerFiles });
+  await reader.whenLockSettled();
+  assert.equal(reader.isWriter(), false, 'the live foreign lock remains authoritative');
+  assert.equal(await permissionMode(directory), 0o700, 'reopen tightens an existing directory');
+  assert.equal(await permissionMode(blobPath), 0o600, 'reopen tightens an existing blob');
+  assert.equal(await permissionMode(lockPath), 0o600, 'reopen tightens an existing lock');
+  await reader.close();
+});
+
+test('chmod refusal on an exotic files adapter is best-effort, not an availability failure', async (t) => {
+  const files = {
+    ...createNodeFilesAdapter(),
+    async chmod() {
+      const error = new Error('permissions unsupported');
+      error.code = 'ENOTSUP';
+      throw error;
+    },
+  };
+  const { store } = await makeStore(t, { files });
+  assert.equal(store.isWriter(), true);
+  assert.equal(
+    (await store.commit(rqsEntryKey('portable', {}), makeEntry())).persisted,
+    true,
+  );
   await store.close();
 });
 

@@ -8,8 +8,17 @@ import {
   positiveDevelopmentEnvironment,
   projectDiagnosticV1,
 } from './client-diagnostics.mjs';
-import { SnapbackClient } from './index.mjs';
+import { SnapbackClient as InspectingSnapbackClient } from './index.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+
+class SnapbackClient extends InspectingSnapbackClient {
+  constructor(baseUrl, options = {}) {
+    super(baseUrl, {
+      __offlineMutationReplayCapability: true,
+      ...options,
+    });
+  }
+}
 
 const event = (overrides = {}) => ({
   schemaVersion: 'snapback.client-diagnostic.v2',

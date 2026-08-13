@@ -3,10 +3,11 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs';
-import { startProof, ADMIN_TOKEN, reportProofRuntimeFailure } from './harness.mjs';
+import { startProof, ADMIN_TOKEN, proxyOutboundTo, reportProofRuntimeFailure } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { bindingNameFor } from '../config-set.mjs';
 import { cloudflareClientOptions } from '../client-options.mjs';
+import { admitChannelARate } from '../src/rate-windows.js';
 
 // Keep transport failures attributable. This suite intentionally drives both
 // Miniflare loopback HTTP and a local egress echo server; an unlabelled undici
@@ -33,6 +34,18 @@ const schema = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapba
 const functions = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/generated/functions.manifest.json', import.meta.url), 'utf8'));
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
 const redactionCorpus = JSON.parse(fs.readFileSync(new URL('../../tests/fixtures/secret-redaction-encoded-forms.json', import.meta.url), 'utf8'));
+const EXPECTED_PROOF_SURFACE_CHECKS = 25;
+let proofSurfaceChecks = 0;
+
+const rateWindows = new Map();
+assert.equal(admitChannelARate(rateWindows, 'oldest', 0, { maxKeys: 2 }), true);
+assert.equal(admitChannelARate(rateWindows, 'newer', 1, { maxKeys: 2 }), true);
+assert.equal(admitChannelARate(rateWindows, 'newest', 2, { maxKeys: 2 }), true);
+assert.equal(rateWindows.has('oldest'), false, 'the Channel A rate map must evict its oldest key at the cap');
+proofSurfaceChecks += 1;
+assert.equal(admitChannelARate(rateWindows, 'post-expiry', 70_000, { maxKeys: 2 }), true);
+assert.deepEqual([...rateWindows.keys()], ['post-expiry'], 'empty expired Channel A windows must be removed');
+proofSurfaceChecks += 1;
 
 async function jsonFetch(base, path, body, headers = {}) {
   try {
@@ -83,9 +96,61 @@ try {
   assert.notEqual(productionGrant.body.connectionId, 'caller-readable-label');
   assert.match(productionGrant.body.connectionId, /^conn_[A-Za-z0-9-]+$/);
 
+  const anonymousPublicQuery = await jsonFetch(base, '/query/stationsQuery', { args: {} });
+  assert.equal(anonymousPublicQuery.status, 200);
+  assert.equal(anonymousPublicQuery.body.rows.length, 21);
+  proofSurfaceChecks += 1;
+  const anonymousNonPublicQuery = await jsonFetch(base, '/query/probeAmbient', { args: {} });
+  assert.equal(anonymousNonPublicQuery.status, 401);
+  assert.equal(anonymousNonPublicQuery.body.diagnostic?.code, 'SNAPBACK_AUTH_REQUIRED');
+  proofSurfaceChecks += 1;
+  const anonymousMutation = await jsonFetch(base, '/mutation/applyFeedTick', { args: { source: 'anonymous' } });
+  assert.equal(anonymousMutation.status, 401);
+  assert.equal(anonymousMutation.body.diagnostic?.code, 'SNAPBACK_AUTH_REQUIRED');
+  proofSurfaceChecks += 1;
+  const anonymousAction = await jsonFetch(base, '/action/routeEstimate', { args: {} });
+  assert.equal(anonymousAction.status, 401);
+  assert.equal(anonymousAction.body.diagnostic?.code, 'SNAPBACK_AUTH_REQUIRED');
+  proofSurfaceChecks += 1;
+  const grantedMutation = await jsonFetch(
+    base,
+    '/mutation/applyFeedTick',
+    {
+      connection_id: productionGrant.body.connectionId,
+      args: { source: 'connection-granted' },
+    },
+    { 'x-snapback-connection-token': productionGrant.body.connectionToken },
+  );
+  assert.equal(grantedMutation.status, 200);
+  assert.equal(grantedMutation.body.result?.tickIndex, 1);
+  proofSurfaceChecks += 1;
+  const wrongAdmin = await jsonFetch(
+    base,
+    '/query/stationsQuery',
+    { args: {} },
+    { 'x-snapback-admin-token': 'wrong-token-with-a-different-length' },
+  );
+  assert.equal(wrongAdmin.status, 403);
+  assert.equal(wrongAdmin.body.diagnostic?.code, 'SNAPBACK_ADMIN_TOKEN_INVALID');
+  proofSurfaceChecks += 1;
+  const wrongSameLengthAdmin = await jsonFetch(
+    base,
+    '/query/stationsQuery',
+    { args: {} },
+    { 'x-snapback-admin-token': 'x'.repeat(ADMIN_TOKEN.length) },
+  );
+  assert.equal(wrongSameLengthAdmin.status, 403);
+  assert.equal(wrongSameLengthAdmin.body.diagnostic?.code, 'SNAPBACK_ADMIN_TOKEN_INVALID');
+  proofSurfaceChecks += 1;
+
   // Test-only arbitrary egress is absent, caller budget overrides are
   // stripped, and per-action admission limits cap public abuse.
-  const hiddenProbe = await jsonFetch(base, '/action/probeSlowFetch', { args: { url: 'http://127.0.0.1:1/' } });
+  const hiddenProbe = await jsonFetch(
+    base,
+    '/action/probeSlowFetch',
+    { args: { url: 'http://127.0.0.1:1/' } },
+    { 'x-snapback-admin-token': ADMIN_TOKEN },
+  );
   assert.equal(hiddenProbe.body.diagnostic?.code, 'SNAPBACK_ACTION_UNKNOWN');
   const hiddenCronOverride = await jsonFetch(base, '/_snapback/test/run-cron', {
     job: 'warmPoll',
@@ -106,6 +171,55 @@ try {
   await production.dispose();
 }
 
+// Caller-scoped manual buckets do not interfere, while scheduled work has a
+// distinct reserve that is still finite (scheduled is not a bypass).
+const budgeted = await startProof({
+  app: 'all-aboard',
+  port: 0,
+  bindings: {
+    SNAPBACK_ACTION_RATE_LIMIT_PER_MINUTE: '1',
+    SNAPBACK_SCHEDULED_ACTION_RATE_LIMIT_PER_MINUTE: '1',
+  },
+});
+try {
+  const base = await budgeted.url();
+  const open = (label) => jsonFetch(base, '/connection/open', { connectionId: label });
+  const callerA = await open('budget-a');
+  const callerB = await open('budget-b');
+  const callAs = (grant) => jsonFetch(
+    base,
+    '/action/routeEstimate',
+    { connection_id: grant.body.connectionId, args: {} },
+    { 'x-snapback-connection-token': grant.body.connectionToken },
+  );
+  assert.equal((await callAs(callerA)).body.ok, true);
+  proofSurfaceChecks += 1;
+  assert.equal((await callAs(callerA)).body.diagnostic?.code, 'SNAPBACK_ACTION_RATE_LIMITED');
+  proofSurfaceChecks += 1;
+  assert.equal((await callAs(callerB)).body.ok, true, 'a second connection must own a separate action bucket');
+  proofSurfaceChecks += 1;
+
+  const scheduledAtMs = Date.now();
+  const scheduled1 = await jsonFetch(base, '/_snapback/test/run-cron', {
+    job: 'warmPoll',
+    actionOverride: 'routeEstimate',
+    trigger: 'scheduled',
+    scheduledAtMs,
+  });
+  const scheduled2 = await jsonFetch(base, '/_snapback/test/run-cron', {
+    job: 'warmPoll',
+    actionOverride: 'routeEstimate',
+    trigger: 'scheduled',
+    scheduledAtMs: scheduledAtMs + 1,
+  });
+  assert.equal(scheduled1.body.outcome, 'ok');
+  proofSurfaceChecks += 1;
+  assert.equal(scheduled2.body.outcome, 'failed', 'the separate scheduled reserve must still be capped');
+  proofSurfaceChecks += 1;
+} finally {
+  await budgeted.dispose();
+}
+
 const SPECIAL_SECRET = redactionCorpus.secret;
 function utf16Escaped(value, casing = 'lower') {
   let output = '';
@@ -119,6 +233,7 @@ function utf16Escaped(value, casing = 'lower') {
   }
   return output;
 }
+let echoRequests = 0;
 const echoServer = http.createServer((request, response) => {
   const url = new URL(request.url, 'http://127.0.0.1');
   const raw = url.searchParams.get('secret') || '';
@@ -127,6 +242,7 @@ const echoServer = http.createServer((request, response) => {
     response.end();
     return;
   }
+  echoRequests += 1;
   const form = new URLSearchParams({ v: raw }).toString().slice(2);
   response.writeHead(200, { 'content-type': 'application/json' });
   response.end(JSON.stringify({
@@ -145,6 +261,7 @@ const echoServer = http.createServer((request, response) => {
 });
 await new Promise((resolve) => echoServer.listen(0, '127.0.0.1', resolve));
 const echoOrigin = `http://127.0.0.1:${echoServer.address().port}`;
+const authoredOrigin = 'https://upstream.example';
 
 const testing = await startProof({
   app: 'all-aboard',
@@ -154,6 +271,7 @@ const testing = await startProof({
     [bindingNameFor('all-aboard', 'directions')]: JSON.stringify([SPECIAL_SECRET]),
     SNAPBACK_CONFIG_GENERATION: '1',
   },
+  outboundService: proxyOutboundTo(echoOrigin),
 });
 try {
   const base = await testing.url();
@@ -170,17 +288,45 @@ try {
   assert.equal(noGrant.body.result.code, 'SNAPBACK_HOST_FETCH_SLOT_INVALID');
 
   const reversible = new Set(redactionCorpus.variants);
-  for (const path of ['/echo', '/redirect']) {
-    const echoed = await testAction('probeSecretEcho', { url: `${echoOrigin}${path}` });
-    const text = JSON.stringify(echoed.body);
-    assert.equal(echoed.body.ok, true, text);
-    assert.ok(text.includes('[redacted]'), text);
-    for (const variant of reversible) {
-      if (variant) assert.ok(!text.includes(variant), `secret representation crossed host boundary: ${variant}`);
-    }
-    assert.equal(echoed.body.result.url, `${echoOrigin}${path}`);
+  const echoed = await testAction('probeSecretEcho', { url: `${authoredOrigin}/echo` });
+  const echoedText = JSON.stringify(echoed.body);
+  assert.equal(echoed.body.ok, true, echoedText);
+  assert.ok(echoedText.includes('[redacted]'), echoedText);
+  for (const variant of reversible) {
+    if (variant) assert.ok(!echoedText.includes(variant), `secret representation crossed host boundary: ${variant}`);
+  }
+  assert.equal(echoed.body.result.url, `${authoredOrigin}/echo`);
+  proofSurfaceChecks += 1;
+
+  const echoCountBeforeRedirect = echoRequests;
+  const redirected = await testAction('probeSecretEcho', { url: `${authoredOrigin}/redirect` });
+  assert.equal(redirected.body.code, 'SNAPBACK_HOST_FETCH_REDIRECT_REFUSED');
+  assert.equal(echoRequests, echoCountBeforeRedirect, 'manual redirect handling must not fetch the Location target');
+  proofSurfaceChecks += 1;
+
+  for (const refusedUrl of [
+    'http://metadata/latest/meta-data',
+    'http://metadata.google.internal/computeMetadata/v1',
+    'http://service.localhost/private',
+    'http://127.0.0.1/private',
+    'http://[::ffff:127.0.0.1]/private',
+  ]) {
+    const refused = await testAction('probeSecretEcho', { url: refusedUrl });
+    assert.equal(refused.body.code, 'SNAPBACK_HOST_FETCH_DESTINATION_REFUSED', refusedUrl);
+    proofSurfaceChecks += 1;
+  }
+  for (const invalidUrl of [
+    'ftp://example.com/file',
+    'https://user:password@example.com/private',
+    'https://./missing-host',
+  ]) {
+    const refused = await testAction('probeSecretEcho', { url: invalidUrl });
+    assert.equal(refused.body.code, 'SNAPBACK_HOST_FETCH_DESTINATION_INVALID', invalidUrl);
+    proofSurfaceChecks += 1;
   }
   const failedFetch = await testAction('probeSecretEcho', { url: 'http://127.0.0.1:9/fail' });
+  assert.equal(failedFetch.body.code, 'SNAPBACK_HOST_FETCH_DESTINATION_REFUSED');
+  proofSurfaceChecks += 1;
   const failedText = JSON.stringify(failedFetch.body);
   for (const variant of reversible) {
     if (variant) assert.ok(!failedText.includes(variant));
@@ -659,4 +805,6 @@ try {
   await upgradedSocketCaps.dispose();
 }
 
+assert.equal(proofSurfaceChecks, EXPECTED_PROOF_SURFACE_CHECKS, 'update the hardening witness count deliberately');
+console.log(`cloudflare proof-surface hardening: ${proofSurfaceChecks}/${EXPECTED_PROOF_SURFACE_CHECKS} checks passed`);
 console.log('cloudflare security-hardening acceptance: seed, actions, grants, redaction, admin status, and WebSocket ownership passed');

@@ -2738,8 +2738,8 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.10
-reviewed: 2026-08-06
-reviewed-authorities-digest: sha256:71ba403fb53322bbe5b84cf21691312bc6c3e51e6d98d324693a02b269434b6c
+reviewed: 2026-08-12
+reviewed-authorities-digest: sha256:a8646ba81d5d0a44332038047afe5eef25aadaf921bbf296e607e8c23eccbf46
 ---
 
 # Patch one existing row safely
@@ -2810,11 +2810,13 @@ snapback data patch --apply \
   --input patch-apply.json
 ```
 
-Apply atomically compares and consumes the token before attempting the normal
-changeset commit. A second apply cannot reuse it. If the same row changed
-after preview, the per-row compare-and-swap fails; a write to an unrelated row
-does not. Preview again after any failed commit rather than retrying the old
-capability.
+Apply holds the process-local token turn while it performs the normal
+changeset commit, then consumes the token only when that commit succeeds. A
+second successful apply cannot reuse it. If the same row changed after
+preview, the per-row compare-and-swap fails and the token remains available
+for a retry; a write to an unrelated row does not fail the patch. Because a
+stale row remains stale, preview again to obtain a new row version unless the
+failed operation was transient and the bound precondition is still current.
 
 The receipt contains only the non-authorizing token ID/digest, catalog digest,
 startup nonce, commit version, full authority tuple, and reason. It never

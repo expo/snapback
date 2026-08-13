@@ -284,12 +284,14 @@ try {
     const firstStartedAt = Date.now();
     const first = jsonRequest(optimistic, '/mutation', {
       value: { name: 'addNote', args: { boardId: 'profile-board', text: 'admission-1' } },
+      admin: true,
     }).then((value) => {
       firstAckReleased = true;
       return value;
     });
     const second = jsonRequest(optimistic, '/mutation', {
       value: { name: 'addNote', args: { boardId: 'profile-board', text: 'admission-2' } },
+      admin: true,
     }).then((value) => {
       secondAckReleased = true;
       return value;
@@ -321,6 +323,7 @@ try {
     const delta = socket.waitFor('live_replace').then((frame) => ({ frame, observedAt: Date.now() }));
     const ack = jsonRequest(optimistic, '/mutation', {
       value: { name: 'addNote', args: { boardId: 'profile-board', text: 'shared-deadline' } },
+      admin: true,
     }).then((value) => ({ ...value, observedAt: Date.now() }));
     const [deltaResult, ackResult] = await Promise.all([delta, ack]);
     assert.ok(ackResult.observedAt - measuredStartedAt >= 900, 'ack missed optimistic floor');

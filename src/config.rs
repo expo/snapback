@@ -83,6 +83,13 @@ impl SecretRedactor {
         redacted
     }
 
+    /// Scrub every string leaf in a structured diagnostics value while
+    /// preserving its shape for telemetry and host-call trace consumers.
+    pub(crate) fn redact_value(&self, mut value: serde_json::Value) -> serde_json::Value {
+        redact_value_strings(self, &mut value);
+        value
+    }
+
     pub(crate) fn redact_diagnostic(
         &self,
         mut diagnostic: crate::diagnostic::Diagnostic,

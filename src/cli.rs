@@ -6484,12 +6484,9 @@ fn console_claim_fragment_url(origin: &str, claim_code: &str) -> String {
     )
 }
 
-fn launch_admin_console(
-    target: &TargetArgs,
-    no_open: bool,
-    json_output: bool,
-) -> anyhow::Result<()> {
-    let resolved = resolve_admin_console_target(target)?;
+fn mint_console_credential(
+    resolved: &ResolvedAdminConsoleTarget,
+) -> anyhow::Result<ConsoleCredentialCliResponse> {
     let mut request = ureq::post(&format!(
         "{}/_snapback/api/console/credential",
         resolved.server_url
@@ -6516,32 +6513,70 @@ fn launch_admin_console(
             && credential.expires_at_ms > crate::server::now_millis(),
         "SNAPBACK_ADMIN_CREDENTIAL_RESPONSE_INVALID: console credential response was invalid"
     );
-    // @ref LLP 0017#security-defaults — only the derived sbcc_ capability is
-    // placed in a fragment. The master token never enters a URL, and the
-    // fragment is absent from HTTP requests, server logs, and Referer.
-    let url = console_fragment_url(
+    Ok(credential)
+}
+
+#[derive(Debug, Eq, PartialEq)]
+struct ConsoleLaunchHandoff {
+    url: String,
+    expires_at_ms: u64,
+}
+
+fn console_launch_handoff_with(
+    server_url: &str,
+    no_open: bool,
+    mint_credential: impl FnOnce() -> anyhow::Result<ConsoleCredentialCliResponse>,
+    mint_claim: impl FnOnce() -> anyhow::Result<ConsoleClaimMintCliResponse>,
+) -> anyhow::Result<ConsoleLaunchHandoff> {
+    if no_open {
+        let credential = mint_credential()?;
+        return Ok(ConsoleLaunchHandoff {
+            url: console_fragment_url(server_url, &credential.credential, credential.expires_at_ms),
+            expires_at_ms: credential.expires_at_ms,
+        });
+    }
+    let claim = mint_claim()?;
+    Ok(ConsoleLaunchHandoff {
+        url: console_claim_fragment_url(server_url, &claim.claim_code),
+        expires_at_ms: claim.expires_at_ms,
+    })
+}
+
+fn launch_admin_console(
+    target: &TargetArgs,
+    no_open: bool,
+    json_output: bool,
+) -> anyhow::Result<()> {
+    let resolved = resolve_admin_console_target(target)?;
+    // @ref LLP 0017#security-defaults — browser argv receives only a
+    // short-lived, process-ephemeral, single-use sbcl_ claim. The page strips
+    // its fragment and redeems over loopback for the real sbcc_ credential.
+    // `--no-open` retains the explicit stdout-only credential handoff.
+    let handoff = console_launch_handoff_with(
         &resolved.server_url,
-        &credential.credential,
-        credential.expires_at_ms,
+        no_open,
+        || mint_console_credential(&resolved),
+        || mint_console_claim(&resolved),
     );
+    let handoff = handoff?;
     if json_output {
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({
                 "schemaVersion": "snapback.admin-console.v1",
                 "ok": true,
-                "url": url,
+                "url": handoff.url,
                 "openRequested": !no_open,
-                "expiresAtMs": credential.expires_at_ms,
+                "expiresAtMs": handoff.expires_at_ms,
             }))?
         );
     } else {
-        println!("{url}");
+        println!("{}", handoff.url);
     }
     if no_open {
         return Ok(());
     }
-    open_admin_browser(&url)?;
+    open_admin_browser(&handoff.url)?;
     Ok(())
 }
 

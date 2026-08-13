@@ -2,6 +2,7 @@ use crate::auth::admission::{AdmissionLease, CancellationRegistration};
 #[cfg(test)]
 use crate::auth::invocation::ResolvedAppAuthority;
 use crate::auth::invocation::{HandlerAuthProjection, PreparedInvocation};
+use crate::config::SecretRedactor;
 use crate::cron::CronRunMetadata;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::error_tracking::{
@@ -28,7 +29,7 @@ use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
-use sha2::{Digest, Sha256};
+use sha2::{Digest as _, Sha256};
 use std::cell::{Cell, RefCell};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -46,10 +47,13 @@ use std::time::Instant;
 struct RuntimeLogSink {
     telemetry: crate::telemetry::Telemetry,
     correlation: Option<String>,
+    redactor: SecretRedactor,
 }
 
 thread_local! {
     static RUNTIME_LOG_SINKS: RefCell<Vec<RuntimeLogSink>> = const { RefCell::new(Vec::new()) };
+    #[cfg(test)]
+    static TEST_HANDLER_CONSOLE_STDERR: RefCell<Vec<Vec<String>>> = const { RefCell::new(Vec::new()) };
 }
 
 struct RuntimeLogSinkGuard;
@@ -69,26 +73,103 @@ pub(crate) fn with_runtime_log_telemetry<T>(
     correlation: Option<String>,
     run: impl FnOnce() -> T,
 ) -> T {
+    let redactor = RUNTIME_LOG_SINKS.with(|sinks| {
+        sinks
+            .borrow()
+            .last()
+            .map(|sink| sink.redactor.clone())
+            .unwrap_or_default()
+    });
+    with_runtime_log_telemetry_redactor(telemetry, correlation, redactor, run)
+}
+
+/// Install the action's staging-time redactor alongside its observation sink.
+/// The same immutable snapshot therefore scrubs errors, authored logs, and
+/// trace arguments even if configuration rotates while a detached action runs.
+///
+/// @ref LLP 0036#runtime-exposure-d5-d8 — invocation-lifetime secret
+/// redaction applies before diagnostic data reaches any retention or echo sink.
+pub(crate) fn with_runtime_log_telemetry_redactor<T>(
+    telemetry: crate::telemetry::Telemetry,
+    correlation: Option<String>,
+    redactor: SecretRedactor,
+    run: impl FnOnce() -> T,
+) -> T {
     RUNTIME_LOG_SINKS.with(|sinks| {
         sinks.borrow_mut().push(RuntimeLogSink {
             telemetry,
             correlation,
+            redactor,
         });
     });
     let _guard = RuntimeLogSinkGuard;
     run()
 }
 
-fn capture_runtime_log(level: &str, message: &Value) {
+fn redact_runtime_observation(value: Value) -> Value {
+    RUNTIME_LOG_SINKS.with(|sinks| {
+        let sinks = sinks.borrow();
+        match sinks.last() {
+            Some(sink) => sink.redactor.redact_value(value),
+            None => value,
+        }
+    })
+}
+
+fn capture_runtime_log(level: &str, message: Value) -> Value {
+    let message = redact_runtime_observation(message);
     // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
     // capture the existing trusted runtime.log host boundary; authored
     // messages pass through Telemetry's strict details allowlist and caps.
     RUNTIME_LOG_SINKS.with(|sinks| {
         if let Some(sink) = sinks.borrow().last() {
             sink.telemetry
-                .runtime_log(level, message, sink.correlation.as_deref());
+                .runtime_log(level, &message, sink.correlation.as_deref());
         }
     });
+    message
+}
+
+fn runtime_log_stderr_line(level: &str, message: &Value) -> String {
+    format!("[snapback handler console.{level}] {message}")
+}
+
+fn handler_console_stderr_enabled() -> bool {
+    #[cfg(test)]
+    if TEST_HANDLER_CONSOLE_STDERR.with(|captures| !captures.borrow().is_empty()) {
+        return true;
+    }
+    matches!(
+        env::var("SNAPBACK_HANDLER_CONSOLE").ok().as_deref(),
+        Some("stderr")
+    )
+}
+
+fn emit_handler_console_stderr(line: String) {
+    #[cfg(test)]
+    if TEST_HANDLER_CONSOLE_STDERR.with(|captures| {
+        let mut captures = captures.borrow_mut();
+        captures.last_mut().is_some_and(|lines| {
+            lines.push(line.clone());
+            true
+        })
+    }) {
+        return;
+    }
+    eprintln!("{line}");
+}
+
+#[cfg(test)]
+fn with_captured_handler_console_stderr<T>(run: impl FnOnce() -> T) -> (T, Vec<String>) {
+    TEST_HANDLER_CONSOLE_STDERR.with(|captures| captures.borrow_mut().push(Vec::new()));
+    let result = run();
+    let lines = TEST_HANDLER_CONSOLE_STDERR.with(|captures| {
+        captures
+            .borrow_mut()
+            .pop()
+            .expect("handler-console stderr capture stack")
+    });
+    (result, lines)
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -3923,12 +4004,9 @@ impl<'a> IbexHostContext<'a> {
             "runtime.log" => {
                 let level = args.get("level").and_then(Value::as_str).unwrap_or("log");
                 let message = args.get("message").cloned().unwrap_or(Value::Null);
-                capture_runtime_log(level, &message);
-                if matches!(
-                    env::var("SNAPBACK_HANDLER_CONSOLE").ok().as_deref(),
-                    Some("stderr")
-                ) {
-                    eprintln!("[snapback handler console.{level}] {message}");
+                let message = capture_runtime_log(level, message);
+                if handler_console_stderr_enabled() {
+                    emit_handler_console_stderr(runtime_log_stderr_line(level, &message));
                 }
                 Ok(Value::Null)
             }
@@ -4804,7 +4882,14 @@ pub(crate) fn dispatch_host_call(
     args: Value,
 ) -> SnapbackResult<Value> {
     let tracing = HOST_CALL_TRACE.with(|slot| slot.borrow().is_some());
-    let traced_args = if tracing { Some(args.clone()) } else { None };
+    // @ref LLP 0036#runtime-exposure-d5-d8 — traces are retained diagnostics,
+    // so action secrets (including fetch header values) are scrubbed with the
+    // same staging-time snapshot as the eventual error envelope.
+    let traced_args = if tracing {
+        Some(redact_runtime_observation(args.clone()))
+    } else {
+        None
+    };
     let buffered_touch_count = if tracing && op == "db.uniqueMany" {
         args.get("table")
             .and_then(Value::as_str)
@@ -5823,10 +5908,48 @@ pub(crate) fn parse_handler_output_with_claim(
         )
         .with_details(json!({
             "function": module.export,
-            "output": output,
+            "outputLengthBytes": output.len(),
+            "outputSha256": format!("sha256:{:x}", Sha256::digest(output.as_bytes())),
         }))),
         None,
     )
+}
+
+// The 4 MiB `result_contract` remains the application-result limit. The
+// carrier has modest tagged-envelope overhead, so match workerd's 8 MiB
+// pre-parse refusal and bound the native scan before allocating a Rust String.
+//
+// @ref LLP 0009#bounded-ibex-evaluation-carrier-and-single-payload-invocation-2026-08-12 —
+// untrusted eval output is bounded before the native-to-Rust copy.
+const IBEX_EVAL_OUTPUT_MAX_BYTES: usize = 8 * 1024 * 1024;
+
+fn take_ibex_eval_output(out: *mut c_char) -> SnapbackResult<String> {
+    if out.is_null() {
+        return Ok(String::new());
+    }
+    let length = unsafe { libc::strnlen(out, IBEX_EVAL_OUTPUT_MAX_BYTES + 1) };
+    if length > IBEX_EVAL_OUTPUT_MAX_BYTES {
+        unsafe { ex_hermes_free_string(out) };
+        return Err(SnapbackError::error(
+            "SNAPBACK_HANDLER_EVAL_OUTPUT_TOO_LARGE",
+            "runtime",
+            "JavaScript handler evaluation output exceeded the bounded carrier",
+        )
+        .with_details(json!({
+            "maximumBytes": IBEX_EVAL_OUTPUT_MAX_BYTES,
+            "observedAtLeastBytes": IBEX_EVAL_OUTPUT_MAX_BYTES + 1,
+        })));
+    }
+    let copied = unsafe { std::slice::from_raw_parts(out.cast::<u8>(), length) };
+    let output = std::str::from_utf8(copied).map(str::to_owned).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_HANDLER_FAILED",
+            "runtime",
+            "JavaScript handler evaluation returned invalid UTF-8",
+        )
+    });
+    unsafe { ex_hermes_free_string(out) };
+    output
 }
 
 pub(crate) fn eval(
@@ -5851,15 +5974,7 @@ pub(crate) fn eval(
             &mut out,
         )
     };
-    let output = if out.is_null() {
-        String::new()
-    } else {
-        let text = unsafe { CStr::from_ptr(out) }
-            .to_string_lossy()
-            .into_owned();
-        unsafe { ex_hermes_free_string(out) };
-        text
-    };
+    let output = take_ibex_eval_output(out)?;
     if status == 0 {
         return Ok(output);
     }
@@ -5997,6 +6112,20 @@ fn allowlist_install_source() -> &'static str {
 /// it to ambient + bootstrap + module in one eval; the warm path evals it
 /// alone against an already-set-up VM — same text either way, so the two
 /// paths cannot drift.
+const INVOCATION_IIFE_PAYLOAD_SLOT: &str = "\"\n__SNAPBACK_INVOCATION_JSON__\n\"";
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct IbexInvocationPayload<'a> {
+    export: &'a str,
+    args_json: String,
+    auth_json: String,
+    mode: &'static str,
+    run_json: String,
+    secrets_json: String,
+    epoch: String,
+}
+
 fn invocation_iife_source(
     module: &IbexModule,
     invocation: &IbexHostContext<'_>,
@@ -6005,18 +6134,13 @@ fn invocation_iife_source(
     let args_json = serde_json::to_string(&input.args).map_err(handler_serialize_error)?;
     let auth_json =
         serde_json::to_string(&invocation.handler_auth).map_err(handler_serialize_error)?;
-    let export_json = serde_json::to_string(&module.export).map_err(handler_serialize_error)?;
-    let args_literal = serde_json::to_string(&args_json).map_err(handler_serialize_error)?;
-    let auth_literal = serde_json::to_string(&auth_json).map_err(handler_serialize_error)?;
     let mode = match invocation.mode {
         IbexInvocationMode::Query => "query",
         IbexInvocationMode::Mutation => "mutation",
         IbexInvocationMode::Action => "action",
     };
-    let mode_json = serde_json::to_string(mode).map_err(handler_serialize_error)?;
     let run_json =
         serde_json::to_string(&invocation.action_run).map_err(handler_serialize_error)?;
-    let run_literal = serde_json::to_string(&run_json).map_err(handler_serialize_error)?;
 
     // The granted-config payload is exposed only to actions (and is never
     // client-visible): the host-computed per-invocation `uses` grant.
@@ -6027,13 +6151,21 @@ fn invocation_iife_source(
     } else {
         "null".to_string()
     };
-    let secrets_literal = serde_json::to_string(&secrets_json).map_err(handler_serialize_error)?;
     // The epoch travels as a decimal *string* literal so it is exact past the
     // f64 safe-integer range; JS concatenates it onto every host op. Baking it
     // into this per-invocation IIFE (and thus into the `ctx` closures the
     // bootstrap builds) is what lets the host reject a stale continuation.
-    let epoch_literal =
-        serde_json::to_string(&invocation.epoch().to_string()).map_err(handler_serialize_error)?;
+    let payload_json = serde_json::to_string(&IbexInvocationPayload {
+        export: &module.export,
+        args_json,
+        auth_json,
+        mode,
+        run_json,
+        secrets_json,
+        epoch: invocation.epoch().to_string(),
+    })
+    .map_err(handler_serialize_error)?;
+    let payload_literal = serde_json::to_string(&payload_json).map_err(handler_serialize_error)?;
 
     // The IIFE resolves to a tagged envelope ({"r": ...}), never a bare
     // value. The vendored eval loop cannot always drive the promise to
@@ -6048,20 +6180,20 @@ fn invocation_iife_source(
     // yields undefined for them, which an untagged channel silently turned
     // into a null result.
     //
-    // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
-    // Obligation 3's settlement assumption is enforced, not assumed: an
-    // unsettled invocation is a failed invocation, and its buffered writes
-    // never commit.
-    Ok(
-        include_str!("../packages/snapback-harness/invocation-iife.js")
-            .replace("__SNAPBACK_EXPORT__", &export_json)
-            .replace("__SNAPBACK_ARGS__", &args_literal)
-            .replace("__SNAPBACK_AUTH__", &auth_literal)
-            .replace("__SNAPBACK_MODE__", &mode_json)
-            .replace("__SNAPBACK_RUN__", &run_literal)
-            .replace("__SNAPBACK_SECRETS__", &secrets_literal)
-            .replace("__SNAPBACK_EPOCH__", &epoch_literal),
-    )
+    // @ref LLP 0009#bounded-ibex-evaluation-carrier-and-single-payload-invocation-2026-08-12 —
+    // one serialized payload crosses the trusted-template boundary. The slot
+    // includes raw newlines, which cannot occur in a serde_json string literal,
+    // and is split exactly once rather than globally replacing user-adjacent
+    // tokens. The tagged settlement contract above is otherwise unchanged.
+    let template = include_str!("../packages/snapback-harness/invocation-iife.js");
+    let (prefix, suffix) = template
+        .split_once(INVOCATION_IIFE_PAYLOAD_SLOT)
+        .expect("invocation IIFE must contain its single payload slot");
+    assert!(
+        !suffix.contains(INVOCATION_IIFE_PAYLOAD_SLOT),
+        "invocation IIFE payload slot must be unique"
+    );
+    Ok(format!("{prefix}{payload_literal}{suffix}"))
 }
 
 /// Outbound action egress is opt-in and off by default. When enabled, an ACTION
@@ -6544,6 +6676,7 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_ACTION_STREAM_CANCELLED"
         | "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
         | "SNAPBACK_ACTION_STREAM_INVALID"
+        | "SNAPBACK_ACTION_STREAM_SSRF_REFUSED"
         | "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
         | "SNAPBACK_ACTION_STREAM_TIMEOUT"
         | "SNAPBACK_ACTION_STREAM_UNSUPPORTED"
@@ -6567,6 +6700,9 @@ fn handler_envelope_code(code: &str) -> &str {
         // Parity with envelope.mjs's PASSTHROUGH_CODES: the bounded host
         // fetch response refusals survive with their exact code on both
         // decoders (0137 a4-f1/a5-f1 — ctx.fetch is now target-portable).
+        // @ref LLP 0251#consumerprofile-contract — the shared destination floor's refusal
+        // is host-authored and must remain typed across the Rust envelope.
+        | "SNAPBACK_HOST_FETCH_SSRF_REFUSED"
         | "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE"
         | "SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8"
         // @ref LLP 0158#the-runtime-plane--where-the-real-design-is — the
@@ -6806,6 +6942,186 @@ fn find_on_path(binary: &str) -> Option<PathBuf> {
 
 fn is_executable(path: &Path) -> bool {
     path.is_file()
+}
+
+#[cfg(test)]
+mod runtime_boundary_hardening_tests {
+    use super::{
+        IBEX_EVAL_OUTPUT_MAX_BYTES, IbexHostContext, dispatch_host_call, parse_handler_output,
+        run_ibex_handler_with_context, with_captured_handler_console_stderr, with_host_call_trace,
+        with_runtime_log_telemetry_redactor,
+    };
+    use crate::auth::admission::AdmissionLease;
+    use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
+    use crate::config::SecretRedactor;
+    use crate::manifest::{HandlerInput, IbexModule};
+    use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
+    use serde_json::json;
+    use sha2::{Digest as _, Sha256};
+
+    fn query_context<'a>(db: &'a LocalDatabase, input: HandlerInput) -> IbexHostContext<'a> {
+        let authority = ResolvedAppAuthority::Anonymous;
+        IbexHostContext::new_with_projection(
+            DbRead::Live(db),
+            input,
+            HandlerAuthProjection::from_authority(&authority),
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved(&authority),
+            false,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn runtime_log_and_host_fetch_trace_use_the_staged_secret_redactor() {
+        let secret = "runtime-log-secret-0250";
+        let telemetry = crate::telemetry::Telemetry::in_memory(
+            "01900000-0000-7000-8000-000000000250",
+            crate::telemetry::TelemetryConfig::default(),
+        )
+        .unwrap();
+        let db = LocalDatabase::memory().unwrap();
+        let mut invocation = query_context(
+            &db,
+            HandlerInput {
+                args: json!({"injectedSecret": secret}),
+                ..HandlerInput::default()
+            },
+        );
+        let module = IbexModule {
+            source: r#"
+                globalThis.__snapbackHandlers = {
+                  async logInjected(_ctx, args) {
+                    console.error(args.injectedSecret);
+                    return null;
+                  }
+                };
+            "#
+            .to_owned(),
+            export: "logInjected".to_owned(),
+        };
+
+        let ((_, trace), stderr_lines) = with_captured_handler_console_stderr(|| {
+            with_runtime_log_telemetry_redactor(
+                telemetry.clone(),
+                None,
+                SecretRedactor::request_scoped(secret.to_owned()),
+                || {
+                    with_host_call_trace(|| {
+                        run_ibex_handler_with_context(&module, &mut invocation, None).unwrap();
+                        let refusal = dispatch_host_call(
+                            &mut invocation,
+                            "host.fetch",
+                            json!({
+                                "url": "https://example.invalid/",
+                                "headers": {"authorization": format!("Bearer {secret}")},
+                            }),
+                        )
+                        .unwrap_err();
+                        assert_eq!(
+                            refusal.diagnostic.code,
+                            "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE"
+                        );
+                    })
+                },
+            )
+        });
+
+        let trace_json = serde_json::to_string(&trace).unwrap();
+        assert!(trace_json.contains("[REDACTED]"), "{trace_json}");
+        assert!(!trace_json.contains(secret), "{trace_json}");
+        let stderr = stderr_lines.join("\n");
+        assert!(stderr.contains("[REDACTED]"), "{stderr}");
+        assert!(!stderr.contains(secret), "{stderr}");
+
+        let events = telemetry
+            .query_events(&crate::telemetry_query::TelemetryEventsRequestV1::default())
+            .unwrap();
+        let telemetry_json = serde_json::to_string(&events).unwrap();
+        assert!(telemetry_json.contains("[REDACTED]"), "{telemetry_json}");
+        assert!(!telemetry_json.contains(secret), "{telemetry_json}");
+    }
+
+    #[test]
+    fn invocation_payload_round_trips_every_former_placeholder_token() {
+        let tokens = json!([
+            "__SNAPBACK_EXPORT__",
+            "__SNAPBACK_ARGS__",
+            "__SNAPBACK_AUTH__",
+            "__SNAPBACK_MODE__",
+            "__SNAPBACK_RUN__",
+            "__SNAPBACK_SECRETS__",
+            "__SNAPBACK_EPOCH__",
+        ]);
+        let db = LocalDatabase::memory().unwrap();
+        let mut invocation = query_context(
+            &db,
+            HandlerInput {
+                args: tokens.clone(),
+                ..HandlerInput::default()
+            },
+        );
+        let module = IbexModule {
+            source: r#"
+                globalThis.__snapbackHandlers = {
+                  async echo(_ctx, args) { return args; }
+                };
+            "#
+            .to_owned(),
+            export: "echo".to_owned(),
+        };
+        let output = run_ibex_handler_with_context(&module, &mut invocation, None).unwrap();
+        assert_eq!(output, tokens);
+    }
+
+    #[test]
+    fn oversized_settled_eval_output_is_refused_before_the_rust_copy() {
+        let db = LocalDatabase::memory().unwrap();
+        let mut invocation = query_context(&db, HandlerInput::default());
+        let module = IbexModule {
+            source: format!(
+                r#"
+                  globalThis.__snapbackHandlers = {{
+                    async oversized() {{ return "x".repeat({}); }}
+                  }};
+                "#,
+                IBEX_EVAL_OUTPUT_MAX_BYTES + 4_096
+            ),
+            export: "oversized".to_owned(),
+        };
+        let error = run_ibex_handler_with_context(&module, &mut invocation, None).unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HANDLER_EVAL_OUTPUT_TOO_LARGE"
+        );
+        assert_eq!(
+            error.diagnostic.details["maximumBytes"],
+            IBEX_EVAL_OUTPUT_MAX_BYTES
+        );
+        assert_eq!(
+            error.diagnostic.details["observedAtLeastBytes"],
+            IBEX_EVAL_OUTPUT_MAX_BYTES + 1
+        );
+    }
+
+    #[test]
+    fn unsettled_output_diagnostic_keeps_only_length_and_hash() {
+        let output = "unsettled-sensitive-blob-".repeat(100_000);
+        let module = IbexModule {
+            source: String::new(),
+            export: "pending".to_owned(),
+        };
+        let error = parse_handler_output(&module, output.clone()).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_DID_NOT_SETTLE");
+        assert!(error.diagnostic.details.get("output").is_none());
+        assert_eq!(error.diagnostic.details["outputLengthBytes"], output.len());
+        assert_eq!(
+            error.diagnostic.details["outputSha256"],
+            format!("sha256:{:x}", Sha256::digest(output.as_bytes()))
+        );
+        let diagnostic = serde_json::to_string(&error.diagnostic).unwrap();
+        assert!(!diagnostic.contains("unsettled-sensitive-blob"));
+    }
 }
 
 #[cfg(test)]

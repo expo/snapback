@@ -52,3 +52,22 @@ Design home: LLP 0251 (unified outbound destination policy). LLP 0009 / 0049 / 0
 ## Confidence
 
 High on the mechanism. High that it is not already ticketed (capability manifests declare `egress_destination_allowlist` as a gap; that is “you may only call 511.org,” not “you may not hit the IMDS”).
+
+## Resolution (2026-08-12)
+
+Fixed in two halves landing together. Rust: new shared
+`src/outbound_policy.rs` primitive (@ref LLP 0251) now backs webhooks,
+buffered `ctx.fetch`, and streamed `ctx.fetchStream` — metadata and
+non-public DNS answers refused, vetted addresses pinned at transport
+time, `redirects(0)`, `try_proxy_from_env(false)`, authored URL echoed;
+loopback denied by default (`SNAPBACK_OUTBOUND_LOOPBACK=1` or the
+cfg(test) harness admits all-loopback answers only; metadata/link-local
+never). Refusals are classified reviewed HTTP 400 diagnostics proven
+through the real host-op/FFI handler envelope
+(`tests/action_stream_envelope_v0.rs`). Cloudflare: `hostActionFetch`
+(buffered + streamed) applies a JS port of the public-destination
+predicates before secret placement — hostname/IP-literal floor with
+manual redirect refusal; no resolver pinning exists on that profile, so
+the DNS-rebinding residual is recorded and no floor is claimed (LLP
+0251 implementation record). LLP 0009 / 0076 updated;
+`egress_destination_allowlist` remains a separate tracked gap.

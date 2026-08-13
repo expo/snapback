@@ -19,3 +19,16 @@ On a shared Unix host any local user can read resume tokens and pending mutation
 ## Confidence
 
 High. Not covered by the existing outbox-writer ticket (`issues/20260811-authority-scope-outbox-writer-and-party-wall-live-wall-reds.md`).
+
+## Resolution (2026-08-12)
+
+The default Node files adapter now creates the store directory with mode
+`0700` and blobs, atomic-write temporaries, and lock files with mode `0600`.
+Store open best-effort chmods an existing directory, identity blob, and lock;
+adapters with missing or unsupported chmod semantics remain available. Q4
+application-level encryption remains intentionally open.
+
+Coverage asserts the live directory/blob/lock modes, simulates permissive
+legacy carriers and verifies chmod-on-open, and proves an `ENOTSUP` chmod does
+not fail store use. The final affected-suite command reported verbatim:
+`tests 128`, `pass 128`, `fail 0`, `cancelled 0`, `skipped 0`, `todo 0`.

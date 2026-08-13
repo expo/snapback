@@ -1566,6 +1566,18 @@ impl IbexActionHost for DetachedActionHost {
         if remaining.is_zero() {
             return Err(action_deadline_elapsed("fetchStream.open"));
         }
+        let request_timeout = remaining.min(Duration::from_millis(ACTION_STREAM_IDLE_MS));
+        // @ref LLP 0251#consumerprofile-contract — destination admission completes before
+        // the stream attempt is pre-marked, then the request uses only the
+        // shared pinned/no-redirect/no-env-proxy transport.
+        let prepared_target = crate::outbound_policy::prepare_http_target(
+            &request.url,
+            crate::outbound_policy::action_http_target_policy(),
+            4_096,
+        )
+        .map_err(action_stream_target_error)?;
+        let agent = crate::outbound_policy::pinned_http_agent(&prepared_target, request_timeout)
+            .map_err(action_stream_target_error)?;
         // Mint the cursor id and bind it as a child record of the named
         // attempt BEFORE the request bytes reach the outbound stack: the
         // write-ahead pre-mark leaves `initiation_possible` standing unless a
@@ -1585,14 +1597,8 @@ impl IbexActionHost for DetachedActionHost {
                 return Err(error);
             }
         }
-        let request_timeout = remaining.min(Duration::from_millis(ACTION_STREAM_IDLE_MS));
-        let agent = ureq::AgentBuilder::new()
-            .timeout_connect(request_timeout)
-            .timeout_read(request_timeout)
-            .timeout_write(request_timeout)
-            .build();
         let mut outbound = agent
-            .request(&method, &request.url)
+            .request(&method, prepared_target.authored_url())
             .timeout(request_timeout);
         for (name, value) in &request.headers {
             outbound = outbound.set(name, value);
@@ -1690,7 +1696,6 @@ impl IbexActionHost for DetachedActionHost {
         self.flush_stream_attempts_trusted();
         let status = response.status();
         let status_text = response.status_text().to_owned();
-        let final_url = response.get_url().to_owned();
         let mut headers = BTreeMap::new();
         for name in response.headers_names().into_iter().take(64) {
             if let Some(value) = response.header(&name) {
@@ -1728,7 +1733,7 @@ impl IbexActionHost for DetachedActionHost {
             stream_id,
             status,
             status_text,
-            url: final_url,
+            url: request.url,
             headers,
         })
     }
@@ -1827,13 +1832,41 @@ impl IbexActionHost for DetachedActionHost {
                 .unwrap_or(15_000),
         );
         let request_timeout = requested_timeout.min(remaining);
-        let agent = ureq::AgentBuilder::new()
-            .timeout_connect(request_timeout)
-            .timeout_read(request_timeout)
-            .timeout_write(request_timeout)
-            .build();
+        // @ref LLP 0251#consumerprofile-contract — buffered and streamed action fetch share
+        // one destination floor and the same DNS-pinned transport.
+        let prepared_target = crate::outbound_policy::prepare_http_target(
+            &request.url,
+            crate::outbound_policy::action_http_target_policy(),
+            4_096,
+        )
+        .map_err(|error| match error.kind() {
+            crate::outbound_policy::PrepareTargetErrorKind::Invalid => fetch_error(
+                "SNAPBACK_HOST_FETCH_INVALID",
+                "ctx.fetch requires a bounded credential-free HTTPS URL",
+            ),
+            crate::outbound_policy::PrepareTargetErrorKind::SsrfRefused => fetch_error(
+                "SNAPBACK_HOST_FETCH_SSRF_REFUSED",
+                "ctx.fetch refused a non-public outbound destination",
+            ),
+            crate::outbound_policy::PrepareTargetErrorKind::Unavailable => fetch_error(
+                "SNAPBACK_HOST_FETCH_FAILED",
+                "the upstream destination could not be resolved",
+            ),
+        })?;
+        let agent = crate::outbound_policy::pinned_http_agent(&prepared_target, request_timeout)
+            .map_err(|error| match error.kind() {
+                crate::outbound_policy::PrepareTargetErrorKind::Invalid
+                | crate::outbound_policy::PrepareTargetErrorKind::SsrfRefused => fetch_error(
+                    "SNAPBACK_HOST_FETCH_SSRF_REFUSED",
+                    "ctx.fetch refused a non-public outbound destination",
+                ),
+                crate::outbound_policy::PrepareTargetErrorKind::Unavailable => fetch_error(
+                    "SNAPBACK_HOST_FETCH_FAILED",
+                    "the upstream destination could not be resolved",
+                ),
+            })?;
         let mut outbound = agent
-            .request(&method, &request.url)
+            .request(&method, prepared_target.authored_url())
             .timeout(request_timeout);
         for (name, value) in &request.headers {
             outbound = outbound.set(name, value);
@@ -2369,6 +2402,31 @@ fn action_stream_error(
     SnapbackError::error(code, "runtime", message).with_details(Value::Object(details))
 }
 
+fn action_stream_target_error(
+    error: crate::outbound_policy::PrepareTargetError,
+) -> SnapbackError {
+    match error.kind() {
+        crate::outbound_policy::PrepareTargetErrorKind::Invalid => action_stream_error(
+            "SNAPBACK_ACTION_STREAM_INVALID",
+            "open",
+            "ctx.fetchStream requires a bounded credential-free HTTPS URL",
+            json!({ "expected": "public HTTPS, or explicitly enabled all-loopback HTTP", "received": "invalid destination policy shape" }),
+        ),
+        crate::outbound_policy::PrepareTargetErrorKind::SsrfRefused => action_stream_error(
+            "SNAPBACK_ACTION_STREAM_SSRF_REFUSED",
+            "open",
+            "ctx.fetchStream refused a non-public outbound destination",
+            json!({ "expected": "public HTTPS, or explicitly enabled all-loopback HTTP", "received": "destination policy refusal" }),
+        ),
+        crate::outbound_policy::PrepareTargetErrorKind::Unavailable => action_stream_error(
+            "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+            "open",
+            "the upstream destination could not be resolved",
+            json!({ "received": "DNS resolution unavailable", "retrySafe": true }),
+        ),
+    }
+}
+
 fn action_authorization_reservation_stale(name: &str) -> SnapbackError {
     authorization_reservation_stale(format!(
         "authorization state changed while action-hosted mutation {name} reserved protected rooms; retry the complete mutation with short jitter"
@@ -2642,9 +2700,10 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     let _ = stream_started.send(attempt_token);
                 }
                 let result = initialized.and_then(|()| {
-                    crate::runtime::with_runtime_log_telemetry(
+                    crate::runtime::with_runtime_log_telemetry_redactor(
                         telemetry.clone(),
                         correlation,
+                        redactor.clone(),
                         || {
                             runtime.invoke_ibex_action_prepared(
                                 &module,
@@ -9904,6 +9963,28 @@ pub fn legacy_body_auth_field(value: &Value) -> Option<&str> {
     envelope_auth(value)
 }
 
+/// Find the one legacy Dev authority value that can actually select an actor.
+/// Ordinary app arguments remain opaque even when they contain `user_id`.
+fn dev_body_user_id(value: &Value) -> Option<&str> {
+    fn envelope_user_id(value: &Value) -> Option<&str> {
+        let fields = value.as_object()?;
+        if let Some(auth) = fields.get("auth").and_then(Value::as_object)
+            && let Some(user_id) = auth
+                .get("user_id")
+                .or_else(|| auth.get("userId"))
+                .and_then(Value::as_str)
+        {
+            return Some(user_id);
+        }
+        ["request", "input", "ctx_ledger", "ctxLedger"]
+            .into_iter()
+            .filter_map(|name| fields.get(name))
+            .find_map(envelope_user_id)
+    }
+
+    envelope_user_id(value)
+}
+
 fn body_auth_unsupported(field: &str) -> ApiError {
     SnapbackError::error(
         "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
@@ -9911,6 +9992,18 @@ fn body_auth_unsupported(field: &str) -> ApiError {
         "client-provided identity fields are not accepted when session authority is server-resolved",
     )
     .with_details(json!({ "field": field }))
+    .into()
+}
+
+fn dev_body_origin_refused() -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_DEV_ORIGIN_REFUSED",
+        "auth",
+        "cross-origin Dev-mode body impersonation is not enabled for this browser origin",
+    )
+    .with_details(json!({
+        "repair": "serve through the Snapback origin or proxy, or add the exact loopback origin to SNAPBACK_DEV_AUTH_ORIGINS",
+    }))
     .into()
 }
 
@@ -12873,6 +12966,23 @@ async fn enforce_registered_route_policy_inner(
         return finish_registered_response(
             effective,
             body_auth_unsupported(field).into_response(),
+            route_admission.as_ref(),
+            None,
+        );
+    }
+    // @ref LLP 0058#dev-mode — browser Origin is not identity authority. A
+    // legacy Dev user selector remains convenient for same-origin, explicitly
+    // registered local dev servers, and non-browser callers that omit Origin;
+    // every other cross-origin selector is refused before authority resolves.
+    if policy_mode == PolicyAuthMode::Dev
+        && effective.legacy_body_policy == LegacyBodyPolicy::Allowed
+        && policy_body.as_ref().and_then(dev_body_user_id).is_some()
+        && let Some(origin) = request.headers().get(header::ORIGIN)
+        && !runtime.server.permits_dev_body_origin(origin)
+    {
+        return finish_registered_response(
+            effective,
+            dev_body_origin_refused().into_response(),
             route_admission.as_ref(),
             None,
         );
@@ -22973,30 +23083,19 @@ async fn execute_data_patch_host_operation(
         }
     };
     let authority = input.authority.clone();
-    let consumed = runtime.data_patch_tokens.consume(&input, &context);
-    let (token_id, binding) = match consumed {
-        Ok(consumed) => consumed,
-        Err(error) => {
-            return Ok(project_data_patch_result(
-                &state,
-                request,
-                server_url,
-                profile,
-                Some(authority),
-                Err(error),
-            )
-            .await);
-        }
-    };
-    let commit_binding = binding.clone();
+    let token_store = runtime.data_patch_tokens.clone();
     let committed = with_snapback_authorization_write(
         &state,
         |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
-        move |snapback| snapback.apply_direct_data_patch(&commit_binding),
+        move |snapback| {
+            token_store.commit(&input, &context, |binding| {
+                snapback.apply_direct_data_patch(binding)
+            })
+        },
     )
     .await
     .and_then(|outcome| outcome);
-    let outcome = committed.map(|commit| {
+    let outcome = committed.map(|(token_id, binding, commit)| {
         serde_json::to_value(crate::data_patch::receipt(
             token_id,
             binding,

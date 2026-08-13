@@ -4,7 +4,7 @@
 // durable commit or a missing run summary.
 import http from 'node:http';
 import fs from 'node:fs';
-import { startProof, ADMIN_TOKEN } from './harness.mjs';
+import { startProof, ADMIN_TOKEN, proxyOutboundTo } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { bindingNameFor } from '../config-set.mjs';
 import { cloudflareClientOptions } from '../client-options.mjs';
@@ -27,12 +27,13 @@ const proof = await startProof({
     SNAPBACK_CONFIG_GENERATION: '1',
     SNAPBACK_CRON_INTERVAL_OVERRIDE_MS: '60000',
     SNAPBACK_CRON_CLAIM_LEASE_MS: '60000',
-    SNAPBACK_TEST_FEED_URL: `${origin}/transit/StopMonitoring`,
+    SNAPBACK_TEST_FEED_URL: 'https://upstream.example/transit/StopMonitoring',
     SNAPBACK_TEST_CRON_STOP_AFTER_CLAIM: '1',
     SNAPBACK_TEST_CRON_INTERRUPT_DURING_ACTION: '1',
     SNAPBACK_TEST_CRON_STOP_BEFORE_FINISH: '1',
     SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE: '1',
   },
+  outboundService: proxyOutboundTo(origin),
 });
 
 try {
@@ -275,9 +276,10 @@ const resetRace = await startProof({
   bindings: {
     [bindingNameFor('all-aboard', 'caltrainFeed')]: JSON.stringify(['cron-reset-key']),
     SNAPBACK_CONFIG_GENERATION: '1',
-    SNAPBACK_TEST_FEED_URL: `http://127.0.0.1:${heldServer.address().port}/held`,
+    SNAPBACK_TEST_FEED_URL: 'https://upstream.example/held',
     SNAPBACK_ACTION_TIMEOUT_MS: '5000',
   },
+  outboundService: proxyOutboundTo(`http://127.0.0.1:${heldServer.address().port}`),
 });
 try {
   const base = await resetRace.url();
@@ -314,5 +316,11 @@ try {
   console.log('cloudflare cron-reset acceptance: held scheduled and manual runs cannot recreate state after reset');
 } finally {
   await resetRace.dispose();
-  heldServer.close();
+  // The fixture intentionally never answers its held requests. Close the
+  // listening server and destroy those sockets so the outbound-service proxy
+  // cannot leave the canonical Node test process alive after assertions pass.
+  await new Promise((resolve) => {
+    heldServer.close(resolve);
+    heldServer.closeAllConnections();
+  });
 }

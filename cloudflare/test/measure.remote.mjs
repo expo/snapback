@@ -12,11 +12,10 @@
 //     node cloudflare/test/measure.remote.mjs > report.json
 //
 // Fixture posture: the runner writes to fresh per-run boards
-// (`bench-<runId>` etc.) so it needs NO admin token and leaves the deployed
-// fixture's other boards untouched. When SNAPBACK_ADMIN_TOKEN is exported it
-// /reset-cleans the database first and says so in the report; without it the
-// report records the accretion honestly (the notes proof is a fixture
-// deployment, not a product database).
+// (`bench-<runId>` etc.) and leaves the deployed fixture's other boards
+// untouched. Hosted auth is unavailable on this proof target, so non-public
+// mutations require SNAPBACK_ADMIN_TOKEN. The runner also /reset-cleans the
+// database first and records that fact in the report.
 //
 // Results land in the Research LLP that reports them (LLP 0050); the
 // machine-readable artifact is checked in under cloudflare/generated/.
@@ -28,6 +27,10 @@ if (!base) {
 }
 
 const adminToken = process.env.SNAPBACK_ADMIN_TOKEN || '';
+if (!adminToken) {
+  console.error('set SNAPBACK_ADMIN_TOKEN to benchmark non-public app-data calls on the real deploy');
+  process.exit(2);
+}
 const runId = process.env.SNAPBACK_BENCH_RUN_ID || Math.random().toString(36).slice(2, 8);
 const clientLocation = process.env.SNAPBACK_BENCH_CLIENT_LOCATION || 'unstated';
 
@@ -84,7 +87,11 @@ function round(value) {
 let observedColo = null;
 async function post(path, body) {
   const headers = { 'content-type': 'application/json' };
-  if (adminToken && (path === '/_snapback/api/app/reset' || path === '/_snapback/api/object/evict')) {
+  if (
+    path === '/_snapback/api/app/reset'
+    || path === '/_snapback/api/object/evict'
+    || /^\/(?:query|mutation|action)(?:\/|$)/u.test(path)
+  ) {
     headers['x-snapback-admin-token'] = adminToken;
   }
   const response = await fetch(`${base}${path}`, {
@@ -170,11 +177,8 @@ async function main() {
   const measurements = [];
   const startedAtISO = new Date().toISOString();
 
-  let resetApplied = false;
-  if (adminToken) {
-    const reset = await post('/_snapback/api/app/reset');
-    resetApplied = reset.ok === true;
-  }
+  const reset = await post('/_snapback/api/app/reset');
+  const resetApplied = reset.ok === true;
 
   const health = await get('/health');
   if (health.ok !== true) {

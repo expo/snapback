@@ -21,3 +21,21 @@ Emit the same ordinary membership `Query` probe `membership_capture_dependency` 
 ## Confidence
 
 High on the capture kind. Today’s always-rerun reserved path masks the live symptom.
+
+## Resolution (2026-08-12)
+
+Replaced the asset membership branch's bespoke role lookup and dead
+`Permission`/id-less `MissingRow` captures with the ordinary membership probe
+and `membership_capture_dependency`. Both admitted and empty-result decisions
+now capture a predicate-bearing `Query` that binds principal, resource, and
+effective roles; this path no longer emits `CapturedReadKind::Permission`.
+
+Regression coverage exercises an empty membership result and asserts the
+captured kinds contain the `workspace_members` Query probe, contain no
+Permission dependency, report zero results, and serialize all three filter
+axes.
+
+Evidence: `cargo test --lib
+asset_membership_read_captures_ordinary_query_and_never_permission` (1 passed);
+`cargo test --lib asset_read_` (2 passed); `cargo test --lib` (2,635 passed, 0
+failed, 2 ignored).

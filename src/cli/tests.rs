@@ -2,19 +2,19 @@ use super::{
     AdminArgs, AdminCommand, AdminLinkReadyFile, Args, AssetsCommand, AuthCommand,
     AuthConstructionFailure, AuthCoordinatorReadinessReceipt, AuthPasswordCommand,
     AuthProgramConstructionReceipts, AuthRecoveryCommand, BEFORE_STARTUP_TARGET_RESERVATION, Cli,
-    ConfigCommand, ConnectionsCommand, ConsoleClaimMintCliResponse, ControlsCommand, CronCommand,
-    DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand, ErrorsCommand, ForkCommand,
-    GUIDE_SEARCH_SCHEMA_VERSION, HostCommand, JobsCommand, ManagedPath, NetworkProfileCommand,
-    ReadyFileTarget, ResolvedHttpTarget, SessionCommand, StoreCommand, TargetArgs,
-    TelemetryCommand, automatic_reap_before_create, bind_first_available, bind_listener,
-    console_claim_fragment_url, console_fragment_url, controls_list_text, fork_secret_disposition,
-    managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
-    parse_network_profile_selection, parse_run_args, path_segment_escape, prepare_database_path,
-    prepare_database_path_for_startup, quiet_stop_fork, reject_misdirected_serve_flags,
-    render_guide_command, resolve_http_target, resolve_http_target_for_operation,
-    resolve_startup_nonce, runtime_auth_program_readiness, search_guide_sections_in,
-    validate_path_disjointness, validated_console_origin, validated_secret_read_root_path,
-    write_ready_file_atomic, write_ready_file_atomic_protected,
+    ConfigCommand, ConnectionsCommand, ConsoleClaimMintCliResponse, ConsoleCredentialCliResponse,
+    ControlsCommand, CronCommand, DataCommand, DataPatchArgs, DebugCommand, EphemeralCommand,
+    ErrorsCommand, ForkCommand, GUIDE_SEARCH_SCHEMA_VERSION, HostCommand, JobsCommand, ManagedPath,
+    NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand, StoreCommand,
+    TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
+    bind_listener, console_claim_fragment_url, console_fragment_url, console_launch_handoff_with,
+    controls_list_text, fork_secret_disposition, managed_startup_paths, mint_secret_read_via_http,
+    parse_fork_ttl, parse_network_profile_selection, parse_run_args, path_segment_escape,
+    prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
+    reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
+    resolve_http_target_for_operation, resolve_startup_nonce, runtime_auth_program_readiness,
+    search_guide_sections_in, validate_path_disjointness, validated_console_origin,
+    validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
 };
 use crate::guide::EmbeddedGuideFile;
 use crate::instance_lock::TargetInstanceReservation;
@@ -830,6 +830,40 @@ fn admin_cli_pins_launch_and_terminal_approval_shapes() {
         "https://console.example/_snapback/admin/#claim=sbcl_0123456789abcdef0123456789abcdef"
     );
     assert!(!claim_url.contains('?'));
+}
+
+#[test]
+fn admin_browser_handoff_uses_claim_while_no_open_prints_credential() {
+    let browser = console_launch_handoff_with(
+        "http://127.0.0.1:4287",
+        false,
+        || panic!("browser handoff must not mint the live credential in the CLI"),
+        || {
+            Ok(ConsoleClaimMintCliResponse {
+                claim_code: "sbcl_0123456789abcdef0123456789abcdef".to_owned(),
+                expires_at_ms: 1_000,
+                expires_in: 30,
+            })
+        },
+    )
+    .unwrap();
+    assert!(browser.url.contains("#claim=sbcl_"), "{}", browser.url);
+    assert!(!browser.url.contains("sbcc_"), "{}", browser.url);
+
+    let printed = console_launch_handoff_with(
+        "http://127.0.0.1:4287",
+        true,
+        || {
+            Ok(ConsoleCredentialCliResponse {
+                credential: "sbcc_stdout_only".to_owned(),
+                expires_at_ms: 2_000,
+            })
+        },
+        || panic!("--no-open must not mint a claim that no page will redeem"),
+    )
+    .unwrap();
+    assert!(printed.url.contains("#credential=sbcc_stdout_only"));
+    assert_eq!(printed.expires_at_ms, 2_000);
 }
 
 #[test]

@@ -449,7 +449,7 @@ use crate::manifest::{
     SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, SeedData, TableManifest, TargetCapabilityId,
     ValueExpr,
 };
-use crate::runtime::{ActionStreamRequest, IbexActionHost};
+use crate::runtime::{ActionStreamRequest, HostFetchRequest, IbexActionHost};
 use crate::storage::ClientMutationIdentity;
 use crate::storage::auth::AuthTransactionAttempt;
 use crate::storage::auth::PasswordIdentifierMode;
@@ -5083,7 +5083,13 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
     ] {
         let response = router
             .clone()
-            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .header(header::HOST, "attacker.example:8443")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK, "{path}");
@@ -5097,6 +5103,19 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
             json!(["items.read", "items.write"])
         );
         if path.ends_with("authorization-server") {
+            assert_eq!(metadata["issuer"], json!("http://127.0.0.1:43621"));
+            assert_eq!(
+                metadata["authorization_endpoint"],
+                json!("http://127.0.0.1:43621/auth/oauth/authorize")
+            );
+            assert_eq!(
+                metadata["token_endpoint"],
+                json!("http://127.0.0.1:43621/auth/oauth/token")
+            );
+            assert_eq!(
+                metadata["registration_endpoint"],
+                json!("http://127.0.0.1:43621/auth/oauth/register")
+            );
             assert_eq!(
                 metadata["code_challenge_methods_supported"],
                 json!(["S256"])
@@ -5112,32 +5131,46 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
                     .ends_with("/auth/oauth/register")
             );
         } else {
+            assert_eq!(metadata["resource"], json!("http://127.0.0.1:43621"));
+            assert_eq!(
+                metadata["authorization_servers"],
+                json!(["http://127.0.0.1:43621"])
+            );
             assert_eq!(metadata["bearer_methods_supported"], json!(["header"]));
         }
     }
 
-    let registered = router
-        .clone()
-        .oneshot(oauth_protocol_request(
-            "POST",
-            "/auth/oauth/register",
-            Some("application/json"),
-            serde_json::to_vec(&json!({
-                "redirect_uris": ["http://127.0.0.1:4321/callback"],
-                "client_name": "OAuth Journey",
-                "token_endpoint_auth_method": "none"
-            }))
-            .unwrap(),
-            None,
-        ))
-        .await
-        .unwrap();
+    let mut registration_request = oauth_protocol_request(
+        "POST",
+        "/auth/oauth/register",
+        Some("application/json"),
+        serde_json::to_vec(&json!({
+            "redirect_uris": ["http://127.0.0.1:4321/callback"],
+            "client_name": "OAuth Journey",
+            "token_endpoint_auth_method": "none"
+        }))
+        .unwrap(),
+        None,
+    );
+    registration_request.headers_mut().insert(
+        header::HOST,
+        HeaderValue::from_static("attacker.example:8443"),
+    );
+    let registered = router.clone().oneshot(registration_request).await.unwrap();
     assert_eq!(registered.status(), StatusCode::OK);
     assert_eq!(
         registered.headers()[header::CACHE_CONTROL],
         "no-store, private"
     );
     let registered = response_json(registered).await;
+    assert_eq!(
+        registered["authorization_endpoint"],
+        json!("http://127.0.0.1:43621/auth/oauth/authorize")
+    );
+    assert_eq!(
+        registered["token_endpoint"],
+        json!("http://127.0.0.1:43621/auth/oauth/token")
+    );
     let client_id = registered["client_id"].as_str().unwrap().to_owned();
     assert!(client_id.starts_with("intg_"));
     assert!(registered.get("client_secret").is_none());
@@ -13141,6 +13174,78 @@ async fn route_middleware_installs_generation_and_epoch_bound_prepared_authority
 }
 
 #[tokio::test]
+async fn dev_body_impersonation_requires_a_trusted_browser_origin_but_not_an_origin_header() {
+    async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
+        Json(json!({ "userId": authority.projection().user_id() }))
+    }
+
+    let (mut state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+    let context = Arc::make_mut(&mut state.server);
+    context.record_bound_address("127.0.0.1:43621".parse().unwrap());
+    context.allow_dev_auth_origin_for_test("http://127.0.0.1:8081");
+    let router = super::router_from_registrations(
+        vec![super::RegisteredRoute::new(
+            super::app_auth_route("POST", "/query/{name}"),
+            axum::routing::post(echo_authority),
+        )],
+        state.clone(),
+    )
+    .with_state(state);
+    let request = |origin: Option<&'static str>| {
+        let mut builder = Request::builder()
+            .method("POST")
+            .uri("/query/authority")
+            .header(header::CONTENT_TYPE, "application/json");
+        if let Some(origin) = origin {
+            builder = builder.header(header::ORIGIN, origin);
+        }
+        builder
+            .body(Body::from(r#"{"args":{},"auth":{"user_id":"user-1"}}"#))
+            .unwrap()
+    };
+
+    for origin in [
+        None,
+        Some("http://127.0.0.1:43621"),
+        Some("http://127.0.0.1:8081"),
+    ] {
+        let response = router.clone().oneshot(request(origin)).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK, "origin {origin:?}");
+        assert_eq!(response_json(response).await["userId"], "user-1");
+    }
+
+    let response = router
+        .oneshot(request(Some("http://localhost:5173")))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(response).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_DEV_ORIGIN_REFUSED"
+    );
+
+    let (sessions_state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+    let sessions_router = super::router_from_registrations(
+        vec![super::RegisteredRoute::new(
+            super::app_auth_route("POST", "/query/{name}"),
+            axum::routing::post(echo_authority),
+        )],
+        sessions_state.clone(),
+    )
+    .with_state(sessions_state);
+    let response = sessions_router
+        .oneshot(request(Some("http://127.0.0.1:8081")))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(response).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED",
+        "the Dev Origin rule must not weaken or reorder Sessions body closure"
+    );
+}
+
+#[tokio::test]
 async fn session_bearer_is_resolved_for_each_online_invocation_request() {
     async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
         Json(json!({
@@ -19869,6 +19974,10 @@ fn production_snapback_literals() -> BTreeSet<String> {
 // helper constructors, embedded runtime source, and macros.
 const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
+        "SNAPBACK_DEV_AUTH_ORIGINS",
+        "comma-separated exact loopback-origin configuration for Dev browser body authority; never an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_HANDLER_ERROR_EXPOSURE",
         "environment variable selecting redacted versus development handler-error rendering; never an HTTP diagnostic",
     ),
@@ -20170,14 +20279,6 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "environment variable carrying the admin bearer token",
     ),
     (
-        "SNAPBACK_ARGS__",
-        "suffix of the __SNAPBACK_ARGS__ embedded-runtime placeholder",
-    ),
-    (
-        "SNAPBACK_AUTH__",
-        "suffix of the __SNAPBACK_AUTH__ embedded-runtime placeholder",
-    ),
-    (
         "SNAPBACK_AUTH_ACCEPTANCE_PROPERTY_RECEIPT",
         "machine-readable property-oracle marker emitted only by the LLP 0053 server acceptance test",
     ),
@@ -20250,14 +20351,6 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "environment variable configuring bounded cron dispatch",
     ),
     (
-        "SNAPBACK_EPOCH__",
-        "suffix of the __SNAPBACK_EPOCH__ embedded-runtime placeholder",
-    ),
-    (
-        "SNAPBACK_EXPORT__",
-        "suffix of the __SNAPBACK_EXPORT__ embedded-runtime placeholder",
-    ),
-    (
         "SNAPBACK_HANDLER_BACKEND",
         "environment variable selecting the handler backend",
     ),
@@ -20306,12 +20399,16 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "suffix of the __SNAPBACK_MARK__ HTML template placeholder",
     ),
     (
-        "SNAPBACK_MODE__",
-        "suffix of the __SNAPBACK_MODE__ embedded-runtime placeholder",
+        "SNAPBACK_INVOCATION_JSON__",
+        "suffix of the unique __SNAPBACK_INVOCATION_JSON__ embedded-runtime payload slot",
     ),
     (
         "SNAPBACK_OUTBOUND_ACTIONS",
         "environment variable enabling outbound action capabilities",
+    ),
+    (
+        "SNAPBACK_OUTBOUND_LOOPBACK",
+        "explicit local-development override admitting all-loopback HTTP action egress; never an HTTP diagnostic",
     ),
     (
         "SNAPBACK_EXPO_PUSH_BASE_URL",
@@ -20452,10 +20549,6 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "RQS wire refusal code (LLP 0091 §0B.6), never an HTTP diagnostic",
     ),
     (
-        "SNAPBACK_RUN__",
-        "suffix of the __SNAPBACK_RUN__ embedded-runtime placeholder",
-    ),
-    (
         "SNAPBACK_SCHEMA_VERSION",
         "Rust constant name interpolated into schema-export text",
     ),
@@ -20466,10 +20559,6 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
         "SNAPBACK_SESSIONS_SCHEMA_VERSION",
         "Rust constant name interpolated into schema-export text",
-    ),
-    (
-        "SNAPBACK_SECRETS__",
-        "suffix of the __SNAPBACK_SECRETS__ embedded-runtime placeholder",
     ),
     (
         "SNAPBACK_V8_WALL_CLOCK_TIMEOUT_MS",
@@ -20625,12 +20714,14 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_RESULT_TRANSFORM_STAGE_UNKNOWN",
     "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
     "SNAPBACK_ACTION_STREAM_INVALID",
+    "SNAPBACK_ACTION_STREAM_SSRF_REFUSED",
     "SNAPBACK_VECTOR_INDEX_INVALID",
     "SNAPBACK_VECTOR_QUERY_INVALID",
     "SNAPBACK_VECTOR_QUERY_PLAN_INVALID",
     "SNAPBACK_VECTOR_VALUE_INVALID",
     "SNAPBACK_VECTOR_MAINTENANCE_LIMIT",
     "SNAPBACK_HOST_FETCH_INVALID",
+    "SNAPBACK_HOST_FETCH_SSRF_REFUSED",
     "SNAPBACK_HOST_FETCH_SLOT_INVALID",
     "SNAPBACK_BUNDLE_ENTRY_INVALID",
     "SNAPBACK_BUNDLE_MODE_INVALID",
@@ -21048,6 +21139,7 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_EFFECT_APPROVAL_DENIED",
     "SNAPBACK_AUTH_ASSURANCE_INADMISSIBLE",
     "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
+    "SNAPBACK_AUTH_DEV_ORIGIN_REFUSED",
     "SNAPBACK_AUTH_PASSWORD_SET_AUTHORITY_INVALID",
     "SNAPBACK_AUTH_PROVISIONING_WRITE_FORBIDDEN",
     "SNAPBACK_REMEDIATION_APPROVAL_REQUIRED",
@@ -21416,6 +21508,7 @@ const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_PROOF_BUDGET_EXCEEDED",
     "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
     "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE",
+    "SNAPBACK_HANDLER_EVAL_OUTPUT_TOO_LARGE",
     // LLP 0092 §0D.2 bundle hard limits.
     "SNAPBACK_BUNDLE_LIMIT_BYTES",
     "SNAPBACK_BUNDLE_LIMIT_QUERIES",
@@ -24017,6 +24110,118 @@ fn bounded_action_stream_pulls_multiple_chunks_and_closes_idempotently() {
             .contains(secret_path),
         "stream diagnostics must not retain URL path data"
     );
+}
+
+#[test]
+fn both_action_fetch_lanes_refuse_non_public_destinations() {
+    let mut snapback = LocalSnapback::memory().expect("destination-policy host state");
+    snapback.load_functions(generation_test_manifest());
+    let state = Arc::new(Mutex::new(snapback));
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state, &staged);
+    host.deadline = Instant::now() + Duration::from_secs(10);
+
+    for url in [
+        "https://localhost/private",
+        "https://metadata.google.internal/latest/meta-data",
+        "https://169.254.169.254/latest/meta-data",
+        "https://10.0.0.1/private",
+        "https://[fe80::a9fe:a9fe]/latest/meta-data",
+    ] {
+        let buffered = host
+            .host_fetch(HostFetchRequest {
+                url: url.to_owned(),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                timeout_ms: Some(100),
+                secret_slots: Vec::new(),
+            })
+            .expect_err("buffered fetch must refuse non-public destination");
+        assert_eq!(
+            buffered.diagnostic.code, "SNAPBACK_HOST_FETCH_SSRF_REFUSED",
+            "buffered destination: {url}"
+        );
+
+        let streamed = host
+            .open_response_stream(ActionStreamRequest {
+                url: url.to_owned(),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect_err("streamed fetch must refuse non-public destination");
+        assert_eq!(
+            streamed.diagnostic.code, "SNAPBACK_ACTION_STREAM_SSRF_REFUSED",
+            "streamed destination: {url}"
+        );
+        let serialized = serde_json::to_string(&streamed).expect("serialize stream refusal");
+        assert!(
+            !serialized.contains(url),
+            "stream refusal must not echo the authored URL"
+        );
+    }
+}
+
+#[test]
+fn both_action_fetch_lanes_refuse_redirects_and_echo_the_authored_url() {
+    let listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("bind action redirect fixture");
+    let address = listener.local_addr().expect("action redirect address");
+    let upstream = std::thread::spawn(move || {
+        for _ in 0..2 {
+            let (mut socket, _) = listener.accept().expect("accept action redirect request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request)
+                .expect("read action redirect request");
+            socket
+                .write_all(
+                    b"HTTP/1.1 302 Found\r\nLocation: http://169.254.169.254/latest/meta-data\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write action redirect response");
+        }
+    });
+    let authored_url = format!("http://{address}/authored");
+
+    let mut snapback = LocalSnapback::memory().expect("redirect-policy host state");
+    snapback.load_functions(generation_test_manifest());
+    let state = Arc::new(Mutex::new(snapback));
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state, &staged);
+    host.deadline = Instant::now() + Duration::from_secs(10);
+
+    let buffered = host
+        .host_fetch(HostFetchRequest {
+            url: authored_url.clone(),
+            method: "GET".to_owned(),
+            headers: BTreeMap::new(),
+            body: None,
+            timeout_ms: Some(2_000),
+            secret_slots: Vec::new(),
+        })
+        .expect("buffered redirect is returned to the handler");
+    assert_eq!(buffered.status, 302);
+    assert_eq!(buffered.url, authored_url);
+
+    let streamed = host
+        .open_response_stream(ActionStreamRequest {
+            url: authored_url.clone(),
+            method: "GET".to_owned(),
+            headers: BTreeMap::new(),
+            body: None,
+            idempotency_key: None,
+            attempt_token: None,
+            secret_slots: Vec::new(),
+        })
+        .expect("stream redirect is returned to the handler");
+    assert_eq!(streamed.status, 302);
+    assert_eq!(streamed.url, authored_url);
+    host.cancel_response_stream(&streamed.stream_id)
+        .expect("close redirect response stream");
+    upstream.join().expect("action redirect fixture joins");
 }
 
 #[test]

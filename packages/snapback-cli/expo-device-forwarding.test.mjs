@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createExpoRoutingPlan,
   createExpoRoutingReadiness,
+  expoBackendDevAuthEnvironment,
   inspectIosForwardingTools,
   installAndroidPortForwarding,
   parseAdbDeviceInventory,
@@ -12,6 +13,19 @@ import {
   selectAndroidAdbDevice,
   selectIosUsbDevice,
 } from './expo-dev.mjs';
+
+assert.deepEqual(
+  expoBackendDevAuthEnvironment(
+    { SNAPBACK_DEV_AUTH_ORIGINS: 'http://localhost:5173' },
+    8081,
+  ).SNAPBACK_DEV_AUTH_ORIGINS.split(','),
+  [
+    'http://localhost:5173',
+    'http://127.0.0.1:8081',
+    'http://localhost:8081',
+    'http://[::1]:8081',
+  ],
+);
 
 function refuses(code, operation) {
   assert.throws(operation, (error) => error?.diagnostic?.code === code);

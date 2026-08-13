@@ -5,7 +5,12 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-10 (LLP 0224 Phase 1 companion: the operational-readiness
+**Revised:** 2026-08-12 (Dev browser-origin hardening: body-selected users are
+admitted only from the bound origin or an explicit exact loopback allowlist;
+no-Origin trusted-local callers are unchanged). 2026-08-12 (target registry
+amendment: positive `offline_mutation_replay` support now names the registered
+atomic settlement ledger required by LLP 0043; Cloudflare/default facts remain
+false). 2026-08-10 (LLP 0224 Phase 1 companion: the operational-readiness
 predicate binds read-only to the settled mode-state invariant and the
 positive `sessionActivationReady` derivation; no new authority, no
 override; see §Dated amendment: operational-readiness predicate binding).
@@ -386,6 +391,7 @@ artifacts:
 | `host_plan_runtime` | `RuntimeCapabilities.host_plan_runtime == true` |
 | `ibex_ctx_db_host_bridge` | `RuntimeCapabilities.ibex_ctx_db_host_bridge == Available` |
 | `live_subscriptions` | `CapabilityManifest.liveSubscriptions == true` |
+| `offline_mutation_replay` | the atomic client-mutation settlement ledger is registered for this target/runtime instance |
 | `mutation_read_set_validation` | `mutationIsolationMode == "handler-captured-read-set-validation"` and its commit validator is registered |
 | `cron` | `CapabilityManifest.cron == true` |
 | `cron_action_run_mutation` | `cron == true` and `supportedQueryForms` contains `cron-action-run-mutation` |
@@ -401,6 +407,23 @@ adds the manifest/schema enum member and the conjunctive process-live predicate
 above. Adding any further id requires another manifest/schema revision and a
 named positive predicate; string similarity, a missing gap, or a successful
 unrelated runtime probe cannot extend the enum.
+
+#### Target-capability registry amendment — offline mutation replay (2026-08-12)
+
+The closed registry adds `offline_mutation_replay`. Its only positive support
+predicate is registration of the server-side atomic client-mutation settlement
+ledger: the ledger must retain a result under the caller's replay-stable id in
+the same transaction as application effects and return that settlement on a
+duplicate delivery. The local SQLite, remote-service, and conformance profiles
+derive that positive fact from the same registered local runtime. The
+Cloudflare/default fact remains false and the Cloudflare manifest continues to
+list the id as a gap. A target accepting `clientMutationId` without the ledger
+does not satisfy the predicate.
+
+The capability is `experimental` while its governing LLP 0043 remains Draft.
+The JS client consumes the served `/inspect` manifest as an execution-safety
+fact: positive presence admits durable enqueue and drain; absence, an older
+manifest, an unavailable inspection, or a merely absent gap does not.
 
 ### Capability maturity
 
@@ -1323,6 +1346,17 @@ Dev mode preserves the legacy body authority only through registered `AppAuth`
 operations. The gate centralizes its resolution and still enforces
 `AuthRequirement`, so authenticated functions fail in development when the body
 does not select a user.
+
+For an HTTP request that carries a browser `Origin`, a body-selected user is
+admitted only when that exact origin is the bound listener origin or appears in
+the process's explicit loopback Dev-origin allowlist. A foreign localhost port
+is not trusted merely because it is loopback. Non-browser/test callers that
+send no `Origin` retain the trusted-local body-authority path. Managed Expo
+registers its selected Metro origin before starting the backend; ordinary Vite
+development uses the same-origin Snapback relay, while an intentionally direct
+cross-origin dev server must set `SNAPBACK_DEV_AUTH_ORIGINS` explicitly.
+Sessions mode continues to reject every body authority field before this
+Dev-only rule can apply.
 
 On every server profile, dev app-data binds loopback only. The CLI-only
 `--allow-insecure-dev-auth` override is accepted only on non-production

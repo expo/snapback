@@ -171,12 +171,15 @@ export const cron = functionsManifest.cronJobs || [];
 export const seed = seedData;
 
 export const functions = [
-  { name: 'stationsQuery', kind: 'Query', export: 'stationsQuery', tables: ['stations'] },
-  { name: 'tripsQuery', kind: 'Query', export: 'tripsQuery', tables: ['trips'] },
-  { name: 'stopTimesByStation', kind: 'Query', export: 'stopTimesByStation', tables: ['stopTimes'] },
-  { name: 'liveTrainStatus', kind: 'LiveQuery', export: 'liveTrainStatus', tables: ['trainStatus'] },
-  { name: 'liveDepartures', kind: 'LiveQuery', export: 'liveDepartures', tables: ['liveDepartures'] },
-  { name: 'feedState', kind: 'LiveQuery', export: 'feedState', tables: ['feedRefreshState'] },
+  // Public board UI reads are side-effect-free and disclose only the public
+  // timetable/feed display. Every mutation and action below remains gated;
+  // in particular, no secret-spending or destructive export is anonymous.
+  { name: 'stationsQuery', kind: 'Query', export: 'stationsQuery', tables: ['stations'], authRequirement: 'public' },
+  { name: 'tripsQuery', kind: 'Query', export: 'tripsQuery', tables: ['trips'], authRequirement: 'public' },
+  { name: 'stopTimesByStation', kind: 'Query', export: 'stopTimesByStation', tables: ['stopTimes'], authRequirement: 'public' },
+  { name: 'liveTrainStatus', kind: 'LiveQuery', export: 'liveTrainStatus', tables: ['trainStatus'], authRequirement: 'public' },
+  { name: 'liveDepartures', kind: 'LiveQuery', export: 'liveDepartures', tables: ['liveDepartures'], authRequirement: 'public' },
+  { name: 'feedState', kind: 'LiveQuery', export: 'feedState', tables: ['feedRefreshState'], authRequirement: 'public' },
   // Regression witness for conservative Cloudflare fan-out: the handler
   // intentionally reads feedRefreshState despite declaring only trainStatus.
   // A feedRefreshState-only commit must still wake this subscription.
@@ -558,16 +561,16 @@ function aggregateCaltrainSnapshot(json, observedAt) {
   return { delays, departures, visitCount: visited };
 }
 
-function loopbackUrl(value) {
+function testOverrideUrl(value) {
   if (typeof value !== 'string' || value.length === 0) return null;
-  if (/^http:\/\/(127\.0\.0\.1|localhost|\[::1\])(?::\d+)?\//.test(value)) return value;
+  if (/^https?:\/\//.test(value) && value.length <= 4096) return value;
   return null;
 }
 
 // The URL the handler builds carries NO key: the api_key query parameter is
 // a coordinator-side placement slot.
 function caltrainFeedUrl(args) {
-  const override = loopbackUrl(args && args.feedUrl);
+  const override = testOverrideUrl(args && args.feedUrl);
   const base = override || 'https://api.511.org/transit/StopMonitoring';
   const sep = base.includes('?') ? '&' : '?';
   return `${base}${sep}agency=CT&format=json`;
@@ -608,7 +611,7 @@ function routeProfile(mode) {
 }
 
 function routeBaseUrls(args) {
-  const override = loopbackUrl(args && args.baseUrl);
+  const override = testOverrideUrl(args && args.baseUrl);
   if (override) return [override.replace(/\/$/, '')];
   return [
     'https://api.heigit.org/openrouteservice',

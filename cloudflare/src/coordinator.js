@@ -66,6 +66,7 @@ import {
   CLOUDFLARE_TARGET_PROFILE,
   strictDeclarationsTargetRefusal,
 } from './target-admission.js';
+import { admitOutboundDestination, isRedirectStatus } from './outbound-destination.js';
 // RQS — the Cloudflare arm (LLP 0090 rollout step 4, ENG-25455). The token/
 // digest algebra is the shared packages/snapback-client/rqs.mjs module,
 // re-exported through rqs-host.mjs (never forked); rqs-host adds this arm's
@@ -195,6 +196,34 @@ const DEFAULT_CONNECTION_GRANT_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_CONNECTION_OPEN_RATE_PER_MINUTE = 120;
 const MAX_CONNECTION_ID_BYTES = 128;
 const CONNECTION_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const ANONYMOUS_AUTH_PROJECTION = Object.freeze({
+  userId: null,
+  sessionId: null,
+  isAuthenticated: false,
+  kind: 'anonymous',
+  actorKind: 'anonymous',
+});
+const CONNECTION_AUTH_PROJECTION = Object.freeze({
+  userId: null,
+  sessionId: null,
+  isAuthenticated: false,
+  kind: 'anonymous',
+  actorKind: 'connection-grant',
+});
+const OPERATOR_AUTH_PROJECTION = Object.freeze({
+  userId: null,
+  sessionId: null,
+  isAuthenticated: false,
+  kind: 'anonymous',
+  actorKind: 'operator-token',
+});
+const SYSTEM_AUTH_PROJECTION = Object.freeze({
+  userId: null,
+  sessionId: null,
+  isAuthenticated: false,
+  kind: 'anonymous',
+  actorKind: 'system',
+});
 // Wire-version negotiation (LLP 0094 §0B). The token is byte-identical to
 // the kit-stream subprotocol; classification is exact-token (LLP 0064).
 // @ref LLP 0094#0b3-the-wireversion-open-time-offer — hosted B1: the open
@@ -278,6 +307,21 @@ const FAN_OUT_FAILURE_CODES = Object.freeze([
   'SNAPBACK_LIVE_FANOUT_SEND_FAILED',
   'SNAPBACK_LIVE_FANOUT_INTERNAL_FAILED',
 ]);
+
+// Workers exposes Web Crypto digests but not node:crypto timingSafeEqual.
+// Hash both inputs to equal-length byte arrays, then compare every byte so
+// token length and the first mismatching position do not short-circuit.
+async function constantTimeTokenEqual(expected, presented) {
+  const [expectedDigest, presentedDigest] = await Promise.all([
+    crypto.subtle.digest('SHA-256', UTF8_ENCODER.encode(String(expected))),
+    crypto.subtle.digest('SHA-256', UTF8_ENCODER.encode(String(presented))),
+  ]);
+  const left = new Uint8Array(expectedDigest);
+  const right = new Uint8Array(presentedDigest);
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) difference |= left[index] ^ right[index];
+  return difference === 0;
+}
 
 export class Coordinator {
   constructor(ctx, env) {
@@ -657,13 +701,7 @@ export class Coordinator {
     this.ensureColumn('_snapback_cron_claims', 'lease_expires_at_ms', 'INTEGER');
     this.ensureColumn('_snapback_cron_claims', 'attempt', 'INTEGER NOT NULL DEFAULT 1');
     this.sql.exec('CREATE INDEX IF NOT EXISTS idx_snapback_cron_claims_job ON _snapback_cron_claims (job_name, scheduled_at_ms)');
-    this.sql.exec(
-      `CREATE TABLE IF NOT EXISTS _snapback_action_limits (
-         action_name TEXT PRIMARY KEY,
-         window_started_at_ms INTEGER NOT NULL,
-         count INTEGER NOT NULL
-      )`
-    );
+    this.ensureActionLimitSchema();
     // @ref LLP 0028#scheduler-state-and-run-ledger — stable scheduled
     // idempotency reaches each nested mutation's commit transaction.
     // Stable results for nested mutations issued by retryable scheduled
@@ -694,6 +732,26 @@ export class Coordinator {
       );
       this.ensureDeclaredIndexes(table);
     }
+  }
+
+  ensureActionLimitSchema() {
+    const columns = [...this.sql.exec('PRAGMA table_info(_snapback_action_limits)')]
+      .map((record) => String(record.name));
+    // The old table keyed only by action name. It contains disposable
+    // minute-window counters, so rebuilding it is both atomic and safer than
+    // preserving the globally shared abuse bucket during this schema repair.
+    if (columns.length > 0 && !columns.includes('caller_key')) {
+      this.sql.exec('DROP TABLE _snapback_action_limits');
+    }
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS _snapback_action_limits (
+         action_name TEXT NOT NULL,
+         caller_key TEXT NOT NULL,
+         window_started_at_ms INTEGER NOT NULL,
+         count INTEGER NOT NULL,
+         PRIMARY KEY (action_name, caller_key)
+      )`
+    );
   }
 
   createSubscriptionsTable(name) {
@@ -1492,8 +1550,16 @@ export class Coordinator {
       spec,
       fn: this.functionByName(spec.function),
     }));
-    if (specs.some(({ fn }) => !fn || !this.rqsFunctionFacts(fn).publicInline)) {
-      return failure(403, 'SNAPBACK_BUNDLE_NOT_PUBLIC', 'route names a non-publicInline query');
+    if (specs.some(({ fn }) => (
+      !fn
+      || fn.authRequirement !== 'public'
+      || !this.rqsFunctionFacts(fn).publicInline
+    ))) {
+      return failure(
+        403,
+        'SNAPBACK_BUNDLE_NOT_PUBLIC',
+        'route names a query that is not explicitly public and publicInline',
+      );
     }
     const params = payload.params;
     if (params !== undefined && (params === null || typeof params !== 'object' || Array.isArray(params)
@@ -2001,14 +2067,30 @@ export class Coordinator {
       return this.withProfiledJsonObject(
         request,
         'queryResponse',
-        (payload) => this.runExclusive(() => this.handleQuery(payload)),
+        async (payload) => {
+          const authority = await this.dataPlaneAuthority(
+            request,
+            payload,
+            this.functionByName(payload.name),
+          );
+          if (authority.denied) return authority.denied;
+          return this.runExclusive(() => this.handleQuery(payload, authority));
+        },
       );
     }
     if (path === '/mutation') {
       return this.withProfiledJsonObject(
         request,
         'mutationAck',
-        (payload) => this.runExclusive(() => this.handleMutation(payload)),
+        async (payload) => {
+          const authority = await this.dataPlaneAuthority(
+            request,
+            payload,
+            this.functionByName(payload.name),
+          );
+          if (authority.denied) return authority.denied;
+          return this.runExclusive(() => this.handleMutation(payload, authority));
+        },
       );
     }
     if (path === '/live/stream') {
@@ -2027,7 +2109,16 @@ export class Coordinator {
         return this.withProfiledJsonObject(
           request,
           'queryResponse',
-          (payload) => this.runExclusive(() => this.kitQuery(kitQuery[1], payload)),
+          async (payload) => {
+            const authority = await this.dataPlaneAuthority(
+              request,
+              payload,
+              this.functionByName(kitQuery[1]),
+              { kit: true },
+            );
+            if (authority.denied) return authority.denied;
+            return this.runExclusive(() => this.kitQuery(kitQuery[1], payload, authority));
+          },
           KIT_PARSE,
         );
       }
@@ -2036,7 +2127,16 @@ export class Coordinator {
         return this.withProfiledJsonObject(
           request,
           'mutationAck',
-          (payload) => this.runExclusive(() => this.kitMutation(kitMutation[1], payload)),
+          async (payload) => {
+            const authority = await this.dataPlaneAuthority(
+              request,
+              payload,
+              this.functionByName(kitMutation[1]),
+              { kit: true },
+            );
+            if (authority.denied) return authority.denied;
+            return this.runExclusive(() => this.kitMutation(kitMutation[1], payload, authority));
+          },
           KIT_PARSE,
         );
       }
@@ -2052,7 +2152,19 @@ export class Coordinator {
         //   query-response lane; handler-origin action responses retain the
         //   existing no-action-response-lane behavior.
         return this.withProfiledJsonObject(request, 'queryResponse', async (payload) => {
-          const outcome = await this.executeAction(kitAction[1], (payload && payload.args) || {}, 'manual');
+          const authority = await this.dataPlaneAuthority(
+            request,
+            payload,
+            this.functionByName(kitAction[1]),
+            { kit: true },
+          );
+          if (authority.denied) return authority.denied;
+          const outcome = await this.executeAction(
+            kitAction[1],
+            (payload && payload.args) || {},
+            'manual',
+            authority,
+          );
           // The kind-mismatch refusal is a non-2xx kit-route failure and rides
           // the versioned ErrorResponse; ordinary action outcomes (including
           // failed ones) keep their 200 outcome envelope.
@@ -2076,15 +2188,19 @@ export class Coordinator {
       const kitSubscribe = path.match(/^\/live\/([A-Za-z0-9_-]+)\/subscribe$/);
       if (kitSubscribe) {
         return this.withJsonObject(request, async (payload) => {
-          const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
+          const denied = await this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
           if (denied) return denied;
-          return this.releasePrepared(await this.runExclusive(() => this.kitSubscribe(kitSubscribe[1], payload)));
+          return this.releasePrepared(await this.runExclusive(() => this.kitSubscribe(
+            kitSubscribe[1],
+            payload,
+            { callerKey: `connection:${payload.connection_id}`, authProjection: CONNECTION_AUTH_PROJECTION },
+          )));
         }, KIT_PARSE);
       }
       const kitUnsubscribe = path.match(/^\/live\/([A-Za-z0-9_-]+)\/unsubscribe$/);
       if (kitUnsubscribe) {
-        return this.withJsonObject(request, (payload) => {
-          const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
+        return this.withJsonObject(request, async (payload) => {
+          const denied = await this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
           if (denied) return denied;
           return this.runExclusive(() => this.kitUnsubscribe(payload));
         }, KIT_PARSE);
@@ -2095,7 +2211,7 @@ export class Coordinator {
       }
       const kitOutbox = path.match(/^\/outbox\/([A-Za-z0-9_.-]+)$/);
       if (kitOutbox) {
-        const denied = this.verifyConnection(
+        const denied = await this.verifyConnection(
           decodeURIComponent(kitOutbox[1]),
           request.headers.get('x-snapback-connection-token')
         );
@@ -2128,7 +2244,7 @@ export class Coordinator {
   // The shared-secret gate for the destructive admin endpoints, the same
   // pattern /_snapback/host-call uses for its per-invocation token (ENG-23587). Fails
   // closed: no configured token means no admin surface at all.
-  adminGated(request, run, expectedMethod = 'POST') {
+  async adminGated(request, run, expectedMethod = 'POST') {
     if (request.method !== expectedMethod) {
       return json(405, { ok: false, code: 'SNAPBACK_ADMIN_METHOD_NOT_ALLOWED', message: `admin endpoint requires ${expectedMethod}` });
     }
@@ -2141,13 +2257,13 @@ export class Coordinator {
       });
     }
     const presented = request.headers.get('x-snapback-admin-token') || '';
-    if (presented !== expected) {
+    if (!(await constantTimeTokenEqual(expected, presented))) {
       return json(403, { ok: false, code: 'SNAPBACK_ADMIN_TOKEN_INVALID', message: 'missing or invalid admin token' });
     }
     return run();
   }
 
-  adminReadGated(request, run) {
+  async adminReadGated(request, run) {
     if (request.method !== 'GET') {
       return json(405, { ok: false, code: 'SNAPBACK_ADMIN_METHOD_NOT_ALLOWED', message: 'admin reads are GET-only' });
     }
@@ -2160,16 +2276,66 @@ export class Coordinator {
       });
     }
     const presented = request.headers.get('x-snapback-admin-token') || '';
-    if (presented !== expected) {
+    if (!(await constantTimeTokenEqual(expected, presented))) {
       return json(403, { ok: false, code: 'SNAPBACK_ADMIN_TOKEN_INVALID', message: 'missing or invalid admin token' });
     }
     return run();
   }
 
-  hasAdminReadAuthority(request) {
+  async hasAdminReadAuthority(request) {
     const expected = this.env.SNAPBACK_ADMIN_TOKEN;
     if (typeof expected !== 'string' || expected.length === 0) return false;
-    return (request.headers.get('x-snapback-admin-token') || '') === expected;
+    return constantTimeTokenEqual(expected, request.headers.get('x-snapback-admin-token') || '');
+  }
+
+  // @ref LLP 0172#verified-current-behavior — only an explicit `public`
+  // declaration is anonymous on this hosted proof. A legacy omission is not
+  // treated as permission to expose the operation across a public gateway.
+  //
+  // A connection grant is an unguessable, expiring request capability, not a
+  // user session. It admits the non-public operation but deliberately projects
+  // anonymous authority to the handler; the Cloudflare profile still makes no
+  // hosted-auth or resolved-user claim.
+  async dataPlaneAuthority(request, payload, fn, { kit = false } = {}) {
+    const deny = (status, code, message, details = null) => ({
+      denied: kit
+        ? kitError(status, code, message, details)
+        : json(status, { ok: false, code, message, ...(details ? { details } : {}) }),
+    });
+    const presentedAdmin = request.headers.get('x-snapback-admin-token');
+    if (presentedAdmin !== null) {
+      const expected = this.env.SNAPBACK_ADMIN_TOKEN;
+      if (typeof expected !== 'string' || expected.length === 0) {
+        return deny(403, 'SNAPBACK_ADMIN_DISABLED', 'no SNAPBACK_ADMIN_TOKEN is configured');
+      }
+      if (!(await constantTimeTokenEqual(expected, presentedAdmin))) {
+        return deny(403, 'SNAPBACK_ADMIN_TOKEN_INVALID', 'missing or invalid admin token');
+      }
+      return { callerKey: 'operator', authProjection: OPERATOR_AUTH_PROJECTION };
+    }
+
+    const connectionId = payload && typeof payload.connection_id === 'string'
+      ? payload.connection_id
+      : '';
+    const presentedConnection = request.headers.get('x-snapback-connection-token');
+    if (connectionId || presentedConnection !== null) {
+      const denied = await this.verifyConnection(connectionId, presentedConnection);
+      if (denied) return { denied };
+      return {
+        callerKey: `connection:${connectionId}`,
+        authProjection: CONNECTION_AUTH_PROJECTION,
+      };
+    }
+
+    if (fn && fn.authRequirement === 'public') {
+      const address = request.headers.get('cf-connecting-ip') || 'unknown';
+      return { callerKey: `address:${address}`, authProjection: ANONYMOUS_AUTH_PROJECTION };
+    }
+    return deny(
+      401,
+      'SNAPBACK_AUTH_REQUIRED',
+      'this function requires an admin token or a connection grant issued by POST /connection/open',
+    );
   }
 
   testingGated(request, run) {
@@ -2417,7 +2583,7 @@ export class Coordinator {
           },
         };
       }
-      const limited = this.claimActionBudget(name, trigger);
+      const limited = this.claimActionBudget(name, trigger, options.callerKey);
       if (limited) return { error: limited };
       return { fn, appGeneration: this.appGeneration() };
     });
@@ -2475,6 +2641,9 @@ export class Coordinator {
           trigger,
           control,
           jobName: options.jobName || null,
+          authProjection: options.authProjection || (
+            trigger === 'scheduled' ? SYSTEM_AUTH_PROJECTION : OPERATOR_AUTH_PROJECTION
+          ),
           // Only retryable scheduler claims get a durable replay identity.
           // Public/manual actions are single attempts and must not leave an
           // unbounded result ledger behind.
@@ -2515,28 +2684,39 @@ export class Coordinator {
     return { ok: false, code: control.code, message };
   }
 
-  claimActionBudget(name, trigger) {
-    if (trigger === 'scheduled') return null;
-    const configured = Number(this.env.SNAPBACK_ACTION_RATE_LIMIT_PER_MINUTE);
+  claimActionBudget(name, trigger, callerKey = null) {
+    const scheduled = trigger === 'scheduled';
+    const configured = Number(
+      scheduled
+        ? this.env.SNAPBACK_SCHEDULED_ACTION_RATE_LIMIT_PER_MINUTE
+        : this.env.SNAPBACK_ACTION_RATE_LIMIT_PER_MINUTE,
+    );
     const limit = Number.isSafeInteger(configured) && configured > 0 ? Math.min(configured, 600) : 60;
+    const bucket = scheduled ? 'scheduled-reserve' : String(callerKey || `internal:${trigger}`);
     const nowMs = Date.now();
     const windowMs = 60_000;
     let row = null;
-    for (const record of this.sql.exec('SELECT * FROM _snapback_action_limits WHERE action_name = ?', name)) row = record;
+    for (const record of this.sql.exec(
+      'SELECT * FROM _snapback_action_limits WHERE action_name = ? AND caller_key = ?',
+      name,
+      bucket,
+    )) row = record;
     const windowStartedAt = row ? Number(row.window_started_at_ms) : nowMs;
     const inWindow = nowMs - windowStartedAt >= 0 && nowMs - windowStartedAt < windowMs;
     const count = inWindow && row ? Number(row.count) : 0;
     if (count >= limit) {
       return {
         code: 'SNAPBACK_ACTION_RATE_LIMITED',
-        message: `action ${name} exceeded the ${limit}-per-minute public invocation budget`,
+        message: `action ${name} exceeded the ${limit}-per-minute ${scheduled ? 'scheduled reserve' : 'caller'} budget`,
         details: { retryable: true, retryAfterMs: Math.max(1, windowMs - (nowMs - windowStartedAt)) },
       };
     }
     this.sql.exec(
-      `INSERT INTO _snapback_action_limits (action_name, window_started_at_ms, count) VALUES (?, ?, ?)
-       ON CONFLICT(action_name) DO UPDATE SET window_started_at_ms = excluded.window_started_at_ms, count = excluded.count`,
+      `INSERT INTO _snapback_action_limits (action_name, caller_key, window_started_at_ms, count) VALUES (?, ?, ?, ?)
+       ON CONFLICT(action_name, caller_key) DO UPDATE
+       SET window_started_at_ms = excluded.window_started_at_ms, count = excluded.count`,
       name,
+      bucket,
       inWindow ? windowStartedAt : nowMs,
       count + 1
     );
@@ -2547,7 +2727,7 @@ export class Coordinator {
   // commit, fan-out — executed under the invocation mutex (the caller wraps
   // this in runExclusive). Returns the mutation handler's value; a failure
   // carries its code back into the action as a coded error.
-  async runMutationForAction(name, args, parentHost = null, replay = null) {
+  async runMutationForAction(name, args, parentHost = null, replay = null, authProjection = null) {
     const resetFailure = parentHost && this.actionGenerationFailure(parentHost.control);
     if (resetFailure) return resetFailure;
     const fn = this.functionByName(name);
@@ -2588,7 +2768,7 @@ export class Coordinator {
         return { ok: true, value: JSON.parse(String(record.result_json)) };
       }
     }
-    const result = await this.invokeHandler(name, 'mutation', args);
+    const result = await this.invokeHandler(name, 'mutation', args, { authProjection });
     if (!result.ok) return { ok: false, code: result.code, message: result.message };
     // OQ4 proposed ruling, kept leg: this is a deterministic, internal
     // test-only micro-seam for the watchdog/commit race, not an LLP 0167
@@ -2694,16 +2874,16 @@ export class Coordinator {
       );
     }
     const urlText = String(request.url || '');
-    let url;
-    try { url = new URL(urlText); } catch (_) { url = null; }
-    if (!url || !['http:', 'https:'].includes(url.protocol) || urlText.length > 4096) {
+    const destination = admitOutboundDestination(urlText);
+    if (!destination.ok) {
       return this.actionStreamFailure(
         'SNAPBACK_ACTION_STREAM_INVALID',
         'open',
-        'ctx.fetchStream requires a bounded absolute HTTP(S) URL',
-        { expected: 'absolute http(s) URL <= 4096 bytes', received: 'invalid URL shape' },
+        'ctx.fetchStream destination was refused by the Cloudflare outbound policy',
+        { expected: 'a public absolute HTTP(S) destination', received: destination.reason },
       );
     }
+    const url = destination.url;
     const method = String(request.method || 'GET').toUpperCase();
     if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       return this.actionStreamFailure(
@@ -2810,6 +2990,7 @@ export class Coordinator {
         headers,
         body: body == null ? undefined : body,
         signal: controller.signal,
+        redirect: 'manual',
       });
     } catch (_) {
       clearTimeout(metadataTimer);
@@ -2837,6 +3018,16 @@ export class Coordinator {
       );
     }
     clearTimeout(metadataTimer);
+    if (isRedirectStatus(response.status)) {
+      try { await response.body?.cancel(); } catch (_) {}
+      control?.abortController?.signal.removeEventListener('abort', abortForAction);
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_INVALID',
+        'open',
+        'ctx.fetchStream refuses upstream redirects on the Cloudflare profile',
+        { received: `HTTP ${response.status}` },
+      );
+    }
     const streamId = crypto.randomUUID();
     let reader = null;
     let byob = false;
@@ -3116,22 +3307,25 @@ export class Coordinator {
   // diagnostic that re-enters the isolate — error messages, the final URL,
   // even the upstream body — is redacted first. The coordinator owns the
   // scrub; handler-side redaction remains defense in depth, not the line.
-  // Destination allowlisting is not yet implemented on this profile — a
-  // named manifest fact (runtimeFacts.egress), not a silent difference.
+  // @ref LLP 0251#cloudflare-degradation-and-existing-claims — the last host-owned boundary admits the
+  // authored destination before placing secret values and refuses redirects.
+  // Workers has no DNS-resolution/pinning primitive, so this profile enforces
+  // hostname and IP-literal policy only; DNS rebinding remains an explicit
+  // residual rather than a claimed multi-tenant SSRF boundary.
   async hostActionFetch(request, capabilities, control) {
     if (control && control.abandoned) {
       return { ok: false, code: control.code || 'SNAPBACK_ACTION_TIMEOUT', message: control.message || 'action abandoned' };
     }
     const urlText = String(request.url || '');
-    let url;
-    try {
-      url = new URL(urlText);
-    } catch (_) {
-      return { ok: false, code: 'SNAPBACK_HOST_FETCH_INVALID', message: 'host fetch requires an absolute URL' };
+    const destination = admitOutboundDestination(urlText);
+    if (!destination.ok) {
+      return {
+        ok: false,
+        code: destination.code,
+        message: `host fetch destination refused: ${destination.reason}`,
+      };
     }
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      return { ok: false, code: 'SNAPBACK_HOST_FETCH_INVALID', message: `unsupported protocol ${url.protocol}` };
-    }
+    const url = destination.url;
     const headers = {};
     for (const [key, value] of Object.entries(request.headers || {})) {
       headers[String(key)] = String(value);
@@ -3189,7 +3383,16 @@ export class Coordinator {
         headers,
         body: request.body == null ? undefined : String(request.body),
         signal: controller.signal,
+        redirect: 'manual',
       });
+      if (isRedirectStatus(response.status)) {
+        try { await response.body?.cancel(); } catch (_) {}
+        return {
+          ok: false,
+          code: 'SNAPBACK_HOST_FETCH_REDIRECT_REFUSED',
+          message: `host fetch refused upstream redirect status ${response.status}`,
+        };
+      }
       const boundedBody = await readBoundedTextStream(response.body, MAX_HOST_RESPONSE_BYTES);
       if (!boundedBody.ok) {
         return {
@@ -3749,7 +3952,7 @@ export class Coordinator {
   // scrubbed, bounded detail retained here.
   // @ref LLP 0060#diagnostics-and-observability — public diagnostics never
   // expose credentials or unbounded application failure text.
-  cronStatus(request) {
+  async cronStatus(request) {
     if (request.method !== 'GET') {
       return json(405, {
         ok: false,
@@ -3757,7 +3960,7 @@ export class Coordinator {
         message: 'cron status is GET-only',
       }, CRON_STATUS_RESPONSE_HEADERS);
     }
-    const includeOperatorDetail = this.hasAdminReadAuthority(request);
+    const includeOperatorDetail = await this.hasAdminReadAuthority(request);
     const jobs = [];
     for (const job of this.alarmJobs()) {
       const state = this.readCronState(job.name);
@@ -3964,10 +4167,13 @@ export class Coordinator {
                 if (abandoned) return abandoned;
                 const sequence = actionMutationSequence;
                 actionMutationSequence += 1;
-                return this.runMutationForAction(name, mutationArgs, host, {
-                  actionIdempotencyKey,
-                  sequence,
-                });
+                return this.runMutationForAction(
+                  name,
+                  mutationArgs,
+                  host,
+                  { actionIdempotencyKey, sequence },
+                  options.authProjection,
+                );
               });
               const delivery = this.activatePreparedFanOut(outcome.preparedFanOut || []);
               // Normal keeps the old awaited-fanout contract. Under an active
@@ -4001,7 +4207,11 @@ export class Coordinator {
         body: JSON.stringify({
           export: fn.export,
           argsJson: JSON.stringify(args || {}),
-          authJson: JSON.stringify({}),
+          // Unattributed re-evaluations (notably durable live fan-out after
+          // wake) must never acquire system authority by omission. True
+          // scheduler/action-system calls pass SYSTEM_AUTH_PROJECTION
+          // explicitly; the conservative fallback remains anonymous.
+          authJson: JSON.stringify(options.authProjection || ANONYMOUS_AUTH_PROJECTION),
           mode,
           runJson,
           secretsJson,
@@ -4118,8 +4328,8 @@ export class Coordinator {
 
   // --- query -------------------------------------------------------------
 
-  async handleQuery(payload) {
-    const result = await this.invokeHandler(payload.name, 'query', payload.args);
+  async handleQuery(payload, authority) {
+    const result = await this.invokeHandler(payload.name, 'query', payload.args, authority);
     const response = !result.ok
       ? json(result.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH' ? 400 : 200, failure(result))
       : json(200, { ok: true, version: result.observedVersion ?? this.currentVersion(), rows: result.value });
@@ -4128,8 +4338,8 @@ export class Coordinator {
 
   // --- mutation + commit -------------------------------------------------
 
-  async handleMutation(payload) {
-    const result = await this.invokeHandler(payload.name, 'mutation', payload.args);
+  async handleMutation(payload, authority) {
+    const result = await this.invokeHandler(payload.name, 'mutation', payload.args, authority);
     if (!result.ok) {
       return this.prepareResultResponse(
         json(result.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH' ? 400 : 200, failure(result)),
@@ -4253,7 +4463,7 @@ export class Coordinator {
   // Fail-closed connection-token gate for connection-scoped kit operations.
   // Returns a diagnostic Response when denied, null when the grant is valid —
   // the same code the kit client keys its grant-refresh recovery on.
-  verifyConnection(connectionId, presentedToken) {
+  async verifyConnection(connectionId, presentedToken) {
     if (!connectionId || typeof connectionId !== 'string') {
       return kitError(400, 'SNAPBACK_CONNECTION_ID_REQUIRED', 'a connection id is required');
     }
@@ -4269,7 +4479,7 @@ export class Coordinator {
       if (typeof this.ctx.waitUntil === 'function') this.ctx.waitUntil(this.reconcileCronActivation());
     }
     const stored = grant && !expired ? grant.token : null;
-    if (!stored || !presentedToken || presentedToken !== stored) {
+    if (!stored || !presentedToken || !(await constantTimeTokenEqual(stored, presentedToken))) {
       return kitError(
         401,
         'SNAPBACK_CONNECTION_TOKEN_INVALID',
@@ -4910,8 +5120,8 @@ export class Coordinator {
   }
 
   // POST /query/:name — the kit's QueryOutput shape { version, rows }.
-  async kitQuery(name, payload) {
-    const result = await this.invokeHandler(name, 'query', (payload && payload.args) || {});
+  async kitQuery(name, payload, authority) {
+    const result = await this.invokeHandler(name, 'query', (payload && payload.args) || {}, authority);
     const response = !result.ok
       ? kitFailure(result)
       : json(200, { version: result.observedVersion ?? this.currentVersion(), rows: result.value });
@@ -4928,12 +5138,12 @@ export class Coordinator {
   //   affectedTables comes from the DECLARED write set (null when none is
   //   declared — explicitly unknown, never a silently-empty list), and
   //   correlation echoes the caller's opaque value verbatim.
-  async kitMutation(name, payload) {
+  async kitMutation(name, payload, authority) {
     const receivedAtMs = Date.now();
     // Mint/read before invoking the handler: a metadata failure must not turn
     // an already-committed mutation into an ambiguous missing response.
     const authorityDescriptor = this.authorityDescriptor();
-    const result = await this.invokeHandler(name, 'mutation', (payload && payload.args) || {});
+    const result = await this.invokeHandler(name, 'mutation', (payload && payload.args) || {}, authority);
     if (!result.ok) return this.prepareResultResponse(kitFailure(result), 'mutationAck');
     const commit = this.commit(result.host);
     const commitEgress = commit.committedAtMs == null
@@ -4973,7 +5183,7 @@ export class Coordinator {
   // registry insert must not interleave with a commit). The registry row is
   // keyed by the granted connection id, so a kit socket for that connection
   // receives this subscription's fan-out.
-  async kitSubscribe(name, payload) {
+  async kitSubscribe(name, payload, authority) {
     const fn = this.functionByName(name);
     if (!fn) {
       return kitError(400, 'SNAPBACK_LIVE_NOT_A_LIVE_QUERY', `${name} is not a live query`);
@@ -5002,7 +5212,7 @@ export class Coordinator {
     if (!admission.ok) {
       return kitError(admission.status, admission.code, admission.message, admission.details);
     }
-    const result = await this.invokeHandler(name, 'query', args);
+    const result = await this.invokeHandler(name, 'query', args, authority);
     if (!result.ok) return kitFailure(result);
     if (this.currentSocketSession(connectionId) !== socketSessionId) {
       return kitError(
@@ -5131,7 +5341,7 @@ export class Coordinator {
     const presented =
       request.headers.get('x-snapback-connection-token') ||
       (tokenProtocol ? tokenProtocol.slice('snapback.connection-token.'.length) : null);
-    const denied = this.verifyConnection(connectionId, presented);
+    const denied = await this.verifyConnection(connectionId, presented);
     if (denied) return denied;
     // Wire-version classification (LLP 0094 §0B.4), after the credential
     // gate so protocol semantics are never disclosed to unauthenticated
@@ -5408,6 +5618,15 @@ export class Coordinator {
       }
       return;
     }
+    if (!isKit && fn.authRequirement !== 'public') {
+      ws.send(JSON.stringify({
+        type: 'error',
+        code: 'SNAPBACK_AUTH_REQUIRED',
+        message: 'this live query requires a connection grant or admin authority',
+        name: parsed.name,
+      }));
+      return;
+    }
     const argsJson = canonicalJson(parsed.args || {});
     const admission = this.subscriptionAdmission({
       connectionId,
@@ -5432,7 +5651,9 @@ export class Coordinator {
     // Authoritative initial snapshot BEFORE any delta (LLP 0040 §Acceptance):
     // run the query, record the subscription at the resulting version, then
     // send the snapshot tagged with that version.
-    const result = await this.invokeHandler(parsed.name, 'query', parsed.args);
+    const result = await this.invokeHandler(parsed.name, 'query', parsed.args, {
+      authProjection: isKit ? CONNECTION_AUTH_PROJECTION : ANONYMOUS_AUTH_PROJECTION,
+    });
     if (!result.ok) {
       if (isKit) {
         sendKitError(result.code, result.message, result.details ?? null);
