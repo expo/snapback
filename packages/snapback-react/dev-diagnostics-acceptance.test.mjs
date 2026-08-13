@@ -92,7 +92,10 @@ const capabilityManifest = Object.freeze({
   artifactKind: 'capabilityManifest',
   schemaVersion: 'snapback.v0',
   targetProfileId: 'local-dev-sqlite-ibex',
-  supportedCapabilities: Object.freeze(['live_subscriptions']),
+  // @ref LLP 0218#41-the-dispatch-union-headless-contract — this acceptance
+  // scenario exercises durable queued custody, so its target must positively
+  // advertise the settlement-ledger capability required by that lifecycle.
+  supportedCapabilities: Object.freeze(['live_subscriptions', 'offline_mutation_replay']),
 });
 
 function installConsoleCapture() {

@@ -5,7 +5,9 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Packaging, Search, Relational queries, Scheduled work, Client integration, Sync, Testing, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:**
+**Revised:** 2026-08-13 (dated ER-3 scope extension for the LLP 0252/0253
+familiar-profile experiment; all standing decisions remain canonical-surface
+law)
 **Related:** LLP 0005, LLP 0108, LLP 0113, LLP 0115, LLP 0119, LLP 0120, LLP 0126, LLP 0127, LLP 0129
 
 ## Context
@@ -100,6 +102,17 @@ measured through the React surface, still scores the live-query
 boundary itself as a loss (LLP 0115 §Watch items), the 1a
 pre-registration's acceptance is the author's call, not a standing
 acceptance.
+
+## Dated amendment — 2026-08-13: ER-3 1a/1b scope extension
+
+The standing decisions and escalation reservations above continue to govern
+the canonical surface. ER-3 still reserves acceptance of the existing **1a**
+preregistration to the author. LLP 0252 and LLP 0253 separately authorize a
+scoped, measured **1b** familiar-profile family as an Experimental exception,
+with one engine, explicit profile admission, component attribution, and a
+bounded stop rule. That 1b experiment may run without first accepting 1a; it
+does not accept 1a by implication, convert ER-3 into a standing acceptance, or
+authorize promotion beyond LLP 0252's recorded disposition process.
 
 ## Consequences
 

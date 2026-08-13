@@ -3874,6 +3874,15 @@ function useProvider() {
   return assertProvider(useContext(providerContext));
 }
 
+// Narrow projection for aliases that must execute through the provider's
+// already-prepared client. It deliberately exposes no provider lifecycle or
+// registry constructor.
+// @ref LLP 0252#d1-two-source-profiles-one-semantic-and-runtime-pipeline — familiar aliases borrow
+// the canonical provider/client owner; they never create a parallel client.
+export function useSnapbackProviderClient() {
+  return preparedReactBindingClient(useProvider().binding);
+}
+
 // @ref LLP 0114#exact-identity-bytes-and-limits — hook dependency identity
 // follows the same canonical content grammar as registry store identity, so
 // fresh but equal inline values cannot rotate committed subscriptions.

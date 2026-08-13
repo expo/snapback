@@ -19,6 +19,10 @@ export function pascal(value) {
     .replace(/[^A-Za-z0-9]/g, '');
 }
 
+function bindingLocal(name) {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(name) ? name : `__snapback${pascal(name)}`;
+}
+
 export function jsonLiteral(value) {
   return JSON.stringify(value);
 }
@@ -75,7 +79,7 @@ export function renderRuntimeLinksModule({
   if (refLine) lines.push(refLine);
   lines.push('', `export interface ${linksName} {`);
   for (const entry of entries) {
-    lines.push(`  ${entry.name}(args: ${entry.argsType}): unknown;`);
+    lines.push(`  ${bindingLocal(entry.name) === entry.name ? entry.name : jsonLiteral(entry.name)}(args: ${entry.argsType}): unknown;`);
   }
   lines.push('}');
   lines.push('');
@@ -111,6 +115,8 @@ export function renderBindingModule({
   linksBaseName,
 }) {
   const typeName = `${pascal(name)}Args`;
+  const local = bindingLocal(name);
+  const direct = local === name;
   const lines = [header];
   if (refLine) lines.push(refLine);
   if (bindingComment) lines.push(bindingComment);
@@ -121,10 +127,11 @@ export function renderBindingModule({
     `export const descriptor = '${name}';`,
     `export type ${typeName} = ${argsType};`,
     '',
-    `export function ${name}(args: ${typeName}) {`,
-    `  return get${linksBaseName}Links().${name}(args);`,
+    `${direct ? 'export ' : ''}function ${local}(args: ${typeName}) {`,
+    `  return get${linksBaseName}Links()${direct ? `.${name}` : `[${jsonLiteral(name)}]`}(args);`,
     '}',
   );
+  if (!direct) lines.push(`export { ${local} as ${jsonLiteral(name)} };`);
   return `${lines.join('\n')}\n`;
 }
 
@@ -162,7 +169,7 @@ export function renderQueryMetaModule({
     imports,
     '',
     `export default defineContractModule('./${name}.query.ts', {`,
-    `  ${name}: query({ ${queryFacts} }),`,
+    `  ${bindingLocal(name) === name ? name : jsonLiteral(name)}: query({ ${queryFacts} }),`,
   ];
   if (shapeName) {
     lines.push(`  ${shapeName}: shape({ fields: ${jsonLiteral(shapeFields ?? {})} }),`);
@@ -178,7 +185,7 @@ export function renderMutationMetaModule({ header, name, effects, invalidates })
     "import { defineContractModule, mutation } from '@exact/contract/exports';",
     '',
     `export default defineContractModule('./${name}.mutation.ts', {`,
-    `  ${name}: mutation({ effects: ${jsonLiteral(effects)}, invalidates: ${jsonLiteral(invalidates)} }),`,
+    `  ${bindingLocal(name) === name ? name : jsonLiteral(name)}: mutation({ effects: ${jsonLiteral(effects)}, invalidates: ${jsonLiteral(invalidates)} }),`,
     '});',
     '',
   ].join('\n');

@@ -6,6 +6,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
+export type AuthoringProfile = 'snapback-explicit-v1' | 'snapback-familiar-ts-v1';
 export type SearchMatchAtomV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } };
 export type SearchClauseV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } } | { Any: readonly SearchMatchAtomV1[] } | { Not: SearchMatchAtomV1 } | { Filter: { field: string; op: "eq"; value: string | number | boolean } };
 export interface SearchQueryAstV1 { all: readonly SearchClauseV1[] }
@@ -36,13 +37,18 @@ export interface GeneratedMutationIrV1 {
   readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;
 }
 /** Optional own-property `undefined` is normalized exactly as omission; required, array, and open-JSON undefined still refuse before dispatch. */
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
+export type FunctionReferenceDelivery<Kind extends FunctionKind> = Kind extends 'LiveQuery' ? Readonly<{ delivery: 'live' }> : Kind extends 'Query' ? Readonly<{ delivery: 'read' }> : Readonly<Record<never, never>>;
+export interface FunctionReferenceBase<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
   id: string;
   name: Name;
   kind: Kind;
+  readonly __snapbackReferenceKind: Kind;
+  authoringProfile: Profile;
+  retention: string;
+  readonly __snapbackAuthoringProfile?: Profile;
   authRequirement: 'public' | 'optional-user' | 'authenticated';
   implementationHash: string;
   argsContractHash: string;
@@ -59,6 +65,11 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   readonly __args?: Args;
   readonly __result?: Result;
 }
+export type FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReferenceBase<Name, Kind, Args, Result, Profile> & FunctionReferenceDelivery<Kind>;
+export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Query', Args, Result, Profile>;
+export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'LiveQuery', Args, Result, Profile>;
+export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Mutation', Args, Result, Profile>;
+export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Action', Args, Result, Profile>;
 export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;
 export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
@@ -211,17 +222,17 @@ export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedA
 export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext>;
 export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never, RealtimeContext>;
 export interface GeneratedFunctionContexts {
-  addReaction: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
-  annotateMessage: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
-  conversationDetails: GeneratedQueryContext;
-  membershipsForConversation: GeneratedQueryContext;
-  messagesForConversation: GeneratedQueryContext;
-  reactionsForConversation: GeneratedQueryContext;
-  removeReaction: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
-  sendMessage: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
-  sendReply: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
-  sendText: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
-  users: GeneratedQueryContext;
+  "addReaction": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "annotateMessage": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "conversationDetails": GeneratedQueryContext;
+  "membershipsForConversation": GeneratedQueryContext;
+  "messagesForConversation": GeneratedQueryContext;
+  "reactionsForConversation": GeneratedQueryContext;
+  "removeReaction": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "sendMessage": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "sendReply": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "sendText": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "users": GeneratedQueryContext;
 }
 export interface GeneratedEphemeral {
   typing: EphemeralCollectionReference<'typing', { conversationId: string }, { displayName: string }, 'Connection'>;
@@ -229,17 +240,105 @@ export interface GeneratedEphemeral {
 export interface GeneratedQueryGroups {
 }
 export interface GeneratedApi {
-  addReaction: FunctionReference<'addReaction', 'Mutation', { conversationId: Id<'conversations'>; messageId: Id<'messages'>; userId: Id<'users'>; emoji: string }, { "reactionId": Id<"reactions"> }>;
-  annotateMessage: FunctionReference<'annotateMessage', 'Mutation', { conversationId: Id<'conversations'>; messageId: Id<'messages'>; note?: string; details: { kind: string; extra?: string } }, null>;
-  conversationDetails: FunctionReference<'conversationDetails', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["conversations"]>>;
-  membershipsForConversation: FunctionReference<'membershipsForConversation', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["memberships"]>>;
-  messagesForConversation: FunctionReference<'messagesForConversation', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["messages"]>>;
-  reactionsForConversation: FunctionReference<'reactionsForConversation', 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["reactions"]>>;
-  removeReaction: FunctionReference<'removeReaction', 'Mutation', { reactionId: Id<'reactions'> }, { "removed": boolean }>;
-  sendMessage: FunctionReference<'sendMessage', 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; body?: string; image?: string }, { "messageId": Id<"messages"> }>;
-  sendReply: FunctionReference<'sendReply', 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; text: string; replyToId: Id<'messages'> }, { "messageId": Id<"messages"> }>;
-  sendText: FunctionReference<'sendText', 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; text: string }, { "messageId": Id<"messages"> }>;
-  users: FunctionReference<'users', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["users"]>>;
+  /**
+   * Mutation reference `app:addReaction`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "addReaction": FunctionReference<"addReaction", 'Mutation', { conversationId: Id<'conversations'>; messageId: Id<'messages'>; userId: Id<'users'>; emoji: string }, { "reactionId": Id<"reactions"> }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `app:annotateMessage`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "annotateMessage": FunctionReference<"annotateMessage", 'Mutation', { conversationId: Id<'conversations'>; messageId: Id<'messages'>; note?: string; details: { kind: string; extra?: string } }, null, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `app:conversationDetails`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "conversationDetails": FunctionReference<"conversationDetails", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["conversations"]>, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `app:membershipsForConversation`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "membershipsForConversation": FunctionReference<"membershipsForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["memberships"]>, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `app:messagesForConversation`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "messagesForConversation": FunctionReference<"messagesForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["messages"]>, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `app:reactionsForConversation`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "reactionsForConversation": FunctionReference<"reactionsForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["reactions"]>, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `app:removeReaction`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "removeReaction": FunctionReference<"removeReaction", 'Mutation', { reactionId: Id<'reactions'> }, { "removed": boolean }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `app:sendMessage`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "sendMessage": FunctionReference<"sendMessage", 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; body?: string; image?: string }, { "messageId": Id<"messages"> }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `app:sendReply`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "sendReply": FunctionReference<"sendReply", 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; text: string; replyToId: Id<'messages'> }, { "messageId": Id<"messages"> }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `app:sendText`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "sendText": FunctionReference<"sendText", 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; text: string }, { "messageId": Id<"messages"> }, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `app:users`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "users": FunctionReference<"users", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["users"]>, "snapback-explicit-v1">;
   messageImageUpload: AssetUploadReference<"messageImageUpload", Record<string, never>>;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;

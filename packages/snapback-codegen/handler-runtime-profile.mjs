@@ -23,6 +23,9 @@ export const INLINE_HANDLER_RULES = Object.freeze({
     'defineJsMutation',
     'defineAction',
     'defineAssetUpload',
+    'query',
+    'mutation',
+    'action',
   ]),
   globals: Object.freeze([
     'Array', 'BigInt', 'Boolean', 'Date', 'Error', 'Infinity', 'JSON', 'Map',

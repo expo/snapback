@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "baseUrl": "../../..",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "paths": {
+      "@expo/snapback-codegen/ctx": ["packages/snapback-codegen/ctx.d.mts"],
+      "@expo/snapback-codegen/define": ["packages/snapback-codegen/define.d.ts"],
+      "@expo/snapback-codegen/familiar": ["packages/snapback-codegen/familiar.d.mts"]
+    },
+    "skipLibCheck": false,
+    "strict": true,
+    "target": "ES2022"
+  },
+  "include": ["contracts.ts", "schema.ts", "todos.ts", "_generated/*.d.ts"]
+}

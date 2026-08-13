@@ -1,0 +1,59 @@
+{
+  "name": "@expo/snapback",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Experimental familiar authoring entrypoints for Snapback.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-umbrella"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "backend", "experimental", "react"],
+  "files": [
+    "README.md",
+    "react.d.mts",
+    "react.mjs",
+    "server.d.mts",
+    "server.mjs",
+    "values.d.mts",
+    "values.mjs"
+  ],
+  "exports": {
+    "./server": {
+      "types": "./server.d.mts",
+      "import": "./server.mjs"
+    },
+    "./values": {
+      "types": "./values.d.mts",
+      "import": "./values.mjs"
+    },
+    "./react": {
+      "types": "./react.d.mts",
+      "import": "./react.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@expo/snapback-codegen": "workspace:*",
+    "@expo/snapback-react": "workspace:*"
+  },
+  "peerDependencies": {
+    "@expo/snapback-client": ">=0.1.0 <0.2.0",
+    "react": ">=18.0.0 <20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "snapback": {
+    "maturity": "Experimental",
+    "authoringProfile": "snapback-familiar-ts-v1"
+  },
+  "scripts": {
+    "test": "node package.test.mjs"
+  }
+}

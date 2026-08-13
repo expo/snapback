@@ -41,6 +41,8 @@
           "additionalProperties": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
         },
         "evidenceId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "normalizedContractId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "normalizedSchemaId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
         "bundleId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
         "generationId": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
       },

@@ -78,6 +78,7 @@
     "react-binding-hmr.mjs",
     "react-binding.d.mts",
     "react-binding.mjs",
+    "reference-kinds.d.mts",
     "reference-kinds.mjs",
     "registration-ledger.d.mts",
     "registration-ledger.mjs",
@@ -178,6 +179,10 @@
     "./result-transform": {
       "types": "./result-transform.d.mts",
       "import": "./result-transform.mjs"
+    },
+    "./reference-kinds": {
+      "types": "./reference-kinds.d.mts",
+      "import": "./reference-kinds.mjs"
     },
     "./external-store": {
       "types": "./external-store.d.mts",

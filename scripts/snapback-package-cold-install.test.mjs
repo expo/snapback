@@ -1662,6 +1662,7 @@ test('promotion inventory is the full public package inventory from one authorit
     '@expo/snapback-codegen',
     '@expo/snapback-vite',
     '@expo/snapback-react',
+    '@expo/snapback',
     '@expo/snapback-expo',
     '@expo/snapback-app-cli',
     '@expo/snapback-cli',

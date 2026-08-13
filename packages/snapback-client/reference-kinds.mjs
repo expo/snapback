@@ -1,4 +1,5 @@
 export const CLIENT_REFERENCE_KIND_MISMATCH_CODE = 'SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH';
+export const CLIENT_REFERENCE_PROFILE_MISMATCH_CODE = 'SNAPBACK_CLIENT_REFERENCE_PROFILE_MISMATCH';
 export const CLIENT_REFERENCE_KIND_GUIDE = '/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs';
 
 const correctVerb = Object.freeze({
@@ -42,22 +43,27 @@ function mismatchDiagnostic(receivedKind, acceptedKinds, invokedVerb) {
   });
 }
 
-// @ref LLP 0238#d1-generated-references-are-nominal-by-operation-kind — only
-// legacy strings lack a discriminant by contract. Every object with a missing,
-// unknown, or malformed kind fails before name validation or transport, and
-// unknown future kinds receive a payload-safe package-skew repair.
-export function assertClientReferenceKind({
-  reference,
-  acceptedKinds,
-  invokedVerb,
-  diagnosticsChannel = null,
-}) {
-  if (typeof reference === 'string') return;
-  const receivedKind = receivedReferenceKind(reference);
-  if (acceptedKinds.includes(receivedKind)) return;
-  const diagnostic = mismatchDiagnostic(receivedKind, acceptedKinds, invokedVerb);
-  // @ref LLP 0219#decision — the structured channel is always observational;
-  // its default console projection is attached only under positive dev/HMR.
+function profileMismatchDiagnostic(reference, acceptedProfiles, invokedVerb) {
+  const receivedProfile = typeof reference?.authoringProfile === 'string'
+    ? reference.authoringProfile
+    : 'missing';
+  const repair = 'Use a generated reference from the client alias\'s admitted authoring profile, or use the canonical Snapback verb that accepts both profiles.';
+  return Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: CLIENT_REFERENCE_PROFILE_MISMATCH_CODE,
+    severity: 'error',
+    message: `${invokedVerb} does not accept authoring profile ${receivedProfile}; ${repair}`,
+    details: Object.freeze({
+      receivedProfile,
+      acceptedProfiles: Object.freeze([...acceptedProfiles]),
+      invokedVerb,
+      repair,
+      guideAnchor: CLIENT_REFERENCE_KIND_GUIDE,
+    }),
+  });
+}
+
+function refuseDiagnostic(diagnostic, invokedVerb, diagnosticsChannel) {
   try {
     diagnosticsChannel?.emit?.({
       schemaVersion: 'snapback.client-diagnostic.v2',
@@ -73,4 +79,46 @@ export function assertClientReferenceKind({
   error.code = diagnostic.code;
   error.diagnostic = diagnostic;
   throw error;
+}
+
+// @ref LLP 0238#d1-generated-references-are-nominal-by-operation-kind — only
+// legacy strings lack a discriminant by contract. Every object with a missing,
+// unknown, or malformed kind fails before name validation or transport, and
+// unknown future kinds receive a payload-safe package-skew repair.
+export function assertClientReferenceKind({
+  reference,
+  acceptedKinds,
+  invokedVerb,
+  diagnosticsChannel = null,
+  acceptedAuthoringProfiles = null,
+}) {
+  if (typeof reference === 'string') {
+    if (acceptedAuthoringProfiles !== null) {
+      refuseDiagnostic(
+        profileMismatchDiagnostic(reference, acceptedAuthoringProfiles, invokedVerb),
+        invokedVerb,
+        diagnosticsChannel,
+      );
+    }
+    return;
+  }
+  const receivedKind = receivedReferenceKind(reference);
+  if (!acceptedKinds.includes(receivedKind)) {
+    refuseDiagnostic(
+      mismatchDiagnostic(receivedKind, acceptedKinds, invokedVerb),
+      invokedVerb,
+      diagnosticsChannel,
+    );
+  }
+  // @ref LLP 0253#s53-reference-profile-fact-and-brand — canonical callers
+  // omit this admission set and accept both brands; familiar aliases supply
+  // their one closed profile before any resource or transport work.
+  if (acceptedAuthoringProfiles !== null
+    && !acceptedAuthoringProfiles.includes(reference.authoringProfile)) {
+    refuseDiagnostic(
+      profileMismatchDiagnostic(reference, acceptedAuthoringProfiles, invokedVerb),
+      invokedVerb,
+      diagnosticsChannel,
+    );
+  }
 }

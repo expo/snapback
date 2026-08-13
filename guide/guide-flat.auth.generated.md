@@ -1642,14 +1642,14 @@ title: Scoped roles and memberships
 id: auth.scoped-roles
 order: 5
 audience: agent-first
-capabilities: [auth.scoped-roles]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, tests/membership_principal_addressed_v0.rs]
+capabilities: [auth.scoped-roles, authority.profile.v1]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0240-application-authority-profiles.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, tests/membership_principal_addressed_v0.rs]
 examples: [demos/rbac, demos/shindig, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-authorities-digest: sha256:9053759777a36adc8b8c86db01260743da262bfc7dedd0e312310f908e0e2abb
+reviewed: 2026-08-12
+reviewed-authorities-digest: sha256:e424cd8ea06dca933a7cd807d187882d5c2998acf80d205abfe413ffe08c2d31
 ---
 
 # Scoped roles and memberships
@@ -1758,6 +1758,81 @@ Codegen derives `resourceTable` from that validator and carries the nominal
 type into the function artifact. An argument or row-field helper bound to
 `Id<'organizations'>` is rejected before publication when the declaration
 requires `Id<'events'>`.
+
+<!-- since: 0.1.21 unreleased -->
+
+> **Unreleased.** Authority-profile authoring is available in this checkout
+> but is not in the newest published closure, 0.1.20.
+
+## Reuse one role hierarchy in queries and table visibility
+
+Decorate an existing resource-scoped membership with
+`.authorityProfile(...)` when product roles form a finite hierarchy. The
+profile is a codegen facade: the membership table remains the only roster and
+authority store, and every write still uses the LLP 0056 transition seam.
+
+```js fragment reason="AuthorityProfileV1 authoring shape; lowering, refusal codes, projection identity, and generation rotation are exercised in packages/snapback-codegen/rbac-authoring.test.mjs"
+export const roomMembers = defineTable({
+  roomId: v.id('rooms'),
+  userId: v.principal(),
+  role: v.string(),
+  displayName: v.string(),
+}).membership({
+  id: 'roomAccess',
+  principal: 'userId',
+  resource: 'roomId',
+  role: 'role',
+  roles: ['owner', 'admin', 'member'],
+  pendingRoles: ['invited'],
+  bootstrapRole: 'owner',
+  lastHolder: { protect: 'owner' },
+  provenance: 'full',
+  transitions: [],
+}).authorityProfile({
+  name: 'roomAccess',
+  hierarchy: {
+    owner: ['admin', 'member'],
+    admin: ['member'],
+    member: [],
+  },
+  roster: { visible: ['userId', 'role', 'displayName'] },
+});
+```
+
+Chain the profile after `membership()`. Its `name` must equal the explicitly
+pinned membership `id`. The scope must be a required `v.id(resourceTable)`,
+the principal a required `v.principal()`, and the role a required `v.string()`
+whose active and pending values are the closed `roles`/`pendingRoles`
+vocabularies. `owner` must be an active role and the exact
+`bootstrapRole`/`lastHolder.protect` role. Do not author the reserved
+`_membership_pk` or `_membership_reverse` indexes; membership owns their
+true-unique principal/scope and resource-leading holder lookup shapes.
+
+The hierarchy names active roles only. Codegen computes its transitive closure
+and writes literal role sets into the existing membership predicate and table
+visibility IR. In the example, a predicate asking for `member` admits
+`member`, `admin`, and `owner`; `invited` remains pending and gains no active
+role implication. The resulting `AuthorityProfileV1` references the canonical
+membership-predicate and table-visibility identities and records the scope,
+lattice, owner invariant, authorization-event fields, bounded indexes,
+subject derivation, and conservative coarse-global wake universe.
+
+Functions with profile-backed membership predicates, profile-backed table
+visibility, or declared writes to the membership table carry that profile's
+`{ id, generation }` authorization dependence. Changing the role field,
+hierarchy, or transition matrix rotates the generation and dependent function
+identity; unrelated functions keep their existing identity. A broadening or
+incomparable visibility edit still requires LLP 0234's remotely-prior,
+content-bound approval and exact-set ratchet—generation rotation records the
+change but does not approve it.
+
+Rollout 1 qualifies only local, app-table-owned profiles composed with ordinary
+table visibility. `roster.visible` is projection metadata: it does not create
+list, invitation, role-change, owner-transfer, or client-hook surfaces, and the
+membership table remains private under the operations table above. Profile
+composition with membership-visible search or asset sharing fails generation
+with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS`; hosted targets
+fail with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET`.
 
 ## Gate a query with the declaration
 
@@ -2056,6 +2131,11 @@ coordinator transition.
   the declaration's atomic `bootstrap()` method.
 - **Do not use `ctx.permissions` in an action or retain a role-gated result
   offline.** Neither has the transactional/lease proof required by v1.
+- **Do not mirror a profiled membership into a second product roster.** The
+  app-owned membership table is both product roster and authority relation.
+- **Do not infer generated roster operations, hooks, search sharing, or asset
+  sharing from `authorityProfile()`.** Rollout 1 emits only the validated
+  profile projection and membership/table-visibility lowering described above.
 
 ---
 

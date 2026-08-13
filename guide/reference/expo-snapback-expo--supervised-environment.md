@@ -1,7 +1,7 @@
 ---
 title: API reference — @expo/snapback-expo/supervised-environment
 id: reference.api.expo.snapback.expo.supervised.environment
-order: 854
+order: 856
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-expo/package.json, packages/snapback-expo/supervised-environment.d.mts]
@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:654b272852f54f1c0049c4ce86a0fdd7d1623a84c342
 # @expo/snapback-expo/supervised-environment
 
 Build-bound public API projection for `@expo/snapback-expo/supervised-environment`. Canonical registry identity:
-`sha256:b9e1c76577071e70b44214cd84991a79d00ce58d469c91af2857f287a681b797`.
+`sha256:7a496e451b0a28117969dc5c5efacb5ca49b9eda91092dcf5b0aa828b6674fa5`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/supervised-environment.mjs`.
 

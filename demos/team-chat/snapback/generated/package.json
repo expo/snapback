@@ -13,6 +13,8 @@
     "./client-lifecycle": "./client-lifecycle.manifest.json",
     "./contract/*": "./contract/*",
     "./functions": "./functions.manifest.json",
+    "./handler-runtime-profile": "./handler-runtime-profile.v1.json",
+    "./normalized-definition": "./normalized-definition.v1.json",
     "./operations/*": "./operations/*",
     "./provider-bindings": {
       "types": "./provider-bindings.d.ts",

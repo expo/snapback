@@ -1,0 +1,935 @@
+{
+  "definition": {
+    "application": {
+      "assetUploadIntents": [],
+      "authorityProfile": null,
+      "memberships": [],
+      "migrations": null,
+      "retention": {
+        "operations": [
+          {
+            "operationName": "clearReservations",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "reservationsForSlot",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "reserve",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "resourceList",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "schedule",
+            "retainable": false,
+            "retentionClass": null
+          }
+        ],
+        "schema": null
+      },
+      "routes": null,
+      "schema": {
+        "api": null,
+        "assets": null,
+        "auth": null,
+        "authProgram": null,
+        "ephemeralCollections": [],
+        "portabilityFlags": [],
+        "pushSeam": null,
+        "requiredCapabilities": [],
+        "strictDeclarations": false,
+        "tables": [
+          {
+            "fields": [
+              {
+                "field_type": "String",
+                "name": "key",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "title",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "key"
+                ],
+                "name": "by_key",
+                "unique": true
+              }
+            ],
+            "name": "resources",
+            "syncable": true
+          },
+          {
+            "fields": [
+              {
+                "field_type": "String",
+                "name": "idempotencyKey",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "resourceKey",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "slotKey",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "resourceSlotKey",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "ownerId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "title",
+                "optional": false
+              },
+              {
+                "field_type": "Integer",
+                "name": "createdAt",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "idempotencyKey"
+                ],
+                "name": "by_idempotency",
+                "unique": true
+              },
+              {
+                "fields": [
+                  "resourceSlotKey"
+                ],
+                "name": "by_resource_slot",
+                "unique": true
+              },
+              {
+                "fields": [
+                  "slotKey",
+                  "ownerId"
+                ],
+                "name": "by_slot_owner"
+              }
+            ],
+            "name": "reservations",
+            "syncable": true
+          }
+        ],
+        "version": "snapback.v0"
+      }
+    },
+    "operations": [
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": []
+        },
+        "authority": {
+          "authRequirement": "optional-user",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "reservations"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "reservations"
+            }
+          ]
+        },
+        "operationKind": "Mutation",
+        "operationName": "clearReservations",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": "reservations",
+          "tables": [
+            "reservations"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "kind": "integer",
+            "max": 9007199254740991,
+            "min": -9007199254740991
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "reservations",
+          "tables": [
+            "reservations"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "slotKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "optional-user",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_slot_owner",
+              "table": "reservations"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "operationKind": "LiveQuery",
+        "operationName": "reservationsForSlot",
+        "plan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "slotKey",
+                "op": "Eq",
+                "value": {
+                  "Arg": "slotKey"
+                }
+              },
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "ownerId"
+                }
+              }
+            ],
+            "indexed_by": "by_slot_owner",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "resourceKey"
+              }
+            ],
+            "table": "reservations"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "reservations",
+          "tables": [
+            "reservations"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "reservations"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "idempotencyKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "resourceKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "slotKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "resourceSlotKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "ownerId",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "reservations"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "idempotencyKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "resourceKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "slotKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "now",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "optional-user",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "insert"
+              ],
+              "table": "reservations"
+            }
+          ]
+        },
+        "operationKind": "Mutation",
+        "operationName": "reserve",
+        "plan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "reservationId"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "reservationId",
+                  "table": "reservations",
+                  "values": {
+                    "createdAt": {
+                      "Arg": "now"
+                    },
+                    "idempotencyKey": {
+                      "Arg": "idempotencyKey"
+                    },
+                    "ownerId": {
+                      "Arg": "ownerId"
+                    },
+                    "resourceKey": {
+                      "Arg": "resourceKey"
+                    },
+                    "resourceSlotKey": {
+                      "Concat": [
+                        {
+                          "Arg": "resourceKey"
+                        },
+                        {
+                          "Literal": "|"
+                        },
+                        {
+                          "Arg": "slotKey"
+                        }
+                      ]
+                    },
+                    "slotKey": {
+                      "Arg": "slotKey"
+                    },
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "kind": "id",
+            "table": "reservations"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "mutationPlan",
+          "primaryTable": "reservations",
+          "tables": [
+            "reservations"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": []
+        },
+        "authority": {
+          "authRequirement": "optional-user",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_key",
+              "table": "resources"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "operationKind": "LiveQuery",
+        "operationName": "resourceList",
+        "plan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": "by_key",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "key"
+              }
+            ],
+            "table": "resources"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "resources",
+          "tables": [
+            "resources"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "resources"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "key",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "resources"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": []
+        },
+        "authority": {
+          "authRequirement": "optional-user",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_slot_owner",
+              "table": "reservations"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "operationKind": "LiveQuery",
+        "operationName": "schedule",
+        "plan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": "by_slot_owner",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "slotKey"
+              },
+              {
+                "direction": "Asc",
+                "field": "resourceKey"
+              }
+            ],
+            "table": "reservations"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "reservations",
+          "tables": [
+            "reservations"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "reservations"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "idempotencyKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "resourceKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "slotKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "resourceSlotKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "ownerId",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "reservations"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      }
+    ]
+  },
+  "excludedFields": [
+    "behavior",
+    "graphRecords",
+    "authoringProfile",
+    "appId"
+  ],
+  "normalizedContractId": "sha256:bdbea8e7f05d1e9a5a94d942df6e62240ce66badd2e2a3b5680e3bececa6e7bb",
+  "normalizedSchemaId": "sha256:87d969dca43bb6f81925ea78c4916e6999b7ee1852089c52b7160c5129707844",
+  "schemaVersion": "snapback.normalized-application-definition.v1"
+}

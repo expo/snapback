@@ -161,6 +161,22 @@ export function routeMixedGroupEligible(
   }>>>,
 ): boolean;
 
+/** Phase-B familiar handler-context renderer; exported for the committed
+ * exact facade/adversarial fixture. */
+export function renderFamiliarHandlerRuntime(
+  name: string,
+  extracted: Readonly<{ expressionSource: string }>,
+  canonicalRendered: Readonly<{
+    source: string;
+    segments: readonly Readonly<Record<string, unknown>>[];
+  }>,
+  contextKind: 'query' | 'mutation' | 'action',
+  apiDigest: string,
+): Readonly<{
+  source: string;
+  segments: readonly Readonly<Record<string, unknown>>[];
+}>;
+
 export interface ContractMutationDescriptor {
   readonly name: string;
   readonly args: unknown;
@@ -406,6 +422,8 @@ export interface GenerateSuccess {
     executableId: `sha256:${string}`;
     executableIdsByTarget: Readonly<Record<string, `sha256:${string}`>>;
     evidenceId: `sha256:${string}`;
+    normalizedContractId: `sha256:${string}`;
+    normalizedSchemaId: `sha256:${string}`;
     bundleId: `sha256:${string}`;
     generationId: `sha256:${string}`;
   }>;
@@ -414,6 +432,13 @@ export interface GenerateSuccess {
   readonly functionManifest: Readonly<{
     functions: ReadonlyArray<Readonly<Record<string, unknown>>>;
     [fact: string]: unknown;
+  }>;
+  readonly normalizedDefinition: Readonly<{
+    schemaVersion: 'snapback.normalized-application-definition.v1';
+    excludedFields: readonly ['behavior', 'graphRecords', 'authoringProfile', 'appId'];
+    normalizedContractId: `sha256:${string}`;
+    normalizedSchemaId: `sha256:${string}`;
+    definition: Readonly<Record<string, unknown>>;
   }>;
   readonly handlerRuntimeProfile: Readonly<Record<string, unknown>>;
   readonly capabilityManifest: Readonly<Record<string, unknown>>;

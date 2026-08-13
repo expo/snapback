@@ -24,7 +24,7 @@ export const CODE_MODE_HAZARDOUS_ALIASES_V1 = Object.freeze([
   'function', 'inspect', 'toJSON', 'toString', 'valueOf',
 ]);
 const HAZARDOUS_ALIASES = new Set(CODE_MODE_HAZARDOUS_ALIASES_V1);
-const IDENTIFIER = /^[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*$/u;
+const OPERATION_NAME = /^[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*(?:\.[$_\p{ID_Start}][$\u200c\u200d\p{ID_Continue}]*)?$/u;
 
 const MEMBER_DIGEST_DOMAIN = 'snapback:api-envelope-member:v1\n';
 
@@ -68,11 +68,15 @@ const signatureFor = (kind) => (kind === 'LiveQuery'
  * signature per exported function. Engine-owned ambient declarations never
  * ride the envelope (LLP 0062 §5's three-products rule).
  */
-export function renderAppBindings(functions, clientLifecycleManifest = null) {
+export function renderAppBindings(
+  functions,
+  clientLifecycleManifest = null,
+  authoringProfile = 'snapback-explicit-v1',
+) {
   const members = [...functions]
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
     .map((fn) => {
-      if (!IDENTIFIER.test(fn.name ?? '')) {
+      if (!OPERATION_NAME.test(fn.name ?? '')) {
         throw new Error(`api envelope members: function ${fn.id ?? '<unknown>'} has an invalid code-mode export name`);
       }
       return fn;
@@ -84,7 +88,7 @@ export function renderAppBindings(functions, clientLifecycleManifest = null) {
     .flatMap((fn) => [
       ...(clientLifecycleManifest === null
         ? []
-        : renderReferenceJSDoc(fn, clientLifecycleManifest)
+        : renderReferenceJSDoc(fn, clientLifecycleManifest, authoringProfile)
           .split('\n')
           .map((line) => `  ${line}`)),
       `  readonly ${JSON.stringify(fn.name)}: ${signatureFor(fn.kind)};`,
@@ -108,6 +112,7 @@ export function buildApiEnvelopeMembers(
   functionManifest,
   operationSchemas,
   clientLifecycleManifest = null,
+  authoringProfile = 'snapback-explicit-v1',
 ) {
   const schemaByName = new Map(
     operationSchemas.map((schema) => [schema.file.replace(/\.args\.schema\.json$/, ''), schema.value]),
@@ -122,7 +127,11 @@ export function buildApiEnvelopeMembers(
     operations[fn.id] = { name: fn.name, argsSchema };
     memberDigests[operationMemberKey(fn.id)] = memberDigest(jcsCanonical(argsSchema));
   }
-  const appBindings = renderAppBindings(functionManifest.functions, clientLifecycleManifest);
+  const appBindings = renderAppBindings(
+    functionManifest.functions,
+    clientLifecycleManifest,
+    authoringProfile,
+  );
   memberDigests[DECLARATION_MEMBER_KEY] = memberDigest(appBindings);
   return { operations, declarations: { appBindings }, memberDigests };
 }

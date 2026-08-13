@@ -23,6 +23,9 @@ export const APPLICATION_GENERATION_SCHEMA_VERSION = 'snapback.application-gener
 export const GENERATION_INTEGRITY_SCHEMA_VERSION = 'snapback.application-generation-integrity.v1';
 export const LATEST_EMITTED_SCHEMA_VERSION = 'snapback.latest-emitted-generation.v1';
 export const SEMANTIC_IDENTITY_SCHEMA_VERSION = 'snapback.semantic-identity.v1';
+export const NORMALIZED_DEFINITION_SCHEMA_VERSION = 'snapback.normalized-application-definition.v1';
+export const EXPLICIT_AUTHORING_PROFILE = 'snapback-explicit-v1';
+export const FAMILIAR_AUTHORING_PROFILE = 'snapback-familiar-ts-v1';
 
 export const GENERATION_HASH_DOMAINS = Object.freeze({
   semanticId: 'snapback:application-generation:semantic:v1',
@@ -30,6 +33,8 @@ export const GENERATION_HASH_DOMAINS = Object.freeze({
   evidenceId: 'snapback:application-generation:evidence:v1',
   bundleId: 'snapback:application-generation:bundle:v1',
   generationId: 'snapback:application-generation:root:v1',
+  normalizedContractId: 'snapback:normalized-application-definition:contract:v1',
+  normalizedSchemaId: 'snapback:normalized-application-definition:schema:v1',
 });
 
 export const GENERATION_ENVELOPE_CUSTODY = Object.freeze({
@@ -249,6 +254,269 @@ function semanticOperation(operation) {
   };
 }
 
+function canonicalClone(value) {
+  return JSON.parse(canonicalGenerationJson(value));
+}
+
+function sortedCanonicalValues(values) {
+  return [...(values ?? [])]
+    .map(canonicalClone)
+    .sort((left, right) => compareCodeUnits(
+      canonicalGenerationJson(left),
+      canonicalGenerationJson(right),
+    ));
+}
+
+function normalizedApplicationSchema(schemaManifest) {
+  return canonicalClone({
+    version: schemaManifest?.schemaVersion ?? null,
+    auth: schemaManifest?.auth ?? null,
+    authProgram: schemaManifest?.authProgram ?? null,
+    api: schemaManifest?.api ?? null,
+    assets: schemaManifest?.assets ?? null,
+    pushSeam: schemaManifest?.pushSeam ?? null,
+    strictDeclarations: schemaManifest?.strictDeclarations === true,
+    requiredCapabilities: [...(schemaManifest?.requiredCapabilities ?? [])]
+      .sort(compareCodeUnits),
+    ephemeralCollections: schemaManifest?.ephemeralCollections ?? [],
+    // Index declarations remain inside their canonical table records. This is
+    // deliberately the same schema block shape semanticInput already uses.
+    tables: schemaManifest?.tables ?? [],
+    portabilityFlags: schemaManifest?.portabilityFlags ?? [],
+  });
+}
+
+function normalizedRoutes(routesManifest) {
+  if (routesManifest == null) return null;
+  const { app: _app, appId: _appId, ...routes } = routesManifest;
+  return canonicalClone(routes);
+}
+
+function normalizedAuthorityProfile(schemaManifest, functionManifest) {
+  const topLevel = schemaManifest?.authorityProfile ?? functionManifest?.authorityProfile;
+  if (topLevel !== undefined) return canonicalClone(topLevel);
+  const profiles = (schemaManifest?.tables ?? [])
+    .filter((table) => table.authorityProfile !== undefined)
+    .map((table) => ({ table: table.name, profile: table.authorityProfile }))
+    .sort((left, right) => compareCodeUnits(left.table, right.table));
+  return profiles.length === 0 ? null : canonicalClone(profiles);
+}
+
+const NORMALIZED_ASSET_INTENT_FIELD_DECISIONS = Object.freeze({
+  id: 'exclude:appId',
+  name: 'include:name',
+  exportedName: 'exclude:graphRecords',
+  argsContractHash: 'include:args',
+  implementationHash: 'exclude:behavior',
+  intentPolicyHash: 'include:policy',
+  authRequirement: 'include:authority',
+  accept: 'include:policy',
+  delivery: 'include:policy',
+  access: 'include:policy',
+  grants: 'include:policy',
+  image: 'include:policy',
+  video: 'include:policy',
+  on: 'include:policy',
+  declaredReads: 'include:reads',
+  runtime: 'exclude:behavior',
+  handlerForm: 'exclude:behavior',
+  sourceSpan: 'exclude:graphRecords',
+});
+
+function normalizedAssetUploadIntents(functionManifest) {
+  return [...(functionManifest?.assetUploadIntents ?? [])]
+    .map((intent) => {
+      const unknown = Object.keys(intent)
+        .filter((field) => NORMALIZED_ASSET_INTENT_FIELD_DECISIONS[field] === undefined)
+        .sort(compareCodeUnits);
+      if (unknown.length > 0) {
+        throw generationError(
+          'CODEGEN_WRITE_FAILED',
+          `NormalizedApplicationDefinitionV1 has no include/exclude decision for asset upload intent field(s): ${unknown.join(', ')}`,
+        );
+      }
+      return canonicalClone({
+        name: intent.name,
+        argsContractHash: intent.argsContractHash,
+        intentPolicyHash: intent.intentPolicyHash,
+        authRequirement: intent.authRequirement,
+        accept: intent.accept,
+        delivery: intent.delivery,
+        access: intent.access,
+        grants: intent.grants === true,
+        image: intent.image ?? null,
+        video: intent.video ?? null,
+        callbacks: intent.on ?? null,
+        reads: [...(intent.declaredReads ?? [])].sort(compareCodeUnits),
+      });
+    })
+    .sort((left, right) => compareCodeUnits(left.name, right.name));
+}
+
+const NORMALIZED_OPERATION_KINDS = new Set([
+  'Query', 'LiveQuery', 'Mutation', 'Action',
+]);
+
+// This is deliberately a mapping over the actual decorated-function record,
+// rather than a second list of fields that merely happens to resemble it.
+// Adding a decorated field without assigning it to the normalized witness or
+// one of the four public exclusions makes generation fail closed.
+//
+// @ref LLP 0253#s52-operation-names-and-normalizedapplicationdefinitionv1 —
+// normalized equivalence is complete by construction; implementation/source
+// custody is excluded only through the named public exclusion classes.
+const NORMALIZED_DECORATED_OPERATION_FIELD_DECISIONS = Object.freeze({
+  id: 'exclude:appId',
+  name: 'include:operationName',
+  exportedName: 'include:operationName',
+  kind: 'include:operationKind',
+  stream: 'include:stream',
+  sourceSpan: 'exclude:graphRecords',
+  handlerForm: 'exclude:behavior',
+  implementationHash: 'exclude:behavior',
+  argsContractHash: 'include:args',
+  argsContract: 'include:args',
+  boundedSkew: 'include:boundedSkew',
+  sequences: 'include:sequences',
+  resultContract: 'include:result',
+  resultContractHash: 'include:result',
+  requiredCapabilities: 'include:capabilities',
+  authRequirement: 'include:authority',
+  apiExposure: 'include:apiExposure',
+  authorityIndependent: 'include:authority',
+  publicInline: 'include:apiExposure',
+  authorityCreating: 'include:authority',
+  retainable: 'include:retention',
+  retentionClass: 'include:retention',
+  refusals: 'include:refusals',
+  trackedRefusals: 'include:trackedRefusals',
+  authorizationDependence: 'include:authority',
+  authorityProfileDependence: 'include:authority',
+  fieldBoundary: 'include:authority',
+  syncabilityClass: 'include:syncabilityClass',
+  readSetSummary: 'include:reads',
+  writeSetSummary: 'include:writes',
+  effectCeiling: 'include:effects',
+  standardPattern: 'include:standardPattern',
+  bundleEntrypoint: 'exclude:behavior',
+  uses: 'include:secrets',
+  // The current `runtime` member is the executable HostPlan/IbexModule
+  // carrier. HostPlan is projected as `plan`; IbexModule is behavior. The
+  // separately authored LLP 0249 runtime-profile fact is not implemented by
+  // the canonical constructor yet, so normalized `runtime` is null today.
+  runtime: 'include:plan+exclude:behavior',
+});
+
+function assertNormalizedOperationCoverage(operation) {
+  const unknown = Object.keys(operation ?? {})
+    .filter((field) => NORMALIZED_DECORATED_OPERATION_FIELD_DECISIONS[field] === undefined)
+    .sort(compareCodeUnits);
+  if (unknown.length > 0) {
+    throw generationError(
+      'CODEGEN_WRITE_FAILED',
+      `NormalizedApplicationDefinitionV1 has no include/exclude decision for decorated operation field(s): ${unknown.join(', ')}`,
+    );
+  }
+}
+
+function normalizedOperation(operation) {
+  assertNormalizedOperationCoverage(operation);
+  if (!NORMALIZED_OPERATION_KINDS.has(operation?.kind)) {
+    throw generationError(
+      'CODEGEN_WRITE_FAILED',
+      `NormalizedApplicationDefinitionV1 operation kind must be Query, LiveQuery, Mutation, or Action; received ${String(operation?.kind)}`,
+    );
+  }
+  return canonicalClone({
+    operationName: operation?.name,
+    operationKind: operation?.kind,
+    args: operation?.argsContract ?? null,
+    result: operation?.resultContract ?? null,
+    authority: {
+      authRequirement: operation?.authRequirement ?? null,
+      authorizationDependence: operation?.authorizationDependence ?? [],
+      authorityIndependent: operation?.authorityIndependent === true,
+      authorityCreating: operation?.authorityCreating === true,
+      fieldBoundary: operation?.fieldBoundary ?? null,
+      authorityProfileDependence: canonicalClone(
+        operation?.authorityProfileDependence ?? [],
+      ),
+    },
+    reads: operation?.readSetSummary ?? null,
+    writes: operation?.writeSetSummary ?? null,
+    effects: operation?.effectCeiling ?? null,
+    capabilities: [...(operation?.requiredCapabilities ?? [])].sort(compareCodeUnits),
+    apiExposure: operation?.apiExposure === undefined && operation?.publicInline !== true
+      ? null
+      : {
+          ...(operation?.apiExposure ?? {}),
+          ...(operation?.publicInline === true ? { publicInline: true } : {}),
+        },
+    refusals: canonicalClone(operation?.refusals ?? []),
+    trackedRefusals: canonicalClone(operation?.trackedRefusals ?? []),
+    syncabilityClass: operation?.syncabilityClass ?? null,
+    retention: {
+      retainable: operation?.retainable === true,
+      retentionClass: operation?.retentionClass ?? null,
+    },
+    secrets: sortedCanonicalValues(operation?.uses),
+    stream: operation?.stream === true,
+    sequences: canonicalClone(operation?.sequences ?? []),
+    boundedSkew: operation?.boundedSkew ?? null,
+    standardPattern: operation?.standardPattern ?? null,
+    runtime: null,
+    plan: operation?.runtime?.HostPlan ?? null,
+  });
+}
+
+// @ref LLP 0253#s52-operation-names-and-normalizedapplicationdefinitionv1 —
+// the cross-profile witness is built independently from semanticInput. Its
+// closed contract projection omits app address, profile, handler behavior,
+// and source-graph custody while retaining plans, secrets, and derived reach.
+export function buildNormalizedApplicationDefinitionV1({
+  schemaManifest,
+  functionManifest,
+  routesManifest,
+}) {
+  const operations = [...(functionManifest?.functions ?? [])]
+    .sort((left, right) => compareCodeUnits(left.name, right.name));
+  const schema = normalizedApplicationSchema(schemaManifest);
+  const definition = canonicalClone({
+    application: {
+      schema,
+      authorityProfile: normalizedAuthorityProfile(schemaManifest, functionManifest),
+      assetUploadIntents: normalizedAssetUploadIntents(functionManifest),
+      routes: normalizedRoutes(routesManifest),
+      memberships: (schemaManifest?.tables ?? [])
+        .filter((table) => table.membership !== undefined)
+        .map((table) => ({ table: table.name, membership: table.membership })),
+      migrations: schemaManifest?.migrations ?? null,
+      retention: {
+        schema: schemaManifest?.retention ?? null,
+        operations: operations.map((operation) => ({
+          operationName: operation.name,
+          retainable: operation.retainable === true,
+          retentionClass: operation.retentionClass ?? null,
+        })),
+      },
+    },
+    operations: operations.map(normalizedOperation),
+  });
+  return {
+    schemaVersion: NORMALIZED_DEFINITION_SCHEMA_VERSION,
+    excludedFields: ['behavior', 'graphRecords', 'authoringProfile', 'appId'],
+    normalizedContractId: generationDomainHash(
+      GENERATION_HASH_DOMAINS.normalizedContractId,
+      definition,
+    ),
+    normalizedSchemaId: generationDomainHash(
+      GENERATION_HASH_DOMAINS.normalizedSchemaId,
+      schema,
+    ),
+    definition,
+  };
+}
+
 function semanticAssetIntent(intent) {
   return {
     id: intent.id,
@@ -289,6 +557,7 @@ export function buildSemanticGenerationInputs({
   sourceSpans,
   schemaFieldSpans,
   generationLog,
+  authoringProfile = EXPLICIT_AUTHORING_PROFILE,
 }) {
   const graphRecords = [...(handlerRuntimeProfile?.moduleGraph?.records ?? [])]
     .map(canonicalHandlerGraphRecord)
@@ -308,6 +577,10 @@ export function buildSemanticGenerationInputs({
     schemaVersion: SEMANTIC_IDENTITY_SCHEMA_VERSION,
     appId,
     targetProfile,
+    // @ref LLP 0253#s12-identity-no-fleet-wide-rotation — omission is the
+    // explicit-v1 spelling in semantic identity. Only a non-default source
+    // profile adds bytes to the preimage.
+    ...(authoringProfile === EXPLICIT_AUTHORING_PROFILE ? {} : { authoringProfile }),
     schema: {
       version: schemaManifest?.schemaVersion,
       auth: schemaManifest?.auth ?? null,
@@ -452,6 +725,12 @@ export function completeGenerationIdentities({
     executableId,
     executableIdsByTarget: contentIdentities.executableIdsByTarget,
     evidenceId: contentIdentities.evidenceId,
+    ...(contentIdentities.normalizedContractId === undefined
+      ? {}
+      : { normalizedContractId: contentIdentities.normalizedContractId }),
+    ...(contentIdentities.normalizedSchemaId === undefined
+      ? {}
+      : { normalizedSchemaId: contentIdentities.normalizedSchemaId }),
     bundleId,
     generationId,
   };
@@ -688,6 +967,11 @@ function validateIdentities(identities) {
       throw generationError('CODEGEN_WRITE_FAILED', 'target-keyed executable identities are invalid', { target, executableId });
     }
   }
+  for (const key of ['normalizedContractId', 'normalizedSchemaId']) {
+    if (identities?.[key] !== undefined && !SHA256.test(identities[key])) {
+      throw generationError('CODEGEN_WRITE_FAILED', `${key} must be a full sha256 identity`, { key, value: identities[key] });
+    }
+  }
 }
 
 function addressNeutralIdentities(identities) {
@@ -697,6 +981,12 @@ function addressNeutralIdentities(identities) {
     executableId: identities?.executableId,
     executableIdsByTarget: identities?.executableIdsByTarget,
     evidenceId: identities?.evidenceId,
+    ...(identities?.normalizedContractId === undefined
+      ? {}
+      : { normalizedContractId: identities.normalizedContractId }),
+    ...(identities?.normalizedSchemaId === undefined
+      ? {}
+      : { normalizedSchemaId: identities.normalizedSchemaId }),
   };
 }
 

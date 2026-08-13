@@ -1,13 +1,13 @@
 # LLP 0252: Convex-familiar authoring profile
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Product, Developer experience, Authoring, Application data API,
 TypeScript, Code generation, React, Client integration, Competitive evaluation,
 Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-08-12
-**Revised:** 2026-08-13 (r5: post-loop Grok-review repairs — familiar
+**Revised:** 2026-08-13 (accepted: author build directive of 2026-08-13 ratified the r5 pins (runMutation-only action seam, closed skip set, callback-withIndex no-drop lowering) and accepted the RFC; the v1 API is specified by LLP 0253 and implementation proceeds under it. r5: post-loop Grok-review repairs — familiar
 action seam pinned to `ctx.runMutation` only (no invented `runQuery` host
 op), skip second argument closed as `Args | "skip" | typeof skip` over the
 one canonical sentinel, callback-`withIndex` admitted as lowering sugar
@@ -1066,7 +1066,8 @@ changes enter only when they improve Snapback's own measured path.
 
 ## Status
 
-Review. Acceptance would authorize a bounded dual-profile experiment over one
+Accepted (2026-08-13, author build directive; r5 pins ratified by the same
+directive). LLP 0253 specifies the v1 API and adapter. Acceptance authorizes a bounded dual-profile experiment over one
 Snapback core. It would not make the familiar profile the default, establish
 Convex compatibility, weaken any evidence boundary, or authorize permanent
 dual-surface support. Those outcomes require the measured stop-rule disposition

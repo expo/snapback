@@ -66,6 +66,9 @@ export const PACKAGE_INVENTORY = Object.freeze([
   ['@expo/snapback-client', '@expo/snapback-client'],
   ['@expo/snapback-codegen', '@expo/snapback-codegen'],
   ['@expo/snapback-react', '@expo/snapback-react'],
+  // @ref LLP 0253#s31-the-umbrella-package — the exact-name umbrella adds one
+  // package to the qualified public closure and no historical lineage alias.
+  ['@expo/snapback', '@expo/snapback'],
   ['@expo/snapback-expo', '@expo/snapback-expo'],
   ['@expo/snapback-app-cli', '@expo/snapback-app-cli'],
   ['@expo/snapback-cli', '@expo/snapback-cli'],
@@ -958,7 +961,7 @@ export function validateInternalDependencyClosure(row, version, scopePreset = 'i
             `${row.name}.${section}.${dependency} carries a pre-migration scope or alias`,
           );
         }
-        if (dependency.startsWith('@expo/snapback-')) {
+        if (dependency === '@expo/snapback' || dependency.startsWith('@expo/snapback-')) {
           if (!publicBySource.has(dependency)) {
             throw new TypeError(`${row.name}.${section}.${dependency} is outside the package inventory`);
           }

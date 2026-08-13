@@ -43,7 +43,7 @@ fn oauth_manifest_requires_explicit_bearer_opt_in_and_exact_exposed_bundles() {
         functions: BTreeMap::from([(
             "listed".to_owned(),
             ApiFunctionExposure {
-            approval: None,
+                approval: None,
                 expose: true,
                 since: None,
             },
@@ -71,7 +71,7 @@ fn oauth_manifest_requires_explicit_bearer_opt_in_and_exact_exposed_bundles() {
         .expect("explicit bearer opt-in activates");
     let mut listed = host_query("listed");
     listed.api_exposure = Some(ApiFunctionExposure {
-            approval: None,
+        approval: None,
         expose: true,
         since: None,
     });
@@ -263,7 +263,7 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
         functions: BTreeMap::from([(
             "listed".to_owned(),
             ApiFunctionExposure {
-            approval: None,
+                approval: None,
                 expose: true,
                 since: Some("v1".to_owned()),
             },
@@ -277,7 +277,7 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
 
     let mut listed = host_query("listed");
     listed.api_exposure = Some(ApiFunctionExposure {
-            approval: None,
+        approval: None,
         expose: true,
         since: Some("v1".to_owned()),
     });
@@ -308,7 +308,7 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
 
     let mut large = host_query("large");
     large.api_exposure = Some(ApiFunctionExposure {
-            approval: None,
+        approval: None,
         expose: true,
         since: None,
     });

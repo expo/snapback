@@ -54,10 +54,16 @@ const APPLY_RESULT_SCHEMA_VERSION = 'snapback.declaration-suggestion-apply.v1';
 const ANALYSIS_DOMAIN = 'snapback-codegen/declaration-suggestion-analysis-input/v1';
 const APPLY_LOCK_FILE = '.declaration-suggestion.apply.lock';
 const RESULT_BUILDERS = new Map([
-  ['defineJsQuery', 'Query'],
-  ['defineJsLiveQuery', 'LiveQuery'],
-  ['defineJsMutation', 'Mutation'],
-  ['defineAction', 'Action'],
+  ['defineJsQuery', { kind: 'Query', familiar: false }],
+  ['defineJsLiveQuery', { kind: 'LiveQuery', familiar: false }],
+  ['defineJsMutation', { kind: 'Mutation', familiar: false }],
+  ['defineAction', { kind: 'Action', familiar: false }],
+  // @ref LLP 0253#s43-returns-lowering-kind-partitioned-refusing — familiar
+  // suggestions share the canonical inverse type analysis but render the
+  // accepted declaration in returns: v.* source grammar.
+  ['query', { kind: 'LiveQuery', familiar: true }],
+  ['mutation', { kind: 'Mutation', familiar: true }],
+  ['action', { kind: 'Action', familiar: true }],
 ]);
 
 export const DECLARATION_SUGGESTION_REASON_CODES = REASON_CODE_LIST;
@@ -241,8 +247,8 @@ function parseOperations(source, definitionPath) {
       if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
       const call = unwrap(declaration.initializer);
       if (!ts.isCallExpression(call) || !ts.isIdentifier(call.expression)) continue;
-      const kind = RESULT_BUILDERS.get(call.expression.text);
-      if (!kind) continue;
+      const builder = RESULT_BUILDERS.get(call.expression.text);
+      if (!builder) continue;
       const spec = unwrap(call.arguments[0]);
       if (!spec || !ts.isObjectLiteralExpression(spec)) continue;
       const jsMember = objectMember(spec, 'js');
@@ -251,11 +257,15 @@ function parseOperations(source, definitionPath) {
         : null;
       operations.push({
         name: declaration.name.text,
-        kind,
+        kind: builder.familiar && call.expression.text === 'query'
+          && literalString(objectMember(spec, 'delivery')) === 'read'
+          ? 'Query'
+          : builder.kind,
+        familiar: builder.familiar,
         builder: call.expression.text,
         declaration,
         spec,
-        result: objectMember(spec, 'result'),
+        result: objectMember(spec, builder.familiar ? 'returns' : 'result'),
         handler: objectMember(spec, 'handler'),
         source: literalString(objectMember(spec, 'source'))
           ?? (jsSpec && ts.isObjectLiteralExpression(jsSpec) ? literalString(objectMember(jsSpec, 'source')) : null),
@@ -944,7 +954,12 @@ function topLevelContract(returnType, operation, context) {
           renderedType(checker, elements[0]),
         );
       }
-      return { ...row, expression: `results.records(${row.expression}, { minItems: 1, maxItems: 1 })` };
+      return {
+        ...row,
+        expression: operation.familiar
+          ? `v.tuple([${row.expression}])`
+          : `results.records(${row.expression}, { minItems: 1, maxItems: 1 })`,
+      };
     }
     const element = arrayElement(checker, type);
     if (!element) {
@@ -957,7 +972,9 @@ function topLevelContract(returnType, operation, context) {
     }
     const table = exactTable(element, tables, checker);
     if (table) {
-      const expression = `results.documents(${JSON.stringify(table)})`;
+      const expression = operation.familiar
+        ? `v.array(v.doc(${JSON.stringify(table)}))`
+        : `results.documents(${JSON.stringify(table)})`;
       return {
         expression,
         evidence: [evidence('$[]', renderedType(checker, element), expression, 'schema-derived', 'schema-reference')],
@@ -975,11 +992,18 @@ function topLevelContract(returnType, operation, context) {
         renderedType(checker, element),
       );
     }
-    return { ...row, expression: `results.records(${row.expression})` };
+    return {
+      ...row,
+      expression: operation.familiar
+        ? `v.array(${row.expression})`
+        : `results.records(${row.expression})`,
+    };
   }
   const table = exactTable(type, tables, checker);
   if (table) {
-    const expression = `results.document(${JSON.stringify(table)})`;
+    const expression = operation.familiar
+      ? `v.doc(${JSON.stringify(table)})`
+      : `results.document(${JSON.stringify(table)})`;
     return {
       expression,
       evidence: [evidence('$', sourceExpression, expression, 'schema-derived', 'schema-reference')],
@@ -988,7 +1012,9 @@ function topLevelContract(returnType, operation, context) {
     };
   }
   const value = invertType(type, context);
-  return value.expression ? { ...value, expression: `results.value(${value.expression})` } : value;
+  return value.expression
+    ? { ...value, expression: operation.familiar ? value.expression : `results.value(${value.expression})` }
+    : value;
 }
 
 function confidenceSummary(evidenceEntries) {
@@ -1016,12 +1042,14 @@ function overallStatus(candidate) {
   return 'exact';
 }
 
-function resultDeclarationSource(expression) {
-  return `result: ${expression}`;
+function resultDeclarationSource(expression, operation) {
+  return `${operation.familiar ? 'returns' : 'result'}: ${expression}`;
 }
 
 function ensureResultContractImports(source, operation, expression) {
-  const required = ['results', ...(expression.includes('v.') ? ['v'] : [])];
+  const required = operation.familiar
+    ? ['v']
+    : ['results', ...(expression.includes('v.') ? ['v'] : [])];
   const sourceFile = ts.createSourceFile(
     operation.file.fileName,
     source,
@@ -1043,7 +1071,7 @@ function ensureResultContractImports(source, operation, expression) {
   const missing = required.filter((name) => !localImports.has(name));
   if (missing.length === 0) return source;
   if (!builderImport) {
-    return `import { ${missing.join(', ')} } from '@expo/snapback-codegen/define';\n${source}`;
+    return `import { ${missing.join(', ')} } from ${JSON.stringify(operation.familiar ? '@expo/snapback-codegen/familiar' : '@expo/snapback-codegen/define')};\n${source}`;
   }
   const closeBrace = builderImport.end - 1;
   const prefix = builderImport.elements.length === 0 ? '' : ', ';
@@ -1051,7 +1079,7 @@ function ensureResultContractImports(source, operation, expression) {
 }
 
 function patchTarget(source, operation, expression, file) {
-  const afterDeclaration = resultDeclarationSource(expression);
+  const afterDeclaration = resultDeclarationSource(expression, operation);
   let startOffset;
   let endOffset;
   let beforeText;
@@ -1170,7 +1198,7 @@ function refusedCandidate(code, message, operation, base) {
 function finishSuggestion(operation, candidate, base) {
   const status = overallStatus(candidate);
   const expression = status === 'refused' || status === 'holed' ? null : candidate.expression;
-  const after = expression ? resultDeclarationSource(expression) : null;
+  const after = expression ? resultDeclarationSource(expression, operation) : null;
   const before = operation.result
     ? base.definitionSource.slice(operation.result.getStart(operation.file), operation.result.end)
     : null;
@@ -1296,10 +1324,12 @@ export function suggestDeclarations({
     );
   }
   const definitionPath = join(backendRoot, ...definitionFile.split('/'));
-  const schemaPath = join(backendRoot, 'schema.mjs');
-  const apiPath = join(backendRoot, 'generated', 'api.d.ts');
-  const schemaManifestPath = join(backendRoot, 'generated', 'schema.manifest.json');
-  const functionsManifestPath = join(backendRoot, 'generated', 'functions.manifest.json');
+  const familiarProfile = existsSync(join(backendRoot, 'schema.ts'));
+  const outputDirectory = familiarProfile ? '_generated' : 'generated';
+  const schemaPath = join(backendRoot, familiarProfile ? 'schema.ts' : 'schema.mjs');
+  const apiPath = join(backendRoot, outputDirectory, 'api.d.ts');
+  const schemaManifestPath = join(backendRoot, outputDirectory, 'schema.manifest.json');
+  const functionsManifestPath = join(backendRoot, outputDirectory, 'functions.manifest.json');
   const inputs = new Map();
   let definitionSnapshot;
   let schemaSnapshot;
@@ -1333,8 +1363,14 @@ export function suggestDeclarations({
     );
   }
   const parsed = parseOperations(definitionSource, definitionPath);
+  if (familiarProfile) {
+    const moduleName = definitionFile.split('/').at(-1).replace(/\.(?:ts|mts)$/u, '');
+    for (const entry of parsed.operations) entry.name = `${moduleName}.${entry.name}`;
+  }
   let selected = parsed.operations;
-  if (operation !== null) selected = selected.filter((entry) => entry.name === operation);
+  if (operation !== null) selected = selected.filter((entry) => (
+    entry.name === operation || entry.name.split('.').at(-1) === operation
+  ));
   if (selected.length === 0) {
     return commandFailure(
       'SNAPBACK_AUTHORING_OPERATION_NOT_FOUND',

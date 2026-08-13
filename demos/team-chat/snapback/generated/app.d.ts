@@ -45,6 +45,7 @@ export interface GeneratedAppSurfaces {
 }
 export interface AppDescriptorV1 {
   readonly format: 'snapback.app.v1';
+  readonly authoringProfile: "snapback-explicit-v1";
   readonly identity: Readonly<{ app: string; schema: string; functions: string; descriptor: `sha256:${string}` }>;
   readonly api: Readonly<{
     queries: Readonly<Pick<GeneratedApi, GeneratedAppQueryName>>;
@@ -60,19 +61,19 @@ export interface AppDescriptorV1 {
 export type GeneratedAppDescriptorV1 = AppDescriptorV1;
 export declare const artifacts: GeneratedArtifacts;
 export declare const app: GeneratedAppDescriptorV1;
-export declare const acceptInvite: GeneratedAppDescriptorV1['api']['mutations']['acceptInvite'];
-export declare const createRoom: GeneratedAppDescriptorV1['api']['mutations']['createRoom'];
-export declare const firstInboxPage: GeneratedAppDescriptorV1['api']['queries']['firstInboxPage'];
-export declare const firstRoomMessagePage: GeneratedAppDescriptorV1['api']['queries']['firstRoomMessagePage'];
-export declare const inviteMember: GeneratedAppDescriptorV1['api']['mutations']['inviteMember'];
-export declare const leaveRoom: GeneratedAppDescriptorV1['api']['mutations']['leaveRoom'];
-export declare const listMyRooms: GeneratedAppDescriptorV1['api']['queries']['listMyRooms'];
-export declare const markRoomRead: GeneratedAppDescriptorV1['api']['mutations']['markRoomRead'];
-export declare const nextInboxPage: GeneratedAppDescriptorV1['api']['queries']['nextInboxPage'];
-export declare const nextRoomMessagePage: GeneratedAppDescriptorV1['api']['queries']['nextRoomMessagePage'];
-export declare const ownerRemoveMember: GeneratedAppDescriptorV1['api']['mutations']['ownerRemoveMember'];
-export declare const roomDetails: GeneratedAppDescriptorV1['api']['queries']['roomDetails'];
-export declare const roomMessages: GeneratedAppDescriptorV1['api']['queries']['roomMessages'];
-export declare const sendMessage: GeneratedAppDescriptorV1['api']['mutations']['sendMessage'];
-export declare const unreadDeliveries: GeneratedAppDescriptorV1['api']['queries']['unreadDeliveries'];
+export declare const acceptInvite: GeneratedAppDescriptorV1['api']['mutations']["acceptInvite"];
+export declare const createRoom: GeneratedAppDescriptorV1['api']['mutations']["createRoom"];
+export declare const firstInboxPage: GeneratedAppDescriptorV1['api']['queries']["firstInboxPage"];
+export declare const firstRoomMessagePage: GeneratedAppDescriptorV1['api']['queries']["firstRoomMessagePage"];
+export declare const inviteMember: GeneratedAppDescriptorV1['api']['mutations']["inviteMember"];
+export declare const leaveRoom: GeneratedAppDescriptorV1['api']['mutations']["leaveRoom"];
+export declare const listMyRooms: GeneratedAppDescriptorV1['api']['queries']["listMyRooms"];
+export declare const markRoomRead: GeneratedAppDescriptorV1['api']['mutations']["markRoomRead"];
+export declare const nextInboxPage: GeneratedAppDescriptorV1['api']['queries']["nextInboxPage"];
+export declare const nextRoomMessagePage: GeneratedAppDescriptorV1['api']['queries']["nextRoomMessagePage"];
+export declare const ownerRemoveMember: GeneratedAppDescriptorV1['api']['mutations']["ownerRemoveMember"];
+export declare const roomDetails: GeneratedAppDescriptorV1['api']['queries']["roomDetails"];
+export declare const roomMessages: GeneratedAppDescriptorV1['api']['queries']["roomMessages"];
+export declare const sendMessage: GeneratedAppDescriptorV1['api']['mutations']["sendMessage"];
+export declare const unreadDeliveries: GeneratedAppDescriptorV1['api']['queries']["unreadDeliveries"];
 export default app;

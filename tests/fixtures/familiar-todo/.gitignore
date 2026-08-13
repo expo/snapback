@@ -1,0 +1,3 @@
+_generated/*
+!_generated/artifacts.json
+!_generated/normalized-definition.v1.json

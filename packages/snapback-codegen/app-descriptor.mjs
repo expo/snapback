@@ -12,7 +12,13 @@ export const SURFACE_MAX_SCOPE_RECORD_FIELDS = 8;
 export const SURFACE_MAX_PER_APP = 32;
 
 const GENERATED_IDENTITY = /^(?:sha256:[0-9a-f]+|snapback\.v[0-9]+:[a-z0-9-]+:(?:schema|function):sha256:[0-9a-f]{64})$/u;
-const ROOT_KEYS = ['api', 'capabilities', 'commands', 'format', 'identity', 'surfaces'];
+const ROOT_KEYS = [
+  'api', 'authoringProfile', 'capabilities', 'commands', 'format', 'identity', 'surfaces',
+];
+const AUTHORING_PROFILES = new Set([
+  'snapback-explicit-v1',
+  'snapback-familiar-ts-v1',
+]);
 const IDENTITY_KEYS = ['app', 'descriptor', 'functions', 'schema'];
 const API_KEYS = ['assets', 'ephemeral', 'mutations', 'queries', 'queryGroups'];
 const CAPABILITY_KEYS = ['required'];
@@ -531,6 +537,17 @@ export function validateAppDescriptorV1(candidate, {
       { observedFormat: candidate.format ?? null },
     ));
   }
+  // @ref LLP 0253#s12-identity-no-fleet-wide-rotation — the descriptor keeps
+  // the explicit profile as a serialized custody fact; only semanticInput
+  // applies default omission.
+  if (!AUTHORING_PROFILES.has(candidate.authoringProfile)) {
+    problems.push(problem(
+      'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
+      '$.authoringProfile',
+      'descriptor authoringProfile must name a supported source profile',
+      { observedProfile: candidate.authoringProfile ?? null },
+    ));
+  }
   if (!exactKeys(candidate.identity, IDENTITY_KEYS)) {
     problems.push(problem(
       'SNAPBACK_APP_DESCRIPTOR_SHAPE_INVALID',
@@ -635,6 +652,7 @@ export function validateAppDescriptorV1(candidate, {
 
 export function createAppDescriptorV1({
   app,
+  authoringProfile,
   schema,
   functions,
   api,
@@ -644,6 +662,7 @@ export function createAppDescriptorV1({
 }) {
   const descriptor = {
     format: APP_DESCRIPTOR_FORMAT,
+    authoringProfile,
     identity: { app, schema, functions, descriptor: '' },
     api,
     commands,

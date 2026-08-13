@@ -6,6 +6,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
+export type AuthoringProfile = 'snapback-explicit-v1' | 'snapback-familiar-ts-v1';
 export type SearchMatchAtomV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } };
 export type SearchClauseV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } } | { Any: readonly SearchMatchAtomV1[] } | { Not: SearchMatchAtomV1 } | { Filter: { field: string; op: "eq"; value: string | number | boolean } };
 export interface SearchQueryAstV1 { all: readonly SearchClauseV1[] }
@@ -36,13 +37,18 @@ export interface GeneratedMutationIrV1 {
   readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;
 }
 /** Optional own-property `undefined` is normalized exactly as omission; required, array, and open-JSON undefined still refuse before dispatch. */
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
+export type FunctionReferenceDelivery<Kind extends FunctionKind> = Kind extends 'LiveQuery' ? Readonly<{ delivery: 'live' }> : Kind extends 'Query' ? Readonly<{ delivery: 'read' }> : Readonly<Record<never, never>>;
+export interface FunctionReferenceBase<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
   id: string;
   name: Name;
   kind: Kind;
+  readonly __snapbackReferenceKind: Kind;
+  authoringProfile: Profile;
+  retention: string;
+  readonly __snapbackAuthoringProfile?: Profile;
   authRequirement: 'public' | 'optional-user' | 'authenticated';
   implementationHash: string;
   argsContractHash: string;
@@ -59,6 +65,11 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   readonly __args?: Args;
   readonly __result?: Result;
 }
+export type FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReferenceBase<Name, Kind, Args, Result, Profile> & FunctionReferenceDelivery<Kind>;
+export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Query', Args, Result, Profile>;
+export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'LiveQuery', Args, Result, Profile>;
+export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Mutation', Args, Result, Profile>;
+export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Action', Args, Result, Profile>;
 export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;
 export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
@@ -203,20 +214,52 @@ export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedA
 export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext>;
 export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, GeneratedPush, RealtimeContext>;
 export interface GeneratedFunctionContexts {
-  joinAsHost: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
-  leaveHost: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
-  pushLedger: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
-  sendSelected: GeneratedActionContext<GeneratedAuthenticatedAuthContext>;
+  "joinAsHost": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "leaveHost": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "pushLedger": GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
+  "sendSelected": GeneratedActionContext<GeneratedAuthenticatedAuthContext>;
 }
 export interface GeneratedEphemeral {
 }
 export interface GeneratedQueryGroups {
 }
 export interface GeneratedApi {
-  joinAsHost: FunctionReference<'joinAsHost', 'Mutation', Record<string, never>, null>;
-  leaveHost: FunctionReference<'leaveHost', 'Mutation', Record<string, never>, null>;
-  pushLedger: FunctionReference<'pushLedger', 'Query', { intentId: string }, ReadonlyArray<{ "_id": string; "intentId": string; "triggerMode": "immediate" | "system" | "deferred"; "intentState": string; "attemptCount": number; "createdAtMs": number; "updatedAtMs": number; "expiresAtMs": number; "batchId": null | string; "attemptNumber": null | number; "batchIndex": null | number; "batchState": null | string; "transmittingAtMs": null | number; "settledAtMs": null | number; "httpStatus": null | number; "requestErrorCode": null | string; "previousAmbiguous": null | boolean; "messageId": null | string; "tokenId": null | string; "messageState": null | string; "ticketId": null | string; "receiptPollCount": null | number; "nextReceiptPollAtMs": null | number; "receiptWindowClosesAtMs": null | number; "handedToExpoAtMs": null | number; "expoAcceptedAtMs": null | number; "expoErrorCode": null | string; "retirementEffect": null | boolean }>>;
-  sendSelected: FunctionReference<'sendSelected', 'Action', { principalIds: ReadonlyArray<Principal>; title: string; body: string; dedupeKey: string; redriveAmbiguous?: boolean }, { "intentId": string; "attempt": number; "targetCount": number; "batchCount": number; "state": string; "deduplicated": boolean }>;
+  /**
+   * Mutation reference `app:joinAsHost`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a14b84313d46d0e73b8d9b61bc05d5e6e05952d59ae98928055b621279cf1601`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "joinAsHost": FunctionReference<"joinAsHost", 'Mutation', Record<string, never>, null, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `app:leaveHost`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a14b84313d46d0e73b8d9b61bc05d5e6e05952d59ae98928055b621279cf1601`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "leaveHost": FunctionReference<"leaveHost", 'Mutation', Record<string, never>, null, "snapback-explicit-v1">;
+  /**
+   * Query reference `app:pushLedger`.
+   * Legal client verbs/hooks: `query`, `liveQuery`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `notifications.expoPushSeam`, `result_contract_v1`.
+   * Freshness: one-shot authoritative response or liveQuery snapshot followed by updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a14b84313d46d0e73b8d9b61bc05d5e6e05952d59ae98928055b621279cf1601`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "pushLedger": FunctionReference<"pushLedger", 'Query', { intentId: string }, ReadonlyArray<{ "_id": string; "intentId": string; "triggerMode": "immediate" | "system" | "deferred"; "intentState": string; "attemptCount": number; "createdAtMs": number; "updatedAtMs": number; "expiresAtMs": number; "batchId": null | string; "attemptNumber": null | number; "batchIndex": null | number; "batchState": null | string; "transmittingAtMs": null | number; "settledAtMs": null | number; "httpStatus": null | number; "requestErrorCode": null | string; "previousAmbiguous": null | boolean; "messageId": null | string; "tokenId": null | string; "messageState": null | string; "ticketId": null | string; "receiptPollCount": null | number; "nextReceiptPollAtMs": null | number; "receiptWindowClosesAtMs": null | number; "handedToExpoAtMs": null | number; "expoAcceptedAtMs": null | number; "expoErrorCode": null | string; "retirementEffect": null | boolean }>, "snapback-explicit-v1">;
+  /**
+   * Action reference `app:sendSelected`.
+   * Legal client verbs/hooks: `action`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `cron_action_run_mutation`, `ibex_ctx_db_host_bridge`, `result_contract_v1`.
+   * Freshness: one-shot online response Retention: none.
+   * Dispatch/task states: promise-only (no handle state table).
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a14b84313d46d0e73b8d9b61bc05d5e6e05952d59ae98928055b621279cf1601`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "sendSelected": FunctionReference<"sendSelected", 'Action', { principalIds: ReadonlyArray<Principal>; title: string; body: string; dedupeKey: string; redriveAmbiguous?: boolean }, { "intentId": string; "attempt": number; "targetCount": number; "batchCount": number; "state": string; "deduplicated": boolean }, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
 }

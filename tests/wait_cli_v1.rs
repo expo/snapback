@@ -168,11 +168,11 @@ fn descriptor_digest(ready_file: &Path) -> String {
     format!("sha256:{:x}", Sha256::digest(fs::read(ready_file).unwrap()))
 }
 
-fn receipt(
-    ready_file: &Path,
-    readiness: &OperationalReadinessV1,
-) -> ApplicationReadyReceiptV1 {
-    let target = readiness.target.as_ref().expect("declared readiness target");
+fn receipt(ready_file: &Path, readiness: &OperationalReadinessV1) -> ApplicationReadyReceiptV1 {
+    let target = readiness
+        .target
+        .as_ref()
+        .expect("declared readiness target");
     ApplicationReadyReceiptV1 {
         format_version: APPLICATION_READY_FORMAT_V1.to_owned(),
         startup_nonce: readiness.startup_nonce.clone(),

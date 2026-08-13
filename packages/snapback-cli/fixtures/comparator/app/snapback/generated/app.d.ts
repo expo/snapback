@@ -46,6 +46,7 @@ export interface GeneratedAppSurfaces {
 }
 export interface AppDescriptorV1 {
   readonly format: 'snapback.app.v1';
+  readonly authoringProfile: "snapback-explicit-v1";
   readonly identity: Readonly<{ app: string; schema: string; functions: string; descriptor: `sha256:${string}` }>;
   readonly api: Readonly<{
     queries: Readonly<Pick<GeneratedApi, GeneratedAppQueryName>>;
@@ -61,11 +62,11 @@ export interface AppDescriptorV1 {
 export type GeneratedAppDescriptorV1 = AppDescriptorV1;
 export declare const artifacts: GeneratedArtifacts;
 export declare const app: GeneratedAppDescriptorV1;
-export declare const activityRows: GeneratedAppDescriptorV1['api']['queries']['activityRows'];
-export declare const liveRows: GeneratedAppDescriptorV1['api']['queries']['liveRows'];
-export declare const primaryRows: GeneratedAppDescriptorV1['api']['queries']['primaryRows'];
-export declare const publishLiveRow: GeneratedAppDescriptorV1['api']['mutations']['publishLiveRow'];
-export declare const rejectInvalidWrite: GeneratedAppDescriptorV1['api']['mutations']['rejectInvalidWrite'];
-export declare const rejectionRows: GeneratedAppDescriptorV1['api']['queries']['rejectionRows'];
-export declare const writePrimaryAndActivity: GeneratedAppDescriptorV1['api']['mutations']['writePrimaryAndActivity'];
+export declare const activityRows: GeneratedAppDescriptorV1['api']['queries']["activityRows"];
+export declare const liveRows: GeneratedAppDescriptorV1['api']['queries']["liveRows"];
+export declare const primaryRows: GeneratedAppDescriptorV1['api']['queries']["primaryRows"];
+export declare const publishLiveRow: GeneratedAppDescriptorV1['api']['mutations']["publishLiveRow"];
+export declare const rejectInvalidWrite: GeneratedAppDescriptorV1['api']['mutations']["rejectInvalidWrite"];
+export declare const rejectionRows: GeneratedAppDescriptorV1['api']['queries']["rejectionRows"];
+export declare const writePrimaryAndActivity: GeneratedAppDescriptorV1['api']['mutations']["writePrimaryAndActivity"];
 export default app;

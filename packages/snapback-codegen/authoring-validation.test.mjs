@@ -1403,6 +1403,13 @@ export default defineRoutes([
   assert.equal(apiModule.groups['/t/:title'].artifactKind, 'queryGroupReference');
   assert.equal(apiModule.groups['/t/:title'].id, `${routes.app}:query-group:/t/:title`);
   assert.equal(apiModule.groups['/t/:title'].queries[0].name, 'listTodos');
+  const hydratedGroupReference = apiModule.groups['/t/:title'].queries[0].ref;
+  assert.equal(hydratedGroupReference.authoringProfile, 'snapback-explicit-v1');
+  assert.equal(hydratedGroupReference.delivery, 'live');
+  assert.equal(hydratedGroupReference.retention, 'none');
+  for (const fact of ['authoringProfile', 'delivery', 'retention']) {
+    assert.equal(Object.hasOwn(hydratedGroupReference, fact), true, fact);
+  }
   assert.deepEqual(
     apiModule.groups['/t/:title'].queries[0].args,
     { title: { $param: 'title' } },

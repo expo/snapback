@@ -84,6 +84,7 @@ export function codegenCacheGraphRoot(backendRoot, inputsHash) {
 export function logicalArtifactKind(path) {
   if (path === 'schema.manifest.json') return 'schema-manifest';
   if (path === 'functions.manifest.json') return 'function-manifest';
+  if (path === 'normalized-definition.v1.json') return 'normalized-application-definition';
   if (path === 'handler-runtime-profile.v1.json') return 'handler-runtime-profile';
   if (path === 'client-lifecycle.v1.json') return 'client-lifecycle';
   if (path === 'capability.manifest.json') return 'capability-manifest';
@@ -104,6 +105,7 @@ export function logicalArtifactKind(path) {
 export function artifactConsumer(path) {
   if (path === 'handler-runtime-profile.v1.json') return 'developer-tooling';
   if (path === 'client-lifecycle.v1.json') return 'developer-tooling';
+  if (path === 'normalized-definition.v1.json') return 'migration-tooling';
   if (path === 'schema.manifest.json' || path === 'functions.manifest.json' || path === 'capability.manifest.json') {
     return 'snapback-runtime';
   }

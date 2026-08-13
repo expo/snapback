@@ -10,6 +10,12 @@
 // Validators
 // ---------------------------------------------------------------------------
 
+/** Closed canonical authored-key sets used by adapter completeness gates. */
+export declare const QUERY_SPEC_FIELDS: ReadonlySet<string>;
+export declare const MUTATION_SPEC_FIELDS: ReadonlySet<string>;
+export declare const ACTION_SPEC_FIELDS: ReadonlySet<string>;
+export declare const JS_QUERY_SPEC_FIELDS: ReadonlySet<string>;
+
 export type FieldType =
   | 'String'
   | 'Boolean'

@@ -214,6 +214,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'commands.test.mjs',
       'dev-diagnostics-acceptance.test.mjs',
       'dev-diagnostics.test.mjs',
+      'familiar.test.mjs',
       'hmr-generation-handoff.test.mjs',
       'lifecycle.test.mjs',
       'offline.test.mjs',
@@ -225,6 +226,15 @@ export const PACKAGE_TEST_INVENTORIES = [
       'subscribe-runtime-import-failure.test.mjs',
       'surface.test.mjs',
       'webcrypto-fallback.test.mjs',
+    ],
+  },
+  {
+    id: '@expo/snapback',
+    packageDir: 'packages/snapback-umbrella',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: [
+      'package.test.mjs',
     ],
   },
   {
@@ -286,6 +296,8 @@ export const PACKAGE_TEST_INVENTORIES = [
       'declaration-suggestion.test.mjs',
       'dependency-graph.test.mjs',
       'effect-ceiling.test.mjs',
+      'familiar-phase-a.test.mjs',
+      'familiar-phase-b.test.mjs',
       'function-id.test.mjs',
       'generated-mutation-ir.test.mjs',
       'generation-lock.test.mjs',
@@ -482,7 +494,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 272,
+  expectedTotal = 276,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -853,6 +865,13 @@ export function checkPackageTestInventories(options = {}) {
 // argument-normalization and typed-diagnostic-error contract suites.
 // 270 -> 272 (2026-08-12, LLP 0245 rollout 1): codegen and CLI gain the
 // DeclarationSuggestionV1 analyzer/apply and machine-output acceptance suites.
+// 272 -> 273 (2026-08-13, LLP 0253 Phase A): @expo/snapback-codegen gains the
+// normalized-definition, profile-custody, disposition, and no-branch suite.
+// 273 -> 274 (2026-08-13, LLP 0253 Phase B): @expo/snapback-codegen gains the
+// familiar discovery, lowering, facade, dotted-name, and equivalence suite.
+// 274 -> 276 (2026-08-13, LLP 0253 Phase C): @expo/snapback-react gains the
+// familiar projection/admission suite and @expo/snapback gains its thin-package
+// identity/metadata suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

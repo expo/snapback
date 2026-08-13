@@ -5,7 +5,9 @@
 **Systems:** Competitive evaluation, Developer experience, Authoring, Application data API, Code generation, Runtime, Bootstrap, Packaging, Search, Relational queries, Scheduled work, Client integration, Sync, Storage, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-12 (post-acceptance disposition update: Draft LLP 0245
+**Revised:** 2026-08-13 (dated familiar-profile exception: LLP 0252/0253
+preserve this RFC's accepted canonical-surface decisions while authorizing one
+scoped, measured familiar-alias experiment). 2026-08-12 (post-acceptance disposition update: Draft LLP 0245
 owns the conditional infer-then-freeze bridge and Draft LLP 0246 owns bounded
 TypeScript module custody; no accepted Move-1 or Move-2 semantic changes).
 2026-08-02 (decision-sitting propagation: open-question item 6
@@ -730,6 +732,18 @@ on the JS/React arm (0126's evidence gate for the hardening claim).
   survive reservation serialization (0125 OQ6).
 - *Product breadth:* the vector float-pinning strategy and the
   exact-to-ANN crossover bound (0124 OQ3).
+
+## Dated amendment — 2026-08-13: scoped familiar-profile exception
+
+This RFC's accepted synthesis and its Move-1/1a decisions continue to govern
+the canonical authoring and client surface. LLP 0252 and its executable API
+Spec, LLP 0253, authorize one narrower exception: the Experimental
+`snapback-familiar-ts-v1` profile may publish the measured familiar aliases
+defined there, over the same canonical engine and lifecycle owners, for the
+bounded comparison period and stop rule those documents define. This note does
+not generalize profile proliferation, respell the canonical surface, or weaken
+any evidence gate in this RFC; it makes the scoped exception discoverable from
+the accepted synthesis itself.
 
 ## Open questions
 

@@ -1,0 +1,4 @@
+{
+  "schemaVersion": "snapback.codegen-policy.v1",
+  "committedProjections": ["normalized-definition.v1.json"]
+}

@@ -1,6 +1,631 @@
 {
   "appId": "app",
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:797321077da0f3cc6c75feb8a2054aba34d39fc183ef3f79c44e4fd4323f6a91",
+  "artifactKind": "clientLifecycleManifest",
+  "authoredSourceHash": "sha256:cfb54cf932c230a1377913a9b7cf6db5630b41b5d189b1ff1199b895b07eab5b",
+  "commands": [
+    {
+      "authRequirement": "authenticated",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:5b1ed06db03c86b5eb73cb678b322d95df4803e581fb7b559463f76506df4c8e",
+      "kind": "Command",
+      "legalVerbs": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "mutationIdentity": "app:sendMessage",
+      "name": "send",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "asset-bearing-command.v1",
+      "semanticIdentity": "app:command:send",
+      "states": [
+        "preparing",
+        "transferring",
+        "committing",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    }
+  ],
+  "compatibilityAliases": [
+    {
+      "current": "useSnapbackQuery",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackLiveQuery",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackMutation",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackMutationDispatch",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackOutbox().mutationStatus",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackMutationStatus",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackCommand",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackTask",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "client.query",
+      "emittedInRollout1": false,
+      "plannedCanonical": "client.read",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    }
+  ],
+  "custody": {
+    "committedProjectionRequired": false,
+    "consumer": "developer-tooling",
+    "rationale": "rollout 1 has no runtime consumer; codegen, generated declarations, tests, and guide checks consume the same source table",
+    "storageClass": "regenerable-cache"
+  },
+  "diagnostics": [
+    {
+      "acceptedField": "acceptedKinds",
+      "code": "SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "phase": "client-call-boundary-before-transport",
+      "receivedField": "receivedKind",
+      "remediationField": "correctVerb"
+    }
+  ],
+  "futureClassM": {
+    "forbiddenMeaning": "raw row version, app commit, or storage snapshot",
+    "note": "when class-M handles ship, snapshotVersion identifies the authorized principal/query view",
+    "shippedInRollout1": false,
+    "snapshotVersionMeaning": "authorized principal/query viewRevision"
+  },
+  "handleStates": {
+    "commandTask": {
+      "nonterminal": [
+        "preparing",
+        "transferring",
+        "committing"
+      ],
+      "terminal": [
+        "succeeded",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    },
+    "liveQueryHandle": {
+      "disposalMeaning": "disposed handles publish no further rows and release their subscription resources",
+      "nonterminalConnection": [
+        "connecting",
+        "live",
+        "polling",
+        "stale"
+      ],
+      "terminalConnection": [
+        "disconnected"
+      ]
+    }
+  },
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9",
+  "mutationSettlement": {
+    "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
+    "dispositions": [
+      "pending",
+      "settled",
+      "failed",
+      "stranded",
+      "quarantined",
+      "resultGone",
+      "unknown"
+    ],
+    "nonterminal": [
+      "pending",
+      "unknown"
+    ],
+    "settlement": "mutationStatus()/subscribeMutation() project durable disposition by clientMutationId",
+    "terminal": [
+      "settled",
+      "failed",
+      "stranded",
+      "quarantined",
+      "resultGone"
+    ]
+  },
+  "operations": [
+    {
+      "argsContractHash": "sha256:e5e4ca558367ce9b5a750b56c0acba1d32bb84cd61a8adbb63218dff610ae64f",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:2039cdeb04176a35f847017ca442277eeb250a7ec6195f2898c815027f459b6d",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "addReaction",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:ea0d0f469f0cbf9048fa8fd6b81259b9efe0dd13fe087a8d6df9785bdc267fde",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "app:addReaction",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:b02b3386c8665a44c548917d96af34087a9223cebfc0fd67ee765ee2c04eb1c3",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:f0cac0d1e5f676aa8e68b264104ba7ee688aa66cc1af4a6316c92f714078052c",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "annotateMessage",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:6a7271e69c8ea471cb72bf6110a4ba9d9629a1ba88343e49afdb6cc5f4406387",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "app:annotateMessage",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:b8008d39092f55af63892600fdc15eacede5ab8797da0088f637eaf1ca5b9c9a",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "conversationDetails",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "live_subscriptions",
+        "result_contract_v1",
+        "single_table_v1"
+      ],
+      "resultContractHash": "sha256:7d77e57847bafa4f25e6f8b7f5394291ad8b37366dc8e841100ed31d6804a211",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "app:conversationDetails",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:db0b12209b28d2e18369e2d3da3884763d8e30ae5c37bfd99a9d7532c825a070",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "membershipsForConversation",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "live_subscriptions",
+        "result_contract_v1",
+        "single_table_v1"
+      ],
+      "resultContractHash": "sha256:5c9f2fa9bf6c7e8838c87c68d84c230f769e2d35f6722e65799d485d95d2b4e9",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "app:membershipsForConversation",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:9e7859e84ea84b98aab0125f533cf4e7593fbe915bb6d81f13f0c8cc803badd2",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "messagesForConversation",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "live_subscriptions",
+        "result_contract_v1",
+        "single_table_v1"
+      ],
+      "resultContractHash": "sha256:7964bd8d9ac5e7a60ed8c1ae443760d883151db4ba1657ec3d8b9f650ef337a4",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "app:messagesForConversation",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:cba65bc2f8b8fa18a722f4446cf8e07c2e493fd2031ea72769c5d4cc7517b5b6",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "reactionsForConversation",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "live_subscriptions",
+        "result_contract_v1",
+        "single_table_v1"
+      ],
+      "resultContractHash": "sha256:88693fad0c87a250d1d10fdd31dc1857fed1f663db0266e00ca64d3bfa66e29d",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "app:reactionsForConversation",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:becb982369c805fb6ea59820ec5b1bac9bb5dc5b81fdbf58822f1a42f0ae9d7b",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:5ddc4e99f172fc5d9e0308b225bc5dc1dc92b48abdded9b14ef19db776bd0940",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "removeReaction",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:0049db6e709bdb59a11e258e49985b10e4f27b3ab92169ee256ec5b271f6a123",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "app:removeReaction",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:f34565efd075fb25b761192b4849a04663d985f2c42dcd8c9f5cf823af29d05b",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:5b1ed06db03c86b5eb73cb678b322d95df4803e581fb7b559463f76506df4c8e",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "sendMessage",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "app:sendMessage",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:87d8172d0434653aa93e8e273875a3a99ced4399c230232215985d05425e31b9",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:de37bb531e2509630d9782b6538b92a7ad380218418655f45859c6a49c8a9115",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "sendReply",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "app:sendReply",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:19bac8e4db31ac89ae4453649c7aeab7805f73ae7815630a8cc2fdea08df18c2",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:1ce0979433c0624457113a383211bf2cfb327c896ea3fb23c1ffd8fb744b543d",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "sendText",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "app:sendText",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:67f794ac6c6fdc0b2f75e02186c85f1401401c787c6e278e6ec98335fa7d30f4",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "users",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "live_subscriptions",
+        "result_contract_v1",
+        "single_table_v1"
+      ],
+      "resultContractHash": "sha256:91a76ac59ce1af2e01bbdb3622b32ebf965e4f76bd9866effb58b1a30e2e48de",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "app:users",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    }
+  ],
+  "referenceKinds": [
+    {
+      "acceptedBy": [
+        "query",
+        "liveQuery"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "query",
+      "freshness": "one-shot authoritative response or liveQuery snapshot followed by updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Query",
+      "retention": "none",
+      "runtimeDiscriminant": "Query",
+      "stateCarrier": "Promise<QueryOutput<Result>>"
+    },
+    {
+      "acceptedBy": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "liveQuery",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "LiveQuery",
+      "retention": "per-operation retainable/retentionClass declaration",
+      "runtimeDiscriminant": "LiveQuery",
+      "stateCarrier": "LiveQueryHandle or React QueryState"
+    },
+    {
+      "acceptedBy": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "mutate",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Mutation",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "stateCarrier": "MutationDispatchOutcome plus MutationDisposition"
+    },
+    {
+      "acceptedBy": [
+        "action"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "action",
+      "freshness": "one-shot online response",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Action",
+      "retention": "none",
+      "runtimeDiscriminant": "Action",
+      "stateCarrier": "Promise<ActionOutput<Result>>"
+    },
+    {
+      "acceptedBy": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "auth": "inherited from the descriptor mutation and asset intent",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Command",
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "asset-bearing-command.v1",
+      "stateCarrier": "CommandTask"
+    }
+  ],
+  "resourceIdentity": {
+    "ingredients": [
+      "reference semantic identity",
+      "canonical argument contract and canonical argument bytes",
+      "authority partition",
+      "normalized lifecycle options",
+      "build identity inputsHash"
+    ],
+    "version": "snapback.client-resource-key.v1"
+  },
   "rows": {
     "anchors": {
       "diagnostics": [
@@ -237,5 +862,13 @@
       ]
     }
   },
-  "schemaVersion": "snapback.client-lifecycle.v1"
+  "schemaVersion": "snapback.client-lifecycle.v1",
+  "surfaceFamilies": [
+    "query",
+    "liveQuery",
+    "mutate",
+    "action",
+    "commands"
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
 }

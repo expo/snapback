@@ -975,6 +975,20 @@ export function extractInlineHandlers(source, {
   });
   const handlers = new Map();
   const replacements = [];
+  const stringExportAliases = new Map();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isExportDeclaration(statement)
+      || statement.moduleSpecifier
+      || !statement.exportClause
+      || !ts.isNamedExports(statement.exportClause)) continue;
+    for (const specifier of statement.exportClause.elements) {
+      const local = specifier.propertyName?.text ?? specifier.name.text;
+      const exported = specifier.name.text;
+      const aliases = stringExportAliases.get(local) ?? [];
+      aliases.push(exported);
+      stringExportAliases.set(local, aliases);
+    }
+  }
 
   // Same-file helper admission (LLP 0118 option 1a). Helpers are analyzed
   // lazily — only top-level function declarations actually reached from a
@@ -1137,10 +1151,26 @@ export function extractInlineHandlers(source, {
     const exported = statement.modifiers?.some(
       (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
     );
-    if (!exported) continue;
     for (const declaration of statement.declarationList.declarations) {
       if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
-      const name = declaration.name.text;
+      const localName = declaration.name.text;
+      const aliases = stringExportAliases.get(localName) ?? [];
+      if (!exported && aliases.length === 0) continue;
+      if (!exported && aliases.length !== 1) {
+        diagnostics.push(diagnostic(
+          'SNAPBACK_INLINE_HANDLER_DIRECT_LITERAL_REQUIRED',
+          `${localName} inline handler must have exactly one exported operation name`,
+          path,
+          declaration.name,
+          sourceFile,
+          { function: localName, exports: aliases },
+        ));
+        continue;
+      }
+      // @ref LLP 0253#s52-operation-names-and-normalizedapplicationdefinitionv1
+      // — ES2022 string export aliases, not their safe authored locals, own
+      // inline handler identity and diagnostics.
+      const name = exported ? localName : aliases[0];
       const call = declaration.initializer;
       if (
         !ts.isCallExpression(call)
@@ -1332,6 +1362,47 @@ export function renderInlineHandlerModule(name, expressionSource) {
   // Ibex's closed module ABI resolves handlers from this one registry. Each
   // generated runtime module owns exactly one operation.
   return `globalThis.__snapbackHandlers = { ${JSON.stringify(name)}: (${expressionSource}) };\n`;
+}
+
+// A familiar top-level module export receives its canonical `module.export`
+// name only after discovery. Rename the already-extracted graph root without
+// changing authored AST/helper custody, and recompute the topology digest so
+// no local binding name survives as a nominal operation identity.
+// @ref LLP 0253#s2-familiar-source-layout-and-discovery — module namespace
+// lowering happens after per-file inline extraction but before decoration.
+export function renameExtractedInlineHandler(extracted, name) {
+  const priorRoot = extracted.graphRecord?.root?.nodeId;
+  const nextRoot = `handler:${name}`;
+  const nodes = (extracted.graphRecord?.nodes ?? []).map((node) => (
+    node.nodeId === priorRoot ? { ...node, nodeId: nextRoot, name } : { ...node }
+  ));
+  const edges = (extracted.graphRecord?.edges ?? []).map((edge) => ({
+    ...edge,
+    importerNodeId: edge.importerNodeId === priorRoot ? nextRoot : edge.importerNodeId,
+    targetNodeId: edge.targetNodeId === priorRoot ? nextRoot : edge.targetNodeId,
+  }));
+  const topology = {
+    nodes: nodes.map(({ nodeId, kind, normalizedTarget }) => ({
+      nodeId, kind, normalizedTarget,
+    })),
+    edges: edges.map(({ importerNodeId, targetNodeId, normalizedTarget, resolution }) => ({
+      importerNodeId, targetNodeId, normalizedTarget, resolution,
+    })),
+  };
+  return {
+    ...extracted,
+    name,
+    graphRecord: {
+      ...extracted.graphRecord,
+      root: { ...extracted.graphRecord.root, nodeId: nextRoot, name },
+      nodes,
+      edges,
+      graphTopologyDigest: graphDigest(
+        'snapback:handler-graph-topology:v1',
+        JSON.stringify(topology),
+      ),
+    },
+  };
 }
 
 // Splice emission (LLP 0118 option 1a / finding 7): each operation's runtime

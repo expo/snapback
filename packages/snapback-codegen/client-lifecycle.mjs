@@ -9,6 +9,25 @@ export const CLIENT_LIFECYCLE_MANIFEST_VERSION = 'snapback.client-lifecycle.v1';
 export const CLIENT_REFERENCE_GUIDE = '/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs';
 export const CLIENT_REFERENCE_KIND_MISMATCH_CODE = 'SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH';
 
+const compatibilityAlias = (current, plannedCanonical) => Object.freeze({
+  current,
+  plannedCanonical,
+  emittedInRollout1: false,
+  removalEpoch: 'declared-major-after-stage-2-measurement',
+});
+
+// @ref LLP 0238#d4-react-and-expo-hooks-are-kind-explicit — this data is the
+// one rename authority consumed by lifecycle artifacts and familiar JSDoc.
+// @ref LLP 0253#s63-usemutation — Phase C completes the dispatch, status,
+// task, and read rows so familiar routing follows the planned vocabulary.
+export const CLIENT_COMPATIBILITY_ALIASES = Object.freeze([
+  compatibilityAlias('useSnapbackQuery', 'useSnapbackLiveQuery'),
+  compatibilityAlias('useSnapbackMutation', 'useSnapbackMutationDispatch'),
+  compatibilityAlias('useSnapbackOutbox().mutationStatus', 'useSnapbackMutationStatus'),
+  compatibilityAlias('useSnapbackCommand', 'useSnapbackTask'),
+  compatibilityAlias('client.query', 'client.read'),
+]);
+
 const dispositions = Object.freeze([
   'pending',
   'settled',
@@ -124,6 +143,7 @@ const operationProjection = (fn) => {
           ? fn.retentionClass ?? 'opaque-authorized-snapshot-v1'
           : 'none')
       : entry.retention,
+    delivery: ({ Query: 'read', LiveQuery: 'live', Mutation: 'mutation', Action: 'action' })[fn.kind],
     states: fn.kind === 'Mutation'
       ? ['dispatch:settled', 'dispatch:queued', ...dispositions.map((state) => `disposition:${state}`)]
       : fn.kind === 'Query' || fn.kind === 'LiveQuery'
@@ -224,12 +244,7 @@ export function buildClientLifecycleManifest({
       remediationField: 'correctVerb',
       guideAnchor: CLIENT_REFERENCE_GUIDE,
     }],
-    compatibilityAliases: [{
-      current: 'useSnapbackQuery',
-      plannedCanonical: 'useSnapbackLiveQuery',
-      emittedInRollout1: false,
-      removalEpoch: 'declared-major-after-stage-2-measurement',
-    }],
+    compatibilityAliases: CLIENT_COMPATIBILITY_ALIASES.map((entry) => ({ ...entry })),
     futureClassM: {
       shippedInRollout1: false,
       snapshotVersionMeaning: 'authorized principal/query viewRevision',
@@ -246,7 +261,7 @@ const code = (value) => `\`${jsdocSafe(value)}\``;
 
 // @ref LLP 0238#d7-vocabulary-and-state-tables-are-generated-once — declaration
 // comments are rendered from the same operation rows as the JSON projection.
-export function renderReferenceJSDoc(reference, manifest) {
+export function renderReferenceJSDoc(reference, manifest, authoringProfile = 'snapback-explicit-v1') {
   const entry = lifecycleForReferenceKind(reference.kind);
   const projected = reference.kind === 'Command'
     ? manifest.commands.find(({ name }) => name === reference.name)
@@ -261,6 +276,24 @@ export function renderReferenceJSDoc(reference, manifest) {
   const states = projected.states.length === 0
     ? 'promise-only (no handle state table)'
     : projected.states.map(code).join(', ');
+  const profileRoutes = [];
+  if (authoringProfile === 'snapback-familiar-ts-v1' && projected.kind === 'Mutation') {
+    const dispatch = CLIENT_COMPATIBILITY_ALIASES.find(
+      ({ current }) => current === 'useSnapbackMutation',
+    );
+    const status = CLIENT_COMPATIBILITY_ALIASES.find(
+      ({ current }) => current === 'useSnapbackOutbox().mutationStatus',
+    );
+    profileRoutes.push(
+      ` * Familiar \`useMutation\` is settled-only (\`queue:false\`); offline lifecycle: ${code(dispatch.current)} + ${code(status.current)} (planned ${code(dispatch.plannedCanonical)} + ${code(status.plannedCanonical)}).`,
+    );
+  }
+  if (authoringProfile === 'snapback-familiar-ts-v1' && projected.delivery === 'read') {
+    const read = CLIENT_COMPATIBILITY_ALIASES.find(({ current }) => current === 'client.query');
+    profileRoutes.push(
+      ` * Familiar delivery ${code('read')} has no v1 hook; call ${code(read.current)} (planned ${code(read.plannedCanonical)}).`,
+    );
+  }
   return [
     '/**',
     ` * ${jsdocSafe(reference.kind)} reference ${code(projected.semanticIdentity)}.`,
@@ -268,6 +301,7 @@ export function renderReferenceJSDoc(reference, manifest) {
     ` * Auth: ${code(projected.authRequirement)}; required capabilities: ${capabilities}.`,
     ` * Freshness: ${jsdocSafe(projected.freshness)} Retention: ${jsdocSafe(projected.retention)}.`,
     ` * Dispatch/task states: ${states}.`,
+    ...profileRoutes,
     ` * Build identity: ${code(manifest.inputsHash)}. Guide: ${code(entry.guideAnchor)}.`,
     ' */',
   ].join('\n');

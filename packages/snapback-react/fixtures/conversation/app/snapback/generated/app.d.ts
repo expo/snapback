@@ -26,7 +26,7 @@ export interface GeneratedAppCommands {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: task snapshot is process-local; mutation settlement remains durable Retention: command task is process-local; constituent mutation follows outbox retention.
    * Dispatch/task states: `preparing`, `transferring`, `committing`, `succeeded`, `failed`, `cancelled`, `ambiguous`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:fe80118dcb8e68cf6065b228621150314cf5ada89f1cecef2b0c517398cc6a96`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   readonly "send": CommandDescriptor<GeneratedApi["sendMessage"], "image", "image", true, GeneratedApi["messageImageUpload"]>;
 }
@@ -55,6 +55,7 @@ export interface GeneratedAppSurfaces {
 }
 export interface AppDescriptorV1 {
   readonly format: 'snapback.app.v1';
+  readonly authoringProfile: "snapback-explicit-v1";
   readonly identity: Readonly<{ app: string; schema: string; functions: string; descriptor: `sha256:${string}` }>;
   readonly api: Readonly<{
     queries: Readonly<Pick<GeneratedApi, GeneratedAppQueryName>>;
@@ -70,15 +71,15 @@ export interface AppDescriptorV1 {
 export type GeneratedAppDescriptorV1 = AppDescriptorV1;
 export declare const artifacts: GeneratedArtifacts;
 export declare const app: GeneratedAppDescriptorV1;
-export declare const addReaction: GeneratedAppDescriptorV1['api']['mutations']['addReaction'];
-export declare const annotateMessage: GeneratedAppDescriptorV1['api']['mutations']['annotateMessage'];
-export declare const conversationDetails: GeneratedAppDescriptorV1['api']['queries']['conversationDetails'];
-export declare const membershipsForConversation: GeneratedAppDescriptorV1['api']['queries']['membershipsForConversation'];
-export declare const messagesForConversation: GeneratedAppDescriptorV1['api']['queries']['messagesForConversation'];
-export declare const reactionsForConversation: GeneratedAppDescriptorV1['api']['queries']['reactionsForConversation'];
-export declare const removeReaction: GeneratedAppDescriptorV1['api']['mutations']['removeReaction'];
-export declare const sendMessage: GeneratedAppDescriptorV1['api']['mutations']['sendMessage'];
-export declare const sendReply: GeneratedAppDescriptorV1['api']['mutations']['sendReply'];
-export declare const sendText: GeneratedAppDescriptorV1['api']['mutations']['sendText'];
-export declare const users: GeneratedAppDescriptorV1['api']['queries']['users'];
+export declare const addReaction: GeneratedAppDescriptorV1['api']['mutations']["addReaction"];
+export declare const annotateMessage: GeneratedAppDescriptorV1['api']['mutations']["annotateMessage"];
+export declare const conversationDetails: GeneratedAppDescriptorV1['api']['queries']["conversationDetails"];
+export declare const membershipsForConversation: GeneratedAppDescriptorV1['api']['queries']["membershipsForConversation"];
+export declare const messagesForConversation: GeneratedAppDescriptorV1['api']['queries']["messagesForConversation"];
+export declare const reactionsForConversation: GeneratedAppDescriptorV1['api']['queries']["reactionsForConversation"];
+export declare const removeReaction: GeneratedAppDescriptorV1['api']['mutations']["removeReaction"];
+export declare const sendMessage: GeneratedAppDescriptorV1['api']['mutations']["sendMessage"];
+export declare const sendReply: GeneratedAppDescriptorV1['api']['mutations']["sendReply"];
+export declare const sendText: GeneratedAppDescriptorV1['api']['mutations']["sendText"];
+export declare const users: GeneratedAppDescriptorV1['api']['queries']["users"];
 export default app;

@@ -67,8 +67,8 @@
     "lifetimeSeconds": { "type": "integer", "minimum": 1, "maximum": 900 },
     "packages": {
       "type": "array",
-      "minItems": 11,
-      "maxItems": 11,
+      "minItems": 12,
+      "maxItems": 12,
       "prefixItems": [
         { "$ref": "#/$defs/runtimeDarwin" },
         { "$ref": "#/$defs/runtimeLinux" },
@@ -77,6 +77,7 @@
         { "$ref": "#/$defs/codegen" },
         { "$ref": "#/$defs/vite" },
         { "$ref": "#/$defs/react" },
+        { "$ref": "#/$defs/umbrella" },
         { "$ref": "#/$defs/expo" },
         { "$ref": "#/$defs/appCli" },
         { "$ref": "#/$defs/cli" },
@@ -97,7 +98,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "pattern": "^(?:@expo/snapback-[a-z0-9-]+|create-snapback-app)$"
+          "pattern": "^(?:@expo/snapback(?:-[a-z0-9-]+)?|create-snapback-app)$"
         },
         "expectedPriorVersion": {
           "oneOf": [{ "$ref": "#/$defs/semver" }, { "type": "null" }]
@@ -169,6 +170,15 @@
         {
           "type": "object",
           "properties": { "name": { "const": "@expo/snapback-react" } }
+        }
+      ]
+    },
+    "umbrella": {
+      "allOf": [
+        { "$ref": "#/$defs/package" },
+        {
+          "type": "object",
+          "properties": { "name": { "const": "@expo/snapback" } }
         }
       ]
     },

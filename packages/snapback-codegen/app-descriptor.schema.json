@@ -4,9 +4,12 @@
   "title": "Snapback AppDescriptor v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["format", "identity", "api", "commands", "surfaces", "capabilities"],
+  "required": ["format", "authoringProfile", "identity", "api", "commands", "surfaces", "capabilities"],
   "properties": {
     "format": { "const": "snapback.app.v1" },
+    "authoringProfile": {
+      "enum": ["snapback-explicit-v1", "snapback-familiar-ts-v1"]
+    },
     "identity": {
       "type": "object",
       "additionalProperties": false,

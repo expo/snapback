@@ -11,6 +11,7 @@
     "proof-runner-fixtures",
     "local-proof-inventory",
     "affected-selector-fixtures",
+    "authoring-profile-branches",
     "package-test-inventory"
   ],
   "dependencyOverrides": {

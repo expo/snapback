@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import { createCommandClient } from './commands.mjs';
 import { SnapbackClient } from './index.mjs';
+import { assertClientReferenceKind } from './reference-kinds.mjs';
 
 const functionReference = (kind) => Object.freeze({
   artifactKind: 'functionReference',
@@ -153,4 +154,39 @@ test('missing, future, and malformed object kinds refuse every verb before trans
     await commandClient.dispose();
     client.diagnosticsChannel().dispose();
   }
+});
+
+test('profile admission is opt-in and refuses before a familiar alias can dispatch', () => {
+  const explicit = Object.freeze({
+    artifactKind: 'functionReference',
+    kind: 'LiveQuery',
+    name: 'todos.list',
+    authoringProfile: 'snapback-explicit-v1',
+  });
+  assert.doesNotThrow(() => assertClientReferenceKind({
+    reference: explicit,
+    acceptedKinds: ['LiveQuery'],
+    invokedVerb: 'canonical.liveQuery',
+  }));
+  assert.throws(
+    () => assertClientReferenceKind({
+      reference: explicit,
+      acceptedKinds: ['LiveQuery'],
+      acceptedAuthoringProfiles: ['snapback-familiar-ts-v1'],
+      invokedVerb: 'familiar.useQuery',
+    }),
+    (error) => error.code === 'SNAPBACK_CLIENT_REFERENCE_PROFILE_MISMATCH'
+      && error.diagnostic.details.receivedProfile === 'snapback-explicit-v1'
+      && error.diagnostic.details.acceptedProfiles[0] === 'snapback-familiar-ts-v1',
+  );
+  assert.throws(
+    () => assertClientReferenceKind({
+      reference: 'todos.list',
+      acceptedKinds: ['LiveQuery'],
+      acceptedAuthoringProfiles: ['snapback-familiar-ts-v1'],
+      invokedVerb: 'familiar.useQuery',
+    }),
+    (error) => error.code === 'SNAPBACK_CLIENT_REFERENCE_PROFILE_MISMATCH'
+      && error.diagnostic.details.receivedProfile === 'missing',
+  );
 });

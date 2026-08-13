@@ -1,7 +1,7 @@
 ---
 title: API reference — @expo/snapback-expo/asset-source
 id: reference.api.expo.snapback.expo.asset.source
-order: 852
+order: 854
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-expo/package.json, packages/snapback-expo/asset-source.d.mts]
@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:30fb88f2d7d7cecc271db9b0478a899b03d66e61e6c9
 # @expo/snapback-expo/asset-source
 
 Build-bound public API projection for `@expo/snapback-expo/asset-source`. Canonical registry identity:
-`sha256:b9e1c76577071e70b44214cd84991a79d00ce58d469c91af2857f287a681b797`.
+`sha256:7a496e451b0a28117969dc5c5efacb5ca49b9eda91092dcf5b0aa828b6674fa5`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/asset-source.mjs`.
 

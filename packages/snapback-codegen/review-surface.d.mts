@@ -16,6 +16,7 @@ export type ArtifactCustody = 'consumer-committed' | 'regenerable-cache';
 export type ArtifactLogicalKind =
   | 'schema-manifest'
   | 'function-manifest'
+  | 'normalized-application-definition'
   | 'handler-runtime-profile'
   | 'capability-manifest'
   | 'contract-data-manifest'
@@ -36,6 +37,7 @@ export type ArtifactConsumer =
   | 'client-bundler'
   | 'app-cli'
   | 'release'
+  | 'migration-tooling'
   | 'tooling';
 
 /** Stable two-space JSON with recursively sorted object keys. */
@@ -85,6 +87,8 @@ export interface ReviewManifest {
     executableId: `sha256:${string}`;
     executableIdsByTarget: Readonly<Record<string, `sha256:${string}`>>;
     evidenceId: `sha256:${string}`;
+    normalizedContractId?: `sha256:${string}`;
+    normalizedSchemaId?: `sha256:${string}`;
     bundleId: `sha256:${string}`;
     generationId: `sha256:${string}`;
   }>;

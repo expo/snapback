@@ -39,6 +39,8 @@ import ts from 'typescript';
 import {
   HANDLER_TYPESCRIPT_PROFILE,
   HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE,
+  handlerTypeScriptCompilerOptions,
+  handlerTypeScriptIdentity,
 } from './typescript-profile.mjs';
 import {
   mapGeneratedTypeScriptPosition,
@@ -92,6 +94,8 @@ import {
 import { withCodegenGenerationLock } from './generation-lock.mjs';
 import {
   extractInlineHandlers,
+  renameExtractedInlineHandler,
+  renderInlineHandlerModule,
   renderInlineOperationGraphModule,
   renderInlineOperationModule,
 } from './inline-handlers.mjs';
@@ -107,7 +111,11 @@ import {
 } from './client-lifecycle.mjs';
 import {
   APPLICATION_GENERATION_SCHEMA_VERSION,
+  EXPLICIT_AUTHORING_PROFILE,
+  FAMILIAR_AUTHORING_PROFILE,
+  NORMALIZED_DEFINITION_SCHEMA_VERSION,
   SEMANTIC_IDENTITY_SCHEMA_VERSION,
+  buildNormalizedApplicationDefinitionV1,
   buildSemanticGenerationInputs,
   completeGenerationIdentities,
   computeBundleId,
@@ -195,6 +203,7 @@ const CTX_DECLARATION_MODULE = '@expo/snapback-codegen/ctx';
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const OPERATION_NAME = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$/u;
 
 const compositionDomainHash = (domain, value) => `sha256:${createHash('sha256')
   .update(domain)
@@ -1261,6 +1270,12 @@ export function crossCheckContractQueryBinding(name, binding) {
 // @ref LLP 0032#decision-docket — DK-7 / P3(c) emit-time validation (defense in depth).
 const DEFINITION_PACKAGE_IMPORTS = new Map([
   ['@expo/snapback-codegen/define', join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')],
+  ['@expo/snapback-codegen/familiar', join(dirname(fileURLToPath(import.meta.url)), 'familiar.mjs')],
+  // Phase B keeps these learned umbrella spellings on the same canonical
+  // definition implementation; the thin @expo/snapback package may re-export
+  // them without becoming another definition owner.
+  ['@expo/snapback/server', join(dirname(fileURLToPath(import.meta.url)), 'familiar.mjs')],
+  ['@expo/snapback/values', join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')],
   ['@expo/snapback-codegen/standard-patterns', join(dirname(fileURLToPath(import.meta.url)), 'standard-patterns.mjs')],
 ]);
 const CONTRACT_CAPABILITIES_PATH = fileURLToPath(import.meta.resolve('@expo/snapback-contract/capabilities'));
@@ -1887,30 +1902,153 @@ async function generateInProcessLocked({
   checkOnly,
   testHooks,
 }) {
-  const schemaPath = join(backendRoot, 'schema.mjs');
-  const functionsPath = join(backendRoot, 'functions.mjs');
+  // @ref LLP 0253#s11-selection — profile selection precedes source
+  // discovery. Reading it after explicit entry evaluation would make the
+  // familiar lane a selectable label over the wrong source graph.
+  const codegenPolicy = readCodegenPolicy(backendRoot, diagnostics, err);
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
+  const authoringProfile = codegenPolicy.authoringProfile;
+  if (authoringProfile === FAMILIAR_AUTHORING_PROFILE) {
+    targetConfig = { ...targetConfig, outputDirectory: '_generated' };
+  }
+  const sourceLayout = discoverAuthoringSources(backendRoot, authoringProfile, err);
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
+  const schemaPath = sourceLayout.schemaPath;
+  const functionsPath = sourceLayout.functionsPath;
   const seedPath = join(backendRoot, 'seed.json');
   const handlerSourceCache = new Map();
-  let functionsSource;
-  try {
-    const capability = resolveFileReadCapability(functionsPath, {
-      allowedRoots: [backendRoot],
-      codePrefix: 'FUNCTION_SOURCE',
+  const definitionSourceOverrides = new Map();
+  let schemaSourceOverride = null;
+  let functionsSource = sourceLayout.functionsSource ?? null;
+  let familiarBootstrap = null;
+  let inlineExtraction;
+  let functionDefinitionAttribution;
+  let familiarFunctionSourceSpans = null;
+
+  if (authoringProfile === FAMILIAR_AUTHORING_PROFILE) {
+    familiarBootstrap = synthesizeFamiliarBootstrap(
+      backendRoot,
+      sourceLayout.operations.map(({ name }) => name),
+    );
+    const schemaSource = readDefinitionSource(schemaPath, backendRoot, 'SCHEMA_SOURCE');
+    const erasedSchema = eraseFamiliarDefinitionSource(schemaSource, schemaPath, diagnostics);
+    if (erasedSchema) {
+      schemaSourceOverride = erasedSchema.javascript;
+      definitionSourceOverrides.set(resolve(schemaPath), erasedSchema);
+    }
+    const functionModulePaths = new Set(
+      sourceLayout.functionModules.map(({ path }) => resolve(path)),
+    );
+    // @ref LLP 0253#s2-familiar-source-layout-and-discovery — helper modules
+    // use the same pinned LLP 0246 erasure and graph identity as schema and
+    // function modules; esbuild never becomes an implicit second TS profile.
+    for (const path of familiarTypeScriptFiles(backendRoot)) {
+      if (resolve(path) === resolve(schemaPath) || functionModulePaths.has(resolve(path))) continue;
+      const source = readDefinitionSource(path, backendRoot);
+      const erased = eraseFamiliarDefinitionSource(source, path, diagnostics);
+      if (erased) definitionSourceOverrides.set(resolve(path), erased);
+    }
+    const handlers = new Map();
+    const attributionDefinitions = [];
+    const attributionProperties = new Map();
+    familiarFunctionSourceSpans = {};
+    for (const module of sourceLayout.functionModules) {
+      const erased = eraseFamiliarDefinitionSource(module.source, module.path, diagnostics);
+      if (!erased) continue;
+      const captured = captureFamiliarApiReferences(
+        erased.javascript,
+        module.path,
+        familiarBootstrap.apiDigest,
+        err,
+      );
+      const extracted = extractInlineHandlers(captured, {
+        path: relative(backendRoot, module.path).split(sep).join('/'),
+      });
+      diagnostics.push(...extracted.diagnostics);
+      definitionSourceOverrides.set(resolve(module.path), {
+        ...erased,
+        javascript: extracted.transformedSource,
+      });
+      const attribution = definitionAttributionFromSource(
+        captured,
+        relative(backendRoot, module.path).split(sep).join('/'),
+      );
+      const operations = sourceLayout.operations.filter(
+        (operation) => resolve(operation.path) === resolve(module.path),
+      );
+      for (const operation of operations) {
+        const local = operation.exportedName;
+        const extractedHandler = extracted.handlers.get(local)
+          ?? extracted.handlers.get(operation.localName);
+        if (extractedHandler) {
+          handlers.set(
+            operation.name,
+            renameExtractedInlineHandler(extractedHandler, operation.name),
+          );
+        }
+        const definition = attribution.definitions.find(
+          (candidate) => candidate.binding === operation.localName,
+        );
+        if (definition) {
+          attributionDefinitions.push({
+            ...definition,
+            binding: operation.name,
+            exported: true,
+          });
+          familiarFunctionSourceSpans[operation.name] = {
+            path: definition.sourceSpan.file,
+            line: definition.sourceSpan.line,
+            column: definition.sourceSpan.column,
+          };
+        }
+        for (const [key, span] of attribution.propertySpans) {
+          if (key === operation.localName || key.startsWith(`${operation.localName}.`)) {
+            attributionProperties.set(
+              `${operation.name}${key.slice(operation.localName.length)}`,
+              span,
+            );
+          }
+        }
+      }
+      for (const definition of attribution.definitions) {
+        if (definition.exported || operations.some((operation) => operation.localName === definition.binding)) continue;
+        attributionDefinitions.push(definition);
+      }
+    }
+    functionDefinitionAttribution = {
+      definitions: attributionDefinitions,
+      propertySpans: attributionProperties,
+    };
+    inlineExtraction = {
+      transformedSource: functionsSource,
+      handlers,
+      diagnostics: [],
+    };
+  } else {
+    try {
+      functionsSource = readDefinitionSource(functionsPath, backendRoot, 'FUNCTION_SOURCE');
+    } catch (error) {
+      err(error.codegenCode ?? 'FUNCTION_SOURCE_MISSING', 'function', error.message, {
+        path: functionsPath,
+      });
+      return { ok: false, diagnostics };
+    }
+    functionDefinitionAttribution = definitionAttributionFromSource(
+      functionsSource,
+      'functions.mjs',
+    );
+    inlineExtraction = extractInlineHandlers(functionsSource, {
+      path: 'functions.mjs',
     });
-    functionsSource = decodeUtf8Source(capability.read(), functionsPath, 'FUNCTION_SOURCE');
-  } catch (error) {
-    err(error.codegenCode ?? 'FUNCTION_SOURCE_MISSING', 'function', error.message, {
-      path: functionsPath,
-    });
-    return { ok: false, diagnostics };
+    diagnostics.push(...inlineExtraction.diagnostics);
   }
   // @ref LLP 0237#d5-preflight-is-available-before-generation — retain the
   // authored binding/property map across isolated evaluation so definition
   // failures name the exact author-controlled source site.
-  const functionDefinitionAttribution = definitionAttributionFromSource(
-    functionsSource,
-    'functions.mjs',
-  );
   for (const definition of functionDefinitionAttribution.definitions) {
     if (definition.exported) continue;
     err(
@@ -1935,10 +2073,6 @@ async function generateInProcessLocked({
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
-  const inlineExtraction = extractInlineHandlers(functionsSource, {
-    path: 'functions.mjs',
-  });
-  diagnostics.push(...inlineExtraction.diagnostics);
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
@@ -1949,7 +2083,15 @@ async function generateInProcessLocked({
   // @ref LLP 0009#capability-model — static analysis is defense in depth. The
   // actual boundary is a capability-empty evaluator process plus a VM context
   // with string/Wasm code generation and nondeterministic globals disabled.
-  const schemaBuild = await buildDefinitionBundle(schemaPath, backendRoot, diagnostics, 'schema', 'schema');
+  const schemaBuild = await buildDefinitionBundle(
+    schemaPath,
+    backendRoot,
+    diagnostics,
+    'schema',
+    'schema',
+    schemaSourceOverride,
+    definitionSourceOverrides,
+  );
   const functionsBuild = await buildDefinitionBundle(
     functionsPath,
     backendRoot,
@@ -1957,12 +2099,13 @@ async function generateInProcessLocked({
     'function',
     'functions',
     inlineExtraction.transformedSource,
+    definitionSourceOverrides,
   );
   // The optional route→query manifest declaration (LLP 0092 §0C.1): compiled
   // under the same hashed-graph + isolated-evaluation discipline when
   // `snapback/routes.mjs` exists.
   const routesPath = join(backendRoot, 'routes.mjs');
-  const routesBuild = existsSync(routesPath)
+  const routesBuild = authoringProfile === EXPLICIT_AUTHORING_PROFILE && existsSync(routesPath)
     ? await buildDefinitionBundle(routesPath, backendRoot, diagnostics, 'routes', 'routes')
     : null;
   if (diagnostics.some((d) => d.severity === 'error')) {
@@ -1983,7 +2126,7 @@ async function generateInProcessLocked({
   const functionsGraph = functionsBuild.graph;
   const schemaPropertySourceSpans = authoredPropertySourceSpans(
     graphEntrySource(schemaGraph, schemaPath),
-    'schema.mjs',
+    authoringProfile === FAMILIAR_AUTHORING_PROFILE ? 'schema.ts' : 'schema.mjs',
   );
   const schemaModule = { default: evaluated.schema };
   const functionsModule = evaluated.functions;
@@ -2023,9 +2166,10 @@ async function generateInProcessLocked({
     : null;
   if (agentRegistrationWarning) diagnostics.push(agentRegistrationWarning);
   const artifactVersion = authMode === 'sessions' ? SESSIONS_SCHEMA_VERSION : SCHEMA_VERSION;
-  const functionDefinitionSourceSpans = exportedDefinitionSourceSpans(
-    graphEntrySource(functionsGraph, functionsPath),
-  );
+  const functionDefinitionSourceSpans = familiarFunctionSourceSpans
+    ?? exportedDefinitionSourceSpans(
+      graphEntrySource(functionsGraph, functionsPath),
+    );
   const schemaRequiredCapabilities = [...new Set(schemaDef.requiredCapabilities ?? [])];
   if (authMode === 'sessions' && !schemaRequiredCapabilities.includes('auth.sessions.v1')) {
     schemaRequiredCapabilities.unshift('auth.sessions.v1');
@@ -3291,11 +3435,11 @@ async function generateInProcessLocked({
       // handler registration plus every reachable helper — so an ambient
       // dependency inside a shared helper refuses exactly like inline code,
       // with the refusal mapped back to the helper's authored span.
-      const rendered = renderInlineOperation(name, extracted);
-      for (const issue of scanUnsupportedHandlerSource(rendered.source, 'functions.mjs')) {
-        const segment = rendered.segments.findLast(
+      const canonicalRendered = renderInlineOperation(name, extracted);
+      for (const issue of scanUnsupportedHandlerSource(canonicalRendered.source, 'functions.mjs')) {
+        const segment = canonicalRendered.segments.findLast(
           (candidate) => issue.line >= candidate.startLine,
-        ) ?? rendered.segments[0];
+        ) ?? canonicalRendered.segments[0];
         err(issue.code, 'bundle', `${name}: ${issue.message}`, {
           function: name,
           source: 'functions.mjs',
@@ -3310,6 +3454,18 @@ async function generateInProcessLocked({
           },
         });
       }
+      // @ref LLP 0253#s44-handler-contexts —
+      // generated facades wrap the already-admitted inline graph; authored
+      // handler bytes remain the capability-scan subject.
+      const rendered = def.familiarContext
+        ? renderFamiliarHandlerRuntime(
+            name,
+            extracted,
+            canonicalRendered,
+            def.familiarContext,
+            familiarBootstrap.apiDigest,
+          )
+        : canonicalRendered;
       return {
         source: rendered.source,
         exportName: name,
@@ -3357,6 +3513,8 @@ async function generateInProcessLocked({
     }
   };
 
+  const generatedOperationBindings = new Map();
+
   for (const [name, def] of Object.entries(functionsModule)) {
     if (isIsolatedDefinition(def, 'cron')) {
       cronDefs.push({ exportName: name, def });
@@ -3389,10 +3547,26 @@ async function generateInProcessLocked({
     // ES2022 `export { f as "any string" }` makes arbitrary export names
     // reachable, and `export { f as delete }` makes reserved words reachable.
     // Fail closed like the table/field/ephemeral/cron namespaces.
-    if (!IDENT.test(name) || RESERVED_WORDS.has(name)) {
+    if (!OPERATION_NAME.test(name)
+      || name.split('.').some((segment) => RESERVED_WORDS.has(segment))) {
       err('FUNCTION_INVALID_IDENTIFIER', 'function', `invalid function export name ${name}`, { function: name });
       continue;
     }
+    // @ref LLP 0253#s52-operation-names-and-normalizedapplicationdefinitionv1
+    // — dotted names need safe generated locals; their pascal projection is
+    // therefore a closed namespace rather than a best-effort spelling.
+    const generatedBinding = pascal(name);
+    const bindingPrior = generatedOperationBindings.get(generatedBinding);
+    if (bindingPrior !== undefined && bindingPrior !== name) {
+      err(
+        'SNAPBACK_CODEGEN_FAMILIAR_NAME_COLLISION',
+        'function',
+        `operation names ${JSON.stringify(bindingPrior)} and ${JSON.stringify(name)} both generate local binding ${generatedBinding}`,
+        { functions: [bindingPrior, name], generatedBinding },
+      );
+      continue;
+    }
+    generatedOperationBindings.set(generatedBinding, name);
     for (const [argName, argVal] of Object.entries(def.args)) {
       // Arg names and nested v.object field names become unquoted TS property
       // names in api.d.ts, runtime-links.ts, and the per-binding Args types.
@@ -5059,10 +5233,6 @@ async function generateInProcessLocked({
     return { ok: false, diagnostics };
   }
   const demoMetadata = readDemoAppMetadata(backendRoot, diagnostics);
-  const codegenPolicy = readCodegenPolicy(backendRoot, diagnostics);
-  if (diagnostics.some((d) => d.severity === 'error')) {
-    return { ok: false, diagnostics };
-  }
   // A nearest-ancestor demo manifest is the stable app-identity authority.
   // Layouts such as <demo>/backends/snapback must not become app "backends"
   // merely because codegen was moved one directory deeper. Bare external
@@ -5794,6 +5964,10 @@ async function generateInProcessLocked({
     artifactKind: 'schemaManifest',
     schemaVersion: artifactVersion,
     appId,
+    // @ref LLP 0253#s12-identity-no-fleet-wide-rotation — manifests retain
+    // the resolved source-profile custody fact even for explicit-v1; the
+    // semantic preimage below applies the separate default-omission rule.
+    authoringProfile,
     ...(appIdentity ? { app: appIdentity } : {}),
     ...(schemaDef.auth !== undefined ? { auth: schemaDef.auth } : {}),
     ...(schemaDef.authProgram !== undefined ? { authProgram: schemaDef.authProgram } : {}),
@@ -5838,6 +6012,7 @@ async function generateInProcessLocked({
     artifactKind: 'functionManifest',
     schemaVersion: artifactVersion,
     appId,
+    authoringProfile,
     bundleHash,
     inputsHash,
     authoredSourceHash,
@@ -5906,10 +6081,18 @@ async function generateInProcessLocked({
         .map(({ code, severity }) => ({ code, severity }))
         .sort((left, right) => compareCodeUnits(left.code, right.code)),
     },
+    authoringProfile,
   });
-  const generationContentIdentities = computeGenerationContentIdentities(
-    generationIdentityInputs,
-  );
+  const normalizedDefinition = buildNormalizedApplicationDefinitionV1({
+    schemaManifest,
+    functionManifest,
+    routesManifest,
+  });
+  const generationContentIdentities = {
+    ...computeGenerationContentIdentities(generationIdentityInputs),
+    normalizedContractId: normalizedDefinition.normalizedContractId,
+    normalizedSchemaId: normalizedDefinition.normalizedSchemaId,
+  };
   // Exact LLP 0329 E-B: IR-tier mutations embed their plan, so the adapter
   // can derive default optimistic overlays from the generated artifact alone
   // — the flags below claim exactly that and nothing more.
@@ -6002,6 +6185,7 @@ async function generateInProcessLocked({
   for (const [schemaFile, instance, expected] of [
     ['schema.manifest.schema.json', schemaManifest, { artifactKind: 'schemaManifest', schemaVersion: artifactVersion }],
     ['functions.manifest.schema.json', functionManifest, { artifactKind: 'functionManifest', schemaVersion: artifactVersion }],
+    ['normalized-definition.v1.schema.json', normalizedDefinition, { schemaVersion: NORMALIZED_DEFINITION_SCHEMA_VERSION }],
     ['capability.manifest.schema.json', capabilityManifest, { artifactKind: 'capabilityManifest', schemaVersion: SCHEMA_VERSION }],
     ...(routesManifest ? [['routes.manifest.schema.json', routesManifest, {}]] : []),
   ]) {
@@ -6096,6 +6280,7 @@ async function generateInProcessLocked({
   }
   const appDescriptor = createAppDescriptorV1({
     app: appId,
+    authoringProfile,
     schema: schemaHash,
     functions: bundleHash,
     api: generatedReferences.api,
@@ -6147,13 +6332,30 @@ async function generateInProcessLocked({
     generatedCommands,
     generatedSurfaces,
     clientLifecycleManifest,
+    authoringProfile,
   );
-  const apiModule = renderApiModule(
+  const canonicalApiModule = renderApiModule(
     functionManifest.functions,
     generatedReferences.actions,
     generatedReferences.defaultAssetNames,
     appBindingIdentity,
   );
+  const familiarOperationNames = functionManifest.functions.map(({ name }) => name);
+  const apiFlatModule = null;
+  const apiModule = authoringProfile === FAMILIAR_AUTHORING_PROFILE
+    ? renderFamiliarApiNamespaceModule(
+        familiarOperationNames,
+        generatedReferences.actions,
+        generatedReferences.defaultAssetNames,
+        appBindingIdentity,
+      )
+    : canonicalApiModule;
+  const familiarServerModule = authoringProfile === FAMILIAR_AUTHORING_PROFILE
+    ? renderFamiliarServerModule()
+    : null;
+  const familiarServerTypes = authoringProfile === FAMILIAR_AUTHORING_PROFILE
+    ? renderFamiliarServerTypes()
+    : null;
   const apiTypes = renderApiTypes(
     functionManifest.functions,
     functionsModule,
@@ -6164,6 +6366,7 @@ async function generateInProcessLocked({
     assetUploadIntents,
     capabilityManifest,
     clientLifecycleManifest,
+    authoringProfile,
   );
   const microArtifacts = buildMicroArtifacts({
     backendRoot,
@@ -6247,6 +6450,7 @@ async function generateInProcessLocked({
     envelopeFunctionManifest,
     operationSchemas,
     clientLifecycleManifest,
+    authoringProfile,
   );
   validateContractModuleFilenames(contractModules, err);
   if (diagnostics.some((d) => d.severity === 'error')) {
@@ -6293,6 +6497,12 @@ async function generateInProcessLocked({
         types: './api.d.ts',
         import: './api.mjs',
       },
+      ...(authoringProfile === FAMILIAR_AUTHORING_PROFILE ? {
+        './server': {
+          types: './server.d.ts',
+          import: './server.mjs',
+        },
+      } : {}),
       './app': {
         types: './app.d.ts',
         import: './app.mjs',
@@ -6300,6 +6510,7 @@ async function generateInProcessLocked({
       './app-descriptor': './app.descriptor.json',
       './schema': './schema.manifest.json',
       './functions': './functions.manifest.json',
+      './normalized-definition': './normalized-definition.v1.json',
       './handler-runtime-profile': './handler-runtime-profile.v1.json',
       './capabilities': './capability.manifest.json',
       // Both lifecycle filenames are emitted during the LLP 0238/0247
@@ -6348,7 +6559,7 @@ async function generateInProcessLocked({
     bundleHash,
     authoredSourceHash,
     ...(activationGenerationAdvanced === null ? {} : { activationGenerationAdvanced }),
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'handler-runtime-profile.v1.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, CLIENT_LIFECYCLE_MANIFEST_FILE, 'client-lifecycle.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'normalized-definition.v1.json', 'handler-runtime-profile.v1.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, CLIENT_LIFECYCLE_MANIFEST_FILE, 'client-lifecycle.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', ...(apiFlatModule ? ['api.flat.mjs'] : []), ...(familiarServerModule ? ['server.mjs', 'server.d.ts'] : []), API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -6376,6 +6587,7 @@ async function generateInProcessLocked({
     writeGeneratedOutput(tmpOutDir, {
       schemaManifest,
       functionManifest,
+      normalizedDefinition,
       handlerRuntimeProfile,
       clientLifecycleManifest,
       capabilityManifest,
@@ -6393,7 +6605,10 @@ async function generateInProcessLocked({
       appModule,
       appTypes,
       apiModule,
+      apiFlatModule,
       apiTypes,
+      familiarServerModule,
+      familiarServerTypes,
       apiEnvelopeMembers,
       microArtifacts,
       operationSchemas,
@@ -6546,6 +6761,7 @@ async function generateInProcessLocked({
     outDir,
     schemaManifest,
     functionManifest,
+    normalizedDefinition,
     handlerRuntimeProfile,
     clientLifecycleManifest,
     capabilityManifest,
@@ -11534,6 +11750,10 @@ function renderQueryGroupReferences(
           id: fn.id,
           name: fn.name,
           kind: fn.kind,
+          // @ref LLP 0253#s53-reference-profile-fact-and-brand — the app
+          // profile and kind-derived delivery facts are hydrated, while only
+          // non-default retention spends bytes in the portable reference.
+          ...serializedReferenceRetention(fn),
           authRequirement: fn.authRequirement ?? 'optional-user',
           implementationHash: fn.implementationHash,
           argsContractHash: fn.argsContractHash,
@@ -11937,19 +12157,21 @@ function renderMicroRuntimeEntry(functions, expectedGeneration, profileName, inc
     '}',
   ];
   for (const fn of functions) {
+    const local = IDENT.test(fn.name) ? fn.name : generatedOperationLocal(fn.name);
     if (fn.kind === 'LiveQuery') {
       lines.push(
-        `export function ${fn.name}(client, args, options) {`,
-        `  return client.subscribe(descriptors.${fn.name}, args, options);`,
+        `${IDENT.test(fn.name) ? 'export ' : ''}function ${local}(client, args, options) {`,
+        `  return client.subscribe(descriptors[${JSON.stringify(fn.name)}], args, options);`,
         '}',
       );
     } else {
       lines.push(
-        `export function ${fn.name}(client, args) {`,
-        `  return client.invoke(descriptors.${fn.name}, args);`,
+        `${IDENT.test(fn.name) ? 'export ' : ''}function ${local}(client, args) {`,
+        `  return client.invoke(descriptors[${JSON.stringify(fn.name)}], args);`,
         '}',
       );
     }
+    if (!IDENT.test(fn.name)) lines.push(`export { ${renderedOperationExport(fn.name, local)} };`);
   }
   return `${lines.join('\n')}\n`;
 }
@@ -11985,21 +12207,23 @@ function renderMicroDeclaration(functions, functionsModule, schemaDef) {
     'export function createClient(options: MicroClientOptions): MicroRuntime;',
   );
   for (const fn of functions) {
+    const local = IDENT.test(fn.name) ? fn.name : generatedOperationLocal(fn.name);
     const args = typeForGeneratedArgs(functionsModule[fn.name]?.args ?? {});
     const result = resultContractType(
       fn.resultContract,
       (table) => `MicroDataModel[${JSON.stringify(table)}]`,
     );
     if (fn.kind === 'LiveQuery') {
-      lines.push(`export function ${fn.name}(client: MicroRuntime, args: ${args}, options?: { readonly onUpdate?: (rows: ${result}, detail: Readonly<{ kind: string; version: number }>) => void }): Promise<MicroLiveHandle<${result}>>;`);
+      lines.push(`${IDENT.test(fn.name) ? 'export ' : ''}function ${local}(client: MicroRuntime, args: ${args}, options?: { readonly onUpdate?: (rows: ${result}, detail: Readonly<{ kind: string; version: number }>) => void }): Promise<MicroLiveHandle<${result}>>;`);
     } else {
       const output = fn.kind === 'Mutation'
         ? `MicroMutationOutput<${result}>`
         : fn.kind === 'Action'
           ? `MicroActionOutput<${result}>`
           : `MicroQueryOutput<${result}>`;
-      lines.push(`export function ${fn.name}(client: MicroRuntime, args: ${args}): Promise<${output}>;`);
+      lines.push(`${IDENT.test(fn.name) ? 'export ' : ''}function ${local}(client: MicroRuntime, args: ${args}): Promise<${output}>;`);
     }
+    if (!IDENT.test(fn.name)) lines.push(`export { ${renderedOperationExport(fn.name, local)} };`);
   }
   return `${lines.join('\n')}\n`;
 }
@@ -12009,6 +12233,12 @@ function generatedReferenceSourceSpan(sourceSpans, name, fallbackFile) {
   return span
     ? { file: span.path, line: span.line, column: span.column }
     : { file: fallbackFile };
+}
+
+function serializedReferenceRetention(fn) {
+  return fn.retainable === true
+    ? { retention: fn.retentionClass ?? 'opaque-authorized-snapshot-v1' }
+    : {};
 }
 
 function surfaceContract(validator) {
@@ -12760,6 +12990,11 @@ function buildGeneratedReferences(
       id: fn.id,
       name: fn.name,
       kind: fn.kind,
+      // @ref LLP 0253#s53-reference-profile-fact-and-brand — generated
+      // references serialize only non-default retention. Binding hydration
+      // stamps the app-level profile, derives query delivery from the nominal
+      // kind, and supplies the default retention fact.
+      ...serializedReferenceRetention(fn),
       authRequirement: fn.authRequirement ?? 'optional-user',
       implementationHash: fn.implementationHash,
       argsContractHash: fn.argsContractHash,
@@ -12845,6 +13080,18 @@ function standaloneDescriptorFunctions(functions) {
   return functions.filter(({ kind }) => kind === 'Query' || kind === 'LiveQuery' || kind === 'Mutation');
 }
 
+function generatedOperationLocal(name) {
+  return `__snapback${pascal(name)}`;
+}
+
+function renderedOperationExport(name, local = name) {
+  return IDENT.test(name) ? local : `${local} as ${JSON.stringify(name)}`;
+}
+
+function renderedOperationReexport(name) {
+  return IDENT.test(name) ? name : JSON.stringify(name);
+}
+
 function contentAddressedArtifactPath(path, identity) {
   const digest = identity.replace(/^sha256:/, '');
   const extensionIndex = path.lastIndexOf('.');
@@ -12865,9 +13112,17 @@ function contentAddressedModuleSpecifier(path, identity) {
 
 function renderAppBindingModule(functions, descriptorIdentity, trustedCompositionActivation = null) {
   const standalone = standaloneDescriptorFunctions(functions);
-  const aliases = standalone.map(({ name, kind }) => (
-    `export const ${name} = app.api.${kind === 'Mutation' ? 'mutations' : 'queries'}.${name};`
-  ));
+  const aliases = standalone.flatMap(({ name, kind }) => {
+    const namespace = kind === 'Mutation' ? 'mutations' : 'queries';
+    if (IDENT.test(name)) {
+      return [`export const ${name} = app.api.${namespace}[${JSON.stringify(name)}];`];
+    }
+    const local = generatedOperationLocal(name);
+    return [
+      `const ${local} = app.api.${namespace}[${JSON.stringify(name)}];`,
+      `export { ${renderedOperationExport(name, local)} };`,
+    ];
+  });
   const descriptorSpecifier = contentAddressedModuleSpecifier('./app.descriptor.json', descriptorIdentity);
   return `${HEADER}\n` +
     `import descriptorDocument from ${JSON.stringify(descriptorSpecifier)} with { type: 'json' };\n` +
@@ -12875,7 +13130,9 @@ function renderAppBindingModule(functions, descriptorIdentity, trustedCompositio
     `/** @type {import('./api.d.ts').GeneratedArtifacts} */\n` +
     `export const artifacts = deepFreeze(${stableJson({ trustedCompositionActivation })});\n` +
     `const hydratedDescriptor = structuredClone(descriptorDocument);\n` +
-    `for (const namespace of [hydratedDescriptor.api.queries, hydratedDescriptor.api.mutations]) { for (const reference of Object.values(namespace)) Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
+    `const hydrateFunctionReference = (reference) => { reference.authoringProfile = hydratedDescriptor.authoringProfile; reference.retention ??= 'none'; if (reference.kind === 'LiveQuery') reference.delivery = 'live'; else if (reference.kind === 'Query') reference.delivery = 'read'; Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); };\n` +
+    `for (const namespace of [hydratedDescriptor.api.queries, hydratedDescriptor.api.mutations]) { for (const reference of Object.values(namespace)) hydrateFunctionReference(reference); }\n` +
+    `for (const group of Object.values(hydratedDescriptor.api.queryGroups)) { for (const query of group.queries) hydrateFunctionReference(query.ref); }\n` +
     `const commandReferences = new Map(Object.values(hydratedDescriptor.commands).map((command) => [JSON.stringify(command), command]));\n` +
     `for (const command of Object.values(hydratedDescriptor.commands)) { command.mutation = hydratedDescriptor.api.mutations[command.mutation.name]; if (command.asset) command.asset.intent = hydratedDescriptor.api.assets[command.asset.intent.name]; }\n` +
     `for (const surface of Object.values(hydratedDescriptor.surfaces)) { for (const member of Object.values(surface.reads)) member.reference = hydratedDescriptor.api.queries[member.reference.name]; for (const member of Object.values(surface.mutations)) member.reference = hydratedDescriptor.api.mutations[member.reference.name]; for (const member of Object.values(surface.commands)) member.reference = commandReferences.get(JSON.stringify(member.reference)); for (const member of Object.values(surface.assets)) member.reference = hydratedDescriptor.api.assets[member.reference.name]; for (const member of Object.values(surface.presence)) member.reference = hydratedDescriptor.api.ephemeral[member.reference.name]; }\n` +
@@ -12887,7 +13144,7 @@ function renderAppBindingModule(functions, descriptorIdentity, trustedCompositio
 
 function renderAppBindingAlias(functions, appBindingIdentity) {
   const standalone = standaloneDescriptorFunctions(functions);
-  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => name)].join(', ');
+  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => renderedOperationReexport(name))].join(', ');
   const bindingSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
   return `${HEADER}\n` +
     `// Stable compatibility alias; the digest-named module is the sole hydrated binding.\n` +
@@ -12897,7 +13154,7 @@ function renderAppBindingAlias(functions, appBindingIdentity) {
 
 function renderAppModule(functions, appBindingIdentity) {
   const standalone = standaloneDescriptorFunctions(functions);
-  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => name)].join(', ');
+  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => renderedOperationReexport(name))].join(', ');
   const bindingSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
   return `${HEADER}\n` +
     `export { ${reexports} } from ${JSON.stringify(bindingSpecifier)};\n` +
@@ -12953,6 +13210,7 @@ function renderAppTypes(
   commands = {},
   surfaces = {},
   clientLifecycleManifest,
+  authoringProfile = EXPLICIT_AUTHORING_PROFILE,
 ) {
   const standalone = standaloneDescriptorFunctions(functions);
   const queryNames = standalone
@@ -12987,7 +13245,11 @@ function renderAppTypes(
     '}',
     'export interface GeneratedAppCommands {',
     ...Object.entries(commands).flatMap(([name, command]) => [
-      ...renderReferenceJSDoc({ kind: 'Command', name }, clientLifecycleManifest)
+      ...renderReferenceJSDoc(
+        { kind: 'Command', name },
+        clientLifecycleManifest,
+        authoringProfile,
+      )
         .split('\n')
         .map((line) => `  ${line}`),
       `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`,
@@ -13024,6 +13286,7 @@ function renderAppTypes(
     '}',
     'export interface AppDescriptorV1 {',
     "  readonly format: 'snapback.app.v1';",
+    `  readonly authoringProfile: ${JSON.stringify(authoringProfile)};`,
     '  readonly identity: Readonly<{ app: string; schema: string; functions: string; descriptor: `sha256:${string}` }>;',
     '  readonly api: Readonly<{',
     '    queries: Readonly<Pick<GeneratedApi, GeneratedAppQueryName>>;',
@@ -13041,7 +13304,16 @@ function renderAppTypes(
     'export declare const app: GeneratedAppDescriptorV1;',
   ];
   for (const { name, kind } of standalone) {
-    lines.push(`export declare const ${name}: GeneratedAppDescriptorV1['api']['${kind === 'Mutation' ? 'mutations' : 'queries'}']['${name}'];`);
+    const namespace = kind === 'Mutation' ? 'mutations' : 'queries';
+    if (IDENT.test(name)) {
+      lines.push(`export declare const ${name}: GeneratedAppDescriptorV1['api']['${namespace}'][${JSON.stringify(name)}];`);
+    } else {
+      const local = generatedOperationLocal(name);
+      lines.push(
+        `declare const ${local}: GeneratedAppDescriptorV1['api']['${namespace}'][${JSON.stringify(name)}];`,
+        `export { ${renderedOperationExport(name, local)} };`,
+      );
+    }
   }
   lines.push('export default app;');
   return `${lines.join('\n')}\n`;
@@ -13049,7 +13321,7 @@ function renderAppTypes(
 
 function renderApiModule(functions, actionReferences, defaultAssetNames, appBindingIdentity) {
   const standalone = standaloneDescriptorFunctions(functions);
-  const reexports = ['app', ...standalone.map(({ name }) => name)].join(', ');
+  const reexports = ['app', ...standalone.map(({ name }) => renderedOperationReexport(name))].join(', ');
   const appSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
   const defaultAssignments = [];
   for (const [tableName, fields] of Object.entries(defaultAssetNames)) {
@@ -13071,7 +13343,7 @@ function renderApiModule(functions, actionReferences, defaultAssetNames, appBind
     `${defaultAssignments.join('\n')}\n` +
     `deepFreeze(defaults);\n` +
     `const actionReferences = ${stableJson(actionReferences)};\n` +
-    `for (const reference of Object.values(actionReferences)) Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false });\n` +
+    `for (const reference of Object.values(actionReferences)) { reference.authoringProfile = app.authoringProfile; reference.retention ??= 'none'; Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
     `const references = { ...app.api.assets, ...app.api.queries, ...app.api.mutations, ...actionReferences, ephemeral, groups };\n` +
     `/** @type {import('./api.d.ts').GeneratedApi} */\n` +
     `export const api = deepFreeze(references);\n` +
@@ -13088,6 +13360,7 @@ function renderApiTypes(
   assetUploadIntents = [],
   capabilityManifest = null,
   clientLifecycleManifest,
+  authoringProfile = EXPLICIT_AUTHORING_PROFILE,
 ) {
   const hasSearchFunction = functions.some(
     (fn) => fn.runtime?.HostPlan?.SearchQuery !== undefined,
@@ -13147,6 +13420,7 @@ function renderApiTypes(
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
     "export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };",
     "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';",
+    "export type AuthoringProfile = 'snapback-explicit-v1' | 'snapback-familiar-ts-v1';",
     // @ref LLP 0131#the-search-fixture-cv-5 — the request-grammar types are
     // derived from the exported Rust-owned search.request.schema.json, not
     // hand-authored; the derivation fails closed on unknown constructs.
@@ -13185,7 +13459,8 @@ function renderApiTypes(
     "  readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;",
     "}",
     '/** Optional own-property `undefined` is normalized exactly as omission; required, array, and open-JSON undefined still refuse before dispatch. */',
-    'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
+    "export type FunctionReferenceDelivery<Kind extends FunctionKind> = Kind extends 'LiveQuery' ? Readonly<{ delivery: 'live' }> : Kind extends 'Query' ? Readonly<{ delivery: 'read' }> : Readonly<Record<never, never>>;",
+    'export interface FunctionReferenceBase<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> {',
     "  artifactKind: 'functionReference';",
     '  schemaVersion: SchemaVersion;',
     '  appId: string;',
@@ -13193,6 +13468,9 @@ function renderApiTypes(
     '  name: Name;',
     '  kind: Kind;',
     '  readonly __snapbackReferenceKind: Kind;',
+    '  authoringProfile: Profile;',
+    '  retention: string;',
+    '  readonly __snapbackAuthoringProfile?: Profile;',
     "  authRequirement: 'public' | 'optional-user' | 'authenticated';",
     '  implementationHash: string;',
     '  argsContractHash: string;',
@@ -13209,10 +13487,11 @@ function renderApiTypes(
     '  readonly __args?: Args;',
     '  readonly __result?: Result;',
     '}',
-    "export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Query', Args, Result>;",
-    "export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'LiveQuery', Args, Result>;",
-    "export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Mutation', Args, Result>;",
-    "export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown> = FunctionReference<Name, 'Action', Args, Result>;",
+    'export type FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReferenceBase<Name, Kind, Args, Result, Profile> & FunctionReferenceDelivery<Kind>;',
+    "export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Query', Args, Result, Profile>;",
+    "export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'LiveQuery', Args, Result, Profile>;",
+    "export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Mutation', Args, Result, Profile>;",
+    "export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Action', Args, Result, Profile>;",
     'export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;',
     'export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;',
     "export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };",
@@ -13505,7 +13784,7 @@ function renderApiTypes(
       : fn.kind === 'Action'
         ? `GeneratedActionContext${authType}`
         : `GeneratedQueryContext${authType}`;
-    lines.push(`  ${fn.name}: ${context};`);
+    lines.push(`  ${JSON.stringify(fn.name)}: ${context};`);
   }
   lines.push(
     '}',
@@ -13534,7 +13813,7 @@ function renderApiTypes(
         fn?.resultContract ?? { kind: 'unknown' },
         (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
       );
-      const refType = `FunctionReference<'${query.function}', '${fn?.kind ?? 'Query'}', ${argsType}, ${resultType}>`;
+      const refType = `FunctionReference<'${query.function}', '${fn?.kind ?? 'Query'}', ${argsType}, ${resultType}, ${JSON.stringify(authoringProfile)}>`;
       const entryName = queryGroupEntryName(query.function, occurrences, usedNames);
       const identityFields = routeEntry.mixedGroupEligible === true
         ? `; nodePlan: Readonly<Record<string, unknown>>; nodePlanHash: \`sha256:\${string}\`; liveness: ${fn?.kind === 'LiveQuery'
@@ -13579,10 +13858,10 @@ function renderApiTypes(
         })}`
       : typeForGeneratedArgs(def?.args ?? {});
     lines.push(
-      ...renderReferenceJSDoc(fn, clientLifecycleManifest)
+      ...renderReferenceJSDoc(fn, clientLifecycleManifest, authoringProfile)
         .split('\n')
         .map((line) => `  ${line}`),
-      `  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`,
+      `  ${JSON.stringify(fn.name)}: FunctionReference<${JSON.stringify(fn.name)}, '${fn.kind}', ${args}, ${result}, ${JSON.stringify(authoringProfile)}>;`,
     );
   }
   // Explicit and derived upload intents are api members like functions —
@@ -13620,8 +13899,23 @@ function renderApiTypes(
   }
   lines.push('}');
   lines.push('export declare const defaults: GeneratedAssetUploadDefaults;');
-  lines.push('export declare const api: GeneratedApi;');
-  const descriptorExports = standaloneDescriptorFunctions(functions).map(({ name }) => name);
+  if (authoringProfile === FAMILIAR_AUTHORING_PROFILE) {
+    lines.push('export interface FamiliarGeneratedApi {');
+    const tree = familiarNamespaceTree(functions.map(({ name }) => name));
+    for (const [moduleName, exportNames] of Object.entries(tree)
+      .sort(([left], [right]) => compareCodeUnits(left, right))) {
+      const members = [...exportNames]
+        .sort(compareCodeUnits)
+        .map((exportName) => `${JSON.stringify(exportName)}: GeneratedApi[${JSON.stringify(`${moduleName}.${exportName}`)}]`);
+      lines.push(`  readonly ${JSON.stringify(moduleName)}: Readonly<{ ${members.join('; ')} }>;`);
+    }
+    lines.push('}');
+    lines.push('export declare const api: FamiliarGeneratedApi;');
+  } else {
+    lines.push('export declare const api: GeneratedApi;');
+  }
+  const descriptorExports = standaloneDescriptorFunctions(functions)
+    .map(({ name }) => renderedOperationReexport(name));
   lines.push(`export { app${descriptorExports.length > 0 ? `, ${descriptorExports.join(', ')}` : ''} } from './app';`);
   lines.push("export type { AppDescriptorV1, CapabilityRequirement, CommandDescriptor, GeneratedAppDescriptorV1, SurfaceDescriptor } from './app';");
   lines.push('export default api;');
@@ -14157,10 +14451,748 @@ function readDemoAppMetadata(backendDir, diagnostics) {
   };
 }
 
-function readCodegenPolicy(backendRoot, diagnostics) {
+const FAMILIAR_CONSTRUCTORS = new Set(['query', 'mutation', 'action']);
+const FAMILIAR_ENTRYPOINTS = new Set([
+  '@expo/snapback/server',
+  '@expo/snapback-codegen/familiar',
+]);
+
+function readDefinitionSource(path, backendRoot, codePrefix = 'FUNCTION_SOURCE') {
+  const capability = resolveFileReadCapability(path, {
+    allowedRoots: [backendRoot],
+    codePrefix,
+  });
+  return decodeUtf8Source(capability.read(), path, codePrefix);
+}
+
+function sourceFileForDefinition(path, source) {
+  return ts.createSourceFile(
+    path,
+    source,
+    ts.ScriptTarget.ES2022,
+    true,
+    /\.mts$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.TS,
+  );
+}
+
+function staticImportSpecifiers(source, path) {
+  const sourceFile = sourceFileForDefinition(path, source);
+  return sourceFile.statements
+    .filter(ts.isImportDeclaration)
+    .filter((statement) => ts.isStringLiteral(statement.moduleSpecifier))
+    .map((statement) => statement.moduleSpecifier.text);
+}
+
+function familiarModuleClassification(path, source) {
+  const sourceFile = sourceFileForDefinition(path, source);
+  const constructorLocals = new Set();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)
+      || !ts.isStringLiteral(statement.moduleSpecifier)
+      || !(FAMILIAR_ENTRYPOINTS.has(statement.moduleSpecifier.text)
+        || /(?:^|\/)familiar\.(?:mjs|js|mts|ts)$/u.test(statement.moduleSpecifier.text)
+        || /(?:^|\/)_generated\/server(?:\.(?:mjs|js|mts|ts))?$/u.test(statement.moduleSpecifier.text))) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    for (const specifier of bindings.elements) {
+      const imported = specifier.propertyName?.text ?? specifier.name.text;
+      if (FAMILIAR_CONSTRUCTORS.has(imported)) constructorLocals.add(specifier.name.text);
+    }
+  }
+  const declared = new Map();
+  const directExports = new Map();
+  const exported = new Map();
+  let hasDefaultExport = false;
+  const hasExportModifier = (node) => ts.canHaveModifiers(node)
+    && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+  for (const statement of sourceFile.statements) {
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+        const call = declaration.initializer;
+        const constructor = ts.isCallExpression(call) && ts.isIdentifier(call.expression)
+          && constructorLocals.has(call.expression.text)
+          ? call.expression.text
+          : null;
+        declared.set(declaration.name.text, constructor);
+        if (hasExportModifier(statement)) {
+          directExports.set(declaration.name.text, declaration.name.text);
+        }
+      }
+    } else if (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) {
+      if (statement.name && hasExportModifier(statement)) {
+        directExports.set(statement.name.text, statement.name.text);
+      }
+    } else if (ts.isExportAssignment(statement)) {
+      hasDefaultExport = true;
+    }
+    if (ts.isExportDeclaration(statement)) {
+      if (!statement.exportClause && !statement.isTypeOnly) {
+        exported.set('*', { local: '*', constructor: null });
+      } else if (statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+        for (const specifier of statement.exportClause.elements) {
+          if (statement.isTypeOnly || specifier.isTypeOnly) continue;
+          const local = specifier.propertyName?.text ?? specifier.name.text;
+          exported.set(specifier.name.text, { local, constructor: declared.get(local) ?? null });
+        }
+      }
+    }
+  }
+  for (const [name, local] of directExports) {
+    exported.set(name, { local, constructor: declared.get(local) ?? null });
+  }
+  const operations = [...exported.entries()]
+    .filter(([, entry]) => entry.constructor !== null)
+    .map(([exportedName, entry]) => ({
+      exportedName,
+      localName: entry.local,
+      constructorLocal: entry.constructor,
+    }));
+  const unsupportedExports = operations.length === 0
+    ? []
+    : [
+        ...[...exported.entries()]
+          .filter(([, entry]) => entry.constructor === null)
+          .map(([name]) => name),
+        ...(hasDefaultExport ? ['default'] : []),
+      ];
+  return { operations, unsupportedExports, sourceFile };
+}
+
+function nestedTypeScriptFiles(root) {
+  const output = [];
+  const visit = (directory, topLevel = false) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name.startsWith('.') || entry.name === '_generated' || entry.name === 'generated' || entry.name === 'node_modules') continue;
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) visit(path, false);
+      else if (!topLevel && /\.(?:ts|mts)$/iu.test(entry.name)) output.push(path);
+    }
+  };
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === '_generated' || entry.name === 'generated' || entry.name === 'node_modules') continue;
+    visit(join(root, entry.name), false);
+  }
+  return output;
+}
+
+function familiarTypeScriptFiles(root) {
+  const output = [];
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name.startsWith('.') || entry.name === '_generated' || entry.name === 'generated' || entry.name === 'node_modules') continue;
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (/\.(?:ts|mts)$/iu.test(entry.name)) output.push(path);
+    }
+  };
+  visit(root);
+  return output.sort(compareCodeUnits);
+}
+
+function discoverAuthoringSources(backendRoot, authoringProfile, err) {
+  if (authoringProfile === EXPLICIT_AUTHORING_PROFILE) {
+    const schemaTs = join(backendRoot, 'schema.ts');
+    if (existsSync(schemaTs)) {
+      err(
+        'SNAPBACK_CODEGEN_EXPLICIT_FAMILIAR_SOURCE_PRESENT',
+        'codegen',
+        'explicit authoring found schema.ts; remove familiar sources or select snapback-familiar-ts-v1',
+        { path: schemaTs },
+      );
+    }
+    for (const entry of readdirSync(backendRoot, { withFileTypes: true })) {
+      if (!entry.isFile() || !/\.(?:mjs|js|ts|mts)$/iu.test(entry.name)) continue;
+      const path = join(backendRoot, entry.name);
+      let source;
+      try { source = readDefinitionSource(path, backendRoot); } catch { continue; }
+      const specifier = staticImportSpecifiers(source, path)
+        .find((candidate) => FAMILIAR_ENTRYPOINTS.has(candidate));
+      if (specifier) {
+        err(
+          'SNAPBACK_CODEGEN_EXPLICIT_FAMILIAR_SOURCE_PRESENT',
+          'codegen',
+          `explicit authoring module ${entry.name} imports familiar entrypoint ${specifier}`,
+          { path, specifier },
+        );
+      }
+    }
+    return {
+      schemaPath: join(backendRoot, 'schema.mjs'),
+      functionsPath: join(backendRoot, 'functions.mjs'),
+      operations: [],
+      functionModules: [],
+    };
+  }
+
+  for (const name of ['schema.mjs', 'functions.mjs', 'routes.mjs']) {
+    const path = join(backendRoot, name);
+    if (existsSync(path)) {
+      err(
+        'SNAPBACK_CODEGEN_FAMILIAR_EXPLICIT_SOURCE_PRESENT',
+        'codegen',
+        `familiar authoring cannot coexist with explicit entry module ${name}`,
+        { path },
+      );
+    }
+  }
+  for (const name of ['crons.ts', 'crons.mts', 'http.ts', 'http.mts']) {
+    const path = join(backendRoot, name);
+    if (existsSync(path)) {
+      err(
+        'SNAPBACK_CODEGEN_FAMILIAR_RESERVED_MODULE_UNSUPPORTED',
+        'codegen',
+        `${name} is reserved but unsupported in snapback-familiar-ts-v1; use defineCron/defineRoutes in the explicit profile`,
+        { path },
+      );
+    }
+  }
+  const schemaPath = join(backendRoot, 'schema.ts');
+  if (!existsSync(schemaPath)) {
+    err('SCHEMA_SOURCE_MISSING', 'schema', `${schemaPath} is required by snapback-familiar-ts-v1`, { path: schemaPath });
+  }
+  for (const path of nestedTypeScriptFiles(backendRoot)) {
+    let source;
+    try { source = readDefinitionSource(path, backendRoot); } catch { continue; }
+    if (familiarModuleClassification(path, source).operations.length > 0) {
+      err(
+        'SNAPBACK_CODEGEN_FAMILIAR_MODULE_PATH_UNSUPPORTED',
+        'function',
+        `familiar function exports must be top-level; ${relative(backendRoot, path)} is nested`,
+        { path },
+      );
+    }
+  }
+  const functionModules = [];
+  const operations = [];
+  for (const entry of readdirSync(backendRoot, { withFileTypes: true })) {
+    if (!entry.isFile() || !/\.(?:ts|mts)$/iu.test(entry.name) || entry.name === 'schema.ts') continue;
+    if (/^(?:crons|http)\.(?:ts|mts)$/iu.test(entry.name)) continue;
+    const path = join(backendRoot, entry.name);
+    let source;
+    try {
+      source = readDefinitionSource(path, backendRoot);
+    } catch (error) {
+      err(error.codegenCode ?? 'FUNCTION_SOURCE_MISSING', 'function', error.message, { path });
+      continue;
+    }
+    const classified = familiarModuleClassification(path, source);
+    if (classified.operations.length === 0) continue;
+    if (classified.unsupportedExports.length > 0) {
+      err(
+        'SNAPBACK_CODEGEN_FAMILIAR_EXPORT_UNSUPPORTED',
+        'function',
+        `${entry.name} mixes familiar functions with unsupported runtime exports: ${classified.unsupportedExports.join(', ')}`,
+        { path, exports: classified.unsupportedExports },
+      );
+      continue;
+    }
+    const moduleName = entry.name.replace(/\.(?:ts|mts)$/iu, '');
+    for (const operation of classified.operations) {
+      const name = `${moduleName}.${operation.exportedName}`;
+      if (!OPERATION_NAME.test(name)) {
+        err(
+          'SNAPBACK_CODEGEN_FAMILIAR_MODULE_PATH_UNSUPPORTED',
+          'function',
+          `${entry.name} export ${operation.exportedName} cannot form one IDENT.IDENT operation name`,
+          { path, function: name },
+        );
+        continue;
+      }
+      operations.push({ ...operation, name, moduleName, path });
+    }
+    functionModules.push({ path, source, moduleName, operations: classified.operations });
+  }
+  const generatedNames = new Map();
+  for (const operation of operations) {
+    const local = pascal(operation.name);
+    const prior = generatedNames.get(local);
+    if (prior && prior !== operation.name) {
+      err(
+        'SNAPBACK_CODEGEN_FAMILIAR_NAME_COLLISION',
+        'function',
+        `operation names ${JSON.stringify(prior)} and ${JSON.stringify(operation.name)} both generate local binding ${local}`,
+        { functions: [prior, operation.name], generatedBinding: local },
+      );
+    } else {
+      generatedNames.set(local, operation.name);
+    }
+  }
+  const functionsPath = join(backendRoot, '__snapback_familiar_functions__.mjs');
+  const functionsSource = operations
+    .sort((left, right) => compareCodeUnits(left.name, right.name))
+    .map((operation) => {
+      const specifier = `./${relative(backendRoot, operation.path).split(sep).join('/')}`;
+      return `export { ${operation.exportedName} as ${JSON.stringify(operation.name)} } from ${JSON.stringify(specifier)};`;
+    })
+    .join('\n') + '\n';
+  return { schemaPath, functionsPath, functionsSource, operations, functionModules };
+}
+
+function renderFamiliarServerModule() {
+  // @ref LLP 0253#s32-generated-local-modules — this bootstrap cannot depend
+  // on Phase C's umbrella package; every runtime value comes from the Phase B
+  // adapter that codegen already owns.
+  return `${HEADER}\nexport { defineSchema, defineTable, query, mutation, action, allow, v } from '@expo/snapback-codegen/familiar';\n`;
+}
+
+function renderFamiliarServerTypes() {
+  return `${HEADER}
+import { v as familiarV } from '@expo/snapback-codegen/familiar';
+import type { InferObjectValidatorFields, InferValidator, Validator } from '@expo/snapback-codegen/define';
+import type { FunctionArgs, FunctionReference, FunctionResult, GeneratedActionContext, GeneratedDataModel, GeneratedHandlerSchema, GeneratedIndexNames, GeneratedMutationContext, GeneratedQueryContext, GeneratedReadableTableName, Id, QueryBuilder } from './api';
+export { allow, defineSchema, defineTable } from '@expo/snapback-codegen/familiar';
+export declare const v: Omit<typeof familiarV, 'doc' | 'id'> & {
+  doc<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<GeneratedDataModel[Table], { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false>;
+  id<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<Id<Table>, { readonly Id: { readonly table: Table } }, false>;
+};
+type FamiliarAuth = 'public' | 'optional-user' | 'authenticated';
+type FamiliarIndexRange<Table extends GeneratedReadableTableName> = Readonly<{
+  eq<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): FamiliarIndexRange<Table>;
+  in<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, values: ReadonlyArray<GeneratedDataModel[Table][Field]>): FamiliarIndexRange<Table>;
+  lt<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): FamiliarIndexRange<Table>;
+  lte<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): FamiliarIndexRange<Table>;
+  gt<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): FamiliarIndexRange<Table>;
+  gte<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): FamiliarIndexRange<Table>;
+}>;
+type FamiliarQueryBuilder<Table extends GeneratedReadableTableName> = Omit<QueryBuilder<GeneratedHandlerSchema, Table>, 'withIndex'> & Readonly<{
+  withIndex(index: GeneratedIndexNames[Table], callback?: (q: FamiliarIndexRange<Table>) => FamiliarIndexRange<Table>): FamiliarQueryBuilder<Table>;
+}>;
+type FamiliarQueryDatabase = Omit<GeneratedQueryContext['db'], 'query'> & Readonly<{
+  query<Table extends GeneratedReadableTableName>(table: Table): FamiliarQueryBuilder<Table>;
+}>;
+type FamiliarMutationDatabase = Omit<GeneratedMutationContext['db'], 'query'> & Readonly<{
+  query<Table extends GeneratedReadableTableName>(table: Table): FamiliarQueryBuilder<Table>;
+}>;
+export type FamiliarQueryContext = Omit<GeneratedQueryContext, 'db'> & Readonly<{ db: FamiliarQueryDatabase }>;
+export type FamiliarMutationContext = Omit<GeneratedMutationContext, 'db'> & Readonly<{ db: FamiliarMutationDatabase }>;
+type FamiliarCommon<Args extends Record<string, Validator>, Returns extends Validator, Context> = Readonly<{
+  args: Args;
+  returns: Returns;
+  auth: FamiliarAuth;
+  handler: (ctx: Context, args: InferObjectValidatorFields<Args>) => InferValidator<Returns> | Promise<InferValidator<Returns>>;
+  refusals?: readonly string[];
+  trackedRefusals?: readonly string[];
+}>;
+export type FamiliarActionContext = Readonly<Pick<GeneratedActionContext, 'auth' | 'runtime' | 'secrets' | 'refuse' | 'isDirectHuman'> & {
+  runMutation<Ref extends FunctionReference<string, 'Mutation', any, any, 'snapback-familiar-ts-v1'>>(reference: Ref, args: FunctionArgs<Ref>): Promise<FunctionResult<Ref>>;
+  runQuery(...args: never[]): never;
+  fetch(...args: never[]): never;
+  fetchStream(...args: never[]): never;
+}>;
+export declare function query<const Args extends Record<string, Validator>, Returns extends Validator>(spec: FamiliarCommon<Args, Returns, FamiliarQueryContext> & Readonly<{ reads: readonly string[]; delivery?: 'live' | 'read'; retainable?: boolean; authScopeField?: string }>): unknown;
+export declare function mutation<const Args extends Record<string, Validator>, Returns extends Validator>(spec: FamiliarCommon<Args, Returns, FamiliarMutationContext> & Readonly<{ reads: readonly string[]; writes: readonly string[] }>): unknown;
+export declare function action<const Args extends Record<string, Validator>, Returns extends Validator>(spec: FamiliarCommon<Args, Returns, FamiliarActionContext> & Readonly<{ secrets?: readonly string[] }>): unknown;
+`;
+}
+
+function familiarNamespaceTree(operationNames) {
+  const root = dict();
+  for (const name of operationNames) {
+    const [moduleName, exportName] = name.split('.');
+    (root[moduleName] ??= []).push(exportName);
+  }
+  return root;
+}
+
+function renderFamiliarApiNamespaceModule(
+  operationNames,
+  actionReferences,
+  defaultAssetNames,
+  appBindingIdentity,
+) {
+  const tree = familiarNamespaceTree(operationNames);
+  const appSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
+  const lines = [
+    HEADER,
+    `import { app, artifacts } from ${JSON.stringify(appSpecifier)};`,
+    `export { app, artifacts } from ${JSON.stringify(appSpecifier)};`,
+    "const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };",
+    'export const ephemeral = app.api.ephemeral;',
+    'export const groups = app.api.queryGroups;',
+    'export const defaults = Object.create(null);',
+  ];
+  for (const [tableName, fields] of Object.entries(defaultAssetNames)) {
+    lines.push(`defaults[${JSON.stringify(tableName)}] = Object.create(null);`);
+    for (const [fieldName, assetName] of Object.entries(fields)) {
+      lines.push(`defaults[${JSON.stringify(tableName)}][${JSON.stringify(fieldName)}] = app.api.assets[${JSON.stringify(assetName)}];`);
+    }
+  }
+  lines.push(
+    'deepFreeze(defaults);',
+    `const actionReferences = ${stableJson(actionReferences)};`,
+    "for (const reference of Object.values(actionReferences)) { reference.authoringProfile = app.authoringProfile; reference.retention ??= 'none'; Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }",
+    'const references = deepFreeze({ ...app.api.assets, ...app.api.queries, ...app.api.mutations, ...actionReferences, ephemeral, groups });',
+    'const root = Object.create(null);',
+  );
+  for (const [moduleName, exports] of Object.entries(tree).sort(([a], [b]) => compareCodeUnits(a, b))) {
+    lines.push(`root[${JSON.stringify(moduleName)}] = Object.create(null);`);
+    for (const exportName of [...exports].sort(compareCodeUnits)) {
+      const operationName = `${moduleName}.${exportName}`;
+      lines.push(`root[${JSON.stringify(moduleName)}][${JSON.stringify(exportName)}] = references[${JSON.stringify(operationName)}];`);
+    }
+    lines.push(`Object.freeze(root[${JSON.stringify(moduleName)}]);`);
+  }
+  lines.push('export const api = Object.freeze(root);', 'export default api;', '');
+  return lines.join('\n');
+}
+
+function renderFamiliarApiBootstrapModule(operationNames) {
+  const tree = familiarNamespaceTree(operationNames);
+  const lines = [HEADER, '// Familiar definition bootstrap; replaced by the transactional final projection.', 'const root = Object.create(null);'];
+  for (const [moduleName, exports] of Object.entries(tree).sort(([a], [b]) => compareCodeUnits(a, b))) {
+    lines.push(`root[${JSON.stringify(moduleName)}] = Object.create(null);`);
+    for (const exportName of [...exports].sort(compareCodeUnits)) {
+      lines.push(`root[${JSON.stringify(moduleName)}][${JSON.stringify(exportName)}] = Object.freeze(Object.create(null));`);
+    }
+    lines.push(`Object.freeze(root[${JSON.stringify(moduleName)}]);`);
+  }
+  lines.push('export const api = Object.freeze(root);', 'export default api;', '');
+  return lines.join('\n');
+}
+
+function synthesizeFamiliarBootstrap(backendRoot, operationNames) {
+  const directory = join(backendRoot, '_generated');
+  mkdirSync(directory, { recursive: true });
+  const files = new Map([
+    ['server.mjs', renderFamiliarServerModule()],
+    ['server.d.ts', renderFamiliarServerTypes()],
+    // @ref LLP 0253#s2-familiar-source-layout-and-discovery — definition
+    // evaluation gets a deterministic, capability-empty bootstrap graph. The
+    // final app-bound namespace cannot exist until definitions have evaluated.
+    ['api.mjs', renderFamiliarApiBootstrapModule(operationNames)],
+    ['api.d.ts', `${HEADER}\n// Familiar definition bootstrap; replaced by the transactional final projection.\nexport declare const api: Readonly<Record<string, Readonly<Record<string, unknown>>>>;\nexport default api;\n`],
+  ]);
+  for (const [name, source] of files) {
+    const path = join(directory, name);
+    const current = existsSync(path) ? readFileSync(path, 'utf8') : null;
+    const apiProjection = name === 'api.mjs' || name === 'api.d.ts';
+    // A previously completed api projection is already a valid definition
+    // import. Do not replace it with bootstrap bytes before the transactional
+    // write: a later source refusal must preserve the prior complete graph.
+    if (apiProjection
+      && current !== null
+      && !current.includes('Familiar definition bootstrap;')) continue;
+    if (current !== source) writeFileSync(path, source);
+  }
+  return {
+    apiSource: files.get('api.mjs'),
+    apiDigest: `sha256:${sha256(files.get('api.mjs'))}`,
+  };
+}
+
+function eraseFamiliarDefinitionSource(source, sourcePath, diagnostics) {
+  const transformed = ts.transpileModule(source, {
+    compilerOptions: handlerTypeScriptCompilerOptions({ emit: true }),
+    fileName: sourcePath,
+    reportDiagnostics: true,
+  });
+  const errors = (transformed.diagnostics ?? [])
+    .filter((entry) => entry.category === ts.DiagnosticCategory.Error);
+  if (errors.length > 0) {
+    for (const entry of errors) {
+      const point = Number.isInteger(entry.start) && entry.file
+        ? entry.file.getLineAndCharacterOfPosition(entry.start)
+        : { line: 0, character: 0 };
+      diagnostics.push({
+        code: 'SNAPBACK_CODEGEN_TYPESCRIPT_TRANSFORM_FAILED',
+        severity: 'error',
+        subsystem: 'codegen',
+        message: ts.flattenDiagnosticMessageText(entry.messageText, '\n'),
+        path: sourcePath,
+        line: point.line + 1,
+        column: point.character + 1,
+        details: { typescriptCode: entry.code },
+      });
+    }
+    return null;
+  }
+  const javascript = transformed.outputText
+    .replace(/\/\/# sourceMappingURL=.*?(?:\r?\n)?$/u, '');
+  return {
+    javascript,
+    identity: handlerTypeScriptIdentity(),
+    runtimeBytes: Buffer.from(javascript, 'utf8'),
+  };
+}
+
+function validateFamiliarWithIndexCallbacks(sourceFile, sourcePath, err) {
+  const allowedMethods = new Set(['eq', 'in', 'lt', 'lte', 'gt', 'gte']);
+  const unwrap = (node) => {
+    let current = node;
+    while (ts.isParenthesizedExpression(current)) current = current.expression;
+    return current;
+  };
+  const containsIdentifier = (node, name) => {
+    let found = false;
+    const inspect = (current) => {
+      if (found) return;
+      if (ts.isIdentifier(current) && current.text === name) {
+        found = true;
+        return;
+      }
+      ts.forEachChild(current, inspect);
+    };
+    inspect(node);
+    return found;
+  };
+  const isRecorderChain = (node, parameterName) => {
+    const current = unwrap(node);
+    if (ts.isIdentifier(current)) return current.text === parameterName;
+    if (!ts.isCallExpression(current)) return false;
+    const callee = unwrap(current.expression);
+    let receiver;
+    let method;
+    if (ts.isPropertyAccessExpression(callee)) {
+      receiver = callee.expression;
+      method = callee.name.text;
+    } else if (ts.isElementAccessExpression(callee)
+      && (ts.isStringLiteral(callee.argumentExpression)
+        || ts.isNoSubstitutionTemplateLiteral(callee.argumentExpression))) {
+      receiver = callee.expression;
+      method = callee.argumentExpression.text;
+    } else {
+      return false;
+    }
+    return allowedMethods.has(method)
+      && current.arguments.every((argument) => !containsIdentifier(argument, parameterName))
+      && isRecorderChain(receiver, parameterName);
+  };
+  const callbackExpression = (callback) => {
+    if (!ts.isArrowFunction(callback) && !ts.isFunctionExpression(callback)) return null;
+    if (callback.parameters.length !== 1 || !ts.isIdentifier(callback.parameters[0].name)) return null;
+    if (!ts.isBlock(callback.body)) return callback.body;
+    if (callback.body.statements.length !== 1 || !ts.isReturnStatement(callback.body.statements[0])) return null;
+    return callback.body.statements[0].expression ?? null;
+  };
+  const report = (node) => {
+    const point = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    err(
+      'SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED',
+      'function',
+      `${relative(process.cwd(), sourcePath)}:${point.line + 1}:${point.character + 1}: withIndex callback must return one canonical eq/in/lt/lte/gt/gte chain rooted at its recorder parameter`,
+      { path: sourcePath, line: point.line + 1, column: point.character + 1 },
+    );
+  };
+  const inspect = (node) => {
+    if (ts.isCallExpression(node) && node.arguments.length >= 2) {
+      const callee = unwrap(node.expression);
+      const isWithIndex = (ts.isPropertyAccessExpression(callee) && callee.name.text === 'withIndex')
+        || (ts.isElementAccessExpression(callee)
+          && (ts.isStringLiteral(callee.argumentExpression)
+            || ts.isNoSubstitutionTemplateLiteral(callee.argumentExpression))
+          && callee.argumentExpression.text === 'withIndex');
+      if (isWithIndex) {
+        const callback = unwrap(node.arguments[1]);
+        const expression = callbackExpression(callback);
+        const parameter = (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))
+          && callback.parameters.length === 1
+          && ts.isIdentifier(callback.parameters[0].name)
+          ? callback.parameters[0].name.text
+          : null;
+        if (!expression || !parameter || !isRecorderChain(expression, parameter)) report(node.arguments[1]);
+      }
+    }
+    ts.forEachChild(node, inspect);
+  };
+  inspect(sourceFile);
+}
+
+function captureFamiliarApiReferences(source, sourcePath, apiDigest, err) {
+  const sourceFile = ts.createSourceFile(
+    sourcePath,
+    source,
+    ts.ScriptTarget.ES2022,
+    true,
+    ts.ScriptKind.JS,
+  );
+  // @ref LLP 0253#s45-callback-withindex-lowering-r5-pin-no-drop-gate — an
+  // inert assignment cannot be observed by a runtime recorder. Prove the
+  // callback's single-chain grammar before evaluation so every q escape is a
+  // deterministic refusal rather than a latent capability.
+  validateFamiliarWithIndexCallbacks(sourceFile, sourcePath, err);
+  const apiBindings = new Set();
+  const replacements = [];
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)
+      || !ts.isStringLiteral(statement.moduleSpecifier)
+      || !/^\.\/_generated\/api(?:\.(?:mjs|js|mts|ts))?$/u.test(statement.moduleSpecifier.text)) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (bindings && ts.isNamedImports(bindings)) {
+      for (const specifier of bindings.elements) {
+        if ((specifier.propertyName?.text ?? specifier.name.text) === 'api') {
+          apiBindings.add(specifier.name.text);
+        }
+      }
+    }
+    replacements.push({ start: statement.getFullStart(), end: statement.end, value: '' });
+  }
+  const reported = new Set();
+  const report = (node, reason) => {
+    const point = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    const key = `${point.line}:${point.character}`;
+    if (reported.has(key)) return;
+    reported.add(key);
+    err(
+      'SNAPBACK_FAMILIAR_API_REFERENCE_DYNAMIC',
+      'function',
+      `${relative(process.cwd(), sourcePath)}:${point.line + 1}:${point.character + 1}: ${reason}; use api.module.operation`,
+      { path: sourcePath, line: point.line + 1, column: point.character + 1 },
+    );
+  };
+  const staticSegment = (node) => {
+    if (ts.isPropertyAccessExpression(node)) return node.name.text;
+    if (ts.isElementAccessExpression(node)
+      && (ts.isStringLiteral(node.argumentExpression)
+        || ts.isNoSubstitutionTemplateLiteral(node.argumentExpression))) {
+      return node.argumentExpression.text;
+    }
+    return null;
+  };
+  const inspect = (node) => {
+    if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+      const parentContinues = (ts.isPropertyAccessExpression(node.parent)
+          || ts.isElementAccessExpression(node.parent))
+        && node.parent.expression === node;
+      if (!parentContinues) {
+        const segments = [];
+        let cursor = node;
+        let dynamic = false;
+        while (ts.isPropertyAccessExpression(cursor) || ts.isElementAccessExpression(cursor)) {
+          const segment = staticSegment(cursor);
+          if (segment === null) dynamic = true;
+          else segments.unshift(segment);
+          cursor = cursor.expression;
+        }
+        if (ts.isIdentifier(cursor) && apiBindings.has(cursor.text)) {
+          if (dynamic || segments.length !== 2 || segments.some((entry) => !IDENT.test(entry))) {
+            report(node, 'generated api references must contain two static identifier members');
+          } else {
+            const name = segments.join('.');
+            replacements.push({
+              start: node.getStart(sourceFile),
+              end: node.end,
+              value: `Object.freeze({__snapbackFamiliarApiReference:Object.freeze({name:${JSON.stringify(name)},apiDigest:${JSON.stringify(apiDigest)}})})`,
+            });
+          }
+        }
+      }
+    } else if (ts.isIdentifier(node) && apiBindings.has(node.text)) {
+      const parentUsesAsRoot = (ts.isPropertyAccessExpression(node.parent)
+          || ts.isElementAccessExpression(node.parent))
+        && node.parent.expression === node;
+      const importUse = ts.isImportSpecifier(node.parent);
+      if (!parentUsesAsRoot && !importUse) report(node, 'the generated api binding cannot escape or be used dynamically');
+    }
+    ts.forEachChild(node, inspect);
+  };
+  inspect(sourceFile);
+  let output = source;
+  for (const replacement of replacements.sort((left, right) => right.start - left.start)) {
+    output = output.slice(0, replacement.start) + replacement.value + output.slice(replacement.end);
+  }
+  return output;
+}
+
+export function renderFamiliarHandlerRuntime(name, extracted, canonicalRendered, contextKind, apiDigest) {
+  const registrationEnd = renderInlineHandlerModule(name, extracted.expressionSource).length;
+  const helpers = canonicalRendered.source.slice(registrationEnd);
+  const capturedReferencePattern = /Object\.freeze\(\{__snapbackFamiliarApiReference:Object\.freeze\(\{name:("(?:[^"\\]|\\.)*"),apiDigest:("(?:[^"\\]|\\.)*")\}\)\}\)/gu;
+  const runtimeExpressionSource = extracted.expressionSource.replace(
+    capturedReferencePattern,
+    '__snapbackFamiliarReference($1, $2)',
+  );
+  const runtimeHelpers = helpers.replace(
+    capturedReferencePattern,
+    '__snapbackFamiliarReference($1, $2)',
+  );
+  // @ref LLP 0253#s44-handler-contexts — digest-shaped lookalikes are still
+  // foreign objects. Only markers minted while evaluating the statically
+  // rewritten handler expression enter this closure-private nominal set.
+  const lines = [
+    'function __snapbackFamiliarFail(code, message) { const error = new Error(message); error.code = code; throw error; }',
+    'const __snapbackFamiliarReferences = new WeakSet();',
+    'function __snapbackFamiliarReference(name, apiDigest) { const reference = Object.freeze({ __snapbackFamiliarApiReference: Object.freeze({ name, apiDigest }) }); __snapbackFamiliarReferences.add(reference); return reference; }',
+    `const __snapbackFamiliarHandler = (${runtimeExpressionSource});`,
+    'function __snapbackFamiliarWrapBuilder(builder) {',
+    '  const wrapped = Object.create(null);',
+    '  const chain = (method, args) => __snapbackFamiliarWrapBuilder(builder[method](...args));',
+    '  wrapped.withIndex = (index, callback) => {',
+    '    if (callback === undefined) return __snapbackFamiliarWrapBuilder(builder.withIndex(index));',
+    '    if (typeof callback !== "function") __snapbackFamiliarFail("SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED", "withIndex callback must be a chained canonical range predicate");',
+    '    const calls = [];',
+    '    let active = true;',
+    '    let tail;',
+    '    const makeRecorder = () => {',
+    '      const recorder = Object.create(null);',
+    '      for (const method of ["eq", "in", "lt", "lte", "gt", "gte"]) recorder[method] = (...args) => {',
+    '        if (!active) __snapbackFamiliarFail("SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED", "withIndex recorder escaped its callback");',
+    '        if (recorder !== tail) __snapbackFamiliarFail("SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED", "withIndex predicates must form one chain");',
+    '        calls.push([method, args]);',
+    '        tail = makeRecorder();',
+    '        return tail;',
+    '      };',
+    '      return Object.freeze(recorder);',
+    '    };',
+    '    const recorder = makeRecorder();',
+    '    tail = recorder;',
+    '    let result;',
+    '    try { result = callback(recorder); } catch (error) { if (error && error.code === "SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED") throw error; __snapbackFamiliarFail("SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED", "withIndex callback used an unsupported recorder operation"); }',
+    '    active = false;',
+    '    if (result !== tail) __snapbackFamiliarFail("SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED", "withIndex callback must return its complete chained recorder");',
+    '    let lowered = builder.withIndex(index);',
+    '    for (const [method, args] of calls) lowered = lowered[method](...args);',
+    '    return __snapbackFamiliarWrapBuilder(lowered);',
+    '  };',
+    '  for (const method of ["eq", "in", "lt", "lte", "gt", "gte", "order", "take"]) wrapped[method] = (...args) => chain(method, args);',
+    '  wrapped.collect = (...args) => builder.collect(...args);',
+    '  wrapped.first = (...args) => builder.first(...args);',
+    '  return Object.freeze(wrapped);',
+    '}',
+    'function __snapbackFamiliarDataContext(ctx) {',
+    '  const db = Object.freeze({ ...ctx.db, query: (table) => __snapbackFamiliarWrapBuilder(ctx.db.query(table)) });',
+    '  return Object.freeze({ ...ctx, db });',
+    '}',
+    'function __snapbackFamiliarActionContext(ctx) {',
+    '  const runMutation = (reference, args) => {',
+    '    const outerKeys = reference && typeof reference === "object" ? Object.keys(reference) : [];',
+    '    const marker = outerKeys.length === 1 && outerKeys[0] === "__snapbackFamiliarApiReference" ? reference.__snapbackFamiliarApiReference : null;',
+    '    const markerKeys = marker && typeof marker === "object" ? Object.keys(marker).sort() : [];',
+    `    if (!__snapbackFamiliarReferences.has(reference) || !Object.isFrozen(reference) || !Object.isFrozen(marker) || markerKeys.join(",") !== "apiDigest,name" || marker.apiDigest !== ${JSON.stringify(apiDigest)} || typeof marker.name !== "string" || !${OPERATION_NAME}.test(marker.name)) __snapbackFamiliarFail("SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED", "runMutation requires a generated api.module.operation reference from this application generation");`,
+    '    return ctx.runMutation(marker.name, args);',
+    '  };',
+    '  const runQuery = () => __snapbackFamiliarFail("SNAPBACK_FAMILIAR_RUNQUERY_UNSUPPORTED", "familiar v1 actions do not expose runQuery; route through an explicit profile action when required");',
+    '  const hostEffect = () => __snapbackFamiliarFail("SNAPBACK_FAMILIAR_HOST_EFFECT_UNSUPPORTED", "familiar v1 actions do not expose fetch or fetchStream; use the explicit profile");',
+    '  return Object.freeze({',
+    '    auth: ctx.auth,',
+    '    runtime: ctx.runtime,',
+    '    secrets: ctx.secrets,',
+    '    refuse: ctx.refuse,',
+    '    isDirectHuman: ctx.isDirectHuman,',
+    '    runMutation,',
+    '    runQuery,',
+    '    fetch: hostEffect,',
+    '    ["fetch" + "Stream"]: hostEffect,',
+    '  });',
+    '}',
+    `globalThis.__snapbackHandlers = { ${JSON.stringify(name)}: (ctx, args) => __snapbackFamiliarHandler(${contextKind === 'action' ? '__snapbackFamiliarActionContext(ctx)' : '__snapbackFamiliarDataContext(ctx)'}, args) };`,
+    '',
+  ];
+  return {
+    source: `${lines.join('\n')}${runtimeHelpers}`,
+    segments: canonicalRendered.segments,
+  };
+}
+
+function readCodegenPolicy(backendRoot, diagnostics, err) {
   const path = join(backendRoot, 'codegen.policy.json');
   if (!existsSync(path)) {
-    return { source: null, committedProjections: [], contractMetadata: null };
+    return {
+      source: null,
+      committedProjections: [],
+      contractMetadata: null,
+      authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+    };
   }
   let source;
   let policy;
@@ -14179,15 +15211,39 @@ function readCodegenPolicy(backendRoot, diagnostics) {
       message: `codegen policy ${path} could not be read as JSON: ${cause.message}`,
       path,
     });
-    return { source: source ?? null, committedProjections: [], contractMetadata: null };
+    return {
+      source: source ?? null,
+      committedProjections: [],
+      contractMetadata: null,
+      authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+    };
   }
   const requiredKeys = ['committedProjections', 'schemaVersion'];
-  const allowedKeys = [...requiredKeys, 'contractMetadata'];
+  const allowedKeys = [...requiredKeys, 'authoringProfile', 'contractMetadata'];
   const actualKeys = policy && typeof policy === 'object' && !Array.isArray(policy)
     ? Object.keys(policy).sort()
     : [];
   const committed = policy?.committedProjections;
   const contractMetadata = policy?.contractMetadata;
+  const authoringProfile = policy?.authoringProfile;
+  if (
+    authoringProfile !== undefined
+    && authoringProfile !== EXPLICIT_AUTHORING_PROFILE
+    && authoringProfile !== FAMILIAR_AUTHORING_PROFILE
+  ) {
+    err(
+      'SNAPBACK_CODEGEN_AUTHORING_PROFILE_INVALID',
+      'codegen',
+      `codegen policy ${path} authoringProfile must be "snapback-explicit-v1" or "snapback-familiar-ts-v1"`,
+      { path, authoringProfile },
+    );
+    return {
+      source,
+      committedProjections: [],
+      contractMetadata: null,
+      authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+    };
+  }
   if (
     !policy
     || typeof policy !== 'object'
@@ -14210,15 +15266,21 @@ function readCodegenPolicy(backendRoot, diagnostics) {
       code: 'CODEGEN_POLICY_INVALID',
       severity: 'error',
       subsystem: 'codegen',
-      message: `codegen policy ${path} must be a closed snapback.codegen-policy.v1 record with unique portable committedProjections and optional contractMetadata: "exact"`,
+      message: `codegen policy ${path} must be a closed snapback.codegen-policy.v1 record with unique portable committedProjections, optional authoringProfile, and optional contractMetadata: "exact"`,
       path,
     });
-    return { source, committedProjections: [], contractMetadata: null };
+    return {
+      source,
+      committedProjections: [],
+      contractMetadata: null,
+      authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+    };
   }
   return {
     source,
     committedProjections: [...committed].sort(compareCodeUnits),
     contractMetadata: contractMetadata ?? null,
+    authoringProfile: authoringProfile ?? EXPLICIT_AUTHORING_PROFILE,
   };
 }
 
@@ -14316,6 +15378,7 @@ const TOP_LEVEL_DEFINITION_BUILDERS = new Set([
   'defineJsQuery', 'defineWriteWithActivity', 'defineMutation',
   'defineJsMutation', 'defineAction', 'defineCron', 'defineRoutes',
   'defineConfig', 'defineAssetUpload',
+  'query', 'mutation', 'action',
 ]);
 
 function definitionAttributionFromSource(source, path = 'functions.mjs') {
@@ -14327,10 +15390,14 @@ function definitionAttributionFromSource(source, path = 'functions.mjs') {
     /\.tsx?$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
   );
   const exportedLocals = new Set();
+  const exportedNamesByLocal = new Map();
   const builderLocals = new Map();
   const builderModuleSpecifier = (specifier) => (
     specifier === '@expo/snapback-codegen/define'
     || specifier === '@snapback/codegen/define'
+    || FAMILIAR_ENTRYPOINTS.has(specifier)
+    || /(?:^|\/)_generated\/server(?:\.(?:mjs|js|mts|ts))?$/u.test(specifier)
+    || /(?:^|\/)familiar\.(?:mjs|js|mts|ts)(?:[?#].*)?$/u.test(specifier)
     || /(?:^|\/)define\.(?:mjs|js|mts|ts)(?:[?#].*)?$/u.test(specifier)
   );
   const hasExport = (node) => ts.canHaveModifiers(node)
@@ -14355,7 +15422,9 @@ function definitionAttributionFromSource(source, path = 'functions.mjs') {
     }
     if (ts.isExportDeclaration(statement) && statement.exportClause && ts.isNamedExports(statement.exportClause)) {
       for (const specifier of statement.exportClause.elements) {
-        exportedLocals.add(specifier.propertyName?.text ?? specifier.name.text);
+        const local = specifier.propertyName?.text ?? specifier.name.text;
+        exportedLocals.add(local);
+        exportedNamesByLocal.set(local, specifier.name.text);
       }
     }
     if (ts.isExportAssignment(statement) && ts.isIdentifier(statement.expression)) {
@@ -14410,11 +15479,14 @@ function definitionAttributionFromSource(source, path = 'functions.mjs') {
       if (!ts.isIdentifier(callee) || !builderLocals.has(callee.text)) continue;
       const binding = declaration.name.text;
       const exported = exportedLocals.has(binding) || hasExport(statement);
+      const exportedBinding = hasExport(statement)
+        ? binding
+        : exportedNamesByLocal.get(binding) ?? binding;
       const bindingSpan = span(declaration.name);
-      propertySpans.set(binding, bindingSpan);
-      visitProperties(initializer.arguments[0], [binding]);
+      propertySpans.set(exportedBinding, bindingSpan);
+      visitProperties(initializer.arguments[0], [exportedBinding]);
       definitions.push({
-        binding,
+        binding: exportedBinding,
         builder: builderLocals.get(callee.text),
         exported,
         sourceSpan: bindingSpan,
@@ -14634,6 +15706,10 @@ const DEFINITION_EVALUATION_TIMEOUT_MS = 5_000;
 const DEFINITION_EVALUATOR_PROCESS_TIMEOUT_MS = 15_000;
 const DEFINITION_EVALUATOR_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
+  'SNAPBACK_CODEGEN_FAMILIAR_AUTH_MISSING',
+  'SNAPBACK_CODEGEN_FAMILIAR_DELIVERY_INVALID',
+  'SNAPBACK_CODEGEN_FAMILIAR_KEY_UNSUPPORTED',
+  'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE',
   'SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED',
   'SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE',
   'SNAPBACK_API_BUDGETS_UNAVAILABLE',
@@ -14761,6 +15837,7 @@ async function buildDefinitionBundle(
   subsystem,
   kind,
   entrySourceOverride = null,
+  sourceOverrides = new Map(),
 ) {
   const graph = new Map();
   const resultKey = `__snapback_definition_${kind}_${sha256(entryPath).slice(0, 16)}`;
@@ -14774,6 +15851,20 @@ async function buildDefinitionBundle(
   });
 
   const addGraphFile = (candidate, importedFrom = null) => {
+    const normalizedCandidate = resolve(candidate);
+    if (normalizedCandidate === resolve(entryPath)
+      && entrySourceOverride !== null
+      && !existsSync(normalizedCandidate)) {
+      if (!graph.has(normalizedCandidate)) {
+        graph.set(normalizedCandidate, {
+          path: normalizedCandidate,
+          label: moduleIdentityLabel(normalizedCandidate, backendDir),
+          source: entrySourceOverride,
+          bytes: Buffer.from(entrySourceOverride, 'utf8'),
+        });
+      }
+      return { path: normalizedCandidate, source: entrySourceOverride };
+    }
     let capability;
     try {
       capability = resolveFileReadCapability(candidate, {
@@ -14805,7 +15896,15 @@ async function buildDefinitionBundle(
     } catch (error) {
       return { error: problem(error.codegenCode ?? 'CODEGEN_IMPORT_UNREADABLE', `could not read local module ${path}: ${error.message}`, { path, importedFrom }) };
     }
-    graph.set(path, { path, label, source, bytes });
+    const override = sourceOverrides.get(resolve(path));
+    graph.set(path, {
+      path,
+      label,
+      source,
+      bytes,
+      ...(override?.identity ? { typescriptIdentity: override.identity } : {}),
+      ...(override?.runtimeBytes ? { runtimeBytes: override.runtimeBytes } : {}),
+    });
     return { path, source, bytes };
   };
 
@@ -14886,6 +15985,12 @@ async function buildDefinitionBundle(
             } catch (error) {
               return { errors: [problem('CODEGEN_AMBIGUOUS_IMPORT', `${args.importer || entryPath} has invalid local import ${JSON.stringify(args.path)}: ${error.message}`, { path: args.importer || entryPath, specifier: args.path })] };
             }
+            if (!existsSync(candidate) && !/\.[A-Za-z0-9]+$/u.test(candidate)) {
+              const inferred = ['.mjs', '.js', '.mts', '.ts']
+                .map((extension) => `${candidate}${extension}`)
+                .find((path) => existsSync(path));
+              if (inferred) candidate = inferred;
+            }
             const loaded = addGraphFile(candidate, args.importer || null);
             if (loaded.error) return { errors: [loaded.error] };
             return { path: loaded.path, namespace: 'file' };
@@ -14896,8 +16001,9 @@ async function buildDefinitionBundle(
             if (!/\.(?:mjs|mts|cjs|cts|js|ts|json)$/i.test(loaded.path)) {
               return { errors: [problem('CODEGEN_IMPORT_UNSUPPORTED', `${loaded.path} is not a supported JavaScript, TypeScript, or JSON definition dependency`, { path: loaded.path })] };
             }
+            const override = sourceOverrides.get(resolve(loaded.path));
             const moduleFormat = graphModuleFormat(loaded.path);
-            if (moduleFormat.packageJson) {
+            if (!override && moduleFormat.packageJson) {
               const manifest = addGraphFile(moduleFormat.packageJson, loaded.path);
               if (manifest.error) return { errors: [manifest.error] };
               try {
@@ -14906,14 +16012,17 @@ async function buildDefinitionBundle(
                 moduleFormat.commonJs = true;
               }
             }
-            if (moduleFormat.commonJs) {
+            if (!override && moduleFormat.commonJs) {
               return { errors: [problem('CODEGEN_COMMONJS_MODULE_UNHASHABLE', `${moduleIdentityLabel(loaded.path, backendDir)} is a CommonJS module${moduleFormat.packageJson ? ` under ${moduleFormat.packageJson}` : ''}; codegen cannot prove its transitive loader graph`, { path: loaded.path })] };
             }
             return {
-              contents: resolve(loaded.path) === resolve(entryPath) && entrySourceOverride !== null
-                ? entrySourceOverride
-                : loaded.source,
-              loader: definitionLoader(loaded.path),
+              contents: override?.javascript
+                ?? (resolve(loaded.path) === resolve(entryPath) && entrySourceOverride !== null
+                  ? entrySourceOverride
+                  : loaded.source),
+              loader: override || (resolve(loaded.path) === resolve(entryPath) && entrySourceOverride !== null)
+                ? 'js'
+                : definitionLoader(loaded.path),
               resolveDir: dirname(loaded.path),
             };
           });
@@ -15351,9 +16460,22 @@ function nearestPackageJson(path) {
 
 function moduleGraphIdentity(graph, backendDir) {
   return [...graph.values()]
-    .map(({ path, bytes }) => [moduleIdentityLabel(path, backendDir), bytes])
+    .map(({ path, bytes, runtimeBytes, typescriptIdentity }) => [
+      moduleIdentityLabel(path, backendDir),
+      bytes,
+      ...(typescriptIdentity
+        ? [
+            'definition-typescript',
+            typescriptIdentity.sourceProfile,
+            typescriptIdentity.transformVersion,
+            typescriptIdentity.compilerVersion,
+            typescriptIdentity.compilerIntegrity,
+            runtimeBytes,
+          ]
+        : []),
+    ])
     .sort(([a], [b]) => compareCodeUnits(a, b))
-    .flatMap(([label, source]) => [label, source]);
+    .flat();
 }
 
 function authoredModuleGraphIdentity(graph, backendDir) {
@@ -15467,6 +16589,7 @@ function validateSeedVersionEvidence(backendRoot, outputDirectory, candidate) {
 function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
+  normalizedDefinition,
   handlerRuntimeProfile,
   clientLifecycleManifest,
   capabilityManifest,
@@ -15484,7 +16607,10 @@ function writeGeneratedOutput(outDir, {
   appModule,
   appTypes,
   apiModule,
+  apiFlatModule,
   apiTypes,
+  familiarServerModule,
+  familiarServerTypes,
   apiEnvelopeMembers,
   microArtifacts,
   operationSchemas,
@@ -15503,6 +16629,7 @@ function writeGeneratedOutput(outDir, {
   mkdirSync(operationsOutDir, { recursive: true });
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
+  writeFileSync(join(outDir, 'normalized-definition.v1.json'), stableJson(normalizedDefinition) + '\n');
   writeFileSync(join(outDir, 'handler-runtime-profile.v1.json'), stableJson(handlerRuntimeProfile) + '\n');
   writeFileSync(join(outDir, CLIENT_LIFECYCLE_MANIFEST_FILE), stableJson(clientLifecycleManifest) + '\n');
   writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
@@ -15534,7 +16661,10 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'app.mjs'), appModule);
   writeFileSync(join(outDir, 'app.d.ts'), appTypes);
   writeFileSync(join(outDir, 'api.mjs'), apiModule);
+  if (apiFlatModule) writeFileSync(join(outDir, 'api.flat.mjs'), apiFlatModule);
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
+  if (familiarServerModule) writeFileSync(join(outDir, 'server.mjs'), familiarServerModule);
+  if (familiarServerTypes) writeFileSync(join(outDir, 'server.d.ts'), familiarServerTypes);
   if (microArtifacts) {
     writeFileSync(join(outDir, 'micro.mjs'), microArtifacts.runtimeEntry);
     writeFileSync(join(outDir, 'micro.d.ts'), microArtifacts.declaration);

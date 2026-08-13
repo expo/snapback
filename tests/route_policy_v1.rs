@@ -31,8 +31,8 @@ use snapback::manifest::{
 };
 use snapback::server::{
     CredentialResolution, EffectPolicy, InvocationAuthority, LegacyBodyPolicy, OperationTransport,
-    PolicyAuthMode, ResponseSensitivity, RouteClass, RoutePolicy, RouteSpec, app,
-    SessionModeOverlay, live_socket_operations, operation_registry, route_registry,
+    PolicyAuthMode, ResponseSensitivity, RouteClass, RoutePolicy, RouteSpec, SessionModeOverlay,
+    app, live_socket_operations, operation_registry, route_registry,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};

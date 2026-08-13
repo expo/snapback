@@ -7,7 +7,9 @@ Live Queries, Offline sync, Ephemeral state, Diagnostics, Code generation,
 Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (post-acceptance evidence amendment: records the later
+**Revised:** 2026-08-13 (dated familiar-alias exception: LLP 0252/0253 preserve
+this RFC as the full canonical lifecycle while authorizing a narrowed,
+measured Experimental entrypoint). 2026-08-12 (post-acceptance evidence amendment: records the later
 Clique auth-gate, optional-`undefined`, presence-stop, and refusal-carrier
 findings and routes new semantics through Draft LLP 0247 rather than silently
 widening this accepted v1). 2026-08-12 (entered Review for the author-directed single-family
@@ -383,6 +385,21 @@ Migration has three stages:
 `useSnapbackMutation` follows LLP 0218’s accepted return-type migration and is
 not independently redefined here. The new name makes its dispatch semantics
 obvious and provides the stable destination for the compatibility period.
+
+## Dated amendment — 2026-08-13: narrowed familiar aliases
+
+This RFC remains the complete canonical client-lifecycle surface. LLP 0252 and
+LLP 0253 authorize only the following measured exception in the deletable
+Experimental familiar entrypoint: `useQuery` projects familiar-branded live
+references to online-current data or `undefined`; `useMutation` projects the
+settled-only `queue:false` path; `useAction` projects the one-shot `run` verb;
+and `useQueryState` is the canonical full-state hook by identity. The familiar
+entry owns no cache, transport, outbox, auth coordinator, or task state.
+Retained/offline/queued work, refresh and diagnostic rendering, durable
+mutation observation, commands, and every excluded lifecycle remain on this
+RFC's full canonical vocabulary. The familiar spellings neither replace the
+canonical names nor broaden their semantics; their continuation is governed by
+LLP 0252's measurement and stop rule.
 
 ## Alternatives considered
 

@@ -15,6 +15,7 @@ export interface AppDescriptorValidationProblem {
 
 export interface PortableAppDescriptorV1 {
   readonly format: 'snapback.app.v1';
+  readonly authoringProfile: 'snapback-explicit-v1' | 'snapback-familiar-ts-v1';
   readonly identity: Readonly<{
     app: string;
     schema: string;
@@ -51,6 +52,7 @@ export function validateAppDescriptorV1(
 ): AppDescriptorValidationProblem[];
 export function createAppDescriptorV1(input: Readonly<{
   app: string;
+  authoringProfile: PortableAppDescriptorV1['authoringProfile'];
   schema: string;
   functions: string;
   api: PortableAppDescriptorV1['api'];

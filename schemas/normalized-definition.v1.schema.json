@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/snapback.normalized-application-definition.v1.json",
+  "title": "NormalizedApplicationDefinitionV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "excludedFields",
+    "normalizedContractId",
+    "normalizedSchemaId",
+    "definition"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "snapback.normalized-application-definition.v1"
+    },
+    "excludedFields": {
+      "type": "array",
+      "prefixItems": [
+        { "const": "behavior" },
+        { "const": "graphRecords" },
+        { "const": "authoringProfile" },
+        { "const": "appId" }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "normalizedContractId": { "$ref": "#/$defs/sha256" },
+    "normalizedSchemaId": { "$ref": "#/$defs/sha256" },
+    "definition": { "$ref": "#/$defs/definition" }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["application", "operations"],
+      "properties": {
+        "application": { "$ref": "#/$defs/application" },
+        "operations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/operation" }
+        }
+      }
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "authorityProfile", "assetUploadIntents", "routes", "memberships", "migrations", "retention"],
+      "properties": {
+        "schema": { "$ref": "#/$defs/applicationSchema" },
+        "authorityProfile": { "type": ["object", "array", "null"] },
+        "assetUploadIntents": { "type": "array" },
+        "routes": { "type": ["object", "null"] },
+        "memberships": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["table", "membership"],
+            "properties": {
+              "table": { "type": "string" },
+              "membership": { "type": "object" }
+            }
+          }
+        },
+        "migrations": {},
+        "retention": { "$ref": "#/$defs/applicationRetention" }
+      }
+    },
+    "applicationSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "auth",
+        "authProgram",
+        "api",
+        "assets",
+        "pushSeam",
+        "strictDeclarations",
+        "requiredCapabilities",
+        "ephemeralCollections",
+        "tables",
+        "portabilityFlags"
+      ],
+      "properties": {
+        "version": { "type": ["string", "null"] },
+        "auth": { "type": ["object", "null"] },
+        "authProgram": { "type": ["object", "null"] },
+        "api": { "type": ["object", "null"] },
+        "assets": { "type": ["object", "null"] },
+        "pushSeam": { "type": ["object", "null"] },
+        "strictDeclarations": { "type": "boolean" },
+        "requiredCapabilities": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "ephemeralCollections": { "type": "array" },
+        "tables": { "type": "array" },
+        "portabilityFlags": { "type": "array" }
+      }
+    },
+    "applicationRetention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "operations"],
+      "properties": {
+        "schema": {},
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["operationName", "retainable", "retentionClass"],
+            "properties": {
+              "operationName": { "type": "string" },
+              "retainable": { "type": "boolean" },
+              "retentionClass": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operationName",
+        "operationKind",
+        "args",
+        "result",
+        "authority",
+        "reads",
+        "writes",
+        "effects",
+        "capabilities",
+        "apiExposure",
+        "refusals",
+        "trackedRefusals",
+        "syncabilityClass",
+        "retention",
+        "secrets",
+        "stream",
+        "sequences",
+        "boundedSkew",
+        "standardPattern",
+        "runtime",
+        "plan"
+      ],
+      "properties": {
+        "operationName": { "type": "string" },
+        "operationKind": { "enum": ["Query", "LiveQuery", "Mutation", "Action"] },
+        "args": { "type": ["object", "null"] },
+        "result": { "type": ["object", "null"] },
+        "authority": { "$ref": "#/$defs/authority" },
+        "reads": { "type": ["object", "null"] },
+        "writes": { "type": ["object", "null"] },
+        "effects": { "type": ["object", "null"] },
+        "capabilities": { "type": "array", "items": { "type": "string" } },
+        "apiExposure": { "type": ["object", "null"] },
+        "refusals": { "type": "array" },
+        "trackedRefusals": { "type": "array" },
+        "syncabilityClass": { "type": ["string", "null"] },
+        "retention": { "$ref": "#/$defs/operationRetention" },
+        "secrets": { "type": "array" },
+        "stream": { "type": "boolean" },
+        "sequences": { "type": "array" },
+        "boundedSkew": { "type": ["object", "null"] },
+        "standardPattern": { "type": ["object", "null"] },
+        "runtime": { "type": ["object", "string", "null"] },
+        "plan": { "type": ["object", "null"] }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authRequirement",
+        "authorizationDependence",
+        "authorityIndependent",
+        "authorityCreating",
+        "fieldBoundary",
+        "authorityProfileDependence"
+      ],
+      "properties": {
+        "authRequirement": { "type": ["string", "null"] },
+        "authorizationDependence": { "type": "array" },
+        "authorityIndependent": { "type": "boolean" },
+        "authorityCreating": { "type": "boolean" },
+        "fieldBoundary": { "type": ["object", "null"] },
+        "authorityProfileDependence": { "type": "array" }
+      }
+    },
+    "operationRetention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retainable", "retentionClass"],
+      "properties": {
+        "retainable": { "type": "boolean" },
+        "retentionClass": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

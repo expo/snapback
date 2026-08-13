@@ -7,11 +7,12 @@
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
   "authoredSourceHash": "sha256:179b9f30c9852db8dbe10d866bb91898fbe03b1c61363dc02da6cf5e9ad7bd23",
+  "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "a37f40136792295cb1f6b1c5f2ed4e2aec30a8baeefdfa50a74aa40ca46fc6f9",
+  "inputsHash": "9e0ea94dbe48c8dc2a257647bdaa583429f759bdc24f2d7ce5b7aa28644ec786",
   "portabilityFlags": [],
-  "schemaHash": "sha256:db912c47689fa756",
+  "schemaHash": "sha256:3482a95990fadc58",
   "schemaVersion": "snapback.v0",
   "tables": [
     {

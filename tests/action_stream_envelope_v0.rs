@@ -216,10 +216,7 @@ async fn destination_policy_refusals_survive_both_real_action_fetch_paths() {
     ] {
         let response = app
             .clone()
-            .oneshot(post_json(
-                &format!("/action/{function}"),
-                handler_body(),
-            ))
+            .oneshot(post_json(&format!("/action/{function}"), handler_body()))
             .await
             .expect("action response");
         let body = body_json(response).await;

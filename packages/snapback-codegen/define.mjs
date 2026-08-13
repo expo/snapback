@@ -64,16 +64,16 @@ const AUTHORIZATION_DIMENSIONS = new Set([
   'isAuthenticated',
   'opaque',
 ]);
-const QUERY_SPEC_FIELDS = new Set([
+export const QUERY_SPEC_FIELDS = new Set([
   'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
   'auth', 'authorityIndependent', 'publicInline', 'retainable', 'refusals', 'trackedRefusals',
   'authScopeField', 'membership', 'standardPattern', 'requires',
 ]);
-const MUTATION_SPEC_FIELDS = new Set([
+export const MUTATION_SPEC_FIELDS = new Set([
   'args', 'plan', 'result', 'returns', 'stream', 'boundedSkew', 'standardPattern',
   'auth', 'authorityCreating', 'refusals', 'trackedRefusals', 'requires',
 ]);
-const ACTION_SPEC_FIELDS = new Set([
+export const ACTION_SPEC_FIELDS = new Set([
   'args', 'plan', 'js', 'handler', 'result', 'returns', 'stream', 'uses', 'writes',
   'auth', 'authorityCreating', 'refusals', 'trackedRefusals', 'requires',
 ]);
@@ -127,7 +127,7 @@ function normalizeStandardPattern(spec, kind) {
   );
   return { standardPattern: { helper: value.helper, profile: value.profile } };
 }
-const JS_QUERY_SPEC_FIELDS = new Set([
+export const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'handler', 'reads', 'result', 'authScopeField',
   'defaultLive', 'auth', 'authorityIndependent', 'retainable', 'refusals', 'trackedRefusals',
   'authorizationDependence', 'requires', 'fieldBoundary',

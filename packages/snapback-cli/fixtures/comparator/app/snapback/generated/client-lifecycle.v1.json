@@ -9,6 +9,30 @@
       "emittedInRollout1": false,
       "plannedCanonical": "useSnapbackLiveQuery",
       "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackMutation",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackMutationDispatch",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackOutbox().mutationStatus",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackMutationStatus",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackCommand",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackTask",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "client.query",
+      "emittedInRollout1": false,
+      "plannedCanonical": "client.read",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
     }
   ],
   "custody": {
@@ -60,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "1415f4e11ab6bf503c7850030ec5ec2abd824ae38f517d507221453964ce50dd",
+  "inputsHash": "08b5811b8392be1dd04c6e316046d527e43c84c52038691d187d7d417939070c",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -90,6 +114,7 @@
       "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
       "authRequirement": "optional-user",
       "correctVerb": "liveQuery",
+      "delivery": "live",
       "freshness": "authoritative initial snapshot followed by live updates",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:a3aefd3d7b6e5d61aebd341227336b1c5f88c19d08e10c25b6393363cf410639",
@@ -123,6 +148,7 @@
       "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
       "authRequirement": "optional-user",
       "correctVerb": "liveQuery",
+      "delivery": "live",
       "freshness": "authoritative initial snapshot followed by live updates",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:c1b182218c558b0b7414e82c13e579282cf1d8c687509a3d92ef7197b75f157c",
@@ -156,6 +182,7 @@
       "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
       "authRequirement": "optional-user",
       "correctVerb": "liveQuery",
+      "delivery": "live",
       "freshness": "authoritative initial snapshot followed by live updates",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:f8817869ab197a504537ca0249e800422f3e33151b9f39843d7b4d5aed2b28db",
@@ -189,6 +216,7 @@
       "argsContractHash": "sha256:b17498da304df9fb48249deeed4b296d239c505f25ef7a639b3f410efc777bd0",
       "authRequirement": "optional-user",
       "correctVerb": "mutate",
+      "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:71030e268b602f757c2c3dc460c220e74561c44449cb95e37725b4309bbe5a70",
@@ -225,6 +253,7 @@
       "argsContractHash": "sha256:f15b5911f276aecb7f7c644cb698de5ac7d8a33388bb634e5aec25b29d4b06f6",
       "authRequirement": "optional-user",
       "correctVerb": "mutate",
+      "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:d6cefd418a2044649475b419e3b34bc62a7f2575f8cab6c04269205574723649",
@@ -261,6 +290,7 @@
       "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
       "authRequirement": "optional-user",
       "correctVerb": "liveQuery",
+      "delivery": "live",
       "freshness": "authoritative initial snapshot followed by live updates",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:a496a2d52a46f04e10ab1f5b23f8e87256ec71f04a39f91a80ca12a16a82fc4e",
@@ -294,6 +324,7 @@
       "argsContractHash": "sha256:a9797fc4c6a342b0c25deba97a3e1075ab10c828facb3d5a296bf276f5b66f40",
       "authRequirement": "optional-user",
       "correctVerb": "mutate",
+      "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:0a8b92e2161be3eccca0c255a01ac8461b6c6391f6d4bd127f80058e8095af1a",
@@ -410,6 +441,176 @@
       "build identity inputsHash"
     ],
     "version": "snapback.client-resource-key.v1"
+  },
+  "rows": {
+    "anchors": {
+      "diagnostics": [
+        "SNAPBACK_ARGUMENT_NORMALIZATION_FAILED",
+        "SNAPBACK_ARGUMENT_VALIDATION_FAILED",
+        "SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID"
+      ],
+      "guide": [
+        "guide/clients/headless.md",
+        "guide/clients/react.md",
+        "guide/realtime/ephemeral-state.md"
+      ]
+    },
+    "argumentNormalization": {
+      "operations": [
+        {
+          "functionId": "app:activityRows",
+          "kind": "LiveQuery",
+          "name": "activityRows",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:liveRows",
+          "kind": "LiveQuery",
+          "name": "liveRows",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:primaryRows",
+          "kind": "LiveQuery",
+          "name": "primaryRows",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:publishLiveRow",
+          "kind": "Mutation",
+          "name": "publishLiveRow",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:rejectInvalidWrite",
+          "kind": "Mutation",
+          "name": "rejectInvalidWrite",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "app:rejectionRows",
+          "kind": "LiveQuery",
+          "name": "rejectionRows",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "app:writePrimaryAndActivity",
+          "kind": "Mutation",
+          "name": "writePrimaryAndActivity",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        }
+      ],
+      "version": "snapback.argument-normalization.v1"
+    },
+    "authorityAdmission": {
+      "operations": [
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:activityRows",
+          "kind": "LiveQuery",
+          "name": "activityRows",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:liveRows",
+          "kind": "LiveQuery",
+          "name": "liveRows",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:primaryRows",
+          "kind": "LiveQuery",
+          "name": "primaryRows",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:publishLiveRow",
+          "kind": "Mutation",
+          "name": "publishLiveRow",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:rejectInvalidWrite",
+          "kind": "Mutation",
+          "name": "rejectInvalidWrite",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:rejectionRows",
+          "kind": "LiveQuery",
+          "name": "rejectionRows",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "app:writePrimaryAndActivity",
+          "kind": "Mutation",
+          "name": "writePrimaryAndActivity",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "mutate"
+        }
+      ]
+    },
+    "presenceLifecycle": {
+      "authorityLossBarrierOwner": "server-connection-cleanup",
+      "collections": [
+        {
+          "collection": "fixturePresence",
+          "withdrawalVisibilityDeadlineMs": 2500
+        }
+      ],
+      "disposeAction": "fenced-withdrawal",
+      "neverPublishedAction": "none",
+      "stopAction": "fenced-withdrawal"
+    },
+    "primaryFailureCarrier": {
+      "publicErrorType": "SnapbackDiagnosticError",
+      "verbs": [
+        {
+          "carrier": "throw",
+          "operationKind": "Query",
+          "verb": "query"
+        },
+        {
+          "carrier": "throw",
+          "operationKind": "Action",
+          "verb": "run"
+        },
+        {
+          "carrier": "throw-immediate",
+          "operationKind": "Mutation",
+          "verb": "mutate"
+        },
+        {
+          "carrier": "raw-envelope-deprecated",
+          "operationKind": "Action",
+          "verb": "action"
+        },
+        {
+          "carrier": "resolved-queued-union",
+          "operationKind": "Mutation",
+          "verb": "queued-mutate"
+        }
+      ]
+    }
   },
   "schemaVersion": "snapback.client-lifecycle.v1",
   "surfaceFamilies": [

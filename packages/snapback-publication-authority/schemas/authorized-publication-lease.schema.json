@@ -45,8 +45,8 @@
     "expiresAt": { "$ref": "#/$defs/timestamp" },
     "packages": {
       "type": "array",
-      "minItems": 11,
-      "maxItems": 11,
+      "minItems": 12,
+      "maxItems": 12,
       "prefixItems": [
         {
           "allOf": [
@@ -131,6 +131,17 @@
             {
               "type": "object",
               "properties": {
+                "name": { "const": "@expo/snapback" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
                 "name": { "const": "@expo/snapback-expo" }
               }
             }
@@ -192,7 +203,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "pattern": "^(?:@expo/snapback-[a-z0-9-]+|create-snapback-app)$"
+          "pattern": "^(?:@expo/snapback(?:-[a-z0-9-]+)?|create-snapback-app)$"
         },
         "expectedPriorVersion": {
           "oneOf": [{ "$ref": "#/$defs/semver" }, { "type": "null" }]

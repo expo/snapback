@@ -15,6 +15,10 @@
         "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.{1,2})(?:/|$))(?!.*\\\\).+$"
       }
     },
+    "authoringProfile": {
+      "enum": ["snapback-explicit-v1", "snapback-familiar-ts-v1"],
+      "description": "Select the source adapter; omission resolves to snapback-explicit-v1."
+    },
     "contractMetadata": {
       "const": "exact",
       "description": "Emit Exact-dependent .contract-meta.ts sidecars in addition to Contract-neutral bindings."

@@ -9,6 +9,30 @@
       "emittedInRollout1": false,
       "plannedCanonical": "useSnapbackLiveQuery",
       "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackMutation",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackMutationDispatch",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackOutbox().mutationStatus",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackMutationStatus",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackCommand",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackTask",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "client.query",
+      "emittedInRollout1": false,
+      "plannedCanonical": "client.read",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
     }
   ],
   "custody": {
@@ -60,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "5b223a5cb34ed4d48482aa5ad5d2641dcb7f61509b8b00e57c3cb2a00e9e6507",
+  "inputsHash": "6ad1e5fbed4b3de4b84408f789c8d99ca9662b0ef962843abb3443570112ca8a",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -90,6 +114,7 @@
       "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
       "authRequirement": "optional-user",
       "correctVerb": "mutate",
+      "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:6f06052369b6d325b48d53291855bc7e75921206b736edc652f46d9d2788ba29",
@@ -127,6 +152,7 @@
       "argsContractHash": "sha256:ed1a00d6f67f10a8fc9c460f6cd4ded624cb8bd7e3812baac1609d3440cb82b0",
       "authRequirement": "optional-user",
       "correctVerb": "liveQuery",
+      "delivery": "live",
       "freshness": "authoritative initial snapshot followed by live updates",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:2f6197d4df06c87e1845c7e59ef43ebbad13638f4456a044bb7cd80c4c977e6d",
@@ -160,6 +186,7 @@
       "argsContractHash": "sha256:cb710277debe850d8fb6785162929db30f826c4a5d8ecada88411db05fcfcc81",
       "authRequirement": "optional-user",
       "correctVerb": "mutate",
+      "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:f1b9530e4bf51e34e95c941fc68431d8d0fae6ef8b020d70e979ee51dca8f11f",
@@ -196,6 +223,7 @@
       "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
       "authRequirement": "optional-user",
       "correctVerb": "liveQuery",
+      "delivery": "live",
       "freshness": "authoritative initial snapshot followed by live updates",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:4719035ac68eff06c4e9655e0061275cd8c7f275e9e1b5e5736c8f32533979f2",
@@ -229,6 +257,7 @@
       "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
       "authRequirement": "optional-user",
       "correctVerb": "liveQuery",
+      "delivery": "live",
       "freshness": "authoritative initial snapshot followed by live updates",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
       "implementationHash": "sha256:426c55946515d2c0e56bf6272b6fbe9efd9219c3065706dd90459ec05bf36858",
@@ -342,6 +371,141 @@
       "build identity inputsHash"
     ],
     "version": "snapback.client-resource-key.v1"
+  },
+  "rows": {
+    "anchors": {
+      "diagnostics": [
+        "SNAPBACK_ARGUMENT_NORMALIZATION_FAILED",
+        "SNAPBACK_ARGUMENT_VALIDATION_FAILED",
+        "SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID"
+      ],
+      "guide": [
+        "guide/clients/headless.md",
+        "guide/clients/react.md",
+        "guide/realtime/ephemeral-state.md"
+      ]
+    },
+    "argumentNormalization": {
+      "operations": [
+        {
+          "functionId": "contention-calendar:clearReservations",
+          "kind": "Mutation",
+          "name": "clearReservations",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "contention-calendar:reservationsForSlot",
+          "kind": "LiveQuery",
+          "name": "reservationsForSlot",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "contention-calendar:reserve",
+          "kind": "Mutation",
+          "name": "reserve",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "contention-calendar:resourceList",
+          "kind": "LiveQuery",
+          "name": "resourceList",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "contention-calendar:schedule",
+          "kind": "LiveQuery",
+          "name": "schedule",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        }
+      ],
+      "version": "snapback.argument-normalization.v1"
+    },
+    "authorityAdmission": {
+      "operations": [
+        {
+          "authRequirement": "optional-user",
+          "functionId": "contention-calendar:clearReservations",
+          "kind": "Mutation",
+          "name": "clearReservations",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "contention-calendar:reservationsForSlot",
+          "kind": "LiveQuery",
+          "name": "reservationsForSlot",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "contention-calendar:reserve",
+          "kind": "Mutation",
+          "name": "reserve",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "contention-calendar:resourceList",
+          "kind": "LiveQuery",
+          "name": "resourceList",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "optional-user",
+          "functionId": "contention-calendar:schedule",
+          "kind": "LiveQuery",
+          "name": "schedule",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        }
+      ]
+    },
+    "presenceLifecycle": {
+      "authorityLossBarrierOwner": "server-connection-cleanup",
+      "collections": [],
+      "disposeAction": "fenced-withdrawal",
+      "neverPublishedAction": "none",
+      "stopAction": "fenced-withdrawal"
+    },
+    "primaryFailureCarrier": {
+      "publicErrorType": "SnapbackDiagnosticError",
+      "verbs": [
+        {
+          "carrier": "throw",
+          "operationKind": "Query",
+          "verb": "query"
+        },
+        {
+          "carrier": "throw",
+          "operationKind": "Action",
+          "verb": "run"
+        },
+        {
+          "carrier": "throw-immediate",
+          "operationKind": "Mutation",
+          "verb": "mutate"
+        },
+        {
+          "carrier": "raw-envelope-deprecated",
+          "operationKind": "Action",
+          "verb": "action"
+        },
+        {
+          "carrier": "resolved-queued-union",
+          "operationKind": "Mutation",
+          "verb": "queued-mutate"
+        }
+      ]
+    }
   },
   "schemaVersion": "snapback.client-lifecycle.v1",
   "surfaceFamilies": [

@@ -234,6 +234,7 @@ run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
 run rustfmt -- node scripts/check-rustfmt.mjs
 run module-ownership -- node scripts/check-module-ownership.mjs
 run module-ownership-fixtures -- node --test scripts/check-module-ownership.test.mjs
+run authoring-profile-branches -- node scripts/check-authoring-profile-branches.mjs
 run package-test-inventory -- node scripts/check-package-test-inventory.mjs
 run diary-identity -- node scripts/check-diary-identity.mjs --strict
 # Root production dependencies include the published workspace closure. This

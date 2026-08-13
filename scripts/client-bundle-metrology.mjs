@@ -145,6 +145,15 @@ const ORDINARY_CLIENT_NORMALIZATION_LOCAL_SYNC_ABSENCE_PROFILES = Object.freeze(
     ),
   ),
 );
+const FAMILIAR_PROFILE_ADMISSION_PROFILE_IDS = Object.freeze([
+  'public-subpath-reference-kinds',
+  'resolved-public-subpath-reference-kinds',
+]);
+const FAMILIAR_PROFILE_ADMISSION_DERIVED_PROFILES = Object.freeze(
+  RESOLVED_NARROW_SUBPATH_PROFILES.filter(
+    (profile) => FAMILIAR_PROFILE_ADMISSION_PROFILE_IDS.includes(profile.id),
+  ),
+);
 const BEHAVIOR_COMMANDS = Object.freeze([
   ['node', ['packages/snapback-client/package.test.mjs']],
   ['node', ['packages/snapback-client/browser-closure.test.mjs']],
@@ -2284,6 +2293,36 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/argument-normalization.test.mjs']],
       ['node', ['packages/snapback-client/diagnostic-error.test.mjs']],
       ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.familiar-profile-admission.v1.json',
+    profileFilename: 'familiar-profile-admission-profiles.v1.json',
+    workloadVersion: 'familiar-profile-admission.2026-08-13.v1',
+    worktreeCarrierPolicy: 'same-head',
+    profileIds: FAMILIAR_PROFILE_ADMISSION_PROFILE_IDS,
+    derivedProfiles: FAMILIAR_PROFILE_ADMISSION_DERIVED_PROFILES,
+    predecessors: Object.freeze([]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0252#d1-two-source-profiles-one-semantic-and-runtime-pipeline',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-13',
+      fix: 'LLP 0252/0253 client profile admission: the reference-kind '
+        + 'admission helper becomes the public ./reference-kinds subpath so '
+        + 'the familiar React entrypoint can refuse cross-profile references '
+        + 'before any resource or transport work.',
+      ticket: 'llp/0253-familiar-profile-v1-api.spec.md',
+      byteDeltas: 'PENDING MINT: blocked on the pre-existing baseline staleness recorded in issues/20260813-familiar-subpath-metrology-mint.md (base-red at origin/main; see issues/20260812-0247-0248-measurement-reruns.md). Our residual on app-data-operation-live is ~+694 min bytes; the first-run reference-kinds receipts mint with the rerun.',
+      summary: 'First-run receipts for the ./reference-kinds public subpath; '
+        + 'every other active ceiling remains immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/reference-kind.test.mjs']],
+      ['node', ['packages/snapback-react/familiar.test.mjs']],
     ]),
   }),
 ]);
