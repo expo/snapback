@@ -1,7 +1,7 @@
 {
   "appId": "app",
   "artifactKind": "clientLifecycleManifest",
-  "authoredSourceHash": "sha256:117f99aaa201c0dbfb88d290a1e2d5df767b3617805ac57f430f906ee3d8535e",
+  "authoredSourceHash": "sha256:e41fbf0a992bfb6624c08433d250200eed0690f4ab7996d85b49669a17eaa111",
   "commands": [],
   "compatibilityAliases": [
     {
@@ -60,7 +60,7 @@
       ]
     }
   },
-  "inputsHash": "dccd03ba4ba577d3f93290d10a01c95a6cf00ab9ddfc66c09d71827c26d511bf",
+  "inputsHash": "1415f4e11ab6bf503c7850030ec5ec2abd824ae38f517d507221453964ce50dd",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [

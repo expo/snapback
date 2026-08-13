@@ -2,7 +2,7 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "c6a8be9699e6a8ca5b8f89eed14316588a963945",
+    "revision": "1c772c04ff62504f4566d9ac74052f20b7c29df6",
     "dirty": true,
     "dirtyPaths": [
       "demos/access-desk/snapback/generated/artifacts.json",
@@ -45,7 +45,6 @@
       "demos/team-chat/snapback/generated/app.descriptor.json",
       "demos/team-chat/snapback/generated/app.mjs",
       "demos/team-chat/snapback/generated/artifacts.json",
-      "demos/team-chat/snapback/generated/capability.manifest.json",
       "demos/team-chat/snapback/generated/contract-data.manifest.json",
       "demos/team-chat/snapback/generated/functions.manifest.json",
       "demos/team-chat/snapback/generated/provider-bindings.json",
@@ -65,13 +64,12 @@
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api-envelope.members.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.d.ts",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.943550d9684b1ead1a1cc6b30edda01f270e03eef4f401ff2655c43a4311c1cc.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.ec030a934b9aeb097fca829c8eddd45efd3efb4adfa36e803e41fa0f85c7268e.mjs",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.3d7a55d5f2eb796801694c035b2e1617331e5d0981ee684ccd1e15ae5bb8f09d.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.b94a295dd0d9065432307c972ef5be9f3bd1a620d8b44ac3a9afee6126cf911a.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.mjs",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/capability.manifest.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/client-lifecycle.v1.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/contract-data.manifest.json",
       "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/functions.manifest.json",
@@ -82,13 +80,12 @@
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api-envelope.members.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.d.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.mjs",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.cd023a68e926aa3ed534dc1fa68955d25a3ab8a41b3b42cfed8cbd45e2fbef54.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.5e215bc317b34e7cdb168bfd7a559a74fd82a12fd41e61b4ec6869fbcef7f0c5.mjs",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.mjs",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.bf15c0385aada5d9e71826b6c6b2ecb8f6a2a5f260174910e39b4f4e74d6bb76.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.e971e33ad24157914400f0d0c15d590e4862e1f5ae95906ea401b6a9791c9b57.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.mjs",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/artifacts.json",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/capability.manifest.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/client-lifecycle.v1.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract-data.manifest.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/functions.manifest.json",
@@ -99,13 +96,12 @@
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api-envelope.members.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.d.ts",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.mjs",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.bd748c3658c56bcb9b1c4c12d24f6fcff28b3ebfa84cd5b682a34e5734f348a7.mjs",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.d86f8fd53ed4aac5e3e53533537b4a6f3e4c5612a89257acd852d8fb063990ee.mjs",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.mjs",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.6959be868133257d7346f647bcfb56fd15b884503f0444f42313d27bb394cddf.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.e1385927d9f7f828b32ee7824fad3ac0b3f28705b7723cbaeb15470d2b8b12be.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.mjs",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/artifacts.json",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/capability.manifest.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/client-lifecycle.v1.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract-data.manifest.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/functions.manifest.json",
@@ -116,14 +112,13 @@
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/api-envelope.members.json",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/api.d.ts",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/api.mjs",
-      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.311047ba9ce423ba758909d24b4863519e37768a43e612604299039343377a2f.mjs",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.1e2d19fa48d702f715ec082bcc691ff83db46a1369edcc9c326e8bb600d1b577.mjs",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.mjs",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.d.ts",
-      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.bcd9ddf450df3dc540892f46f192557834e4c9257fcf3e89e183909041ca7ab4.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.846c89a95f83d4a9e5a667591eeaaf1772eecd5e91ecfc764257de0f14d9b72e.json",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.json",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.mjs",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/artifacts.json",
-      "packages/snapback-react/fixtures/conversation/app/snapback/generated/capability.manifest.json",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/client-lifecycle.v1.json",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/contract-data.manifest.json",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/functions.manifest.json",
@@ -131,6 +126,11 @@
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/provider-bindings.json",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/provider-introspection.json",
       "packages/snapback-react/fixtures/conversation/app/snapback/generated/schema.manifest.json",
+      "src/local-persistent-store-publication.anchor.v1.json",
+      "src/local-persistent-store-publication.v1.json",
+      "src/local-relation-activity-publication.v1.json",
+      "src/local-sequence-allocation-publication.v1.json",
+      "src/manifest.rs",
       "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
@@ -140,41 +140,26 @@
       "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
       "tests/acceptance/latency-kanban-move3-v1-evidence.md",
       "tests/acceptance/triage-graph-move1-v1-evidence.md",
-      "BUDGET-CHARTER.md",
-      "FIX-CHARTER.md",
-      "MERGE-CHARTER.md",
-      "MERGE2-CHARTER.md",
-      "REPORT-budget.md",
-      "REPORT-fix2.md",
-      "REPORT-merge.md",
-      "REPORT-merge2.md",
-      "bootstrap.log",
-      "cli-tests.log",
-      "cli-tests2.log",
-      "client-tests.log",
-      "codegen-tests.log",
-      "codegen-tests2.log",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.ec030a934b9aeb097fca829c8eddd45efd3efb4adfa36e803e41fa0f85c7268e.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.b94a295dd0d9065432307c972ef5be9f3bd1a620d8b44ac3a9afee6126cf911a.json",
-      "finalize.log",
-      "mint-carrier-exit.log",
-      "mint-fleet-observatory-move1-v1.log",
-      "mint-latency-kanban-move3-v1.log",
-      "mint-triage-graph-move1-v1.log",
-      "mint2-carrier.log",
-      "mint2-fleet.log",
-      "mint2-kanban.log",
-      "mint2-triage.log",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.5e215bc317b34e7cdb168bfd7a559a74fd82a12fd41e61b4ec6869fbcef7f0c5.mjs",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.e971e33ad24157914400f0d0c15d590e4862e1f5ae95906ea401b6a9791c9b57.json",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.d86f8fd53ed4aac5e3e53533537b4a6f3e4c5612a89257acd852d8fb063990ee.mjs",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.e1385927d9f7f828b32ee7824fad3ac0b3f28705b7723cbaeb15470d2b8b12be.json",
-      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.1e2d19fa48d702f715ec082bcc691ff83db46a1369edcc9c326e8bb600d1b577.mjs",
-      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.846c89a95f83d4a9e5a667591eeaaf1772eecd5e91ecfc764257de0f14d9b72e.json",
-      "react-tests.log",
-      "rotation.log",
-      "rotation2.log",
-      "rotation3.log"
+      "tests/conformance/relation-activity-publication-v1.mjs",
+      "tests/conformance/sequence-allocation-publication-v1.mjs",
+      "KANBAN-CHARTER.md",
+      "REPORT-kanban.md",
+      "bd.log",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.fe51674fa7a7a00134e4732ae75f3fb911268cfc62d638e0ba387a23ffdfeaa0.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.02eb986133ac03638a2d4b773b39141e0938db5c4c2d6adcf210963dca5fd6d2.json",
+      "mint3-fleet-observatory-move1-v1.log",
+      "mint3-latency-kanban-move3-v1.log",
+      "mint3-local-store-carrier-exit-v1.log",
+      "mint3-triage-graph-move1-v1.log",
+      "mint3b-kanban.log",
+      "mint3c.log",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.e3d61fad7340bfadf1819ee4746c3c73532ae2647001a6ab685576fb2269467c.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.c4ca6897f4e9b9eed539d269060734c298738cbaae5955552c2a67f2f1f5e3f9.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.5b5e5acbca604005b08e1f137317440a4306287724bd409992b511c90ba05084.mjs",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.4508a6a5120cbc29ca49e7aa0fea22ee11bd5e4a1d821c8ad70b11019230b83b.json",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.binding.ecd4076a48bb74117a285dae4c17e09944ff1dbae88a833ac91ed889bb1226e1.mjs",
+      "packages/snapback-react/fixtures/conversation/app/snapback/generated/app.descriptor.97f9e2bd5be05c12ad0ff123fa9bfd081314e39eeb262d4ed3e2708d9f681751.json",
+      "rotation4.log"
     ],
     "files": [
       {
@@ -231,7 +216,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "f95b5ea420749cc26d5d485060447ed5cc9f67976e9a064759adf3f8d6829871"
+        "sha256": "9c692b9151a791caab29036d5fcdcf34983acf864177e71f44923221daf1b55e"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
@@ -243,7 +228,7 @@
       },
       {
         "path": "packages/snapback-contract/auth-coordinator.mjs",
-        "sha256": "7bb9211f794802214e30500f3eac3da0034b3ef560f2090df78027affd660c7b"
+        "sha256": "60b9b3132fd374e5547453f8482d41a2765870e0ef8cedeb25bad496f56d1dac"
       },
       {
         "path": "packages/snapback-contract/client-store.mjs",
@@ -267,19 +252,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "cdfaadf75d3b785cd8bf6852720e99cc38d965b1f54b51056916d0e95f0df998"
+        "sha256": "aa4094d255b8ae613d9a6f51d9c478bc662c9bb02d4f0b36b453954849e0b8bb"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "1aa9ac369c26bad68c311add62cf78df7e82ff5696c86c64873175adfef0c8ba"
+        "sha256": "300f80cae0322e393f9cec2f2c9fa658e948526464dab56d998bdcb3fc8d9a7b"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "d35bd4140d0ae4e4d877f20f79992e7930e392c81ba87004b1530b7e87a01323"
+        "sha256": "3f00d274f880704e0de5b5ddc73280d99c5a987bf3b5a3c07e20fc4721884c42"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "b5fee70b8ee9e23b5bc0e4ebc8ae4b105d52380e50702194f5322d661a74e009"
+        "sha256": "d53856f9e0728bb65bced1280fd21cdc81dd678dce660230c8e63969aa33d326"
       }
     ]
   },
@@ -303,10 +288,10 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 778309,
-    "gzipBytes": 214900,
-    "brotliBytes": 172316,
-    "sha256": "46bce039c6b56503d1691321417ae00c4bb9fa78a67488e545fd83ee4b092b38"
+    "minifiedBytes": 779553,
+    "gzipBytes": 215255,
+    "brotliBytes": 172742,
+    "sha256": "5e7f2a1906dfaccfd5394b720d30c83eb682b7279fdc15f8b9e4507db5abc568"
   },
   "modules": [
     {

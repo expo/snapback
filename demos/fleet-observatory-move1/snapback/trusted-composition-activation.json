@@ -2,28 +2,28 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v2",
-    "databaseId": "019ff771-2ddd-7ae3-b849-c6423304ae13",
+    "databaseId": "019ff9b4-0ea3-7501-a310-98f35bfbc2a0",
     "deploymentId": "fleet-observatory-move1-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
-    "authoredSourceHash": "sha256:7e0563724b952421c04dd791aa9aa04150c301dc5da451878732f3694d03a0cc",
+    "authoredSourceHash": "sha256:20090fae73790a1fe05a09dbcce48f80b24deedfda7fe2b06b04fdcc171dc754",
     "mintedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "fleet-observatory-move1",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:f83885b9663d0dd78ec1d16dc26b87e2029e2571756d5ce39aa5b1abe0b9881c",
-      "bundleHash": "snapback.v1:sessions:function:sha256:afae603d95c32ef1c990ed42dd967e827da477b842888a19d8ade60d2162e742",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:b60277d3a608df00950911df815f3e0ea5cf72f3787be5a2ae6ff274e6307708"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:eddaa8e153f5b92b58b032d14d797f5669917d3da949d56a24b41aaccb64ddf1",
+      "bundleHash": "snapback.v1:sessions:function:sha256:3baedcd8f766dc52b375602643867005389995a6ef58357645fb52cfb1d1101b",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:fcea109e71ba85a1a1104cb613664f73b38133160bac3041b8d58945ef922df8"
     },
-    "proofKeyManifestDigest": "sha256:9b6aa195e45622a7b2f6202cfeff977dd4925c44fb3a9ae2dd01eb0df13ae8d2"
+    "proofKeyManifestDigest": "sha256:e7d69f00ba6cc88c1291776c15d0c65e24b58320664490ed47e01bdb6dcdac61"
   },
-  "activationHash": "sha256:d7d229236af888b390b5d9f6f2db3e49a63bf679516f894c2a09efe8773cfa70",
+  "activationHash": "sha256:4f3cb1c7c32bfe0cfb86d03b2b9716c3053682a2004bb539057d3968162492e6",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1._ce-2Kai4idGf_s9X9NkJg",
+        "proofKeyId": "sbpk1.-ENnz0Y4MCrGPEfq3kgukw",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "Q0_Iu4gldN8y_vtI_B4_oW9SwlAYnHTntrNhna1ScCQ"
+        "publicKeyBase64url": "J3hA4yUd82WM-dmXqTERKWpkPuUyd39nyfr9i6pvixw"
       }
     ]
   }
