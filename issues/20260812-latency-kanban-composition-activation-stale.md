@@ -27,6 +27,35 @@ fails closed:
 codegen failed: no artifacts written (no silent stale output).
 ```
 
+## Definitive reproduction (fresh worktrees, both sides)
+
+Measured with `git worktree add --detach` + `bun install` on each side, so no
+per-worktree codegen cache or accumulated state is involved:
+
+```
+fresh worktree @ 8db9c4246 (immediately BEFORE the fixes commit)
+  fleet-observatory-move1: OK
+  latency-kanban:          OK
+  triage-graph:            OK
+
+fresh worktree @ a3d3cb645 (the fixes commit)
+  fleet-observatory-move1: FAIL
+  latency-kanban:          FAIL
+  triage-graph:            FAIL
+```
+
+**The mechanism is not yet pinned.** The commit does not touch those three
+demos' files at all, and its `packages/snapback-codegen/` changes are
+validation-only (they widen an allowed-key list and add a typed refusal for a
+bad `passwordIdentifierMode`); neither should alter output for an app that
+declares no `authProgram`. The commit does add `passwordIdentifierMode` to
+`schemas/schema.manifest.schema.json` and `src/contract_types.rs`, and the
+failing assertion is the `authMode` binding in
+`validateTrustedCompositionActivationV1` — but the chain from one to the other
+has not been demonstrated. Whoever picks this up should start by instrumenting
+which side of that comparison actually changed, rather than trusting the
+hypothesis above.
+
 ## Exact blast radius, measured against a clean origin/main checkout
 
 | Demo | clean `origin/main` | with the LLP 0227 codegen seam |
