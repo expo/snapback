@@ -1,7 +1,7 @@
 {
   "schemaVersion": "snapback.telemetry-phase1-evidence.v1",
-  "createdAt": "2026-08-11T23:19:50.838Z",
-  "sourceRevision": "13d72ba6d61ea914965d39dcabe4cf6beef595a9",
+  "createdAt": "2026-08-14T18:03:09.094Z",
+  "sourceRevision": "7023bd3a62478dc0a2d5c01bcef1302b85085e0c",
   "sourceInputs": {
     "algorithm": "sha256-length-framed-v1",
     "files": [
@@ -88,6 +88,8 @@
       "packages/snapback-cli/comparator-profile.test.mjs",
       "packages/snapback-cli/comparator-receipt.schema.json",
       "packages/snapback-cli/control-plane-registry.json",
+      "packages/snapback-cli/data-promotion.test.mjs",
+      "packages/snapback-cli/declaration-suggestion-cli.test.mjs",
       "packages/snapback-cli/deployment-control.d.mts",
       "packages/snapback-cli/deployment-control.mjs",
       "packages/snapback-cli/dev-cli-diagnostics.test.mjs",
@@ -105,35 +107,31 @@
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api-envelope.members.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.d.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.mjs",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.f1e1895a8f5ffe909333ddb5cd40039193b3bb466a439e693a0e4d842dfc069d.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.9d44dd93204b865783076845893de42ab178d0a15445581cd0a7a46e30c23873.mjs",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.binding.mjs",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.d.ts",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.7df874dc4b4a614b05292a24c2c4e4b3d84c3d83969dc2f406377ba06635884f.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.6b743ba474dfc3732d4700c0952cce563aba9966fe0054929444fb75dd00d719.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.descriptor.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/app.mjs",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/artifacts.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/capability.manifest.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/client-lifecycle.manifest.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/client-lifecycle.v1.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract-data.manifest.json",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/activityRows.query.contract-meta.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/activityRows.query.ts",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/fixturePresence.ephemeral.contract-meta.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/fixturePresence.ephemeral.ts",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/fixturePresence.publish.contract-meta.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/fixturePresence.publish.ts",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/liveRows.query.contract-meta.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/liveRows.query.ts",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/primaryRows.query.contract-meta.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/primaryRows.query.ts",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/publishLiveRow.mutation.contract-meta.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/publishLiveRow.mutation.ts",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/rejectInvalidWrite.mutation.contract-meta.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/rejectInvalidWrite.mutation.ts",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/rejectionRows.query.contract-meta.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/rejectionRows.query.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/runtime-links.ts",
-      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/writePrimaryAndActivity.mutation.contract-meta.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract/writePrimaryAndActivity.mutation.ts",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/functions.manifest.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/handler-runtime-profile.v1.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/handler-typescript-profile.v1.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/normalized-definition.v1.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/operations/activityRows.args.schema.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/operations/liveRows.args.schema.json",
       "packages/snapback-cli/fixtures/comparator/app/snapback/generated/operations/primaryRows.args.schema.json",
@@ -156,23 +154,25 @@
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api-envelope.members.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.d.ts",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.mjs",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.302d08a7e357e9cdfa3cbc20fe83eaac3a883c1921485a09f3753a643848d4c3.mjs",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.fe4681abe34f4937dcf0be66cd321fd61542344cb6c594df489351309d6a348e.mjs",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.binding.mjs",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.d.ts",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.409ecf120408b4e7cedec80879be660774f86f6cbeb7ad218931024ca86850dc.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.3e55185cc9bf0c4e32375b7b43d7b2472d3bb9ba4be9fe1a9d4df142f8ff8f00.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.descriptor.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/app.mjs",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/artifacts.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/capability.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/client-lifecycle.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/client-lifecycle.v1.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract-data.manifest.json",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract/joinAsHost.mutation.contract-meta.ts",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract/joinAsHost.mutation.ts",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract/leaveHost.mutation.contract-meta.ts",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract/leaveHost.mutation.ts",
-      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract/pushLedger.query.contract-meta.ts",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract/pushLedger.query.ts",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract/runtime-links.ts",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/functions.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/handler-runtime-profile.v1.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/handler-typescript-profile.v1.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/normalized-definition.v1.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/operations/joinAsHost.args.schema.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/operations/leaveHost.args.schema.json",
       "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/operations/pushLedger.args.schema.json",
@@ -186,6 +186,7 @@
       "packages/snapback-cli/fixtures/push-seam/app/snapback/schema.mjs",
       "packages/snapback-cli/fixtures/verify/minimal-profile.mjs",
       "packages/snapback-cli/fixtures/verify/snapback.verify.config.mjs",
+      "packages/snapback-cli/generate-check.test.mjs",
       "packages/snapback-cli/hosted-admission-producer.d.mts",
       "packages/snapback-cli/hosted-admission-producer.mjs",
       "packages/snapback-cli/hosted-admission-producer.test.mjs",
@@ -205,6 +206,7 @@
       "packages/snapback-cli/package.json",
       "packages/snapback-cli/package.test.mjs",
       "packages/snapback-cli/packaged-store-qualification.test.mjs",
+      "packages/snapback-cli/prepared-runtime-reuse.mjs",
       "packages/snapback-cli/process-teardown.mjs",
       "packages/snapback-cli/reference-lookup.mjs",
       "packages/snapback-cli/reference-lookup.test.mjs",
@@ -228,27 +230,21 @@
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/api-envelope.members.json",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/api.d.ts",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/api.mjs",
-      "packages/snapback-cli/templates/crud-dashboard/snapback/generated/app.binding.79e1151e7edbd83421ab25e9c2a09d9821f0fd4ffaa540c32afdb8b9c95908bf.mjs",
+      "packages/snapback-cli/templates/crud-dashboard/snapback/generated/app.binding.5a1939e1947fdc28e40af09878c0ef7eaa9c9e0843b461a39d36be88c13900ae.mjs",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/app.binding.mjs",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/app.d.ts",
-      "packages/snapback-cli/templates/crud-dashboard/snapback/generated/app.descriptor.3ac1fb685bd433c15b7269f18f2829f80848909d577a49002d4050bdf16bf2ad.json",
+      "packages/snapback-cli/templates/crud-dashboard/snapback/generated/app.descriptor.6f0d73c0f5a012696abf7ce083e8e136790df851d0c597686ae84200689d5110.json",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/app.descriptor.json",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/app.mjs",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/artifacts.json",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/capability.manifest.json",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract-data.manifest.json",
-      "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/createProject.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/createProject.mutation.ts",
-      "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/deleteProject.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/deleteProject.mutation.ts",
-      "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/listTeams.query.contract-meta.ts",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/listTeams.query.ts",
-      "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/projectDetail.query.contract-meta.ts",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/projectDetail.query.ts",
-      "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/projectDirectory.query.contract-meta.ts",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/projectDirectory.query.ts",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/runtime-links.ts",
-      "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/updateProject.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/contract/updateProject.mutation.ts",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/functions.manifest.json",
       "packages/snapback-cli/templates/crud-dashboard/snapback/generated/operations/createProject.args.schema.json",
@@ -286,43 +282,29 @@
       "packages/snapback-cli/templates/expo-chat/snapback/generated/api-envelope.members.json",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/api.d.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/api.mjs",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/app.binding.e2597fb9021e931ef2245a839fd5a6594ebce33dd514c79bea4b426ca59cf343.mjs",
+      "packages/snapback-cli/templates/expo-chat/snapback/generated/app.binding.b7f39da9e6a6e6f31045dfd662471da83100b4254d5fb96849d3ff41e87e4494.mjs",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/app.binding.mjs",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/app.d.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/app.descriptor.1db4eb3736cac15ccf7dc0304a14903c1300b240f5fa881ba387ab13bc6a04c1.json",
+      "packages/snapback-cli/templates/expo-chat/snapback/generated/app.descriptor.1b485399fa990391c4c1c8948f98a23471eeb4cd298c2e6b9a7d92275374993b.json",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/app.descriptor.json",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/app.mjs",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/artifacts.json",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/capability.manifest.json",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract-data.manifest.json",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/addReaction.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/addReaction.mutation.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/conversationDetails.query.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/conversationDetails.query.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/conversations.query.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/conversations.query.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/membershipsForConversation.query.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/membershipsForConversation.query.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/membershipsForUser.query.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/membershipsForUser.query.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/messagesForConversation.query.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/messagesForConversation.query.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/reactionsForConversation.query.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/reactionsForConversation.query.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/removeReaction.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/removeReaction.mutation.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/runtime-links.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/sendMessage.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/sendMessage.mutation.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/sendReply.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/sendReply.mutation.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/sendText.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/sendText.mutation.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/typing.ephemeral.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/typing.ephemeral.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/typing.publish.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/typing.publish.ts",
-      "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/users.query.contract-meta.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/contract/users.query.ts",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/functions.manifest.json",
       "packages/snapback-cli/templates/expo-chat/snapback/generated/operations/addReaction.args.schema.json",
@@ -369,20 +351,17 @@
       "packages/snapback-cli/templates/media-feed/snapback/generated/api-envelope.members.json",
       "packages/snapback-cli/templates/media-feed/snapback/generated/api.d.ts",
       "packages/snapback-cli/templates/media-feed/snapback/generated/api.mjs",
-      "packages/snapback-cli/templates/media-feed/snapback/generated/app.binding.9b485e746c9836e90fff8bd72fb02db58620ad5dc65aca57d28f28bc6d3b8af2.mjs",
+      "packages/snapback-cli/templates/media-feed/snapback/generated/app.binding.d161fc77869b11c437e62ce3022f594512c6ef467168a998564ab9d21515f53f.mjs",
       "packages/snapback-cli/templates/media-feed/snapback/generated/app.binding.mjs",
       "packages/snapback-cli/templates/media-feed/snapback/generated/app.d.ts",
-      "packages/snapback-cli/templates/media-feed/snapback/generated/app.descriptor.d0c5429ad5323cbab7db9cd75bbddca91ef1d24b6b8e29c4a2eb4c9852b08470.json",
+      "packages/snapback-cli/templates/media-feed/snapback/generated/app.descriptor.84862eefbe1c88fb660242e13cfbfcd83a38f2d0440cb7f66fb07deff8680475.json",
       "packages/snapback-cli/templates/media-feed/snapback/generated/app.descriptor.json",
       "packages/snapback-cli/templates/media-feed/snapback/generated/app.mjs",
       "packages/snapback-cli/templates/media-feed/snapback/generated/artifacts.json",
       "packages/snapback-cli/templates/media-feed/snapback/generated/capability.manifest.json",
       "packages/snapback-cli/templates/media-feed/snapback/generated/contract-data.manifest.json",
-      "packages/snapback-cli/templates/media-feed/snapback/generated/contract/createEntry.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/media-feed/snapback/generated/contract/createEntry.mutation.ts",
-      "packages/snapback-cli/templates/media-feed/snapback/generated/contract/liveFeed.query.contract-meta.ts",
       "packages/snapback-cli/templates/media-feed/snapback/generated/contract/liveFeed.query.ts",
-      "packages/snapback-cli/templates/media-feed/snapback/generated/contract/olderFeedPage.query.contract-meta.ts",
       "packages/snapback-cli/templates/media-feed/snapback/generated/contract/olderFeedPage.query.ts",
       "packages/snapback-cli/templates/media-feed/snapback/generated/contract/runtime-links.ts",
       "packages/snapback-cli/templates/media-feed/snapback/generated/functions.manifest.json",
@@ -412,18 +391,16 @@
       "packages/snapback-cli/templates/react/snapback/generated/api-envelope.members.json",
       "packages/snapback-cli/templates/react/snapback/generated/api.d.ts",
       "packages/snapback-cli/templates/react/snapback/generated/api.mjs",
-      "packages/snapback-cli/templates/react/snapback/generated/app.binding.15540d4ac75dc53a8bb51f7994aea753feb8467abdd5f2b4665f16b070131519.mjs",
+      "packages/snapback-cli/templates/react/snapback/generated/app.binding.e670beadacb19906d1cd1d58b4bee66da0ae1adf7cf058e4447e088e01eae0a6.mjs",
       "packages/snapback-cli/templates/react/snapback/generated/app.binding.mjs",
       "packages/snapback-cli/templates/react/snapback/generated/app.d.ts",
-      "packages/snapback-cli/templates/react/snapback/generated/app.descriptor.09a4bc54a63d43b7bcb0fea29efbf6f4861eff551c7cf0dc4d35ca0bdeaee822.json",
+      "packages/snapback-cli/templates/react/snapback/generated/app.descriptor.342527335cdbd000f0d61723a986ce774ba4063482a496b2d43f06b806ce46da.json",
       "packages/snapback-cli/templates/react/snapback/generated/app.descriptor.json",
       "packages/snapback-cli/templates/react/snapback/generated/app.mjs",
       "packages/snapback-cli/templates/react/snapback/generated/artifacts.json",
       "packages/snapback-cli/templates/react/snapback/generated/capability.manifest.json",
       "packages/snapback-cli/templates/react/snapback/generated/contract-data.manifest.json",
-      "packages/snapback-cli/templates/react/snapback/generated/contract/createTodo.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/react/snapback/generated/contract/createTodo.mutation.ts",
-      "packages/snapback-cli/templates/react/snapback/generated/contract/listTodos.query.contract-meta.ts",
       "packages/snapback-cli/templates/react/snapback/generated/contract/listTodos.query.ts",
       "packages/snapback-cli/templates/react/snapback/generated/contract/runtime-links.ts",
       "packages/snapback-cli/templates/react/snapback/generated/functions.manifest.json",
@@ -455,18 +432,16 @@
       "packages/snapback-cli/templates/todo-contract/snapback/generated/api-envelope.members.json",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/api.d.ts",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/api.mjs",
-      "packages/snapback-cli/templates/todo-contract/snapback/generated/app.binding.f8171c4110924ccf56269ea37bb765bcb5380eea6faf5c02f338d3fc123f6d7f.mjs",
+      "packages/snapback-cli/templates/todo-contract/snapback/generated/app.binding.ec6173c9b525398396564c19a39d3f06943056e5b7a104f737dd0de8b9199754.mjs",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/app.binding.mjs",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/app.d.ts",
-      "packages/snapback-cli/templates/todo-contract/snapback/generated/app.descriptor.0cc743bcdba1052604e00943b5e6c65c796bd481b4052bf7e3bfeb11a3243450.json",
+      "packages/snapback-cli/templates/todo-contract/snapback/generated/app.descriptor.0811044ccb4f29103ee369e0b737cb055b429faa7701e248f26d8dbad55a3c71.json",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/app.descriptor.json",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/app.mjs",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/artifacts.json",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/capability.manifest.json",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/contract-data.manifest.json",
-      "packages/snapback-cli/templates/todo-contract/snapback/generated/contract/createTodo.mutation.contract-meta.ts",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/contract/createTodo.mutation.ts",
-      "packages/snapback-cli/templates/todo-contract/snapback/generated/contract/listTodos.query.contract-meta.ts",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/contract/listTodos.query.ts",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/contract/runtime-links.ts",
       "packages/snapback-cli/templates/todo-contract/snapback/generated/functions.manifest.json",
@@ -500,27 +475,54 @@
       "packages/snapback-codegen/auth-artifacts.test.mjs",
       "packages/snapback-codegen/auth-crypto-vectors.test.mjs",
       "packages/snapback-codegen/authoring-validation.test.mjs",
+      "packages/snapback-codegen/client-lifecycle.d.mts",
+      "packages/snapback-codegen/client-lifecycle.mjs",
+      "packages/snapback-codegen/client-lifecycle.schema.json",
+      "packages/snapback-codegen/client-lifecycle.test.mjs",
       "packages/snapback-codegen/codegen-policy.schema.json",
       "packages/snapback-codegen/codegen-summary.d.mts",
       "packages/snapback-codegen/codegen-summary.mjs",
       "packages/snapback-codegen/contract-binding-reads.test.mjs",
       "packages/snapback-codegen/contract-emitter.d.mts",
       "packages/snapback-codegen/contract-emitter.mjs",
+      "packages/snapback-codegen/contract-output-mode.test.mjs",
       "packages/snapback-codegen/ctx.d.mts",
+      "packages/snapback-codegen/data-query.mjs",
+      "packages/snapback-codegen/data-query.test.mjs",
+      "packages/snapback-codegen/data-resource-types.fixture.ts",
+      "packages/snapback-codegen/data-resource.mjs",
+      "packages/snapback-codegen/data-resource.test.mjs",
       "packages/snapback-codegen/data-tier-corpus.mjs",
       "packages/snapback-codegen/data-tier-corpus.test.mjs",
+      "packages/snapback-codegen/data-transaction.mjs",
+      "packages/snapback-codegen/data-transaction.test.mjs",
+      "packages/snapback-codegen/declaration-suggestion.d.mts",
+      "packages/snapback-codegen/declaration-suggestion.mjs",
+      "packages/snapback-codegen/declaration-suggestion.schema.json",
+      "packages/snapback-codegen/declaration-suggestion.test.mjs",
       "packages/snapback-codegen/define.d.ts",
       "packages/snapback-codegen/define.mjs",
       "packages/snapback-codegen/dependency-graph.test.mjs",
       "packages/snapback-codegen/effect-ceiling.mjs",
       "packages/snapback-codegen/effect-ceiling.test.mjs",
+      "packages/snapback-codegen/familiar-dispositions.mjs",
+      "packages/snapback-codegen/familiar-phase-a.test.mjs",
+      "packages/snapback-codegen/familiar-phase-b.test.mjs",
+      "packages/snapback-codegen/familiar.d.mts",
+      "packages/snapback-codegen/familiar.mjs",
       "packages/snapback-codegen/file-read-capability.mjs",
+      "packages/snapback-codegen/fixtures/semantic-generation-golden.v1.json",
       "packages/snapback-codegen/function-id.test.mjs",
       "packages/snapback-codegen/generate-worker.mjs",
       "packages/snapback-codegen/generated-mutation-ir.test.mjs",
       "packages/snapback-codegen/generation-lock.mjs",
       "packages/snapback-codegen/generation-lock.test.mjs",
       "packages/snapback-codegen/guide-pointer.test.mjs",
+      "packages/snapback-codegen/handler-graph-parity.test.mjs",
+      "packages/snapback-codegen/handler-runtime-profile.d.mts",
+      "packages/snapback-codegen/handler-runtime-profile.mjs",
+      "packages/snapback-codegen/handler-runtime-profile.test.mjs",
+      "packages/snapback-codegen/handler-typescript-profile.schema.json",
       "packages/snapback-codegen/history-authoring-types.fixture.ts",
       "packages/snapback-codegen/identifier-validation.test.mjs",
       "packages/snapback-codegen/index.d.mts",
@@ -531,6 +533,7 @@
       "packages/snapback-codegen/jobs-authoring.test.mjs",
       "packages/snapback-codegen/live-search-authoring.test.mjs",
       "packages/snapback-codegen/maintained-projections.test.mjs",
+      "packages/snapback-codegen/media-field-authoring.test.mjs",
       "packages/snapback-codegen/membership-search-authoring.test.mjs",
       "packages/snapback-codegen/micro-profile.test.mjs",
       "packages/snapback-codegen/mixed-route-v2.test.mjs",
@@ -561,6 +564,7 @@
       "packages/snapback-codegen/review-surface.mjs",
       "packages/snapback-codegen/review-surface.test.mjs",
       "packages/snapback-codegen/schema-reference-type-flow.test.mjs",
+      "packages/snapback-codegen/scripts/declaration-suggestion-rollout.mjs",
       "packages/snapback-codegen/search-ast-fixtures.test.mjs",
       "packages/snapback-codegen/search-request-schema.mjs",
       "packages/snapback-codegen/search-result-contracts.test.mjs",
@@ -568,6 +572,9 @@
       "packages/snapback-codegen/seed-artifact.mjs",
       "packages/snapback-codegen/seed-artifact.test.mjs",
       "packages/snapback-codegen/seed-asset-fixtures.test.mjs",
+      "packages/snapback-codegen/semantic-generation-golden.test.mjs",
+      "packages/snapback-codegen/semantic-generation-rotation.test.mjs",
+      "packages/snapback-codegen/semantic-generation.mjs",
       "packages/snapback-codegen/sequence-authoring.test.mjs",
       "packages/snapback-codegen/settlement-bounded-skew.test.mjs",
       "packages/snapback-codegen/snapshot-batch-v2-authoring.test.mjs",
@@ -579,6 +586,9 @@
       "packages/snapback-codegen/structured-stored-values.test.mjs",
       "packages/snapback-codegen/table-visibility-authoring.test.mjs",
       "packages/snapback-codegen/typed-search-wrapper.test.mjs",
+      "packages/snapback-codegen/typescript-profile.mjs",
+      "packages/snapback-codegen/typescript-profile.test.mjs",
+      "packages/snapback-codegen/typescript-transform.mjs",
       "packages/snapback-codegen/vector-authoring-types.fixture.ts",
       "packages/snapback-codegen/vector-authoring.test.mjs",
       "packages/snapback-codegen/vector-distance-profile.test.mjs",
@@ -725,6 +735,7 @@
       "src/operation_detail.rs",
       "src/operation_ledger.rs",
       "src/operational_readiness.rs",
+      "src/outbound_policy.rs",
       "src/owner_only_file.rs",
       "src/proof_checkpoint.rs",
       "src/push.rs",
@@ -844,13 +855,13 @@
       "tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json",
       "tests/acceptance/telemetry-phase1-evidence-policy.v1.json"
     ],
-    "digest": "a303e2c99ecf3018749d28f347662d337e52329d80e34f8bc2aff1c099be5d77"
+    "digest": "4d9f9f87796e6d06e9fb5c59024229366e168eb17ebd399d541c83db8cf42744"
   },
   "benchmark": {
     "schemaVersion": "snapback.telemetry-phase1-benchmark.v2",
     "method": "snapback.telemetry-phase1.method.v3:http-alternation+default-event-worker+buffer-burst+c8-file-cap+direct-transaction-sequenced-flush+wal-checkpoint+retention-sweep+hourly-daily-rollup-scan+file-backed-ibex-on-off-midpoint-worker",
     "environment": {
-      "buildCommit": "13d72ba6d61ea914965d39dcabe4cf6beef595a9",
+      "buildCommit": "7023bd3a62478dc0a2d5c01bcef1302b85085e0c",
       "buildDirty": false,
       "os": "linux",
       "architecture": "x86_64",
@@ -885,7 +896,7 @@
       "droppedEvents": 9216,
       "reservedEventsRetained": 1024,
       "reservedCapacity": 1024,
-      "enqueueUsPerEvent": 0.5723324908088235
+      "enqueueUsPerEvent": 0.6754161879595588
     },
     "eventArmedWorker": {
       "defaultBatchSize": 256,
@@ -896,9 +907,9 @@
       "flushWait": {
         "samples": 12,
         "workPerSample": 256,
-        "p50Ms": 3.649794,
-        "p95Ms": 4.572533,
-        "maxMs": 12.776829
+        "p50Ms": 4.527756,
+        "p95Ms": 4.572812,
+        "maxMs": 14.760912
       }
     },
     "fileCap": {
@@ -913,21 +924,21 @@
     "flush": {
       "samples": 24,
       "workPerSample": 256,
-      "p50Ms": 1.00395,
-      "p95Ms": 1.0353809999999999,
-      "maxMs": 7.7292380000000005
+      "p50Ms": 1.183185,
+      "p95Ms": 1.236633,
+      "maxMs": 10.272297
     },
     "checkpoint": {
       "samples": 24,
       "workPerSample": 256,
-      "p50Ms": 2.670459,
-      "p95Ms": 5.689293,
-      "maxMs": 6.675312
+      "p50Ms": 3.233741,
+      "p95Ms": 4.729112,
+      "maxMs": 4.867752
     },
     "sweep": {
       "rowsBefore": 10000,
       "rowsAfter": 0,
-      "latencyMs": 21.834038,
+      "latencyMs": 28.520607,
       "walBytesAfter": 0
     },
     "queries": {
@@ -939,39 +950,39 @@
       "eventPage": {
         "samples": 50,
         "workPerSample": 100,
-        "p50Ms": 8.159031,
-        "p95Ms": 9.28349,
-        "maxMs": 9.544794000000001
+        "p50Ms": 9.918293,
+        "p95Ms": 10.24038,
+        "maxMs": 10.418901
       },
       "stats": {
         "samples": 50,
         "workPerSample": 9600,
-        "p50Ms": 23.675153,
-        "p95Ms": 26.317678,
-        "maxMs": 31.82052
+        "p50Ms": 28.96071,
+        "p95Ms": 30.171462,
+        "maxMs": 31.633152999999997
       }
     },
     "appLatency": {
       "samplesEach": 800,
       "workerFlushSentinelSample": 600,
-      "workerFlushedRowsAtSentinel": 507,
-      "workerFlushedRowsBeforeFinalDrain": 711,
+      "workerFlushedRowsAtSentinel": 587,
+      "workerFlushedRowsBeforeFinalDrain": 753,
       "telemetryOn": {
         "samples": 800,
         "workPerSample": 1,
-        "p50Ms": 14.650832000000001,
-        "p95Ms": 16.272691,
-        "maxMs": 18.429674
+        "p50Ms": 18.040449,
+        "p95Ms": 18.761255000000002,
+        "maxMs": 24.461156000000003
       },
       "telemetryOff": {
         "samples": 800,
         "workPerSample": 1,
-        "p50Ms": 14.700046,
-        "p95Ms": 16.263865999999997,
-        "maxMs": 21.024619
+        "p50Ms": 18.037344,
+        "p95Ms": 18.834551,
+        "maxMs": 25.092915
       },
-      "p50OverheadPercent": -0.33478806801011673,
-      "p95OverheadPercent": 0.05426139147974851
+      "p50OverheadPercent": 0.017214286094446862,
+      "p95OverheadPercent": -0.38915713998172174
     }
   },
   "idle": {
@@ -984,14 +995,14 @@
         "verdict": "verified",
         "mismatches": [],
         "binary": {
-          "gitCommit": "13d72ba6d61ea914965d39dcabe4cf6beef595a9",
+          "gitCommit": "7023bd3a62478dc0a2d5c01bcef1302b85085e0c",
           "gitDirty": false,
           "crateVersion": "0.1.0",
           "buildProfile": "release",
-          "startupNonce": "019ff31e-0ef1-7bd0-a8f1-0e156519a0b1"
+          "startupNonce": "01a0016f-3110-73d1-ae03-04c5e339d5bf"
         },
         "expected": {
-          "gitCommit": "13d72ba6d61ea914965d39dcabe4cf6beef595a9",
+          "gitCommit": "7023bd3a62478dc0a2d5c01bcef1302b85085e0c",
           "gitDirty": false,
           "crateVersion": "0.1.0"
         }
@@ -1006,7 +1017,7 @@
       "terminalQuietMs": 6000,
       "sampleIntervalMs": 250,
       "observedMutationCount": 3,
-      "lastMutationAfterReadyMs": 3304,
+      "lastMutationAfterReadyMs": 3305,
       "terminalWithinBound": true,
       "policy": {
         "exactProcessStartCount": 1,
@@ -1016,14 +1027,14 @@
         "maxPersistedEvents": 4
       },
       "preSpawnSnapshot": {
-        "digest": "ffa71185000b09a9761d7f9c9fdce6e72759d78bf3d1ce884cfb0aaacfc608d5",
+        "digest": "60c020219a4146960c4a17a9a3a8e70b5b79d995ba01805cf03b529af2b098e7",
         "entries": {
           "startup-artifacts.json": {
             "type": "file",
-            "bytes": 16383,
+            "bytes": 16467,
             "mode": 33152,
-            "mtimeNs": "1786490260996383787",
-            "sha256": "3add8bf3ce57ed96c3cc80322b577c4022325a8e5fab3db92a9ab40dd7b043d5"
+            "mtimeNs": "1786730459127901190",
+            "sha256": "e85d1f16cfaa759f3310e464505081dca93efe4a3e794467daf6654a7e217804"
           }
         }
       },
@@ -1043,7 +1054,7 @@
           ]
         },
         {
-          "afterReadyMs": 3028,
+          "afterReadyMs": 3034,
           "paths": [
             "app.sqlite3.telemetry",
             "app.sqlite3.telemetry-shm",
@@ -1051,14 +1062,14 @@
           ]
         },
         {
-          "afterReadyMs": 3304,
+          "afterReadyMs": 3305,
           "paths": [
             "app.sqlite3.telemetry-shm"
           ]
         }
       ],
       "lifecycle": {
-        "watermark": 1786490264234,
+        "watermark": 1786730462409,
         "processStartCount": 1,
         "processReadyCount": 1,
         "eventCount": 4,
@@ -1068,56 +1079,56 @@
         "flushCommitSequence": 1
       },
       "terminalSnapshot": {
-        "digest": "71e7dbf0113f1cf9182922cd6de7a066a727d2466c7ef5531fd0f6d34a9fafaf",
+        "digest": "5b352577c359e59af9722b3a32ecc506cb4f6bf2dd0ddca3086860d2e4bc3d05",
         "entries": {
           "app.sqlite3": {
             "type": "file",
             "bytes": 4096,
             "mode": 33188,
-            "mtimeNs": "1786490261138383762",
+            "mtimeNs": "1786730459306901189",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33188,
-            "mtimeNs": "1786490261141383761",
-            "sha256": "78a28163c520737a737b7e020a35e9b4856b0e5a56127a6f70dd6275dd5e06c4"
+            "mtimeNs": "1786730459309901189",
+            "sha256": "fefa3430449e05d0e006590c379ba5e02a757c7d62090fec07ba7e45a0cccc95"
           },
           "app.sqlite3-wal": {
             "type": "file",
-            "bytes": 1421432,
+            "bytes": 1417312,
             "mode": 33188,
-            "mtimeNs": "1786490261283383736",
-            "sha256": "cc494bd32edbc6348376363ffa919e8ddcff53cc13a7b298892e9fa4a427318b"
+            "mtimeNs": "1786730459469901188",
+            "sha256": "94052337bc7dc669a611ff7aae25050d5be2cbc9b7f4b243b3002eb43eb467fa"
           },
           "app.sqlite3.snapback.lock": {
             "type": "file",
             "bytes": 192,
             "mode": 33152,
-            "mtimeNs": "1786490261287383736",
-            "sha256": "06cd00d53e13216d592d41521bae75331fa1401a3140cc63573bf0b28cb9a9b3"
+            "mtimeNs": "1786730459474901188",
+            "sha256": "f3c45ad65d2183c19b84b0991d6b94cc2c9f15296358fc426ee0d41af07f742a"
           },
           "app.sqlite3.telemetry": {
             "type": "file",
             "bytes": 4096,
             "mode": 33152,
-            "mtimeNs": "1786490264275383209",
+            "mtimeNs": "1786730462450901171",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3.telemetry-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33152,
-            "mtimeNs": "1786490264434383181",
-            "sha256": "6ea46a3ad812cc3feb08c7204d0c141a088cece5099200dd54f0fcfa4c6f820f"
+            "mtimeNs": "1786730462663901170",
+            "sha256": "f9cf5aa2f88a5796fc6bd019fdddc5a1666f90c6d00a59e10edd633e04383540"
           },
           "app.sqlite3.telemetry-wal": {
             "type": "file",
             "bytes": 341992,
             "mode": 33152,
-            "mtimeNs": "1786490264279383208",
-            "sha256": "f82404bb7a75ee3ce8cc61212d58d5d94e92e33a2e2fdf78bd6cdc0591fcc71d"
+            "mtimeNs": "1786730462456901171",
+            "sha256": "3ab4d41343350fa7c6aa21e9155b19b7ce160b8aa5b40bcfd6eead55265fffbe"
           },
           "assets/": {
             "type": "directory",
@@ -1135,22 +1146,22 @@
             "type": "file",
             "bytes": 231,
             "mode": 33152,
-            "mtimeNs": "1786490261230383746",
-            "sha256": "83f93c41000b8a4b92d9f65440ced79acf2d4ac467aa65eee67d68925f6a7317"
+            "mtimeNs": "1786730459405901189",
+            "sha256": "28bd80fc51338c12b239f529ce1498507b7f6fe8301c6ca345f1a22436c46f22"
           },
           "resume-keyring.json": {
             "type": "file",
             "bytes": 151,
             "mode": 33152,
-            "mtimeNs": "1786490261229383746",
-            "sha256": "888bcf1222becfb1343694df24721dfd8454ab5cee137b2d6d064e7abaf4322c"
+            "mtimeNs": "1786730459404901189",
+            "sha256": "197e12d23764209adcb06b7fcf0893a1badc3b1e795366b842c2b14d62eb3edf"
           },
           "startup-artifacts.json": {
             "type": "file",
-            "bytes": 16383,
+            "bytes": 16467,
             "mode": 33152,
-            "mtimeNs": "1786490260996383787",
-            "sha256": "3add8bf3ce57ed96c3cc80322b577c4022325a8e5fab3db92a9ab40dd7b043d5"
+            "mtimeNs": "1786730459127901190",
+            "sha256": "e85d1f16cfaa759f3310e464505081dca93efe4a3e794467daf6654a7e217804"
           }
         }
       }
@@ -1161,56 +1172,56 @@
       "storageMutationObservationCount": 0,
       "storageMutations": [],
       "startSnapshot": {
-        "digest": "71e7dbf0113f1cf9182922cd6de7a066a727d2466c7ef5531fd0f6d34a9fafaf",
+        "digest": "5b352577c359e59af9722b3a32ecc506cb4f6bf2dd0ddca3086860d2e4bc3d05",
         "entries": {
           "app.sqlite3": {
             "type": "file",
             "bytes": 4096,
             "mode": 33188,
-            "mtimeNs": "1786490261138383762",
+            "mtimeNs": "1786730459306901189",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33188,
-            "mtimeNs": "1786490261141383761",
-            "sha256": "78a28163c520737a737b7e020a35e9b4856b0e5a56127a6f70dd6275dd5e06c4"
+            "mtimeNs": "1786730459309901189",
+            "sha256": "fefa3430449e05d0e006590c379ba5e02a757c7d62090fec07ba7e45a0cccc95"
           },
           "app.sqlite3-wal": {
             "type": "file",
-            "bytes": 1421432,
+            "bytes": 1417312,
             "mode": 33188,
-            "mtimeNs": "1786490261283383736",
-            "sha256": "cc494bd32edbc6348376363ffa919e8ddcff53cc13a7b298892e9fa4a427318b"
+            "mtimeNs": "1786730459469901188",
+            "sha256": "94052337bc7dc669a611ff7aae25050d5be2cbc9b7f4b243b3002eb43eb467fa"
           },
           "app.sqlite3.snapback.lock": {
             "type": "file",
             "bytes": 192,
             "mode": 33152,
-            "mtimeNs": "1786490261287383736",
-            "sha256": "06cd00d53e13216d592d41521bae75331fa1401a3140cc63573bf0b28cb9a9b3"
+            "mtimeNs": "1786730459474901188",
+            "sha256": "f3c45ad65d2183c19b84b0991d6b94cc2c9f15296358fc426ee0d41af07f742a"
           },
           "app.sqlite3.telemetry": {
             "type": "file",
             "bytes": 4096,
             "mode": 33152,
-            "mtimeNs": "1786490264275383209",
+            "mtimeNs": "1786730462450901171",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3.telemetry-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33152,
-            "mtimeNs": "1786490264434383181",
-            "sha256": "6ea46a3ad812cc3feb08c7204d0c141a088cece5099200dd54f0fcfa4c6f820f"
+            "mtimeNs": "1786730462663901170",
+            "sha256": "f9cf5aa2f88a5796fc6bd019fdddc5a1666f90c6d00a59e10edd633e04383540"
           },
           "app.sqlite3.telemetry-wal": {
             "type": "file",
             "bytes": 341992,
             "mode": 33152,
-            "mtimeNs": "1786490264279383208",
-            "sha256": "f82404bb7a75ee3ce8cc61212d58d5d94e92e33a2e2fdf78bd6cdc0591fcc71d"
+            "mtimeNs": "1786730462456901171",
+            "sha256": "3ab4d41343350fa7c6aa21e9155b19b7ce160b8aa5b40bcfd6eead55265fffbe"
           },
           "assets/": {
             "type": "directory",
@@ -1228,76 +1239,76 @@
             "type": "file",
             "bytes": 231,
             "mode": 33152,
-            "mtimeNs": "1786490261230383746",
-            "sha256": "83f93c41000b8a4b92d9f65440ced79acf2d4ac467aa65eee67d68925f6a7317"
+            "mtimeNs": "1786730459405901189",
+            "sha256": "28bd80fc51338c12b239f529ce1498507b7f6fe8301c6ca345f1a22436c46f22"
           },
           "resume-keyring.json": {
             "type": "file",
             "bytes": 151,
             "mode": 33152,
-            "mtimeNs": "1786490261229383746",
-            "sha256": "888bcf1222becfb1343694df24721dfd8454ab5cee137b2d6d064e7abaf4322c"
+            "mtimeNs": "1786730459404901189",
+            "sha256": "197e12d23764209adcb06b7fcf0893a1badc3b1e795366b842c2b14d62eb3edf"
           },
           "startup-artifacts.json": {
             "type": "file",
-            "bytes": 16383,
+            "bytes": 16467,
             "mode": 33152,
-            "mtimeNs": "1786490260996383787",
-            "sha256": "3add8bf3ce57ed96c3cc80322b577c4022325a8e5fab3db92a9ab40dd7b043d5"
+            "mtimeNs": "1786730459127901190",
+            "sha256": "e85d1f16cfaa759f3310e464505081dca93efe4a3e794467daf6654a7e217804"
           }
         }
       },
       "endSnapshot": {
-        "digest": "71e7dbf0113f1cf9182922cd6de7a066a727d2466c7ef5531fd0f6d34a9fafaf",
+        "digest": "5b352577c359e59af9722b3a32ecc506cb4f6bf2dd0ddca3086860d2e4bc3d05",
         "entries": {
           "app.sqlite3": {
             "type": "file",
             "bytes": 4096,
             "mode": 33188,
-            "mtimeNs": "1786490261138383762",
+            "mtimeNs": "1786730459306901189",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33188,
-            "mtimeNs": "1786490261141383761",
-            "sha256": "78a28163c520737a737b7e020a35e9b4856b0e5a56127a6f70dd6275dd5e06c4"
+            "mtimeNs": "1786730459309901189",
+            "sha256": "fefa3430449e05d0e006590c379ba5e02a757c7d62090fec07ba7e45a0cccc95"
           },
           "app.sqlite3-wal": {
             "type": "file",
-            "bytes": 1421432,
+            "bytes": 1417312,
             "mode": 33188,
-            "mtimeNs": "1786490261283383736",
-            "sha256": "cc494bd32edbc6348376363ffa919e8ddcff53cc13a7b298892e9fa4a427318b"
+            "mtimeNs": "1786730459469901188",
+            "sha256": "94052337bc7dc669a611ff7aae25050d5be2cbc9b7f4b243b3002eb43eb467fa"
           },
           "app.sqlite3.snapback.lock": {
             "type": "file",
             "bytes": 192,
             "mode": 33152,
-            "mtimeNs": "1786490261287383736",
-            "sha256": "06cd00d53e13216d592d41521bae75331fa1401a3140cc63573bf0b28cb9a9b3"
+            "mtimeNs": "1786730459474901188",
+            "sha256": "f3c45ad65d2183c19b84b0991d6b94cc2c9f15296358fc426ee0d41af07f742a"
           },
           "app.sqlite3.telemetry": {
             "type": "file",
             "bytes": 4096,
             "mode": 33152,
-            "mtimeNs": "1786490264275383209",
+            "mtimeNs": "1786730462450901171",
             "sha256": "204f9b3c487346c1a41195dfb82bb3014d9725af5bc2ac3cc4fa41f63bc03565"
           },
           "app.sqlite3.telemetry-shm": {
             "type": "file",
             "bytes": 32768,
             "mode": 33152,
-            "mtimeNs": "1786490264434383181",
-            "sha256": "6ea46a3ad812cc3feb08c7204d0c141a088cece5099200dd54f0fcfa4c6f820f"
+            "mtimeNs": "1786730462663901170",
+            "sha256": "f9cf5aa2f88a5796fc6bd019fdddc5a1666f90c6d00a59e10edd633e04383540"
           },
           "app.sqlite3.telemetry-wal": {
             "type": "file",
             "bytes": 341992,
             "mode": 33152,
-            "mtimeNs": "1786490264279383208",
-            "sha256": "f82404bb7a75ee3ce8cc61212d58d5d94e92e33a2e2fdf78bd6cdc0591fcc71d"
+            "mtimeNs": "1786730462456901171",
+            "sha256": "3ab4d41343350fa7c6aa21e9155b19b7ce160b8aa5b40bcfd6eead55265fffbe"
           },
           "assets/": {
             "type": "directory",
@@ -1315,27 +1326,27 @@
             "type": "file",
             "bytes": 231,
             "mode": 33152,
-            "mtimeNs": "1786490261230383746",
-            "sha256": "83f93c41000b8a4b92d9f65440ced79acf2d4ac467aa65eee67d68925f6a7317"
+            "mtimeNs": "1786730459405901189",
+            "sha256": "28bd80fc51338c12b239f529ce1498507b7f6fe8301c6ca345f1a22436c46f22"
           },
           "resume-keyring.json": {
             "type": "file",
             "bytes": 151,
             "mode": 33152,
-            "mtimeNs": "1786490261229383746",
-            "sha256": "888bcf1222becfb1343694df24721dfd8454ab5cee137b2d6d064e7abaf4322c"
+            "mtimeNs": "1786730459404901189",
+            "sha256": "197e12d23764209adcb06b7fcf0893a1badc3b1e795366b842c2b14d62eb3edf"
           },
           "startup-artifacts.json": {
             "type": "file",
-            "bytes": 16383,
+            "bytes": 16467,
             "mode": 33152,
-            "mtimeNs": "1786490260996383787",
-            "sha256": "3add8bf3ce57ed96c3cc80322b577c4022325a8e5fab3db92a9ab40dd7b043d5"
+            "mtimeNs": "1786730459127901190",
+            "sha256": "e85d1f16cfaa759f3310e464505081dca93efe4a3e794467daf6654a7e217804"
           }
         }
       },
       "startLifecycle": {
-        "watermark": 1786490264234,
+        "watermark": 1786730462409,
         "processStartCount": 1,
         "processReadyCount": 1,
         "eventCount": 4,
@@ -1345,7 +1356,7 @@
         "flushCommitSequence": 1
       },
       "endLifecycle": {
-        "watermark": 1786490264234,
+        "watermark": 1786730462409,
         "processStartCount": 1,
         "processReadyCount": 1,
         "eventCount": 4,
@@ -1361,8 +1372,8 @@
         "userTicksDelta": 1,
         "systemTicksDelta": 0,
         "cpuTicksDelta": 1,
-        "rssPagesStart": 13567,
-        "rssPagesEnd": 13567,
+        "rssPagesStart": 14083,
+        "rssPagesEnd": 14083,
         "rssPagesDelta": 0,
         "rssGrowthPages": 0,
         "rssKbStart": null,
