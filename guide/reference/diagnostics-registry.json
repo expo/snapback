@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:fe67dd4a4f50dd3d52c7d1ada3337ce2ab10f45ef85134ac5f74e0d850cd000d"
+    "sourceDigest": "sha256:e7f99baaa4a1777d5d6e054a12f436ec9bf1917291b454624076c64115ea8391"
   },
   "limits": {
     "lookupBytes": 16384
@@ -38783,8 +38783,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/data/resources.md#recover-from-data-resource-refusals",
+      "guideAnchor": "/_snapback/guide/data/promotion.md#promote-a-generated-data-operation-into-your-function-profile",
       "guideAnchors": [
+        "/_snapback/guide/data/promotion.md#promote-a-generated-data-operation-into-your-function-profile",
         "/_snapback/guide/data/resources.md#recover-from-data-resource-refusals"
       ]
     },

@@ -1311,7 +1311,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-data-patch-target-refused"></a>`SNAPBACK_DATA_PATCH_TARGET_REFUSED` | server | — | [guide](../operating/data-patch.md#know-where-the-operation-is-refused) | `src/data_patch.rs:445` | 5 |
 | <a id="diagnostic-snapback-data-patch-unknown-field"></a>`SNAPBACK_DATA_PATCH_UNKNOWN_FIELD` | server | — | — | `src/data_patch.rs:524` | 1 |
 | <a id="diagnostic-snapback-data-patch-validation-failed"></a>`SNAPBACK_DATA_PATCH_VALIDATION_FAILED` | server | — | — | `src/data_patch.rs:540` | 4 |
-| <a id="diagnostic-snapback-data-promotion-refused"></a>`SNAPBACK_DATA_PROMOTION_REFUSED` | cli | — | [guide](../data/resources.md#recover-from-data-resource-refusals) | `packages/snapback-cli/index.mjs:3530` | 3 |
+| <a id="diagnostic-snapback-data-promotion-refused"></a>`SNAPBACK_DATA_PROMOTION_REFUSED` | cli | — | [guide](../data/promotion.md#promote-a-generated-data-operation-into-your-function-profile) | `packages/snapback-cli/index.mjs:3530` | 3 |
 | <a id="diagnostic-snapback-data-query-bound-exceeded"></a>`SNAPBACK_DATA_QUERY_BOUND_EXCEEDED` | codegen | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-codegen/data-query.mjs:46` | 13 |
 | <a id="diagnostic-snapback-data-query-capability-unavailable"></a>`SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE` | client | — | [guide](../data/resources.md#recover-from-data-resource-refusals) | `packages/snapback-client/data-client.mjs:152` | 6 |
 | <a id="diagnostic-snapback-data-query-name-collision"></a>`SNAPBACK_DATA_QUERY_NAME_COLLISION` | codegen | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-codegen/data-query.mjs:49` | 4 |
