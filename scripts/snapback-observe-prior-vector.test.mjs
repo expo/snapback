@@ -13,6 +13,7 @@ import {
   validateObservedPriorVector,
 } from '../packages/snapback-publication-authority/request.mjs';
 import {
+  npmResultIsPackageNotFound,
   PROMOTION_PACKAGE_NAMES,
 } from './snapback-publish-core.mjs';
 import {
@@ -84,6 +85,30 @@ test('observer records never-published packages as null', () => {
   for (const [index, name] of PROMOTION_PACKAGE_NAMES.entries()) {
     assert.equal(vector[name], index % 3 === 0 ? null : '2.3.4');
   }
+  validateObservedPriorVector(vector, { packageNames: PROMOTION_PACKAGE_NAMES });
+});
+
+test('observer normalizes the umbrella registry E404 to an absent prior', () => {
+  assert.equal(npmResultIsPackageNotFound({
+    status: 1,
+    stdout: '',
+    stderr: 'npm error code E404\nnpm error 404 Not Found',
+  }), true);
+  assert.equal(npmResultIsPackageNotFound({
+    status: 1,
+    stdout: '',
+    stderr: 'npm error code E401',
+  }), false);
+  const vector = observePriorVector({
+    packageNames: PROMOTION_PACKAGE_NAMES,
+    runNpm(args) {
+      return args[1] === '@expo/snapback'
+        ? null
+        : JSON.stringify({ latest: '0.1.20' });
+    },
+  });
+  assert.equal(vector['@expo/snapback'], null);
+  assert.equal(vector['create-snapback-app'], '0.1.20');
   validateObservedPriorVector(vector, { packageNames: PROMOTION_PACKAGE_NAMES });
 });
 

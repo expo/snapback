@@ -60,7 +60,8 @@ function fixture() {
     lifetimeSeconds: 900,
     packages: PROMOTION_PACKAGE_NAMES.map((name) => ({
       name,
-      expectedPriorVersion: name === '@expo/snapback-expo'
+      expectedPriorVersion: name === '@expo/snapback'
+        || name === '@expo/snapback-expo'
         || name === 'create-snapback-app'
         ? null
         : '0.1.0',

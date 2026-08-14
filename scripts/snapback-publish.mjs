@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 import {
   PACKAGE_DEPENDENCY_SECTIONS,
+  PACKAGE_INVENTORY,
   assertNoUndeclaredSymbolRemovals,
   publishedSymbolsSnapshot,
   registrySymbolIdentities,
@@ -323,6 +324,16 @@ function stage(options) {
       readFileSync(join(root, 'packages', directory, 'package.json'), 'utf8'),
     );
     nameMap.set(sourceManifest.name, publishedName(sourceManifest.name, options.scopePreset));
+  }
+  const enumeratedSourceNames = allPackages.map((directory) => {
+    const manifest = JSON.parse(
+      readFileSync(join(root, 'packages', directory, 'package.json'), 'utf8'),
+    );
+    return manifest.name;
+  });
+  const inventorySourceNames = PACKAGE_INVENTORY.map(([sourceName]) => sourceName);
+  if (JSON.stringify(enumeratedSourceNames) !== JSON.stringify(inventorySourceNames)) {
+    fail('publish enumeration does not match the exact package inventory/order');
   }
 
   const rows = [];

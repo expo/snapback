@@ -21,6 +21,7 @@ import {
 } from '../packages/snapback-publication-authority/protocol.mjs';
 import {
   PUBLIC_NPM_REGISTRY,
+  npmResultIsPackageNotFound,
   promotionNamesForScopePreset,
   validateCandidateLedger,
 } from './snapback-publish-core.mjs';
@@ -510,20 +511,26 @@ function runNpm(args, { cacheRoot, cwd }) {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   if (result.status !== 0) {
+    if (args[0] === 'view' && npmResultIsPackageNotFound(result)) return null;
     fail(`npm ${args[0]} failed with ${result.status ?? result.signal ?? 'unknown'}`);
   }
   return result.stdout;
 }
 
-function observeVector(cacheRoot, cwd, promotionNames) {
+export function observeDefaultTagVector(promotionNames, npmRunner) {
   return Object.fromEntries(promotionNames.map((name) => {
-    const output = runNpm(
-      ['view', name, 'dist-tags', '--json'],
-      { cacheRoot, cwd },
-    );
+    const output = npmRunner(['view', name, 'dist-tags', '--json']);
+    if (output === null) return [name, null];
     const tags = output.trim() ? JSON.parse(output) : {};
     return [name, Object.hasOwn(tags, 'latest') ? tags.latest : null];
   }));
+}
+
+function observeVector(cacheRoot, cwd, promotionNames) {
+  return observeDefaultTagVector(
+    promotionNames,
+    (args) => runNpm(args, { cacheRoot, cwd }),
+  );
 }
 
 export function materializePriorDefaultClosure({

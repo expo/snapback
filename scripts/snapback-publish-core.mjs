@@ -76,6 +76,11 @@ export const PACKAGE_INVENTORY = Object.freeze([
   ['create-snapback-app', 'create-snapback-app'],
 ]);
 
+export function npmResultIsPackageNotFound(result) {
+  return result?.status !== 0
+    && /(?:E404|404 Not Found)/u.test(`${result?.stdout ?? ''}\n${result?.stderr ?? ''}`);
+}
+
 export const LEGACY_PACKAGE_INVENTORY = Object.freeze([
   ['@snapback/runtime-darwin-arm64', '@ccheever/snapback-runtime-darwin-arm64'],
   ['@snapback/runtime-linux-x64', '@ccheever/snapback-runtime-linux-x64'],
@@ -1604,6 +1609,9 @@ export function validateQualifiedPlatformReceipts({ ledger, records }) {
   if (!Array.isArray(records) || records.length !== 2) {
     throw new TypeError('real publication requires exactly two staged platform receipts');
   }
+  const hasUmbrellaPackage = ledger.packages.some(
+    (row) => row.sourceName === '@expo/snapback',
+  );
   const byPlatform = new Map();
   for (const record of records) {
     const receipt = record.receipt;
@@ -1628,6 +1636,8 @@ export function validateQualifiedPlatformReceipts({ ledger, records }) {
       || receipt.checks?.noSiblingSourceCheckout !== true
       || receipt.checks?.packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance !== true
       || receipt.checks?.packedCreateSnapbackAppScaffoldFromCleanDirectory !== true
+      || (hasUmbrellaPackage
+        && receipt.checks?.packedUmbrellaDoorwaysFromTarball !== true)
     ) {
       throw new TypeError('staged platform receipt is not a clean qualified proof');
     }

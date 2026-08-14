@@ -77,11 +77,11 @@
         { "$ref": "#/$defs/codegen" },
         { "$ref": "#/$defs/vite" },
         { "$ref": "#/$defs/react" },
-        { "$ref": "#/$defs/umbrella" },
         { "$ref": "#/$defs/expo" },
         { "$ref": "#/$defs/appCli" },
         { "$ref": "#/$defs/cli" },
-        { "$ref": "#/$defs/createApp" }
+        { "$ref": "#/$defs/createApp" },
+        { "$ref": "#/$defs/umbrella" }
       ],
       "items": false
     }
@@ -98,7 +98,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "pattern": "^(?:@expo/snapback(?:-[a-z0-9-]+)?|create-snapback-app)$"
+          "pattern": "^(?:@expo/snapback-[a-z0-9-]+|@expo/snapback|create-snapback-app)$"
         },
         "expectedPriorVersion": {
           "oneOf": [{ "$ref": "#/$defs/semver" }, { "type": "null" }]

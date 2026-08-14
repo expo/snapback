@@ -38,5 +38,14 @@ GitHub macOS runner queue reliably eats the 900s staging lease — see the
 
 ## Resolution
 
-Awaiting the author's ruling on path 1 vs 2; then run the ceremony and
-launch the D9 lanes per LLP 0256.
+**Author ruling 2026-08-14:** take path 1. The publish-everything posture in
+LLP 0041 applies to the accepted LLP 0255 S9 umbrella: widen the qualified
+closure to twelve packages and admit the first publication of
+`@expo/snapback`. Keep the established qualification bar and do not publish
+as part of the widening change itself.
+
+The repository-side gate is resolved when the twelve-package authority,
+schemas, prior-vector/first-publish handling, staging, packing, cold-install,
+and receipt paths pass their affected tests. This ticket remains open through
+the separately authorized morning-window ceremony; that qualified first
+publication starts the D9 clock and launches the LLP 0256 lanes.

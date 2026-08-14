@@ -84,6 +84,10 @@ const expectedSourceNames = [
   generation.codegen,
   generation.vite,
   generation.react,
+  ...(generation.umbrella !== undefined
+    && ledger.packages?.some((row) => row.sourceName === generation.umbrella)
+    ? [generation.umbrella]
+    : []),
   ...(generation.expo !== undefined
     && ledger.packages?.some((row) => row.sourceName === generation.expo)
     ? [generation.expo]

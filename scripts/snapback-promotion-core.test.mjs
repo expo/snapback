@@ -357,7 +357,11 @@ test('forward and rollback mutations are preceded by vector then fresh head', as
 test('a first-publication package already on the new version is a verified no-op', async () => {
   const base = fixture();
   const unsigned = unsignedLease(base.lease);
-  unsigned.packages[5].expectedPriorVersion = unsigned.packages[5].newVersion;
+  const umbrellaIndex = unsigned.packages.findIndex(
+    (row) => row.name === '@expo/snapback',
+  );
+  unsigned.packages[umbrellaIndex].expectedPriorVersion =
+    unsigned.packages[umbrellaIndex].newVersion;
   const lease = signPublicationLease({ unsigned, privateKey: base.privateKey });
   const vector = vectorFromLease(lease, 'prior');
   const head = acquiredHead(lease, base.privateKey);
@@ -380,8 +384,11 @@ test('a first-publication package already on the new version is a verified no-op
     result.events.map((event) => event.package),
     names,
   );
-  assert.equal(result.events[5].alreadyAtNewVersion, true);
-  assert.deepEqual(result.events[5].before, result.events[5].after);
+  assert.equal(result.events[umbrellaIndex].alreadyAtNewVersion, true);
+  assert.deepEqual(
+    result.events[umbrellaIndex].before,
+    result.events[umbrellaIndex].after,
+  );
   assert.deepEqual(Object.values(result.vector), Array(names.length).fill('0.1.1'));
 });
 
@@ -1796,7 +1803,7 @@ test('dispatch grant clamps the plan ceiling to the live lease and reserves once
 test('measured r3 promotion timeline fits the once-reserved budget model', () => {
   const plan = { dispatchTimeoutMs: 400_000, verifyTimeoutMs: 30_000 };
   const leaseLifetimeMs = 900_000;
-  const preflightMs = 200_000; // telemetry gate + closures + acquire + 11 tag moves
+  const preflightMs = 200_000; // telemetry gate + closures + acquire + 12 tag moves
   const runWallMs = 280_000; // observed hosted run wall (created -> success)
   // Barrier entry: what the promote driver now requires to remain.
   const barrierEntryNeedMs =

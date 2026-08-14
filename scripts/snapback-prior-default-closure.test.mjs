@@ -23,8 +23,10 @@ import {
 import {
   PUBLIC_NPM_REGISTRY,
   LEGACY_PROMOTION_PACKAGE_NAMES,
+  PROMOTION_PACKAGE_NAMES,
 } from './snapback-publish-core.mjs';
 import {
+  observeDefaultTagVector,
   validatePriorDefaultClosureReceipt,
 } from './snapback-prior-default-closure.mjs';
 
@@ -124,6 +126,17 @@ function fixture(root, dependencies = {}) {
   receipt.receiptSha256 = sha256Hex(canonicalJcs(receipt));
   return { receipt, receiptPath, priorVector, tarball };
 }
+
+test('prior closure brackets an E404 umbrella as an absent package', () => {
+  const vector = observeDefaultTagVector(PROMOTION_PACKAGE_NAMES, (args) => (
+    args[1] === '@expo/snapback'
+      ? null
+      : JSON.stringify({ latest: '0.1.20' })
+  ));
+  assert.deepEqual(Object.keys(vector), [...PROMOTION_PACKAGE_NAMES]);
+  assert.equal(vector['@expo/snapback'], null);
+  assert.equal(vector['@expo/snapback-cli'], '0.1.20');
+});
 
 test('prior closure independently reopens complete retained tarball evidence', () => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-prior-closure-test-'));

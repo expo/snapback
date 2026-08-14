@@ -39,6 +39,7 @@ import {
   LATEST_ROOT_PROPAGATION_MAX_ATTEMPTS,
   LATEST_ROOT_PROPAGATION_RETRY_DELAY_MS,
   LATEST_ROOT_PROPAGATION_WALL_BOUND_MS,
+  ledgerNameGeneration,
   measureGitCheckoutIdentity,
   parseArguments,
   parseBoundedJsonBytes,
@@ -1635,12 +1636,13 @@ test('all dependency classes require direct exact terminal internal versions', (
   );
 });
 
-test('create-snapback-app is the terminal publication row with a closed CLI dependency', () => {
+test('create-snapback-app remains the terminal packing row with a closed CLI dependency', () => {
   assert.deepEqual(PACKAGE_INVENTORY.at(-1), [
     'create-snapback-app',
     'create-snapback-app',
   ]);
-  assert.equal(PROMOTION_PACKAGE_NAMES.at(-1), 'create-snapback-app');
+  assert.equal(PROMOTION_PACKAGE_NAMES.at(-2), 'create-snapback-app');
+  assert.equal(PROMOTION_PACKAGE_NAMES.at(-1), '@expo/snapback');
   const sourceNames = sourceNamesForScopePreset('identity');
   assert.equal(sourceNames['create-snapback-app'], 'create-snapback-app');
   assert.equal(Object.values(sourceNames).filter(
@@ -1650,6 +1652,37 @@ test('create-snapback-app is the terminal publication row with a closed CLI depe
     name: 'create-snapback-app',
     dependencies: { '@expo/snapback-cli': '0.1.1' },
   }, '0.1.1'), undefined);
+});
+
+test('umbrella publication metadata closes and stamps every internal dependency', () => {
+  const manifest = JSON.parse(readFileSync(
+    new URL('../packages/snapback-umbrella/package.json', import.meta.url),
+    'utf8',
+  ));
+  assert.equal(manifest.private, undefined);
+  assert.equal(manifest.publishConfig.access, 'public');
+  const stamped = structuredClone(manifest);
+  stamped.version = '0.1.21';
+  for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
+    for (const dependency of Object.keys(stamped[section] ?? {})) {
+      if (PACKAGE_INVENTORY.some(([sourceName]) => sourceName === dependency)) {
+        stamped[section][dependency] = stamped.version;
+      }
+    }
+  }
+  assert.equal(validateInternalDependencyClosure(stamped, stamped.version), undefined);
+  assert.deepEqual(
+    new Set(Object.keys(manifest.exports)),
+    new Set(['./server', './values', './data', './react', './react/data', './package.json']),
+  );
+  const files = new Set(manifest.files);
+  for (const target of Object.values(manifest.exports).flatMap((entry) => (
+    typeof entry === 'string' ? [entry] : Object.values(entry)
+  ))) {
+    if (target !== './package.json') assert.equal(files.has(target.slice(2)), true, target);
+  }
+  assert.equal(ledgerNameGeneration('identity').umbrella, '@expo/snapback');
+  assert.equal(ledgerNameGeneration('ccheever').umbrella, undefined);
 });
 
 test('promotion inventory is the full public package inventory from one authority', () => {
@@ -1662,11 +1695,11 @@ test('promotion inventory is the full public package inventory from one authorit
     '@expo/snapback-codegen',
     '@expo/snapback-vite',
     '@expo/snapback-react',
-    '@expo/snapback',
     '@expo/snapback-expo',
     '@expo/snapback-app-cli',
     '@expo/snapback-cli',
     'create-snapback-app',
+    '@expo/snapback',
   ]);
   assert.equal(PROMOTION_PACKAGE_NAMES.length, PACKAGE_INVENTORY.length);
   assert.deepEqual(
@@ -1676,6 +1709,7 @@ test('promotion inventory is the full public package inventory from one authorit
   assert.equal(Object.keys(PACKAGE_NAME_LINEAGE).length, 9);
   assert.equal(PACKAGE_NAME_LINEAGE['@expo/snapback-expo'], undefined);
   assert.equal(PACKAGE_NAME_LINEAGE['create-snapback-app'], undefined);
+  assert.equal(PACKAGE_NAME_LINEAGE['@expo/snapback'], undefined);
 });
 
 test('public-install ledger validation requires the complete immutable closure', () => {
@@ -1875,6 +1909,7 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
           noSiblingSourceCheckout: true,
           packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance: true,
           packedCreateSnapbackAppScaffoldFromCleanDirectory: true,
+          packedUmbrellaDoorwaysFromTarball: true,
           ...browserReceiptEvidence(qualified.revision).checks,
         },
         browserJourney: browserJourneyFixture({ sourceRevision: qualified.revision }),
@@ -2593,6 +2628,7 @@ function finalLatestReceiptsFixture({
         publicRegistryTarballDigestMatch: true,
         packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance: true,
         packedCreateSnapbackAppScaffoldFromCleanDirectory: true,
+        packedUmbrellaDoorwaysFromTarball: true,
         ...browserReceiptEvidence(candidate.revision).checks,
       },
       browserJourney: browserJourneyFixture({ sourceRevision: candidate.revision }),

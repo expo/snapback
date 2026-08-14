@@ -1515,7 +1515,7 @@ export function validateStagedPublicationLedger(ledger) {
 
 /**
  * The install-tree inspection is keyed by the ledger's source-name
- * generation: the terminal @expo/snapback-* identity closure, or the
+ * generation: the terminal @expo/snapback identity closure, or the
  * recorded legacy @snapback/* -> @ccheever/snapback-* alias closure
  * (decision-9 lineage — both recorded generations stay checkable).
  */
@@ -1529,6 +1529,7 @@ export function ledgerNameGeneration(scopePreset) {
     codegen: sourceNames.codegen,
     contract: sourceNames.contract,
     react: sourceNames.react,
+    umbrella: sourceNames.snapback,
     expo: sourceNames.expo,
     vite: sourceNames.vite,
     appCli: sourceNames['app-cli'],
@@ -1987,6 +1988,8 @@ export function validateFinalLatestReceipts({
   const generation = ledgerNameGeneration(ledger.scopePreset);
   const hasCreateSnapbackAppPackage = generation.createSnapbackApp !== undefined
     && ledger.packages.some((row) => row.sourceName === generation.createSnapbackApp);
+  const hasUmbrellaPackage = generation.umbrella !== undefined
+    && ledger.packages.some((row) => row.sourceName === generation.umbrella);
   const requiresExpoChatScaffold = hasCreateSnapbackAppPackage
     && generation.expo !== undefined
     && ledger.packages.some((row) => row.sourceName === generation.expo);
@@ -2075,6 +2078,8 @@ export function validateFinalLatestReceipts({
       || receipt.machine?.separatelyProvisionedCleanMachine !== true
       || receipt.checks?.latestRootCandidateClosure !== true
       || receipt.checks?.publicRegistryTarballDigestMatch !== true
+      || (hasUmbrellaPackage
+        && receipt.checks?.packedUmbrellaDoorwaysFromTarball !== true)
       || (requiresExpoChatScaffold
         && receipt.checks?.packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance !== true)
       || (hasCreateSnapbackAppPackage
@@ -2283,6 +2288,8 @@ export function aggregatePublicPackageProofs({
   const generation = ledgerNameGeneration(ledger.scopePreset);
   const hasCreateSnapbackAppPackage = generation.createSnapbackApp !== undefined
     && ledgerEntries.has(generation.createSnapbackApp);
+  const hasUmbrellaPackage = generation.umbrella !== undefined
+    && ledgerEntries.has(generation.umbrella);
   const requiresExpoChatScaffold = hasCreateSnapbackAppPackage
     && generation.expo !== undefined
     && ledgerEntries.has(generation.expo);
@@ -2336,6 +2343,8 @@ export function aggregatePublicPackageProofs({
     if (
       receipt.checks?.publicRegistryAliasResolution !== true
       || receipt.checks?.publicRegistryTarballDigestMatch !== true
+      || (hasUmbrellaPackage
+        && receipt.checks?.packedUmbrellaDoorwaysFromTarball !== true)
       || receipt.checks?.registryTarballCount !== expectedSourceNames.length
       || receipt.checks?.noSiblingSourceCheckout !== true
       || receipt.checks?.localCodegenOffline !== true
@@ -2432,6 +2441,7 @@ export function aggregatePublicPackageProofs({
         requiresExpoChatScaffold,
       packedCreateSnapbackAppScaffoldFromCleanDirectoryOnEveryPlatform:
         hasCreateSnapbackAppPackage,
+      packedUmbrellaDoorwaysFromTarballOnEveryPlatform: hasUmbrellaPackage,
       realBrowserSeedLiveReloadOnEveryPlatform: true,
       browserPrivateSurfaceAbsenceOnEveryPlatform: true,
       noSiblingSourceCheckout: true,

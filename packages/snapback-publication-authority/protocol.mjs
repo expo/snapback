@@ -30,8 +30,9 @@ export const HEAD_DOMAIN = Buffer.from('snapback-publication-authority-head-v3\0
 export const RECEIPT_DOMAIN = Buffer.from(
   'snapback-publication-authority-transition-receipt-v2\0',
 );
-// @ref LLP 0115#open-questions — decision 9: the terminal npm scope is
-// @expo/snapback-*. v4 leases bind the terminal names; v2/v3 leases keep
+// @ref LLP 0115#open-questions — decision 9: the terminal npm family is
+// @expo/snapback-* plus the exact-name umbrella @expo/snapback. v4 leases bind
+// the terminal names; v2/v3 leases keep
 // binding the recorded @ccheever/snapback-* interim scope so pre-migration
 // artifacts stay verifiable (lineage, not history rewriting).
 export const PROMOTION_PACKAGE_NAMES = Object.freeze([
@@ -42,13 +43,13 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@expo/snapback-codegen',
   '@expo/snapback-vite',
   '@expo/snapback-react',
-  // @ref LLP 0253#s31-the-umbrella-package — v4 authority leases bind the
-  // exact-name Experimental umbrella in the same immutable package vector.
-  '@expo/snapback',
   '@expo/snapback-expo',
   '@expo/snapback-app-cli',
   '@expo/snapback-cli',
   'create-snapback-app',
+  // @ref LLP 0253#s31-the-umbrella-package — append the exact-name
+  // Experimental umbrella without reordering the established v4 vector.
+  '@expo/snapback',
 ]);
 export const PACKAGE_COUNT = PROMOTION_PACKAGE_NAMES.length;
 export const LEGACY_PROMOTION_PACKAGE_NAMES = Object.freeze([
@@ -84,7 +85,7 @@ export const PACKAGE_NAME_LINEAGE = Object.freeze(Object.fromEntries(
     })];
   }),
 ));
-const TERMINAL_NAME_PATTERN = /^(?:@expo\/snapback(?:-[a-z0-9-]+)?|create-snapback-app)$/u;
+const TERMINAL_NAME_PATTERN = /^(?:@expo\/snapback-[a-z0-9-]+|@expo\/snapback|create-snapback-app)$/u;
 const LEGACY_NAME_PATTERN = /^@ccheever\/snapback-[a-z0-9-]+$/u;
 
 export const LEASE_KEYS = Object.freeze([

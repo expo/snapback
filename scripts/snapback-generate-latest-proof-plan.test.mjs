@@ -133,6 +133,16 @@ test('generated latest proof plan round-trips through the promoter validator', (
   );
 });
 
+test('latest proof plan permits an absent-prior umbrella while retaining the prior CLI root', () => {
+  const lease = leaseFixture();
+  lease.packages.find(
+    (row) => row.name === '@expo/snapback',
+  ).expectedPriorVersion = null;
+  const plan = buildLatestProofPlan(inputs({ lease }));
+  assert.equal(plan.expectedPriorRootVersion, '0.1.6');
+  assert.equal(plan.authorizedLeaseSha256, leaseSha256(lease));
+});
+
 test('default latest proof plan closes its modeled 900-second lease budget', () => {
   const plan = buildLatestProofPlan(inputs());
   assert.equal(plan.dispatchTimeoutMs, 400_000);

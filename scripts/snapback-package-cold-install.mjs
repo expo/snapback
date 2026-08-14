@@ -2222,7 +2222,7 @@ if (proofHarnessRevision === null) {
 }
 const ledgerDirectory = dirname(ledgerPath);
 const dependencies = { react: '19.2.3', esbuild: '0.28.1' };
-// The proof follows the ledger's name generation: terminal @expo/snapback-*
+// The proof follows the ledger's name generation: terminal @expo/snapback
 // identity closures, or recorded legacy @snapback/* alias closures
 // (decision-9 lineage).
 const generation = ledgerNameGeneration(ledger.scopePreset);
@@ -2235,6 +2235,10 @@ const hostRuntime = runtimePackages.get(hostPlatform);
 if (!hostRuntime) fail(`cold-install proof has no runtime package for ${hostPlatform}`);
 const hasExpoPackage = generation.expo !== undefined
   && Boolean(ledger.packages?.some((entry) => entry.sourceName === generation.expo));
+const hasUmbrellaPackage = generation.umbrella !== undefined
+  && Boolean(ledger.packages?.some(
+    (entry) => entry.sourceName === generation.umbrella,
+  ));
 const hasCreateSnapbackAppPackage = generation.createSnapbackApp !== undefined
   && Boolean(ledger.packages?.some(
     (entry) => entry.sourceName === generation.createSnapbackApp,
@@ -2250,6 +2254,7 @@ const allExpectedPackages = [
   generation.codegen,
   generation.vite,
   generation.react,
+  ...(hasUmbrellaPackage ? [generation.umbrella] : []),
   ...(hasExpoPackage ? [generation.expo] : []),
   generation.appCli,
   generation.cli,
@@ -2297,6 +2302,7 @@ const expectedPackages = [
   generation.codegen,
   generation.vite,
   generation.react,
+  ...(hasUmbrellaPackage ? [generation.umbrella] : []),
   ...(hasExpoPackage ? [generation.expo] : []),
   generation.appCli,
   generation.cli,
@@ -2402,6 +2408,20 @@ import { SnapbackClient } from '${generation.client}';
 import { useSnapbackQuery } from '${generation.react}';
 globalThis.__snapbackPackageProof = [createMemorySnapbackClientStore, SnapbackClient, useSnapbackQuery];
 `);
+  if (hasUmbrellaPackage) {
+    writeFileSync(join(appRoot, 'umbrella-entrypoints.mjs'), `
+import * as data from '${generation.umbrella}/data';
+import * as reactData from '${generation.umbrella}/react/data';
+import * as react from '${generation.umbrella}/react';
+import * as server from '${generation.umbrella}/server';
+import * as values from '${generation.umbrella}/values';
+if (typeof data.createDataClient !== 'function') throw new Error('umbrella /data missing');
+if (!Object.hasOwn(reactData, 'db')) throw new Error('umbrella /react/data missing');
+if (typeof react.SnapbackProvider !== 'function') throw new Error('umbrella /react missing');
+if (typeof server.defineSchema !== 'function') throw new Error('umbrella /server missing');
+if (!Object.hasOwn(values, 'v')) throw new Error('umbrella /values missing');
+`);
+  }
   writeFileSync(join(appRoot, 'bundle.mjs'), `
 import { build } from 'esbuild';
 await build({
@@ -2630,6 +2650,9 @@ await build({
     if (!existsSync(installPath) || lstatSync(installPath).isSymbolicLink()) {
       fail(`${name} is not a materialized tarball install`);
     }
+  }
+  if (hasUmbrellaPackage) {
+    run(process.execPath, ['umbrella-entrypoints.mjs'], { cwd: appRoot });
   }
 
   // Installation may use the network. Generation itself must not.
@@ -3218,6 +3241,7 @@ await build({
       packedReactRealBrowserSeedLiveReload: true,
       browserPrivateSurfaceAbsence: true,
       packedReactExpoTypecheckAndIosExport: true,
+      packedUmbrellaDoorwaysFromTarball: hasUmbrellaPackage,
       packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance: proveExpoChatScaffold,
       packedCreateSnapbackAppScaffoldFromCleanDirectory: hasCreateSnapbackAppPackage,
       packagedViteRelativeVersionedSeedSeam: true,

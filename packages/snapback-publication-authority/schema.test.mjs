@@ -90,6 +90,14 @@ test('closed JSON Schemas and runtime validators share every endpoint key set', 
     )),
     PROMOTION_PACKAGE_NAMES,
   );
+  for (const packageSchema of [leaseSchema.$defs.package, requestSchema.$defs.package]) {
+    const terminalName = new RegExp(packageSchema.properties.name.pattern, 'u');
+    assert.equal(terminalName.test('@expo/snapback'), true);
+    assert.equal(terminalName.test('@expo/snapback-client'), true);
+    assert.equal(terminalName.test('create-snapback-app'), true);
+    assert.equal(terminalName.test('@expo/snapback/extra'), false);
+    assert.equal(terminalName.test('@expo/snapbackish'), false);
+  }
 
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
   const authorityInstallationId = 'snapback-publication-schema';

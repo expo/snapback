@@ -24,6 +24,7 @@ import {
 import {
   PROMOTION_PACKAGE_NAMES,
   PUBLIC_NPM_REGISTRY,
+  npmResultIsPackageNotFound,
   promotionNamesForScopePreset,
   readBoundedJsonFile,
   validateCandidateLedger,
@@ -102,6 +103,7 @@ export function runNpm(args, {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
+    if (args[0] === 'view' && npmResultIsPackageNotFound(result)) return null;
     throw new Error(`npm ${args[0]} failed with ${result.status ?? result.signal ?? 'unknown'}`);
   }
   return result.stdout;
@@ -125,6 +127,10 @@ export function observePriorVector({
       output = npmRunner(['view', name, 'dist-tags', '--json']);
     } catch (error) {
       throw new Error(`could not observe registry dist-tags for ${name}: ${error.message}`);
+    }
+    if (output === null) {
+      vector[name] = null;
+      continue;
     }
     let tags;
     try {
