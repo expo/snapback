@@ -12,7 +12,7 @@ maturity: partial
 since: 0.1.21
 unreleased: true
 reviewed: 2026-08-14
-reviewed-authorities-digest: sha256:f06376ae32dc1b30918d0a2fbde52c9440a9809edf86437e9429d1645dbcc1e7
+reviewed-authorities-digest: sha256:2e583728fdd3a9c9afb182e6794fefd3a9b8bcabcc2919f05e0bd4037084ba7e
 ---
 
 # Compose generated data transactions
@@ -109,6 +109,15 @@ sequence and then by intent id. Arguments and row values are never projected.
 | SNAPBACK_DATA_TRANSACTION_BOUND_EXCEEDED | Reduce the first reported dimension: chunks, resources, reads/writes, descriptor/result/durable bytes, or generated HostPlan size/steps. |
 | SNAPBACK_DATA_CUSTODY_UNAVAILABLE | Follow the diagnostic's split next action for local durable storage or target settlement capability. |
 
-The public @expo/snapback and framework-specific doorways are Phase 4.
-Relationship nodes, retained queries, and dynamic transaction shapes remain
-outside this surface.
+The public package and framework-specific imports are listed in
+[choose a data doorway](./doorways.md). Relationship nodes, retained queries,
+and dynamic transaction shapes remain outside this surface.
+
+## Anti-patterns
+
+- Do not await `db.transact(...)` as though dispatch were settlement. Observe
+  `handle.dispatched` and `handle.settled` separately.
+- Do not recreate an outbox, optimistic reducer, or settlement registry around
+  the data facade. The existing client owns all three.
+- Do not dynamically assemble a transaction shape. Generate the exact static
+  composition or use a named mutation.

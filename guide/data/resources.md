@@ -12,7 +12,7 @@ maturity: partial
 since: 0.1.21
 unreleased: true
 reviewed: 2026-08-13
-reviewed-authorities-digest: sha256:37c0280381a45d234c60d459e3a89e945a5cbf52384cdf2a49547a1ea5f35421
+reviewed-authorities-digest: sha256:4b71b09aeb5c088f81d70edff3108162fbc87583fd6104d44c6636e5743ce6da
 ---
 
 # Generate a tiny typed data resource
@@ -50,7 +50,9 @@ export const todos = defineTable({
 ```
 
 The generated names are `todos.list`, `todos.get`, `todos.create`,
-`todos.update`, and `todos.delete`.
+`todos.update`, and `todos.delete`. After generation, choose the
+[headless or React/Expo doorway](./doorways.md); do not hand-wire the generated
+references into a second client owner.
 
 Public-read resources generate only list/get and require an explicit ordinary
 `listIndex`. Owner resources may omit `listIndex` only when exactly one

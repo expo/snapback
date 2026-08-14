@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "snapback.tiny-data-instantdb-inventory.v1",
+  "inventoryId": "instantdb-corpus-pin-2026-08-14",
+  "recordedAt": "2026-08-14T00:00:00.000Z",
+  "reviewer": "Codex",
+  "sourceAuthority": "llp/0082-instantdb.research.md",
+  "sourceLastVerifiedAt": "2026-07-23T00:00:00.000Z",
+  "networkVerifiedForThisPin": false,
+  "refreshRequiredAtRunTime": true,
+  "refreshReason": "Phase 4 was instructed to use the repository corpus without network access; LLP 0256 requires a fresh dated provider verification before InstantDB evidence counts.",
+  "product": {
+    "name": "InstantDB",
+    "releasePosture": "Instant 1.0 reported in April 2026",
+    "license": "Apache-2.0",
+    "dataModel": "EAV triple store on shared Aurora Postgres",
+    "surface": ["live InstaQL queries", "optimistic transactions", "permissions", "auth", "rooms/presence/topics", "durable streams", "query-scoped offline cache"],
+    "knownGap": "No provider-hosted server-functions runtime in the corpus record"
+  },
+  "packages": {
+    "historicalCorpusLock": "demos/backend-bakeoff/arms/todo/instantdb/work/package-lock.json",
+    "react": { "name": "@instantdb/react", "version": "1.0.52" },
+    "core": { "name": "@instantdb/core", "version": "1.0.52" },
+    "admin": { "name": "@instantdb/admin", "version": "1.0.52" },
+    "cli": { "name": "instant-cli", "version": "1.0.52" },
+    "runTimeVersionStatus": "must-refresh-and-freeze"
+  },
+  "target": {
+    "plan": "Corpus reports Free 1GB/non-pausing, Pro $30/month, Startup $600/month; refresh required",
+    "region": "not recorded in LLP 0082; preflight required",
+    "lifecycle": "hosted app provisioning and cleanup must be freshly proven",
+    "preflightStatus": "not-run"
+  },
+  "officialSources": [
+    { "topic": "query", "locator": "https://www.instantdb.com/docs/instaql", "digest": null },
+    { "topic": "schema", "locator": "https://www.instantdb.com/docs/instaml", "digest": null },
+    { "topic": "permissions", "locator": "https://www.instantdb.com/docs/permissions", "digest": null },
+    { "topic": "auth", "locator": "https://www.instantdb.com/docs/auth", "digest": null },
+    { "topic": "offline", "locator": "https://www.instantdb.com/docs", "digest": null },
+    { "topic": "react", "locator": "https://www.instantdb.com/docs", "digest": null },
+    { "topic": "transactions", "locator": "https://www.instantdb.com/docs/instaml", "digest": null }
+  ],
+  "starter": {
+    "command": "create-instant-app",
+    "template": "per-agent rules files reported by LLP 0082",
+    "digest": null,
+    "eligibility": "assisted-v1-only-after-refresh"
+  },
+  "agentAids": [
+    { "id": "remote-mcp", "surface": "mcp.instantdb.com with OAuth", "availability": "public-hosted", "bareEligible": false, "assistedEligible": true, "digest": null },
+    { "id": "local-mcp", "surface": "local stdio MCP", "availability": "public-package", "bareEligible": false, "assistedEligible": true, "digest": null },
+    { "id": "skills", "surface": "npx skills add instantdb/skills", "availability": "public-package", "bareEligible": false, "assistedEligible": true, "digest": null },
+    { "id": "rules", "surface": "create-instant-app per-agent rules", "availability": "public-template", "bareEligible": false, "assistedEligible": true, "digest": null },
+    { "id": "llms", "surface": "llms.txt, llms-full.txt, and .md documentation URLs", "availability": "public-web", "bareEligible": false, "assistedEligible": true, "digest": null },
+    { "id": "platform-api", "surface": "programmatic app creation", "availability": "public-hosted", "bareEligible": false, "assistedEligible": true, "digest": null }
+  ],
+  "hostedAssetManifests": [],
+  "timedEvidence": false
+}

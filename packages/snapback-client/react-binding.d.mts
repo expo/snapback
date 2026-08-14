@@ -17,6 +17,7 @@ export {
   handoffPreparedReactBindingGeneration,
   isPreparedReactQueryGroup,
   prepareReactQueryGroupForBinding,
+  preparedReactBindingData,
   preparedReactBindingClient,
   preparedReactResultContract,
 } from './index.mjs';

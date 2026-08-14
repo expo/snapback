@@ -12,7 +12,7 @@ maturity: partial
 since: 0.1.21
 unreleased: true
 reviewed: 2026-08-13
-reviewed-authorities-digest: sha256:2c2f38a707561dabc68db9a152410259fa3bad95b2d50d616242d099c9e1c033
+reviewed-authorities-digest: sha256:8145953a62c742f37c1c220a0a810819644148c632cceb5f4a6a9bceebd0dbc8
 ---
 
 # Build a bounded data query
@@ -102,9 +102,12 @@ const descriptor = data.todos
 console.log(explainDataQuery(descriptor));
 ```
 
-Phase 2 ships headless descriptor construction, catalogue admission, the
-ordinary function carrier, and local continuation. React/Expo/Swift facade
-doorways are Phase 4 and are not implied by the generated `data` export.
+The same descriptor is accepted byte-for-byte by the
+[headless and React/Expo doorways](./doorways.md). Swift currently has golden
+fixtures only and deliberately exposes no DataResourceV1 client API.
+
+For query state, `"skip"`, pagination, `read`, `watch`, and `useQuery`, see the
+[client lifecycle](./lifecycle.md).
 
 ## Refusals and escape hatches
 

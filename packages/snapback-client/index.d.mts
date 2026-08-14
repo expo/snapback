@@ -885,6 +885,7 @@ export interface PreparedReactBinding {
   readonly assetIntents: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly commands: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly surfaces: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly data: object | null;
   prepareQueryGroup<Ref extends SnapbackQueryGroupReference>(
     reference: Ref,
     params: QueryGroupParams<Ref>,
@@ -2025,6 +2026,7 @@ export const DEFAULT_INGRESS_LIMIT_BYTES: Readonly<{
 }>;
 
 export function assertPreparedReactBinding(binding: unknown): PreparedReactBinding;
+export function preparedReactBindingData(binding: unknown): object;
 export function preparedReactBindingClient(binding: unknown): SnapbackClient;
 export function isPreparedReactQueryGroup(value: unknown): boolean;
 export function admittedReactQueryGroup(

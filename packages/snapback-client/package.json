@@ -126,6 +126,10 @@
       "types": "./app-data.d.mts",
       "import": "./app-data.mjs"
     },
+    "./data": {
+      "types": "./data-client.d.mts",
+      "import": "./data-client.mjs"
+    },
     "./argument-normalization": {
       "types": "./argument-normalization.d.mts",
       "import": "./argument-normalization.mjs"

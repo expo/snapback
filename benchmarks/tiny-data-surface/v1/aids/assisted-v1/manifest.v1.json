@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "snapback.tiny-data-aid-manifest.v1",
+  "aidCondition": "assisted-v1",
+  "status": "scaffold-not-run",
+  "requiredSlots": ["setup", "schema-authority", "read-live", "write-offline", "equal-proof", "day-two-escape-scaffold", "first-hop-diagnostics"],
+  "bundles": [
+    { "id": "tiny-assisted-v1", "lane": "tiny", "path": "aids/assisted-v1/tiny.md", "version": "v1", "digest": "sha256:0a3bb1efaf9954af04b18906b613e070235846dae808abad0a61305957dbf598", "eligibility": "assisted-v1", "semanticTopics": ["setup", "schema-authority", "read-live", "write-offline", "equal-proof", "day-two-escape-scaffold", "first-hop-diagnostics"], "words": 138, "tokens": null, "exampleCount": 0, "benchmarkShapedness": "scaffold-only" },
+    { "id": "explicit-assisted-v1", "lane": "explicit", "path": "aids/assisted-v1/explicit.md", "version": "v1", "digest": "sha256:173754aa4734cd8a290f84df8c04dc1c22c57f7d6009de056edf9eab7c1c5d9e", "eligibility": "assisted-v1", "semanticTopics": ["setup", "schema-authority", "read-live", "write-offline", "equal-proof", "day-two-escape-scaffold", "first-hop-diagnostics"], "words": 140, "tokens": null, "exampleCount": 0, "benchmarkShapedness": "scaffold-only" },
+    { "id": "instantdb-assisted-v1", "lane": "instantdb", "path": "aids/assisted-v1/instantdb.md", "version": "v1", "digest": "sha256:b13992385b351f625387385ecaa513675a9e07efb8c6b3b2a572869dfe396598", "eligibility": "assisted-v1-after-dated-refresh", "semanticTopics": ["setup", "schema-authority", "read-live", "write-offline", "equal-proof", "day-two-escape-scaffold", "first-hop-diagnostics"], "words": 135, "tokens": null, "exampleCount": 0, "benchmarkShapedness": "scaffold-only" }
+  ],
+  "digestsFinalized": true,
+  "tokenCounts": { "status": "model-tokenizer-not-selected", "requiredAtRunTime": true },
+  "timedRunsExecuted": false
+}

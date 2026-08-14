@@ -818,16 +818,44 @@ export function renderDataQueryRuntime(catalog) {
     + `export const explainDataQuery = (descriptor) => descriptor?.explain ?? descriptor?.envelope?.explain ?? null;\n`;
 }
 
+function dataQueryContractType(value) {
+  if (!value || typeof value !== 'object') return 'unknown';
+  if (value.kind === 'null') return 'null';
+  if (value.kind === 'boolean') return 'boolean';
+  if (value.kind === 'string' || value.kind === 'assetRef') return 'string';
+  if (value.kind === 'principal') return 'Principal';
+  if (value.kind === 'id') return `Id<${JSON.stringify(value.table)}>`;
+  if (value.kind === 'integer' || value.kind === 'finiteReal') return 'number';
+  if (value.kind === 'literal') return JSON.stringify(value.value);
+  if (value.kind === 'json') return 'unknown';
+  if (value.kind === 'array') return `ReadonlyArray<${dataQueryContractType(value.element)}>`;
+  if (value.kind === 'tuple') return `readonly [${(value.elements ?? []).map(dataQueryContractType).join(', ')}]`;
+  if (value.kind === 'vector') return `ReadonlyArray<number> & { readonly length: ${value.dimensions} }`;
+  if (value.kind === 'union') return (value.variants ?? []).map(dataQueryContractType).join(' | ');
+  if (value.kind === 'object') {
+    const fields = (value.fields ?? []).map((field) => (
+      `readonly ${JSON.stringify(field.name)}${field.required ? '' : '?'}: ${dataQueryContractType(field.value)}`
+    ));
+    return fields.length === 0 ? 'Readonly<Record<string, never>>' : `Readonly<{ ${fields.join('; ')} }>`;
+  }
+  return 'unknown';
+}
+
 export function renderDataQueryTypes(resources) {
   const resourceTypes = resources.map(({ core }) => {
     const name = core.resource.replace(/(^|_)([a-z])/gu, (_, __, letter) => letter.toUpperCase());
     const indexes = core.indexes.map(({ name: index }) => JSON.stringify(index)).join(' | ') || 'never';
     const fields = core.fields.map(({ name: field }) => JSON.stringify(field)).join(' | ') || 'never';
-    return `interface ${name}DataUsing { using(index: ${indexes}): ${name}DataWhereOrOrder; }\n`
+    const row = `Readonly<{ ${core.fields.map((field) => (
+      `readonly ${JSON.stringify(field.name)}${field.optional ? '?' : ''}: ${dataQueryContractType(field.validatorContract)}`
+    )).join('; ')} }>`;
+    return `type ${name}DataRow = ${row};\n`
+      + `type ${name}DataField = keyof ${name}DataRow;\n`
+      + `interface ${name}DataUsing { using(index: ${indexes}): ${name}DataWhereOrOrder; }\n`
       + `interface ${name}DataWhereOrOrder { where(filters: Readonly<Partial<Record<${fields}, DataPredicateV1>>>): ${name}DataOrder; orderBy(field: ${fields}, direction: DataOrderDirectionV1): ${name}DataSelectOrTake; }\n`
       + `interface ${name}DataOrder { orderBy(field: ${fields}, direction: DataOrderDirectionV1): ${name}DataSelectOrTake; }\n`
-      + `interface ${name}DataSelectOrTake { select(fields: readonly ${fields}[]): ${name}DataTake; take(limit: number): DataQueryDescriptorV1; }\n`
-      + `interface ${name}DataTake { take(limit: number): DataQueryDescriptorV1; }\n`;
+      + `interface ${name}DataSelectOrTake { select<const Fields extends readonly ${name}DataField[]>(fields: Fields): ${name}DataTake<Pick<${name}DataRow, Fields[number]>>; take(limit: number): DataQueryDescriptorV1<${name}DataRow>; }\n`
+      + `interface ${name}DataTake<Row> { take(limit: number): DataQueryDescriptorV1<Row>; }\n`;
   }).join('\n');
   const members = resources.map(({ core }) => {
     const name = core.resource.replace(/(^|_)([a-z])/gu, (_, __, letter) => letter.toUpperCase());
@@ -835,10 +863,11 @@ export function renderDataQueryTypes(resources) {
   }).join(' ');
   return `export type DataOrderDirectionV1 = 'asc' | 'desc';\n`
     + `export type DataPredicateV1<T = unknown> = T | Readonly<{ eq: T } | { in: readonly T[] } | { lt: T } | { lte: T } | { gt: T } | { gte: T } | { gt: T; lt: T } | { gt: T; lte: T } | { gte: T; lt: T } | { gte: T; lte: T }>;\n`
-    + `export interface DataQueryPageV1 { readonly artifactKind: 'dataQuery'; readonly schemaVersion: 'snapback.data-query.v1'; readonly normalizedDataQueryId: \`sha256:\${string}\`; readonly arguments: readonly unknown[]; readonly cursor: string | null; }\n`
-    + `export interface DataQueryDescriptorV1 extends DataQueryPageV1 { after(cursor: string): DataQueryPageV1; }\n`
+    + `export interface DataQueryPageV1<Row = Readonly<Record<string, unknown>>> { readonly artifactKind: 'dataQuery'; readonly schemaVersion: 'snapback.data-query.v1'; readonly normalizedDataQueryId: \`sha256:\${string}\`; readonly arguments: readonly unknown[]; readonly cursor: string | null; readonly __result?: Row; }\n`
+    + `export interface DataQueryDescriptorV1<Row = Readonly<Record<string, unknown>>> extends DataQueryPageV1<Row> { after(cursor: string): DataQueryPageV1<Row>; }\n`
     + resourceTypes
     + `export declare const data: Readonly<{ ${members} }> & Readonly<{ readonly __snapbackDataTypeBinding?: Readonly<{ readonly tx: DataTransactionBuilderV1 }> }>;\n`
     + `export declare const dataQueryCatalog: readonly Readonly<Record<string, unknown>>[];\n`
-    + `export declare function explainDataQuery(descriptor: DataQueryDescriptorV1): Readonly<Record<string, unknown>> | null;\n`;
+    + `export declare function explainDataQuery(descriptor: DataQueryDescriptorV1<unknown>): Readonly<Record<string, unknown>> | null;\n`
+    + `declare module '@expo/snapback-react/data' { interface SnapbackDataBinding { readonly data: typeof data; } }\n`;
 }

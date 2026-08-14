@@ -124,6 +124,7 @@ export {
   handoffPreparedReactBindingGeneration,
   isPreparedReactQueryGroup,
   prepareReactQueryGroupForBinding,
+  preparedReactBindingData,
   preparedReactResultContract,
   preparedReactBindingClient,
 } from './react-binding.mjs';
@@ -814,7 +815,10 @@ const GENERATED_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // @ref LLP 0255#s2-lowering-to-standard-operations — DataResourceV1 owns the
 // one-segment resource.operation namespace; collection names remain plain
 // identifiers and additional nesting stays unavailable.
-const GENERATED_OPERATION_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*\.(?:list|get|create|update|delete|query_[0-9a-f]{16}))$/;
+// @ref LLP 0255#s71b-transaction-resolution--one-replayable-function-identity
+// — statically catalogued multi-chunk transactions add the one reserved
+// `data.tx_<16 hex>` member family to that closed ordinary namespace.
+const GENERATED_OPERATION_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*\.(?:list|get|create|update|delete|query_[0-9a-f]{16})|data\.tx_[0-9a-f]{16})$/;
 const AUTHORIZED_LEASE_V1_DURATION_MS = 86_400_000;
 // Channel B persistence cadence (LLP 0091 §0A.5): trailing debounce after the
 // last result-changing envelope, hard cap under continuous change, immediate
@@ -11517,6 +11521,10 @@ export class SnapbackClient {
       },
       version: 0,
       rows: [],
+      // Data-surface pagination is an additive projection of the canonical
+      // QueryOutput envelope. Ordinary live-query consumers ignore it.
+      // @ref LLP 0255#s53-projection-result-cursor-and-bounds
+      cursor: null,
       // Latest RQS resume object ({ token, meta }) for this subscription.
       // Adopted from subscribe outputs and refreshed envelopes per the LLP
       // 0091 §0B.3 transition table; cleared on digest mismatch. (Named
@@ -13282,6 +13290,7 @@ export class SnapbackClient {
             if (sub.snapshot) {
               handle.version = sub.snapshot.version;
               handle.rows = materializedSnapshot?.rows ?? sub.snapshot.rows;
+              handle.cursor = sub.snapshot.cursor ?? null;
               // A fresh LiveReplace answer (rung 3 or a plain subscribe) is
               // authoritative (LLP 0090 D1 freshness rule).
               handle.freshness = 'current';

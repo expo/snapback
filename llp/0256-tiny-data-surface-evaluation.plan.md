@@ -7,7 +7,7 @@ Application data API, React, Local sync, Offline sync, Authorization, Testing,
 Publishing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-13
-**Revised:** 2026-08-13
+**Revised:** 2026-08-14
 **Related:** LLP 0254, LLP 0252, LLP 0197, LLP 0102, LLP 0082, LLP 0065,
 LLP 0253
 
@@ -429,6 +429,14 @@ Before publication qualifies, Phase 4 adds
 the backstop, limits its commit to `issues/*.md`, rebases, and pushes
 (`scripts/drift-backstop-runner:102-129`), on the installed two-hour launchd
 schedule (`scripts/install-drift-backstop-schedule:32-45`).
+
+Phase 4 installed that exact check and integration on 2026-08-14. Its frozen
+doorway pin, clock instructions, unarmed manual dry-run receipt, and observed
+schedule status live under `benchmarks/tiny-data-surface/v1/clock/` and
+`preregistration/experimental-doorways.v1.json`; the fixture matrix proves the
+required boundary and issue-only behavior before any publication receipt
+exists. This is an implementation record, not a protocol amendment or clock
+start.
 
 At the stop, absent a recorded D10 ruling, the new check must:
 

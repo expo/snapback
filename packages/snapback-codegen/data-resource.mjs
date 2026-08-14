@@ -609,6 +609,7 @@ export function renderDataModule(envelopes) {
     + `export const dataResources = Object.freeze(${JSON.stringify(envelopes.map((resource) => ({
       resource: resource.core.resource,
       normalizedDataResourceId: resource.normalizedDataResourceId,
+      core: resource.core,
       functionReferences: resource.functionReferences,
     })), null, 2)});\n`;
 }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, test } from 'node:test';
@@ -10,20 +10,30 @@ import {
   resolveDataQueryCandidateV1,
 } from './data-query.mjs';
 import { generate } from './index.mjs';
+import { createDataClient } from '../snapback-client/data-client.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
+const familiarUrl = pathToFileURL(join(packageRoot, 'familiar.mjs')).href;
 const roots = [];
 
 after(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
 });
 
-function fixture({ query, schema = null }) {
+function fixture({ query, schema = null, profile = 'explicit' }) {
   const root = mkdtempSync(join(tmpdir(), 'snapback-data-query-'));
   roots.push(root);
-  writeFileSync(join(root, 'schema.mjs'), schema ?? `
-import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
+  const familiar = profile === 'familiar';
+  if (familiar) {
+    writeFileSync(join(root, 'codegen.policy.json'), JSON.stringify({
+      schemaVersion: 'snapback.codegen-policy.v1',
+      committedProjections: [],
+      authoringProfile: 'snapback-familiar-ts-v1',
+    }));
+  }
+  writeFileSync(join(root, familiar ? 'schema.ts' : 'schema.mjs'), schema ?? `
+import { defineSchema, defineTable, v } from ${JSON.stringify(familiar ? familiarUrl : defineUrl)};
 export default defineSchema({
   todos: defineTable({
     ownerId: v.principal(),
@@ -36,8 +46,8 @@ export default defineSchema({
     .data({ createDefaults: { createdAt: 'now' }, immutable: ['createdAt'] }),
 });
 `);
-  writeFileSync(join(root, 'functions.mjs'), 'export const nothing = 0;\n');
-  if (query !== null) writeFileSync(join(root, 'query.ts'), query);
+  if (!familiar) writeFileSync(join(root, 'functions.mjs'), 'export const nothing = 0;\n');
+  if (query !== null) writeFileSync(join(root, familiar ? 'screen.ts' : 'query.ts'), query);
   return root;
 }
 
@@ -76,6 +86,40 @@ test('A1 static query mints the pre-resolution witness and exact-matches todos.l
   );
   assert.deepEqual(query.core.filters, []);
   assert.deepEqual(query.core.order, { field: 'status', direction: 'asc', totalizer: '_id' });
+});
+
+test('explicit and familiar generated bindings preserve React/headless descriptor bytes', async () => {
+  for (const profile of ['explicit', 'familiar']) {
+    const result = await generate(fixture({ query: a1Query, profile }));
+    assert.equal(result.ok, true, `${profile}: ${JSON.stringify(result.diagnostics)}`);
+    const dataPath = join(result.outDir, 'data.mjs');
+    const appPath = join(result.outDir, 'app.mjs');
+    const types = readFileSync(join(result.outDir, 'data.d.ts'), 'utf8');
+    const generated = await import(pathToFileURL(dataPath).href);
+    const app = await import(`${pathToFileURL(appPath).href}?profile=${profile}-${Date.now()}`);
+    assert.strictEqual(app.app.data, generated.data, `${profile} app binding owns exact generated data`);
+    assert.match(types, /declare module '@expo\/snapback-react\/data'/u);
+    assert.match(types, /DataQueryDescriptorV1<TodosDataRow>/u);
+    assert.match(types, /readonly __result\?: Row/u);
+    const client = {
+      __dataMutation() {},
+      mutationStatus() {},
+      async __dataPendingWrites() { return []; },
+      query() {},
+      liveQuery() {},
+      subscribeMutation() { return () => {}; },
+    };
+    const headless = createDataClient({ client, data: generated.data });
+    const fromGenerated = generated.data.todos
+      .using('by_owner_status_created').orderBy('status', 'asc').take(100);
+    const fromHeadless = headless.todos
+      .using('by_owner_status_created').orderBy('status', 'asc').take(100);
+    assert.equal(
+      JSON.stringify(fromHeadless),
+      JSON.stringify(fromGenerated),
+      `${profile} doorway descriptor bytes`,
+    );
+  }
 });
 
 test('scalar equality canonicalizes with explicit eq and synthesis uses dense named slots', async () => {

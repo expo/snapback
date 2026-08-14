@@ -59,7 +59,9 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // the prose to the charter's pre-wave hard ceiling.
 // Bumped 55808 -> 56832 on 2026-08-13 for LLP 0254 Phase 1's one bounded
 // data.resources-v1 capability row.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 56832;
+// Bumped 56832 -> 57856 on 2026-08-14 for LLP 0254 Phase 4's two bounded
+// public-doorway/lifecycle rows; future growth remains tied to named work.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 57856;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

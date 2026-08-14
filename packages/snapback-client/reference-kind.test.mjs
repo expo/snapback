@@ -190,3 +190,30 @@ test('profile admission is opt-in and refuses before a familiar alias can dispat
       && error.diagnostic.details.receivedProfile === 'missing',
   );
 });
+
+test('the client admits only the reserved synthesized data transaction name family', async () => {
+  const client = new SnapbackClient('http://127.0.0.1:9', {
+    offlineQueue: false,
+    devDiagnosticsReporter: false,
+  });
+  try {
+    assert.equal(
+      client.__storeFunctionName({ name: 'data.tx_0123456789abcdef' }),
+      'data.tx_0123456789abcdef',
+    );
+    for (const name of [
+      'todos.tx_0123456789abcdef',
+      'data.tx_0123456789abcde',
+      'data.tx_0123456789abcdeg',
+      'data.tx_0123456789abcdef.extra',
+    ]) {
+      assert.throws(
+        () => client.__storeFunctionName({ name }),
+        /Snapback function name must match/u,
+        name,
+      );
+    }
+  } finally {
+    await client.closeAuth();
+  }
+});

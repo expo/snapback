@@ -1,8 +1,8 @@
-// Headless Phase-3 tiny-data transaction facade. This module is deliberately
-// package-internal until Phase 4 publishes the @expo/snapback/data doorway.
-// It delegates transport, auth, durable custody, optimistic IR, settlement,
-// and diagnostics to the existing SnapbackClient owners.
+// Headless tiny-data facade. It delegates transport, auth, durable custody,
+// materialization, optimistic IR, settlement, and diagnostics to the existing
+// SnapbackClient owners.
 //
+// @ref LLP 0255#s54-delivery-methods-and-capability-checks
 // @ref LLP 0255#s7-transaction-grammar-composition-and-lifecycle
 // @ref LLP 0255#s8-query-state-and-pendingwrites
 
@@ -16,11 +16,30 @@ const CHUNK = Symbol('snapback.data-transaction-chunk.v1');
 const MAX_CHUNKS = 16;
 const MAX_DESCRIPTOR_BYTES = 65_536;
 const MAX_DURABLE_RECORD_BYTES = 262_144;
+const DATA_SETUP_ACTION = 'run normal Snapback generation and install the generated app binding in SnapbackProvider';
 
 const hex = (bytes) => [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 const digest = (domain, value) => `sha256:${hex(sha256(utf8.encode(
   `${domain}\n${canonicalizeClientValueV1(value)}`,
 )))}`;
+// Protocol responses carry a private symbol-keyed authority capture. It is
+// transport custody, not part of the public settlement receipt bytes.
+// @ref LLP 0255#s73-handle-and-result — receiptDigest projects only the
+// canonical settlement/refusal evidence exposed by the ordinary client.
+const protocolProjection = (value) => {
+  if (Array.isArray(value)) return value.map(protocolProjection);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+      key,
+      protocolProjection(child),
+    ]));
+  }
+  return value;
+};
+const settlementDigest = (value) => digest(
+  'snapback:data-settlement-receipt:v1',
+  protocolProjection(value),
+);
 const frozen = (value) => {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
     for (const child of Object.values(value)) frozen(child);
@@ -43,14 +62,101 @@ const dataError = (code, message, details = {}) => {
   return error;
 };
 
-const diagnosticOf = (error) => error?.diagnostic ?? frozen({
-  schemaVersion: 'snapback.client-diagnostic.v2',
-  code: error?.code ?? 'SNAPBACK_DATA_TRANSACTION_REFUSED',
-  severity: 'error',
-  subsystem: 'data',
-  message: error?.message ?? String(error),
-  details: {},
+const diagnosticOf = (error) => {
+  const diagnostic = error?.diagnostic;
+  if (diagnostic?.schemaVersion === 'snapback.client-diagnostic.v2') return diagnostic;
+  return frozen({
+    schemaVersion: 'snapback.client-diagnostic.v2',
+    code: diagnostic?.code ?? error?.code ?? 'SNAPBACK_DATA_TRANSACTION_REFUSED',
+    severity: diagnostic?.severity ?? 'error',
+    subsystem: diagnostic?.subsystem ?? 'data',
+    message: diagnostic?.message ?? error?.message ?? String(error),
+    details: diagnostic?.details ?? {},
+  });
+};
+
+const pageFrom = (result) => frozen({
+  rows: frozen([...(result?.rows ?? result?.data ?? [])]),
+  cursor: result?.cursor ?? null,
+  complete: (result?.cursor ?? null) === null,
 });
+
+const queryState = ({ handle = null, data = undefined, error = null, pendingWrites = [] } = {}) => {
+  if (error !== null) {
+    return frozen({
+      status: 'error', data: undefined, error: diagnosticOf(error),
+      connection: handle?.connection ?? 'error', freshness: 'unknown',
+      retention: handle?.retention ?? null, pendingWrites,
+    });
+  }
+  if (data === undefined) {
+    return frozen({
+      status: 'pending', data: undefined, error: null,
+      connection: handle?.connection ?? 'connecting', freshness: 'unknown',
+      retention: handle?.retention ?? null, pendingWrites,
+    });
+  }
+  const freshness = handle?.freshness === 'retained' ? 'retained' : 'current';
+  const connection = handle?.connection ?? 'live';
+  const ready = connection === 'live' && freshness !== 'retained';
+  return frozen({
+    status: ready ? 'ready' : 'refreshing',
+    data, error: null, connection, freshness,
+    retention: handle?.retention ?? null, pendingWrites,
+  });
+};
+
+const blockedQueryState = ({ handle = null, pendingWrites = [] } = {}) => frozen({
+  status: 'blocked',
+  reason: 'authentication-required',
+  data: undefined,
+  error: null,
+  connection: handle?.connection ?? 'idle',
+  freshness: 'unknown',
+  retention: null,
+  pendingWrites,
+});
+
+function assertQueryDescriptor(binding, descriptor, method) {
+  if (descriptor?.artifactKind !== 'dataQuery') {
+    throw dataError(
+      'SNAPBACK_DATA_QUERY_SHAPE_INVALID',
+      `db.${method} requires a generated data query descriptor`,
+    );
+  }
+  const entry = binding.dataQueryCatalog.find((candidate) => (
+    candidate.normalizedDataQueryId === descriptor.normalizedDataQueryId
+    && candidate.resolution?.exportedName === descriptor.resolution?.exportedName
+    && candidate.functionReference?.id === descriptor.functionReference?.id
+  ));
+  if (!entry) {
+    throw dataError(
+      'SNAPBACK_DATA_QUERY_NOT_CATALOGUED',
+      'the descriptor is absent from the active generated data catalogue',
+    );
+  }
+  return descriptor;
+}
+
+function assertQueryCapabilities(descriptor, method) {
+  const required = descriptor.explain?.requiredCapabilities ?? descriptor.core?.requiredCapabilities ?? [];
+  const served = new Set(descriptor.explain?.servedCapabilities ?? required);
+  const missing = required.filter((capability) => !served.has(capability));
+  if (method === 'watch') {
+    const resourceSync = descriptor.core?.sync ?? descriptor.explain?.sync;
+    if (resourceSync === 'disabled') missing.push('dataSync');
+    if (descriptor.explain?.retained === true) missing.push('unretainedDataQuery');
+  }
+  if (missing.length > 0) {
+    throw dataError(
+      'SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE',
+      method === 'read'
+        ? 'bounded read support is unavailable; change target or escape as a named query'
+        : 'live local materialization is unavailable; use read, enable app sync, change target, or escape as a named query',
+      { missingCapabilities: frozen([...new Set(missing)]) },
+    );
+  }
+}
 
 const projectResults = (entry, value) => {
   const chunkCount = entry?.core?.chunks?.length ?? 0;
@@ -181,7 +287,7 @@ function createHandle({ client, intentId, entry, launch = null }) {
       status: 'committed',
       intentId,
       results: projectResults(entry, result),
-      receiptDigest: digest('snapback:data-settlement-receipt:v1', receipt ?? payload),
+      receiptDigest: settlementDigest(receipt ?? { result }),
     }));
   };
   const refuseFrom = (failure) => {
@@ -191,7 +297,7 @@ function createHandle({ client, intentId, entry, launch = null }) {
       status: 'refused',
       intentId,
       refusal,
-      receiptDigest: digest('snapback:data-settlement-receipt:v1', failure),
+      receiptDigest: settlementDigest(failure?.receipt ?? refusal),
     }));
   };
   const observe = async () => {
@@ -210,7 +316,7 @@ function createHandle({ client, intentId, entry, launch = null }) {
       return;
     }
     if (disposition.status === 'settled') settleFrom(disposition);
-    else if (disposition.status === 'failed') refuseFrom(disposition);
+    else if (disposition.status === 'failed' || disposition.status === 'refused') refuseFrom(disposition);
     else publish(stateFromDisposition(current, disposition));
   };
   const startObservation = () => {
@@ -230,7 +336,7 @@ function createHandle({ client, intentId, entry, launch = null }) {
           : result.status === 'pending'
             ? {
                 status: 'pending', intentId, custody: 'not-offered',
-                blockedReason: 'outcome-unknown', presentation: result.presentation,
+                blockedReason: 'outcome-unknown', presentation: result.presentation ?? 'unavailable',
               }
             : { status: 'refused', intentId, refusal: diagnosticOf(result) };
       publish({
@@ -246,7 +352,7 @@ function createHandle({ client, intentId, entry, launch = null }) {
       dispatchResolve(frozen({ status: 'refused', intentId, refusal }));
       settleResolve(frozen({
         status: 'refused', intentId, refusal,
-        receiptDigest: digest('snapback:data-settlement-receipt:v1', error?.receipt ?? refusal),
+        receiptDigest: settlementDigest(error?.receipt ?? refusal),
       }));
     });
   } else {
@@ -280,10 +386,27 @@ export function createDataClient({ client, data } = {}) {
     || typeof client !== 'object'
     || typeof client.__dataMutation !== 'function'
     || typeof client.mutationStatus !== 'function'
-  ) throw dataError('SNAPBACK_DATA_BINDING_REQUIRED', 'createDataClient requires an app-data-capable Snapback client');
+    || typeof client.__dataPendingWrites !== 'function'
+    || typeof client.query !== 'function'
+    || typeof client.liveQuery !== 'function'
+    || typeof client.subscribeMutation !== 'function'
+  ) throw dataError(
+    'SNAPBACK_DATA_BINDING_REQUIRED',
+    `createDataClient requires an app-data-capable Snapback client; ${DATA_SETUP_ACTION}`,
+    { action: DATA_SETUP_ACTION },
+  );
   const binding = data?.__snapbackDataBinding;
-  if (!binding || !Array.isArray(binding.dataTransactionCatalog)) {
-    throw dataError('SNAPBACK_DATA_BINDING_REQUIRED', 'generated data witnesses are missing or mismatched');
+  if (
+    !binding
+    || !Array.isArray(binding.dataResources)
+    || !Array.isArray(binding.dataQueryCatalog)
+    || !Array.isArray(binding.dataTransactionCatalog)
+  ) {
+    throw dataError(
+      'SNAPBACK_DATA_BINDING_REQUIRED',
+      `generated data witnesses are missing or mismatched; ${DATA_SETUP_ACTION}`,
+      { action: DATA_SETUP_ACTION },
+    );
   }
   const bindingToken = Object.freeze({});
   const tx = Object.fromEntries(Object.entries(binding.operations).map(([resource, operations]) => [
@@ -378,7 +501,111 @@ export function createDataClient({ client, data } = {}) {
       .map(({ intentId, state, presentation }) => ({ intentId, state, presentation })));
   };
 
+  const read = async (descriptor, options = {}) => {
+    assertQueryDescriptor(binding, descriptor, 'read');
+    assertQueryCapabilities(descriptor, 'read');
+    const result = await client.query(descriptor.functionReference, {
+      ...options,
+      args: descriptor.namedArguments,
+    });
+    return pageFrom(result);
+  };
+
+  const watch = (descriptor, options = {}) => {
+    assertQueryDescriptor(binding, descriptor, 'watch');
+    assertQueryCapabilities(descriptor, 'watch');
+    let current = queryState();
+    let liveHandle = null;
+    let disposed = false;
+    const listeners = new Set();
+    const publish = (next) => {
+      current = next;
+      if (disposed) return;
+      for (const listener of [...listeners]) {
+        try { listener(); } catch { /* observation does not own materialization */ }
+      }
+    };
+    const project = async (rows = liveHandle?.rows, detail = {}) => {
+      const writes = await pendingWrites(descriptor);
+      if (disposed) return;
+      const projectedHandle = liveHandle ?? {
+        connection: detail.connection ?? 'connecting',
+        freshness: null,
+        retention: null,
+      };
+      const denial = detail.kind === 'authorization_denied'
+        ? detail.error ?? detail.authorization
+        : liveHandle?.authorizationDenial;
+      if ((denial?.diagnostic?.code ?? denial?.code) === 'SNAPBACK_AUTH_REQUIRED') {
+        publish(blockedQueryState({ handle: projectedHandle, pendingWrites: writes }));
+        return;
+      }
+      if (denial || detail.kind === 'authorization_error' || detail.error) {
+        publish(queryState({
+          handle: projectedHandle,
+          error: detail.error ?? denial ?? new Error('live query connection failed'),
+          pendingWrites: writes,
+        }));
+        return;
+      }
+      if (rows === undefined) {
+        publish(queryState({ handle: projectedHandle, pendingWrites: writes }));
+        return;
+      }
+      publish(queryState({
+        handle: projectedHandle,
+        data: pageFrom({ rows, cursor: liveHandle?.cursor ?? null }),
+        pendingWrites: writes,
+      }));
+    };
+    const started = client.liveQuery(descriptor.functionReference, {
+      ...options,
+      args: descriptor.namedArguments,
+      transport: 'stream',
+      persistResume: false,
+      onUpdate(rows, detail) {
+        void project(rows, detail);
+      },
+      onConnectionChange(connection, detail) {
+        void project(liveHandle?.rows, { ...detail, connection });
+      },
+    }).then(async (handle) => {
+      liveHandle = handle;
+      if (disposed) {
+        await handle.dispose();
+        return;
+      }
+      await project(handle.rows, handle.authorizationDenial == null
+        ? {}
+        : { kind: 'authorization_denied', error: handle.authorizationDenial });
+    }).catch((error) => {
+      if (!disposed) publish(queryState({ error }));
+    });
+    return frozen({
+      snapshot: () => current,
+      subscribe(listener) {
+        if (typeof listener !== 'function') throw new TypeError('watch subscribe requires a listener');
+        if (disposed) return () => {};
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      async refresh() {
+        await started;
+        if (disposed || liveHandle === null) return;
+        await liveHandle.poll();
+        await project(liveHandle.rows);
+      },
+      dispose() {
+        if (disposed) return;
+        disposed = true;
+        listeners.clear();
+        if (liveHandle !== null) void liveHandle.dispose();
+      },
+    });
+  };
+
   return frozen({
+    ...data,
     tx: frozen(tx),
     transact,
     transaction(intentId) {
@@ -389,15 +616,11 @@ export function createDataClient({ client, data } = {}) {
       return createHandle({ client, intentId, entry });
     },
     pendingWrites,
-    async query(descriptor, options = {}) {
-      if (descriptor?.artifactKind !== 'dataQuery') {
-        throw dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'db.query requires a generated data query descriptor');
-      }
-      const result = await client.query(descriptor.functionReference, {
-        ...options,
-        args: descriptor.namedArguments,
-      });
-      return frozen({ ...result, pendingWrites: await pendingWrites(descriptor) });
+    read,
+    watch,
+    explain(descriptor) {
+      assertQueryDescriptor(binding, descriptor, 'explain');
+      return descriptor.explain;
     },
   });
 }

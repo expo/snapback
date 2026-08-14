@@ -43,6 +43,38 @@ const updateRef = Object.freeze({
   expectedGeneration: generation,
   argsContract: argsContract([['id', 'id'], ['title', 'string']]),
 });
+const queryRef = Object.freeze({
+  artifactKind: 'functionReference',
+  kind: 'LiveQuery',
+  id: 'data-test:data.q_eeeeeeeeeeeeeeee',
+  name: 'data.q_eeeeeeeeeeeeeeee',
+  expectedGeneration: generation,
+  argsContract: argsContract([['status', 'string']]),
+});
+const queryCatalogEntry = Object.freeze({
+  normalizedDataQueryId: `sha256:${'e'.repeat(64)}`,
+  resolution: Object.freeze({
+    kind: 'synthesized-generated',
+    exportedName: 'data.q_eeeeeeeeeeeeeeee',
+  }),
+  functionReference: queryRef,
+});
+const queryDescriptor = Object.freeze({
+  artifactKind: 'dataQuery',
+  schemaVersion: 'snapback.data-query.v1',
+  normalizedDataQueryId: queryCatalogEntry.normalizedDataQueryId,
+  core: Object.freeze({ resource: 'todos', requiredCapabilities: Object.freeze(['data.live.v1']) }),
+  resolution: queryCatalogEntry.resolution,
+  functionReference: queryRef,
+  namedArguments: Object.freeze({ status: 'open' }),
+  explain: Object.freeze({
+    witness: queryCatalogEntry.normalizedDataQueryId,
+    requiredCapabilities: Object.freeze(['data.live.v1']),
+    servedCapabilities: Object.freeze(['data.live.v1']),
+    retained: false,
+    materializationKey: null,
+  }),
+});
 
 const core = Object.freeze({
   format: 'snapback.normalized-data-transaction.v1',
@@ -61,7 +93,7 @@ function binding(coreOverride = {}) {
     enumerable: false,
     value: Object.freeze({
       dataResources: Object.freeze([{ core: { resource: 'todos', table: 'todos' } }]),
-      dataQueryCatalog: Object.freeze([]),
+      dataQueryCatalog: Object.freeze([queryCatalogEntry]),
       operations: Object.freeze({
         todos: Object.freeze({ create: createRef, update: updateRef }),
       }),
@@ -84,17 +116,25 @@ function binding(coreOverride = {}) {
 
 function fakeClient({ disposition = 'settled', presentation = 'installed' } = {}) {
   const calls = [];
+  const queryCalls = [];
+  const liveCalls = [];
   const listeners = new Set();
   return {
     calls,
+    queryCalls,
+    liveCalls,
     async __dataMutation(reference, options) {
       calls.push({ reference, options });
       if (disposition === 'settled') {
+        const receipt = { kind: 'mutation', outcome: 'confirmed' };
+        Object.defineProperty(receipt, Symbol('authority-capture'), {
+          value: { authorityEpoch: 1 },
+        });
         return {
           status: 'settled',
           clientMutationId: options.clientMutationId,
           result: { c0: { _id: 'todo-new', title: 'a' }, c1: { _id: 'todo-1', title: 'b' } },
-          receipt: { kind: 'mutation', outcome: 'confirmed' },
+          receipt,
         };
       }
       return {
@@ -121,7 +161,29 @@ function fakeClient({ disposition = 'settled', presentation = 'installed' } = {}
         }),
       ]);
     },
-    async query() { return { status: 'ready', data: [] }; },
+    async query(reference, options) {
+      queryCalls.push({ reference, options });
+      return { version: 4, rows: [{ _id: 'todo-1', title: 'first' }], cursor: 'dc1.next' };
+    },
+    async liveQuery(reference, options) {
+      liveCalls.push({ reference, options });
+      const handle = {
+        rows: [{ _id: 'todo-1', title: 'first' }],
+        cursor: 'dc1.next',
+        connection: 'live',
+        freshness: 'current',
+        retention: { retainable: false, reason: 'data v1 is unretained' },
+        async poll() {
+          this.rows = [...this.rows, { _id: 'todo-2', title: 'second' }];
+          this.cursor = null;
+          options.onUpdate?.(this.rows, { kind: 'snapshot' });
+          return this.rows;
+        },
+        dispose() { this.disposed = true; },
+      };
+      options.onUpdate?.(handle.rows, { kind: 'snapshot' });
+      return handle;
+    },
   };
 }
 
@@ -188,6 +250,130 @@ test('pendingWrites intersects materialization reach and preserves owner orderin
   ]);
   assert.equal(JSON.stringify(pending).includes('args'), false);
   assert.deepEqual(await db.pendingWrites({ status: 'skipped' }), []);
+});
+
+test('headless read returns DataPageV1 and explain never opens transport', async () => {
+  const client = fakeClient();
+  const db = createDataClient({ client, data: binding() });
+  assert.equal('query' in db, false, 'the experimental doorway does not publish a second query verb');
+  assert.deepEqual(db.explain(queryDescriptor), queryDescriptor.explain);
+  assert.equal(client.queryCalls.length, 0);
+  assert.deepEqual(await db.read(queryDescriptor), {
+    rows: [{ _id: 'todo-1', title: 'first' }],
+    cursor: 'dc1.next',
+    complete: false,
+  });
+  assert.deepEqual(client.queryCalls[0], {
+    reference: queryRef,
+    options: { args: { status: 'open' } },
+  });
+});
+
+test('watch projects the canonical handle/state union and delegates one live materialization', async () => {
+  const client = fakeClient();
+  const db = createDataClient({ client, data: binding() });
+  const watch = db.watch(queryDescriptor);
+  const notifications = [];
+  watch.subscribe(() => notifications.push(watch.snapshot().status));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(client.liveCalls.length, 1);
+  assert.equal(client.liveCalls[0].options.transport, 'stream');
+  assert.equal(client.liveCalls[0].options.persistResume, false);
+  assert.deepEqual(watch.snapshot(), {
+    status: 'ready',
+    data: {
+      rows: [{ _id: 'todo-1', title: 'first' }],
+      cursor: 'dc1.next',
+      complete: false,
+    },
+    error: null,
+    connection: 'live',
+    freshness: 'current',
+    retention: { retainable: false, reason: 'data v1 is unretained' },
+    pendingWrites: [
+      { intentId: 'cm-a', state: 'queued', presentation: 'installed' },
+      { intentId: 'cm-b', state: 'pending', presentation: 'withheld' },
+    ],
+  });
+  await watch.refresh();
+  assert.equal(watch.snapshot().data.complete, true);
+  assert.equal(watch.snapshot().data.rows.length, 2);
+  watch.dispose();
+  assert.equal(client.liveCalls.length, 1, 'refresh and dispose do not create another transport owner');
+  assert.equal(notifications.includes('ready'), true);
+});
+
+test('watch projects refreshing, blocked, and error arms from the canonical live handle', async () => {
+  const client = fakeClient();
+  let callbacks = null;
+  const handle = {
+    rows: [{ _id: 'todo-1', title: 'retained' }],
+    cursor: null,
+    connection: 'connecting',
+    freshness: 'retained',
+    retention: { retainable: true, reason: 'fixture' },
+    authorizationDenial: null,
+    async poll() {},
+    dispose() {},
+  };
+  client.liveQuery = async (_reference, options) => {
+    callbacks = options;
+    return handle;
+  };
+  const watch = createDataClient({ client, data: binding() }).watch(queryDescriptor);
+  assert.equal(watch.snapshot().status, 'pending');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(watch.snapshot().status, 'refreshing');
+  assert.equal(watch.snapshot().freshness, 'retained');
+
+  handle.connection = 'live';
+  handle.freshness = 'current';
+  callbacks.onConnectionChange('live', {});
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(watch.snapshot().status, 'ready');
+
+  callbacks.onUpdate([], {
+    kind: 'authorization_denied',
+    error: { code: 'SNAPBACK_AUTH_REQUIRED', message: 'sign in' },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(watch.snapshot().status, 'blocked');
+  assert.equal(watch.snapshot().reason, 'authentication-required');
+
+  callbacks.onUpdate([], {
+    kind: 'authorization_error',
+    error: { code: 'SNAPBACK_AUTH_INVALIDATION_CORRUPT', message: 'invalid boundary' },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(watch.snapshot().status, 'error');
+  assert.equal(watch.snapshot().error.code, 'SNAPBACK_AUTH_INVALIDATION_CORRUPT');
+  watch.dispose();
+});
+
+test('query admission refuses stale catalogues and missing capabilities before transport', () => {
+  const client = fakeClient();
+  const db = createDataClient({ client, data: binding() });
+  assert.throws(
+    () => db.watch({ ...queryDescriptor, normalizedDataQueryId: `sha256:${'f'.repeat(64)}` }),
+    ({ code }) => code === 'SNAPBACK_DATA_QUERY_NOT_CATALOGUED',
+  );
+  assert.throws(
+    () => db.watch({
+      ...queryDescriptor,
+      explain: { ...queryDescriptor.explain, servedCapabilities: [] },
+    }),
+    ({ code }) => code === 'SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE',
+  );
+  assert.equal(client.queryCalls.length, 0);
+  assert.equal(client.liveCalls.length, 0);
+});
+
+test('missing generated bindings name the stable setup action', () => {
+  assert.throws(
+    () => createDataClient({ client: fakeClient(), data: {} }),
+    (error) => error.code === 'SNAPBACK_DATA_BINDING_REQUIRED'
+      && error.diagnostic.details.action.includes('normal Snapback generation'),
+  );
 });
 
 test('non-replayable observations persist the atomic boundary but never enter replay ordering', () => {

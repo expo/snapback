@@ -214,6 +214,8 @@ export const PACKAGE_TEST_INVENTORIES = [
       'cold-boot-binding-indexeddb.test.mjs',
       'cold-boot-binding.test.mjs',
       'commands.test.mjs',
+      'data-ownership.test.mjs',
+      'data.test.mjs',
       'dev-diagnostics-acceptance.test.mjs',
       'dev-diagnostics.test.mjs',
       'familiar.test.mjs',
@@ -499,7 +501,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 281,
+  expectedTotal = 283,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -885,6 +887,8 @@ export function checkPackageTestInventories(options = {}) {
 // 279 -> 281 (2026-08-14, LLP 0254 Phase 3): @expo/snapback-codegen gains
 // generated transaction lowering/refusal proofs and @expo/snapback-client
 // gains handle, custody, real-store crash-cut, and pendingWrites coverage.
+// 281 -> 283 (2026-08-14, LLP 0254 Phase 4): @expo/snapback-react gains the
+// provider/skip/binding doorway and one-owner architecture-negative suites.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

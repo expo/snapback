@@ -4,6 +4,320 @@ export const dataResources = Object.freeze([
   {
     "resource": "todos",
     "normalizedDataResourceId": "sha256:72917f332a325ecdd4b74e7a3a083c483fca95487cf5a40368a4e004f68590df",
+    "core": {
+      "format": "snapback.normalized-data-resource.v1",
+      "surfaceProfile": "snapback.data-surface.v1",
+      "resource": "todos",
+      "table": "todos",
+      "tableSchemaHash": "sha256:9c4b1a881ee570c87b4cdedefe3f9d4b85e11378151a6de8900919e5983d544e",
+      "fields": [
+        {
+          "name": "_id",
+          "validatorContract": {
+            "kind": "id",
+            "table": "todos"
+          },
+          "optional": false,
+          "source": "system",
+          "createInput": false,
+          "updateInput": false,
+          "serverOwned": true,
+          "immutable": true,
+          "default": null,
+          "ownerAssigned": false
+        },
+        {
+          "name": "_version",
+          "validatorContract": {
+            "kind": "integer",
+            "min": 0,
+            "max": 9007199254740991
+          },
+          "optional": false,
+          "source": "system",
+          "createInput": false,
+          "updateInput": false,
+          "serverOwned": true,
+          "immutable": true,
+          "default": null,
+          "ownerAssigned": false
+        },
+        {
+          "name": "_createdAt",
+          "validatorContract": {
+            "kind": "integer",
+            "min": 0,
+            "max": 9007199254740991
+          },
+          "optional": false,
+          "source": "system",
+          "createInput": false,
+          "updateInput": false,
+          "serverOwned": true,
+          "immutable": true,
+          "default": null,
+          "ownerAssigned": false
+        },
+        {
+          "name": "_updatedAt",
+          "validatorContract": {
+            "kind": "integer",
+            "min": 0,
+            "max": 9007199254740991
+          },
+          "optional": false,
+          "source": "system",
+          "createInput": false,
+          "updateInput": false,
+          "serverOwned": true,
+          "immutable": true,
+          "default": null,
+          "ownerAssigned": false
+        },
+        {
+          "name": "title",
+          "validatorContract": {
+            "kind": "string",
+            "maxBytes": 1048576
+          },
+          "optional": false,
+          "source": "authored",
+          "createInput": true,
+          "updateInput": true,
+          "serverOwned": false,
+          "immutable": false,
+          "default": null,
+          "ownerAssigned": false
+        },
+        {
+          "name": "completed",
+          "validatorContract": {
+            "kind": "boolean"
+          },
+          "optional": false,
+          "source": "authored",
+          "createInput": true,
+          "updateInput": true,
+          "serverOwned": false,
+          "immutable": false,
+          "default": null,
+          "ownerAssigned": false
+        },
+        {
+          "name": "ownerId",
+          "validatorContract": {
+            "kind": "principal"
+          },
+          "optional": false,
+          "source": "authored",
+          "createInput": false,
+          "updateInput": false,
+          "serverOwned": true,
+          "immutable": true,
+          "default": null,
+          "ownerAssigned": true
+        },
+        {
+          "name": "createdAt",
+          "validatorContract": {
+            "kind": "integer",
+            "min": -9007199254740991,
+            "max": 9007199254740991
+          },
+          "optional": false,
+          "source": "authored",
+          "createInput": false,
+          "updateInput": false,
+          "serverOwned": true,
+          "immutable": true,
+          "default": "now",
+          "ownerAssigned": false
+        }
+      ],
+      "access": {
+        "kind": "owner",
+        "ownerField": "ownerId",
+        "policyId": "sha256:4b6caaf15c88de1b796677f4fbe492e87b947bef8e175d0731c1b1d5fe226a61"
+      },
+      "indexes": [
+        {
+          "name": "by_owner_created",
+          "fields": [
+            "ownerId",
+            "createdAt"
+          ],
+          "unique": false,
+          "listIndex": true,
+          "queryable": true
+        }
+      ],
+      "operations": [
+        {
+          "name": "list",
+          "kind": "LiveQuery",
+          "exportedName": "todos.list",
+          "argsContractHash": "sha256:7b9c6f2c39f5354bae3d4b9420426a3ffe5ca3d07f7e2d77dda8dc22103f877e",
+          "resultContractHash": "sha256:a1c03576646df3d2c5c8757c9391c36ebc753735da2c9f79b3c1b8a0918b53d2",
+          "policyId": "sha256:4b6caaf15c88de1b796677f4fbe492e87b947bef8e175d0731c1b1d5fe226a61",
+          "planHash": "sha256:cef8eec299924a7e0075d4d8a9af58a2d3771e498b2f4082b3b0e7f0bc12344c",
+          "readTables": [
+            "todos"
+          ],
+          "writeTables": [],
+          "effectCeilingClass": "read",
+          "dispatchRequiredCapabilities": [],
+          "prediction": "none",
+          "custody": null,
+          "refusals": [
+            {
+              "code": "SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE",
+              "phase": "admission",
+              "guideAnchor": "guide/data/resources"
+            }
+          ]
+        },
+        {
+          "name": "get",
+          "kind": "LiveQuery",
+          "exportedName": "todos.get",
+          "argsContractHash": "sha256:ada4d6ce9509c9c07d0d500130448555a6b94b3b725497561b42897960b01c91",
+          "resultContractHash": "sha256:1277fc65af9c9581e8280877a325141287f761f04a5aa9494c19f3bbf9982839",
+          "policyId": "sha256:4b6caaf15c88de1b796677f4fbe492e87b947bef8e175d0731c1b1d5fe226a61",
+          "planHash": "sha256:bf116a5f927527e90124effa41c0ceb3a7d7be5c9a949b5c3c4666529c50e094",
+          "readTables": [
+            "todos"
+          ],
+          "writeTables": [],
+          "effectCeilingClass": "read",
+          "dispatchRequiredCapabilities": [],
+          "prediction": "none",
+          "custody": null,
+          "refusals": []
+        },
+        {
+          "name": "create",
+          "kind": "Mutation",
+          "exportedName": "todos.create",
+          "argsContractHash": "sha256:40b514e59f6b569975900229f4dffb084de2898b68deb10c83aecb83cc76b482",
+          "resultContractHash": "sha256:151a0ef29b85b268d92b94b26ae0a10fa73e7b0d4fd9efcaa1cc6a54839746db",
+          "policyId": "sha256:4b6caaf15c88de1b796677f4fbe492e87b947bef8e175d0731c1b1d5fe226a61",
+          "planHash": "sha256:47e730a66cec133937577073029d9d220ac43f18e445c05f454be61febb631ad",
+          "readTables": [],
+          "writeTables": [
+            "todos"
+          ],
+          "effectCeilingClass": "write",
+          "dispatchRequiredCapabilities": [
+            "offline_mutation_replay"
+          ],
+          "prediction": "generated-exact",
+          "custody": {
+            "class": "queue-eligible",
+            "reason": null
+          },
+          "refusals": []
+        },
+        {
+          "name": "update",
+          "kind": "Mutation",
+          "exportedName": "todos.update",
+          "argsContractHash": "sha256:986b84ff4df409d1cfeafa337e369779e1959be5934a2f4ff90e7b831c62b59b",
+          "resultContractHash": "sha256:151a0ef29b85b268d92b94b26ae0a10fa73e7b0d4fd9efcaa1cc6a54839746db",
+          "policyId": "sha256:4b6caaf15c88de1b796677f4fbe492e87b947bef8e175d0731c1b1d5fe226a61",
+          "planHash": "sha256:260b0ed47654889cdb75b23245239629d9281ac48899f19c0597d46e5bd745f7",
+          "readTables": [
+            "todos"
+          ],
+          "writeTables": [
+            "todos"
+          ],
+          "effectCeilingClass": "write",
+          "dispatchRequiredCapabilities": [
+            "offline_mutation_replay"
+          ],
+          "prediction": "generated-exact",
+          "custody": {
+            "class": "queue-eligible",
+            "reason": null
+          },
+          "refusals": [
+            {
+              "code": "SNAPBACK_ROW_NOT_FOUND",
+              "phase": "admission",
+              "guideAnchor": "guide/data/resources"
+            }
+          ]
+        },
+        {
+          "name": "delete",
+          "kind": "Mutation",
+          "exportedName": "todos.delete",
+          "argsContractHash": "sha256:ada4d6ce9509c9c07d0d500130448555a6b94b3b725497561b42897960b01c91",
+          "resultContractHash": "sha256:6a7271e69c8ea471cb72bf6110a4ba9d9629a1ba88343e49afdb6cc5f4406387",
+          "policyId": "sha256:4b6caaf15c88de1b796677f4fbe492e87b947bef8e175d0731c1b1d5fe226a61",
+          "planHash": "sha256:d470605d794bc149efc3b6bb89699ae4011ba13fdde1ae9675139e8d6a175da3",
+          "readTables": [
+            "todos"
+          ],
+          "writeTables": [
+            "todos"
+          ],
+          "effectCeilingClass": "write",
+          "dispatchRequiredCapabilities": [
+            "offline_mutation_replay"
+          ],
+          "prediction": "generated-exact",
+          "custody": {
+            "class": "queue-eligible",
+            "reason": null
+          },
+          "refusals": [
+            {
+              "code": "SNAPBACK_ROW_NOT_FOUND",
+              "phase": "admission",
+              "guideAnchor": "guide/data/resources"
+            }
+          ]
+        }
+      ],
+      "sync": {
+        "enabled": true,
+        "source": "data-profile-default"
+      },
+      "capabilities": {
+        "read": true,
+        "write": true,
+        "live": true,
+        "localMaterialization": true,
+        "retained": false,
+        "offlineCustody": true,
+        "cursor": "data-cursor.v1"
+      },
+      "ceilings": {
+        "maxDescriptorBytes": 32768,
+        "maxFilterFields": 8,
+        "maxInValues": 32,
+        "maxProjectionFields": 64,
+        "maxTake": 200,
+        "maxCandidateRows": 1024,
+        "maxResultBytes": 65536,
+        "maxIndexesPerResource": 16,
+        "maxFieldsPerResource": 64
+      },
+      "refusalVocabulary": [
+        {
+          "code": "SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE",
+          "phase": "admission",
+          "guideAnchor": "guide/data/resources"
+        },
+        {
+          "code": "SNAPBACK_ROW_NOT_FOUND",
+          "phase": "admission",
+          "guideAnchor": "guide/data/resources"
+        }
+      ],
+      "guideAnchor": "guide/data/resources"
+    },
     "functionReferences": [
       {
         "artifactKind": "functionReference",

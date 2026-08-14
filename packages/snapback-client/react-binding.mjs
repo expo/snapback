@@ -37,6 +37,7 @@ const DEFAULT_DEVELOPMENT_SYNC_POLL_INTERVAL_MS = 250;
 const MAX_DEVELOPMENT_SYNC_TIMEOUT_MS = 60_000;
 const MAX_DEVELOPMENT_SYNC_POLL_INTERVAL_MS = 5_000;
 const utf8 = new TextEncoder();
+const DATA_SETUP_ACTION = 'run normal Snapback generation and install the generated app binding in SnapbackProvider';
 
 function diagnosticError(code, message, details = {}) {
   const diagnostic = Object.freeze({
@@ -299,7 +300,9 @@ function normalizedManifest(input) {
   return Object.freeze({
     descriptorMode: false,
     descriptor: null,
-    functions,
+    // Generated modules may carry non-enumerable runtime conveniences (the
+    // data binding in Phase 4). Hash only the portable manifest projection.
+    functions: deepFreeze(structuredClone(functions)),
     schema: input?.artifactKind === 'functionManifest'
       ? null
       : input?.schema ?? null,
@@ -310,6 +313,35 @@ function normalizedManifest(input) {
       ? null
       : input?.routes ?? null,
   });
+}
+
+function validatedGeneratedDataBinding(input, generated) {
+  if (input === null || input === undefined) return null;
+  const binding = input?.__snapbackDataBinding;
+  const references = [
+    ...(binding?.dataResources ?? []).flatMap((resource) => resource.functionReferences ?? []),
+    ...(binding?.dataQueryCatalog ?? []).map((entry) => entry.functionReference),
+    ...(binding?.dataTransactionCatalog ?? []).map((entry) => entry.functionReference),
+  ].filter(Boolean);
+  const generatedIds = new Set(generated.functions.functions.map(({ id }) => id));
+  if (
+    !binding
+    || !Array.isArray(binding.dataResources)
+    || !Array.isArray(binding.dataQueryCatalog)
+    || !Array.isArray(binding.dataTransactionCatalog)
+    || references.some((reference) => (
+      !generatedIds.has(reference.id)
+      || reference.expectedGeneration?.appId !== generated.functions.appId
+      || reference.expectedGeneration?.bundleHash !== generated.functions.bundleHash
+    ))
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DATA_BINDING_REQUIRED',
+      `generated data witnesses do not match the provider app binding; ${DATA_SETUP_ACTION}`,
+      { action: DATA_SETUP_ACTION },
+    );
+  }
+  return input;
 }
 
 function exactDeploymentFunction(definition) {
@@ -702,6 +734,10 @@ async function prepareReactBindingOnce(
     throw new TypeError('prepareReactBinding requires a SnapbackClient');
   }
   const generated = normalizedManifest(options.generatedManifest);
+  const generatedData = validatedGeneratedDataBinding(
+    options.generatedManifest?.data,
+    generated,
+  );
   let inspection;
   let session;
   let source = 'deployment';
@@ -1477,6 +1513,7 @@ async function prepareReactBindingOnce(
     assetIntentsById: { value: assetIntentsById },
     commandsByCanonical: { value: commandsByCanonical },
     routesManifest: { value: generated.routes },
+    data: { value: generatedData },
   });
   // Channel A has concrete, schema-decoded route arguments while the raw
   // routes manifest contains `$param` templates. Once generated references
@@ -1601,6 +1638,19 @@ export function assertPreparedReactBinding(binding) {
 
 export function preparedReactBindingClient(binding) {
   return assertPreparedReactBinding(binding).client;
+}
+
+// The generated data object is a non-enumerable provider-binding convenience:
+// it never enters the portable descriptor hash or creates a runtime registry.
+// @ref LLP 0255#s9-package-doorway-and-generated-typing
+export function preparedReactBindingData(binding) {
+  const prepared = assertPreparedReactBinding(binding);
+  if (prepared.data !== null) return prepared.data;
+  throw diagnosticError(
+    'SNAPBACK_DATA_BINDING_REQUIRED',
+    `the provider has no generated data binding; ${DATA_SETUP_ACTION}`,
+    { action: DATA_SETUP_ACTION },
+  );
 }
 
 export function admittedReactQueryGroup(binding, reference) {

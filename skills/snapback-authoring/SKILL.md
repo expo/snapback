@@ -62,7 +62,10 @@ Local target; hosted targets make deliberately weaker claims
    provider and `useSnapbackQuery` / `useSnapbackMutation`
    ([React client](../../guide/clients/react.md); Expo:
    [react-expo](../../guide/clients/react-expo.md), headless:
-   [headless](../../guide/clients/headless.md)).
+   [headless](../../guide/clients/headless.md)). For an eligible `.data()`
+   resource, the additive Experimental path is the generated tiny-data
+   doorway described in [data/doorways](../../guide/data/doorways.md); do not
+   mix the two query spellings accidentally.
 6. **First upload.** Generated upload intents, trusted SHA-256 finalization,
    typed `v.assetRef` attachment, under ordinary session custody — the Expo
    ImagePicker-to-Blob recipe is in [assets](../../guide/backend/assets.md).
@@ -70,6 +73,31 @@ Local target; hosted targets make deliberately weaker claims
    defaults to sessions mode; `react` and `todo-contract` default to dev mode,
    so flip those schemas to `{ auth: { mode: 'sessions' } }` **before**
    building upload UI.
+
+## The Experimental tiny-data path
+
+Use this path only after confirming the resource is within DataResourceV1's
+closed floor. Generate normally, then bind the emitted `data` once:
+
+- headless: `createDataClient({ client, data })` from
+  `@expo/snapback/data`;
+- React: provider-bound `db` from `@expo/snapback/react/data`;
+- Expo: the identical `db` reexport from `@expo/snapback-expo/data`.
+
+React deliberately exports `db.useQuery`, never a standalone `useQuery`.
+`db.useQuery("skip")` performs no materialization. For imperative work use
+`read`, `watch`, `explain`, `tx`/`transact`, and `transaction(intentId)` and
+keep dispatch distinct from settlement. Capture those provider-bound methods
+during a React render before invoking them from an effect or event; use the
+headless doorway in modules and workers. A missing generated provider binding
+must be fixed by generation/installation; do not create a runtime registry or
+second transport/cache/auth/outbox owner. Read
+[the doorway map](../../guide/data/doorways.md) and
+[the lifecycle](../../guide/data/lifecycle.md) before wiring this surface.
+
+The LLP 0256 experiment scaffold is under
+`benchmarks/tiny-data-surface/v1/`. It is not an app starter, and no timed lane
+is valid until its publication receipt and run-time pin gates are armed.
 
 ## The done-oracle
 

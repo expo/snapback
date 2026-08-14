@@ -1,0 +1,9 @@
+{
+  "name": "@snapback-fixture/data-surface-a1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@expo/snapback": "workspace:*",
+    "@expo/snapback-expo": "workspace:*"
+  }
+}

@@ -57,7 +57,7 @@
   ],
   "authoredSourceHash": "sha256:cfb54cf932c230a1377913a9b7cf6db5630b41b5d189b1ff1199b895b07eab5b",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "snapback.v1:sessions:function:sha256:431f74cf52c8f781e286a668ba4717783a2c6382dda51527f01bdf4147ebf0d0",
+  "bundleHash": "snapback.v1:sessions:function:sha256:c0c1605dc4967c9b6ceba87bac1f216d2687a1c1379412b4e1b7335941901bd7",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -1720,7 +1720,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:1fb0d3cd6f025fef1c2ff4a7d70499fd799a44828d9a76ce815a59289c46c5b9",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:e3a6900a3ddda8c4683295701790d4250bea3cfb77cd2897b28922dfec4c40ca",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

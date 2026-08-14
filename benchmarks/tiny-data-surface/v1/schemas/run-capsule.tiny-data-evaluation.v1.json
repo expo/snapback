@@ -1,0 +1,190 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "snapback.run-capsule.tiny-data-evaluation.v1",
+  "title": "LLP 0256 tiny data evaluation run capsule",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "protocolId", "attemptId", "roundId", "configurationVersion", "configurationDigest",
+    "lane", "workloadChain", "aidCondition", "model", "environment", "packageClosure", "target",
+    "budget", "actors", "order", "prompts", "aids", "commands", "normalizedActionTrace",
+    "milestones", "tokenUsage", "toolCalls", "corrections", "mistakes", "interventions",
+    "conceptCandidates", "grades", "semanticFacts", "functionEscapes", "schemaExtensions",
+    "scenarioResults", "proofReceipts", "evidenceConfidence", "architectureOracle", "inventory",
+    "assistanceEvents", "evidenceIndex", "privateCommitment", "stopDefects", "cleanup",
+    "terminalOutcome", "result"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "snapback.run-capsule.tiny-data-evaluation.v1" },
+    "protocolId": { "const": "llp-0256-tiny-data-surface-v1" },
+    "attemptId": { "type": "string", "minLength": 1 },
+    "roundId": { "type": "string", "minLength": 1 },
+    "configurationVersion": { "type": "string", "minLength": 1 },
+    "configurationDigest": { "$ref": "#/$defs/digest" },
+    "lane": { "enum": ["tiny", "explicit", "instantdb"] },
+    "workloadChain": { "type": "array", "minItems": 1, "items": { "enum": ["owner-scoped-todo", "day-two-evolution"] } },
+    "aidCondition": { "enum": ["bare-v1", "assisted-v1"] },
+    "model": { "$ref": "#/$defs/identity" },
+    "environment": { "$ref": "#/$defs/identity" },
+    "packageClosure": { "$ref": "#/$defs/identity" },
+    "target": { "$ref": "#/$defs/identity" },
+    "budget": { "$ref": "#/$defs/budget" },
+    "actors": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/identity" } },
+    "order": { "type": "integer", "minimum": 1, "maximum": 30 },
+    "prompts": { "type": "array", "items": { "$ref": "#/$defs/artifactPointer" } },
+    "aids": { "type": "array", "items": { "$ref": "#/$defs/artifactPointer" } },
+    "commands": { "type": "array", "items": { "$ref": "#/$defs/command" } },
+    "normalizedActionTrace": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+    "milestones": { "$ref": "#/$defs/milestones" },
+    "tokenUsage": { "$ref": "#/$defs/tokenUsage" },
+    "toolCalls": { "type": "array", "items": { "$ref": "#/$defs/toolCall" } },
+    "corrections": { "type": "array", "items": { "$ref": "#/$defs/interval" } },
+    "mistakes": { "type": "array", "items": { "$ref": "#/$defs/mistake" } },
+    "interventions": { "type": "array", "items": { "$ref": "#/$defs/intervention" } },
+    "conceptCandidates": { "$ref": "#/$defs/concepts" },
+    "grades": { "type": "array", "items": { "$ref": "#/$defs/grade" } },
+    "semanticFacts": { "type": "array", "items": { "$ref": "#/$defs/semanticFact" } },
+    "functionEscapes": { "type": "array", "items": { "$ref": "#/$defs/functionEscape" } },
+    "schemaExtensions": { "type": "array", "items": { "$ref": "#/$defs/schemaExtension" } },
+    "scenarioResults": { "type": "array", "items": { "$ref": "#/$defs/scenarioResult" } },
+    "proofReceipts": { "type": "array", "items": { "$ref": "#/$defs/artifactPointer" } },
+    "evidenceConfidence": { "$ref": "#/$defs/evidenceConfidence" },
+    "architectureOracle": { "$ref": "#/$defs/architectureOracle" },
+    "inventory": { "$ref": "#/$defs/artifactPointer" },
+    "assistanceEvents": { "type": "array", "items": { "$ref": "#/$defs/assistanceEvent" } },
+    "evidenceIndex": { "type": "array", "items": { "$ref": "#/$defs/evidenceRef" } },
+    "privateCommitment": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+    "stopDefects": { "type": "array", "items": { "$ref": "#/$defs/stopDefect" } },
+    "cleanup": { "$ref": "#/$defs/cleanup" },
+    "terminalOutcome": { "enum": ["accepted", "failed", "timed-out", "capability-failed", "invalid-evidence", "stopped"] },
+    "result": { "$ref": "#/$defs/result" },
+    "chatAdmission": { "$ref": "#/$defs/chatAdmission" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "nullableMark": { "type": ["integer", "null"], "minimum": 0 },
+    "identity": {
+      "type": "object", "additionalProperties": false, "required": ["id", "digest"],
+      "properties": { "id": { "type": "string", "minLength": 1 }, "digest": { "$ref": "#/$defs/digest" }, "version": { "type": ["string", "null"] } }
+    },
+    "artifactPointer": {
+      "type": "object", "additionalProperties": false, "required": ["id", "path", "digest"],
+      "properties": { "id": { "type": "string", "minLength": 1 }, "path": { "type": "string", "minLength": 1 }, "digest": { "$ref": "#/$defs/digest" }, "eligibility": { "type": ["string", "null"] } }
+    },
+    "budget": {
+      "type": "object", "additionalProperties": false, "required": ["activeMs", "tokens", "toolCalls"],
+      "properties": { "activeMs": { "type": "integer", "minimum": 1 }, "tokens": { "type": "integer", "minimum": 1 }, "toolCalls": { "type": "integer", "minimum": 1 } }
+    },
+    "command": {
+      "type": "object", "additionalProperties": false, "required": ["id", "digest", "startedMs", "endedMs", "status"],
+      "properties": { "id": { "type": "string" }, "digest": { "$ref": "#/$defs/digest" }, "startedMs": { "type": "integer", "minimum": 0 }, "endedMs": { "type": "integer", "minimum": 0 }, "status": { "enum": ["passed", "failed", "interrupted"] }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "action": {
+      "type": "object", "additionalProperties": false, "required": ["id", "class", "startedMs", "endedMs", "toolCallIds", "evidenceIds"],
+      "properties": { "id": { "type": "string" }, "class": { "type": "string" }, "startedMs": { "type": "integer", "minimum": 0 }, "endedMs": { "type": "integer", "minimum": 0 }, "toolCallIds": { "type": "array", "items": { "type": "string" } }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "milestones": {
+      "type": "object", "additionalProperties": false,
+      "required": ["firstLocalReadMs", "firstAuthoritativeWriteMs", "firstProvenLiveTransitionMs", "firstDurableOfflineSettlementMs", "firstGreenProofMs", "fullAcceptanceMs", "dayTwoStartedMs", "dayTwoFirstGreenMs", "dayTwoFullAcceptanceMs", "missingReasons", "evidenceIds"],
+      "properties": {
+        "firstLocalReadMs": { "$ref": "#/$defs/nullableMark" }, "firstAuthoritativeWriteMs": { "$ref": "#/$defs/nullableMark" }, "firstProvenLiveTransitionMs": { "$ref": "#/$defs/nullableMark" }, "firstDurableOfflineSettlementMs": { "$ref": "#/$defs/nullableMark" }, "firstGreenProofMs": { "$ref": "#/$defs/nullableMark" }, "fullAcceptanceMs": { "$ref": "#/$defs/nullableMark" }, "dayTwoStartedMs": { "$ref": "#/$defs/nullableMark" }, "dayTwoFirstGreenMs": { "$ref": "#/$defs/nullableMark" }, "dayTwoFullAcceptanceMs": { "$ref": "#/$defs/nullableMark" },
+        "missingReasons": { "type": "object", "additionalProperties": { "type": "string" } }, "evidenceIds": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "tokenClass": {
+      "type": "object", "additionalProperties": false, "required": ["input", "output", "cached", "reasoning", "total"],
+      "properties": { "input": { "type": ["integer", "null"], "minimum": 0 }, "output": { "type": ["integer", "null"], "minimum": 0 }, "cached": { "type": ["integer", "null"], "minimum": 0 }, "reasoning": { "type": ["integer", "null"], "minimum": 0 }, "total": { "type": ["integer", "null"], "minimum": 0 } }
+    },
+    "tokenTurn": {
+      "type": "object", "additionalProperties": false, "required": ["turnId", "endedMs", "usage"],
+      "properties": { "turnId": { "type": "string" }, "endedMs": { "type": "integer", "minimum": 0 }, "usage": { "$ref": "#/$defs/tokenClass" } }
+    },
+    "tokenUsage": {
+      "type": "object", "additionalProperties": false, "required": ["turns", "totals", "atMilestones", "unavailableReason"],
+      "properties": { "turns": { "type": "array", "items": { "$ref": "#/$defs/tokenTurn" } }, "totals": { "$ref": "#/$defs/tokenClass" }, "atMilestones": { "type": "object", "additionalProperties": { "$ref": "#/$defs/tokenClass" } }, "unavailableReason": { "type": ["string", "null"] } }
+    },
+    "toolCall": {
+      "type": "object", "additionalProperties": false, "required": ["id", "class", "startedMs", "endedMs", "status", "commandDigest", "files", "endpoints", "assistanceEligibility"],
+      "properties": { "id": { "type": "string" }, "class": { "type": "string" }, "startedMs": { "type": "integer", "minimum": 0 }, "endedMs": { "type": "integer", "minimum": 0 }, "status": { "enum": ["passed", "failed", "interrupted"] }, "commandDigest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] }, "files": { "type": "array", "items": { "type": "string" } }, "endpoints": { "type": "array", "items": { "type": "string" } }, "assistanceEligibility": { "type": "string" } }
+    },
+    "interval": {
+      "type": "object", "additionalProperties": false, "required": ["id", "startedActionId", "endedActionId", "elapsedMs", "tokenCost", "toolCallIds", "evidenceIds"],
+      "properties": { "id": { "type": "string" }, "startedActionId": { "type": "string" }, "endedActionId": { "type": "string" }, "elapsedMs": { "type": "integer", "minimum": 0 }, "tokenCost": { "type": ["integer", "null"], "minimum": 0 }, "toolCallIds": { "type": "array", "items": { "type": "string" } }, "evidenceIds": { "type": "array", "minItems": 1, "items": { "type": "string" } } }
+    },
+    "mistake": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "startedActionId", "endedActionId", "elapsedMs", "tokenCost", "toolCallIds", "evidenceIds", "firstEvidenceId", "detectionEvidenceId", "correctionEvidenceId", "source", "primaryClass", "secondaryTags"],
+      "properties": { "id": { "type": "string" }, "startedActionId": { "type": "string" }, "endedActionId": { "type": "string" }, "elapsedMs": { "type": "integer", "minimum": 0 }, "tokenCost": { "type": ["integer", "null"], "minimum": 0 }, "toolCallIds": { "type": "array", "items": { "type": "string" } }, "evidenceIds": { "type": "array", "minItems": 1, "items": { "type": "string" } }, "firstEvidenceId": { "type": "string" }, "detectionEvidenceId": { "type": "string" }, "correctionEvidenceId": { "type": "string" }, "source": { "enum": ["model", "aid", "product", "environment", "harness", "unknown"] }, "primaryClass": { "enum": ["permission", "bound", "lifecycle", "settlement"] }, "secondaryTags": { "type": "array", "items": { "type": "string" } } }
+    },
+    "intervention": {
+      "type": "object", "additionalProperties": false, "required": ["id", "startedMs", "endedMs", "actor", "reason", "evidenceIds"],
+      "properties": { "id": { "type": "string" }, "startedMs": { "type": "integer", "minimum": 0 }, "endedMs": { "type": "integer", "minimum": 0 }, "actor": { "type": "string" }, "reason": { "type": "string" }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "concept": {
+      "type": "object", "additionalProperties": false, "required": ["id", "label", "ruleSummary", "firstActionId", "finalSourceEvidenceId", "classification", "fold", "exclusionReason"],
+      "properties": { "id": { "type": "string" }, "label": { "type": "string" }, "ruleSummary": { "type": "string" }, "firstActionId": { "type": "string" }, "finalSourceEvidenceId": { "type": "string" }, "classification": { "enum": ["required", "encountered-only", "excluded"] }, "fold": { "type": ["string", "null"], "enum": ["table", "access", "query", "transact", null] }, "exclusionReason": { "type": ["string", "null"], "enum": ["authored-fact", "generated-fact", "repetition", "command", "mere-value", "other", null] } }
+    },
+    "concepts": {
+      "type": "object", "additionalProperties": false, "required": ["requiredAuthoredConcepts", "retrievedOrManipulatedConcepts", "candidates"],
+      "properties": { "requiredAuthoredConcepts": { "type": "integer", "minimum": 0 }, "retrievedOrManipulatedConcepts": { "type": "integer", "minimum": 0 }, "candidates": { "type": "array", "items": { "$ref": "#/$defs/concept" } } }
+    },
+    "grade": {
+      "type": "object", "additionalProperties": false, "required": ["raterId", "candidateId", "included", "reason", "digest"],
+      "properties": { "raterId": { "type": "string" }, "candidateId": { "type": "string" }, "included": { "type": "boolean" }, "reason": { "type": "string" }, "digest": { "$ref": "#/$defs/digest" } }
+    },
+    "semanticFact": {
+      "type": "object", "additionalProperties": false, "required": ["id", "conceptId", "summary", "evidenceIds"],
+      "properties": { "id": { "type": "string" }, "conceptId": { "type": ["string", "null"] }, "summary": { "type": "string" }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "functionEscape": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "dayTwoItem", "trigger", "category", "generatedScaffold", "authoredConceptIds", "authoredFactIds", "files", "startedActionId", "endedActionId", "elapsedMs", "tokenCost", "toolCallIds", "profile", "boundedReach", "authorityMetadata", "effectMetadata", "dataMigration", "clientOwnershipMigration", "explicitControlRequiredSameWork", "evidenceIds"],
+      "properties": { "id": { "type": "string" }, "dayTwoItem": { "enum": ["audited-completion", "reviewer-editor-transition", "completion-webhook", "other"] }, "trigger": { "type": "string" }, "category": { "enum": ["multi-row-invariant", "role-transition", "external-effect", "other"] }, "generatedScaffold": { "type": "boolean" }, "authoredConceptIds": { "type": "array", "items": { "type": "string" } }, "authoredFactIds": { "type": "array", "items": { "type": "string" } }, "files": { "type": "array", "items": { "type": "string" } }, "startedActionId": { "type": "string" }, "endedActionId": { "type": "string" }, "elapsedMs": { "type": "integer", "minimum": 0 }, "tokenCost": { "type": ["integer", "null"], "minimum": 0 }, "toolCallIds": { "type": "array", "items": { "type": "string" } }, "profile": { "type": "string" }, "boundedReach": { "type": "string" }, "authorityMetadata": { "type": "string" }, "effectMetadata": { "type": ["string", "null"] }, "dataMigration": { "type": "boolean" }, "clientOwnershipMigration": { "type": "boolean" }, "explicitControlRequiredSameWork": { "type": "boolean" }, "evidenceIds": { "type": "array", "minItems": 1, "items": { "type": "string" } } }
+    },
+    "schemaExtension": {
+      "type": "object", "additionalProperties": false, "required": ["id", "reason", "versionImpact", "evidenceIds"],
+      "properties": { "id": { "type": "string" }, "reason": { "type": "string" }, "versionImpact": { "enum": ["none", "new-configuration", "capsule-v2-required"] }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "scenarioResult": {
+      "type": "object", "additionalProperties": false, "required": ["id", "status", "evidenceIds"],
+      "properties": { "id": { "type": "string" }, "status": { "enum": ["passed", "failed", "not-applicable"] }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "confidenceDimension": {
+      "type": "object", "additionalProperties": false, "required": ["score", "reason", "evidenceIds"],
+      "properties": { "score": { "type": "integer", "minimum": 0, "maximum": 2 }, "reason": { "type": "string" }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "evidenceConfidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["actorAuthority", "transactionConflict", "transport", "offlineReconnect", "settlement", "targetIdentity", "cleanupIsolation", "reproducibility"],
+      "properties": { "actorAuthority": { "$ref": "#/$defs/confidenceDimension" }, "transactionConflict": { "$ref": "#/$defs/confidenceDimension" }, "transport": { "$ref": "#/$defs/confidenceDimension" }, "offlineReconnect": { "$ref": "#/$defs/confidenceDimension" }, "settlement": { "$ref": "#/$defs/confidenceDimension" }, "targetIdentity": { "$ref": "#/$defs/confidenceDimension" }, "cleanupIsolation": { "$ref": "#/$defs/confidenceDimension" }, "reproducibility": { "$ref": "#/$defs/confidenceDimension" } }
+    },
+    "architectureOracle": {
+      "type": "object", "additionalProperties": false, "required": ["passed", "secondOwners", "evidenceIds"],
+      "properties": { "passed": { "type": "boolean" }, "secondOwners": { "type": "array", "items": { "enum": ["runtime", "transport", "cache", "local-store", "auth-coordinator", "outbox", "settlement-registry", "policy-evaluator", "diagnostic-type"] } }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "assistanceEvent": {
+      "type": "object", "additionalProperties": false, "required": ["id", "aidId", "startedMs", "eligible", "evidenceIds"],
+      "properties": { "id": { "type": "string" }, "aidId": { "type": "string" }, "startedMs": { "type": "integer", "minimum": 0 }, "eligible": { "type": "boolean" }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "evidenceRef": {
+      "type": "object", "additionalProperties": false, "required": ["id", "digest", "mediaType", "class", "producer", "recordedMs", "redactionReason"],
+      "properties": { "id": { "type": "string" }, "digest": { "$ref": "#/$defs/digest" }, "mediaType": { "type": "string" }, "class": { "enum": ["public", "private"] }, "producer": { "type": "string" }, "recordedMs": { "type": "integer", "minimum": 0 }, "redactionReason": { "type": ["string", "null"] } }
+    },
+    "stopDefect": {
+      "type": "object", "additionalProperties": false, "required": ["id", "class", "summary", "evidenceIds"],
+      "properties": { "id": { "type": "string" }, "class": { "enum": ["secret-exposure", "cross-user-leakage", "destructive-cleanup", "false-capability-claim", "other"] }, "summary": { "type": "string" }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "cleanup": {
+      "type": "object", "additionalProperties": false, "required": ["status", "targetDeleted", "localStoresDeleted", "evidenceIds"],
+      "properties": { "status": { "enum": ["passed", "failed", "not-run"] }, "targetDeleted": { "type": "boolean" }, "localStoresDeleted": { "type": "boolean" }, "evidenceIds": { "type": "array", "items": { "type": "string" } } }
+    },
+    "result": {
+      "type": "object", "additionalProperties": false, "required": ["equalProofPassed", "dayTwoPassed", "validEvidence", "notes"],
+      "properties": { "equalProofPassed": { "type": "boolean" }, "dayTwoPassed": { "type": ["boolean", "null"] }, "validEvidence": { "type": "boolean" }, "notes": { "type": "string" } }
+    },
+    "chatAdmission": {
+      "type": "object", "additionalProperties": false, "required": ["amendmentDigest", "profileDigest", "reviewDigests", "membershipReads", "stableCursorPagination", "liveDelivery", "coldRetention", "queuedSettlement", "membershipRoleInvalidation", "canonicalEphemeralUse"],
+      "properties": { "amendmentDigest": { "$ref": "#/$defs/digest" }, "profileDigest": { "$ref": "#/$defs/digest" }, "reviewDigests": { "type": "array", "items": { "$ref": "#/$defs/digest" } }, "membershipReads": { "type": "array", "items": { "type": "string" } }, "stableCursorPagination": { "type": "array", "items": { "type": "string" } }, "liveDelivery": { "type": "array", "items": { "type": "string" } }, "coldRetention": { "type": "array", "items": { "type": "string" } }, "queuedSettlement": { "type": "array", "items": { "type": "string" } }, "membershipRoleInvalidation": { "type": "array", "items": { "type": "string" } }, "canonicalEphemeralUse": { "type": "array", "items": { "type": "string" } } }
+    }
+  }
+}

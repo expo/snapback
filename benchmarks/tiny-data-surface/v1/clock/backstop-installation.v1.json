@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "snapback.tiny-data-d10-backstop-installation.v1",
+  "observedAt": "2026-08-14T09:22:38.000Z",
+  "integration": {
+    "check": "scripts/tiny-data-evaluation-backstop.mjs",
+    "scheduledEntry": "scripts/drift-prone-gates.mjs backstop",
+    "stableMissedVerdict": "SNAPBACK_DATA_SURFACE_D10_MISSED_DISPOSITION"
+  },
+  "manualDryRun": {
+    "command": "node scripts/tiny-data-evaluation-backstop.mjs",
+    "exitCode": 0,
+    "clockArmed": false,
+    "issueStaged": false
+  },
+  "scheduleStatus": {
+    "command": "scripts/install-drift-backstop-schedule --status",
+    "exitCode": 0,
+    "service": "com.snapback.drift-backstop",
+    "loaded": true,
+    "state": "not-running-between-intervals",
+    "runIntervalSeconds": 7200,
+    "observedLastExitCode": 2,
+    "note": "The installed global runner targets the primary Snapback checkout; its prior exit is external schedule state, not a Phase 4 D10 dry-run verdict."
+  }
+}

@@ -17,7 +17,7 @@ maturity: partial
 since: 0.1.21
 unreleased: true
 reviewed: 2026-08-13
-reviewed-authorities-digest: sha256:37c0280381a45d234c60d459e3a89e945a5cbf52384cdf2a49547a1ea5f35421
+reviewed-authorities-digest: sha256:4b71b09aeb5c088f81d70edff3108162fbc87583fd6104d44c6636e5743ce6da
 ---
 
 # Generate a tiny typed data resource
@@ -55,7 +55,9 @@ export const todos = defineTable({
 ```
 
 The generated names are `todos.list`, `todos.get`, `todos.create`,
-`todos.update`, and `todos.delete`.
+`todos.update`, and `todos.delete`. After generation, choose the
+[headless or React/Expo doorway](./doorways.md); do not hand-wire the generated
+references into a second client owner.
 
 Public-read resources generate only list/get and require an explicit ordinary
 `listIndex`. Owner resources may omit `listIndex` only when exactly one
@@ -179,7 +181,7 @@ maturity: partial
 since: 0.1.21
 unreleased: true
 reviewed: 2026-08-13
-reviewed-authorities-digest: sha256:2c2f38a707561dabc68db9a152410259fa3bad95b2d50d616242d099c9e1c033
+reviewed-authorities-digest: sha256:8145953a62c742f37c1c220a0a810819644148c632cceb5f4a6a9bceebd0dbc8
 ---
 
 # Build a bounded data query
@@ -269,9 +271,12 @@ const descriptor = data.todos
 console.log(explainDataQuery(descriptor));
 ```
 
-Phase 2 ships headless descriptor construction, catalogue admission, the
-ordinary function carrier, and local continuation. React/Expo/Swift facade
-doorways are Phase 4 and are not implied by the generated `data` export.
+The same descriptor is accepted byte-for-byte by the
+[headless and React/Expo doorways](./doorways.md). Swift currently has golden
+fixtures only and deliberately exposes no DataResourceV1 client API.
+
+For query state, `"skip"`, pagination, `read`, `watch`, and `useQuery`, see the
+[client lifecycle](./lifecycle.md).
 
 ## Refusals and escape hatches
 
@@ -306,7 +311,7 @@ maturity: partial
 since: 0.1.21
 unreleased: true
 reviewed: 2026-08-14
-reviewed-authorities-digest: sha256:f06376ae32dc1b30918d0a2fbde52c9440a9809edf86437e9429d1645dbcc1e7
+reviewed-authorities-digest: sha256:2e583728fdd3a9c9afb182e6794fefd3a9b8bcabcc2919f05e0bd4037084ba7e
 ---
 
 # Compose generated data transactions
@@ -403,6 +408,207 @@ sequence and then by intent id. Arguments and row values are never projected.
 | SNAPBACK_DATA_TRANSACTION_BOUND_EXCEEDED | Reduce the first reported dimension: chunks, resources, reads/writes, descriptor/result/durable bytes, or generated HostPlan size/steps. |
 | SNAPBACK_DATA_CUSTODY_UNAVAILABLE | Follow the diagnostic's split next action for local durable storage or target settlement capability. |
 
-The public @expo/snapback and framework-specific doorways are Phase 4.
-Relationship nodes, retained queries, and dynamic transaction shapes remain
-outside this surface.
+The public package and framework-specific imports are listed in
+[choose a data doorway](./doorways.md). Relationship nodes, retained queries,
+and dynamic transaction shapes remain outside this surface.
+
+## Anti-patterns
+
+- Do not await `db.transact(...)` as though dispatch were settlement. Observe
+  `handle.dispatched` and `handle.settled` separately.
+- Do not recreate an outbox, optimistic reducer, or settlement registry around
+  the data facade. The existing client owns all three.
+- Do not dynamically assemble a transaction shape. Generate the exact static
+  composition or use a named mutation.
+
+---
+
+<!-- snapback-guide-source: guide/data/doorways.md -->
+---
+title: Choose the tiny data doorway
+id: data.doorways
+order: 40
+audience: agent-first
+capabilities: [data.doorways-v1]
+authorities: [llp/0255-tiny-data-surface-v1-api.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/data-client.mjs, packages/snapback-react/data.mjs, packages/snapback-umbrella/package.json, packages/snapback-expo/package.json]
+examples: [tests/fixtures/data-surface-a1, tests/acceptance/data-surface-a1-v1.mjs, packages/snapback-react/data.test.mjs]
+status: current
+targets: [local]
+maturity: partial
+since: 0.1.21
+unreleased: true
+reviewed: 2026-08-14
+reviewed-authorities-digest: sha256:7a5261926cfacd1fa74bb9395e98f758d3134fb706fced1e342789fd25566c25
+---
+
+# Choose the tiny data doorway
+
+> **Unreleased.** The experimental tiny-data package doorways are newer than
+> the newest published closure, 0.1.20. Use contributor source until a later
+> qualified closure publishes them.
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Generate first. The generated `data.mjs` carries descriptors, transaction
+chunks, catalogues, and the binding identity. The doorway supplies no second
+transport, cache, auth coordinator, outbox, policy evaluator, settlement
+registry, or diagnostic type; it delegates those jobs to the existing client.
+
+## Use the headless doorway
+
+Import from the umbrella package's exact experimental subpath and bind the
+generated data projection to an existing Snapback client:
+
+```js source=tests/fixtures/data-surface-a1/snapback/app.mjs
+import { createDataClient } from '@expo/snapback/data';
+import { db as reactDb } from '@expo/snapback/react/data';
+import { db as expoDb } from '@expo/snapback-expo/data';
+import { data } from './generated/data.mjs';
+
+// @ref LLP 0255#s9-package-doorway-and-generated-typing
+export const createA1Database = (client) => createDataClient({ client, data });
+export const reactAndExpoShareDoorway = reactDb === expoDb;
+```
+
+The direct client package also exposes
+`@expo/snapback-client/data`. `createDataClient({ client, data })` is the
+imperative doorway for `read`, `watch`, `explain`, `tx`, `transact`, and
+`transaction(intentId)`.
+
+## Use the provider-bound React or Expo doorway
+
+Import only `db` from `@expo/snapback/react/data`. Expo reexports the identical
+runtime value from `@expo/snapback-expo/data`; the umbrella package also offers
+`@expo/snapback/react/data`. Generated `data.d.ts` augments the React binding,
+so resource names, descriptors, transaction chunks, and results retain exact
+application types.
+
+`db` must be used below the ordinary `SnapbackProvider` carrying the generated
+app binding. Missing or stale data binding refuses
+`SNAPBACK_DATA_BINDING_REQUIRED` and tells you to run normal generation and
+install that binding. There is deliberately no exported `useQuery`; the hook
+spelling is `db.useQuery(descriptor)` so one generated root owns the surface.
+Because `db` is provider-bound, obtain its methods during a React render.
+Invoke `read`, `watch`, and transaction methods from that captured binding in
+an effect or event handler; use the headless doorway in modules and workers.
+
+## Keep Experimental separate from default
+
+These subpaths are additive, Experimental, and non-default. Do not reexport
+them from existing package roots, label them recommended, or add compatibility
+promises. LLP 0256's evaluation scaffold lives at
+[`benchmarks/tiny-data-surface/v1`](repo:benchmarks/tiny-data-surface/v1/README.md);
+it is not an application starter and must not be used for a timed lane until
+its publication clock and run gates are armed.
+
+## Anti-patterns
+
+- Do not import or invent a standalone `useQuery` for this surface. Use
+  `db.useQuery` under the provider.
+- Do not construct a data client without generated `data`; regenerate and
+  install the generated app binding.
+- Do not add a transport, cache, outbox, auth context, or policy layer to make
+  the facade feel self-contained. Those are canonical client/runtime owners.
+- Do not expose a public Swift API from the Phase 0 goldens.
+
+---
+
+<!-- snapback-guide-source: guide/data/lifecycle.md -->
+---
+title: Read, watch, and settle tiny data
+id: data.lifecycle
+order: 50
+audience: agent-first
+capabilities: [data.lifecycle-v1]
+authorities: [llp/0255-tiny-data-surface-v1-api.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0133-local-settlement.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/data-client.mjs, packages/snapback-react/data.mjs]
+examples: [tests/fixtures/data-surface-a1, tests/acceptance/data-surface-a1-v1.mjs, packages/snapback-client/data-client.test.mjs, packages/snapback-react/data.test.mjs]
+status: current
+targets: [local]
+maturity: partial
+since: 0.1.21
+unreleased: true
+reviewed: 2026-08-14
+reviewed-authorities-digest: sha256:7b6ec20435fc4b96477248b9cf126b9c6654dee7dea84b2907c54e45dc00659f
+---
+
+# Read, watch, and settle tiny data
+
+> **Unreleased.** The experimental tiny-data lifecycle is newer than the
+> newest published closure, 0.1.20. Use contributor source until a later
+> qualified closure publishes it.
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Construct a generated descriptor once, then choose one delivery method. The
+descriptor, authority policy, cursor, bounds, and result contract are the same
+across headless and React; delivery does not create a new query language.
+
+## Read one bounded page
+
+`await db.read(descriptor)` returns `DataPageV1`: frozen `rows`, an opaque
+`cursor | null`, and `complete`. Build the next-page descriptor by passing the
+cursor to the same generated static query shape. `read` does not subscribe or
+retain a cache owner.
+
+## Watch without inventing polling
+
+`db.watch(descriptor)` returns the canonical notify-only handle:
+`snapshot()`, `subscribe(listener)`, `refresh()`, and `dispose()`. It delegates
+to the existing streaming `liveQuery` owner and never persists its own resume
+state. `refresh()` asks that owner for fresh authority data; `dispose()` ends
+observation, not transaction custody.
+
+The snapshot is the full `DataQueryStateV1` union intersected with
+`pendingWrites`. It distinguishes `pending`, `ready`, `refreshing`, `blocked`,
+and `error`; `db.useQuery("skip")` adds the stable `skipped` arm. Every state
+also names connection, freshness, retention, and a payload-free ordered list
+of relevant unresolved intents.
+
+## Render with `db.useQuery`
+
+Under `SnapbackProvider`, call `db.useQuery(descriptor)`. Pass the literal
+`"skip"` to suppress materialization; the returned stable skipped state is:
+
+```json fragment reason="the exact row type is application-specific"
+{
+  "status": "skipped",
+  "connection": "idle",
+  "freshness": "unknown",
+  "retention": null,
+  "pendingWrites": []
+}
+```
+
+Skip owns no subscription and causes no query I/O. Do not switch to a sentinel
+descriptor or conditional hook call.
+
+## Explain or escape after a refusal
+
+`db.explain(descriptor)` returns the generated redacted explain record without
+reading rows. `read` refuses absent target read capability; `watch` and
+`useQuery` additionally refuse sync-disabled or unretained shapes. Follow the
+diagnostic's single next action: enable the required app/target capability,
+choose `read` when live materialization is unnecessary, or promote the shape
+to a named bounded function. Cloudflare and Expo-store write paths remain
+deliberate refusals.
+
+## Settle and recover a write
+
+`db.transact(...chunks)` starts the existing Phase 3 machinery. Observe
+`dispatched` separately from `settled`, and use `db.transaction(intentId)` to
+recover after reload. Query `pendingWrites` contains intent identity and state,
+never argument or row payloads. See [transactions](./transactions.md) for the
+closed grammar and custody ceilings.
+
+## Anti-patterns
+
+- Do not treat a prediction, custody acceptance, or dispatch as committed
+  settlement.
+- Do not poll around `watch`; use its stream and `refresh()` escape.
+- Do not read or rewrite opaque cursors.
+- Do not render retained protected data after an authority boundary; follow
+  the canonical client invalidation owner.

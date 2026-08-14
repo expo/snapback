@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "snapback.tiny-data-experimental-doorways.v1",
+  "status": "frozen-pre-clock",
+  "packages": [
+    {
+      "manifest": "packages/snapback-umbrella/package.json",
+      "maturityField": "snapback.maturity",
+      "exports": {
+        "./data": {
+          "types": "./data.d.mts",
+          "import": "./data.mjs"
+        },
+        "./react/data": {
+          "types": "./react-data.d.mts",
+          "import": "./react-data.mjs"
+        }
+      },
+      "forbiddenMetadata": [
+        "snapback.defaultDataDoorway",
+        "snapback.recommendedDataDoorway",
+        "snapback.compatibilityPromise"
+      ]
+    },
+    {
+      "manifest": "packages/snapback-client/package.json",
+      "exports": {
+        "./data": {
+          "types": "./data-client.d.mts",
+          "import": "./data-client.mjs"
+        }
+      },
+      "forbiddenMetadata": []
+    },
+    {
+      "manifest": "packages/snapback-react/package.json",
+      "exports": {
+        "./data": {
+          "types": "./data.d.mts",
+          "import": "./data.mjs"
+        }
+      },
+      "forbiddenMetadata": []
+    },
+    {
+      "manifest": "packages/snapback-expo/package.json",
+      "exports": {
+        "./data": {
+          "types": "./data.d.mts",
+          "import": "./data.mjs"
+        }
+      },
+      "forbiddenMetadata": []
+    }
+  ]
+}

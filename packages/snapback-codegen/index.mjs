@@ -6728,6 +6728,7 @@ async function generateInProcessLocked({
     functionManifest.functions,
     appDescriptor.identity.descriptor,
     trustedCompositionActivation,
+    dataResourceWitnesses.length > 0,
   );
   const appBindingModule = renderAppBindingAlias(
     functionManifest.functions,
@@ -6744,6 +6745,7 @@ async function generateInProcessLocked({
     generatedSurfaces,
     clientLifecycleManifest,
     authoringProfile,
+    dataResourceWitnesses.length > 0,
   );
   const canonicalApiModule = renderApiModule(
     functionManifest.functions,
@@ -13595,7 +13597,12 @@ function contentAddressedModuleSpecifier(path, identity) {
   return contentAddressedArtifactPath(path, identity);
 }
 
-function renderAppBindingModule(functions, descriptorIdentity, trustedCompositionActivation = null) {
+function renderAppBindingModule(
+  functions,
+  descriptorIdentity,
+  trustedCompositionActivation = null,
+  hasData = false,
+) {
   const standalone = standaloneDescriptorFunctions(functions);
   const aliases = standalone.flatMap(({ name, kind }) => {
     const namespace = kind === 'Mutation' ? 'mutations' : 'queries';
@@ -13611,6 +13618,7 @@ function renderAppBindingModule(functions, descriptorIdentity, trustedCompositio
   const descriptorSpecifier = contentAddressedModuleSpecifier('./app.descriptor.json', descriptorIdentity);
   return `${HEADER}\n` +
     `import descriptorDocument from ${JSON.stringify(descriptorSpecifier)} with { type: 'json' };\n` +
+    (hasData ? `import { data as generatedData } from './data.mjs';\n` : '') +
     `const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };\n` +
     `/** @type {import('./api.d.ts').GeneratedArtifacts} */\n` +
     `export const artifacts = deepFreeze(${stableJson({ trustedCompositionActivation })});\n` +
@@ -13621,6 +13629,7 @@ function renderAppBindingModule(functions, descriptorIdentity, trustedCompositio
     `const commandReferences = new Map(Object.values(hydratedDescriptor.commands).map((command) => [JSON.stringify(command), command]));\n` +
     `for (const command of Object.values(hydratedDescriptor.commands)) { command.mutation = hydratedDescriptor.api.mutations[command.mutation.name]; if (command.asset) command.asset.intent = hydratedDescriptor.api.assets[command.asset.intent.name]; }\n` +
     `for (const surface of Object.values(hydratedDescriptor.surfaces)) { for (const member of Object.values(surface.reads)) member.reference = hydratedDescriptor.api.queries[member.reference.name]; for (const member of Object.values(surface.mutations)) member.reference = hydratedDescriptor.api.mutations[member.reference.name]; for (const member of Object.values(surface.commands)) member.reference = commandReferences.get(JSON.stringify(member.reference)); for (const member of Object.values(surface.assets)) member.reference = hydratedDescriptor.api.assets[member.reference.name]; for (const member of Object.values(surface.presence)) member.reference = hydratedDescriptor.api.ephemeral[member.reference.name]; }\n` +
+    (hasData ? `Object.defineProperty(hydratedDescriptor, 'data', { value: generatedData, enumerable: false });\n` : '') +
     `/** @type {import('./app.d.ts').GeneratedAppDescriptorV1} */\n` +
     `export const app = deepFreeze(hydratedDescriptor);\n` +
     `${aliases.join('\n')}\n` +
@@ -13696,6 +13705,7 @@ function renderAppTypes(
   surfaces = {},
   clientLifecycleManifest,
   authoringProfile = EXPLICIT_AUTHORING_PROFILE,
+  hasData = false,
 ) {
   const standalone = standaloneDescriptorFunctions(functions);
   const queryNames = standalone
@@ -13709,6 +13719,7 @@ function renderAppTypes(
   const lines = [
     HEADER,
     "import type { GeneratedApi, GeneratedArtifacts, GeneratedEphemeral, GeneratedQueryGroups, Id, Principal } from './api.d.ts';",
+    ...(hasData ? ["type GeneratedDataBinding = typeof import('./data.mjs').data;"] : []),
     `export type GeneratedAppQueryName = ${union(queryNames)};`,
     `export type GeneratedAppMutationName = ${union(mutationNames)};`,
     `export type GeneratedAppAssetName = ${union(assetNames)};`,
@@ -13783,6 +13794,7 @@ function renderAppTypes(
     '  readonly commands: Readonly<GeneratedAppCommands>;',
     '  readonly surfaces: Readonly<GeneratedAppSurfaces>;',
     '  readonly capabilities: Readonly<{ required: readonly CapabilityRequirement[] }>;',
+    ...(hasData ? ['  readonly data: GeneratedDataBinding;'] : []),
     '}',
     'export type GeneratedAppDescriptorV1 = AppDescriptorV1;',
     'export declare const artifacts: GeneratedArtifacts;',

@@ -23,6 +23,7 @@ import {
   assertPreparedReactBinding,
   classifyRegeneratedReactReference,
   handoffPreparedReactBindingGeneration,
+  preparedReactBindingData,
   preparedReactResultContract,
   preparedReactBindingClient,
   isPreparedReactQueryGroup,
@@ -3881,6 +3882,14 @@ function useProvider() {
 // the canonical provider/client owner; they never create a parallel client.
 export function useSnapbackProviderClient() {
   return preparedReactBindingClient(useProvider().binding);
+}
+
+// Narrow provider projection for the experimental data doorway. Generated
+// witnesses remain owned by the prepared app binding; this creates no global
+// schema registry and no second provider.
+// @ref LLP 0255#s9-package-doorway-and-generated-typing
+export function useSnapbackProviderData() {
+  return preparedReactBindingData(useProvider().binding);
 }
 
 // @ref LLP 0114#exact-identity-bytes-and-limits — hook dependency identity
