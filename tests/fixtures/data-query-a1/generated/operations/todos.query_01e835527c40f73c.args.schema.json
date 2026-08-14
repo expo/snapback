@@ -1,0 +1,12 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fixtures/todos.query_01e835527c40f73c.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "after": {
+      "type": "string"
+    }
+  },
+  "title": "fixtures:todos.query_01e835527c40f73c arguments",
+  "type": "object"
+}

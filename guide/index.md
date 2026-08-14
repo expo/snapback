@@ -217,7 +217,10 @@ proof command, and honest nonclaims without opening every demo.
 
 - [Generate a tiny typed data resource](./data/resources.md) — terminal
   `.data(...)`, owner/public eligibility, generated operations and witnesses,
-  application sync opt-out, Phase 1 cursor refusal, and stale-safe promotion.
+  application sync opt-out, bounded continuation, and stale-safe promotion.
+- [Build a bounded data query](./data/queries.md) — the static fluent
+  catalogue, indexed predicates/projections, exact or synthesized routes,
+  opaque keyset continuation, ceilings, and db-less explain output.
 
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +

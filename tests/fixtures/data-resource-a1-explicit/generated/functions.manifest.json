@@ -10,6 +10,105 @@
   "bundleHash": "sha256:200e1efc34c41c45",
   "config": [],
   "cronJobs": [],
+  "dataQueryCatalog": [
+    {
+      "core": {
+        "ceilings": {
+          "maxCandidateRows": 1024,
+          "maxDescriptorBytes": 32768,
+          "maxFieldsPerResource": 64,
+          "maxFilterFields": 8,
+          "maxInValues": 32,
+          "maxIndexesPerResource": 16,
+          "maxProjectionFields": 64,
+          "maxResultBytes": 65536,
+          "maxTake": 200
+        },
+        "filters": [],
+        "format": "snapback.normalized-data-query.v1",
+        "guideAnchor": "guide/data/queries",
+        "index": "by_owner_created",
+        "order": {
+          "direction": "asc",
+          "field": "createdAt",
+          "totalizer": "_id"
+        },
+        "planHash": "sha256:cef8eec299924a7e0075d4d8a9af58a2d3771e498b2f4082b3b0e7f0bc12344c",
+        "policyId": "sha256:4b6caaf15c88de1b796677f4fbe492e87b947bef8e175d0731c1b1d5fe226a61",
+        "projection": {
+          "fields": [
+            "_id",
+            "_version",
+            "_createdAt",
+            "_updatedAt",
+            "title",
+            "completed",
+            "ownerId",
+            "createdAt"
+          ],
+          "kind": "all-readable-fields"
+        },
+        "refusalVocabulary": [
+          {
+            "code": "SNAPBACK_DATA_QUERY_SHAPE_INVALID",
+            "guideAnchor": "guide/data/queries",
+            "phase": "generation"
+          },
+          {
+            "code": "SNAPBACK_DATA_QUERY_NOT_CATALOGUED",
+            "guideAnchor": "guide/data/queries",
+            "phase": "admission"
+          },
+          {
+            "code": "SNAPBACK_DATA_QUERY_BOUND_EXCEEDED",
+            "guideAnchor": "guide/data/queries",
+            "phase": "admission"
+          },
+          {
+            "code": "SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE",
+            "guideAnchor": "guide/data/queries",
+            "phase": "admission"
+          },
+          {
+            "code": "SNAPBACK_DATA_QUERY_RESOLUTION_AMBIGUOUS",
+            "guideAnchor": "guide/data/queries",
+            "phase": "generation"
+          },
+          {
+            "code": "SNAPBACK_DATA_QUERY_NAME_COLLISION",
+            "guideAnchor": "guide/data/queries",
+            "phase": "generation"
+          },
+          {
+            "code": "SNAPBACK_DATA_CURSOR_INVALID",
+            "guideAnchor": "guide/data/queries",
+            "phase": "admission"
+          },
+          {
+            "code": "SNAPBACK_DATA_CURSOR_MINT_UNAVAILABLE",
+            "guideAnchor": "guide/data/queries",
+            "phase": "admission"
+          }
+        ],
+        "requiredCapabilities": [
+          "live_subscriptions",
+          "host_plan_runtime",
+          "result_contract_v1",
+          "args_contract_v1"
+        ],
+        "resource": "todos",
+        "resourceId": "sha256:72917f332a325ecdd4b74e7a3a083c483fca95487cf5a40368a4e004f68590df",
+        "resultContractHash": "sha256:a1c03576646df3d2c5c8757c9391c36ebc753735da2c9f79b3c1b8a0918b53d2",
+        "surfaceProfile": "snapback.data-surface.v1",
+        "take": 100
+      },
+      "id": "sha256:4b10dbcbd8fcfa5600db517e47527ffc8ae4c7bf4c38e144b53cfc381f833359",
+      "resolution": {
+        "exportedName": "todos.list",
+        "kind": "existing-generated"
+      }
+    }
+  ],
   "functions": [
     {
       "argsContract": {

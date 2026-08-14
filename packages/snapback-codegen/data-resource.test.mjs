@@ -128,15 +128,9 @@ test('owner DataResourceV1 lowers through canonical functions and emits conditio
   assert.equal(result.dataResources[0].core.capabilities.cursor, 'data-cursor.v1');
   assert.equal(result.dataResources[0].core.capabilities.retained, false);
   assert.equal(result.dataResources[0].core.operations.find(({ name }) => name === 'list').refusals[0].code, 'SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE');
-  assert.deepEqual(result.dataResources[0].functionReferences.find(
+  assert.equal(result.dataResources[0].functionReferences.find(
     ({ name }) => name === 'todos.list',
-  ).argumentCapabilityRefusals, [{
-    argument: 'after',
-    when: 'present',
-    code: 'SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE',
-    guideAnchor: 'guide/data/resources#continue-a-list',
-    alternative: 'Omit after and request the first page until the Phase 2 continuation executor is available.',
-  }]);
+  ).argumentCapabilityRefusals, undefined, 'Phase 2 admits a present data cursor');
   assert.match(readFileSync(join(result.outDir, 'api.d.ts'), 'utf8'), /after\?: DataCursorV1/u);
   assert(readFileSync(join(result.outDir, 'data.mjs'), 'utf8').includes('normalizedDataResourceId'));
   assert(readFileSync(join(result.outDir, 'data.d.ts'), 'utf8').includes('DataResourceName'));

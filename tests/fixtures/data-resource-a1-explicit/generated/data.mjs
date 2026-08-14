@@ -115,15 +115,6 @@ export const dataResources = Object.freeze([
             "allowExtra": false
           }
         },
-        "argumentCapabilityRefusals": [
-          {
-            "argument": "after",
-            "when": "present",
-            "code": "SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE",
-            "guideAnchor": "guide/data/resources#continue-a-list",
-            "alternative": "Omit after and request the first page until the Phase 2 continuation executor is available."
-          }
-        ],
         "argumentSchema": {
           "type": "object",
           "additionalProperties": false,
@@ -901,3 +892,572 @@ export const dataResources = Object.freeze([
     ]
   }
 ]);
+
+export const dataQueryCatalog = Object.freeze([
+  {
+    "id": "sha256:4b10dbcbd8fcfa5600db517e47527ffc8ae4c7bf4c38e144b53cfc381f833359",
+    "core": {
+      "format": "snapback.normalized-data-query.v1",
+      "surfaceProfile": "snapback.data-surface.v1",
+      "resourceId": "sha256:72917f332a325ecdd4b74e7a3a083c483fca95487cf5a40368a4e004f68590df",
+      "resource": "todos",
+      "index": "by_owner_created",
+      "filters": [],
+      "order": {
+        "field": "createdAt",
+        "direction": "asc",
+        "totalizer": "_id"
+      },
+      "projection": {
+        "kind": "all-readable-fields",
+        "fields": [
+          "_id",
+          "_version",
+          "_createdAt",
+          "_updatedAt",
+          "title",
+          "completed",
+          "ownerId",
+          "createdAt"
+        ]
+      },
+      "take": 100,
+      "policyId": "sha256:4b6caaf15c88de1b796677f4fbe492e87b947bef8e175d0731c1b1d5fe226a61",
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContractHash": "sha256:a1c03576646df3d2c5c8757c9391c36ebc753735da2c9f79b3c1b8a0918b53d2",
+      "planHash": "sha256:cef8eec299924a7e0075d4d8a9af58a2d3771e498b2f4082b3b0e7f0bc12344c",
+      "ceilings": {
+        "maxDescriptorBytes": 32768,
+        "maxFilterFields": 8,
+        "maxInValues": 32,
+        "maxProjectionFields": 64,
+        "maxTake": 200,
+        "maxCandidateRows": 1024,
+        "maxResultBytes": 65536,
+        "maxIndexesPerResource": 16,
+        "maxFieldsPerResource": 64
+      },
+      "refusalVocabulary": [
+        {
+          "code": "SNAPBACK_DATA_QUERY_SHAPE_INVALID",
+          "phase": "generation",
+          "guideAnchor": "guide/data/queries"
+        },
+        {
+          "code": "SNAPBACK_DATA_QUERY_NOT_CATALOGUED",
+          "phase": "admission",
+          "guideAnchor": "guide/data/queries"
+        },
+        {
+          "code": "SNAPBACK_DATA_QUERY_BOUND_EXCEEDED",
+          "phase": "admission",
+          "guideAnchor": "guide/data/queries"
+        },
+        {
+          "code": "SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE",
+          "phase": "admission",
+          "guideAnchor": "guide/data/queries"
+        },
+        {
+          "code": "SNAPBACK_DATA_QUERY_RESOLUTION_AMBIGUOUS",
+          "phase": "generation",
+          "guideAnchor": "guide/data/queries"
+        },
+        {
+          "code": "SNAPBACK_DATA_QUERY_NAME_COLLISION",
+          "phase": "generation",
+          "guideAnchor": "guide/data/queries"
+        },
+        {
+          "code": "SNAPBACK_DATA_CURSOR_INVALID",
+          "phase": "admission",
+          "guideAnchor": "guide/data/queries"
+        },
+        {
+          "code": "SNAPBACK_DATA_CURSOR_MINT_UNAVAILABLE",
+          "phase": "admission",
+          "guideAnchor": "guide/data/queries"
+        }
+      ],
+      "guideAnchor": "guide/data/queries"
+    },
+    "normalizedDataQueryId": "sha256:4b10dbcbd8fcfa5600db517e47527ffc8ae4c7bf4c38e144b53cfc381f833359",
+    "resolution": {
+      "kind": "existing-generated",
+      "exportedName": "todos.list"
+    },
+    "argumentNames": [],
+    "policyClass": "owner",
+    "shape": {
+      "resource": "todos",
+      "index": "by_owner_created",
+      "filters": [],
+      "order": {
+        "field": "createdAt",
+        "direction": "asc"
+      },
+      "projection": null,
+      "take": 100
+    },
+    "sourceSpan": {
+      "path": "query.ts",
+      "line": 5,
+      "column": 26
+    },
+    "functionReference": {
+      "artifactKind": "functionReference",
+      "schemaVersion": "snapback.v0",
+      "appId": "fixtures",
+      "id": "fixtures:todos.list",
+      "name": "todos.list",
+      "kind": "LiveQuery",
+      "authRequirement": "authenticated",
+      "implementationHash": "sha256:1b9044d656e98e0a3d4402d519dffba519bca1b195675fcf5acca37d71e13a81",
+      "argsContractHash": "sha256:7b9c6f2c39f5354bae3d4b9420426a3ffe5ca3d07f7e2d77dda8dc22103f877e",
+      "argsContract": {
+        "fields": [
+          {
+            "name": "after",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 2048
+            }
+          }
+        ]
+      },
+      "resultContractHash": "sha256:a1c03576646df3d2c5c8757c9391c36ebc753735da2c9f79b3c1b8a0918b53d2",
+      "expectedGeneration": {
+        "schemaVersion": "snapback.v0",
+        "appId": "fixtures",
+        "schemaHash": "sha256:f2978879bc503d52",
+        "bundleHash": "sha256:200e1efc34c41c45",
+        "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+      },
+      "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
+      "sourceSpan": {
+        "file": "functions.mjs"
+      },
+      "resultContract": {
+        "kind": "documents",
+        "table": "todos",
+        "document": {
+          "kind": "object",
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "todos"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": 0,
+                "max": 9007199254740991
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": 0,
+                "max": 9007199254740991
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": 0,
+                "max": 9007199254740991
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": -9007199254740991,
+                "max": 9007199254740991
+              }
+            }
+          ],
+          "allowExtra": false
+        }
+      },
+      "argumentSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "envelope": {
+      "artifactKind": "dataQuery",
+      "schemaVersion": "snapback.data-query.v1",
+      "normalizedDataQueryId": "sha256:4b10dbcbd8fcfa5600db517e47527ffc8ae4c7bf4c38e144b53cfc381f833359",
+      "core": {
+        "format": "snapback.normalized-data-query.v1",
+        "surfaceProfile": "snapback.data-surface.v1",
+        "resourceId": "sha256:72917f332a325ecdd4b74e7a3a083c483fca95487cf5a40368a4e004f68590df",
+        "resource": "todos",
+        "index": "by_owner_created",
+        "filters": [],
+        "order": {
+          "field": "createdAt",
+          "direction": "asc",
+          "totalizer": "_id"
+        },
+        "projection": {
+          "kind": "all-readable-fields",
+          "fields": [
+            "_id",
+            "_version",
+            "_createdAt",
+            "_updatedAt",
+            "title",
+            "completed",
+            "ownerId",
+            "createdAt"
+          ]
+        },
+        "take": 100,
+        "policyId": "sha256:4b6caaf15c88de1b796677f4fbe492e87b947bef8e175d0731c1b1d5fe226a61",
+        "requiredCapabilities": [
+          "live_subscriptions",
+          "host_plan_runtime",
+          "result_contract_v1",
+          "args_contract_v1"
+        ],
+        "resultContractHash": "sha256:a1c03576646df3d2c5c8757c9391c36ebc753735da2c9f79b3c1b8a0918b53d2",
+        "planHash": "sha256:cef8eec299924a7e0075d4d8a9af58a2d3771e498b2f4082b3b0e7f0bc12344c",
+        "ceilings": {
+          "maxDescriptorBytes": 32768,
+          "maxFilterFields": 8,
+          "maxInValues": 32,
+          "maxProjectionFields": 64,
+          "maxTake": 200,
+          "maxCandidateRows": 1024,
+          "maxResultBytes": 65536,
+          "maxIndexesPerResource": 16,
+          "maxFieldsPerResource": 64
+        },
+        "refusalVocabulary": [
+          {
+            "code": "SNAPBACK_DATA_QUERY_SHAPE_INVALID",
+            "phase": "generation",
+            "guideAnchor": "guide/data/queries"
+          },
+          {
+            "code": "SNAPBACK_DATA_QUERY_NOT_CATALOGUED",
+            "phase": "admission",
+            "guideAnchor": "guide/data/queries"
+          },
+          {
+            "code": "SNAPBACK_DATA_QUERY_BOUND_EXCEEDED",
+            "phase": "admission",
+            "guideAnchor": "guide/data/queries"
+          },
+          {
+            "code": "SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE",
+            "phase": "admission",
+            "guideAnchor": "guide/data/queries"
+          },
+          {
+            "code": "SNAPBACK_DATA_QUERY_RESOLUTION_AMBIGUOUS",
+            "phase": "generation",
+            "guideAnchor": "guide/data/queries"
+          },
+          {
+            "code": "SNAPBACK_DATA_QUERY_NAME_COLLISION",
+            "phase": "generation",
+            "guideAnchor": "guide/data/queries"
+          },
+          {
+            "code": "SNAPBACK_DATA_CURSOR_INVALID",
+            "phase": "admission",
+            "guideAnchor": "guide/data/queries"
+          },
+          {
+            "code": "SNAPBACK_DATA_CURSOR_MINT_UNAVAILABLE",
+            "phase": "admission",
+            "guideAnchor": "guide/data/queries"
+          }
+        ],
+        "guideAnchor": "guide/data/queries"
+      },
+      "resolution": {
+        "kind": "existing-generated",
+        "exportedName": "todos.list",
+        "functionId": "fixtures:todos.list"
+      },
+      "functionReference": {
+        "artifactKind": "functionReference",
+        "schemaVersion": "snapback.v0",
+        "appId": "fixtures",
+        "id": "fixtures:todos.list",
+        "name": "todos.list",
+        "kind": "LiveQuery",
+        "authRequirement": "authenticated",
+        "implementationHash": "sha256:1b9044d656e98e0a3d4402d519dffba519bca1b195675fcf5acca37d71e13a81",
+        "argsContractHash": "sha256:7b9c6f2c39f5354bae3d4b9420426a3ffe5ca3d07f7e2d77dda8dc22103f877e",
+        "argsContract": {
+          "fields": [
+            {
+              "name": "after",
+              "required": false,
+              "value": {
+                "kind": "string",
+                "maxBytes": 2048
+              }
+            }
+          ]
+        },
+        "resultContractHash": "sha256:a1c03576646df3d2c5c8757c9391c36ebc753735da2c9f79b3c1b8a0918b53d2",
+        "expectedGeneration": {
+          "schemaVersion": "snapback.v0",
+          "appId": "fixtures",
+          "schemaHash": "sha256:f2978879bc503d52",
+          "bundleHash": "sha256:200e1efc34c41c45",
+          "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+        },
+        "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
+        "sourceSpan": {
+          "file": "functions.mjs"
+        },
+        "resultContract": {
+          "kind": "documents",
+          "table": "todos",
+          "document": {
+            "kind": "object",
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "todos"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "min": 0,
+                  "max": 9007199254740991
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "min": 0,
+                  "max": 9007199254740991
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "min": 0,
+                  "max": 9007199254740991
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "completed",
+                "required": true,
+                "value": {
+                  "kind": "boolean"
+                }
+              },
+              {
+                "name": "ownerId",
+                "required": true,
+                "value": {
+                  "kind": "principal"
+                }
+              },
+              {
+                "name": "createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "min": -9007199254740991,
+                  "max": 9007199254740991
+                }
+              }
+            ],
+            "allowExtra": false
+          }
+        },
+        "argumentSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "after": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "arguments": [],
+      "canonicalArgsDigest": "sha256:40ab5a1b0e1a5cfd00519876583c667f4a628ae37e51ba6ec720673207363218",
+      "cursor": null,
+      "authorityPartitionDigest": "sha256:158aad048bd9cf12d80ce17944a36611f1e52ae95bfd6ba093753f20c17fffd3",
+      "materializationKey": null,
+      "explain": {
+        "witness": "sha256:4b10dbcbd8fcfa5600db517e47527ffc8ae4c7bf4c38e144b53cfc381f833359",
+        "resource": "todos",
+        "table": "todos",
+        "index": "by_owner_created",
+        "policyId": "sha256:4b6caaf15c88de1b796677f4fbe492e87b947bef8e175d0731c1b1d5fe226a61",
+        "policyClass": "owner",
+        "filters": [],
+        "order": {
+          "field": "createdAt",
+          "direction": "asc",
+          "totalizer": "_id"
+        },
+        "projection": [
+          "_id",
+          "_version",
+          "_createdAt",
+          "_updatedAt",
+          "title",
+          "completed",
+          "ownerId",
+          "createdAt"
+        ],
+        "take": 100,
+        "ceilings": {
+          "maxDescriptorBytes": 32768,
+          "maxFilterFields": 8,
+          "maxInValues": 32,
+          "maxProjectionFields": 64,
+          "maxTake": 200,
+          "maxCandidateRows": 1024,
+          "maxResultBytes": 65536,
+          "maxIndexesPerResource": 16,
+          "maxFieldsPerResource": 64
+        },
+        "resolution": {
+          "kind": "existing-generated",
+          "exportedName": "todos.list",
+          "candidateCount": 1
+        },
+        "planHash": "sha256:cef8eec299924a7e0075d4d8a9af58a2d3771e498b2f4082b3b0e7f0bc12344c",
+        "resultContractHash": "sha256:a1c03576646df3d2c5c8757c9391c36ebc753735da2c9f79b3c1b8a0918b53d2",
+        "requiredCapabilities": [
+          "live_subscriptions",
+          "host_plan_runtime",
+          "result_contract_v1",
+          "args_contract_v1"
+        ],
+        "servedCapabilities": [
+          "live_subscriptions",
+          "host_plan_runtime",
+          "result_contract_v1",
+          "args_contract_v1"
+        ],
+        "retained": false,
+        "materializationKey": null,
+        "authorityPartitionDigest": "sha256:158aad048bd9cf12d80ce17944a36611f1e52ae95bfd6ba093753f20c17fffd3",
+        "ownershipReason": "canonical generated function/materialization owner",
+        "refusal": null
+      },
+      "sourceSpan": {
+        "path": "query.ts",
+        "line": 5,
+        "column": 26
+      }
+    }
+  }
+]);
+
+const __dataEncoder = new TextEncoder();
+const __dataShaK = new Uint32Array([
+  0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+  0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+  0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+  0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+  0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+  0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+  0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2,
+]);
+const __dataSha256 = (bytes) => {
+  const length = bytes.length; const bits = length * 8;
+  const padded = new Uint8Array(((length + 8) >> 6 << 6) + 64); padded.set(bytes); padded[length] = 0x80;
+  const view = new DataView(padded.buffer); view.setUint32(padded.length - 8, Math.floor(bits / 0x100000000)); view.setUint32(padded.length - 4, bits >>> 0);
+  const h = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]); const w = new Uint32Array(64);
+  for (let offset = 0; offset < padded.length; offset += 64) {
+    for (let i = 0; i < 16; i += 1) w[i] = view.getUint32(offset + i * 4);
+    for (let i = 16; i < 64; i += 1) { const s0=((w[i-15]>>>7)|(w[i-15]<<25))^((w[i-15]>>>18)|(w[i-15]<<14))^(w[i-15]>>>3); const s1=((w[i-2]>>>17)|(w[i-2]<<15))^((w[i-2]>>>19)|(w[i-2]<<13))^(w[i-2]>>>10); w[i]=(w[i-16]+s0+w[i-7]+s1)>>>0; }
+    let [a,b,c,d,e,f,g,z]=h;
+    for (let i=0;i<64;i+=1) { const s1=((e>>>6)|(e<<26))^((e>>>11)|(e<<21))^((e>>>25)|(e<<7)); const ch=(e&f)^(~e&g); const t1=(z+s1+ch+__dataShaK[i]+w[i])>>>0; const s0=((a>>>2)|(a<<30))^((a>>>13)|(a<<19))^((a>>>22)|(a<<10)); const maj=(a&b)^(a&c)^(b&c); const t2=(s0+maj)>>>0; z=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b;b=a;a=(t1+t2)>>>0; }
+    h[0]=(h[0]+a)>>>0;h[1]=(h[1]+b)>>>0;h[2]=(h[2]+c)>>>0;h[3]=(h[3]+d)>>>0;h[4]=(h[4]+e)>>>0;h[5]=(h[5]+f)>>>0;h[6]=(h[6]+g)>>>0;h[7]=(h[7]+z)>>>0;
+  }
+  const out = new Uint8Array(32); const outView = new DataView(out.buffer); for (let i=0;i<8;i+=1) outView.setUint32(i*4,h[i]); return out;
+};
+const __dataCanonical = (value) => Array.isArray(value)
+  ? '[' + value.map(__dataCanonical).join(',') + ']'
+  : value && typeof value === 'object'
+    ? '{' + Object.keys(value).sort().map((key) => JSON.stringify(key) + ':' + __dataCanonical(value[key])).join(',') + '}'
+    : JSON.stringify(value);
+const __dataDigest = (domain, value) => 'sha256:' + [...__dataSha256(__dataEncoder.encode(domain + '\n' + __dataCanonical(value)))].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+const __dataError = (code, message) => Object.assign(new TypeError(code + ': ' + message), { code });
+const __shape = (value) => { if (value === undefined || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'bigint' || (typeof value === 'number' && !Number.isFinite(value))) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'query values must be finite portable JSON'); return value; };
+const __operator = (value) => { if (!value || typeof value !== 'object' || Array.isArray(value)) return { operator: 'eq', values: [__shape(value)] }; const keys = Object.keys(value); const lower = keys.find((key) => key === 'gt' || key === 'gte'); const upper = keys.find((key) => key === 'lt' || key === 'lte'); const singles = new Set(['eq','in','lt','lte','gt','gte']); const operator = keys.length === 1 && singles.has(keys[0]) ? keys[0] : (keys.length === 2 && lower && upper ? lower + '-' + upper : ''); if (!operator) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'predicate object is outside the closed grammar'); const ordered = operator.includes('-') ? operator.split('-') : [operator]; let values = ordered.map((key) => __shape(value[key])); if (operator === 'in') { if (!Array.isArray(values[0]) || values[0].length < 1 || values[0].length > 32) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'in requires 1..32 values'); values = [[...new Map(values[0].map((item) => [JSON.stringify(item), item])).values()]]; } return { operator, values }; };
+const __sameProjection = (authored, canonical) => { if (authored === null || canonical === null) return authored === canonical; if (authored.length !== canonical.length || new Set(authored).size !== authored.length) return false; const admitted = new Set(canonical); return authored.every((field) => admitted.has(field)); };
+const __finish = (state, cursor = null) => { if (!Number.isSafeInteger(state.take) || state.take < 1 || state.take > 200) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'take must be a safe integer in 1..200'); if (state.projection !== null && state.projection.length < 1) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select requires at least one duplicate-free field'); if (state.projection !== null && state.projection.length > 64) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'select exceeds maxProjectionFields 64'); if (state.projection !== null && new Set(state.projection).size !== state.projection.length) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select fields must be duplicate-free'); if (cursor !== null && (typeof cursor !== 'string' || !cursor.startsWith('dc1.') || new TextEncoder().encode(cursor).length > 2048)) throw __dataError('SNAPBACK_DATA_CURSOR_INVALID', 'cursor is not a bounded DataCursorV1'); const byField = new Map(state.filters.map((filter) => [filter.field, filter])); const entry = dataQueryCatalog.find((candidate) => candidate.shape.resource === state.resource && candidate.shape.index === state.index && JSON.stringify(candidate.shape.order) === JSON.stringify(state.order) && candidate.shape.take === state.take && __sameProjection(state.projection, candidate.shape.projection) && candidate.shape.filters.length === state.filters.length && candidate.shape.filters.every((filter) => byField.get(filter.field)?.operator === filter.operator)); if (!entry) throw __dataError('SNAPBACK_DATA_QUERY_NOT_CATALOGUED', 'this dynamic query shape is absent from the active static catalogue'); const args = entry.shape.filters.flatMap(({ field }) => byField.get(field).values); const namedArguments = Object.assign(Object.fromEntries(entry.argumentNames.map((name, index) => [name, args[index]])), cursor === null ? {} : { after: cursor }); const descriptor = { ...entry.envelope, arguments: Object.freeze(args), canonicalArgsDigest: __dataDigest('snapback:data-canonical-args:v1', Object.fromEntries(Object.entries(namedArguments).filter(([name]) => name !== 'after'))), cursor, namedArguments: Object.freeze(namedArguments) }; return Object.freeze(cursor === null ? { ...descriptor, after(next) { return __finish(state, next); } } : descriptor); };
+const __resource = (resource) => Object.freeze({ using(index) { const base = { resource, index, filters: [], projection: null }; const ordered = (state) => Object.freeze({ orderBy(field, direction) { const next = { ...state, order: { field, direction } }; return Object.freeze({ select(fields) { if (!Array.isArray(fields)) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select requires an array'); const selected = { ...next, projection: [...fields] }; return Object.freeze({ take(take) { return __finish({ ...selected, take }); } }); }, take(take) { return __finish({ ...next, take }); } }); } }); return Object.freeze({ where(filters) { if (!filters || typeof filters !== 'object' || Array.isArray(filters)) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'where requires an object'); const entries = Object.entries(filters); if (entries.length < 1) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'where requires at least one field'); if (entries.length > 8) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'where exceeds maxFilterFields 8'); return ordered({ ...base, filters: entries.map(([field, value]) => ({ field, ...__operator(value) })) }); }, orderBy: ordered(base).orderBy }); } });
+export const data = Object.freeze(Object.fromEntries([...new Set(dataQueryCatalog.map(({ core }) => core.resource))].map((resource) => [resource, __resource(resource)])));
+export const explainDataQuery = (descriptor) => descriptor?.explain ?? descriptor?.envelope?.explain ?? null;

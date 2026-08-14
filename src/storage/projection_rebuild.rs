@@ -310,6 +310,7 @@ pub(super) fn materialize_projection_in(
         None,
         None,
         false,
+        OrderDirection::Asc,
         None,
     )?;
     let mut statement = tx.prepare(&sql)?;
@@ -405,6 +406,7 @@ pub(super) fn materialize_projection_in(
             None,
             None,
             false,
+            OrderDirection::Asc,
             None,
         )?;
         let mut statement = tx.prepare(&sql)?;
@@ -677,6 +679,7 @@ fn projection_logical_row(
                 Some(2),
                 None,
                 false,
+                OrderDirection::Asc,
                 None,
             )?;
             let mut statement = tx.prepare(&sql)?;
@@ -911,6 +914,7 @@ pub(super) fn maintain_projections_in_tx(
                 Some(plan.fan_out_limit as usize + 1),
                 None,
                 false,
+                OrderDirection::Asc,
                 None,
             )?;
             let mut statement = tx.prepare(&sql)?;
@@ -981,6 +985,7 @@ pub(super) fn maintain_projections_in_tx(
                         Some(1),
                         None,
                         false,
+                        OrderDirection::Asc,
                         None,
                     )?;
                     let mut statement = tx.prepare(&sql)?;

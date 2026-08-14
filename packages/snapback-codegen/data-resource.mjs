@@ -79,6 +79,17 @@ function validateEligibility(name, table, policyDataSync) {
   if (table.historyDeclaration) ineligible.push('history declaration');
   const relations = relationFieldNames(table);
   if (relations.length > 0) ineligible.push(`relation-incarnation fields: ${relations.join(', ')}`);
+  const fieldNames = Object.keys(table.fields);
+  if (fieldNames.includes('after')) ineligible.push('reserved field name: after');
+  const fieldNameSet = new Set(fieldNames);
+  for (const field of fieldNames) {
+    for (const suffix of ['gt', 'gte', 'lt', 'lte']) {
+      const derived = `${field}_${suffix}`;
+      if (fieldNameSet.has(derived)) {
+        ineligible.push(`slot argument collision: ${field} and ${derived}`);
+      }
+    }
+  }
   if (Object.keys(table.fields).length > 64) ineligible.push(`${Object.keys(table.fields).length} authored fields (maximum 64)`);
   if ((table.indexes ?? []).length > 16) ineligible.push(`${table.indexes.length} ordinary indexes (maximum 16)`);
   if (ineligible.length > 0) {

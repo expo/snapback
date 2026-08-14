@@ -1087,7 +1087,8 @@ mod tests {
             "properties": {}
         });
         let declaration = "export declare const api: unknown;\n";
-        let canonical_schema = crate::rqs_contract::jcs(&args_schema).expect("schema canonicalizes");
+        let canonical_schema =
+            crate::rqs_contract::jcs(&args_schema).expect("schema canonicalizes");
         json!({
             "artifactKind": API_ENVELOPE_ARTIFACT_KIND,
             "formatVersion": API_ENVELOPE_FORMAT_V1,
@@ -1270,6 +1271,7 @@ mod tests {
             generated_at: None,
             unsupported_dependency_diagnostics: Vec::new(),
             acknowledged_experimental_capabilities: Vec::new(),
+            data_query_catalog: Vec::new(),
             functions: Vec::new(),
             cron_jobs: Vec::new(),
             config: Vec::new(),
@@ -1414,6 +1416,7 @@ mod compose_tests {
             generated_at: None,
             unsupported_dependency_diagnostics: Vec::new(),
             acknowledged_experimental_capabilities: Vec::new(),
+            data_query_catalog: Vec::new(),
             functions: Vec::new(),
             cron_jobs: Vec::new(),
             config: Vec::new(),

@@ -15707,6 +15707,7 @@ fn snapshot_batch_v2_all_relational_executor_uses_one_sbsb2_cursor() {
                 keyring: &snapback.resume_keyring,
                 schema_hash: None,
                 function_bundle_hash: None,
+                function_inputs_hash: None,
                 function_publication_generation: 0,
                 target_profile: Some(crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX),
             }),
@@ -19213,6 +19214,7 @@ fn membership_keyset_binding_components_change_and_owned_digest_is_stable() {
         keyring: &keyring,
         schema_hash: Some("schema-a"),
         function_bundle_hash: Some("bundle-a"),
+        function_inputs_hash: None,
         function_publication_generation: 7,
         target_profile: Some("local-dev-sqlite-ibex"),
     };
@@ -20121,6 +20123,630 @@ fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
             "every standard-pattern cursor refusal class is byte-indistinguishable",
         );
     }
+}
+
+// @ref LLP 0255#s53-projection-result-cursor-and-bounds — the real local
+// target exercises the ordinary data-resource route: first-page `{}`,
+// continuation `{after}`, complete compound boundaries, null/duplicate keys,
+// both directions, owner isolation, and byte-identical cursor refusals.
+#[test]
+fn data_query_cursor_a1_pages_and_refuses_end_to_end() {
+    use crate::manifest::{
+        AuthRequirement, AuthorizationInputDimension, DependencySummary, EffectCeiling,
+        EffectCeilingRead, IndexManifest, OrderDirection, OrderExpr, StandardPatternIdentity,
+        TableManifest, TableVisibilityV1,
+    };
+    use base64::Engine as _;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+
+    let schema = SchemaManifest {
+        tables: vec![TableManifest {
+            name: "todos".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::Principal,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "bucket".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "createdAt".to_owned(),
+                    field_type: FieldType::Integer,
+                    optional: true,
+                },
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "cursorText".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: vec![
+                IndexManifest {
+                    name: "by_owner_bucket_created".to_owned(),
+                    fields: vec![
+                        "ownerId".to_owned(),
+                        "bucket".to_owned(),
+                        "createdAt".to_owned(),
+                    ],
+                    unique: false,
+                    where_applicable: false,
+                },
+                IndexManifest {
+                    name: "by_owner".to_owned(),
+                    fields: vec!["ownerId".to_owned()],
+                    unique: false,
+                    where_applicable: false,
+                },
+                IndexManifest {
+                    name: "by_owner_cursor_text".to_owned(),
+                    fields: vec!["ownerId".to_owned(), "cursorText".to_owned()],
+                    unique: false,
+                    where_applicable: false,
+                },
+            ],
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
+            history: None,
+        }],
+        ..SchemaManifest::default()
+    };
+    let owner_filter = FilterExpr {
+        field: "ownerId".to_owned(),
+        op: FilterOp::Eq,
+        value: ValueExpr::AuthUserId,
+    };
+    let data_function = |name: &str, order: Vec<OrderExpr>, index: &str, take: usize| {
+        let mut function = FunctionDefinition::new(
+            name,
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: Some(TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
+                table: "todos".to_owned(),
+                filters: vec![owner_filter.clone()],
+                membership_filters: Vec::new(),
+                order,
+                limit: Some(take),
+                indexed_by: Some(index.to_owned()),
+            })),
+        );
+        function.id = format!("local-app:{name}");
+        function.implementation_hash = Some(format!("sha256:{}", "a".repeat(64)));
+        function.auth_requirement = Some(AuthRequirement::Authenticated);
+        function.authorization_dependence = vec![AuthorizationInputDimension::UserId];
+        function.read_set_summary = DependencySummary {
+            primary_table: Some("todos".to_owned()),
+            tables: vec!["todos".to_owned()],
+            mode: Some("singleTable".to_owned()),
+            auth_scope_field: Some("ownerId".to_owned()),
+        };
+        function.write_set_summary = DependencySummary {
+            primary_table: None,
+            tables: Vec::new(),
+            mode: Some("none".to_owned()),
+            auth_scope_field: None,
+        };
+        function.effect_ceiling = Some(EffectCeiling {
+            version: "EffectCeilingV1".to_owned(),
+            basis: "static".to_owned(),
+            reads: vec![EffectCeilingRead {
+                table: "todos".to_owned(),
+                access: "query".to_owned(),
+                index: Some(index.to_owned()),
+            }],
+            writes: Vec::new(),
+            host_operations: Vec::new(),
+            authorization_inputs: vec!["authUserId".to_owned()],
+        });
+        function.standard_pattern = Some(if name.ends_with(".list") {
+            StandardPatternIdentity {
+                helper: "data-resource.v1".to_owned(),
+                profile: "owner.v1".to_owned(),
+                membership: None,
+            }
+        } else {
+            StandardPatternIdentity {
+                helper: "data-query.v1".to_owned(),
+                profile: "bounded-index.v1".to_owned(),
+                membership: None,
+            }
+        });
+        let args_contract = FunctionArgsContract {
+            fields: vec![ResultObjectFieldContract {
+                name: "after".to_owned(),
+                required: false,
+                value: ResultValueContract::String { max_bytes: 2_048 },
+            }],
+        };
+        function.args_contract_hash = Some(
+            crate::manifest::args_contract_hash(&args_contract).expect("data args contract hash"),
+        );
+        function.args_contract = Some(args_contract);
+        install_schema_documents_contract(&mut function, &schema, "todos");
+        function.required_capabilities = vec![
+            "args_contract_v1".to_owned(),
+            "result_contract_v1".to_owned(),
+            "host_plan_runtime".to_owned(),
+            "live_subscriptions".to_owned(),
+        ];
+        function
+    };
+    let compound_order = |direction: OrderDirection| {
+        vec![
+            OrderExpr {
+                field: "bucket".to_owned(),
+                direction: direction.clone(),
+                max_encoded_bytes: None,
+            },
+            OrderExpr {
+                field: "createdAt".to_owned(),
+                direction,
+                max_encoded_bytes: None,
+            },
+        ]
+    };
+    let list_profile = data_function(
+        "todos.list",
+        compound_order(OrderDirection::Asc),
+        "by_owner_bucket_created",
+        2,
+    );
+
+    // The executor tag is not authority by itself. Pair activation rebuilds
+    // the closed route profile and refuses the first malformed frozen fact.
+    let assert_profile_refusal = |function: FunctionDefinition, expected: &str| {
+        let mut isolated = LocalSnapback::memory().expect("isolated data admission fixture");
+        isolated
+            .apply_schema(schema.clone())
+            .expect("apply isolated data schema");
+        let diagnostics = isolated.load_functions(FunctionManifest {
+            functions: vec![function],
+            acknowledged_experimental_capabilities: vec![
+                "args_contract_v1".to_owned(),
+                "result_contract_v1".to_owned(),
+            ],
+            ..FunctionManifest::default()
+        });
+        assert_eq!(
+            diagnostics
+                .iter()
+                .find(|diagnostic| {
+                    diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error
+                })
+                .map(|diagnostic| diagnostic.code.as_str()),
+            Some(expected),
+            "malformed data profile must refuse at activation: {diagnostics:?}",
+        );
+    };
+    let mut over_take = list_profile.clone();
+    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut over_take.runtime else {
+        unreachable!()
+    };
+    plan.limit = Some(201);
+    assert_profile_refusal(over_take, "SNAPBACK_DATA_QUERY_BOUND_EXCEEDED");
+    let mut partial_order = list_profile.clone();
+    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut partial_order.runtime else {
+        unreachable!()
+    };
+    plan.order.pop();
+    assert_profile_refusal(partial_order, "SNAPBACK_DATA_QUERY_SHAPE_INVALID");
+    let mut widened_effect = list_profile;
+    widened_effect
+        .effect_ceiling
+        .as_mut()
+        .expect("data effect ceiling")
+        .reads
+        .push(EffectCeilingRead {
+            table: "todos".to_owned(),
+            access: "point".to_owned(),
+            index: None,
+        });
+    assert_profile_refusal(widened_effect, "SNAPBACK_DATA_QUERY_SHAPE_INVALID");
+
+    let generated_schema: SchemaManifest = serde_json::from_str(include_str!(
+        "../../tests/fixtures/data-query-a1/generated/schema.manifest.json"
+    ))
+    .expect("deserialize comprehensive data-query schema");
+    let generated_functions: FunctionManifest = serde_json::from_str(include_str!(
+        "../../tests/fixtures/data-query-a1/generated/functions.manifest.json"
+    ))
+    .expect("deserialize comprehensive data-query functions");
+    let catalog_route = |field: &str, direction: &str, take: u64| {
+        generated_functions
+            .data_query_catalog
+            .iter()
+            .find(|entry| {
+                entry["core"]["order"]["field"] == json!(field)
+                    && entry["core"]["order"]["direction"] == json!(direction)
+                    && entry["core"]["take"] == json!(take)
+            })
+            .and_then(|entry| entry["resolution"]["exportedName"].as_str())
+            .expect("catalogued fixture route")
+            .to_owned()
+    };
+    let asc_name = catalog_route("bucket", "asc", 2);
+    let desc_name = catalog_route("bucket", "desc", 2);
+    let owner_only_name = catalog_route("_id", "desc", 1);
+    let mint_unavailable_name = catalog_route("cursorText", "asc", 1);
+    let asc = generated_functions
+        .function(&asc_name)
+        .expect("catalogued ascending member")
+        .clone();
+
+    for (label, malformed) in [
+        ("missing catalogue", {
+            let mut manifest = generated_functions.clone();
+            manifest.data_query_catalog.clear();
+            manifest
+        }),
+        ("tampered witness core", {
+            let mut manifest = generated_functions.clone();
+            manifest.data_query_catalog[0]["core"]["take"] = json!(3);
+            manifest
+        }),
+    ] {
+        let mut isolated = LocalSnapback::memory().expect("isolated catalogue fixture");
+        isolated
+            .apply_schema(generated_schema.clone())
+            .expect("apply isolated generated schema");
+        let diagnostics = isolated.load_functions(malformed);
+        assert_eq!(
+            diagnostics
+                .iter()
+                .find(|diagnostic| {
+                    diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error
+                })
+                .map(|diagnostic| diagnostic.code.as_str()),
+            Some("SNAPBACK_DATA_QUERY_SHAPE_INVALID"),
+            "{label} must refuse before route publication: {diagnostics:?}",
+        );
+    }
+
+    let mut snapback = LocalSnapback::memory().expect("memory data query fixture");
+    snapback
+        .apply_schema(generated_schema)
+        .expect("apply data query schema");
+    let diagnostics = snapback.load_functions(generated_functions);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "data query fixture must activate: {diagnostics:?}",
+    );
+    let row = |owner: &str, bucket: i64, created_at: Value, title: &str| {
+        json!({
+            "ownerId": owner,
+            "bucket": bucket,
+            "createdAt": created_at,
+            "title": title,
+            "cursorText": title,
+        })
+        .as_object()
+        .cloned()
+        .expect("data row")
+    };
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "todos".to_owned(),
+                vec![
+                    row("user-a", 1, json!(1), "a-1"),
+                    row("user-a", 1, json!(1), "a-2"),
+                    row("user-a", 1, Value::Null, "a-null-1"),
+                    row("user-a", 1, Value::Null, "a-null-2"),
+                    row("user-a", 2, json!(1), "a-3"),
+                    row("user-b", 1, json!(1), "b-1"),
+                    row("user-b", 2, json!(1), "b-2"),
+                ],
+            )]),
+        })
+        .expect("seed data query rows");
+    let input = |user: &str, args: Value| HandlerInput {
+        args,
+        auth: AuthInput {
+            user_id: Some(user.to_owned()),
+            ..AuthInput::default()
+        },
+        ..HandlerInput::default()
+    };
+    let titles = |output: &QueryOutput| {
+        output
+            .rows
+            .iter()
+            .map(|row| row["title"].as_str().expect("title").to_owned())
+            .collect::<Vec<_>>()
+    };
+
+    let page1 = snapback
+        .invoke_query(&asc_name, input("user-a", json!({})))
+        .expect("A1 first page");
+    assert_eq!(page1.rows.len(), 2);
+    let cursor1 = page1.cursor.clone().expect("A1 first continuation");
+    assert!(cursor1.starts_with("dc1."));
+    let page2 = snapback
+        .invoke_query(
+            &asc_name,
+            input("user-a", json!({ "after": cursor1.clone() })),
+        )
+        .expect("A1 second page");
+    assert_eq!(page2.rows.len(), 2);
+    let cursor2 = page2.cursor.clone().expect("A1 second continuation");
+    let page3 = snapback
+        .invoke_query(&asc_name, input("user-a", json!({ "after": cursor2 })))
+        .expect("A1 terminal page");
+    assert_eq!(page3.rows.len(), 1);
+    assert!(page3.cursor.is_none());
+    let all_titles = titles(&page1)
+        .into_iter()
+        .chain(titles(&page2))
+        .chain(titles(&page3))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        all_titles,
+        BTreeSet::from([
+            "a-1".to_owned(),
+            "a-2".to_owned(),
+            "a-3".to_owned(),
+            "a-null-1".to_owned(),
+            "a-null-2".to_owned(),
+        ]),
+        "duplicate and null compound keys page without skip or duplicate",
+    );
+
+    let refusal = |user: &str, function: &str, token: &str| {
+        snapback
+            .invoke_query(function, input(user, json!({ "after": token })))
+            .expect_err("cursor presentation must refuse")
+    };
+    let malformed = refusal("user-a", &asc_name, "dc1.garbage");
+    let cross_owner = refusal("user-b", &asc_name, &cursor1);
+    let cross_plan = refusal("user-a", &desc_name, &cursor1);
+    for error in [&cross_owner, &cross_plan] {
+        assert_eq!(
+            (
+                &error.diagnostic.code,
+                &error.diagnostic.message,
+                &error.diagnostic.details
+            ),
+            (
+                &malformed.diagnostic.code,
+                &malformed.diagnostic.message,
+                &malformed.diagnostic.details,
+            ),
+            "malformed, cross-owner, and cross-plan cursors are byte-identical refusals",
+        );
+    }
+
+    // Cursor authenticity is not a security boundary. Rebind an authorized
+    // user-b token to user-a's boundary and prove the policy-composed scan can
+    // return only user-b rows (or none), never disclose user-a rows.
+    let encoded = cursor1.strip_prefix("dc1.").expect("data cursor prefix");
+    let bytes = URL_SAFE_NO_PAD.decode(encoded).expect("decode data cursor");
+    let mut body: Value = serde_json::from_slice(&bytes).expect("cursor JSON");
+    let encode_body = |body: &Value| {
+        format!(
+            "dc1.{}",
+            URL_SAFE_NO_PAD.encode(
+                crate::rqs_contract::jcs(body)
+                    .expect("canonical forged data cursor")
+                    .as_bytes(),
+            ),
+        )
+    };
+    for (field, forged) in [
+        ("generationId", json!(format!("sha256:{}", "b".repeat(64)))),
+        ("argsDigest", json!(format!("sha256:{}", "c".repeat(64)))),
+        ("lastKey", json!(["wrong-type", 1, "not-a-real-row"])),
+    ] {
+        let mut tampered = body.clone();
+        tampered[field] = forged;
+        let refused = refusal("user-a", &asc_name, &encode_body(&tampered));
+        assert_eq!(
+            (
+                &refused.diagnostic.code,
+                &refused.diagnostic.message,
+                &refused.diagnostic.details,
+            ),
+            (
+                &malformed.diagnostic.code,
+                &malformed.diagnostic.message,
+                &malformed.diagnostic.details,
+            ),
+            "every malformed or stale cursor field has one non-disclosing refusal",
+        );
+    }
+    let mut nonexistent = body.clone();
+    nonexistent["lastKey"] = json!([1, 1, "nonexistent-boundary-row"]);
+    let suffix = snapback
+        .invoke_query(
+            &asc_name,
+            input("user-a", json!({ "after": encode_body(&nonexistent) })),
+        )
+        .expect("a well-typed nonexistent tuple selects a safe suffix");
+    assert!(
+        suffix
+            .rows
+            .iter()
+            .all(|row| row["ownerId"] == json!("user-a")),
+        "a nonexistent boundary cannot leave the policy-composed owner scan",
+    );
+    let plan = match &asc.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => plan,
+        _ => unreachable!(),
+    };
+    let binding_b = super::data_cursor_binding(&asc, plan, &input("user-b", json!({})), None)
+        .expect("user-b data binding");
+    body["authorityPartitionDigest"] = json!(binding_b.4);
+    let rebound = encode_body(&body);
+    let user_b_suffix = snapback
+        .invoke_query(&asc_name, input("user-b", json!({ "after": rebound })))
+        .expect("policy-composed foreign boundary is a safe suffix");
+    assert!(
+        user_b_suffix
+            .rows
+            .iter()
+            .all(|row| row["ownerId"] == json!("user-b")),
+        "another owner's boundary cannot escape the caller's policy partition",
+    );
+
+    // The descending and zero-order profiles both continue through the same
+    // executor; zero order means the vector is exactly `[_id]`.
+    for function in [&desc_name, &owner_only_name] {
+        let first = snapback
+            .invoke_query(function, input("user-a", json!({})))
+            .expect("directional first page");
+        let cursor = first.cursor.expect("directional continuation");
+        let second = snapback
+            .invoke_query(function, input("user-a", json!({ "after": cursor })))
+            .expect("directional second page");
+        assert!(
+            first
+                .rows
+                .iter()
+                .all(|left| second.rows.iter().all(|right| left["_id"] != right["_id"])),
+            "continued pages do not duplicate row ids",
+        );
+    }
+
+    // An admitted string order can still produce a boundary whose encoded
+    // cursor exceeds the wire ceiling. That is a mint refusal, never a
+    // cursor-less result that would masquerade as exhaustion.
+    let mut mint_row_1 = row("mint-user", 0, json!(0), "mint-1");
+    let mut mint_row_2 = row("mint-user", 0, json!(0), "mint-2");
+    mint_row_1.insert(
+        "cursorText".to_owned(),
+        json!(format!("a{}", "x".repeat(3_000))),
+    );
+    mint_row_2.insert(
+        "cursorText".to_owned(),
+        json!(format!("b{}", "x".repeat(3_000))),
+    );
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([("todos".to_owned(), vec![mint_row_1, mint_row_2])]),
+        })
+        .expect("seed oversized cursor boundary rows");
+    let unavailable = snapback
+        .invoke_query(&mint_unavailable_name, input("mint-user", json!({})))
+        .expect_err("an oversized continuation must refuse at mint");
+    assert_eq!(
+        unavailable.diagnostic.code,
+        "SNAPBACK_DATA_CURSOR_MINT_UNAVAILABLE"
+    );
+
+    // Result bytes are a refusal, never an implicit projection or truncation.
+    let large = "x".repeat(40_000);
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "todos".to_owned(),
+                vec![
+                    row("user-a", 0, json!(0), &large),
+                    row("user-a", 0, json!(0), &large),
+                ],
+            )]),
+        })
+        .expect("seed oversized data-query result rows");
+    let oversized = snapback
+        .invoke_query(&asc_name, input("user-a", json!({})))
+        .expect_err("maxResultBytes must refuse instead of truncating");
+    assert_eq!(
+        oversized.diagnostic.code,
+        "SNAPBACK_DATA_QUERY_BOUND_EXCEEDED"
+    );
+}
+
+// @ref LLP 0255#s53-projection-result-cursor-and-bounds — generated A1 artifacts, not
+// hand-authored test manifests, activate on Local and carry the ordinary
+// `{}` then `{after}` invocation flow through the real executor.
+#[test]
+fn generated_a1_data_query_runs_two_pages_on_local_target() {
+    let schema: SchemaManifest = serde_json::from_str(include_str!(
+        "../../tests/fixtures/data-resource-a1-explicit/generated/schema.manifest.json"
+    ))
+    .expect("deserialize generated A1 schema");
+    let functions: FunctionManifest = serde_json::from_str(include_str!(
+        "../../tests/fixtures/data-resource-a1-explicit/generated/functions.manifest.json"
+    ))
+    .expect("deserialize generated A1 functions");
+
+    let mut snapback = LocalSnapback::memory().expect("generated A1 local target");
+    snapback
+        .apply_schema(schema)
+        .expect("activate generated A1 schema");
+    let diagnostics = snapback.load_functions(functions);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "generated A1 functions must activate: {diagnostics:?}",
+    );
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "todos".to_owned(),
+                (0..101)
+                    .map(|created_at| {
+                        json!({
+                            "title": format!("todo-{created_at:03}"),
+                            "completed": false,
+                            "ownerId": "user-a",
+                            "createdAt": created_at,
+                        })
+                        .as_object()
+                        .cloned()
+                        .expect("generated A1 seed row")
+                    })
+                    .collect(),
+            )]),
+        })
+        .expect("seed generated A1 rows");
+    let input = |args: Value| HandlerInput {
+        args,
+        auth: AuthInput {
+            user_id: Some("user-a".to_owned()),
+            ..AuthInput::default()
+        },
+        ..HandlerInput::default()
+    };
+
+    let page_1 = snapback
+        .invoke_query("todos.list", input(json!({})))
+        .expect("generated A1 page 1");
+    assert_eq!(page_1.rows.len(), 100);
+    let after = page_1.cursor.expect("generated A1 continuation");
+    let page_2 = snapback
+        .invoke_query("todos.list", input(json!({ "after": after })))
+        .expect("generated A1 page 2");
+    assert_eq!(page_2.rows.len(), 1);
+    assert!(page_2.cursor.is_none());
+    assert!(
+        page_1
+            .rows
+            .iter()
+            .all(|left| page_2.rows.iter().all(|right| left["_id"] != right["_id"])),
+        "the generated continuation must not duplicate the terminal row",
+    );
 }
 
 #[test]
@@ -26038,17 +26664,14 @@ fn action_hosted_child_media_proof_refuses_swapped_commit_identity() {
         .iter_mut()
         .find(|function| function.name == "ibexInsert")
         .expect("Ibex fixture mutation");
-    function.implementation_hash = Some(
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            .to_owned(),
-    );
+    function.implementation_hash =
+        Some("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_owned());
     function.result_contract = FunctionResultContract::Value {
         value: ResultValueContract::MediaRefV1 {
             source_table: "profiles".to_owned(),
             source_field: "image".to_owned(),
             source_field_generation:
-                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                    .to_owned(),
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_owned(),
             optional: false,
             class_m_treatment: "class-m.none.v1".to_owned(),
             upload_intent: "profileImageUpload".to_owned(),
@@ -26064,7 +26687,9 @@ fn action_hosted_child_media_proof_refuses_swapped_commit_identity() {
         crate::manifest::result_contract_hash(&function.result_contract)
             .expect("media result contract hash"),
     );
-    function.required_capabilities.push("result_contract_v1".to_owned());
+    function
+        .required_capabilities
+        .push("result_contract_v1".to_owned());
     snapback
         .functions
         .acknowledged_experimental_capabilities
@@ -26075,18 +26700,10 @@ fn action_hosted_child_media_proof_refuses_swapped_commit_identity() {
         "ibexInsert",
         &input(),
     );
-    let swapped = crate::storage::ClientMutationIdentity::new(
-        "action-child-swapped",
-        "ibexInsert",
-        &input(),
-    );
+    let swapped =
+        crate::storage::ClientMutationIdentity::new("action-child-swapped", "ibexInsert", &input());
     let staged = match snapback
-        .stage_nested_mutation(
-            "ibexInsert",
-            &input(),
-            nested_authority(),
-            Some(&original),
-        )
+        .stage_nested_mutation("ibexInsert", &input(), nested_authority(), Some(&original))
         .expect("stage action-hosted mutation")
     {
         StagedNestedMutation::Detached(staged) => staged,

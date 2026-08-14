@@ -6,11 +6,11 @@ use crate::manifest::{
     MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
     MutationOutput, MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
-    QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
-    ResultValueContract, SeedData, SettlementMintObservation, SettlementTimeObservation,
-    TableManifest, ValueExpr,
-    auth_fingerprint, effective_query_limit, is_user_identifier, replay_opaque_id_is_valid,
-    validate_ctx_answer_ledger, validate_portable_timestamp_millis, validate_query_plan_shape,
+    QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ResultValueContract, ReturnValue,
+    SchemaManifest, SeedData, SettlementMintObservation, SettlementTimeObservation, TableManifest,
+    ValueExpr, auth_fingerprint, effective_query_limit, is_user_identifier,
+    replay_opaque_id_is_valid, validate_ctx_answer_ledger, validate_portable_timestamp_millis,
+    validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{
@@ -914,8 +914,7 @@ pub(crate) struct BufferedCommitPayload {
     pub media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
     /// Independently reconstructed from the prepared invocation/request
     /// carrier; the storage boundary compares it with the proof before OCC.
-    pub expected_media_projection_binding:
-        Option<crate::runtime::MediaProjectionProofBindingV1>,
+    pub expected_media_projection_binding: Option<crate::runtime::MediaProjectionProofBindingV1>,
 }
 
 enum MediaProjectionProofAccess<'a> {
@@ -3496,6 +3495,7 @@ impl LocalDatabase {
                         None,
                         None,
                         false,
+                        OrderDirection::Asc,
                         None,
                     )?;
                     let rows = {
@@ -3901,10 +3901,7 @@ impl LocalDatabase {
             media_projection_proof,
             expected_media_projection_binding,
         } = payload;
-        let media_projection = match (
-            media_projection_proof,
-            expected_media_projection_binding,
-        ) {
+        let media_projection = match (media_projection_proof, expected_media_projection_binding) {
             (Some(proof), Some(expected)) => {
                 Some(MediaProjectionProofAccess::Owned { proof, expected })
             }
@@ -4913,10 +4910,8 @@ impl LocalDatabase {
                     .collect::<rusqlite::Result<Vec<_>>>()?
             };
             for auth_fingerprint in auth_fingerprints {
-                let (records, bytes) = scan_client_mutation_retention_totals_for_auth(
-                    &tx,
-                    Some(&auth_fingerprint),
-                )?;
+                let (records, bytes) =
+                    scan_client_mutation_retention_totals_for_auth(&tx, Some(&auth_fingerprint))?;
                 save_client_mutation_auth_retention_counters(
                     &tx,
                     &auth_fingerprint,
@@ -5241,7 +5236,7 @@ pub struct KeysetAfter {
 }
 
 /// Lower a keyset boundary to one WHERE clause selecting rows strictly after
-/// the boundary row under the plan's `(order…, _id ASC)` total order with
+/// the boundary row under the plan's `(order…, _id direction)` total order with
 /// Snapback's `NULLS LAST` rule. Emitted as a disjunction of prefix-equality
 /// clauses so it composes with mixed directions and null boundary
 /// components; a plain SQL row-value comparison would inherit SQL null
@@ -5250,6 +5245,7 @@ fn build_keyset_after_sql(
     table: &TableManifest,
     order: &[OrderExpr],
     keyset: &KeysetAfter,
+    id_direction: OrderDirection,
     filter_bindings: &mut usize,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     if keyset.entries.len() != order.len()
@@ -5303,7 +5299,11 @@ fn build_keyset_after_sql(
     }
 
     let mut final_clause = prefix_clauses;
-    final_clause.push("\"_id\" > ?".to_owned());
+    let id_comparator = match id_direction {
+        OrderDirection::Asc => ">",
+        OrderDirection::Desc => "<",
+    };
+    final_clause.push(format!("\"_id\" {id_comparator} ?"));
     disjuncts.push(format!("({})", final_clause.join(" AND ")));
     add_query_filter_bindings(filter_bindings, prefix_values.len() + 1, "_id")?;
     values.extend(prefix_values);
@@ -5665,7 +5665,35 @@ pub(crate) fn query_on_keyset(
         false,
         keyset,
         true,
+        OrderDirection::Asc,
         None,
+    )
+}
+
+/// Keyset-bounded query for the data continuation profile. Unlike the
+/// relational root window, `_id` follows the authored direction so it is the
+/// same-direction totalizer required by DataCursorV1.
+pub(crate) fn query_on_data_keyset(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    keyset: Option<&KeysetAfter>,
+    storage_limit: usize,
+    examined_entry_ceiling: usize,
+    id_direction: OrderDirection,
+) -> SnapbackResult<QueryOutput> {
+    query_on_with_storage_limit_visibility_keyset(
+        conn,
+        schema,
+        plan,
+        input,
+        storage_limit,
+        false,
+        keyset,
+        true,
+        id_direction,
+        Some(examined_entry_ceiling),
     )
 }
 
@@ -5686,6 +5714,7 @@ fn query_on_with_storage_limit_visibility(
         allow_private_membership,
         None,
         false,
+        OrderDirection::Asc,
         None,
     )
 }
@@ -5706,6 +5735,7 @@ fn query_on_with_examined_entry_ceiling(
         false,
         None,
         false,
+        OrderDirection::Asc,
         Some(examined_entry_ceiling),
     )
 }
@@ -5720,6 +5750,7 @@ fn query_on_with_storage_limit_visibility_keyset(
     allow_private_membership: bool,
     keyset: Option<&KeysetAfter>,
     force_id_order: bool,
+    id_direction: OrderDirection,
     examined_entry_ceiling: Option<usize>,
 ) -> SnapbackResult<QueryOutput> {
     with_pinned_read_snapshot(conn, |conn| {
@@ -5794,6 +5825,7 @@ fn query_on_with_storage_limit_visibility_keyset(
             Some(storage_limit),
             keyset,
             force_id_order,
+            id_direction,
             examined_entry_ceiling.map(|_| "__snapback_single_table_examined_entry_guard"),
         )?;
         let examined_entry_guard_exceeded =
@@ -6660,6 +6692,41 @@ impl DbRead<'_> {
         match self {
             DbRead::Pinned { conn, schema } => query_on_keyset(conn, schema, plan, input, keyset),
             DbRead::Live(db) => query_on_keyset(&db.conn, &db.schema, plan, input, keyset),
+        }
+    }
+
+    /// Execute one page for the data-query/data-resource continuation
+    /// profile with the executor-owned overfetch and candidate ceilings.
+    pub(crate) fn query_data_keyset(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        keyset: Option<&KeysetAfter>,
+        storage_limit: usize,
+        examined_entry_ceiling: usize,
+        id_direction: OrderDirection,
+    ) -> SnapbackResult<QueryOutput> {
+        match self {
+            DbRead::Pinned { conn, schema } => query_on_data_keyset(
+                conn,
+                schema,
+                plan,
+                input,
+                keyset,
+                storage_limit,
+                examined_entry_ceiling,
+                id_direction,
+            ),
+            DbRead::Live(db) => query_on_data_keyset(
+                &db.conn,
+                &db.schema,
+                plan,
+                input,
+                keyset,
+                storage_limit,
+                examined_entry_ceiling,
+                id_direction,
+            ),
         }
     }
 
@@ -9835,6 +9902,7 @@ fn build_query_sql(
     sql_limit: Option<usize>,
     keyset: Option<&KeysetAfter>,
     force_id_order: bool,
+    id_direction: OrderDirection,
     examined_entry_guard_function: Option<&str>,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     // Always give the primary table an explicit alias. A membership table may
@@ -10036,8 +10104,13 @@ fn build_query_sql(
     }
 
     if let Some(keyset) = keyset {
-        let (clause, keyset_values) =
-            build_keyset_after_sql(table, &plan.order, keyset, &mut filter_bindings)?;
+        let (clause, keyset_values) = build_keyset_after_sql(
+            table,
+            &plan.order,
+            keyset,
+            id_direction.clone(),
+            &mut filter_bindings,
+        )?;
         where_parts.push(clause);
         values.extend(keyset_values);
     }
@@ -10066,7 +10139,11 @@ fn build_query_sql(
                 quote_ident(&order.field)?
             ));
         }
-        order_parts.push("\"_id\" ASC".to_owned());
+        let id_direction = match id_direction {
+            OrderDirection::Asc => "ASC",
+            OrderDirection::Desc => "DESC",
+        };
+        order_parts.push(format!("\"_id\" {id_direction}"));
         sql.push_str(" ORDER BY ");
         sql.push_str(&order_parts.join(", "));
     }
@@ -13069,7 +13146,9 @@ pub(crate) fn enforce_asset_reference_changes(
                     .and_then(Value::as_str)
                     .ok_or_else(assets::media_projection_integrity)?;
                 let expected = assets::media_kind_for_detected_content_type(detected);
-                let stored = asset.media_kind.ok_or_else(assets::media_projection_integrity)?;
+                let stored = asset
+                    .media_kind
+                    .ok_or_else(assets::media_projection_integrity)?;
                 if stored != expected {
                     return Err(assets::media_projection_integrity());
                 }
@@ -13341,11 +13420,7 @@ pub(crate) fn asset_read_authorized(
     })
 }
 
-fn via_reference_edge_disclosed_v1(
-    _table: &TableManifest,
-    _field: &str,
-    _principal: &str,
-) -> bool {
+fn via_reference_edge_disclosed_v1(_table: &TableManifest, _field: &str, _principal: &str) -> bool {
     true
 }
 
@@ -14700,13 +14775,9 @@ fn materialize_provenanced_media_result_in_tx(
         {
             return Err(media_projection_unprovenanced());
         }
-        let mut source = get_document_from_tx(
-            tx,
-            table,
-            &occurrence.source_row_id,
-            maximum_version,
-        )?
-        .ok_or_else(media_projection_unprovenanced)?;
+        let mut source =
+            get_document_from_tx(tx, table, &occurrence.source_row_id, maximum_version)?
+                .ok_or_else(media_projection_unprovenanced)?;
         let physical_asset_id = source
             .get(source_field)
             .and_then(Value::as_str)
@@ -14745,8 +14816,7 @@ fn validate_staged_media_projection_dependencies(
                 && dependency.table.as_deref() == Some(crate::assets::ASSET_RECORDS_TABLE)
                 && dependency.id.as_deref() == Some(occurrence.asset_id.as_str())
                 && dependency.version == Some(occurrence.snapshot_version)
-                && dependency.field.as_deref()
-                    == Some(MEDIA_PROJECTION_DEPENDENCY_FIELD_V1)
+                && dependency.field.as_deref() == Some(MEDIA_PROJECTION_DEPENDENCY_FIELD_V1)
                 && dependency.value.as_ref().and_then(Value::as_str)
                     == Some(occurrence.related_fact_digest.as_str())
         });
@@ -14767,8 +14837,7 @@ fn validate_staged_media_projection_binding(
 ) -> SnapbackResult<()> {
     if !crate::runtime::is_concrete_function_artifact_generation(
         &proof.binding.function_artifact_generation,
-    )
-        || &proof.binding != expected
+    ) || &proof.binding != expected
         || proof.result_contract_hash != expected.result_contract_hash
     {
         return Err(media_projection_unprovenanced());
@@ -14785,11 +14854,9 @@ fn validate_staged_media_projection_commit_identity(
     identity: Option<&ClientMutationIdentity>,
 ) -> SnapbackResult<()> {
     let expected = match identity {
-        Some(identity) => {
-            crate::runtime::MediaProjectionClientMutationIdentityV1::ClientMutation(
-                identity.activity_digest(),
-            )
-        }
+        Some(identity) => crate::runtime::MediaProjectionClientMutationIdentityV1::ClientMutation(
+            identity.activity_digest(),
+        ),
         None => crate::runtime::MediaProjectionClientMutationIdentityV1::NoClientIdentity,
     };
     if proof.binding.client_mutation_identity != expected {
@@ -14872,8 +14939,8 @@ fn media_projection_related_facts_on(
         )
         .optional()?
         .ok_or_else(crate::assets::media_projection_integrity)?;
-    let record: crate::assets::AssetRecordV1 = serde_json::from_str(&asset.2)
-        .map_err(|_| crate::assets::media_projection_integrity())?;
+    let record: crate::assets::AssetRecordV1 =
+        serde_json::from_str(&asset.2).map_err(|_| crate::assets::media_projection_integrity())?;
     let record_kind = record
         .media_kind
         .ok_or_else(crate::assets::media_projection_integrity)?;
@@ -14896,8 +14963,7 @@ fn media_projection_related_facts_on(
         .and_then(|facts| facts.get("contentType"))
         .and_then(Value::as_str)
         .ok_or_else(crate::assets::media_projection_integrity)?;
-    let detected_kind =
-        crate::assets::media_kind_for_detected_content_type(detected_content_type);
+    let detected_kind = crate::assets::media_kind_for_detected_content_type(detected_content_type);
     if asset.0 != "ready"
         || record.availability != crate::assets::AssetAvailability::Ready
         || record_kind != column_kind
@@ -16055,8 +16121,7 @@ fn logical_client_mutation_retained_row_bytes_v4(
     match settlement_record_sequence {
         SqlValue::Integer(value)
             if value > 0
-                && u64::try_from(value)
-                    .is_ok_and(|value| value <= SEQUENCE_MAX_SAFE_INTEGER) => {}
+                && u64::try_from(value).is_ok_and(|value| value <= SEQUENCE_MAX_SAFE_INTEGER) => {}
         _ => {
             return Err(invalid_client_mutation_retention_state(
                 "retained settlement sequence is invalid for byte accounting",
@@ -16173,8 +16238,8 @@ fn settlement_integrity_error() -> SnapbackError {
 fn load_settlement_format_epoch_v1(
     conn: &Connection,
 ) -> SnapbackResult<(SettlementFormatEpochV1, u64)> {
-    let epoch_json = meta_text(conn, META_SETTLEMENT_FORMAT_EPOCH_V1)?
-        .ok_or_else(settlement_integrity_error)?;
+    let epoch_json =
+        meta_text(conn, META_SETTLEMENT_FORMAT_EPOCH_V1)?.ok_or_else(settlement_integrity_error)?;
     let epoch: SettlementFormatEpochV1 =
         serde_json::from_str(&epoch_json).map_err(|_| settlement_integrity_error())?;
     if epoch.store_scope_id.is_empty()
@@ -16184,10 +16249,7 @@ fn load_settlement_format_epoch_v1(
     }
     let next = optional_meta_u64(conn, META_SETTLEMENT_NEXT_SEQUENCE_V1)?
         .ok_or_else(settlement_integrity_error)?;
-    if next == 0
-        || next > SEQUENCE_MAX_SAFE_INTEGER
-        || next <= epoch.legacy_sequence_watermark
-    {
+    if next == 0 || next > SEQUENCE_MAX_SAFE_INTEGER || next <= epoch.legacy_sequence_watermark {
         return Err(settlement_integrity_error());
     }
     Ok((epoch, next))
@@ -16213,8 +16275,8 @@ fn initialize_settlement_format_epoch_v1(tx: &Transaction<'_>) -> SnapbackResult
                 return Err(settlement_integrity_error());
             }
             for (index, id) in ids.iter().enumerate() {
-                let sequence = u64::try_from(index + 1)
-                    .map_err(|_| settlement_integrity_error())?;
+                let sequence =
+                    u64::try_from(index + 1).map_err(|_| settlement_integrity_error())?;
                 tx.execute(
                     "UPDATE _snapback_client_mutations
                      SET settlement_format = ?1,
@@ -16232,8 +16294,8 @@ fn initialize_settlement_format_epoch_v1(tx: &Transaction<'_>) -> SnapbackResult
                 store_scope_id: Uuid::now_v7().to_string(),
                 legacy_sequence_watermark: watermark,
             };
-            let epoch_json = serde_json::to_string(&epoch)
-                .map_err(|_| settlement_integrity_error())?;
+            let epoch_json =
+                serde_json::to_string(&epoch).map_err(|_| settlement_integrity_error())?;
             tx.execute(
                 "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
                 params![META_SETTLEMENT_FORMAT_EPOCH_V1, epoch_json],
@@ -16338,8 +16400,8 @@ fn verify_retained_settlement_carrier_v1(
             serde_json::from_str(output_json).map_err(|_| settlement_integrity_error())
         }
         MEDIA_SETTLEMENT_FORMAT_V1 if !is_legacy => {
-            let seal_json = settlement_projection_seal_json
-                .ok_or_else(settlement_integrity_error)?;
+            let seal_json =
+                settlement_projection_seal_json.ok_or_else(settlement_integrity_error)?;
             let seal: SettlementProjectionSealV1 =
                 serde_json::from_str(seal_json).map_err(|_| settlement_integrity_error())?;
             if seal.settlement_store_scope_id != epoch.store_scope_id
@@ -16467,8 +16529,7 @@ fn record_client_mutation_result(
     // replay grammar. Refuse inside the surrounding transaction before an
     // invalid private sequence fact can commit application writes or a counter.
     validate_retained_sequence_allocations(&output.settlement_sequence_allocations)?;
-    let (settlement_epoch, settlement_record_sequence) =
-        load_settlement_format_epoch_v1(tx)?;
+    let (settlement_epoch, settlement_record_sequence) = load_settlement_format_epoch_v1(tx)?;
     let output_value = serde_json::to_value(output).map_err(|error| {
         SnapbackError::error(
             "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
@@ -16496,12 +16557,10 @@ fn record_client_mutation_result(
     };
     let settlement_projection_seal_json = settlement_media
         .map(|media| {
-            let plan_value = serde_json::to_value(&media.plan)
-                .map_err(|_| settlement_integrity_error())?;
-            let media_projection_profile_hash = sha256_domain_jcs(
-                b"snapback:media-projection-profile:v1\n",
-                &plan_value,
-            )?;
+            let plan_value =
+                serde_json::to_value(&media.plan).map_err(|_| settlement_integrity_error())?;
+            let media_projection_profile_hash =
+                sha256_domain_jcs(b"snapback:media-projection-profile:v1\n", &plan_value)?;
             let settlement_id = identity.activity_digest();
             let settlement_digest = sha256_domain_jcs(
                 b"",
@@ -16524,9 +16583,7 @@ fn record_client_mutation_result(
                 settlement_record_sequence,
                 settlement_digest,
             };
-            settlement_jcs(
-                &serde_json::to_value(seal).map_err(|_| settlement_integrity_error())?,
-            )
+            settlement_jcs(&serde_json::to_value(seal).map_err(|_| settlement_integrity_error())?)
         })
         .transpose()?;
     let output_bytes = output_json.len() as u64;
@@ -16566,8 +16623,7 @@ fn record_client_mutation_result(
         &output_json,
         Some(settlement_format),
         SqlValue::Integer(
-            i64::try_from(settlement_record_sequence)
-                .map_err(|_| settlement_integrity_error())?,
+            i64::try_from(settlement_record_sequence).map_err(|_| settlement_integrity_error())?,
         ),
         settlement_projection_seal_json.as_deref(),
     )?;
@@ -16634,8 +16690,7 @@ fn record_client_mutation_result(
             version_to_sql_integer(output.version)?,
             version_to_sql_integer(output.version)?,
             settlement_format,
-            i64::try_from(settlement_record_sequence)
-                .map_err(|_| settlement_integrity_error())?,
+            i64::try_from(settlement_record_sequence).map_err(|_| settlement_integrity_error())?,
             settlement_projection_seal_json,
         ],
     )?;

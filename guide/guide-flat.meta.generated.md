@@ -222,7 +222,10 @@ proof command, and honest nonclaims without opening every demo.
 
 - [Generate a tiny typed data resource](./data/resources.md) — terminal
   `.data(...)`, owner/public eligibility, generated operations and witnesses,
-  application sync opt-out, Phase 1 cursor refusal, and stale-safe promotion.
+  application sync opt-out, bounded continuation, and stale-safe promotion.
+- [Build a bounded data query](./data/queries.md) — the static fluent
+  catalogue, indexed predicates/projections, exact or synthesized routes,
+  opaque keyset continuation, ceilings, and db-less explain output.
 
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
@@ -412,7 +415,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:3098804c36425bd961d52ec191026dbbcb85b1148756b084abf5763dba206058
+reviewed-authorities-digest: sha256:95cee035446f75e4bfa5127cb7a037a4ba6914272f2f9e6fd749c85e2ce6e8cb
 ---
 
 # Capability index
@@ -437,7 +440,8 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.mutation-settlement-identity | Mutation-only client identity and server-namespaced digest for replay-stable effects; genuine re-entry preserves it, while hosted returns null. | ctx.mutation.settlement, settlementId, replay-stable effect, provider idempotency key, effect dedupe | local | shipped | `recordEffectIntent` in tests/mutation_settlement_identity_v0.rs | llp/0043 | backend/mutations.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
-| data.resources-v1 | Terminal owner/public table declarations lowered to ordinary generated list/get/CRUD functions, normalized witnesses, application sync policy, and explicit write-promotion preview | .data, DataResourceV1, tiny typed data, generated CRUD, generated resource, dataSync, data promote, SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE | local | partial | `compileDataResourceDeclarations` in packages/snapback-codegen/data-resource.mjs + `snapback data promote` in packages/snapback-cli/index.mjs | llp/0255, llp/0065, llp/0231 | data/resources.md |
+| data.resources-v1 | Terminal owner/public `.data()` resources: ordinary list/get/CRUD, normalized witnesses, sync policy, keyset continuation, and write promotion | .data, DataResourceV1, generated CRUD, dataSync, data promote, DataCursorV1 | local | partial | packages/snapback-codegen/data-resource.test.mjs + src/local/tests.rs | llp/0255, llp/0065, llp/0231 | data/resources.md |
+| data.queries-v1 | Static bounded DataQueryV1 catalogue: canonical indexed shapes, exact/synthesized routes, admitted ceilings, QMK-separated keyset pages, and db-less explain; framework doorways are Phase 4 | DataQueryV1, dataQueryCatalog, using, where, orderBy, select, take, after, DataCursorV1, explainDataQuery | local | partial | packages/snapback-codegen/data-query.test.mjs + src/local/tests.rs | llp/0255, llp/0004, llp/0065, llp/0157 | data/queries.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection, Convex joins, Supabase joins | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental bounded child pages with protected relation incarnations; contributor-source local only, with public/hosted publication GAPs | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public/hosted publication; owner: Charlie, review: 2026-08-20; issue: issues/20260727-backend-bakeoff-improvement-program.md) |
 | backend.snapshot-batch-v1 | Experimental local 2–8-node composition: complete `bounded-children.v1` plus, in v2 (2026-08-06), `relational-query.v1` joins; one pinned authoritative snapshot/invocation; structural parent-authorization dedup; all-or-nothing tuple sealed only via bounded-child parents; one LLP 0157 `sbsb1`/`sbsb2` continuation; cursor-free-first-page `live_replace`; `retention:"none"`. Hosted/public-package publication: nonclaims. | snapshot batch, mixed snapshot batch, board view, join plus child lists, multiple child lists, one snapshot, composite query, defineSnapshotBatchQuery | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local/tests.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`, `snapshot_batch_v2`) | llp/0135, llp/0157, llp/0080, llp/0113 | backend/snapshot-batches.md |

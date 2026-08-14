@@ -809,7 +809,7 @@ const GENERATED_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // @ref LLP 0255#s2-lowering-to-standard-operations — DataResourceV1 owns the
 // one-segment resource.operation namespace; collection names remain plain
 // identifiers and additional nesting stays unavailable.
-const GENERATED_OPERATION_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*\.(?:list|get|create|update|delete))$/;
+const GENERATED_OPERATION_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*\.(?:list|get|create|update|delete|query_[0-9a-f]{16}))$/;
 const AUTHORIZED_LEASE_V1_DURATION_MS = 86_400_000;
 // Channel B persistence cadence (LLP 0091 §0A.5): trailing debounce after the
 // last result-changing envelope, hard cap under continuous change, immediate

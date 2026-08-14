@@ -197,6 +197,36 @@ function attachAuthority(client, fixture) {
   client.unsubscribeLive = async () => ({ disposed: true });
 }
 
+test('data query pages retain exact resolved QMK identity and separate after arguments', () => {
+  const fixture = applicationFixture();
+  const bridge = (args) => deriveGeneratedMaterializationBridge({
+    ref: fixture.ref,
+    args,
+    userId: USER,
+    clientStoreId: 'data-query-qmk-test',
+    authorizationScope: scope(),
+    durableCarrier: false,
+    persistResume: false,
+  });
+  const namedPageOne = bridge({ status: 'open' });
+  const descriptorPageOne = bridge({ status: 'open' });
+  const descriptorPageTwo = bridge({
+    status: 'open',
+    after: `dc1.${Buffer.from('{"v":1}').toString('base64url')}`,
+  });
+  assert(namedPageOne && descriptorPageOne && descriptorPageTwo);
+  assert.equal(
+    descriptorPageOne.address[2],
+    namedPageOne.address[2],
+    'an exact-matched data descriptor passes the same reference and arguments as its named member',
+  );
+  assert.notEqual(
+    descriptorPageTwo.address[2],
+    descriptorPageOne.address[2],
+    'the reserved after argument remains in the canonical QMK preimage',
+  );
+});
+
 test('offline volatile query and liveQuery establishment expose the D4 unknown answer', async (t) => {
   const originalFetch = globalThis.fetch;
   const transportFailure = new TypeError('fetch failed');

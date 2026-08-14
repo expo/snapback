@@ -408,6 +408,14 @@ export function lowerDataResourceV1(options) {
   };
   const decorateRead = (definition, { one = false } = {}) => {
     definition.args = one ? definition.args : { ...definition.args, ...afterArgs };
+    // An owner-only index has no post-policy field from which the executor
+    // could recover the authored direction. Carry `_id` as the direction
+    // marker in that one zero-field case; the data cursor still contains the
+    // totalizer exactly once and the data executor strips this marker before
+    // lowering the storage order.
+    if (!one && definition.plan.order.length === 0) {
+      definition.plan.order = [asc('_id')];
+    }
     definition.resultContract = one
       ? results.records(v.doc(facts.name), { minItems: 0, maxItems: 1 })
       : results.documents(facts.name);

@@ -1,0 +1,12 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fixtures/todos.query_32fac88b138436c6.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "after": {
+      "type": "string"
+    }
+  },
+  "title": "fixtures:todos.query_32fac88b138436c6 arguments",
+  "type": "object"
+}

@@ -12,7 +12,7 @@ maturity: partial
 since: 0.1.21
 unreleased: true
 reviewed: 2026-08-13
-reviewed-authorities-digest: sha256:5ec66d2c811d3360928ad418efe029cb796ef2c529b0336b15e87ba182ec0af1
+reviewed-authorities-digest: sha256:37c0280381a45d234c60d459e3a89e945a5cbf52384cdf2a49547a1ea5f35421
 ---
 
 # Generate a tiny typed data resource
@@ -27,9 +27,10 @@ reviewed-authorities-digest: sha256:5ec66d2c811d3360928ad418efe029cb796ef2c529b0
 Use terminal `.data(...)` when one table is either owner-scoped or deliberately
 public-read and needs the standard bounded list/get operations. Owner resources
 also receive create/update/delete with owner stamping and transactional
-non-disclosing guards. This Phase 1 surface generates ordinary functions and
-artifacts; the `db.<resource>` query builder and transaction facade remain a
-later phase.
+non-disclosing guards. The generated list now supports bounded opaque-keyset
+continuation. The static `data.<resource>` descriptor builder is documented in
+[bounded data queries](./queries.md); transactions and framework doorways remain
+later phases.
 
 ## Declare one terminal resource
 
@@ -58,10 +59,12 @@ instead of guessing.
 
 ## Continue a list
 
-List accepts optional `after`, but any present cursor refuses
-`SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE` until the Phase 2 cursor executor
-ships. Omit `after` and request the first page; do not treat the contracted
-argument as an implemented continuation.
+List accepts optional `after`. Invoke the first page without that key, then pass
+the returned `dc1.*` cursor unchanged as `after`. A short/exhausted page has no
+cursor. Cursors are bound to the app generation, plan, non-cursor arguments,
+and authority partition; malformed, stale, cross-plan, and cross-owner values
+all refuse as `SNAPBACK_DATA_CURSOR_INVALID` without disclosing which check
+failed.
 
 ## Check the v1 eligibility floor
 
@@ -127,9 +130,9 @@ assignment, plan/contracts, effects, and failure facts. A changed destination
 or resource witness refuses. Familiar v1 cannot express the generated owner
 write guard and always points to the explicit command instead.
 
-## Recover from Phase 1 refusals
+## Recover from data-resource refusals
 
-Every Phase 1 refusal is stable and routes to one next action:
+Every data-resource refusal is stable and routes to one next action:
 
 | Code | Next action |
 | --- | --- |
@@ -139,7 +142,7 @@ Every Phase 1 refusal is stable and routes to one next action:
 | `SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED` | Name an eligible ordinary index; owner omission works only for one owner-leading candidate. |
 | `SNAPBACK_DATA_RESOURCE_SYNC_PER_TABLE_FORBIDDEN` | Remove authored `.sync()` and use application `dataSync: "disabled"` when needed. |
 | `SNAPBACK_DATA_OPERATION_NAME_COLLISION` | Rename the authored export or remove `.data()`; generated names never auto-rename. |
-| `SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE` | Omit `after` during Phase 1 and request the first page. |
+| `SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE` | Use a target with bounded data-read support, enable required sync delivery, or use an ordinary named query supported by the target. |
 | `SNAPBACK_DATA_PROMOTION_REFUSED` | Regenerate stale artifacts, preserve the previewed destination, and use explicit format for owner writes. |
 | `SNAPBACK_DATA_FUNCTION_RECORD_PARITY_FAILED` | Update the recursive disposition gate for the changed canonical function record before generating. |
 
@@ -151,5 +154,5 @@ Every Phase 1 refusal is stable and routes to one next action:
 - Do not infer owner visibility from a field name. Declare the table policy.
 - Do not hand-copy generated function bytes. Use promotion so stale facts and
   destination changes fail closed.
-- Do not accept `after` in production as pagination support during Phase 1;
-  its present-value path is an intentional capability refusal.
+- Do not decode or edit `dc1.*` values. Treat them as opaque, query- and
+  authority-bound continuation tokens.

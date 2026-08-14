@@ -133,6 +133,13 @@ import {
   renderDataModule,
   renderDataTypes,
 } from './data-resource.mjs';
+import {
+  compileDataQueryCatalog,
+  createDataQueryEnvelopeV1,
+  extractDataQueryTemplates,
+  renderDataQueryRuntime,
+  renderDataQueryTypes,
+} from './data-query.mjs';
 
 const AUTH_ASSURANCE_KINDS = new Set([
   'authenticated', 'email_verified', 'phone_verified', 'recent_auth',
@@ -5369,12 +5376,12 @@ async function generateInProcessLocked({
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
-  const decoratedFunctionDefinitions = decorateFunctions(
+  let decoratedFunctionDefinitions = decorateFunctions(
     appId,
     functions,
     functionDefinitionSourceSpans,
   );
-  const decoratedFunctionByName = new Map(
+  let decoratedFunctionByName = new Map(
     decoratedFunctionDefinitions.map((fn) => [fn.name, fn]),
   );
   const normalizedDataResources = [];
@@ -5415,6 +5422,94 @@ async function generateInProcessLocked({
     err(
       cause.code ?? 'SNAPBACK_DATA_RESOURCE_INELIGIBLE',
       'data-resource',
+      cause.message,
+      cause.details ?? {},
+    );
+    return { ok: false, diagnostics };
+  }
+
+  // @ref LLP 0255#s51-source-grammar-and-construction-decision — query
+  // shapes are extracted statically, then lowered to ordinary generated
+  // functions. The active route is the catalogue binding; no witness rides
+  // the invocation wire.
+  let normalizedDataQueries = [];
+  try {
+    if (normalizedDataResources.length > 0) {
+      const demoManifestPath = nearestDemoManifest(backendRoot);
+      const querySourceRoot = demoManifestPath === null ? backendRoot : dirname(demoManifestPath);
+      const templates = extractDataQueryTemplates({
+        root: querySourceRoot,
+        resourceNames: normalizedDataResources.map(({ core }) => core.resource),
+      });
+      const compiled = compileDataQueryCatalog({
+        templates,
+        resourceDrafts: dataCompilation.resources,
+        normalizedResources: normalizedDataResources,
+        decoratedByName: decoratedFunctionByName,
+        tableManifests: tables,
+        hash: generationDomainHash,
+        existingNames: new Set([
+          ...Object.keys(functionsModule),
+          ...decoratedFunctionDefinitions.map(({ name }) => name),
+        ]),
+      });
+      normalizedDataQueries = compiled.catalog;
+      for (const synthesized of compiled.synthesized) {
+        const { exportedName: name, definition: def, plan, argsContract, resultContract } = synthesized;
+        def.__snapbackDefinitionKind = 'function';
+        functionsModule[name] = def;
+        functionDefinitionSourceSpans[name] = synthesized.sourceSpan;
+        const draft = dataCompilation.resources.find(({ resource }) => resource === def.plan.table);
+        const ownerField = draft?.access.kind === 'owner' ? draft.access.field : null;
+        const raw = {
+          name,
+          kind: def.__kind,
+          ...(def.auth !== undefined ? { authRequirement: def.auth } : {}),
+          ...(def.authorityIndependent === true ? { authorityIndependent: true } : {}),
+          runtime: { HostPlan: { Query: plan } },
+          declaredReads: [plan.table],
+          declaredWrites: [],
+          authScopeField: ownerField,
+          standardPattern: def.standardPattern,
+          authorizationDependence: ownerField === null ? [] : ['userId'],
+          syncabilityClass: def.__kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
+          sourceSpan: {
+            file: synthesized.sourceSpan.path,
+            line: synthesized.sourceSpan.line,
+            column: synthesized.sourceSpan.column,
+          },
+          argsContract,
+          argsContractHash: argsContractHash(argsContract),
+          resultContract,
+          resultContractHash: resultContractHash(resultContract),
+        };
+        functions.push(raw);
+        contractQueries[name] = {
+          name,
+          args: argDescriptors(def.args),
+          argOrder: Object.keys(def.args),
+          reads: [plan.table],
+          result: providerResultDescriptor(resultContract),
+          serverRunnable: true,
+          localRunnable: false,
+          ...contractQueryLivenessFields(def),
+        };
+      }
+      if (compiled.synthesized.length > 0) {
+        decoratedFunctionDefinitions = decorateFunctions(
+          appId,
+          functions,
+          functionDefinitionSourceSpans,
+        );
+        decoratedFunctionByName = new Map(
+          decoratedFunctionDefinitions.map((fn) => [fn.name, fn]),
+        );
+      }
+    }
+  } catch (cause) {
+    err(
+      cause.code ?? 'SNAPBACK_DATA_QUERY_SHAPE_INVALID',
+      'data-query',
       cause.message,
       cause.details ?? {},
     );
@@ -6144,6 +6239,15 @@ async function generateInProcessLocked({
       ? { acknowledgedExperimentalCapabilities }
       : {}),
     functions: decoratedFunctionDefinitions,
+    ...(normalizedDataQueries.length === 0
+      ? {}
+      : {
+          dataQueryCatalog: normalizedDataQueries.map(({ id, core, resolution }) => ({
+            id,
+            core,
+            resolution,
+          })),
+        }),
     cronJobs,
     config: configEntries,
     ...(projections.length > 0 ? { projections } : {}),
@@ -6211,7 +6315,7 @@ async function generateInProcessLocked({
             profile: 'snapback.data-surface.v1',
             sync: codegenPolicy.dataSync === 'disabled' ? 'disabled' : 'enabled',
             resources: normalizedDataResources.map(({ id, core }) => ({ id, core })),
-            queryCatalog: [],
+            queryCatalog: normalizedDataQueries.map(({ id, core }) => ({ id, core })),
             transactionCatalog: [],
             transactionProfile: 'snapback.data-transaction.v1',
           },
@@ -6387,12 +6491,39 @@ async function generateInProcessLocked({
     )),
     sourceSpan: resource.sourceSpan,
   }));
+  const dataQueryRuntimeEntries = normalizedDataQueries.map((entry) => {
+    const functionReference = generatedReferences.api.queries[entry.resolution.exportedName];
+    const authorityPartitionDigest = generationDomainHash(
+      'snapback:data-unbound-authority-partition:v1',
+      { appId, normalizedDataQueryId: entry.normalizedDataQueryId },
+    );
+    const {
+      generation: _addressBoundGeneration,
+      ...addressNeutralEnvelope
+    } = createDataQueryEnvelopeV1({
+      catalogEntry: entry,
+      generation: undefined,
+      functionReference,
+      arguments: entry.argumentNames.map(() => null),
+      authorityPartitionDigest,
+      materializationKey: null,
+    });
+    return {
+      ...entry,
+      functionReference,
+      // This catalogue member is deliberately address-neutral: data.mjs is a
+      // member of the bundle whose digest produces generationId. The complete
+      // public DataQueryV1 envelope is created below only after that canonical
+      // generation result exists.
+      envelope: addressNeutralEnvelope,
+    };
+  });
   const dataModule = dataResourceWitnesses.length === 0
     ? null
-    : renderDataModule(dataResourceWitnesses);
+    : renderDataModule(dataResourceWitnesses) + renderDataQueryRuntime(dataQueryRuntimeEntries);
   const dataTypes = dataResourceWitnesses.length === 0
     ? null
-    : renderDataTypes(dataResourceWitnesses);
+    : renderDataTypes(dataResourceWitnesses) + renderDataQueryTypes(dataResourceWitnesses);
   const generatedCommands = buildGeneratedCommands({
     commandDefs,
     functionsModule,
@@ -6913,6 +7044,28 @@ async function generateInProcessLocked({
     return { ok: false, diagnostics };
   }
 
+  const dataGeneration = {
+    appId,
+    targetProfileId: targetProfile,
+    authoringProfile,
+    semanticId: splitIdentities.semanticId,
+    executableId: splitIdentities.executableId,
+    evidenceId: splitIdentities.evidenceId,
+    bundleId: splitIdentities.bundleId,
+    generationId: splitIdentities.generationId,
+    schemaVersion: 1,
+    schemaHash,
+    authoredSourceHash,
+  };
+  const dataQueryEnvelopes = dataQueryRuntimeEntries.map((entry) => createDataQueryEnvelopeV1({
+    catalogEntry: entry,
+    generation: dataGeneration,
+    functionReference: entry.functionReference,
+    arguments: entry.argumentNames.map(() => null),
+    authorityPartitionDigest: entry.envelope.authorityPartitionDigest,
+    materializationKey: null,
+  }));
+
   return {
     ok: true,
     diagnostics,
@@ -6943,23 +7096,12 @@ async function generateInProcessLocked({
       ? []
       : dataResourceWitnesses.map((resource) => createDataResourceEnvelope(
           resource.core,
-          {
-            appId,
-            targetProfileId: targetProfile,
-            authoringProfile,
-            semanticId: splitIdentities.semanticId,
-            executableId: splitIdentities.executableId,
-            evidenceId: splitIdentities.evidenceId,
-            bundleId: splitIdentities.bundleId,
-            generationId: splitIdentities.generationId,
-            schemaVersion: 1,
-            schemaHash,
-            authoredSourceHash,
-          },
+          dataGeneration,
           resource.sourceSpan,
           generationDomainHash,
           resource.functionReferences,
         )),
+    dataQueries: dataQueryEnvelopes,
   };
 
   // Cache and hash by the fd-attested target's canonical backend-relative POSIX
@@ -13192,18 +13334,6 @@ function buildGeneratedReferences(
       authoredSourceHash,
       sourceSpan: generatedReferenceSourceSpan(functionSourceSpans, fn.name, 'functions.mjs'),
       resultContract: fn.resultContract,
-      ...(fn.standardPattern?.helper === 'data-resource.v1'
-        && fn.name.endsWith('.list')
-        ? {
-            argumentCapabilityRefusals: [{
-              argument: 'after',
-              when: 'present',
-              code: 'SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE',
-              guideAnchor: 'guide/data/resources#continue-a-list',
-              alternative: 'Omit after and request the first page until the Phase 2 continuation executor is available.',
-            }],
-          }
-        : {}),
       ...(mutationIr ? { mutationIr } : {}),
       ...(composition ? {
         composition: {

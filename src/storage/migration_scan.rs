@@ -232,12 +232,18 @@ fn migration_scan_initial_state(
             })
             .collect(),
         logical_digest: header.map(|header| {
-            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_DOMAIN, header)
-                .checkpoint()
+            crate::rqs_contract::ContentDigestStream::new(
+                crate::rqs_contract::CONTENT_DIGEST_DOMAIN,
+                header,
+            )
+            .checkpoint()
         }),
         system_digest: header.map(|header| {
-            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN, header)
-                .checkpoint()
+            crate::rqs_contract::ContentDigestStream::new(
+                crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN,
+                header,
+            )
+            .checkpoint()
         }),
     })
 }
@@ -357,7 +363,7 @@ pub(crate) fn migration_keyset_scan_batch_on(
     if let Some(boundary) = &state.boundary {
         let mut bindings = 0_usize;
         let (clause, keyset_values) =
-            build_keyset_after_sql(table, &order, boundary, &mut bindings)?;
+            build_keyset_after_sql(table, &order, boundary, OrderDirection::Asc, &mut bindings)?;
         sql.push_str(" WHERE ");
         sql.push_str(&clause);
         values.extend(keyset_values);

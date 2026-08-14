@@ -221,7 +221,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `7db228f7c6e9469d1a2f90a0509098fce46e969a4c8ac31ee8d4f96ff7ab6b1c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `9d29d62d4c9466c3fa2325ed044fab01144ce1fa79d9513f2118cbefde507c80`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "createTodo": FunctionReference<"createTodo", 'Mutation', { title: string; completed: boolean }, GeneratedDataModel["todos"], "snapback-explicit-v1">;
   /**
@@ -230,7 +230,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `7db228f7c6e9469d1a2f90a0509098fce46e969a4c8ac31ee8d4f96ff7ab6b1c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `9d29d62d4c9466c3fa2325ed044fab01144ce1fa79d9513f2118cbefde507c80`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "deleteTodo": FunctionReference<"deleteTodo", 'Mutation', { id: Id<'todos'> }, unknown, "snapback-explicit-v1">;
   /**
@@ -239,7 +239,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `7db228f7c6e9469d1a2f90a0509098fce46e969a4c8ac31ee8d4f96ff7ab6b1c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `9d29d62d4c9466c3fa2325ed044fab01144ce1fa79d9513f2118cbefde507c80`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "getTodo": FunctionReference<"getTodo", 'LiveQuery', { id: Id<'todos'> }, ReadonlyArray<GeneratedDataModel["todos"]>, "snapback-explicit-v1">;
   /**
@@ -248,7 +248,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `7db228f7c6e9469d1a2f90a0509098fce46e969a4c8ac31ee8d4f96ff7ab6b1c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `9d29d62d4c9466c3fa2325ed044fab01144ce1fa79d9513f2118cbefde507c80`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "listTodos": FunctionReference<"listTodos", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["todos"]>, "snapback-explicit-v1">;
   /**
@@ -257,7 +257,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `7db228f7c6e9469d1a2f90a0509098fce46e969a4c8ac31ee8d4f96ff7ab6b1c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `9d29d62d4c9466c3fa2325ed044fab01144ce1fa79d9513f2118cbefde507c80`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "updateTodo": FunctionReference<"updateTodo", 'Mutation', { id: Id<'todos'>; title: string; completed: boolean }, GeneratedDataModel["todos"], "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;

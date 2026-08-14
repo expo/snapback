@@ -293,6 +293,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'client-lifecycle.test.mjs',
       'contract-binding-reads.test.mjs',
       'contract-output-mode.test.mjs',
+      'data-query.test.mjs',
       'data-resource.test.mjs',
       'data-tier-corpus.test.mjs',
       'declaration-suggestion.test.mjs',
@@ -496,7 +497,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 278,
+  expectedTotal = 279,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -877,6 +878,8 @@ export function checkPackageTestInventories(options = {}) {
 // 276 -> 278 (2026-08-13, LLP 0254 Phase 1): @expo/snapback-codegen gains
 // the DataResourceV1 declaration/lowering/witness/refusal corpus and
 // @expo/snapback-cli gains the preview/approval/promotion custody suite.
+// 278 -> 279 (2026-08-13, LLP 0254 Phase 2): @expo/snapback-codegen gains
+// the static DataQueryV1 catalogue, resolution, builder, and refusal corpus.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

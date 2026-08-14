@@ -2,3 +2,15 @@
 // @ref LLP 0255#s42-dataresourcev1
 export type DataResourceName = "todos";
 export declare const dataResources: readonly Readonly<Record<string, unknown>>[];
+export type DataOrderDirectionV1 = 'asc' | 'desc';
+export type DataPredicateV1<T = unknown> = T | Readonly<{ eq: T } | { in: readonly T[] } | { lt: T } | { lte: T } | { gt: T } | { gte: T } | { gt: T; lt: T } | { gt: T; lte: T } | { gte: T; lt: T } | { gte: T; lte: T }>;
+export interface DataQueryPageV1 { readonly artifactKind: 'dataQuery'; readonly schemaVersion: 'snapback.data-query.v1'; readonly normalizedDataQueryId: `sha256:${string}`; readonly arguments: readonly unknown[]; readonly cursor: string | null; }
+export interface DataQueryDescriptorV1 extends DataQueryPageV1 { after(cursor: string): DataQueryPageV1; }
+interface TodosDataUsing { using(index: "by_owner_created"): TodosDataWhereOrOrder; }
+interface TodosDataWhereOrOrder { where(filters: Readonly<Partial<Record<"_id" | "_version" | "_createdAt" | "_updatedAt" | "title" | "completed" | "ownerId" | "createdAt", DataPredicateV1>>>): TodosDataOrder; orderBy(field: "_id" | "_version" | "_createdAt" | "_updatedAt" | "title" | "completed" | "ownerId" | "createdAt", direction: DataOrderDirectionV1): TodosDataSelectOrTake; }
+interface TodosDataOrder { orderBy(field: "_id" | "_version" | "_createdAt" | "_updatedAt" | "title" | "completed" | "ownerId" | "createdAt", direction: DataOrderDirectionV1): TodosDataSelectOrTake; }
+interface TodosDataSelectOrTake { select(fields: readonly "_id" | "_version" | "_createdAt" | "_updatedAt" | "title" | "completed" | "ownerId" | "createdAt"[]): TodosDataTake; take(limit: number): DataQueryDescriptorV1; }
+interface TodosDataTake { take(limit: number): DataQueryDescriptorV1; }
+export declare const data: Readonly<{ readonly "todos": TodosDataUsing; }>;
+export declare const dataQueryCatalog: readonly Readonly<Record<string, unknown>>[];
+export declare function explainDataQuery(descriptor: DataQueryDescriptorV1): Readonly<Record<string, unknown>> | null;
