@@ -52,6 +52,13 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@expo/snapback',
 ]);
 export const PACKAGE_COUNT = PROMOTION_PACKAGE_NAMES.length;
+// v4 terminal-family leases exist at two recorded widths: the eleven-name
+// pre-umbrella closure (epochs through 0.1.20) and the twelve-name closure
+// that appends @expo/snapback. Because the umbrella was appended — never
+// inserted — every admitted width is an exact ordered prefix of the current
+// vector, so historical records keep validating at their recorded width.
+// New issues are held to the full current width by the standing authority.
+export const TERMINAL_LEASE_WIDTHS = Object.freeze([11, PACKAGE_COUNT]);
 export const LEGACY_PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-runtime-darwin-arm64',
   '@ccheever/snapback-runtime-linux-x64',
@@ -378,11 +385,15 @@ export function validateLeasePackages(
   field = 'publication lease',
   { packageNames = PROMOTION_PACKAGE_NAMES } = {},
 ) {
-  const namePattern = packageNames === LEGACY_PROMOTION_PACKAGE_NAMES
-    ? LEGACY_NAME_PATTERN
-    : TERMINAL_NAME_PATTERN;
-  if (!Array.isArray(packages) || packages.length !== packageNames.length) {
-    throw new Error(`${field} must bind exactly ${packageNames.length} packages`);
+  const isLegacy = packageNames === LEGACY_PROMOTION_PACKAGE_NAMES;
+  const namePattern = isLegacy ? LEGACY_NAME_PATTERN : TERMINAL_NAME_PATTERN;
+  const admittedWidths = isLegacy
+    ? [packageNames.length]
+    : TERMINAL_LEASE_WIDTHS;
+  if (!Array.isArray(packages) || !admittedWidths.includes(packages.length)) {
+    throw new Error(
+      `${field} must bind exactly ${admittedWidths.join(' or ')} packages`,
+    );
   }
   const names = new Set();
   for (const [index, row] of packages.entries()) {

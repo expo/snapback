@@ -2,6 +2,7 @@ import { createPrivateKey, createPublicKey } from 'node:crypto';
 
 import {
   CURRENT_LEASE_SCHEMA_VERSION,
+  PACKAGE_COUNT,
   canonicalJcs,
   createPublicationAuthorityReceipt,
   leaseSha256,
@@ -186,6 +187,13 @@ export class PublicationLeaseAuthority {
       });
       if (request.schemaVersion !== 'snapback.publication-lease-issue-request.v4') {
         throw new Error('standing authority only issues v4 publication leases');
+      }
+      // Historical records validate at their recorded prefix width; a NEW
+      // lease must always bind the complete current closure.
+      if (request.packages.length !== PACKAGE_COUNT) {
+        throw new Error(
+          `standing authority only issues full-closure leases (${PACKAGE_COUNT} packages)`,
+        );
       }
       if (request.signingKeyId !== this.signingKeyId) {
         throw new Error('publication authority signing key id mismatch');

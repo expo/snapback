@@ -17,6 +17,7 @@ import {
   sha256Hex,
   signPublicationLease,
   validatePublicationLease,
+  validatePublicationLeaseIssueRequest,
   vectorFromLease,
 } from './protocol.mjs';
 import { createPublicationLeaseIssueRequest } from './request.mjs';
@@ -546,5 +547,37 @@ test('request builder closes candidate-ledger and observed-prior-vector inventor
       publisherInstanceId: request.publisherInstanceId,
     }),
     /exact promotion package inventory/u,
+  );
+});
+
+test('historical eleven-name v4 records validate; new issues must bind the full closure', () => {
+  const { authority, request } = fixture();
+  // Epochs recorded before the @expo/snapback umbrella joined bind the
+  // eleven-name prefix of the current vector. Boot-time state validation
+  // replays them through validatePublicationLeaseIssueRequest and must keep
+  // accepting the recorded width (the 0.1.21 ceremony crash-loop regression).
+  const historical = {
+    ...request,
+    packages: request.packages.slice(0, 11),
+  };
+  validatePublicationLeaseIssueRequest(historical, {
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+  });
+  // A ten-name vector was never a recorded width; it must still refuse.
+  assert.throws(
+    () => validatePublicationLeaseIssueRequest(
+      { ...request, packages: request.packages.slice(0, 10) },
+      {
+        authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+        authorityOrigin: AUTHORITY_ORIGIN,
+      },
+    ),
+    /must bind exactly/u,
+  );
+  // The standing authority never issues a prefix-width lease.
+  assert.throws(
+    () => authority.issue(historical),
+    /full-closure/u,
   );
 });

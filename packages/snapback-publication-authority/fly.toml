@@ -1,0 +1,47 @@
+# fly.toml app configuration file generated for snapback-publication-authority on 2026-08-14T12:28:19-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'snapback-publication-authority'
+primary_region = 'sjc'
+
+[deploy]
+  strategy = 'immediate'
+
+[env]
+  SNAPBACK_PUBLICATION_AUTHORITY_BEARER_TOKEN_FILE = '/run/secrets/bearer-token'
+  SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID = 'snapback-publication-primary-v1'
+  SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN = 'https://snapback-publication-authority.fly.dev'
+  SNAPBACK_PUBLICATION_AUTHORITY_PRIVATE_KEY_FILE = '/run/secrets/private-key.pem'
+
+[[mounts]]
+  source = 'snapback_pub_authority_data'
+  destination = '/data'
+
+[[files]]
+  guest_path = '/run/secrets/bearer-token'
+  secret_name = 'SNAPBACK_AUTHORITY_BEARER_TOKEN_B64'
+
+[[files]]
+  guest_path = '/run/secrets/private-key.pem'
+  secret_name = 'SNAPBACK_AUTHORITY_PRIVATE_KEY_B64'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [[http_service.checks]]
+    interval = '15s'
+    timeout = '3s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/healthz'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'
