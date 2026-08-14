@@ -10271,6 +10271,20 @@ pub struct MutationSettlement {
 pub struct MutationRequest {
     #[serde(flatten)]
     pub input: HandlerInput,
+    /// Generated data-transaction envelope. It is not execution authority;
+    /// the selected function and canonical arguments remain authoritative.
+    /// Presence opts an issuance-free data write into the non-replayable
+    /// observation/refusal-settlement protocol.
+    ///
+    /// @ref LLP 0255#s44-datatransactionv1 — the exact
+    /// resolved envelope accompanies the ordinary mutation carrier.
+    #[serde(
+        default,
+        rename = "dataTransaction",
+        alias = "data_transaction",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub data_transaction: Option<Value>,
     /// Additive settle-time trust facts. Every member joins the durable
     /// exactly-once identity before any fresh lane or activation gate.
     ///

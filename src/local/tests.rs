@@ -9894,6 +9894,7 @@ fn successor_only_publication_gates_blind_mutation_artifact_generation() {
             None,
             MutationSettlement::default(),
             wire_version,
+            false,
         )
     }
 

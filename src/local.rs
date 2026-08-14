@@ -74,8 +74,8 @@ use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, Netw
 use crate::storage::{
     AssetDeliveryOutcome, AssetPreparedVariant, AssetPublishOutcome, BufferedCommitPayload,
     CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow,
-    ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
-    SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
+    ClientMutationIdentity, ClientMutationSettlement, DbRead, LocalDatabase, MutationCommit,
+    ReaderPool, SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
@@ -1032,6 +1032,12 @@ pub(crate) enum StagedRecordedMutation {
     Ready(Box<StagedRecordedMutationCommit>),
 }
 
+pub(crate) enum DataMutationSettlementStatus {
+    Committed(MutationOutput),
+    Refused(Diagnostic),
+    Unknown,
+}
+
 pub(crate) struct StagedRecordedMutationCommit {
     name: String,
     transport: String,
@@ -1041,6 +1047,7 @@ pub(crate) struct StagedRecordedMutationCommit {
     settlement: MutationSettlement,
     prepared: PreparedInvocation,
     identity: Option<ClientMutationIdentity>,
+    ledger_data_refusal: bool,
     settlement_time: Option<SettlementTimePolicy>,
     epoch_scopes: BTreeSet<String>,
     execution: StagedMutationExecution,
@@ -7139,6 +7146,52 @@ impl LocalSnapback {
         self.acknowledge_client_mutations_with_authority(authority, ids)
     }
 
+    /// Observe a generated data write by its stable five-member settlement
+    /// identity. This path only reads the ledger and never selects or runs the
+    /// named function, so an ambiguous online-only intent is not replayed.
+    ///
+    /// @ref LLP 0255#s32-proposed-pending-llp-0218-and-llp-0043-amendment--declared-custody-and-ambiguous-online-intents — possibly-crossed observations
+    /// resolve through ledger polling, including terminal refusals.
+    pub(crate) fn data_mutation_settlement_status(
+        &mut self,
+        authority: &PreparedAuthority,
+        authority_descriptor: Option<&AuthorityDescriptor>,
+        name: &str,
+        input: &HandlerInput,
+        settlement: &MutationSettlement,
+        client_mutation_id: &str,
+    ) -> SnapbackResult<DataMutationSettlementStatus> {
+        authority.validate_admission("data mutation settlement observation")?;
+        self.persist_and_validate_prepared_service_authority(authority)?;
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        let expected = descriptor_for_authority(authority, incarnation.as_str())?;
+        if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
+            require_current_descriptor(authority_descriptor, &expected)?;
+        }
+        let mut canonical_input = input.clone();
+        canonical_input.auth = authority.canonical_auth_input();
+        let identity = ClientMutationIdentity::for_authority_with_settlement(
+            client_mutation_id,
+            name,
+            &canonical_input,
+            expected.authority_instance_id,
+            settlement,
+        );
+        match self
+            .db
+            .settlement_read()
+            .client_mutation_settlement(&identity)?
+        {
+            Some(ClientMutationSettlement::Committed(output)) => {
+                Ok(DataMutationSettlementStatus::Committed(output))
+            }
+            Some(ClientMutationSettlement::Refused(diagnostic)) => {
+                Ok(DataMutationSettlementStatus::Refused(diagnostic))
+            }
+            None => Ok(DataMutationSettlementStatus::Unknown),
+        }
+    }
+
     /// Administrative recovery for settlements whose original client can no
     /// longer deliver an acknowledgement. The HTTP boundary supplies an
     /// `AuthInput`, never a caller-chosen raw fingerprint, so targeted purge
@@ -11408,6 +11461,7 @@ impl LocalSnapback {
             settlement,
             None,
             false,
+            false,
         )
     }
 
@@ -11429,6 +11483,7 @@ impl LocalSnapback {
         operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
         wire_version: Option<&str>,
+        ledger_data_refusal: bool,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
         StagedRecordedMutation,
@@ -11445,6 +11500,7 @@ impl LocalSnapback {
             operation_issuance,
             settlement,
             wire_version,
+            ledger_data_refusal,
             false,
         )
     }
@@ -11463,6 +11519,7 @@ impl LocalSnapback {
         operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
         wire_version: Option<&str>,
+        ledger_data_refusal: bool,
         allow_host_issuance: bool,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
@@ -11641,6 +11698,37 @@ impl LocalSnapback {
             .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
         let error_correlation = correlation.clone();
         let error_receipt_mutation_id = receipt_mutation_id.clone();
+        let data_refusal_identity = if ledger_data_refusal {
+            if operation_issuance.is_some() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_DATA_TRANSACTION_INVALID",
+                    "data-transaction",
+                    "data transaction dispatch must not carry operation issuance",
+                ));
+            }
+            let id = client_mutation_id.as_ref().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_DATA_TRANSACTION_INVALID",
+                    "data-transaction",
+                    "data transaction dispatch requires an intent identity",
+                )
+            })?;
+            let canonical_input = prepared.canonicalize_input(input.clone());
+            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+            let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
+            Some((
+                ClientMutationIdentity::for_authority_with_settlement(
+                    id.clone(),
+                    name.to_owned(),
+                    &canonical_input,
+                    expected.authority_instance_id,
+                    &settlement,
+                ),
+                canonical_input,
+            ))
+        } else {
+            None
+        };
         let staged = (|| -> SnapbackResult<_> {
             let mut input = prepared.canonicalize_input(input);
             let identity = if let Some(id) = client_mutation_id {
@@ -11848,6 +11936,7 @@ impl LocalSnapback {
                                 settlement: settlement.clone(),
                                 prepared,
                                 identity,
+                                ledger_data_refusal,
                                 settlement_time,
                                 epoch_scopes,
                                 execution,
@@ -11870,7 +11959,16 @@ impl LocalSnapback {
 
         match staged {
             Ok(staged) => Ok(staged),
-            Err(error) => {
+            Err(mut error) => {
+                if let Some((identity, input)) = data_refusal_identity.as_ref()
+                    && let Err(ledger_error) = self.db.settlement().record_data_mutation_refusal(
+                        identity,
+                        input,
+                        &error.diagnostic,
+                    )
+                {
+                    error = ledger_error;
+                }
                 let recorded = self.record_mutation_commit_after_publication_guard(
                     MutationReceiptPublication::new(
                         name,
@@ -11937,6 +12035,7 @@ impl LocalSnapback {
             settlement,
             prepared,
             identity,
+            ledger_data_refusal,
             settlement_time,
             epoch_scopes,
             execution,
@@ -11952,7 +12051,7 @@ impl LocalSnapback {
             observation.finish_error(Some(500), &mut error, None);
             return Err(error);
         }
-        let result = match execution {
+        let mut result = match execution {
             StagedMutationExecution::HostPlan(plan) => match identity.as_ref() {
                 Some(identity)
                     if matches!(
@@ -12025,6 +12124,34 @@ impl LocalSnapback {
         .and_then(|commit| {
             self.finish_mutation_commit(&name, &trace_identity, epoch_scopes, commit, &admission)
         });
+        if ledger_data_refusal
+            && let Err(error) = result.as_mut()
+            && error.diagnostic.code == "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
+        {
+            let observed = error.diagnostic.details.get("bytes").cloned();
+            let limit = error.diagnostic.details.get("maxBytes").cloned();
+            *error = SnapbackError::error(
+                "SNAPBACK_DATA_TRANSACTION_BOUND_EXCEEDED",
+                "data",
+                "tiny data transaction result exceeds maxResultBytes",
+            )
+            .with_details(json!({
+                "ceiling": "maxResultBytes",
+                "observed": observed,
+                "limit": limit,
+            }));
+        }
+        if ledger_data_refusal
+            && let Some(identity) = identity.as_ref()
+            && let Err(error) = result.as_ref()
+            && let Err(ledger_error) = self.db.settlement().record_data_mutation_refusal(
+                identity,
+                &input,
+                &error.diagnostic,
+            )
+        {
+            result = Err(ledger_error);
+        }
         let network_egress = result
             .as_ref()
             .map(|commit| commit.network_egress.clone())
@@ -22163,6 +22290,7 @@ impl LocalSnapback {
             host_identity.and_then(|identity| identity.operation_issuance),
             MutationSettlement::default(),
             None,
+            false,
             true,
         )
     }

@@ -51,6 +51,11 @@ export const APP_DATA_CLIENT_METHODS = Object.freeze([
   'query',
   'search',
   'mutate',
+  '__dataMutation',
+  '__dataPendingWrites',
+  '__refreshDataMutation',
+  'mutationStatus',
+  'subscribeMutation',
   'action',
   'run',
   // The LLP 0043 settlement lifecycle, whole. `acknowledgeMutations` alone

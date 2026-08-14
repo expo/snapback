@@ -140,6 +140,12 @@ import {
   renderDataQueryRuntime,
   renderDataQueryTypes,
 } from './data-query.mjs';
+import {
+  compileDataTransactionCatalog,
+  extractDataTransactionTemplates,
+  renderDataTransactionRuntime,
+  renderDataTransactionTypes,
+} from './data-transaction.mjs';
 
 const AUTH_ASSURANCE_KINDS = new Set([
   'authenticated', 'email_verified', 'phone_verified', 'recent_auth',
@@ -3453,6 +3459,7 @@ async function generateInProcessLocked({
   // validator/HostPlan/result-contract pipeline. No parallel runtime carrier
   // or policy evaluator is introduced.
   const dataDiagnosticStart = diagnostics.length;
+  const authoredFunctionNames = new Set(Object.keys(functionsModule));
   const dataCompilation = compileDataResourceDeclarations({
     schemaDef,
     tableManifests: tables,
@@ -3469,6 +3476,21 @@ async function generateInProcessLocked({
     (diagnostic) => diagnostic.severity === 'error',
   )) {
     return { ok: false, diagnostics };
+  }
+  if (dataCompilation.resources.length > 0) {
+    for (const name of authoredFunctionNames) {
+      if (name.startsWith('data.')) {
+        err(
+          'SNAPBACK_DATA_OPERATION_NAME_COLLISION',
+          'data-resource',
+          `${name}: the data. function namespace is reserved when the schema declares a data resource`,
+          { function: name },
+        );
+      }
+    }
+    if (diagnostics.slice(dataDiagnosticStart).some(
+      (diagnostic) => diagnostic.severity === 'error',
+    )) return { ok: false, diagnostics };
   }
 
   // --- Build + validate functions --------------------------------------------
@@ -5433,12 +5455,14 @@ async function generateInProcessLocked({
   // functions. The active route is the catalogue binding; no witness rides
   // the invocation wire.
   let normalizedDataQueries = [];
+  let normalizedDataTransactions = [];
+  let dataSourceRoot = backendRoot;
   try {
     if (normalizedDataResources.length > 0) {
       const demoManifestPath = nearestDemoManifest(backendRoot);
-      const querySourceRoot = demoManifestPath === null ? backendRoot : dirname(demoManifestPath);
+      dataSourceRoot = demoManifestPath === null ? backendRoot : dirname(demoManifestPath);
       const templates = extractDataQueryTemplates({
-        root: querySourceRoot,
+        root: dataSourceRoot,
         resourceNames: normalizedDataResources.map(({ core }) => core.resource),
       });
       const compiled = compileDataQueryCatalog({
@@ -5510,6 +5534,91 @@ async function generateInProcessLocked({
     err(
       cause.code ?? 'SNAPBACK_DATA_QUERY_SHAPE_INVALID',
       'data-query',
+      cause.message,
+      cause.details ?? {},
+    );
+    return { ok: false, diagnostics };
+  }
+  // @ref LLP 0255#s71b-transaction-resolution--one-replayable-function-identity
+  // — static transaction shapes lower to the ordinary mutation carrier. A
+  // multi-chunk template contributes one ordinary HostPlan mutation; no batch
+  // route or sequential client dispatch is introduced.
+  try {
+    if (normalizedDataResources.length > 0) {
+      const templates = extractDataTransactionTemplates({
+        root: dataSourceRoot,
+        resourceNames: normalizedDataResources.map(({ core }) => core.resource),
+      });
+      const compiled = compileDataTransactionCatalog({
+        templates,
+        normalizedResources: normalizedDataResources,
+        decoratedByName: decoratedFunctionByName,
+        functionsModule,
+        hash: generationDomainHash,
+        existingNames: new Set([
+          ...Object.keys(functionsModule),
+          ...decoratedFunctionDefinitions.map(({ name }) => name),
+        ]),
+        serializePlan: serializeMutationPlan,
+        tables,
+      });
+      normalizedDataTransactions = compiled.catalog;
+      for (const synthesized of compiled.synthesized) {
+        const { exportedName: name, definition: def, resultContract } = synthesized;
+        def.__snapbackDefinitionKind = 'function';
+        functionsModule[name] = def;
+        functionDefinitionSourceSpans[name] = synthesized.sourceSpan;
+        const serializedPlan = serializeMutationPlan(def.plan, name, err);
+        const writes = [...new Set(def.plan.steps.flatMap((step) => {
+          const body = step[Object.keys(step)[0]];
+          return typeof body?.table === 'string' ? [body.table] : [];
+        }))];
+        const argsContract = effectiveArgsContract(def.args ?? {});
+        const raw = {
+          name,
+          kind: 'Mutation',
+          ...(def.auth !== undefined ? { authRequirement: def.auth } : {}),
+          runtime: { HostPlan: { Mutation: serializedPlan } },
+          declaredReads: mutationReadTables(def.plan),
+          declaredWrites: writes,
+          authScopeField: null,
+          standardPattern: def.standardPattern,
+          authorizationDependence: ['userId'],
+          syncabilityClass: 'mutation',
+          sourceSpan: {
+            file: synthesized.sourceSpan.path,
+            line: synthesized.sourceSpan.line,
+            column: synthesized.sourceSpan.column,
+          },
+          argsContract,
+          argsContractHash: argsContractHash(argsContract),
+          resultContract,
+          resultContractHash: resultContractHash(resultContract),
+        };
+        functions.push(raw);
+        contractMutations[name] = buildContractMutationDescriptor({
+          name,
+          args: argDescriptors(def.args),
+          argOrder: Object.keys(def.args),
+          writes,
+          plan: serializedPlan,
+        });
+      }
+      if (compiled.synthesized.length > 0) {
+        decoratedFunctionDefinitions = decorateFunctions(
+          appId,
+          functions,
+          functionDefinitionSourceSpans,
+        );
+        decoratedFunctionByName = new Map(
+          decoratedFunctionDefinitions.map((fn) => [fn.name, fn]),
+        );
+      }
+    }
+  } catch (cause) {
+    err(
+      cause.code ?? 'SNAPBACK_DATA_TRANSACTION_INVALID',
+      'data-transaction',
       cause.message,
       cause.details ?? {},
     );
@@ -6248,6 +6357,15 @@ async function generateInProcessLocked({
             resolution,
           })),
         }),
+    ...(normalizedDataTransactions.length === 0
+      ? {}
+      : {
+          dataTransactionCatalog: normalizedDataTransactions.map(({ id, core, resolution }) => ({
+            id,
+            core,
+            resolution,
+          })),
+        }),
     cronJobs,
     config: configEntries,
     ...(projections.length > 0 ? { projections } : {}),
@@ -6316,7 +6434,7 @@ async function generateInProcessLocked({
             sync: codegenPolicy.dataSync === 'disabled' ? 'disabled' : 'enabled',
             resources: normalizedDataResources.map(({ id, core }) => ({ id, core })),
             queryCatalog: normalizedDataQueries.map(({ id, core }) => ({ id, core })),
-            transactionCatalog: [],
+            transactionCatalog: normalizedDataTransactions.map(({ id, core }) => ({ id, core })),
             transactionProfile: 'snapback.data-transaction.v1',
           },
         }),
@@ -6518,12 +6636,23 @@ async function generateInProcessLocked({
       envelope: addressNeutralEnvelope,
     };
   });
+  const dataTransactionRuntimeEntries = normalizedDataTransactions.map((entry) => ({
+    ...entry,
+    functionReference: generatedReferences.api.mutations[entry.resolution.exportedName],
+    chunkFunctionReferences: entry.core.chunks.map(({ exportedName }) => (
+      generatedReferences.api.mutations[exportedName]
+    )),
+  }));
   const dataModule = dataResourceWitnesses.length === 0
     ? null
-    : renderDataModule(dataResourceWitnesses) + renderDataQueryRuntime(dataQueryRuntimeEntries);
+    : renderDataModule(dataResourceWitnesses)
+      + renderDataQueryRuntime(dataQueryRuntimeEntries)
+      + renderDataTransactionRuntime(dataTransactionRuntimeEntries, dataResourceWitnesses);
   const dataTypes = dataResourceWitnesses.length === 0
     ? null
-    : renderDataTypes(dataResourceWitnesses) + renderDataQueryTypes(dataResourceWitnesses);
+    : renderDataTypes(dataResourceWitnesses)
+      + renderDataQueryTypes(dataResourceWitnesses)
+      + renderDataTransactionTypes(dataResourceWitnesses);
   const generatedCommands = buildGeneratedCommands({
     commandDefs,
     functionsModule,
@@ -7065,6 +7194,20 @@ async function generateInProcessLocked({
     authorityPartitionDigest: entry.envelope.authorityPartitionDigest,
     materializationKey: null,
   }));
+  const dataTransactionTemplates = dataTransactionRuntimeEntries.map((entry) => ({
+    artifactKind: 'dataTransactionTemplate',
+    schemaVersion: 'snapback.data-transaction-template.v1',
+    normalizedDataTransactionId: entry.normalizedDataTransactionId,
+    core: entry.core,
+    resolution: {
+      ...entry.resolution,
+      functionId: entry.functionReference.id,
+    },
+    generation: dataGeneration,
+    functionReference: entry.functionReference,
+    chunkFunctionReferences: entry.chunkFunctionReferences,
+    argumentNames: entry.argumentNames,
+  }));
 
   return {
     ok: true,
@@ -7102,6 +7245,7 @@ async function generateInProcessLocked({
           resource.functionReferences,
         )),
     dataQueries: dataQueryEnvelopes,
+    dataTransactions: dataTransactionTemplates,
   };
 
   // Cache and hash by the fd-attested target's canonical backend-relative POSIX
@@ -8209,9 +8353,8 @@ function mutationReadTables(plan) {
 const GENERATED_LOCAL_MUTATION_FORMAT_V1 = 'snapback.generated-mutation-ir.v1';
 const GENERATED_LOCAL_MUTATION_EFFECT_CLASS_V1 =
   'snapback.browser-ir.insert-get-guard-patch.v1';
-const GENERATED_LOCAL_MUTATION_STEPS_V1 = new Set(['Insert', 'Get', 'Guard', 'Patch']);
+const GENERATED_LOCAL_MUTATION_STEPS_V1 = new Set(['Insert', 'Get', 'Guard', 'Patch', 'Delete']);
 const GENERATED_LOCAL_MUTATION_AUTHORITATIVE_EXPRESSIONS_V1 = new Set([
-  'AuthUserId',
   'AuthKind',
   'AuthActorKind',
   'AuthActivityActorKind',
@@ -8348,10 +8491,25 @@ function generatedMutationIrV1(fn, schemaManifest, expectedGeneration, authoredS
     capabilityCode = 'SNAPBACK_GENERATED_IR_DYNAMIC_MINT_SERVER_ONLY';
   }
 
+  const insertedIdBindings = new Set();
+  const writtenPointKeys = new Set();
   for (const step of plan.steps ?? []) {
     const kind = Object.keys(step ?? {})[0];
-    if (kind !== 'Get' && kind !== 'Patch') continue;
     const body = step[kind];
+    if (kind === 'Insert' && typeof body?.bind_id_as === 'string') {
+      insertedIdBindings.add(body.bind_id_as);
+      continue;
+    }
+    if (kind !== 'Get' && kind !== 'Patch' && kind !== 'Delete') continue;
+    if (
+      kind === 'Get'
+      && body?.id?.Binding !== undefined
+      && insertedIdBindings.has(body.id.Binding)
+    ) continue;
+    const pointKey = typeof body?.id?.Arg === 'string'
+      ? `${body.table}\u0000${body.id.Arg}`
+      : null;
+    if (kind === 'Get' && pointKey !== null && writtenPointKeys.has(pointKey)) continue;
     if (
       body?.id === null
       || typeof body?.id !== 'object'
@@ -8362,7 +8520,7 @@ function generatedMutationIrV1(fn, schemaManifest, expectedGeneration, authoredS
       capabilityCode = 'SNAPBACK_GENERATED_IR_POINT_ID_SERVER_ONLY';
       continue;
     }
-    const key = `${body.table}\u0000${body.id.Arg}`;
+    const key = pointKey;
     const current = requirements.get(key) ?? {
       kind: 'point',
       table: body.table,
@@ -8378,6 +8536,7 @@ function generatedMutationIrV1(fn, schemaManifest, expectedGeneration, authoredS
       current.binding = body.bind_as;
     }
     requirements.set(key, current);
+    if (kind === 'Patch' || kind === 'Delete') writtenPointKeys.add(key);
   }
   for (const requirement of requirements.values()) {
     if (requirement.binding === null) continue;

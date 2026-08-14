@@ -612,6 +612,13 @@ export function createFileRqsResumeStore({
       });
     },
 
+    async outboxMarkDispatchPossiblyCrossed(id) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.markDispatchPossiblyCrossed(outbox, id),
+      )).result);
+    },
+
     async outboxEnqueueWithOperationIdentity(record, authorityCohortKey, range = null) {
       requireOpen();
       return serialized(async () => {

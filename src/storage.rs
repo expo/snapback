@@ -353,11 +353,12 @@ const META_CLIENT_MUTATION_BYTES: &str = "client_mutation_bytes";
 const META_CLIENT_MUTATION_COUNTERS_VERSION: &str = "client_mutation_counters_version";
 const META_SETTLEMENT_FORMAT_EPOCH_V1: &str = "client_mutation_settlement_format_epoch_v1";
 const META_SETTLEMENT_NEXT_SEQUENCE_V1: &str = "client_mutation_settlement_next_sequence_v1";
-/// V4 charges the complete settlement carrier: the original seven logical
-/// fields plus format, one exact eight-byte sequence, and optional seal JSON.
+/// V5 charges the complete settlement carrier: the original seven logical
+/// fields plus format, one exact eight-byte sequence, optional seal JSON, and
+/// the committed/refused terminal-outcome discriminator.
 /// Opening a store with any predecessor version rebuilds global/per-authority
 /// counters from rows before admitting another settlement.
-const CLIENT_MUTATION_COUNTERS_VERSION: u64 = 4;
+const CLIENT_MUTATION_COUNTERS_VERSION: u64 = 5;
 const LEGACY_SETTLEMENT_FORMAT_V1: &str = "legacy-settlement.v1";
 const PLAIN_SETTLEMENT_FORMAT_V1: &str = "plain-settlement.v1";
 const MEDIA_SETTLEMENT_FORMAT_V1: &str = "media-projected-settlement.v1";
@@ -865,6 +866,19 @@ struct RetainedClientMutationRow {
     settlement_format: Option<String>,
     settlement_record_sequence: SqlValue,
     settlement_projection_seal_json: Option<String>,
+    terminal_outcome: String,
+}
+
+/// Exact durable answer for one client-mutation identity. Data transactions
+/// use the refusal arm to resolve a non-replayable, possibly-crossed intent
+/// without dispatching the mutation a second time.
+///
+/// @ref LLP 0255#s32-proposed-pending-llp-0218-and-llp-0043-amendment--declared-custody-and-ambiguous-online-intents — committed results and terminal
+/// refusals share the same bounded, ACK-capable settlement ledger.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum ClientMutationSettlement {
+    Committed(MutationOutput),
+    Refused(Diagnostic),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -3815,6 +3829,7 @@ impl LocalDatabase {
                     &changes,
                     &output,
                     settlement_media.as_ref(),
+                    "committed",
                 )?;
             }
             if let Some(branch_operation) = branch_operation {
@@ -4503,6 +4518,7 @@ impl LocalDatabase {
                     &changes,
                     &output,
                     settlement_media.as_ref(),
+                    "committed",
                 )?;
             }
             if let Some(branch_operation) = options.branch_operation {
@@ -4636,7 +4652,8 @@ impl LocalDatabase {
               settled_version_exact INTEGER,
               settlement_format TEXT,
               settlement_record_sequence INTEGER,
-              settlement_projection_seal_json TEXT
+              settlement_projection_seal_json TEXT,
+              terminal_outcome TEXT NOT NULL DEFAULT 'committed'
             );
             CREATE TABLE IF NOT EXISTS _snapback_client_mutation_auth_retention (
               auth_fingerprint TEXT PRIMARY KEY,
@@ -4844,6 +4861,13 @@ impl LocalDatabase {
             tx.execute(
                 "ALTER TABLE _snapback_client_mutations
                  ADD COLUMN settlement_projection_seal_json TEXT",
+                [],
+            )?;
+        }
+        if !names.contains("terminal_outcome") {
+            tx.execute(
+                "ALTER TABLE _snapback_client_mutations
+                 ADD COLUMN terminal_outcome TEXT NOT NULL DEFAULT 'committed'",
                 [],
             )?;
         }
@@ -16094,14 +16118,14 @@ fn canonical_json(value: Value) -> Value {
     }
 }
 
-/// V4's logical retained-row measure deliberately excludes SQLite row/index
+/// V5's logical retained-row measure deliberately excludes SQLite row/index
 /// overhead. The sequence is always exactly one big-endian/logical u64 (eight
 /// bytes), independent of SQLite's variable physical integer encoding.
 ///
 /// @ref LLP 0043#milestone-2-queued-mutation-replay — insertion admission,
 /// reconstruction, acknowledgement, and collection share one byte contract.
 #[allow(clippy::too_many_arguments)]
-fn logical_client_mutation_retained_row_bytes_v4(
+fn logical_client_mutation_retained_row_bytes_v5(
     client_mutation_id: &str,
     function: &str,
     auth_fingerprint: &str,
@@ -16112,7 +16136,13 @@ fn logical_client_mutation_retained_row_bytes_v4(
     settlement_format: Option<&str>,
     settlement_record_sequence: SqlValue,
     settlement_projection_seal_json: Option<&str>,
+    terminal_outcome: &str,
 ) -> SnapbackResult<u64> {
+    if terminal_outcome != "committed" && terminal_outcome != "refused" {
+        return Err(invalid_client_mutation_retention_state(
+            "retained settlement terminal outcome is invalid for byte accounting",
+        ));
+    }
     let settlement_format = settlement_format.ok_or_else(|| {
         invalid_client_mutation_retention_state(
             "retained settlement format is missing from byte accounting",
@@ -16139,6 +16169,7 @@ fn logical_client_mutation_retained_row_bytes_v4(
         settlement_format.len() as u64,
         std::mem::size_of::<u64>() as u64,
         settlement_projection_seal_json.map_or(0, |value| value.len() as u64),
+        terminal_outcome.len() as u64,
     ];
     members.into_iter().try_fold(0_u64, |total, member| {
         total.checked_add(member).ok_or_else(|| {
@@ -16161,7 +16192,8 @@ fn scan_client_mutation_retention_totals_for_auth(
         "SELECT client_mutation_id, function, auth_fingerprint,
                 authority_instance_id, input_fingerprint,
                 operation_issuance_json, output_json, settlement_format,
-                settlement_record_sequence, settlement_projection_seal_json
+                settlement_record_sequence, settlement_projection_seal_json,
+                terminal_outcome
            FROM _snapback_client_mutations
           WHERE (?1 IS NULL OR auth_fingerprint = ?1)
           ORDER BY client_mutation_id",
@@ -16180,7 +16212,8 @@ fn scan_client_mutation_retention_totals_for_auth(
         let settlement_format: Option<String> = row.get(7)?;
         let settlement_record_sequence: SqlValue = row.get(8)?;
         let settlement_projection_seal_json: Option<String> = row.get(9)?;
-        let row_bytes = logical_client_mutation_retained_row_bytes_v4(
+        let terminal_outcome: String = row.get(10)?;
+        let row_bytes = logical_client_mutation_retained_row_bytes_v5(
             &client_mutation_id,
             &function,
             &row_auth_fingerprint,
@@ -16191,6 +16224,7 @@ fn scan_client_mutation_retention_totals_for_auth(
             settlement_format.as_deref(),
             settlement_record_sequence,
             settlement_projection_seal_json.as_deref(),
+            &terminal_outcome,
         )?;
         records = records.checked_add(1).ok_or_else(|| {
             invalid_client_mutation_retention_state("retained settlement row count overflowed")
@@ -16523,8 +16557,14 @@ fn record_client_mutation_result(
     changes: &[ChangedRow],
     output: &MutationOutput,
     settlement_media: Option<&SettlementMediaContextV1>,
+    terminal_outcome: &str,
 ) -> SnapbackResult<()> {
     validate_client_mutation_identity(identity)?;
+    if terminal_outcome != "committed" && terminal_outcome != "refused" {
+        return Err(invalid_client_mutation_retention_state(
+            "client mutation terminal outcome is invalid",
+        ));
+    }
     // The retained row and its first caller-visible result must obey the same
     // replay grammar. Refuse inside the surrounding transaction before an
     // invalid private sequence fact can commit application writes or a counter.
@@ -16613,7 +16653,7 @@ fn record_client_mutation_result(
                 "operation issuance could not be encoded: {error}"
             ))
         })?;
-    let new_bytes = logical_client_mutation_retained_row_bytes_v4(
+    let new_bytes = logical_client_mutation_retained_row_bytes_v5(
         &identity.id,
         &identity.function,
         &identity.auth_fingerprint,
@@ -16626,6 +16666,7 @@ fn record_client_mutation_result(
             i64::try_from(settlement_record_sequence).map_err(|_| settlement_integrity_error())?,
         ),
         settlement_projection_seal_json.as_deref(),
+        terminal_outcome,
     )?;
     let limits = client_mutation_retention_limits();
     let admitted_bytes = retained_bytes.checked_add(new_bytes);
@@ -16676,8 +16717,9 @@ fn record_client_mutation_result(
            client_mutation_id, function, auth_fingerprint, authority_instance_id,
            input_fingerprint, operation_issuance_json, output_json, settled_at_ms,
            settled_version, settled_version_exact, settlement_format,
-           settlement_record_sequence, settlement_projection_seal_json
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+           settlement_record_sequence, settlement_projection_seal_json,
+           terminal_outcome
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![
             identity.id,
             identity.function,
@@ -16692,6 +16734,7 @@ fn record_client_mutation_result(
             settlement_format,
             i64::try_from(settlement_record_sequence).map_err(|_| settlement_integrity_error())?,
             settlement_projection_seal_json,
+            terminal_outcome,
         ],
     )?;
     save_meta_u64(tx, META_CLIENT_MUTATION_RECORDS, retained + 1)?;

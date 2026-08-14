@@ -113,6 +113,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'bundle.test.mjs',
       'carrier-capability-honesty.test.mjs',
       'client-diagnostics.test.mjs',
+      'data-client.test.mjs',
       'commands.test.mjs',
       'connection-open-stream-reset-retry.test.mjs',
       'demand-broker.test.mjs',
@@ -295,6 +296,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'contract-output-mode.test.mjs',
       'data-query.test.mjs',
       'data-resource.test.mjs',
+      'data-transaction.test.mjs',
       'data-tier-corpus.test.mjs',
       'declaration-suggestion.test.mjs',
       'dependency-graph.test.mjs',
@@ -497,7 +499,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 279,
+  expectedTotal = 281,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -880,6 +882,9 @@ export function checkPackageTestInventories(options = {}) {
 // @expo/snapback-cli gains the preview/approval/promotion custody suite.
 // 278 -> 279 (2026-08-13, LLP 0254 Phase 2): @expo/snapback-codegen gains
 // the static DataQueryV1 catalogue, resolution, builder, and refusal corpus.
+// 279 -> 281 (2026-08-14, LLP 0254 Phase 3): @expo/snapback-codegen gains
+// generated transaction lowering/refusal proofs and @expo/snapback-client
+// gains handle, custody, real-store crash-cut, and pendingWrites coverage.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

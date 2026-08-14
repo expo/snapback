@@ -570,6 +570,7 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
 
     let base = serde_json::to_value(MutationRequest {
         input: HandlerInput::default(),
+        data_transaction: None,
         settlement: Default::default(),
         expected_generation: None,
         wire_version: Some("snapback.v1".to_owned()),
@@ -3292,6 +3293,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         "mutation.input.schema.json",
         &serde_json::to_value(MutationRequest {
             input: input.clone(),
+            data_transaction: None,
             settlement: Default::default(),
             expected_generation: Some(ArtifactGeneration {
                 schema_version: "snapback.v1".to_owned(),

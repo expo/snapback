@@ -392,6 +392,9 @@
       ],
       "description": "Replay ledger (LLP 0051 D1): when present, the invocation runs in\nREPLAY mode — `ctx.runtime.now()` answers `ledger.now` and every\nhost-generated id (`ctx.runtime.id()` and `ctx.db.insert` row ids)\nconsumes `ledger.ids` in order. Consuming past the end is a typed\ndivergence error. Additive: absent means record mode, today's\nbehavior. Queries and mutations only; actions never carry one."
     },
+    "dataTransaction": {
+      "description": "Generated data-transaction envelope. It is not execution authority;\nthe selected function and canonical arguments remain authoritative.\nPresence opts an issuance-free data write into the non-replayable\nobservation/refusal-settlement protocol.\n\n@ref LLP 0255#s44-datatransactionv1 — the exact\nresolved envelope accompanies the ordinary mutation carrier."
+    },
     "expectedGeneration": {
       "anyOf": [
         {

@@ -1379,6 +1379,15 @@
     },
     {
       "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/client-mutations/status/{name}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
       "credential_resolution": "None",
       "inputSchema": {
         "$ref": "connection.open.input.schema.json"

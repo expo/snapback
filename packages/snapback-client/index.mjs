@@ -35,6 +35,11 @@ import {
   normalizeGeneratedArgumentsV1,
 } from './argument-normalization.mjs';
 import {
+  CANONICAL_CLIENT_VALUE_V1_LIMITS,
+  canonicalizeClientValueV1,
+  canonicalReactStoreKeyV1,
+} from './canonical-client-value.mjs';
+import {
   SnapbackDiagnosticError,
   asSnapbackDiagnosticError,
   isSnapbackDiagnosticError,
@@ -89,7 +94,7 @@ export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
   canonicalizeClientValueV1,
   canonicalReactStoreKeyV1,
-} from './canonical-client-value.mjs';
+};
 export {
   ARGUMENT_NORMALIZATION_VERSION,
   exactArgumentContract,
@@ -2089,6 +2094,54 @@ const offlineQueueSettlementLedgerError = ({
       capability: OFFLINE_MUTATION_REPLAY_CAPABILITY,
       reason,
       targetProfileId,
+    }),
+  });
+  return error;
+};
+
+const dataCustodyUnavailableError = ({ reason, nextAction, cause = undefined }) => {
+  const message = reason === 'durable-store-required'
+    ? 'tiny data writes require a restart-safe client store before dispatch'
+    : 'the target must advertise offline_mutation_replay so every tiny data write has settlement-ledger recovery';
+  const error = new Error(
+    `SNAPBACK_DATA_CUSTODY_UNAVAILABLE: ${message}`,
+    cause === undefined ? undefined : { cause },
+  );
+  error.code = 'SNAPBACK_DATA_CUSTODY_UNAVAILABLE';
+  error.diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v2',
+    code: error.code,
+    severity: 'error',
+    subsystem: 'data',
+    message,
+    details: Object.freeze({
+      reason,
+      nextAction,
+      capability: OFFLINE_MUTATION_REPLAY_CAPABILITY,
+      guideAnchor: 'guide/data/transactions',
+    }),
+  });
+  return error;
+};
+
+const dataTransactionBoundExceededError = ({ ceiling, observed, limit, cause = undefined }) => {
+  const message = `tiny data transaction violates ${ceiling}: observed ${observed}, maximum ${limit}`;
+  const error = new Error(
+    `SNAPBACK_DATA_TRANSACTION_BOUND_EXCEEDED: ${message}`,
+    cause === undefined ? undefined : { cause },
+  );
+  error.code = 'SNAPBACK_DATA_TRANSACTION_BOUND_EXCEEDED';
+  error.diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v2',
+    code: error.code,
+    severity: 'error',
+    subsystem: 'data',
+    message,
+    details: Object.freeze({
+      ceiling,
+      observed,
+      limit,
+      guideAnchor: 'guide/data/transactions',
     }),
   });
   return error;
@@ -6806,6 +6859,7 @@ export class SnapbackClient {
       && typeof store.outboxDurablyConsume === 'function'
       && typeof store.outboxMarkResultGone === 'function'
       && typeof store.outboxMarkStranded === 'function'
+      && typeof store.outboxMarkDispatchPossiblyCrossed === 'function'
       && typeof store.outboxReconcileCustody === 'function'
       && typeof store.outboxDiscardStranded === 'function'
       && typeof store.wipeForAuthorityTransition === 'function';
@@ -7265,12 +7319,35 @@ export class SnapbackClient {
     }
     if (!record) return Object.freeze({ status: 'unknown' });
     if (record.status === 'pending') {
-      // LLP 0218 §4.1: the current store records no durable
-      // identity-horizon-passed marker, so outcome-unknown cannot be inferred
-      // from a merely pending record and blockedReason remains null.
+      if (
+        record.dataCustodyClass === 'online-only'
+        && record.dispatchBoundary === 'possibly-crossed'
+      ) {
+        return Object.freeze({ status: 'pending', blockedReason: 'outcome-unknown' });
+      }
+      if (
+        record.dataCustodyClass === 'online-only'
+        && record.dispatchBoundary === 'not-crossed'
+      ) {
+        return freezeDeep({
+          status: 'failed',
+          failure: {
+            code: 'SNAPBACK_DATA_DISPATCH_NOT_ACCEPTED',
+            message: 'the durable online-only intent did not cross the dispatch boundary',
+          },
+        });
+      }
+      // Ordinary pending records retain the pre-amendment vocabulary: only
+      // the online-only boundary is authority for outcome-unknown.
       return Object.freeze({ status: 'pending', blockedReason: null });
     }
     if (record.status === 'settled') {
+      if (record.settlement?.dataOutcome === 'refused') {
+        return freezeDeep({
+          status: 'failed',
+          failure: structuredClone(record.settlement.diagnostic),
+        });
+      }
       return freezeDeep({
         status: 'settled',
         settlement: structuredClone(record.settlement),
@@ -7289,6 +7366,114 @@ export class SnapbackClient {
       return freezeDeep({ status: 'resultGone', ...structuredClone(record.resultGone) });
     }
     return Object.freeze({ status: 'unknown' });
+  }
+
+  /// Resolve one durable possibly-crossed data observation without mutation
+  /// redelivery. A terminal answer enters ordinary settlement/ACK custody.
+  async __refreshDataMutation(clientMutationId) {
+    if (typeof clientMutationId !== 'string' || clientMutationId.length === 0) {
+      throw new TypeError('__refreshDataMutation requires an intent id');
+    }
+    const store = this.#offlineQueueStore(true);
+    const custody = await this.#reconcileQueueCustody(store, { required: true });
+    const record = (await store.outboxRecords())
+      .find((candidate) => candidate?.id === clientMutationId);
+    if (
+      record?.status !== 'pending'
+      || record.dataCustodyClass !== 'online-only'
+      || record.dispatchBoundary !== 'possibly-crossed'
+      || record.dataTransaction?.artifactKind !== 'dataTransaction'
+    ) return this.mutationStatus(clientMutationId);
+    const body = {
+      args: record.args,
+      auth: SnapbackClient.auth(record.userId ?? undefined),
+      read_set: record.readSet ?? [],
+      clientMutationId: record.id,
+      authorityDescriptor: record.authorityDescriptor,
+      dataTransaction: record.dataTransaction,
+      wireVersion: WIRE_VERSION_TOKEN,
+    };
+    if (record.ctxLedger) body.ctx_ledger = record.ctxLedger;
+    if (record.expectedGeneration) body.expectedGeneration = record.expectedGeneration;
+    if (record.settlementLane) body.settlementLane = record.settlementLane;
+    if (record.settlementIdentity) body.settlementIdentity = record.settlementIdentity;
+    if (record.settlementClaims) body.settlementClaims = record.settlementClaims;
+    if (record.boundedSkew) body.boundedSkew = record.boundedSkew;
+    const response = await this.#req(
+      'POST',
+      `/client-mutations/status/${encodeURIComponent(record.function)}`,
+      body,
+      undefined,
+      { expectedAuthorityCapture: custody.authority?.capture ?? null },
+    );
+    if (response?.status === 'unknown') return this.mutationStatus(clientMutationId);
+    const settlement = response?.status === 'committed'
+      ? { ...response.settlement, dataOutcome: 'committed' }
+      : response?.status === 'refused'
+        ? { dataOutcome: 'refused', diagnostic: response.diagnostic }
+        : null;
+    if (settlement === null) {
+      const error = new Error('SNAPBACK_DATA_SETTLEMENT_RESPONSE_INVALID: unknown status response');
+      error.code = 'SNAPBACK_DATA_SETTLEMENT_RESPONSE_INVALID';
+      throw error;
+    }
+    const consumed = await store.outboxDurablyConsume(
+      clientMutationId,
+      settlement,
+      record.userId ?? null,
+    );
+    if (!consumed) {
+      const error = new Error(
+        'SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE: data settlement lost its observation record',
+      );
+      error.code = 'SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE';
+      throw error;
+    }
+    this.#notifyOutboxListeners();
+    await this.#refreshOptimisticMutationViews('data-settlement-poll');
+    return this.mutationStatus(clientMutationId);
+  }
+
+  /// Payload-free projection used by the tiny data facade. Arguments, rows,
+  /// authority descriptors, and settlement payloads never leave this owner.
+  async __dataPendingWrites() {
+    let store = null;
+    try { store = this.#offlineQueueStore(); } catch { store = null; }
+    if (!store || typeof store.outboxRecords !== 'function') return Object.freeze([]);
+    const records = await store.outboxRecords();
+    const projected = records
+      .filter((record) => record?.dataTransaction?.artifactKind === 'dataTransaction')
+      .filter((record) => (
+        record.status === 'pending'
+        || (
+          record.status === 'settled'
+          && record.settlement?.dataOutcome !== 'refused'
+        )
+      ))
+      .map((record) => Object.freeze({
+        intentId: record.id,
+        sequence: record.sequence,
+        reach: Object.freeze({
+          reads: Object.freeze([...(record.dataTransaction.core?.reach?.reads ?? [])]),
+          writes: Object.freeze([...(record.dataTransaction.core?.reach?.writes ?? [])]),
+        }),
+        state: record.status === 'settled'
+          ? 'settled-awaiting-convergence'
+          : record.dataCustodyClass === 'online-only'
+            && record.dispatchBoundary === 'possibly-crossed'
+            ? 'pending'
+            : record.dataCustodyClass === 'online-only'
+              ? 'preparing'
+              : 'queued',
+        presentation: record.optimisticOperation === null
+          ? record.dataTransaction.core?.prediction === 'generated-exact'
+            ? 'withheld'
+            : 'unavailable'
+          : 'installed',
+        status: record.status,
+      }))
+      .sort((left, right) => left.sequence - right.sequence || left.intentId.localeCompare(right.intentId));
+    return Object.freeze(projected);
   }
 
   /// Observe one durable mutation disposition over the existing outbox seam.
@@ -9032,6 +9217,66 @@ export class SnapbackClient {
     return this.#mutate(ref, options, false);
   }
 
+  /// Phase-3 headless data doorway. The generated custody class is authority:
+  /// callers cannot select queue policy or attach operation issuance. Every
+  /// data write requires both durable local custody and the target settlement
+  /// ledger before the ordinary mutation carrier is prepared.
+  // @ref LLP 0255#s32-proposed-pending-llp-0218-and-llp-0043-amendment--declared-custody-and-ambiguous-online-intents
+  async __dataMutation(ref, options = {}) {
+    if (options === null || typeof options !== 'object') {
+      throw new TypeError('__dataMutation options must be an object');
+    }
+    const dataTransaction = options.dataTransaction;
+    const dataCustodyClass = dataTransaction?.core?.custody?.class;
+    if (
+      dataTransaction?.artifactKind !== 'dataTransaction'
+      || (dataCustodyClass !== 'queue-eligible' && dataCustodyClass !== 'online-only')
+      || dataTransaction.intentId !== options.clientMutationId
+    ) {
+      throw new TypeError('SNAPBACK_DATA_TRANSACTION_INVALID: data mutation custody envelope is invalid');
+    }
+    try {
+      this.#offlineQueueStore(true);
+    } catch (cause) {
+      throw dataCustodyUnavailableError({
+        reason: 'durable-store-required',
+        nextAction: 'configure-durable-client-store',
+        cause,
+      });
+    }
+    try {
+      await this.#requireOfflineMutationReplayCapability();
+    } catch (cause) {
+      throw dataCustodyUnavailableError({
+        reason: 'target-settlement-ledger-required',
+        nextAction: 'use-target-advertising-offline_mutation_replay',
+        cause,
+      });
+    }
+    const {
+      queue: _callerQueue,
+      operationIssuance: _callerIssuance,
+      dataTransaction: _envelope,
+      ...mutationOptions
+    } = options;
+    if (typeof mutationOptions.userId !== 'string') {
+      const session = await this.authSession();
+      const capturedUserId = session?.authority?.isAuthenticated === true
+        ? session.authority.userId
+        : null;
+      if (typeof capturedUserId === 'string') mutationOptions.userId = capturedUserId;
+    }
+    return this.#mutate(ref, {
+      ...mutationOptions,
+      queue: true,
+      operationIssuance: null,
+    }, false, {
+      dataTransaction,
+      class: dataCustodyClass,
+      reason: dataTransaction.core.custody.reasons[0] ?? null,
+    });
+  }
+
   async #mutate(ref, {
     args = {},
     userId,
@@ -9053,7 +9298,7 @@ export class SnapbackClient {
     // when delivery fails at the transport (connectivity) and the client
     // carries an outbox-capable store; `false` restores fail-loud delivery.
     queue = 'auto',
-  } = {}, argumentsAlreadyNormalized = false) {
+  } = {}, argumentsAlreadyNormalized = false, dataCustody = null) {
     assertClientReferenceKind({
       reference: ref,
       acceptedKinds: ['Mutation'],
@@ -9127,7 +9372,9 @@ export class SnapbackClient {
     let queueStore = generatedMutation !== null
       ? generatedComposedStore
       : queue === false ? null : this.#offlineQueueStore(queue === true);
-    const operationIdentityEnabled = this.__operationIdentityProtocol === 1 && queueStore !== null;
+    const operationIdentityEnabled = dataCustody === null
+      && this.__operationIdentityProtocol === 1
+      && queueStore !== null;
     if (operationIdentityEnabled) {
       const requiredMethods = [
         'readStoreMeta',
@@ -9185,6 +9432,43 @@ export class SnapbackClient {
         throw error;
       }
       body.authorityDescriptor = queueAuthority.authorityDescriptor;
+    }
+    if (dataCustody !== null) {
+      if (
+        queueAuthority === null
+        || queueAuthority.authorityDescriptor == null
+        || queueAuthority.principalScope == null
+        || queueAuthority.custody == null
+      ) {
+        throw dataCustodyUnavailableError({
+          reason: 'durable-store-required',
+          nextAction: 'establish-authenticated-durable-authority',
+        });
+      }
+      dataCustody = {
+        ...dataCustody,
+        dataTransaction: freezeDeep({
+          ...dataCustody.dataTransaction,
+          authority: {
+            authorityDescriptor: queueAuthority.authorityDescriptor,
+            principalScope: queueAuthority.principalScope,
+            custody: queueAuthority.custody,
+          },
+          targetCustody: dataCustody.class === 'queue-eligible' ? 'queue-served' : null,
+          predictionClaims: settlementClaims,
+        }),
+      };
+      const descriptorBytes = new TextEncoder().encode(
+        canonicalizeClientValueV1(dataCustody.dataTransaction),
+      ).byteLength;
+      if (descriptorBytes > 65_536) {
+        throw dataTransactionBoundExceededError({
+          ceiling: 'maxDescriptorBytes',
+          observed: descriptorBytes,
+          limit: 65_536,
+        });
+      }
+      body.dataTransaction = dataCustody.dataTransaction;
     }
     let operationAuthorityPrincipalId = typeof userId === 'string' ? userId : null;
     if (queueAuthority !== null) {
@@ -9277,6 +9561,13 @@ export class SnapbackClient {
       operationIssuance,
       operationCoverageDisposition,
       optimisticOperation,
+      ...(dataCustody === null ? {} : {
+        dataTransaction: dataCustody.dataTransaction,
+        dataCustodyClass: dataCustody.class,
+        dataCustodyReason: dataCustody.reason,
+        replayable: dataCustody.class !== 'online-only',
+        dispatchBoundary: dataCustody.class === 'online-only' ? 'not-crossed' : null,
+      }),
       capturedNow: Date.now(),
       ...(queueAuthority === null ? {} : {
         principalScope: queueAuthority.principalScope,
@@ -9403,6 +9694,14 @@ export class SnapbackClient {
         }
       } catch (error) {
         const code = error?.diagnostic?.code ?? error?.code;
+        if (dataCustody !== null && code === 'SNAPBACK_OUTBOX_RECORD_OVERSIZE') {
+          throw dataTransactionBoundExceededError({
+            ceiling: 'maxDurableRecordBytes',
+            observed: error?.diagnostic?.details?.bytes ?? null,
+            limit: 262_144,
+            cause: error,
+          });
+        }
         if (
           generatedMutation === null
           || queue !== 'auto'
@@ -9453,6 +9752,16 @@ export class SnapbackClient {
         throw staleAuthorityError();
       }
     };
+    if (dataCustody?.class === 'online-only' && durableOnlineRecord) {
+      const crossed = await queueStore.outboxMarkDispatchPossiblyCrossed(clientMutationId);
+      if (!crossed) {
+        throw dataCustodyUnavailableError({
+          reason: 'durable-store-required',
+          nextAction: 'repair-durable-client-store',
+        });
+      }
+      this.#notifyOutboxListeners();
+    }
     for (
       let attempt = 1;
       attempt <= this.reservationRetryMaxAttempts;
@@ -9574,6 +9883,28 @@ export class SnapbackClient {
             });
             throw error;
           }
+          if (
+            dataCustody?.class === 'online-only'
+            && durableOnlineRecord
+            && isConnectivityFailureError(error)
+          ) {
+            this.#recordOutboxDiagnostic({
+              code: 'SNAPBACK_OFFLINE_MUTATION_OUTCOME_UNKNOWN',
+              mutation: name,
+              clientMutationId,
+              disposition: 'possibly-crossed',
+            });
+            return {
+              status: 'pending',
+              clientMutationId,
+              blockedReason: 'outcome-unknown',
+              presentation: optimisticOperation === null
+                ? dataCustody.dataTransaction.core?.prediction === 'generated-exact'
+                  ? 'withheld'
+                  : 'unavailable'
+                : 'installed',
+            };
+          }
           if (queueStore && isConnectivityFailureError(error)) {
             if (queueCapabilityVerified !== true) {
               const capability = await this.#offlineMutationReplayCapabilityFact();
@@ -9635,13 +9966,55 @@ export class SnapbackClient {
               },
             );
             if (queued) {
+              const dataPresentation = dataCustody === null
+                || dataCustody.dataTransaction.core?.prediction === 'generated-exact'
+                ? queued.presentation
+                : 'unavailable';
               return generatedMutation === null
-                ? queued
-                : { ...queued, operationHash: generatedMutation.operationHash };
+                ? { ...queued, presentation: dataPresentation }
+                : {
+                    ...queued,
+                    presentation: dataPresentation,
+                    operationHash: generatedMutation.operationHash,
+                  };
             }
           }
           if (durableOnlineRecord && isAuthorityFenceUnsettledError(error)) {
             await this.#reconcileQueueCustody(queueStore);
+            throw error;
+          }
+          if (dataCustody?.class === 'online-only' && durableOnlineRecord) {
+            let consumed;
+            try {
+              consumed = await queueStore.outboxDurablyConsume(
+                clientMutationId,
+                {
+                  dataOutcome: 'refused',
+                  diagnostic: structuredClone(error?.diagnostic ?? {
+                    code: error?.code ?? 'SNAPBACK_MUTATION_REFUSED',
+                    message: error?.message ?? String(error),
+                  }),
+                  receipt: error?.receipt ?? null,
+                },
+                typeof userId === 'string' ? userId : null,
+              );
+            } catch (custodyError) {
+              custodyError.outboxSettlementPersistenceFailure = true;
+              throw custodyError;
+            }
+            if (!consumed) {
+              const custodyError = new Error(
+                'SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE: refusal lost its data observation record',
+              );
+              custodyError.code = 'SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE';
+              custodyError.outboxSettlementPersistenceFailure = true;
+              throw custodyError;
+            }
+            this.#notifyOutboxListeners();
+            if (optimisticOperation !== null) {
+              await this.#refreshOptimisticMutationViews('data-settlement-refused');
+            }
+            error.clientMutationId = clientMutationId;
             throw error;
           }
           if (durableOnlineRecord && isServerAuthorityStaleResult(error)) {

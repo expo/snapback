@@ -510,6 +510,10 @@ export function createIndexedDbRqsResumeStore({
       );
     },
 
+    async outboxMarkDispatchPossiblyCrossed(id) {
+      return outboxWrite((state) => outboxOps.markDispatchPossiblyCrossed(state, id));
+    },
+
     async outboxEnqueueWithOperationIdentity(record, authorityCohortKey, range = null) {
       return outboxWrite(
         (state) => outboxOps.enqueueWithOperationIdentity(

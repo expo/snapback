@@ -135,6 +135,7 @@ export const outboxAckFullError = () => outboxError(
 export const outboxOversizeError = (bytes) => outboxError(
   'SNAPBACK_OUTBOX_RECORD_OVERSIZE',
   `serialized outbox record is ${bytes} bytes (max ${OUTBOX_MAX_RECORD_BYTES})`,
+  { bytes, maxBytes: OUTBOX_MAX_RECORD_BYTES },
 );
 
 /// Validate + normalize one enqueue input into the stored record shape.
@@ -188,6 +189,7 @@ export function normalizeOutboxRecordInput(record) {
   }
   let argsContract = null;
   let argumentSchema = null;
+  let dataTransaction = null;
   try {
     if (record.argsContract != null) {
       argsContract = JSON.parse(canonicalizeClientValueV1(record.argsContract));
@@ -195,11 +197,28 @@ export function normalizeOutboxRecordInput(record) {
     if (record.argumentSchema != null) {
       argumentSchema = JSON.parse(canonicalizeClientValueV1(record.argumentSchema));
     }
+    if (record.dataTransaction != null) {
+      dataTransaction = JSON.parse(canonicalizeClientValueV1(record.dataTransaction));
+    }
   } catch {
     throw invalidOutboxRecord(
       'outbox generated argument contracts must be finite canonical client values',
     );
   }
+  const dataCustodyClass = record.dataCustodyClass ?? null;
+  if (
+    dataCustodyClass !== null
+    && dataCustodyClass !== 'queue-eligible'
+    && dataCustodyClass !== 'online-only'
+  ) throw invalidOutboxRecord('data custody class must be queue-eligible or online-only');
+  const dispatchBoundary = dataCustodyClass === 'online-only'
+    ? (record.dispatchBoundary ?? 'not-crossed')
+    : null;
+  if (
+    dispatchBoundary !== null
+    && dispatchBoundary !== 'not-crossed'
+    && dispatchBoundary !== 'possibly-crossed'
+  ) throw invalidOutboxRecord('online-only data observation has an invalid dispatch boundary');
   return {
     id,
     function: functionName,
@@ -242,6 +261,13 @@ export function normalizeOutboxRecordInput(record) {
     // a second persistence authority.
     // @ref LLP 0155#rebase — reload replays remaining operations in sequence.
     optimisticOperation,
+    ...(dataTransaction === null ? {} : { dataTransaction }),
+    dataCustodyClass,
+    dataCustodyReason: typeof record.dataCustodyReason === 'string'
+      ? record.dataCustodyReason
+      : null,
+    replayable: dataCustodyClass !== 'online-only',
+    dispatchBoundary,
     // Client-captured wall-clock at enqueue. A labeled claim for receipts
     // and UI (LLP 0129 ledger row 1, decision 10 taxonomy) — never
     // transmitted as authority and never used for ordering.
@@ -631,6 +657,31 @@ export const outboxOps = {
         sequence: stored.sequence,
         records: { ...state.records, [stored.id]: stored },
       },
+      result: stored,
+    };
+  },
+  /// Atomically records the only ambiguous boundary for a non-replayable data
+  /// intent. The record is already durable at `not-crossed`; after this cut a
+  /// crash cannot prove non-acceptance and recovery must consult settlement.
+  // @ref LLP 0255#s32-proposed-pending-llp-0218-and-llp-0043-amendment--declared-custody-and-ambiguous-online-intents
+  markDispatchPossiblyCrossed(state, id) {
+    const existing = state.records[id];
+    if (!existing || existing.status !== 'pending') return { state, result: false };
+    if (existing.dataCustodyClass !== 'online-only' || existing.replayable !== false) {
+      throw invalidOutboxRecord('only a non-replayable data observation may cross this boundary');
+    }
+    if (existing.dispatchBoundary === 'possibly-crossed') {
+      return { state, result: existing };
+    }
+    if (existing.dispatchBoundary !== 'not-crossed') {
+      throw invalidOutboxRecord('non-replayable data observation has no valid boundary');
+    }
+    const stored = { ...existing, dispatchBoundary: 'possibly-crossed' };
+    if (outboxRecordBytes(stored) > OUTBOX_MAX_RECORD_BYTES) {
+      throw outboxOversizeError(outboxRecordBytes(stored));
+    }
+    return {
+      state: { ...state, records: { ...state.records, [id]: stored } },
       result: stored,
     };
   },
@@ -1127,7 +1178,7 @@ export const outboxOps = {
 };
 
 export const pendingOutboxRecords = (state) => Object.values(state.records)
-  .filter((record) => record.status === 'pending')
+  .filter((record) => record.status === 'pending' && record.replayable !== false)
   .sort(outboxOrder);
 
 /// Records that keep the client on the full-resync/submission-fence path.
@@ -1136,7 +1187,7 @@ export const pendingOutboxRecords = (state) => Object.values(state.records)
 /// result dependency.
 export const unresolvedOutboxRecords = (state) => Object.values(state.records)
   .filter((record) => (
-    record.status === 'pending'
+    (record.status === 'pending' && record.replayable !== false)
     || record.status === 'result-gone'
     || record.status === 'quarantined'
   ))

@@ -11750,6 +11750,90 @@ mod guarded_commit_tests {
         );
     }
 
+    /// @ref LLP 0255#s32-proposed-pending-llp-0218-and-llp-0043-amendment--declared-custody-and-ambiguous-online-intents — possibly-crossed refusals use
+    /// the ordinary bounded settlement ledger and its exact identity/ACK cut.
+    #[test]
+    fn data_refusal_settlement_is_idempotent_exact_and_ack_capable() {
+        let mut db = database();
+        let input = HandlerInput::default();
+        let identity = ClientMutationIdentity::new("data_refusal_1", "data.tx_deadbeef", &input);
+        let diagnostic = Diagnostic::error(
+            "SNAPBACK_DATA_TRANSACTION_INVALID",
+            "data-transaction",
+            "fixture refusal",
+        );
+
+        db.settlement()
+            .record_data_mutation_refusal(&identity, &input, &diagnostic)
+            .expect("record refusal");
+        db.settlement()
+            .record_data_mutation_refusal(&identity, &input, &diagnostic)
+            .expect("exact duplicate is a no-op");
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .unwrap()
+                .records,
+            1
+        );
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_result(&identity)
+                .expect_err("ordinary replay observes the retained refusal")
+                .diagnostic,
+            diagnostic
+        );
+        assert!(matches!(
+            db.settlement_read()
+                .client_mutation_settlement(&identity)
+                .expect("status lookup"),
+            Some(ClientMutationSettlement::Refused(_))
+        ));
+
+        let mismatched = ClientMutationIdentity::new(identity.id.clone(), "data.tx_other", &input);
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_settlement(&mismatched)
+                .expect_err("five-member mismatch must fail closed")
+                .diagnostic
+                .code,
+            "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+        );
+        let issued = identity.clone().with_operation_issuance(
+            crate::commit_envelope::OperationIssuanceV1::ClientRange {
+                epoch_id: "forbidden-data-issuance".to_owned(),
+                counter: 1,
+                range_start: 1,
+                range_end_exclusive: 2,
+                authority_authenticator_digest: format!("sha256:{}", "a".repeat(64)),
+            },
+        );
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_settlement(&issued)
+                .expect_err("absent issuance must compare unequal to present issuance")
+                .diagnostic
+                .code,
+            "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+        );
+
+        assert_eq!(
+            db.settlement()
+                .acknowledge_client_mutations(
+                    &identity.auth_fingerprint,
+                    std::slice::from_ref(&identity.id),
+                )
+                .expect("ACK refusal"),
+            1
+        );
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_settlement(&identity)
+                .expect("post-ACK lookup"),
+            None
+        );
+    }
+
     #[test]
     fn retention_record_n_plus_one_refuses_without_losing_replay_or_writes() {
         let _limits = TestRetentionLimits::install(2, u64::MAX);
@@ -17714,7 +17798,7 @@ mod media_ref_projection_acceptance_tests {
             .expect("force formula migration");
         drop(db);
 
-        let mut db = LocalDatabase::open(&path).expect("migrate legacy row and rebuild v4");
+        let mut db = LocalDatabase::open(&path).expect("migrate legacy row and rebuild v5");
         let predecessor = db
             .settlement_read()
             .client_mutation_retention_info()

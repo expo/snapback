@@ -414,5 +414,12 @@ Two early data-seam examples are intentionally blocking:
 - `FUNCTION_JS_QUERY_STATIC_RESULT_NOT_ROWS` rejects a JavaScript query whose
   handler visibly returns an object literal; return `[row]` or `[]`. Dynamic
   result shapes still meet the runtime rows-array guard.
+- **SNAPBACK_DATA_TRANSACTION_INVALID**,
+  **SNAPBACK_DATA_TRANSACTION_NOT_CATALOGUED**, and
+  **SNAPBACK_DATA_TRANSACTION_BOUND_EXCEEDED** reject generated transaction
+  grammar, static-catalogue, and first-violated ceiling escapes respectively.
+- **SNAPBACK_DATA_CUSTODY_UNAVAILABLE** separates a missing/failed durable
+  client store from a target that lacks **offline_mutation_replay**; follow the
+  diagnostic's next action instead of retrying with queue:false.
 - `SNAPBACK_CONTRACT_QUERY_UNCONFIGURED` rejects a mounted component's
   `requiredQueries` before the multi-live surface opens any subscription.

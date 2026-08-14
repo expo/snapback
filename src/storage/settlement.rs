@@ -224,7 +224,8 @@ impl LocalDatabase {
                     "SELECT client_mutation_id, function, auth_fingerprint,
                             authority_instance_id, input_fingerprint,
                             operation_issuance_json, output_json, settlement_format,
-                            settlement_record_sequence, settlement_projection_seal_json
+                            settlement_record_sequence, settlement_projection_seal_json,
+                            terminal_outcome
                      FROM _snapback_client_mutations
                      WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2
                        AND (?3 IS NULL OR authority_instance_id = ?3)",
@@ -241,6 +242,7 @@ impl LocalDatabase {
                             row.get::<_, Option<String>>(7)?,
                             row.get::<_, SqlValue>(8)?,
                             row.get::<_, Option<String>>(9)?,
+                            row.get::<_, String>(10)?,
                         ))
                     },
                 )
@@ -256,11 +258,12 @@ impl LocalDatabase {
                 settlement_format,
                 settlement_record_sequence,
                 settlement_projection_seal_json,
+                terminal_outcome,
             )) = retained_row
             else {
                 continue;
             };
-            let row_bytes = logical_client_mutation_retained_row_bytes_v4(
+            let row_bytes = logical_client_mutation_retained_row_bytes_v5(
                 &row_id,
                 &function,
                 &row_auth_fingerprint,
@@ -271,6 +274,7 @@ impl LocalDatabase {
                 settlement_format.as_deref(),
                 settlement_record_sequence,
                 settlement_projection_seal_json.as_deref(),
+                &terminal_outcome,
             )?;
             crate::operation_ledger::acknowledge_client_operation_by_id_in(
                 &tx,
@@ -457,10 +461,10 @@ impl LocalDatabase {
     /// Return the durably settled result for a client mutation identity.
     /// Function/auth mismatches fail closed instead of treating the key as a
     /// cache hit under different authority.
-    pub(super) fn client_mutation_result(
+    pub(super) fn client_mutation_settlement(
         &self,
         identity: &ClientMutationIdentity,
-    ) -> SnapbackResult<Option<MutationOutput>> {
+    ) -> SnapbackResult<Option<ClientMutationSettlement>> {
         validate_client_mutation_identity(identity)?;
         with_pinned_read_snapshot(&self.conn, |conn| {
             let row: Option<RetainedClientMutationRow> = conn
@@ -468,7 +472,8 @@ impl LocalDatabase {
                     "SELECT function, auth_fingerprint, authority_instance_id,
                         input_fingerprint, operation_issuance_json, output_json,
                         settled_version, settled_version_exact, settlement_format,
-                        settlement_record_sequence, settlement_projection_seal_json
+                        settlement_record_sequence, settlement_projection_seal_json,
+                        terminal_outcome
                  FROM _snapback_client_mutations WHERE client_mutation_id = ?1",
                     params![identity.id],
                     |row| {
@@ -484,6 +489,7 @@ impl LocalDatabase {
                             settlement_format: row.get(8)?,
                             settlement_record_sequence: row.get(9)?,
                             settlement_projection_seal_json: row.get(10)?,
+                            terminal_outcome: row.get(11)?,
                         })
                     },
                 )
@@ -500,9 +506,11 @@ impl LocalDatabase {
                 settlement_format,
                 settlement_record_sequence,
                 settlement_projection_seal_json,
+                terminal_outcome,
             }) = row
             else {
-                return covered_operation_recovery_result(conn, identity);
+                return covered_operation_recovery_result(conn, identity)
+                    .map(|output| output.map(ClientMutationSettlement::Committed));
             };
             if function != identity.function {
                 return Err(SnapbackError::error(
@@ -670,8 +678,68 @@ impl LocalDatabase {
             validate_retained_sequence_allocations(&output.settlement_sequence_allocations)
                 .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
             debug_assert_eq!(output.version, output_version);
-            Ok(Some(output))
+            match terminal_outcome.as_str() {
+                "committed" => Ok(Some(ClientMutationSettlement::Committed(output))),
+                "refused" => {
+                    let diagnostic =
+                        serde_json::from_value::<Diagnostic>(output.result).map_err(|error| {
+                            invalid_client_mutation_retention_state(format!(
+                                "stored client mutation refusal could not be decoded: {error}"
+                            ))
+                        })?;
+                    Ok(Some(ClientMutationSettlement::Refused(diagnostic)))
+                }
+                _ => Err(invalid_client_mutation_retention_state(
+                    "stored client mutation terminal outcome was unknown",
+                )),
+            }
         })
+    }
+
+    pub(super) fn client_mutation_result(
+        &self,
+        identity: &ClientMutationIdentity,
+    ) -> SnapbackResult<Option<MutationOutput>> {
+        match self.client_mutation_settlement(identity)? {
+            Some(ClientMutationSettlement::Committed(output)) => Ok(Some(output)),
+            Some(ClientMutationSettlement::Refused(diagnostic)) => {
+                Err(SnapbackError::new(diagnostic))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Persist a terminal data-transaction refusal in the ordinary bounded
+    /// settlement ledger. The row is written before the refusal is exposed;
+    /// an exact duplicate observes the same refusal and cannot execute.
+    pub(super) fn record_data_mutation_refusal(
+        &mut self,
+        identity: &ClientMutationIdentity,
+        input: &HandlerInput,
+        diagnostic: &Diagnostic,
+    ) -> SnapbackResult<()> {
+        if self.client_mutation_settlement(identity)?.is_some() {
+            return Ok(());
+        }
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let output = MutationOutput {
+            version: current_version_on(&tx)?,
+            changed_count: 0,
+            result: serde_json::to_value(diagnostic).map_err(|error| {
+                invalid_client_mutation_retention_state(format!(
+                    "client mutation refusal could not be encoded: {error}"
+                ))
+            })?,
+            ctx_ledger: None,
+            settlement_mint_observations: Vec::new(),
+            settlement_time_observation: None,
+            settlement_sequence_allocations: Vec::new(),
+        };
+        record_client_mutation_result(&tx, identity, input, &[], &[], &output, None, "refused")?;
+        tx.commit()?;
+        Ok(())
     }
 }
 
@@ -754,6 +822,16 @@ impl<'a> SettlementKernel<'a> {
     ) -> SnapbackResult<u64> {
         self.db.purge_client_mutation_settlements(auth_fingerprint)
     }
+
+    pub(crate) fn record_data_mutation_refusal(
+        &mut self,
+        identity: &ClientMutationIdentity,
+        input: &HandlerInput,
+        diagnostic: &Diagnostic,
+    ) -> SnapbackResult<()> {
+        self.db
+            .record_data_mutation_refusal(identity, input, diagnostic)
+    }
 }
 
 /// Shared-borrow settlement operations for callers holding `&LocalDatabase`.
@@ -801,5 +879,12 @@ impl<'a> SettlementReadKernel<'a> {
         identity: &ClientMutationIdentity,
     ) -> SnapbackResult<Option<MutationOutput>> {
         self.db.client_mutation_result(identity)
+    }
+
+    pub(crate) fn client_mutation_settlement(
+        &self,
+        identity: &ClientMutationIdentity,
+    ) -> SnapbackResult<Option<ClientMutationSettlement>> {
+        self.db.client_mutation_settlement(identity)
     }
 }

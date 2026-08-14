@@ -221,6 +221,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Build a bounded data query](./data/queries.md) — the static fluent
   catalogue, indexed predicates/projections, exact or synthesized routes,
   opaque keyset continuation, ceilings, and db-less explain output.
+- [Compose generated data transactions](./data/transactions.md) — inert typed
+  chunks, atomic batch lowering, custody classes, optimistic prediction,
+  recovery handles, and payload-free pending writes.
 
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +

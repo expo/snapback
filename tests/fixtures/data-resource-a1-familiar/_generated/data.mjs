@@ -387,8 +387,8 @@ export const dataResources = Object.freeze([
             "appId": "fixtures",
             "schemaHash": "sha256:ecf07d2bfccde4e6"
           },
-          "capabilityClass": "server-only",
-          "capabilityCode": "SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY",
+          "capabilityClass": "local-executable",
+          "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
           "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
           "declaredReads": [],
           "localReadRequirements": [],
@@ -446,7 +446,7 @@ export const dataResources = Object.freeze([
           ],
           "usesRuntimeNow": true,
           "boundedSkew": null,
-          "operationHash": "sha256:1f484755de34e2ebb1b2bfadb8025ffa20bf712bdca50c6c0863c9e4a5abbd78"
+          "operationHash": "sha256:d19912c330e62d76ffb555e169f85ce2da0c3f842fecf3c4082cdbf757ae67dc"
         },
         "argumentSchema": {
           "type": "object",
@@ -609,8 +609,8 @@ export const dataResources = Object.freeze([
             "appId": "fixtures",
             "schemaHash": "sha256:ecf07d2bfccde4e6"
           },
-          "capabilityClass": "server-only",
-          "capabilityCode": "SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY",
+          "capabilityClass": "local-executable",
+          "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
           "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
           "declaredReads": [
             "todos"
@@ -708,7 +708,7 @@ export const dataResources = Object.freeze([
           "mintSites": [],
           "usesRuntimeNow": false,
           "boundedSkew": null,
-          "operationHash": "sha256:d9872d40b9c02b3ddd342c5106d221f9d096acea7d02f3ba1f433f4fa43bf2cd"
+          "operationHash": "sha256:34205ccb0d147fa216aef063f2d7886a527a101f5430e5fbfe458ad2525e7910"
         },
         "argumentSchema": {
           "type": "object",
@@ -790,8 +790,8 @@ export const dataResources = Object.freeze([
             "appId": "fixtures",
             "schemaHash": "sha256:ecf07d2bfccde4e6"
           },
-          "capabilityClass": "server-only",
-          "capabilityCode": "SNAPBACK_GENERATED_IR_EFFECT_SERVER_ONLY",
+          "capabilityClass": "local-executable",
+          "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
           "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
           "declaredReads": [
             "todos"
@@ -874,7 +874,7 @@ export const dataResources = Object.freeze([
           "mintSites": [],
           "usesRuntimeNow": false,
           "boundedSkew": null,
-          "operationHash": "sha256:2bc5d9c28738581493c9152db0e75e23e71787d5876ffc495136b02784db7d2f"
+          "operationHash": "sha256:aca739b74c66b1831452a4d2cb09cf88d0fce7207213c075af1a456676a67fdb"
         },
         "argumentSchema": {
           "type": "object",
@@ -932,5 +932,651 @@ const __operator = (value) => { if (!value || typeof value !== 'object' || Array
 const __sameProjection = (authored, canonical) => { if (authored === null || canonical === null) return authored === canonical; if (authored.length !== canonical.length || new Set(authored).size !== authored.length) return false; const admitted = new Set(canonical); return authored.every((field) => admitted.has(field)); };
 const __finish = (state, cursor = null) => { if (!Number.isSafeInteger(state.take) || state.take < 1 || state.take > 200) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'take must be a safe integer in 1..200'); if (state.projection !== null && state.projection.length < 1) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select requires at least one duplicate-free field'); if (state.projection !== null && state.projection.length > 64) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'select exceeds maxProjectionFields 64'); if (state.projection !== null && new Set(state.projection).size !== state.projection.length) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select fields must be duplicate-free'); if (cursor !== null && (typeof cursor !== 'string' || !cursor.startsWith('dc1.') || new TextEncoder().encode(cursor).length > 2048)) throw __dataError('SNAPBACK_DATA_CURSOR_INVALID', 'cursor is not a bounded DataCursorV1'); const byField = new Map(state.filters.map((filter) => [filter.field, filter])); const entry = dataQueryCatalog.find((candidate) => candidate.shape.resource === state.resource && candidate.shape.index === state.index && JSON.stringify(candidate.shape.order) === JSON.stringify(state.order) && candidate.shape.take === state.take && __sameProjection(state.projection, candidate.shape.projection) && candidate.shape.filters.length === state.filters.length && candidate.shape.filters.every((filter) => byField.get(filter.field)?.operator === filter.operator)); if (!entry) throw __dataError('SNAPBACK_DATA_QUERY_NOT_CATALOGUED', 'this dynamic query shape is absent from the active static catalogue'); const args = entry.shape.filters.flatMap(({ field }) => byField.get(field).values); const namedArguments = Object.assign(Object.fromEntries(entry.argumentNames.map((name, index) => [name, args[index]])), cursor === null ? {} : { after: cursor }); const descriptor = { ...entry.envelope, arguments: Object.freeze(args), canonicalArgsDigest: __dataDigest('snapback:data-canonical-args:v1', Object.fromEntries(Object.entries(namedArguments).filter(([name]) => name !== 'after'))), cursor, namedArguments: Object.freeze(namedArguments) }; return Object.freeze(cursor === null ? { ...descriptor, after(next) { return __finish(state, next); } } : descriptor); };
 const __resource = (resource) => Object.freeze({ using(index) { const base = { resource, index, filters: [], projection: null }; const ordered = (state) => Object.freeze({ orderBy(field, direction) { const next = { ...state, order: { field, direction } }; return Object.freeze({ select(fields) { if (!Array.isArray(fields)) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select requires an array'); const selected = { ...next, projection: [...fields] }; return Object.freeze({ take(take) { return __finish({ ...selected, take }); } }); }, take(take) { return __finish({ ...next, take }); } }); } }); return Object.freeze({ where(filters) { if (!filters || typeof filters !== 'object' || Array.isArray(filters)) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'where requires an object'); const entries = Object.entries(filters); if (entries.length < 1) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'where requires at least one field'); if (entries.length > 8) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'where exceeds maxFilterFields 8'); return ordered({ ...base, filters: entries.map(([field, value]) => ({ field, ...__operator(value) })) }); }, orderBy: ordered(base).orderBy }); } });
-export const data = Object.freeze(Object.fromEntries([...new Set(dataQueryCatalog.map(({ core }) => core.resource))].map((resource) => [resource, __resource(resource)])));
+const __dataObject = Object.fromEntries([...new Set(dataQueryCatalog.map(({ core }) => core.resource))].map((resource) => [resource, __resource(resource)]));
 export const explainDataQuery = (descriptor) => descriptor?.explain ?? descriptor?.envelope?.explain ?? null;
+
+export const dataTransactionCatalog = Object.freeze([]);
+const __dataTransactionOperations = Object.freeze({
+  "todos": {
+    "create": {
+      "artifactKind": "functionReference",
+      "schemaVersion": "snapback.v0",
+      "appId": "fixtures",
+      "id": "fixtures:todos.create",
+      "name": "todos.create",
+      "kind": "Mutation",
+      "authRequirement": "authenticated",
+      "implementationHash": "sha256:1f9b782d84d66244cc01fe2c92556905141fe0126bb66c5a2ae5b4b3e7072f02",
+      "argsContractHash": "sha256:40b514e59f6b569975900229f4dffb084de2898b68deb10c83aecb83cc76b482",
+      "argsContract": {
+        "fields": [
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "completed",
+            "required": true,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ]
+      },
+      "resultContractHash": "sha256:151a0ef29b85b268d92b94b26ae0a10fa73e7b0d4fd9efcaa1cc6a54839746db",
+      "expectedGeneration": {
+        "schemaVersion": "snapback.v0",
+        "appId": "fixtures",
+        "schemaHash": "sha256:ecf07d2bfccde4e6",
+        "bundleHash": "sha256:54d26e37593c256c",
+        "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+      },
+      "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+      "sourceSpan": {
+        "file": "functions.mjs"
+      },
+      "resultContract": {
+        "kind": "document",
+        "table": "todos",
+        "document": {
+          "kind": "object",
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "todos"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": 0,
+                "max": 9007199254740991
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": 0,
+                "max": 9007199254740991
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": 0,
+                "max": 9007199254740991
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": -9007199254740991,
+                "max": 9007199254740991
+              }
+            }
+          ],
+          "allowExtra": false
+        }
+      },
+      "mutationIr": {
+        "format": "snapback.generated-mutation-ir.v1",
+        "sourceIdentity": {
+          "functionId": "fixtures:todos.create",
+          "implementationHash": "sha256:1f9b782d84d66244cc01fe2c92556905141fe0126bb66c5a2ae5b4b3e7072f02",
+          "activation": {
+            "schemaVersion": "snapback.v0",
+            "appId": "fixtures",
+            "schemaHash": "sha256:ecf07d2bfccde4e6",
+            "bundleHash": "sha256:54d26e37593c256c",
+            "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+          },
+          "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234"
+        },
+        "schemaIdentity": {
+          "schemaVersion": "snapback.v0",
+          "appId": "fixtures",
+          "schemaHash": "sha256:ecf07d2bfccde4e6"
+        },
+        "capabilityClass": "local-executable",
+        "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
+        "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+        "declaredReads": [],
+        "localReadRequirements": [],
+        "schema": {
+          "tables": [
+            {
+              "name": "todos",
+              "fields": [
+                {
+                  "name": "title"
+                },
+                {
+                  "name": "completed"
+                },
+                {
+                  "name": "ownerId"
+                },
+                {
+                  "name": "createdAt"
+                }
+              ]
+            }
+          ]
+        },
+        "plan": {
+          "steps": [
+            {
+              "Insert": {
+                "table": "todos",
+                "values": {
+                  "title": {
+                    "Arg": "title"
+                  },
+                  "completed": {
+                    "Arg": "completed"
+                  },
+                  "createdAt": "RuntimeNow",
+                  "ownerId": "AuthUserId"
+                },
+                "bind_id_as": "__standardCreatedId"
+              }
+            }
+          ],
+          "return_value": {
+            "Document": {
+              "table": "todos",
+              "id": {
+                "Binding": "__standardCreatedId"
+              }
+            }
+          }
+        },
+        "mintSites": [
+          "plan/steps/0/insert/row-id"
+        ],
+        "usesRuntimeNow": true,
+        "boundedSkew": null,
+        "operationHash": "sha256:d19912c330e62d76ffb555e169f85ce2da0c3f842fecf3c4082cdbf757ae67dc"
+      },
+      "argumentSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title",
+          "completed"
+        ]
+      }
+    },
+    "update": {
+      "artifactKind": "functionReference",
+      "schemaVersion": "snapback.v0",
+      "appId": "fixtures",
+      "id": "fixtures:todos.update",
+      "name": "todos.update",
+      "kind": "Mutation",
+      "authRequirement": "authenticated",
+      "implementationHash": "sha256:f3e08eccadd5021383d11a008011336fd963dcd3fbff3b399239bc9b846a3e0e",
+      "argsContractHash": "sha256:986b84ff4df409d1cfeafa337e369779e1959be5934a2f4ff90e7b831c62b59b",
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "todos"
+            }
+          },
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "completed",
+            "required": true,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ]
+      },
+      "resultContractHash": "sha256:151a0ef29b85b268d92b94b26ae0a10fa73e7b0d4fd9efcaa1cc6a54839746db",
+      "expectedGeneration": {
+        "schemaVersion": "snapback.v0",
+        "appId": "fixtures",
+        "schemaHash": "sha256:ecf07d2bfccde4e6",
+        "bundleHash": "sha256:54d26e37593c256c",
+        "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+      },
+      "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+      "sourceSpan": {
+        "file": "functions.mjs"
+      },
+      "resultContract": {
+        "kind": "document",
+        "table": "todos",
+        "document": {
+          "kind": "object",
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "todos"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": 0,
+                "max": 9007199254740991
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": 0,
+                "max": 9007199254740991
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": 0,
+                "max": 9007199254740991
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "min": -9007199254740991,
+                "max": 9007199254740991
+              }
+            }
+          ],
+          "allowExtra": false
+        }
+      },
+      "mutationIr": {
+        "format": "snapback.generated-mutation-ir.v1",
+        "sourceIdentity": {
+          "functionId": "fixtures:todos.update",
+          "implementationHash": "sha256:f3e08eccadd5021383d11a008011336fd963dcd3fbff3b399239bc9b846a3e0e",
+          "activation": {
+            "schemaVersion": "snapback.v0",
+            "appId": "fixtures",
+            "schemaHash": "sha256:ecf07d2bfccde4e6",
+            "bundleHash": "sha256:54d26e37593c256c",
+            "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+          },
+          "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234"
+        },
+        "schemaIdentity": {
+          "schemaVersion": "snapback.v0",
+          "appId": "fixtures",
+          "schemaHash": "sha256:ecf07d2bfccde4e6"
+        },
+        "capabilityClass": "local-executable",
+        "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
+        "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+        "declaredReads": [
+          "todos"
+        ],
+        "localReadRequirements": [
+          {
+            "kind": "point",
+            "table": "todos",
+            "idArg": "id",
+            "binding": "__standardOwnedRow",
+            "requiredFields": [
+              "_id",
+              "ownerId"
+            ]
+          }
+        ],
+        "schema": {
+          "tables": [
+            {
+              "name": "todos",
+              "fields": [
+                {
+                  "name": "title"
+                },
+                {
+                  "name": "completed"
+                },
+                {
+                  "name": "ownerId"
+                },
+                {
+                  "name": "createdAt"
+                }
+              ]
+            }
+          ]
+        },
+        "plan": {
+          "steps": [
+            {
+              "Get": {
+                "table": "todos",
+                "id": {
+                  "Arg": "id"
+                },
+                "bind_as": "__standardOwnedRow",
+                "else_error": "SNAPBACK_ROW_NOT_FOUND"
+              }
+            },
+            {
+              "Guard": {
+                "cond": {
+                  "Binary": {
+                    "op": "Eq",
+                    "left": {
+                      "Field": {
+                        "base": {
+                          "Binding": "__standardOwnedRow"
+                        },
+                        "key": "ownerId"
+                      }
+                    },
+                    "right": "AuthUserId"
+                  }
+                },
+                "else_error": "SNAPBACK_ROW_NOT_FOUND"
+              }
+            },
+            {
+              "Patch": {
+                "table": "todos",
+                "id": {
+                  "Arg": "id"
+                },
+                "values": {
+                  "title": {
+                    "Arg": "title"
+                  },
+                  "completed": {
+                    "Arg": "completed"
+                  }
+                }
+              }
+            }
+          ],
+          "return_value": {
+            "Document": {
+              "table": "todos",
+              "id": {
+                "Arg": "id"
+              }
+            }
+          }
+        },
+        "mintSites": [],
+        "usesRuntimeNow": false,
+        "boundedSkew": null,
+        "operationHash": "sha256:34205ccb0d147fa216aef063f2d7886a527a101f5430e5fbfe458ad2525e7910"
+      },
+      "argumentSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "completed"
+        ]
+      }
+    },
+    "delete": {
+      "artifactKind": "functionReference",
+      "schemaVersion": "snapback.v0",
+      "appId": "fixtures",
+      "id": "fixtures:todos.delete",
+      "name": "todos.delete",
+      "kind": "Mutation",
+      "authRequirement": "authenticated",
+      "implementationHash": "sha256:e22dff692959271c801b29411043db964ddafce59d6c4351c418cfd1e4143fdf",
+      "argsContractHash": "sha256:ada4d6ce9509c9c07d0d500130448555a6b94b3b725497561b42897960b01c91",
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "todos"
+            }
+          }
+        ]
+      },
+      "resultContractHash": "sha256:6a7271e69c8ea471cb72bf6110a4ba9d9629a1ba88343e49afdb6cc5f4406387",
+      "expectedGeneration": {
+        "schemaVersion": "snapback.v0",
+        "appId": "fixtures",
+        "schemaHash": "sha256:ecf07d2bfccde4e6",
+        "bundleHash": "sha256:54d26e37593c256c",
+        "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+      },
+      "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+      "sourceSpan": {
+        "file": "functions.mjs"
+      },
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "null"
+        }
+      },
+      "mutationIr": {
+        "format": "snapback.generated-mutation-ir.v1",
+        "sourceIdentity": {
+          "functionId": "fixtures:todos.delete",
+          "implementationHash": "sha256:e22dff692959271c801b29411043db964ddafce59d6c4351c418cfd1e4143fdf",
+          "activation": {
+            "schemaVersion": "snapback.v0",
+            "appId": "fixtures",
+            "schemaHash": "sha256:ecf07d2bfccde4e6",
+            "bundleHash": "sha256:54d26e37593c256c",
+            "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+          },
+          "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234"
+        },
+        "schemaIdentity": {
+          "schemaVersion": "snapback.v0",
+          "appId": "fixtures",
+          "schemaHash": "sha256:ecf07d2bfccde4e6"
+        },
+        "capabilityClass": "local-executable",
+        "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
+        "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+        "declaredReads": [
+          "todos"
+        ],
+        "localReadRequirements": [
+          {
+            "kind": "point",
+            "table": "todos",
+            "idArg": "id",
+            "binding": "__standardOwnedRow",
+            "requiredFields": [
+              "_id",
+              "ownerId"
+            ]
+          }
+        ],
+        "schema": {
+          "tables": [
+            {
+              "name": "todos",
+              "fields": [
+                {
+                  "name": "title"
+                },
+                {
+                  "name": "completed"
+                },
+                {
+                  "name": "ownerId"
+                },
+                {
+                  "name": "createdAt"
+                }
+              ]
+            }
+          ]
+        },
+        "plan": {
+          "steps": [
+            {
+              "Get": {
+                "table": "todos",
+                "id": {
+                  "Arg": "id"
+                },
+                "bind_as": "__standardOwnedRow",
+                "else_error": "SNAPBACK_ROW_NOT_FOUND"
+              }
+            },
+            {
+              "Guard": {
+                "cond": {
+                  "Binary": {
+                    "op": "Eq",
+                    "left": {
+                      "Field": {
+                        "base": {
+                          "Binding": "__standardOwnedRow"
+                        },
+                        "key": "ownerId"
+                      }
+                    },
+                    "right": "AuthUserId"
+                  }
+                },
+                "else_error": "SNAPBACK_ROW_NOT_FOUND"
+              }
+            },
+            {
+              "Delete": {
+                "table": "todos",
+                "id": {
+                  "Arg": "id"
+                }
+              }
+            }
+          ],
+          "return_value": null
+        },
+        "mintSites": [],
+        "usesRuntimeNow": false,
+        "boundedSkew": null,
+        "operationHash": "sha256:aca739b74c66b1831452a4d2cb09cf88d0fce7207213c075af1a456676a67fdb"
+      },
+      "argumentSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    }
+  }
+});
+Object.defineProperty(__dataObject, '__snapbackDataBinding', { value: Object.freeze({ dataResources, dataQueryCatalog, dataTransactionCatalog, operations: __dataTransactionOperations }), enumerable: false });
+export const data = Object.freeze(__dataObject);
