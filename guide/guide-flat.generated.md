@@ -383,6 +383,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Compose generated data transactions](./data/transactions.md) — inert typed
   chunks, atomic batch lowering, custody classes, optimistic prediction,
   recovery handles, and payload-free pending writes.
+- [Promote a generated data operation](./data/promotion.md) — one-way
+  conversion into your selected function profile with frozen contracts,
+  preserved identity, and the refusals that keep it safe.
 
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
@@ -15382,6 +15385,72 @@ closed grammar and custody ceilings.
 
 ---
 
+<!-- snapback-guide-source: guide/data/promotion.md -->
+---
+title: Promote a generated data operation into your function profile
+id: data.promotion
+order: 50
+audience: agent-first
+capabilities: [data.resources-v1]
+authorities: [llp/0255-tiny-data-surface-v1-api.spec.md, llp/0254-tiny-ordinary-data-surface.rfc.md, packages/snapback-cli/index.mjs, packages/snapback-cli/data-promotion.test.mjs]
+examples: [packages/snapback-cli/data-promotion.test.mjs]
+status: current
+reviewed: 2026-08-14
+reviewed-authorities-digest: sha256:15ba50eca5f4578282b1701a7b62ff9932205975ff24f70f0e7fda7edbc701d2
+targets: [local]
+maturity: partial
+since: 0.1.21
+---
+
+# Promote a generated data operation into your function profile
+
+A generated data resource's create/update/delete operations are enough
+until a requirement outgrows the ordinary data path — a multi-row
+invariant, a conditional write, a custom conflict policy. **Promotion**
+converts one generated standard operation into ordinary custom source in
+your application's one selected function profile, keeping the
+operation's stable public identity and data where the contracts stay
+compatible.
+
+```sh
+snapback data promote todos.update --format explicit
+```
+
+The command previews a deterministic patch and requires approval before
+writing. It emits ordinary source with the generated arguments, result,
+authority, reach, refusal, and capability facts frozen; the generated
+member is replaced, not duplicated. Because source custody changes, the
+executable, bundle, and generation identities rotate; the semantic
+identity survives only if the canonical semantic operation is
+byte-equal, and any semantic change follows ordinary activation and
+migration rules.
+
+Rules that keep promotion safe:
+
+- `--format` must equal your application's selected profile
+  (`explicit` for `snapback-explicit-v1`; `familiar` for
+  `snapback-familiar-ts-v1`). Promotion never mixes profiles.
+- `--format familiar` refuses for owner mutations in v1: their generated
+  exact prediction derives from plan-backed IR, which the familiar
+  handler grammar cannot preserve. The refusal names the explicit
+  alternative.
+- Public-read operations, query members, stale generations, dirty
+  destinations, and existing exports refuse before anything is written
+  (`SNAPBACK_DATA_PROMOTION_REFUSED` names the exact remediation).
+- Promotion is one-way in v1: tooling never deletes custom source or
+  demotes an operation back to a generated pattern based on inference.
+- Already accepted queued intents keep their original generation and
+  generated executable through terminal settlement; promotion never
+  rewrites them.
+
+Escapes that are not promotions — authority or membership changes,
+external effects, jobs, schedules, cross-resource invariants — are
+authored directly in your function profile from the start; the
+diagnostic on an outgrown data operation points at the smallest valid
+scaffold.
+
+---
+
 <!-- snapback-guide-source: guide/deploying/index.md -->
 ---
 title: Deployment posture
@@ -25467,7 +25536,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-data-patch-target-refused"></a>`SNAPBACK_DATA_PATCH_TARGET_REFUSED` | server | — | [guide](../operating/data-patch.md#know-where-the-operation-is-refused) | `src/data_patch.rs:445` | 5 |
 | <a id="diagnostic-snapback-data-patch-unknown-field"></a>`SNAPBACK_DATA_PATCH_UNKNOWN_FIELD` | server | — | — | `src/data_patch.rs:524` | 1 |
 | <a id="diagnostic-snapback-data-patch-validation-failed"></a>`SNAPBACK_DATA_PATCH_VALIDATION_FAILED` | server | — | — | `src/data_patch.rs:540` | 4 |
-| <a id="diagnostic-snapback-data-promotion-refused"></a>`SNAPBACK_DATA_PROMOTION_REFUSED` | cli | — | [guide](../data/resources.md#recover-from-data-resource-refusals) | `packages/snapback-cli/index.mjs:3530` | 3 |
+| <a id="diagnostic-snapback-data-promotion-refused"></a>`SNAPBACK_DATA_PROMOTION_REFUSED` | cli | — | [guide](../data/promotion.md#promote-a-generated-data-operation-into-your-function-profile) | `packages/snapback-cli/index.mjs:3530` | 3 |
 | <a id="diagnostic-snapback-data-query-bound-exceeded"></a>`SNAPBACK_DATA_QUERY_BOUND_EXCEEDED` | codegen | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-codegen/data-query.mjs:46` | 13 |
 | <a id="diagnostic-snapback-data-query-capability-unavailable"></a>`SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE` | client | — | [guide](../data/resources.md#recover-from-data-resource-refusals) | `packages/snapback-client/data-client.mjs:152` | 6 |
 | <a id="diagnostic-snapback-data-query-name-collision"></a>`SNAPBACK_DATA_QUERY_NAME_COLLISION` | codegen | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-codegen/data-query.mjs:49` | 4 |

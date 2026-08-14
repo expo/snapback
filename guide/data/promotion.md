@@ -7,6 +7,8 @@ capabilities: [data.resources-v1]
 authorities: [llp/0255-tiny-data-surface-v1-api.spec.md, llp/0254-tiny-ordinary-data-surface.rfc.md, packages/snapback-cli/index.mjs, packages/snapback-cli/data-promotion.test.mjs]
 examples: [packages/snapback-cli/data-promotion.test.mjs]
 status: current
+reviewed: 2026-08-14
+reviewed-authorities-digest: sha256:15ba50eca5f4578282b1701a7b62ff9932205975ff24f70f0e7fda7edbc701d2
 targets: [local]
 maturity: partial
 since: 0.1.21

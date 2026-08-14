@@ -229,6 +229,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Compose generated data transactions](./data/transactions.md) — inert typed
   chunks, atomic batch lowering, custody classes, optimistic prediction,
   recovery handles, and payload-free pending writes.
+- [Promote a generated data operation](./data/promotion.md) — one-way
+  conversion into your selected function profile with frozen contracts,
+  preserved identity, and the refusals that keep it safe.
 
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +

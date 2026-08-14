@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:143546ead294bc427b4143b7019bdcefcb69c5b291d44305b2beeb24a7b08e1b"
+    "sourceDigest": "sha256:f4a02d7aad50dbf58943f756d84b95d393050bff78327348526e0258e54ce397"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -257,6 +257,11 @@
         "id": "data.lifecycle",
         "order": 50,
         "title": "Read, watch, and settle tiny data"
+      },
+      {
+        "id": "data.promotion",
+        "order": 50,
+        "title": "Promote a generated data operation into your function profile"
       }
     ],
     "deploying": [
@@ -3230,6 +3235,33 @@
         }
       ]
     },
+    "data.promotion": {
+      "path": "guide/data/promotion.md",
+      "title": "Promote a generated data operation into your function profile",
+      "order": 50,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "since": "0.1.21",
+      "capabilities": [
+        "data.resources-v1"
+      ],
+      "authorities": [
+        "llp/0255-tiny-data-surface-v1-api.spec.md",
+        "llp/0254-tiny-ordinary-data-surface.rfc.md",
+        "packages/snapback-cli/index.mjs",
+        "packages/snapback-cli/data-promotion.test.mjs"
+      ],
+      "examples": [
+        "packages/snapback-cli/data-promotion.test.mjs"
+      ],
+      "reviewed": "2026-08-14",
+      "reviewedAuthoritiesDigest": "sha256:15ba50eca5f4578282b1701a7b62ff9932205975ff24f70f0e7fda7edbc701d2",
+      "sha256": "b7d989880c1cfcfdcedfeade9d0065b8d7977f56c9c75d53faceb17efc6d0be8",
+      "snippets": []
+    },
     "data.queries": {
       "path": "guide/data/queries.md",
       "title": "Build a bounded data query",
@@ -3745,7 +3777,7 @@
       ],
       "reviewed": "2026-08-10",
       "reviewedAuthoritiesDigest": "sha256:5b2a8a72165d469ef73ce705a2c09f5c97d941c45eeef3ecb1bea44c46fbf469",
-      "sha256": "971a069f935fcf71483d7937195016cf173c6fd770df7999088f082d943125e2",
+      "sha256": "4632726f389c31972699c216a4e470fdb183fce2b2b97dfec0238c07b3d29ed7",
       "snippets": [
         {
           "lang": "json",
@@ -4998,7 +5030,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:2fdc8b37ae04988570ac515c3f5481b6dcf52bcf39530267bcd4a7f546734ac9",
-      "sha256": "5fb4e2e5a886aa193f22e2f9ed5badd8e3efa860251417da6ac7fece67a0f728",
+      "sha256": "a1fd346d2ea89b40a2e6bdcd28d1b869ac0c61e341380801a1f9b45c4efdec0f",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -11329,8 +11361,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2234994,
-      "sha256": "746aceacd9bed4512ef11d31fd3aa8bde165a6c597ca34af2c7df27269475969",
+      "bytes": 2235128,
+      "sha256": "9d1a163ed021a2bcd941f107ce40a693ae87097bd2d322ee4fb893acd570800d",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -11339,7 +11371,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:fe67dd4a4f50dd3d52c7d1ada3337ce2ab10f45ef85134ac5f74e0d850cd000d",
+      "sourceDigest": "sha256:a30ed3b31a027e97104da48200538860601f509a9d6797ec7f717e0da6c79989",
       "codes": 3202,
       "emittingSites": 10951
     }
@@ -11477,16 +11509,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3179178,
-      "sha256": "dcb3077a45f59f42c5def9b66a8185c507b6ff2f80a0dd72ab88f1af7e35cac2"
+      "bytes": 3182328,
+      "sha256": "7d7c33d5e6155b5954947b170e1191d04aac1673c64867ebab322bccbba47f4a"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 143354,
-        "sha256": "d2b38db072d2d8c112362b9750e1c53fd5f4d421f149d2bf49b4fbd1cf5ee715"
+        "bytes": 143556,
+        "sha256": "be5c5daafae09a9ebbe280308df99b8505b4328e55dcdf8a32542fc389fee7c9"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -11513,8 +11545,8 @@
         "path": "guide/guide-flat.data.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.data.generated.md",
         "uri": "snapback-guide://flat/data",
-        "bytes": 28876,
-        "sha256": "22ef42847a43a3302a5dbadec9b75d018b1c6b1c28ab52a9cc7c3a168d94565d"
+        "bytes": 31798,
+        "sha256": "7669ec6d26b65c0ca1ef6db94912f393871151ce323d1c9b157b6678065d7ff2"
       },
       "deploying": {
         "path": "guide/guide-flat.deploying.generated.md",
@@ -11562,8 +11594,8 @@
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 1807565,
-        "sha256": "a3ff7907291e8c3809d1937fea52a7b5ef95677c0b81b122f9b42abf9e31b981"
+        "bytes": 1807591,
+        "sha256": "1f3f78140f6d54832f3d169c7d2235cb6a693090ac775a7f74fc5076a13c1de9"
       },
       "sync": {
         "path": "guide/guide-flat.sync.generated.md",
@@ -11581,5 +11613,5 @@
       }
     }
   },
-  "contentHash": "143546ead294bc427b4143b7019bdcefcb69c5b291d44305b2beeb24a7b08e1b"
+  "contentHash": "f4a02d7aad50dbf58943f756d84b95d393050bff78327348526e0258e54ce397"
 }
