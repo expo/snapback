@@ -1054,3 +1054,134 @@ eighteen reviews.
   r6→r7 to lift the unreviewed label, as was done for LLP 0254.
   Acceptance remains the author's act alone; this loop recommends and
   does not apply it.
+
+## Post-loop commissioned round — r6→r7 delta review (GPT family only), 2026-08-13
+
+- **Authorization:** the author chose the recommended close-out path
+  ("Delta review, then all"): run this codex-only r6→r7 delta review;
+  on READY, apply the author's acceptance of LLP 0255 and LLP 0256,
+  record the S3 ratifications, and launch Phase 1. The closed loop's
+  bounds continue (GPT launch 7 of 12).
+- **Revision:** r7, SHA-256
+  `888bd87ec431516cf08be4ab5aa211254bdc9fd70b2c1d57632d1173c91127cc`
+  (97,196 bytes; landed on main at `e3f200a60` before this round —
+  blindness is unaffected: the capsule is the loop's round-6 clone with
+  the r7 overlay, containing no review of this target).
+- **Capsule:** APFS clone of the round-6 capsule (base
+  `e15064b46dd4afdfc57603a3cc079e67096cca72`) with the r7 target and
+  commissioned-round instructions; zero `llp/reviews/0255*` files.
+  In-capsule target hash verified equal to r7. Inventory SHA-256:
+  `7ae62d10dc5527409e557e81f019f5be6a733baa220bfe439eca96ddaeb0153c`.
+- **Instruction SHA-256:**
+  `5f854bd60f21ef83ddbd06c97340f179ee11574f83059145327c2b648af82d51`.
+- **Lens:** 8-item r6→r7 delta enumerated; IN-DELTA/PRE-EXISTING
+  required; adversarial focus on whether the r7 fixes fully resolve the
+  round-6 ledger with no new contradiction; probe = the five closed
+  result contracts/presentations and both settlement-branch preimages.
+- **Launch (after this record was persisted):** GPT family — same codex
+  invocation as the loop rounds, launch 7.
+- **GPT outcome:** received and appended verbatim to the codex artifact
+  on receipt. **NOT READY** (2 MATERIAL, both IN-DELTA; direction
+  retained; the lane-L serialization rules verified against the typed
+  server). MATERIAL: (1) one more stale sentence — the S2 lowering
+  bullet still projects get's not-found/not-visible as `null`,
+  contradicting the r7 zero-or-one-array presentation; (2) the r7
+  static-anchor rule conflicts with LLP 0133's capture-time lane law
+  (lane L means the handler locally executed at capture) and with
+  S7.2's runtime language, without a proposed 0133 amendment — resolve
+  by keeping `core.prediction` generation-stable while the settlement
+  branch is the capture-time lane frozen in the durable record (no 0133
+  amendment then needed). Acceptance was **not** applied (the author's
+  chosen path conditions it on READY).
+
+## Revision r8 — 2026-08-13 (reviser: the orchestrating Claude session)
+
+- **r8 SHA-256:**
+  `c3f75fa85da76e53822ad1ce3cb5c50ea4f9aa1cbc699814701856e3289abf24`
+  (97,953 bytes; +51.3% over the entering revision, inside the 2.5×
+  ceiling). `./ref-check` 0 errors at r8.
+- **Fixes applied:** the get lowering bullet corrected to `[]`; the
+  settlement-branch selector re-anchored to LLP 0133's capture-time
+  lane recorded in durable custody (codex's resolution (b)):
+  `core.prediction` stays the generation-stable capability bound by
+  hashed cores and synthesized names; lane L is captured when IR
+  composition locally executes at capture (the facade always attempts
+  IR composition, never `queue:false`); failed composition captures the
+  default branch with `withheld`/`unavailable` presentation;
+  the captured branch freezes in the durable record before
+  dispatch/replay; S7.2 rewritten as paint-at-capture.
+
+## Post-loop commissioned round 2 — r7→r8 delta review (GPT family only), 2026-08-13
+
+- **Revision:** r8 as above. Capsule: clone of the commissioned-round
+  capsule with the r8 overlay; zero `llp/reviews/0255*` files.
+  In-capsule target hash verified equal to r8. Inventory SHA-256:
+  `133412aa7d5789d87a5de993ed81bc7015692f2e64a6974cd47d0e6cda3e01f5`;
+  instruction SHA-256
+  `ac14d2d3681dfdf3e1a8fac5aab3f3f0998d7792b85623b6ceb37d8b37c22109`.
+- **Lens:** 4-item r7→r8 delta enumerated; IN-DELTA/PRE-EXISTING
+  required; same probes.
+- **Launch (after this record was persisted):** GPT family — same codex
+  invocation, launch 8.
+- **GPT outcome:** received and appended verbatim to the codex artifact
+  on receipt. **NOT READY** (1 MATERIAL — **PRE-EXISTING**, the
+  program's first; zero IN-DELTA concerns; both r8 fixes verified
+  substantively correct; **both implementer probes PASS**; direction
+  retained) bound to r8. The MATERIAL: the cursor's two-slot
+  `lastKey: [orderValue, id]` cannot encode a multi-field index order
+  (for `[ownerId, status, createdAt]` the effective order is
+  `(status, createdAt, _id)`; the owner-only index case has no defined
+  `orderValue`), present since the r2 cursor schema and missed by all
+  18 loop reviews — risking skipped/duplicated rows or a silent
+  replacement of LLP 0065's list order. Resolution adopted: `lastKey`
+  as the ordered vector of the complete effective order.
+
+## Revision r9 — 2026-08-13 (reviser: the orchestrating Claude session)
+
+- **r9 SHA-256:**
+  `f8ca451adc3a03fec8998505fc5d28be26a3f8d54cfc035b91e40abe675ce693`
+  (98,670 bytes; +52.4% over the entering revision, inside the 2.5×
+  ceiling). `./ref-check` 0 errors at r9.
+- **Fixes applied:** `lastKey` redefined as the ordered vector of every
+  effective-order field's value in plan order terminated by `_id`
+  (zero/one/multi-field cases explicit; per-element type/bounds
+  validation; lexicographic comparison); S3.4's positioning and
+  OQ1/class-exclusion wording restated over the complete effective
+  order; the cursor-proof wording aligned; the Acceptance negative
+  cases extended with zero- and multi-field order vectors.
+
+## Post-loop commissioned round 3 — r8→r9 delta review (GPT family only), 2026-08-13
+
+- **Revision:** r9 as above. Capsule: clone of the round-2 commissioned
+  capsule with the r9 overlay; zero `llp/reviews/0255*` files.
+  In-capsule target hash verified equal to r9. Inventory SHA-256:
+  `d0b710dca102f189799632ae999c647e600e116eca0552371f0eb67388d63c21`;
+  instruction SHA-256
+  `8096e16d8c871c92120ab1d077521aa39ea765a83867cfd6e0f122b5198321c0`.
+- **Lens:** 5-item r8→r9 delta enumerated; IN-DELTA/PRE-EXISTING
+  required; same probes.
+- **Launch (after this record was persisted):** GPT family — same codex
+  invocation, launch 9.
+- **GPT outcome:** received and appended verbatim to the codex artifact
+  on receipt. **READY** — zero concerns of any class (IN-DELTA or
+  PRE-EXISTING); both implementer probes fully determinate ("no
+  contradicting sentence found elsewhere in the revision"); direction
+  retained; in-capsule ref-check clean. GPT launches: 9 of 12.
+
+## Close-out — 2026-08-13 (author's chosen path executed)
+
+The author's ruling ("Delta review, then all") conditioned the close-out
+on a READY verdict, now obtained. Applied in sequence: **LLP 0255
+`Review → Accepted`** (r9 `f8ca451a…` + the acceptance status edit);
+**LLP 0256 `Draft → Accepted`** with its preregistered thresholds
+frozen; **S3 ratifications recorded** as dated notes in the amended
+owners — LLP 0065 (S3.1 sole-candidate fill), LLP 0218 and LLP 0043
+(S3.2 declared custody, ambiguity recovery, refusal ledger), LLP 0238
+(S3.3 query-state vocabulary), LLP 0004 (S3.4 keyset continuation,
+closing LLP 0065 OQ1 for the data profiles), and LLP 0253 (the S3.5
+disposition) — each pointing at LLP 0255's normative text and this
+journal. Verdict-binding summary for the record: the loop's final
+verdicts bind r6; the commissioned rounds bind r7 (NOT READY), r8
+(NOT READY, probes passing), and r9 (**READY**); acceptance applies to
+r9 plus the status-only acceptance edit. Phase 1 launches on the landed
+commit per LLP 0254's implementation sequence.

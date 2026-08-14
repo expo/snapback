@@ -1,7 +1,7 @@
 # LLP 0256: Tiny data surface evaluation
 
 **Type:** Plan
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Competitive evaluation, Developer experience, Authoring,
 Application data API, React, Local sync, Offline sync, Authorization, Testing,
 Publishing
@@ -562,6 +562,9 @@ backstop behavior are no longer open once this Plan is accepted.
 
 ## Status
 
-Draft. Acceptance freezes the protocol; it does not claim that the surface,
-capsule, aids, backstop, package closure, pin, or any D9 result exists. A timed
-run before the applicable Phase 0 and Phase 4 start gates is invalid evidence.
+Accepted (2026-08-13, author-directed, alongside LLP 0255's acceptance —
+run journal: `llp/reviews/0255-tiny-data-surface-v1-api.run.md`). The
+preregistered protocol above is frozen as of this acceptance; it does
+not claim that the surface, capsule, aids, backstop, package closure,
+pin, or any D9 result exists. A timed run before the applicable Phase 0
+and Phase 4 start gates is invalid evidence.

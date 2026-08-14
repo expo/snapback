@@ -1,20 +1,20 @@
 # LLP 0255: Tiny data surface v1 — API and artifact specification
 
 **Type:** Spec
-**Status:** Review
+**Status:** Accepted
 **Systems:** Developer experience, Authoring, Application data API, Schema,
 Code generation, Client SDK, React, Local sync, Offline sync, Authorization,
 Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-13
-**Revised:** 2026-08-13 (r7, final super-refine revision, unreviewed:
-the round-6 in-delta ledgers applied — stale S2/S3.4 result-contract
-prose reconciled with the r6 re-kinds; the settlement branch anchored to
-the frozen generation-stable prediction class with exact lane-L
-serialization rules and the IR-compose doorway bound; the get
-presentation, coverage-active door, read-side dispatch capabilities, and
-deployability phrasing pinned. r6 through the initial Phase 0
-specification earlier the same day; the loop's final verdicts bind r6)
+**Revised:** 2026-08-13 (r9, commissioned-round revision: the cursor
+`lastKey` redefined as the ordered vector of the complete effective
+order — every post-prefix index field in plan order, then `_id`, with
+zero/one/multi-field cases explicit — repairing the pre-existing
+two-slot encoding that lost multi-field orders; S3.4 and the negative
+cases aligned. r8 and r7 (the loop's terminal revision; loop verdicts
+bind r6) through the initial Phase 0 specification earlier the same
+day)
 **Related:** LLP 0254, LLP 0252, LLP 0253, LLP 0065, LLP 0231, LLP 0242,
 LLP 0155, LLP 0157, LLP 0218, LLP 0238, LLP 0240, LLP 0241, LLP 0243,
 LLP 0245, LLP 0247, LLP 0108, LLP 0043, LLP 0053, LLP 0058, LLP 0059,
@@ -270,7 +270,7 @@ enabled and `Query` pair when disabled:
 - `<table>.list`: no caller-shaped arguments beyond the shared reserved
   optional `after`, selected index order, limit 100;
 - `<table>.get`: `{id: Id<table>}`, not-found and not-visible both project
-  `null`.
+  `[]` (the zero-or-one `records` array — S2; non-disclosing either way).
 
 It emits no mutation definition. These generated members are ordinary entries
 in the one function manifest and ordinary generated references. They carry
@@ -513,18 +513,19 @@ profile, dated 2026-08-13:**
 > argument `after` carrying a `DataCursorV1`; admission decodes,
 > validates, and byte-binds the cursor to the invocation (S5.3), then
 > positions the bounded scan strictly after `lastKey` on the admitted
-> `(orderField, _id)` total order. When the page boundary is reached
+> **complete effective order** — every post-policy-prefix index field in
+> plan order, then `_id`. When the page boundary is reached
 > before exhaustion, the executor populates the existing
 > `QueryOutput.cursor` field — structurally present today and absent for
 > every non-relational query — with the next `DataCursorV1`; exhaustion
 > leaves `QueryOutput.cursor` absent (`None`, never JSON null; the client
 > facade renders absence as `cursor: null`). Keyset-profile plans are
 > structurally outside `single_table_v1`'s no-public-cursor class:
-> strict-after positioning over the compound `(order, _id)` key is
+> strict-after positioning over the compound effective-order key is
 > inexpressible in that class's closed conjunctive filter record, and
 > this amendment does not alter that class. This closes LLP 0065's OQ1
 > (compound
-> `(order, _id)` continuation over non-unique sort keys) for the
+> order-then-`_id` continuation over non-unique sort keys) for the
 > `data-resource.v1`/`data-query.v1` profiles only: the
 > `owned-keyset-pages.v1` first/next helper family, its unique-index
 > requirement, and its MAC'd token format are unchanged, and no other
@@ -924,15 +925,24 @@ write carries the deterministic codegen-owned lane-L record —
 provisional-id `mints`), and the IR `boundedSkew` — which **is
 included** in the fingerprint (the shipped client refuses an optimistic
 layer on any other lane, and the IR carrier emits these fields
-unconditionally). The branch selector is the **frozen generation-stable
-prediction class** recorded in the artifacts and durable custody —
-invocation-time paint availability is presentation state and never
-changes the branch, the hashed core, or the synthesized name (a
-statically generated-exact write with withheld paint still carries the
-lane-L record), and every generated-exact data write takes the
-IR-compose doorway, including intrinsically online-only ones (never the
-shipped `queue:false` degrade, which would produce the wrong preimage
-and no paint). The lane-L serialization is exact: `settlementLane`,
+unconditionally). Two facts are kept distinct. `core.prediction` is the
+**generation-stable capability** and never reclassifies with invocation
+state — it is what the hashed cores and synthesized names bind. The
+settlement **branch** is the **capture-time lane recorded in the
+durable custody record**, exactly LLP 0133's rule: lane L is captured
+when the facade's IR composition locally executes at capture — the
+ordinary case for a generated-exact write, since the facade always
+attempts IR composition, including for intrinsically online-only
+intents, and never uses the shipped `queue:false` degrade — while a
+generated-exact write whose local execution cannot compose at capture
+(authority not captured, required rows not owned/current, local bounds
+failing) captures the **default branch** instead, with
+`withheld`/`unavailable` presentation and no paint; `core.prediction`
+is unchanged by any of this. The captured branch is frozen in the
+durable record before dispatch and replay (LLP 0133's intent-record
+immutability), so the fingerprint preimage is deterministic per intent,
+and no LLP 0133 amendment is needed: this is that document's
+capture-time rule applied unchanged. The lane-L serialization is exact: `settlementLane`,
 `settlementIdentity`, and `settlementClaims.version` are always
 present; `now` appears only when the IR uses the runtime clock; `mints`
 only when nonempty; `boundedSkew` only when non-null — and data members
@@ -1124,7 +1134,15 @@ closed, not merely opaque prose:
 type DataCursorV1 = `dc1.${string}`;
 // suffix = base64url(JCS({ v: 1, app: string, generationId: string,
 //   planHash: string, argsDigest: string, authorityPartitionDigest: string,
-//   lastKey: readonly [orderValue: unknown, id: string] }))
+//   lastKey: readonly unknown[] }))
+// lastKey is the ordered vector of the values, in plan order, of EVERY
+// field of the effective total order — the complete post-policy-prefix
+// index sequence (equality-constrained fields contribute their constant
+// values) — terminated by the row's `_id`. Zero order fields (an
+// owner-only index) yields `[_id]`; one yields `[orderValue, _id]`;
+// multi-field indexes carry every field's value. Validation type- and
+// bounds-checks each element against its order field; comparison is
+// lexicographic over the vector in the admitted directions.
 ```
 
 At most 2,048 UTF-8 bytes; no v1 wall-clock expiry. `argsDigest` is the
@@ -1136,7 +1154,7 @@ malformed and cross-boundary cursors refuse byte-identically
 (`SNAPBACK_DATA_CURSOR_INVALID`). Cursor authenticity is deliberately
 **not a security boundary** — policy composition, mandatory bounds, and
 byte revalidation are. The proof is suffix/non-widening, not filter
-equivalence (the compound `(order, _id)` tie-break is deliberately not
+equivalence (the compound effective-order tie-break is deliberately not
 an authorable filter — S3.4): a well-typed synthesized `lastKey` selects
 only a **suffix of the same bounded, policy-composed total order**. For
 owner policy the injected owner-equality node precedes the seek, so the
@@ -1146,8 +1164,9 @@ positioning performs no row lookup, so there is no existence oracle.
 Position inside one's own authorized scan is not a privilege.
 Acceptance requires the negative cases: another owner's boundary
 (returns only the caller's rows or nothing, non-disclosing),
-nonexistent boundary tuples, duplicate and null order values, and both
-directions. "Server-minted" describes the provenance of well-formed
+nonexistent boundary tuples, duplicate and null order values, zero- and
+multi-field order vectors (owner-only and multi-field indexes), and
+both directions. "Server-minted" describes the provenance of well-formed
 continuations, not a cryptographic claim; the S3.4 ratifying owner may
 adopt a MAC (reusing the established cursor-key authority) as hardening
 without changing this contract. A continuation that cannot be minted within the byte cap
@@ -1422,10 +1441,13 @@ Each generated operation records prediction and custody independently:
 | generated exact | online-only | install provisional layer only after dispatch preparation; recover ambiguity by intent id |
 | none | online-only | no paint; recover ambiguity by intent id |
 
-Prediction is exact only when every chunk's generated IR is local-executable,
-authority is captured, required rows are owned/current, and local bounds pass;
-otherwise none—never partial batch paint. IR already labels that capability
-(`packages/snapback-client/generated-mutation-ir.mjs:34-48`).
+Paint installs only when every chunk's generated IR locally executes at
+capture — authority captured, required rows owned/current, local bounds
+passing; otherwise no paint installs (never partial batch paint) and the
+capture takes the default settlement branch (S4.4). `core.prediction` —
+the generation-stable capability the IR already labels
+(`packages/snapback-client/generated-mutation-ir.mjs:34-48`) — is
+unchanged by any invocation-time outcome.
 
 The transaction's **intrinsic** custody is queue-eligible only when every
 chunk is queue-eligible; otherwise it is online-only and carries the
@@ -1862,6 +1884,12 @@ materializations/resume state cite them, then retire by normal generation GC.
 
 ## Status
 
-Review (super-refine loop in progress) — Phase 0 paper surface.
-Implementation requires S3 ratification and a threshold-frozen evaluation
-Plan; this document makes no shipped capability claim.
+Accepted (2026-08-13, author-directed, after the six-round three-family
+super-refine loop closed under the delta rule and the commissioned r8→r9
+GPT-family delta review returned READY with zero concerns — run journal:
+`llp/reviews/0255-tiny-data-surface-v1-api.run.md`). The S3 amendments
+were ratified by the author the same day (dated notes in LLP 0065, 0218,
+0043, 0238, 0004, and 0253), and the LLP 0256 evaluation Plan is
+accepted with its thresholds frozen, so LLP 0254 Phase 1 implementation
+is authorized. This document still makes no shipped capability claim;
+each phase's claims require its own scoped proof.

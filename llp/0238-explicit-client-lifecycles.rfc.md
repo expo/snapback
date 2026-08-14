@@ -7,9 +7,7 @@ Live Queries, Offline sync, Ephemeral state, Diagnostics, Code generation,
 Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-13 (dated familiar-alias exception: LLP 0252/0253 preserve
-this RFC as the full canonical lifecycle while authorizing a narrowed,
-measured Experimental entrypoint). 2026-08-12 (post-acceptance evidence amendment: records the later
+**Revised:** 2026-08-12 (post-acceptance evidence amendment: records the later
 Clique auth-gate, optional-`undefined`, presence-stop, and refusal-carrier
 findings and routes new semantics through Draft LLP 0247 rather than silently
 widening this accepted v1). 2026-08-12 (entered Review for the author-directed single-family
@@ -386,21 +384,6 @@ Migration has three stages:
 not independently redefined here. The new name makes its dispatch semantics
 obvious and provides the stable destination for the compatibility period.
 
-## Dated amendment — 2026-08-13: narrowed familiar aliases
-
-This RFC remains the complete canonical client-lifecycle surface. LLP 0252 and
-LLP 0253 authorize only the following measured exception in the deletable
-Experimental familiar entrypoint: `useQuery` projects familiar-branded live
-references to online-current data or `undefined`; `useMutation` projects the
-settled-only `queue:false` path; `useAction` projects the one-shot `run` verb;
-and `useQueryState` is the canonical full-state hook by identity. The familiar
-entry owns no cache, transport, outbox, auth coordinator, or task state.
-Retained/offline/queued work, refresh and diagnostic rendering, durable
-mutation observation, commands, and every excluded lifecycle remain on this
-RFC's full canonical vocabulary. The familiar spellings neither replace the
-canonical names nor broaden their semantics; their continuation is governed by
-LLP 0252's measurement and stop rule.
-
 ## Alternatives considered
 
 ### Improve documentation without renaming APIs
@@ -485,3 +468,13 @@ grammar, current-principal state union, and compatibility path. V1 chooses
 `watch`, an observable durable mutation handle, and no canonical one-shot React
 hook. It does not supersede LLP 0218 or LLP 0219; it makes their truthful
 semantics the default shape across every first-party client arm.
+
+
+## Amendment — 2026-08-13 (ratified)
+
+LLP 0255 S3.3's proposed amendment to this document — the canonical React query state is the shipped `QueryState` union (shipped arm and field names govern over D4's illustrative `diagnostic`/`refresh` prose; refresh is a handle method; feature facades may add derived readonly fields such as the data facade's `pendingWrites` without amending the base union) — was
+ratified by the author on 2026-08-13 after the LLP 0255 super-refine
+loop closed (run journal:
+`llp/reviews/0255-tiny-data-surface-v1-api.run.md`). The normative
+amendment text lives in LLP 0255 S3.3 and applies to this document as law;
+implementation lands with the LLP 0254 phase that consumes it.

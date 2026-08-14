@@ -427,3 +427,13 @@ the candidate must move.
 5. When a retained/offline profile for generated queries is admitted, does it
    inherit LLP 0053's lease and convergence machinery wholesale, or does the
    generated case justify a narrower fixture?
+
+
+## Amendment — 2026-08-13 (ratified)
+
+LLP 0255 S3.1's proposed amendment to this document — the `data-resource.v1` declaration lowerer may fill an omitted owner CRUD `listIndex` when exactly one ordinary owner-leading declared index exists (refuse-closed otherwise, existing refusal code unchanged); LLP 0255 S3.4 additionally closes this document's OQ1 (compound order-then-`_id` continuation) for the `data-resource.v1`/`data-query.v1` profiles only, and LLP 0255 S2 is the OQ2 disposition for read-only public data resources — was
+ratified by the author on 2026-08-13 after the LLP 0255 super-refine
+loop closed (run journal:
+`llp/reviews/0255-tiny-data-surface-v1-api.run.md`). The normative
+amendment text lives in LLP 0255 S3.1 and applies to this document as law;
+implementation lands with the LLP 0254 phase that consumes it.

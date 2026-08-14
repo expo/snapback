@@ -788,3 +788,273 @@ Artifacts keep canonical `FunctionDefinition.requiredCapabilities` unchanged, so
 Self-attestation: I reviewed independently, used no network or web access, did not consult another reviewer, did not read the unrelated `REVIEW-CANDIDATE-r*.md` or `final-cli.log` files, and did not read any file matching `llp/reviews/0255*`; none existed. Deviation from capsule-only confinement: to comply with the active system skill rule, before substantive review I read `/Users/ccheever/.codex/skills/llp-review/SKILL.md`, outside the capsule. It contained only generic LLP review-process instructions and supplied no candidate or peer-review content. All substantive evidence cited above came from the capsule.
 
 VERDICT: NOT READY
+
+
+## Commissioned round — r6→r7 delta review, 2026-08-13
+
+- **Runtime:** same as the loop rounds (Codex CLI 0.147.0, `gpt-5.6-sol`,
+  `model_reasoning_effort=xhigh`, read-only sandbox), launched blind in
+  the commissioned-round capsule (launch 7).
+- **Revision reviewed:** r7, SHA-256
+  `888bd87ec431516cf08be4ab5aa211254bdc9fd70b2c1d57632d1173c91127cc`
+  (97,196 bytes); verified in-capsule.
+- **Capsule inventory SHA-256:**
+  `7ae62d10dc5527409e557e81f019f5be6a733baa220bfe439eca96ddaeb0153c`;
+  instruction SHA-256
+  `5f854bd60f21ef83ddbd06c97340f179ee11574f83059145327c2b648af82d51`.
+- **Verdict:** NOT READY (2 MATERIAL, both IN-DELTA; zero PRE-EXISTING
+  MATERIAL; direction retained; the lane-L serialization rules verified
+  against the typed server). Disclosed deviation: the pre-instruction
+  harness skill-file read. Counted with disclosure.
+
+---
+
+# Review of LLP 0255 r7
+
+- **Reviewer:** OpenAI Codex, GPT-5 family / API runtime
+- **Date:** 2026-08-13
+- **Revision:** `888bd87ec431516cf08be4ab5aa211254bdc9fd70b2c1d57632d1173c91127cc`
+- **Verification:** SHA-256 matches; 97,196 bytes and 1,867 lines
+- **Notable files:** `REVIEW_INSTRUCTIONS.md`; `llp/0255-tiny-data-surface-v1-api.spec.md`; `llp/0254-tiny-ordinary-data-surface.rfc.md`; `llp/0133-local-settlement.spec.md`; `llp/0155-local-sync-product-direction.rfc.md`; `packages/snapback-codegen/standard-patterns.mjs`; `packages/snapback-client/generated-mutation-ir.mjs`; `packages/snapback-client/store-runtime.mjs`; `packages/snapback-client/index.mjs`; `src/manifest.rs`; `src/storage.rs`; `src/local.rs`
+
+## Overall assessment
+
+Not ready. Every enumerated r7 textual change is present; because r6 is intentionally absent, I verified the realized statements rather than a byte-for-byte r6→r7 diff.
+
+The lane-L field omission rules match the typed server: `version` always serializes, while `now`, empty `mints`, and null `boundedSkew` are omitted (`src/manifest.rs:10153`, `src/manifest.rs:10180`), and the default settlement branch is excluded from the fingerprint preimage (`src/storage.rs:15990`). The coverage-active refusal, read-side empty dispatch requirements, and scoped artifact-deployability wording also hold.
+
+Two in-delta contradictions nevertheless prevent the required implementer probe from producing one answer.
+
+## Concerns
+
+1. **[MATERIAL · IN-DELTA] `get` still has two incompatible public presentations.**
+
+   The public-read lowering says not-found and not-visible project `null` (`llp/0255-tiny-data-surface-v1-api.spec.md:267`). The revised closed-result section instead says `get` has a bounded `records` contract and canonical consumers expose the hashed zero-or-one array, with `[] → null` deferred to a future surface (`llp/0255-tiny-data-surface-v1-api.spec.md:281`).
+
+   These are observably different contracts. An implementer cannot decide whether `<table>.get` returns `null | Row` or `readonly Row[]`, and the contradiction defeats the r7 claim that the result story is stated consistently.
+
+   **Resolution:** Replace the stale `null` sentence with the canonical presentation: not-found and not-visible both produce `[]`, while a visible row produces `[row]`. Retain `null` only as explicitly future projection language.
+
+2. **[MATERIAL · IN-DELTA] Settlement-branch identity is static in S4.4 but invocation-dependent in S7.2, and the static interpretation lacks an LLP 0133 amendment.**
+
+   The normalized transaction core hashes `prediction` on chunks and the transaction (`llp/0255-tiny-data-surface-v1-api.spec.md:822`). S4.4 now declares that this frozen generation-stable class selects the fingerprint branch and that withheld paint never changes it (`llp/0255-tiny-data-surface-v1-api.spec.md:917`, `llp/0255-tiny-data-surface-v1-api.spec.md:927`).
+
+   S7.2 instead says prediction is exact only when invocation-time authority, owned/current rows, and local bounds pass, and is otherwise `none` (`llp/0255-tiny-data-surface-v1-api.spec.md:1425`). Thus the same hashed core can be read as either generated-exact or prediction-`none`, selecting different settlement preimages.
+
+   The static reading also changes LLP 0133’s governing lane rule: lane assignment is a capture-time fact, and lane L means the handler was locally executed (`llp/0133-local-settlement.spec.md:172`, `llp/0133-local-settlement.spec.md:191`). S4.4 assigns lane L even when paint is withheld, but S3 proposes no LLP 0133 amendment.
+
+   **Resolution:** Separate the generation-stable prediction capability from the per-invocation presentation outcome. If the intended rule is static, revise S7.2 so missing authority/data/bounds yields `withheld` or `unavailable` without changing `core.prediction`, and propose a dated LLP 0133 amendment defining why IR composition without installed paint qualifies for lane L. Otherwise, make the capture-time branch explicit durable invocation state outside the hashed core and remove the static-branch claim.
+
+## Implementer-probe result
+
+**Result contract probe: FAIL.**
+
+| Operation | Hashed result contract | Public presentation |
+| --- | --- | --- |
+| `list` | Canonical `documents` | `DataPageV1<Row>` over `QueryOutput`: `rows`, nullable cursor, and `complete === (cursor === null)` |
+| `get` | Canonical `records` with `minItems: 0`, `maxItems: 1` | Contradictory: `null | Row` at line 272 versus `[] | [Row]` at lines 292–295 |
+| `create` | Row `document` | Created row, or its row slot in a transaction result |
+| `update` | Row `document` | Updated row, or its row slot in a transaction result |
+| `delete` | `{kind:"value", value:{kind:"null"}}` | `null`, or a null transaction-result slot |
+
+**Settlement probe: FAIL.**
+
+Under S4.4, a generated-exact write hashes key-sorted canonical JSON, with no domain prefix, over:
+
+```text
+{
+  args,
+  readSet,
+  ctxLedger,
+  settlement: {
+    settlementLane: "re-derive",
+    settlementIdentity: { implementationHash, activation },
+    settlementClaims: {
+      version: 1,
+      now only when runtime clock is used,
+      mints only when nonempty
+    }
+    // boundedSkew absent for data members
+  }
+}
+```
+
+A prediction-`none` write uses default `MutationSettlement`, so `settlement` is omitted and the unhashed structure is exactly:
+
+```text
+{ args, readSet, ctxLedger }
+```
+
+Those branches are individually determinate and match the server fingerprint machinery, but S7.2 can reclassify a statically generated-exact operation as `none` from invocation state. The document therefore does not determine which preimage applies when paint is withheld or unavailable.
+
+## Direction assessment
+
+No direction dissent. The generated, policy-composed, bounded, server-authoritative surface remains aligned with LLP 0254. The defects concern contract coherence and owner coordination, not the chosen product direction.
+
+## Self-attestation
+
+I did not use the network, did not read any file matching `llp/reviews/0255*` (none existed), and had not seen a prior review of LLP 0255. Deviation: after reading the capsule brief, I read `/Users/ccheever/.codex/skills/llp-review/SKILL.md` outside the capsule because the runtime’s mandatory skill instructions required it. That file contained generic LLP review-process instructions and no target text or prior review content. No other deviation occurred.
+
+VERDICT: NOT READY
+
+
+## Commissioned round 2 — r7→r8 delta review, 2026-08-13
+
+- **Runtime:** same as prior rounds (Codex CLI 0.147.0, `gpt-5.6-sol`,
+  `model_reasoning_effort=xhigh`, read-only sandbox), launched blind in
+  the commissioned-round-2 capsule (launch 8).
+- **Revision reviewed:** r8, SHA-256
+  `c3f75fa85da76e53822ad1ce3cb5c50ea4f9aa1cbc699814701856e3289abf24`
+  (97,953 bytes); verified in-capsule (it also ran `./ref-check` in the
+  capsule: 0 errors).
+- **Capsule inventory SHA-256:**
+  `133412aa7d5789d87a5de993ed81bc7015692f2e64a6974cd47d0e6cda3e01f5`;
+  instruction SHA-256
+  `ac14d2d3681dfdf3e1a8fac5aab3f3f0998d7792b85623b6ceb37d8b37c22109`.
+- **Verdict:** NOT READY (1 MATERIAL — **PRE-EXISTING**, the program's
+  first; zero IN-DELTA concerns; both r8 fixes verified substantively
+  correct; both implementer probes PASS; direction retained). Disclosed
+  deviation: the pre-instruction harness skill-file read. Counted with
+  disclosure.
+
+---
+
+# Review artifact — LLP 0255 r8
+
+- **Reviewer:** OpenAI Codex, GPT-5-family runtime, independent GPT-family review
+- **Date:** 2026-08-13
+- **Revision:** `c3f75fa85da76e53822ad1ce3cb5c50ea4f9aa1cbc699814701856e3289abf24`
+- **Verified size:** 97,953 bytes; 1,878 lines
+- **Notable files:** `REVIEW_INSTRUCTIONS.md`; `llp/0255-tiny-data-surface-v1-api.spec.md`; `llp/0254-tiny-ordinary-data-surface.rfc.md`; `llp/0133-local-settlement.spec.md`; `llp/0065-generated-data-pattern-soundness.rfc.md`; `llp/0043-offline-replay-retention.rfc.md`; `llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md`; `llp/0163-operation-identity-and-commit-envelope.spec.md`; `packages/snapback-codegen/standard-patterns.mjs`; `packages/snapback-client/generated-mutation-ir.mjs`; `src/manifest.rs`; `src/storage.rs`
+- **Checks:** No `llp/reviews/0255*` file exists. `./ref-check --verbose` completed with 0 errors and 0 unchecked references.
+
+## Overall assessment
+
+**NOT READY.** The r8 delta repairs are substantively correct:
+
+- `get` is consistently a canonical bounded `records` result whose public value is a zero-or-one array; no surviving sentence projects absence to `null` (`llp/0255-tiny-data-surface-v1-api.spec.md:271`, `:280`).
+- Settlement-branch selection now follows LLP 0133’s capture-time lane while keeping `core.prediction` generation-stable (`llp/0255-tiny-data-surface-v1-api.spec.md:916`, `:926`, `:929`, `:1433`).
+- Lane-L serialization matches the typed-server normalization: lane, identity, and claim-set version are present; `now`, empty `mints`, and `boundedSkew` follow their conditional omission rules (`llp/0255-tiny-data-surface-v1-api.spec.md:943`; `src/manifest.rs:10153`; `src/storage.rs:15990`).
+- Read-side dispatch requirements remain empty while canonical target requirements continue to govern reads, and the write settlement-ledger gate remains a dispatch-only projection rather than an artifact deployment requirement (`llp/0255-tiny-data-surface-v1-api.spec.md:329`, `:723`).
+- Cloudflare, non-durable Expo storage, and active ordinary-mutation coverage are distinguished accurately, including the post-transport `SNAPBACK_OPERATION_IDENTITY_REQUIRED` door (`llp/0255-tiny-data-surface-v1-api.spec.md:454`; `src/storage.rs:16696`).
+
+The capsule has no r7 copy, so an exact bytewise r7→r8 comparison is impossible. All four enumerated delta effects are present at their stated sites. One pre-existing cursor-contract defect nevertheless leaves an admitted generated operation indeterminate.
+
+## Concerns
+
+1. **MATERIAL — PRE-EXISTING: resource-list continuation cannot encode the list’s required multi-field order.**
+
+   The Spec permits an ordinary `listIndex` without restricting its field count (`llp/0255-tiny-data-surface-v1-api.spec.md:135`, `:202`) and requires resource-lowered list to reuse `defineOwnedCrud` plan semantics and the selected index order (`llp/0255-tiny-data-surface-v1-api.spec.md:242`, `:269`). The governing owner says list order is the complete declared index sequence followed by `_id` (`llp/0065-generated-data-pattern-soundness.rfc.md:235`), and the shipped lowerer concretely emits every post-owner index field (`packages/snapback-codegen/standard-patterns.mjs:316`, `:320`).
+
+   S3.4, however, defines continuation over singular `(orderField, _id)` (`llp/0255-tiny-data-surface-v1-api.spec.md:510`, `:514`), and `DataCursorV1.lastKey` contains only `[orderValue, id]` (`llp/0255-tiny-data-surface-v1-api.spec.md:1131`). For an admitted owner index such as `[ownerId, status, createdAt]`, the list order is `(status, createdAt, _id)`, but the cursor has no defined place for both `status` and `createdAt`. Treating `orderValue` as an undeclared composite would contradict the singular `orderField` contract and leaves validation, hashing, comparison, null handling, and byte bounds unspecified. An owner-only index also produces an id-only order for which the mandatory `orderValue` has no defined value.
+
+   This prevents an implementer from deriving a unique strict suffix and can cause skipped or duplicated rows, or silently replace LLP 0065’s list ordering with a different order.
+
+   **Resolution:** Define `lastKey` as an ordered vector aligned with the complete effective plan order, followed by `_id`, including explicit zero-, one-, and multi-field cases; update S3.4 admission, cursor validation, hashing, bounds, and negative fixtures accordingly. Alternatively, restrict eligible list indexes to an explicitly defined one-order-field shape and separately define the id-only case. The former preserves LLP 0065’s existing list semantics.
+
+## Implementer-probe result
+
+### Five generated operations
+
+| Operation | Hashed function result contract | Public presentation |
+| --- | --- | --- |
+| `list` | Canonical `documents` | `QueryOutput.rows` becomes `DataPageV1<Row>` with `cursor: DataCursorV1 \| null` and `complete === (cursor === null)` |
+| `get` | Canonical `records` with the table-row shape and `{minItems:0,maxItems:1}` | A zero-or-one readonly row array; not-found and not-visible both yield `[]`, never `null`; no tiny point-read facade exists in v1 |
+| `create` | Canonical row `document` | The created row; within `db.transact`, it occupies the corresponding positional result element |
+| `update` | Canonical row `document` | The post-update row; within `db.transact`, it occupies the corresponding positional result element |
+| `delete` | `{kind:"value",value:{kind:"null"}}` | `null`; within `db.transact`, the corresponding positional result element is `null` |
+
+The read-side executor envelope is `QueryOutput`; mutation transport uses the ordinary mutation output. Multi-chunk mutation results are a server-side closed `{c0,…}` record projected to the facade’s positional `ResultTuple`.
+
+### Settlement branch and fingerprint
+
+- **Generated-exact, local composition succeeds:** the facade captures lane L (`settlementLane:"re-derive"`) regardless of intrinsic custody. It freezes `settlementIdentity`, versioned `settlementClaims`, conditional `now` and nonempty `mints`, and no `boundedSkew` for data members. Paint installs atomically. The non-default `settlement` record enters `mutation_input_fingerprint`.
+- **Generated-exact, local composition cannot complete:** `core.prediction` remains `generated-exact`, but capture freezes the default settlement branch, installs no paint, and presents `withheld` or `unavailable`. The default settlement record is omitted from the fingerprint preimage.
+- **Prediction `none`:** capture uses the default settlement branch, performs no paint, and omits `settlement` from the fingerprint preimage. Queue-eligible versus online-only custody does not change this branch.
+- **Fingerprint preimage:** the durable server identity compares the exported route name, server-derived auth fingerprint, authority-instance id, and `mutation_input_fingerprint`. That fingerprint is SHA-256 with no domain prefix over key-sorted canonical JSON of `{args,readSet,ctxLedger}`, adding `settlement` only when non-default. V1 data writes carry no `operationIssuance`, so issuance comparison is `absent == absent`.
+
+The requested result/settlement probe therefore passes. The NOT READY verdict comes from the separate resource-list continuation defect.
+
+## Direction assessment
+
+No `DIRECTION-DISSENT`. LLP 0254’s tiny, generated, server-authoritative direction remains sound, and the r8 fixes improve coherence without changing it. The blocking concern is a local cursor-key specification repair, not a fundamental objection.
+
+## Self-attestation
+
+I did not use the network, read any `llp/reviews/0255*` artifact, or use the unrelated `REVIEW-CANDIDATE-r*.md` or `final-cli.log` files. All substantive evidence and conclusions came from files inside the capsule. Deviation: before substantive review, I read and later hashed `/Users/ccheever/.codex/skills/llp-review/SKILL.md`, outside the capsule, because the runtime required loading the applicable LLP-review skill; it contained generic review procedure and no target or corpus evidence. No other deviation occurred.
+
+VERDICT: NOT READY
+
+
+## Commissioned round 3 — r8→r9 delta review, 2026-08-13
+
+- **Runtime:** same as prior rounds (Codex CLI 0.147.0, `gpt-5.6-sol`,
+  `model_reasoning_effort=xhigh`, read-only sandbox), launched blind in
+  the commissioned-round-3 capsule (launch 9).
+- **Revision reviewed:** r9, SHA-256
+  `f8ca451adc3a03fec8998505fc5d28be26a3f8d54cfc035b91e40abe675ce693`
+  (98,670 bytes); verified in-capsule (in-capsule `./ref-check`: 0
+  errors).
+- **Capsule inventory SHA-256:**
+  `d0b710dca102f189799632ae999c647e600e116eca0552371f0eb67388d63c21`;
+  instruction SHA-256
+  `8096e16d8c871c92120ab1d077521aa39ea765a83867cfd6e0f122b5198321c0`.
+- **Verdict:** **READY** (zero concerns of any class, IN-DELTA or
+  PRE-EXISTING; both implementer probes fully determinate with "no
+  contradicting sentence found elsewhere in the revision"; direction
+  retained). Disclosed deviation: the pre-instruction harness
+  skill-file reads. Counted with disclosure.
+
+---
+
+# Independent Review — LLP 0255 r9
+
+- **Model/runtime:** OpenAI Codex, GPT-5 runtime
+- **Date:** 2026-08-13
+- **Revision:** `f8ca451adc3a03fec8998505fc5d28be26a3f8d54cfc035b91e40abe675ce693`
+- **Verified size:** 98,670 bytes
+- **Notable files:** `llp/0255-tiny-data-surface-v1-api.spec.md`, `llp/0254-tiny-ordinary-data-surface.rfc.md`, `llp/0000-snapback.explainer.md`, `llp/0065-generated-data-pattern-soundness.rfc.md`, `llp/0004-runtime-and-authoring-boundary.rfc.md`, `llp/0043-offline-client-mutation-queue.spec.md`, `llp/0133-optimistic-mutation-identity.rfc.md`, `llp/0163-operation-identity-coverage.spec.md`, `llp/0218-client-capability-dispatch.rfc.md`, `src/local.rs`, `src/manifest.rs`, `src/storage.rs`, `packages/snapback-client/generated-mutation-ir.mjs`
+
+## Overall assessment
+
+READY. The stated r8→r9 delta is honest and complete: the header revision, S3.4 continuation rule, closed `DataCursorV1.lastKey` definition, suffix proof, and acceptance cases all carry the complete effective-order vector consistently (`llp/0255-tiny-data-surface-v1-api.spec.md:511`, `llp/0255-tiny-data-surface-v1-api.spec.md:1133`, `llp/0255-tiny-data-surface-v1-api.spec.md:1157`, `llp/0255-tiny-data-surface-v1-api.spec.md:1165`). The former two-slot representation is no longer present.
+
+The whole revision is coherent with LLP 0254’s accepted direction and accurately distinguishes shipped behavior from proposed-pending amendments. The S2 result contracts, settlement branch, lane-L serialization, coverage-active refusal, read dispatch capability checks, and deployment limitations are stated determinately. `./ref-check --verbose` completed successfully with 256 LLP documents, 5,294 references, and zero errors or unchecked references.
+
+## Numbered concerns
+
+1. None. I found no MATERIAL or DETAIL concerns, whether IN-DELTA (r8→r9) or PRE-EXISTING.
+
+## Implementer-probe result
+
+### A. Five generated-operation result contracts and presentations
+
+1. **List:** The hashed function contract is canonical `documents`. The executor presents it in `QueryOutput`; the tiny client facade presents `DataPageV1<Row>` with `rows`, `cursor`, and `complete`, where `complete === (cursor === null)` (`llp/0255-tiny-data-surface-v1-api.spec.md:247`, `llp/0255-tiny-data-surface-v1-api.spec.md:281`).
+
+2. **Get:** The hashed contract is canonical `records` with the table-row shape and `{minItems:0,maxItems:1}`. Its v1 public canonical presentation is the zero-or-one array itself: `[]` for both not-found and not-visible, or `[row]` for a visible match. There is no `[] → null` projection in v1, and get is not reachable through the tiny query builder (`llp/0255-tiny-data-surface-v1-api.spec.md:286`, `llp/0255-tiny-data-surface-v1-api.spec.md:1254`).
+
+3. **Create:** The hashed contract is row `document`; canonical invocation presents the created row. In `db.transact`, it occupies the corresponding positional result-tuple slot (`llp/0255-tiny-data-surface-v1-api.spec.md:295`, `llp/0255-tiny-data-surface-v1-api.spec.md:1371`).
+
+4. **Update:** The hashed contract is row `document`; canonical invocation presents the post-update row. In `db.transact`, it occupies the corresponding positional result-tuple slot (`llp/0255-tiny-data-surface-v1-api.spec.md:295`, `llp/0255-tiny-data-surface-v1-api.spec.md:1390`).
+
+5. **Delete:** The hashed contract is `{kind:"value",value:{kind:"null"}}`; canonical presentation is `null`, including the corresponding transaction result-tuple slot. It never falls through to the shipped CRUD helper’s undeclared/unknown result (`llp/0255-tiny-data-surface-v1-api.spec.md:297`).
+
+### B. Settlement branch and fingerprint
+
+- **Generated-exact write:** `core.prediction` remains generated-exact for the generation. At capture, the facade attempts local IR composition. Successful composition selects lane L and freezes a non-default settlement record containing `settlementLane:"re-derive"`, `settlementIdentity`, and `settlementClaims.version`; `now` appears only when used, `mints` only when nonempty, and `boundedSkew` is absent for data members. That settlement record enters the fingerprint preimage. If composition cannot complete at capture, the same generated-exact operation instead freezes the default settlement branch, installs no paint, and omits settlement from the fingerprint (`llp/0255-tiny-data-surface-v1-api.spec.md:918`, `llp/0255-tiny-data-surface-v1-api.spec.md:928`, `llp/0255-tiny-data-surface-v1-api.spec.md:945`).
+
+- **Prediction-none write:** Capture selects the default `MutationSettlement`; no optimistic paint is installed and the settlement member is omitted from the fingerprint preimage (`llp/0255-tiny-data-surface-v1-api.spec.md:918`, `llp/0255-tiny-data-surface-v1-api.spec.md:1437`).
+
+- **Exact fingerprint:** The server computes SHA-256, without a domain prefix, over key-sorted canonical JSON of `{args,readSet,ctxLedger}` for the default branch or `{args,readSet,ctxLedger,settlement}` for lane L. The server separately rebuilds and compares the exported invocation name, canonical-auth fingerprint, authority-instance identity, and this mutation-input fingerprint (`llp/0255-tiny-data-surface-v1-api.spec.md:905`).
+
+Both probe halves are fully determinate, with no contradicting sentence found elsewhere in the revision.
+
+## Direction assessment
+
+No `DIRECTION-DISSENT`. The Spec preserves LLP 0254’s four-concept ordinary-data direction while keeping authority explicit, generated repetition bounded, canonical owners singular, and unsupported deployment states fail-closed. Its proposed changes to governing owners are clearly marked proposed-pending and ratification-gated rather than presented as already shipped.
+
+## Self-attestation
+
+I read the target fully and confined substantive review evidence to the capsule. No file matching `llp/reviews/0255*` existed, and I read no prior review artifact. Deviation: before substantive review, higher-priority skill instructions caused me to read `/Users/ccheever/.codex/skills/llp-review/SKILL.md` and `/Users/ccheever/.codex/skills/llp-orient/SKILL.md`, both outside the capsule; they supplied workflow instructions only and no review finding. I used no network access.
+
+VERDICT: READY

@@ -467,3 +467,13 @@ landing).
   affordances in `useSnapbackOutbox` (the hook mirrors the headless
   read/discard/re-record affordances and the §4.1 dispositions per P3;
   only the naming/shape is implementation-owned).
+
+
+## Amendment — 2026-08-13 (ratified)
+
+LLP 0255 S3.2's proposed amendment to this document — generated operations carry declared custody classes (`queue-eligible`/`online-only`); online-only dispatch gains the durable non-replayable intent observation with the `not-crossed`/`possibly-crossed` boundary and the `blockedReason: "outcome-unknown"` pending projection — was
+ratified by the author on 2026-08-13 after the LLP 0255 super-refine
+loop closed (run journal:
+`llp/reviews/0255-tiny-data-surface-v1-api.run.md`). The normative
+amendment text lives in LLP 0255 S3.2 and applies to this document as law;
+implementation lands with the LLP 0254 phase that consumes it.
