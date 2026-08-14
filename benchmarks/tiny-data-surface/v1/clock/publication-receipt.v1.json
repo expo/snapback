@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "snapback.tiny-data-publication-clock.v1",
+  "publicationIdentity": "npm qualified 0.1.21 — twelve-package tiny Experimental closure; publication epoch 28; operation release-0.1.21-20260814-r14; candidate revision c10b454162f6f29803769e9820f1dea54f5e04bb; candidate tag bakeoff-0-1-21-c10b454162f6; @expo/snapback first publication",
+  "closureDigest": "33b24d728176ef5b295be54c98cfc8b0f8c19bfccf040f988cc0bee6eb974de3",
+  "publishedAt": "2026-08-14T19:19:20.084Z",
+  "stopAt": "2026-11-12T19:19:20.084Z",
+  "amendments": []
+}
