@@ -570,10 +570,45 @@ export interface RunCliOptions {
   readonly verticalSlice?: boolean;
   readonly readyTimeoutMs?: number;
   readonly auditActorId?: string;
+  readonly cwd?: string;
+  readonly confirmDataPromotion?: boolean | ((preview: DataPromotionPreview) => boolean | Promise<boolean>);
   readonly controlRoot?: string;
   readonly comparatorStartTarget?: ComparatorStartTarget;
   readonly [key: string]: unknown;
 }
+
+export interface DataPromotionPreview {
+  readonly schemaVersion: 'snapback.data-promotion-result.v1';
+  readonly ok: true;
+  readonly applied: boolean;
+  readonly approvalRequired: boolean;
+  readonly target: string;
+  readonly format: 'explicit' | 'familiar';
+  readonly destination: string;
+  readonly destinationSha256: `sha256:${string}`;
+  readonly normalizedDataResourceId: `sha256:${string}`;
+  readonly patch: string;
+  readonly frozenFacts: Readonly<Record<string, unknown>>;
+  readonly semanticDiff: Readonly<Record<string, unknown>>;
+}
+
+export interface DataPromotionFailure {
+  readonly schemaVersion: 'snapback.data-promotion-result.v1';
+  readonly ok: false;
+  readonly code: 'SNAPBACK_DATA_PROMOTION_REFUSED';
+  readonly message: string;
+  readonly guideAnchor: 'guide/data/resources#promote-one-write';
+  readonly details: Readonly<Record<string, unknown>>;
+}
+
+export function previewDataPromotion(
+  target: string,
+  format: string,
+  options?: { readonly cwd?: string },
+): Promise<DataPromotionPreview | DataPromotionFailure>;
+export function applyDataPromotionPreview(
+  preview: DataPromotionPreview,
+): DataPromotionPreview | DataPromotionFailure;
 
 /** Run one CLI command; resolves to the process exit code. */
 export function runCli(argv: readonly string[], options?: RunCliOptions): Promise<number>;

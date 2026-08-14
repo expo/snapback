@@ -1,0 +1,123 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"completed\": boolean; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "name": "createTodo",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "Record<string, unknown>"
+      },
+      {
+        "argumentsType": "{ \"id\": string }",
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "name": "deleteTodo",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"completed\": boolean; \"id\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "name": "updateTodo",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "Record<string, unknown>"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"id\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "todos"
+          ]
+        },
+        "name": "getTodo",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"completed\": boolean; \"createdAt\": number; \"ownerId\": string; \"title\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "todos"
+          ]
+        },
+        "name": "listTodos",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"completed\": boolean; \"createdAt\": number; \"ownerId\": string; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "7db228f7c6e9469d1a2f90a0509098fce46e969a4c8ac31ee8d4f96ff7ab6b1c",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

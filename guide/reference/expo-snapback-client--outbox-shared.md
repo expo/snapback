@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:ea3ee03e2568805c89dddfe1f30190a7bd9d01c6e51a
 # @expo/snapback-client/outbox-shared
 
 Build-bound public API projection for `@expo/snapback-client/outbox-shared`. Canonical registry identity:
-`sha256:7a496e451b0a28117969dc5c5efacb5ca49b9eda91092dcf5b0aa828b6674fa5`.
+`sha256:9b084b624118bcfeab96ba88817427999485a88b834fd608831434174da9b85e`.
 Runtime parity condition:
 `import` → `packages/snapback-client/outbox-shared.mjs`.
 

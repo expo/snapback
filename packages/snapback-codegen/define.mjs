@@ -21,6 +21,9 @@ const CRON = Symbol('snapback.cron');
 const CONFIG = Symbol('snapback.config');
 const PROJECTION = Symbol('snapback.maintainedProjection');
 const TABLE = Symbol('snapback.table');
+const DATA_RESOURCE_SPEC_FIELDS = new Set([
+  'listIndex', 'createDefaults', 'updateDefaults', 'immutable',
+]);
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
 const ASSET_UPLOAD = Symbol('snapback.assetUpload');
@@ -951,9 +954,18 @@ class TableBuilder {
     this.syncable = false;
   }
 
+  _assertDataTerminal(method) {
+    assert(
+      this.dataDeclaration === undefined,
+      `.data(...) is terminal; ${method}() cannot follow it`,
+      'SNAPBACK_DATA_RESOURCE_DECLARATION_INVALID',
+    );
+  }
+
   /** @ref LLP 0007#index-contract — uniqueness is part of the portable index
    *  declaration, not a handler convention. */
   index(name, fields, options = {}) {
+    this._assertDataTerminal('index');
     assert(Array.isArray(fields) && fields.length > 0, `index ${name} needs fields`);
     assert(new Set(fields).size === fields.length, `index ${name} fields must not contain duplicates`);
     assertKnownSpecFields(options, `index ${name} options`, new Set(['unique']));
@@ -972,6 +984,7 @@ class TableBuilder {
    * declarations compile to SearchIndexManifestV1, never backend query text.
    */
   searchIndex(name, spec) {
+    this._assertDataTerminal('searchIndex');
     assert(typeof name === 'string' && name.length > 0, 'searchIndex() requires a name');
     assertKnownSpecFields(spec, `search index ${name}`, SEARCH_INDEX_SPEC_FIELDS);
     assert(typeof spec.semanticVersion === 'string' && spec.semanticVersion.length > 0, `search index ${name} semanticVersion is required`);
@@ -1166,6 +1179,7 @@ class TableBuilder {
    * maintenance ceilings are derived/fixed facts, never author knobs.
    * @ref LLP 0132#index-declarations */
   vectorIndex(name, spec) {
+    this._assertDataTerminal('vectorIndex');
     assert(typeof name === 'string' && name.length > 0, 'vectorIndex() requires a name');
     assertKnownSpecFields(spec, `vector index ${name}`, VECTOR_INDEX_SPEC_FIELDS);
     assert(typeof spec.semanticVersion === 'string' && spec.semanticVersion.length > 0, `vector index ${name} semanticVersion is required`);
@@ -1273,6 +1287,7 @@ class TableBuilder {
   /** Declare the one table-wide aggregate live-search subscription ceiling.
    * @ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal */
   searchLiveLimits(spec = {}) {
+    this._assertDataTerminal('searchLiveLimits');
     assert(
       this.searchLiveLimitsDeclaration === undefined,
       'searchLiveLimits() may be declared only once per table',
@@ -1292,7 +1307,69 @@ class TableBuilder {
   /** @ref LLP 0004#relationship-to-sync-and-realtime — only declared-syncable
    *  tables back the restricted syncable-live subset. */
   sync() {
+    this._assertDataTerminal('sync');
     this.syncable = true;
+    this.syncSource = 'authored';
+    return this;
+  }
+
+  /**
+   * Mark this table for the closed DataResourceV1 generated surface. This is
+   * intentionally terminal: every fact used by the lowerer is fixed before
+   * the declaration is recorded, and the returned TypeScript surface exposes
+   * no further table-builder methods.
+   *
+   * @ref LLP 0255#s1-exact-data-resource-authoring-grammar
+   */
+  data(spec = {}) {
+    assert(
+      this.dataDeclaration === undefined,
+      '.data(...) may be declared only once per table',
+      'SNAPBACK_DATA_RESOURCE_DECLARATION_INVALID',
+    );
+    assertKnownSpecFields(
+      spec,
+      '.data(...)',
+      DATA_RESOURCE_SPEC_FIELDS,
+      'SNAPBACK_DATA_RESOURCE_DECLARATION_INVALID',
+    );
+    const normalizeDefaults = (value, where) => {
+      if (value === undefined) return undefined;
+      assert(
+        value && typeof value === 'object' && !Array.isArray(value),
+        `.data(...) ${where} must be an object`,
+        'SNAPBACK_DATA_RESOURCE_DECLARATION_INVALID',
+      );
+      return Object.fromEntries(Object.entries(value));
+    };
+    if (spec.listIndex !== undefined) {
+      assert(
+        typeof spec.listIndex === 'string' && spec.listIndex.length > 0,
+        '.data(...) listIndex must be a non-empty index name',
+        'SNAPBACK_DATA_RESOURCE_DECLARATION_INVALID',
+      );
+    }
+    if (spec.immutable !== undefined) {
+      assert(
+        Array.isArray(spec.immutable)
+          && spec.immutable.every((field) => typeof field === 'string' && field.length > 0)
+          && new Set(spec.immutable).size === spec.immutable.length,
+        '.data(...) immutable must be an array of distinct field names',
+        'SNAPBACK_DATA_RESOURCE_DECLARATION_INVALID',
+      );
+    }
+    this.dataDeclaration = Object.freeze({
+      ...(spec.listIndex === undefined ? {} : { listIndex: spec.listIndex }),
+      ...(spec.createDefaults === undefined
+        ? {}
+        : { createDefaults: Object.freeze(normalizeDefaults(spec.createDefaults, 'createDefaults')) }),
+      ...(spec.updateDefaults === undefined
+        ? {}
+        : { updateDefaults: Object.freeze(normalizeDefaults(spec.updateDefaults, 'updateDefaults')) }),
+      ...(spec.immutable === undefined
+        ? {}
+        : { immutable: Object.freeze([...spec.immutable]) }),
+    });
     return this;
   }
 
@@ -1301,6 +1378,7 @@ class TableBuilder {
    * unbounded v1 spelling.
    * @ref LLP 0162#6-bounded-history-and-named-checkpoints */
   history(spec) {
+    this._assertDataTerminal('history');
     assert(this.historyDeclaration === undefined, 'history() may be declared only once per table');
     exactObject(spec, 'history()', new Set(['retainMs', 'maxVersionsPerRecord']));
     assert(
@@ -1326,6 +1404,7 @@ class TableBuilder {
    * @ref LLP 0053#two-orthogonal-declarations — permission backing is the
    *   independent authorization-dependence axis. */
   permissionBacking(fields) {
+    this._assertDataTerminal('permissionBacking');
     assert(!this.permissionBackingDeclared, 'permissionBacking() may be declared only once per table');
     assert(!this.membershipDeclaration, 'permissionBacking() cannot be combined with membership()');
     if (fields !== undefined) {
@@ -1346,6 +1425,7 @@ class TableBuilder {
    * @ref LLP 0056#declaring-a-membership-table — one declaration owns the
    * permission-backing derivation and its generated indexes. */
   membership(spec) {
+    this._assertDataTerminal('membership');
     assert(!this.membershipDeclaration, 'membership() may be declared only once per table');
     assert(!this.permissionBackingDeclared, 'membership() cannot be combined with permissionBacking()');
     this.membershipDeclaration = normalizeMembership(spec);
@@ -1363,6 +1443,7 @@ class TableBuilder {
    *   — hierarchy sugar is a codegen projection over canonical membership.
    */
   authorityProfile(spec) {
+    this._assertDataTerminal('authorityProfile');
     if (!this.authorityProfileDeclarations) this.authorityProfileDeclarations = [];
     this.authorityProfileDeclarations.push({
       afterMembership: this.membershipDeclaration !== undefined,
@@ -1399,6 +1480,7 @@ class TableBuilder {
    * @ref LLP 0231#d1--the-table-is-the-policy-locus-queries-refine — every
    *   table policy has one explicit, reviewable declaration locus. */
   visibility(spec) {
+    this._assertDataTerminal('visibility');
     assert(
       !this.visibilityDeclaration,
       'visibility() may be declared only once per table',
@@ -1489,6 +1571,7 @@ class TableBuilder {
    *   existence, because a row filter alone can be broader than any query
    *   path actually exposes. */
   assetSharing(spec) {
+    this._assertDataTerminal('assetSharing');
     assert(!this.assetSharingDeclaration, 'assetSharing() may be declared only once per table');
     assert(spec && typeof spec === 'object' && !Array.isArray(spec), 'assetSharing() expects a spec object');
     assert(ASSET_SHARING_KINDS.has(spec.kind), "assetSharing() kind must be 'public-read', 'owner', or 'membership'");

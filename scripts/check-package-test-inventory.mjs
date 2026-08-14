@@ -62,6 +62,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'application-ready.test.mjs',
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
+      'data-promotion.test.mjs',
       'declaration-suggestion-cli.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
@@ -292,6 +293,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'client-lifecycle.test.mjs',
       'contract-binding-reads.test.mjs',
       'contract-output-mode.test.mjs',
+      'data-resource.test.mjs',
       'data-tier-corpus.test.mjs',
       'declaration-suggestion.test.mjs',
       'dependency-graph.test.mjs',
@@ -494,7 +496,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 276,
+  expectedTotal = 278,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -872,6 +874,9 @@ export function checkPackageTestInventories(options = {}) {
 // 274 -> 276 (2026-08-13, LLP 0253 Phase C): @expo/snapback-react gains the
 // familiar projection/admission suite and @expo/snapback gains its thin-package
 // identity/metadata suite.
+// 276 -> 278 (2026-08-13, LLP 0254 Phase 1): @expo/snapback-codegen gains
+// the DataResourceV1 declaration/lowering/witness/refusal corpus and
+// @expo/snapback-cli gains the preview/approval/promotion custody suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

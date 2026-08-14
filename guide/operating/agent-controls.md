@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-06
-reviewed-authorities-digest: sha256:b8784542ae2f90c964cfd9e17df728f5e7681a8964a5568504d60c356b59b6d8
+reviewed-authorities-digest: sha256:75f5b707ea9db54c16456455dbb49bbe5b8e4d5217ecb69f6cc061b87d64e04e
 ---
 
 # Discover agent controls
@@ -86,16 +86,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **153 operations** at digest `sha256:705535ba641db455ac21619a05838308a306a575c9cfb0558a86393e58de771a`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **154 operations** at digest `sha256:6dc9ae941bd5ca77cca4420b991374143bf8a0d2a51105701167284ca3f4f708`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 54 |
-| surfaceAccess | `cliOnly` | 51 |
+| surfaceAccess | `cliOnly` | 52 |
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 42 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 114 |
+| operability | `direct` | 115 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 21 |
@@ -171,6 +171,7 @@ The embedded build catalog contains **153 operations** at digest `sha256:705535b
 | `cli.packaged.audit` | `cliOnly` | `direct` | `shipped` | snapback audit | — | deploying/releases.md#verify-the-control-audit-chain |
 | `cli.packaged.author` | `cliOnly` | `direct` | `shipped` | snapback author | — | getting-started/the-authoring-loop.md#suggest-review-and-apply-a-result-contract |
 | `cli.packaged.backup` | `cliOnly` | `direct` | `shipped` | snapback backup | — | deploying/releases.md#inspect-retained-backups |
+| `cli.packaged.data` | `cliOnly` | `direct` | `shipped` | snapback data | — | data/resources.md#promote-one-write |
 | `cli.packaged.deploy` | `cliOnly` | `direct` | `shipped` | snapback deploy | — | deploying/releases.md#build-and-verify-the-release-closure |
 | `cli.packaged.dev` | `cliOnly` | `direct` | `shipped` | snapback dev | — | getting-started/the-authoring-loop.md |
 | `cli.packaged.doctor` | `cliOnly` | `direct` | `shipped` | snapback doctor | — | operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first |

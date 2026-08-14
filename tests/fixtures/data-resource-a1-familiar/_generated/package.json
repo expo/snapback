@@ -1,0 +1,35 @@
+{
+  "exports": {
+    ".": {
+      "types": "./api.d.ts",
+      "import": "./api.mjs"
+    },
+    "./app": {
+      "types": "./app.d.ts",
+      "import": "./app.mjs"
+    },
+    "./app-descriptor": "./app.descriptor.json",
+    "./capabilities": "./capability.manifest.json",
+    "./client-lifecycle": "./client-lifecycle.manifest.json",
+    "./contract/*": "./contract/*",
+    "./data": {
+      "types": "./data.d.ts",
+      "import": "./data.mjs"
+    },
+    "./functions": "./functions.manifest.json",
+    "./handler-runtime-profile": "./handler-runtime-profile.v1.json",
+    "./normalized-definition": "./normalized-definition.v1.json",
+    "./operations/*": "./operations/*",
+    "./provider-bindings": {
+      "types": "./provider-bindings.d.ts",
+      "default": "./provider-bindings.json"
+    },
+    "./provider-introspection": "./provider-introspection.json",
+    "./schema": "./schema.manifest.json",
+    "./server": {
+      "types": "./server.d.ts",
+      "import": "./server.mjs"
+    }
+  },
+  "type": "module"
+}

@@ -4,12 +4,13 @@ export {
   v,
 } from './define.js';
 
-export declare function defineTable(
-  fields: Parameters<typeof import('./define.js').defineTable>[0],
-): ReturnType<typeof import('./define.js').defineTable>;
+import type { TableBuilder, Validator } from './define.js';
+
+export declare function defineTable<const Fields extends Record<string, Validator>>(
+  fields: Fields,
+): TableBuilder<Fields>;
 
 type Auth = 'public' | 'optional-user' | 'authenticated';
-type Validator = Readonly<Record<string, unknown>>;
 type Handler = (ctx: any, args: any) => unknown;
 type Common = Readonly<{
   args: Readonly<Record<string, Validator>>;

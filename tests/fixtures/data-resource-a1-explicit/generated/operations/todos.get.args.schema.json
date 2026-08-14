@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/fixtures/todos.get.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "title": "fixtures:todos.get arguments",
+  "type": "object"
+}

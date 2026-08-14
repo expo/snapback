@@ -189,6 +189,13 @@ export interface SnapbackFunctionReference<
     }>[];
   }>;
   readonly argumentSchema?: Readonly<Record<string, unknown>>;
+  readonly argumentCapabilityRefusals?: readonly Readonly<{
+    readonly argument: string;
+    readonly when: 'present';
+    readonly code: string;
+    readonly guideAnchor: string;
+    readonly alternative: string;
+  }>[];
   readonly resultContractHash: string;
   readonly authoredSourceHash?: `sha256:${string}`;
   readonly searchRequestContractHash?: string;

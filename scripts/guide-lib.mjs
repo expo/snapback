@@ -57,7 +57,9 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // visible in the index rather than only on the page.
 // Round 3 preserves both the LLP 0244 and LLP 0245-0249 rows while tightening
 // the prose to the charter's pre-wave hard ceiling.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 55808;
+// Bumped 55808 -> 56832 on 2026-08-13 for LLP 0254 Phase 1's one bounded
+// data.resources-v1 capability row.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 56832;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

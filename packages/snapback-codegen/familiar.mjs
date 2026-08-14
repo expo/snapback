@@ -273,5 +273,9 @@ export function action(spec) {
 // @ref LLP 0253#s46-delivery — syncability is a versioned familiar-profile
 // default, while the canonical builder and explicit profile remain unchanged.
 export function defineTable(fields) {
-  return defineCanonicalTable(fields).sync();
+  const table = defineCanonicalTable(fields).sync();
+  // @ref LLP 0255#s1-exact-data-resource-authoring-grammar — familiar
+  // profile sync is a versioned default, not an authored per-table decision.
+  table.syncSource = 'profile-default';
+  return table;
 }

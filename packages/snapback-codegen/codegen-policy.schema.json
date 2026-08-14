@@ -22,6 +22,10 @@
     "contractMetadata": {
       "const": "exact",
       "description": "Emit Exact-dependent .contract-meta.ts sidecars in addition to Contract-neutral bindings."
+    },
+    "dataSync": {
+      "const": "disabled",
+      "description": "Disable live delivery and local materialization for every declared DataResourceV1."
     }
   },
   "additionalProperties": false

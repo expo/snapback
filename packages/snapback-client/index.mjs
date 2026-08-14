@@ -806,6 +806,10 @@ const RQS_PRE_SUBSCRIBE_DURABLE_BUFFER_CAP = 1_024;
 // @ref LLP 0031#the-invariant — app-data names must never normalize into the
 // privileged system namespace.
 const GENERATED_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+// @ref LLP 0255#s2-lowering-to-standard-operations — DataResourceV1 owns the
+// one-segment resource.operation namespace; collection names remain plain
+// identifiers and additional nesting stays unavailable.
+const GENERATED_OPERATION_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*\.(?:list|get|create|update|delete))$/;
 const AUTHORIZED_LEASE_V1_DURATION_MS = 86_400_000;
 // Channel B persistence cadence (LLP 0091 §0A.5): trailing debounce after the
 // last result-changing envelope, hard cap under continuous change, immediate
@@ -15400,9 +15404,9 @@ function functionName(ref) {
   // @ref LLP 0100#product-receipt — Team Chat observes the caller's own seat
   // drop through the ordinary client at the same authorization cut.
   if (name === '_snapback.assetRecord' || name === '_snapback.myMemberships') return name;
-  if (typeof name === 'string' && GENERATED_IDENTIFIER.test(name)) return name;
+  if (typeof name === 'string' && GENERATED_OPERATION_NAME.test(name)) return name;
   if (typeof name === 'string') {
-    throw new TypeError(`Snapback function name must match ${GENERATED_IDENTIFIER}, got ${JSON.stringify(name)}`);
+    throw new TypeError(`Snapback function name must match ${GENERATED_OPERATION_NAME}, got ${JSON.stringify(name)}`);
   }
   throw new TypeError(`Snapback function reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
 }
@@ -15500,6 +15504,34 @@ function outboxReplayReference(record) {
 function validateGeneratedArguments(ref, args, name = functionName(ref)) {
   const normalized = normalizeGeneratedArgumentsV1(ref, args);
   if (typeof ref === 'string') return normalized;
+  for (const refusal of ref.argumentCapabilityRefusals ?? []) {
+    if (
+      refusal?.when === 'present'
+      && typeof refusal.argument === 'string'
+      && Object.hasOwn(normalized, refusal.argument)
+    ) {
+      const diagnostic = Object.freeze({
+        schemaVersion: 'snapback.client-diagnostic.v2',
+        code: refusal.code,
+        severity: 'error',
+        subsystem: 'data-query',
+        message: `${name} cannot admit the present ${refusal.argument} argument in this generation`,
+        details: Object.freeze({
+          function: name,
+          argument: refusal.argument,
+          guideAnchor: refusal.guideAnchor,
+          alternative: refusal.alternative,
+        }),
+      });
+      throw new SnapbackDiagnosticError(diagnostic, {
+        message: diagnostic.message,
+        operation: 'argument-capability-admission',
+        refKind: ref.kind ?? null,
+        effectCommitted: false,
+        effectMayHaveCommitted: false,
+      });
+    }
+  }
   if (ref.argumentSchema == null) return normalized;
   const problems = [];
   validateArgumentSchemaNode(ref.argumentSchema, normalized, 'args', problems);

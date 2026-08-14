@@ -3521,6 +3521,196 @@ function printResult(result, json) {
   else console.error(JSON.stringify(result, null, 2));
 }
 
+const DATA_PROMOTION_SCHEMA_VERSION = 'snapback.data-promotion.v1';
+
+function dataPromotionFailure(message, details = {}) {
+  return {
+    schemaVersion: 'snapback.data-promotion-result.v1',
+    ok: false,
+    code: 'SNAPBACK_DATA_PROMOTION_REFUSED',
+    message,
+    guideAnchor: 'guide/data/resources#promote-one-write',
+    details,
+  };
+}
+
+function dataPromotionBackend(cwd) {
+  const root = resolve(cwd);
+  if (existsSync(join(root, 'schema.mjs')) || existsSync(join(root, 'schema.ts'))) return root;
+  return join(root, 'snapback');
+}
+
+function renderDataPromotionSource(resourceEnvelope, operation) {
+  const { core, normalizedDataResourceId } = resourceEnvelope;
+  const selected = core.operations.find((candidate) => candidate.name === operation);
+  const ownerField = core.access.ownerField;
+  const createDefaults = Object.fromEntries(core.fields
+    .filter((field) => field.source === 'authored'
+      && !field.ownerAssigned
+      && field.default !== null
+      && field.createInput === false)
+    .map((field) => [field.name, field.default]));
+  const updateDefaults = Object.fromEntries(core.fields
+    .filter((field) => field.source === 'authored'
+      && !field.ownerAssigned
+      && field.default !== null
+      && field.updateInput === false
+      && field.immutable === false)
+    .map((field) => [field.name, field.default]));
+  const immutable = core.fields
+    .filter((field) => field.source === 'authored' && !field.ownerAssigned && field.immutable)
+    .map((field) => field.name);
+  const listIndex = core.indexes.find((index) => index.listIndex)?.name;
+  const operationKey = `__dataPromote${operation[0].toUpperCase()}${operation.slice(1)}`;
+  const local = `__snapbackPromoted${resourceEnvelope.core.resource[0].toUpperCase()}${resourceEnvelope.core.resource.slice(1)}${operation[0].toUpperCase()}${operation.slice(1)}`;
+  const marker = {
+    schemaVersion: DATA_PROMOTION_SCHEMA_VERSION,
+    resource: core.resource,
+    operation,
+    normalizedDataResourceId,
+    frozenFacts: {
+      access: core.access,
+      fields: core.fields,
+      index: core.indexes.find((index) => index.listIndex),
+      operation: selected,
+      sync: core.sync,
+      ceilings: core.ceilings,
+      refusalVocabulary: core.refusalVocabulary,
+    },
+  };
+  const options = {
+    names: {
+      list: '__dataPromoteList',
+      get: '__dataPromoteGet',
+      create: '__dataPromoteCreate',
+      update: '__dataPromoteUpdate',
+      delete: '__dataPromoteDelete',
+    },
+    visibility: { kind: 'owner', field: ownerField },
+    createDefaults,
+    updateDefaults,
+    immutable,
+    listIndex,
+  };
+  return [
+    '',
+    '// Generated promotion scaffold. Review the frozen facts before approval.',
+    '// @ref LLP 0255#s10-promotion-protocol',
+    `import { results as __snapbackDataResults, v as __snapbackDataV } from '@expo/snapback-codegen/define';`,
+    `import { defineOwnedCrud as __snapbackDefineOwnedCrud } from '@expo/snapback-codegen/standard-patterns';`,
+    `import __snapbackDataSchema from './schema.mjs';`,
+    `const __snapbackDataPromotionSet = __snapbackDefineOwnedCrud(${JSON.stringify({ ...options, table: null }, null, 2).replace('"table": null', `"table": __snapbackDataSchema.tables[${JSON.stringify(core.table)}]`)});`,
+    `const ${local} = __snapbackDataPromotionSet[${JSON.stringify(operationKey)}];`,
+    ...(operation === 'delete'
+      ? [`${local}.resultContract = __snapbackDataResults.value(__snapbackDataV.null());`]
+      : []),
+    `${local}.__dataPromotion = Object.freeze(${JSON.stringify(marker, null, 2)});`,
+    `export { ${local} as ${JSON.stringify(`${core.resource}.${operation}`)} };`,
+    '',
+  ].join('\n');
+}
+
+/** Build the deterministic, identity-bound promotion preview without writing. */
+export async function previewDataPromotion(target, format, options = {}) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*\.(?:create|update|delete)$/u.test(target ?? '')) {
+    return dataPromotionFailure(
+      'target must be resource.create, resource.update, or resource.delete',
+      { target },
+    );
+  }
+  if (format !== 'explicit' && format !== 'familiar') {
+    return dataPromotionFailure('format must be explicit or familiar', { format });
+  }
+  const backend = dataPromotionBackend(options.cwd ?? process.cwd());
+  const generated = await generate(backend, { check: true });
+  if (!generated.ok) {
+    return dataPromotionFailure('current source does not pass complete codegen preflight', {
+      backend,
+      diagnostics: generated.diagnostics,
+    });
+  }
+  const expectedProfile = format === 'explicit'
+    ? 'snapback-explicit-v1'
+    : 'snapback-familiar-ts-v1';
+  if (generated.schemaManifest.authoringProfile !== expectedProfile) {
+    return dataPromotionFailure('requested format does not match the selected authoring profile', {
+      format,
+      selectedAuthoringProfile: generated.schemaManifest.authoringProfile,
+    });
+  }
+  const [resourceName, operation] = target.split('.');
+  const resource = generated.dataResources.find(({ core }) => core.resource === resourceName);
+  if (!resource?.core.operations.some((candidate) => candidate.name === operation)) {
+    return dataPromotionFailure('target does not name an active generated data write', { target });
+  }
+  if (format === 'familiar') {
+    return dataPromotionFailure(
+      'familiar v1 refuses owner-write promotion because the profile cannot express the generated owner guard; use --format explicit',
+      { target, alternative: `snapback data promote ${target} --format explicit` },
+    );
+  }
+  const activeManifestPath = join(generated.outDir, 'schema.manifest.json');
+  if (!existsSync(activeManifestPath)) {
+    return dataPromotionFailure('no active generated schema manifest exists; run snapback generate first', {
+      path: activeManifestPath,
+    });
+  }
+  const activeManifest = JSON.parse(readFileSync(activeManifestPath, 'utf8'));
+  if (activeManifest.authoredSourceHash !== generated.authoredSourceHash) {
+    return dataPromotionFailure('generated artifacts are stale relative to the current source graph', {
+      activeAuthoredSourceHash: activeManifest.authoredSourceHash,
+      currentAuthoredSourceHash: generated.authoredSourceHash,
+    });
+  }
+  const destination = join(backend, 'functions.mjs');
+  if (!existsSync(destination)) {
+    return dataPromotionFailure('explicit promotion destination functions.mjs does not exist', { destination });
+  }
+  const before = readFileSync(destination, 'utf8');
+  const patch = renderDataPromotionSource(resource, operation);
+  return {
+    schemaVersion: 'snapback.data-promotion-result.v1',
+    ok: true,
+    applied: false,
+    approvalRequired: true,
+    target,
+    format,
+    destination,
+    destinationSha256: `sha256:${createHash('sha256').update(before).digest('hex')}`,
+    normalizedDataResourceId: resource.normalizedDataResourceId,
+    patch,
+    frozenFacts: resource.core.operations.find((candidate) => candidate.name === operation),
+    semanticDiff: {
+      removedGeneratedMember: target,
+      addedAuthoredMember: target,
+      normalizedDataResourceId: 'unchanged',
+      functionStandardPattern: 'data-resource.v1 -> owned-crud.v1',
+      implementationIdentity: 'rotates',
+      evidenceIdentity: 'rotates',
+    },
+  };
+}
+
+/** Apply only the exact preview bytes to the exact previewed destination. */
+export function applyDataPromotionPreview(preview) {
+  if (!preview?.ok || preview.approvalRequired !== true) {
+    return dataPromotionFailure('promotion apply requires a successful approved preview');
+  }
+  const before = readFileSync(preview.destination, 'utf8');
+  const digest = `sha256:${createHash('sha256').update(before).digest('hex')}`;
+  if (digest !== preview.destinationSha256) {
+    return dataPromotionFailure('promotion destination changed after preview', {
+      destination: preview.destination,
+      expected: preview.destinationSha256,
+      actual: digest,
+    });
+  }
+  const temporary = `${preview.destination}.data-promotion-${process.pid}`;
+  writeFileSync(temporary, `${before.replace(/\s*$/u, '')}\n${preview.patch}`);
+  renameSync(temporary, preview.destination);
+  return { ...preview, applied: true, approvalRequired: false };
+}
+
 function declarationSuggestionCliFailure(message, details = {}) {
   const code = 'SNAPBACK_AUTHORING_SUGGESTION_INPUT_INVALID';
   if (!DECLARATION_SUGGESTION_REASON_CODES.includes(code)) {
@@ -3577,6 +3767,12 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     description: 'Generate and validate reviewable app artifacts, or run the complete preflight without emission.', lifecycle: 'one-shot',
     output: 'snapback.generate.v1', exits: '0 complete generation/preflight; 1 diagnostics contain a refusal',
     recovery: 'Repair the emitted source/artifact diagnostic, then rerun generation.',
+  },
+  {
+    name: 'data', usage: 'snapback data promote <resource.create|resource.update|resource.delete> --format <explicit|familiar> [--json]',
+    description: 'Preview and explicitly approve one identity-bound generated data-write promotion scaffold.', lifecycle: 'one-shot (preview is read-only; approval appends one stale-checked source patch)',
+    output: 'snapback.data-promotion-result.v1 plus deterministic patch and semantic diff', exits: '0 preview/application completed; 1 stale, mismatched, unsupported, or unsafe promotion',
+    recovery: 'Regenerate stale artifacts, select the active authoring profile, or use --format explicit for owner writes.',
   },
   {
     name: 'reset', usage: 'snapback reset [<backend-dir>] --dev-fresh [--db <path>] [--ready-file <path>] [--email <address>] [--json]',
@@ -3699,6 +3895,11 @@ const HOSTED_LIFECYCLE_HELP_DETAILS = Object.freeze([
 // @ref LLP 0111#closed-request-and-command-registry — hosted lifecycle verb
 // spellings are derived from the exhaustive authority registry.
 export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
+  nestedCliHelp(
+    ['data', 'promote'],
+    'snapback data promote <resource.create|resource.update|resource.delete> --format <explicit|familiar> [--json]',
+    'Preview the frozen policy/plan/contract/effect facts, then append the exact explicit-profile scaffold only after approval.',
+  ),
   nestedCliHelp(
     ['author', 'suggest'],
     'snapback author suggest <operation-or-file> <--format patch|--json>',
@@ -3907,6 +4108,43 @@ export async function runCli(argv, options = {}) {
   if (json) args.splice(args.indexOf('--json'), 1);
   const auditActorId = takeFlag(args, '--audit-actor');
   if (auditActorId !== null) options = { ...options, auditActorId };
+  if (command === 'data') {
+    const subcommand = args.shift();
+    const target = args.shift();
+    const format = takeFlag(args, '--format');
+    if (subcommand !== 'promote' || !target || args.length > 0) {
+      const failure = dataPromotionFailure(
+        'usage: snapback data promote <resource.create|resource.update|resource.delete> --format <explicit|familiar>',
+      );
+      printResult(failure, json);
+      return 1;
+    }
+    const preview = await previewDataPromotion(target, format, options);
+    if (!preview.ok) {
+      printResult(preview, json);
+      return 1;
+    }
+    if (!json) {
+      process.stdout.write(`${preview.patch}\nSemantic diff: ${JSON.stringify(preview.semanticDiff, null, 2)}\n`);
+    }
+    let approved = false;
+    if (typeof options.confirmDataPromotion === 'function') {
+      approved = await options.confirmDataPromotion(preview) === true;
+    } else if (typeof options.confirmDataPromotion === 'boolean') {
+      approved = options.confirmDataPromotion;
+    } else if (process.stdin.isTTY && process.stdout.isTTY) {
+      approved = await new Promise((resolveApproval) => {
+        const prompt = createInterface({ input: process.stdin, output: process.stdout });
+        prompt.question('Apply this promotion? [y/N] ', (answer) => {
+          prompt.close();
+          resolveApproval(/^y(?:es)?$/iu.test(answer.trim()));
+        });
+      });
+    }
+    const result = approved ? applyDataPromotionPreview(preview) : preview;
+    printResult(result, json);
+    return result.ok ? 0 : 1;
+  }
   if (command === 'author') {
     const subcommand = args.shift();
     if (subcommand === 'suggest') {

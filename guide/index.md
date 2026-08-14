@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:c34ac7bcfbf2e5de9b9c4536a3ad6bd0791614514c36f1ba36418ea20ff84a38
+reviewed-authorities-digest: sha256:5b2a8a72165d469ef73ce705a2c09f5c97d941c45eeef3ecb1bea44c46fbf469
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -212,6 +212,12 @@ proof command, and honest nonclaims without opening every demo.
   `ctx.jobs.enqueue`, the declared job-status live query, the
   injected-clock drain, and secret-read-leased admin inspection
   (experimental).
+
+### Data resources
+
+- [Generate a tiny typed data resource](./data/resources.md) — terminal
+  `.data(...)`, owner/public eligibility, generated operations and witnesses,
+  application sync opt-out, Phase 1 cursor refusal, and stale-safe promotion.
 
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +

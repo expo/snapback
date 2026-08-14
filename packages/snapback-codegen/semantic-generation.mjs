@@ -558,6 +558,7 @@ export function buildSemanticGenerationInputs({
   schemaFieldSpans,
   generationLog,
   authoringProfile = EXPLICIT_AUTHORING_PROFILE,
+  dataSurface,
 }) {
   const graphRecords = [...(handlerRuntimeProfile?.moduleGraph?.records ?? [])]
     .map(canonicalHandlerGraphRecord)
@@ -581,6 +582,7 @@ export function buildSemanticGenerationInputs({
     // explicit-v1 spelling in semantic identity. Only a non-default source
     // profile adds bytes to the preimage.
     ...(authoringProfile === EXPLICIT_AUTHORING_PROFILE ? {} : { authoringProfile }),
+    ...(dataSurface === undefined ? {} : { dataSurface }),
     schema: {
       version: schemaManifest?.schemaVersion,
       auth: schemaManifest?.auth ?? null,

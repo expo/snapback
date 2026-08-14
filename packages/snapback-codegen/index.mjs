@@ -125,6 +125,14 @@ import {
   publishGenerationEnvelope,
   recordLatestEmittedGeneration,
 } from './semantic-generation.mjs';
+import {
+  assertDataFunctionRecordParity,
+  buildNormalizedDataResourceCore,
+  compileDataResourceDeclarations,
+  createDataResourceEnvelope,
+  renderDataModule,
+  renderDataTypes,
+} from './data-resource.mjs';
 
 const AUTH_ASSURANCE_KINDS = new Set([
   'authenticated', 'email_verified', 'phone_verified', 'recent_auth',
@@ -170,6 +178,40 @@ export {
   SURFACE_MAX_PARAMS,
   SURFACE_MAX_PER_APP,
   SURFACE_MAX_SCOPE_RECORD_FIELDS,
+};
+
+const dataDiagnosticDetails = (code) => {
+  const entries = {
+    SNAPBACK_DATA_RESOURCE_DECLARATION_INVALID: {
+      alternative: 'Use terminal .data({ listIndex?, createDefaults?, updateDefaults?, immutable? }) with no later table-builder call.',
+      guideAnchor: 'guide/data/resources#declare-one-terminal-resource',
+    },
+    SNAPBACK_DATA_RESOURCE_VISIBILITY_REQUIRED: {
+      alternative: 'Declare explicit owner or public-read table visibility before .data(), or use a named function.',
+      guideAnchor: 'guide/auth/protecting-data.md#declare-who-can-read-each-table',
+    },
+    SNAPBACK_DATA_RESOURCE_INELIGIBLE: {
+      alternative: 'Remove the named ineligible fact or author a selected-profile function for this table.',
+      guideAnchor: 'guide/data/resources#check-the-v1-eligibility-floor',
+    },
+    SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED: {
+      alternative: 'Name one valid ordinary list index; owner omission is allowed only with exactly one owner-leading candidate.',
+      guideAnchor: 'guide/backend/standard-patterns.md',
+    },
+    SNAPBACK_DATA_RESOURCE_SYNC_PER_TABLE_FORBIDDEN: {
+      alternative: 'Remove authored .sync(); use application codegen policy dataSync: "disabled" for the global opt-out.',
+      guideAnchor: 'guide/data/resources#choose-the-application-sync-mode',
+    },
+    SNAPBACK_DATA_OPERATION_NAME_COLLISION: {
+      alternative: 'Rename the authored export or remove .data(); generated data operation names never auto-rename.',
+      guideAnchor: 'guide/data/resources#declare-one-terminal-resource',
+    },
+    SNAPBACK_DATA_PROMOTION_REFUSED: {
+      alternative: 'Regenerate, keep the destination unchanged, and use the selected profile; owner writes require explicit format.',
+      guideAnchor: 'guide/data/resources#promote-one-write',
+    },
+  };
+  return entries[code] ?? {};
 };
 export {
   DECLARATION_SUGGESTION_REASON_CODES,
@@ -1845,6 +1887,7 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
       ? capabilityUnsupportedMessage(message)
       : message,
     ...handlerDiagnosticDetails(code),
+    ...dataDiagnosticDetails(code),
     ...extra,
   });
 
@@ -2855,7 +2898,11 @@ async function generateInProcessLocked({
       ...(table.searchLiveLimitsDeclaration !== undefined
         ? { searchLiveLimits: { ...table.searchLiveLimitsDeclaration } }
         : {}),
-      syncable: table.syncable,
+      // @ref LLP 0255#s13-sync-default-and-opt-out — data resources use the
+      // application-wide data profile, never the canonical builder boolean.
+      syncable: table.dataDeclaration === undefined
+        ? table.syncable
+        : codegenPolicy.dataSync !== 'disabled',
       ...(table.permissionBackingDeclared ? { permissionBacking: true } : {}),
       ...(Array.isArray(table.permissionFields) ? { permissionFields: table.permissionFields } : {}),
       ...(membership ? { membership } : {}),
@@ -3394,6 +3441,29 @@ async function generateInProcessLocked({
     }
   }
 
+  // @ref LLP 0255#s2-lowering-to-standard-operations —
+  // `.data()` lowers to ordinary function definitions before the existing
+  // validator/HostPlan/result-contract pipeline. No parallel runtime carrier
+  // or policy evaluator is introduced.
+  const dataDiagnosticStart = diagnostics.length;
+  const dataCompilation = compileDataResourceDeclarations({
+    schemaDef,
+    tableManifests: tables,
+    authoredFunctions: functionsModule,
+    authoringProfile,
+    dataSync: codegenPolicy.dataSync,
+    error: err,
+  });
+  Object.assign(functionsModule, dataCompilation.definitions);
+  const dataOperationNames = new Set(
+    dataCompilation.resources.flatMap(({ operationNames }) => operationNames),
+  );
+  if (diagnostics.slice(dataDiagnosticStart).some(
+    (diagnostic) => diagnostic.severity === 'error',
+  )) {
+    return { ok: false, diagnostics };
+  }
+
   // --- Build + validate functions --------------------------------------------
   const ephemeralCollections = buildEphemeralCollections(schemaDef.ephemeral, err, targetProfile);
   const functions = [];
@@ -3547,8 +3617,9 @@ async function generateInProcessLocked({
     // ES2022 `export { f as "any string" }` makes arbitrary export names
     // reachable, and `export { f as delete }` makes reserved words reachable.
     // Fail closed like the table/field/ephemeral/cron namespaces.
+    const generatedDataOperation = dataOperationNames.has(name);
     if (!OPERATION_NAME.test(name)
-      || name.split('.').some((segment) => RESERVED_WORDS.has(segment))) {
+      || (!generatedDataOperation && name.split('.').some((segment) => RESERVED_WORDS.has(segment)))) {
       err('FUNCTION_INVALID_IDENTIFIER', 'function', `invalid function export name ${name}`, { function: name });
       continue;
     }
@@ -5303,6 +5374,52 @@ async function generateInProcessLocked({
     functions,
     functionDefinitionSourceSpans,
   );
+  const decoratedFunctionByName = new Map(
+    decoratedFunctionDefinitions.map((fn) => [fn.name, fn]),
+  );
+  const normalizedDataResources = [];
+  try {
+    for (const draft of dataCompilation.resources) {
+      for (const name of draft.operationNames) {
+        assertDataFunctionRecordParity(decoratedFunctionByName.get(name));
+      }
+      const core = buildNormalizedDataResourceCore(
+        draft,
+        decoratedFunctionByName,
+        generationDomainHash,
+      );
+      normalizedDataResources.push({
+        id: generationDomainHash('snapback:normalized-data-resource:v1', core),
+        core,
+        operationNames: [...draft.operationNames],
+        sourceSpan: schemaPropertySourceSpans[`table:${draft.table}`] ?? null,
+        promotedNames: [...draft.promotedNames],
+      });
+      for (const name of draft.promotedNames) {
+        const marker = dataCompilation.promotions.get(name);
+        const normalizedDataResourceId = generationDomainHash(
+          'snapback:normalized-data-resource:v1',
+          core,
+        );
+        if (marker.normalizedDataResourceId !== normalizedDataResourceId) {
+          throw Object.assign(new Error(
+            `${name} promotion witness is stale: expected ${normalizedDataResourceId}, found ${marker.normalizedDataResourceId}`,
+          ), {
+            code: 'SNAPBACK_DATA_PROMOTION_REFUSED',
+            details: { function: name, expected: normalizedDataResourceId, found: marker.normalizedDataResourceId },
+          });
+        }
+      }
+    }
+  } catch (cause) {
+    err(
+      cause.code ?? 'SNAPBACK_DATA_RESOURCE_INELIGIBLE',
+      'data-resource',
+      cause.message,
+      cause.details ?? {},
+    );
+    return { ok: false, diagnostics };
+  }
   for (const fn of decoratedFunctionDefinitions) {
     if (fn.kind === 'Action' && resultContractContainsMedia(fn.resultContract)) {
       err(
@@ -5994,6 +6111,11 @@ async function generateInProcessLocked({
     ],
     ephemeralCollections,
     tables: Object.values(tables),
+    ...(normalizedDataResources.length === 0
+      ? {}
+      : {
+          dataResources: normalizedDataResources.map(({ id, core }) => ({ id, core })),
+        }),
   };
   // @ref LLP 0058#capability-maturity — the artifact pair's experimental
   // acknowledgments: exactly the experimental ids this pair requires
@@ -6082,6 +6204,18 @@ async function generateInProcessLocked({
         .sort((left, right) => compareCodeUnits(left.code, right.code)),
     },
     authoringProfile,
+    ...(normalizedDataResources.length === 0
+      ? {}
+      : {
+          dataSurface: {
+            profile: 'snapback.data-surface.v1',
+            sync: codegenPolicy.dataSync === 'disabled' ? 'disabled' : 'enabled',
+            resources: normalizedDataResources.map(({ id, core }) => ({ id, core })),
+            queryCatalog: [],
+            transactionCatalog: [],
+            transactionProfile: 'snapback.data-transaction.v1',
+          },
+        }),
   });
   const normalizedDefinition = buildNormalizedApplicationDefinitionV1({
     schemaManifest,
@@ -6242,6 +6376,23 @@ async function generateInProcessLocked({
     authoredSourceHash,
     functionDefinitionSourceSpans,
   );
+  const dataResourceWitnesses = normalizedDataResources.map((resource) => ({
+    artifactKind: 'dataResourceWitness',
+    schemaVersion: 'snapback.data-resource-witness.v1',
+    core: resource.core,
+    normalizedDataResourceId: resource.id,
+    functionReferences: resource.operationNames.map((name) => (
+      generatedReferences.api.queries[name]
+        ?? generatedReferences.api.mutations[name]
+    )),
+    sourceSpan: resource.sourceSpan,
+  }));
+  const dataModule = dataResourceWitnesses.length === 0
+    ? null
+    : renderDataModule(dataResourceWitnesses);
+  const dataTypes = dataResourceWitnesses.length === 0
+    ? null
+    : renderDataTypes(dataResourceWitnesses);
   const generatedCommands = buildGeneratedCommands({
     commandDefs,
     functionsModule,
@@ -6510,6 +6661,14 @@ async function generateInProcessLocked({
       './app-descriptor': './app.descriptor.json',
       './schema': './schema.manifest.json',
       './functions': './functions.manifest.json',
+      ...(dataResourceWitnesses.length === 0
+        ? {}
+        : {
+            './data': {
+              types: './data.d.ts',
+              import: './data.mjs',
+            },
+          }),
       './normalized-definition': './normalized-definition.v1.json',
       './handler-runtime-profile': './handler-runtime-profile.v1.json',
       './capabilities': './capability.manifest.json',
@@ -6559,7 +6718,7 @@ async function generateInProcessLocked({
     bundleHash,
     authoredSourceHash,
     ...(activationGenerationAdvanced === null ? {} : { activationGenerationAdvanced }),
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'normalized-definition.v1.json', 'handler-runtime-profile.v1.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, CLIENT_LIFECYCLE_MANIFEST_FILE, 'client-lifecycle.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', ...(apiFlatModule ? ['api.flat.mjs'] : []), ...(familiarServerModule ? ['server.mjs', 'server.d.ts'] : []), API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'normalized-definition.v1.json', 'handler-runtime-profile.v1.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, CLIENT_LIFECYCLE_MANIFEST_FILE, 'client-lifecycle.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', ...(dataResourceWitnesses.length === 0 ? [] : ['data.mjs', 'data.d.ts']), ...(apiFlatModule ? ['api.flat.mjs'] : []), ...(familiarServerModule ? ['server.mjs', 'server.d.ts'] : []), API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -6607,6 +6766,8 @@ async function generateInProcessLocked({
       apiModule,
       apiFlatModule,
       apiTypes,
+      dataModule,
+      dataTypes,
       familiarServerModule,
       familiarServerTypes,
       apiEnvelopeMembers,
@@ -6758,6 +6919,7 @@ async function generateInProcessLocked({
     inputsHash,
     authoredSourceHash,
     identities: splitIdentities,
+    semanticInput: generationIdentityInputs.semanticInput,
     outDir,
     schemaManifest,
     functionManifest,
@@ -6777,6 +6939,27 @@ async function generateInProcessLocked({
     emitted: !checkOnly,
     cacheGraphRoot: verifiedGraph?.graphRoot ?? null,
     generationEnvelopeRoot: generationEnvelope?.envelopeRoot ?? null,
+    dataResources: dataResourceWitnesses.length === 0
+      ? []
+      : dataResourceWitnesses.map((resource) => createDataResourceEnvelope(
+          resource.core,
+          {
+            appId,
+            targetProfileId: targetProfile,
+            authoringProfile,
+            semanticId: splitIdentities.semanticId,
+            executableId: splitIdentities.executableId,
+            evidenceId: splitIdentities.evidenceId,
+            bundleId: splitIdentities.bundleId,
+            generationId: splitIdentities.generationId,
+            schemaVersion: 1,
+            schemaHash,
+            authoredSourceHash,
+          },
+          resource.sourceSpan,
+          generationDomainHash,
+          resource.functionReferences,
+        )),
   };
 
   // Cache and hash by the fd-attested target's canonical backend-relative POSIX
@@ -12190,6 +12373,7 @@ function renderMicroDeclaration(functions, functionsModule, schemaDef) {
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
     "export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };",
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
+    "export type DataCursorV1 = `dc1.${string}`;",
     'export interface MicroDataModel {',
   ];
   for (const tableName of [...selectedTables].sort()) {
@@ -13008,6 +13192,18 @@ function buildGeneratedReferences(
       authoredSourceHash,
       sourceSpan: generatedReferenceSourceSpan(functionSourceSpans, fn.name, 'functions.mjs'),
       resultContract: fn.resultContract,
+      ...(fn.standardPattern?.helper === 'data-resource.v1'
+        && fn.name.endsWith('.list')
+        ? {
+            argumentCapabilityRefusals: [{
+              argument: 'after',
+              when: 'present',
+              code: 'SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE',
+              guideAnchor: 'guide/data/resources#continue-a-list',
+              alternative: 'Omit after and request the first page until the Phase 2 continuation executor is available.',
+            }],
+          }
+        : {}),
       ...(mutationIr ? { mutationIr } : {}),
       ...(composition ? {
         composition: {
@@ -13417,6 +13613,7 @@ function renderApiTypes(
       : []),
     "export type SchemaVersion = 'snapback.v0';",
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
+    "export type DataCursorV1 = `dc1.${string}`;",
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
     "export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };",
     "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';",
@@ -13484,6 +13681,7 @@ function renderApiTypes(
     '  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;',
     '  readonly artifacts?: GeneratedArtifacts;',
     '  argumentSchema: Readonly<Record<string, unknown>>;',
+    "  argumentCapabilityRefusals?: readonly Readonly<{ argument: string; when: 'present'; code: string; guideAnchor: string; alternative: string }>[];",
     '  readonly __args?: Args;',
     '  readonly __result?: Result;',
     '}',
@@ -14300,6 +14498,8 @@ function typeForGeneratedValidator(val) {
   if (val.primitive === 'platformSchemaRef') {
     // api.d.ts declares the derived SearchQueryAstV1 type (renderApiTypes).
     type = 'SearchQueryAstV1';
+  } else if (val.dataCursorV1 === true) {
+    type = 'DataCursorV1';
   } else if (val.resultKind === 'null') type = 'null';
   else if (val.resultKind === 'literal') type = JSON.stringify(val.literal);
   else if (val.resultKind === 'vector') {
@@ -15192,6 +15392,7 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
       committedProjections: [],
       contractMetadata: null,
       authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+      dataSync: null,
     };
   }
   let source;
@@ -15216,16 +15417,18 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
       committedProjections: [],
       contractMetadata: null,
       authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+      dataSync: null,
     };
   }
   const requiredKeys = ['committedProjections', 'schemaVersion'];
-  const allowedKeys = [...requiredKeys, 'authoringProfile', 'contractMetadata'];
+  const allowedKeys = [...requiredKeys, 'authoringProfile', 'contractMetadata', 'dataSync'];
   const actualKeys = policy && typeof policy === 'object' && !Array.isArray(policy)
     ? Object.keys(policy).sort()
     : [];
   const committed = policy?.committedProjections;
   const contractMetadata = policy?.contractMetadata;
   const authoringProfile = policy?.authoringProfile;
+  const dataSync = policy?.dataSync;
   if (
     authoringProfile !== undefined
     && authoringProfile !== EXPLICIT_AUTHORING_PROFILE
@@ -15242,6 +15445,7 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
       committedProjections: [],
       contractMetadata: null,
       authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+      dataSync: null,
     };
   }
   if (
@@ -15252,6 +15456,7 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
     || requiredKeys.some((key) => !actualKeys.includes(key))
     || actualKeys.some((key) => !allowedKeys.includes(key))
     || (contractMetadata !== undefined && contractMetadata !== 'exact')
+    || (dataSync !== undefined && dataSync !== 'disabled')
     || !Array.isArray(committed)
     || new Set(committed).size !== committed.length
     || committed.some((entry) => (
@@ -15266,7 +15471,7 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
       code: 'CODEGEN_POLICY_INVALID',
       severity: 'error',
       subsystem: 'codegen',
-      message: `codegen policy ${path} must be a closed snapback.codegen-policy.v1 record with unique portable committedProjections, optional authoringProfile, and optional contractMetadata: "exact"`,
+      message: `codegen policy ${path} must be a closed snapback.codegen-policy.v1 record with unique portable committedProjections, optional authoringProfile, optional contractMetadata: "exact", and optional dataSync: "disabled"`,
       path,
     });
     return {
@@ -15274,6 +15479,7 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
       committedProjections: [],
       contractMetadata: null,
       authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+      dataSync: null,
     };
   }
   return {
@@ -15281,6 +15487,7 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
     committedProjections: [...committed].sort(compareCodeUnits),
     contractMetadata: contractMetadata ?? null,
     authoringProfile: authoringProfile ?? EXPLICIT_AUTHORING_PROFILE,
+    dataSync: dataSync ?? null,
   };
 }
 
@@ -16300,6 +16507,7 @@ function evaluateDefinitionBundles(
         diagnostics.push({
           code: DEFINITION_EVALUATION_DIAGNOSTIC_CODES.has(evaluationCode)
               || /^SNAPBACK_CODEGEN_[A-Z0-9_]+$/u.test(evaluationCode ?? '')
+              || /^SNAPBACK_DATA_[A-Z0-9_]+$/u.test(evaluationCode ?? '')
             ? evaluationCode
             : 'CODEGEN_MODULE_EVALUATION_FAILED',
           severity: 'error',
@@ -16308,6 +16516,7 @@ function evaluateDefinitionBundles(
           ...(response?.error?.name ? { errorName: response.error.name } : {}),
           ...(response?.error?.path ? { path: response.error.path } : {}),
           ...handlerDiagnosticDetails(evaluationCode),
+          ...dataDiagnosticDetails(evaluationCode),
           ...attribution,
         });
         finish(null);
@@ -16609,6 +16818,8 @@ function writeGeneratedOutput(outDir, {
   apiModule,
   apiFlatModule,
   apiTypes,
+  dataModule,
+  dataTypes,
   familiarServerModule,
   familiarServerTypes,
   apiEnvelopeMembers,
@@ -16663,6 +16874,8 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'api.mjs'), apiModule);
   if (apiFlatModule) writeFileSync(join(outDir, 'api.flat.mjs'), apiFlatModule);
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);
+  if (dataModule) writeFileSync(join(outDir, 'data.mjs'), dataModule);
+  if (dataTypes) writeFileSync(join(outDir, 'data.d.ts'), dataTypes);
   if (familiarServerModule) writeFileSync(join(outDir, 'server.mjs'), familiarServerModule);
   if (familiarServerTypes) writeFileSync(join(outDir, 'server.d.ts'), familiarServerTypes);
   if (microArtifacts) {

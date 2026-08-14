@@ -1,0 +1,898 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "result_contract_v1"
+  ],
+  "appId": "fixtures",
+  "artifactKind": "functionManifest",
+  "authoredSourceHash": "sha256:839e51b03eb8e8a7599e21a936373c43f46173a0ff9ff3c5908903624402727b",
+  "authoringProfile": "snapback-explicit-v1",
+  "bundleHash": "sha256:1d1dfcc921e2d8b7",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "completed",
+            "required": true,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:40b514e59f6b569975900229f4dffb084de2898b68deb10c83aecb83cc76b482",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createTodo",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeNow"
+        ],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
+      "exportedName": "createTodo",
+      "handlerForm": "plan",
+      "id": "fixtures:createTodo",
+      "implementationHash": "sha256:3903538830136d973b4a788bf3be6b64276c2644b4b21ee850885bb464923078",
+      "kind": "Mutation",
+      "name": "createTodo",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "todos"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "document",
+        "table": "todos"
+      },
+      "resultContractHash": "sha256:151a0ef29b85b268d92b94b26ae0a10fa73e7b0d4fd9efcaa1cc6a54839746db",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Document": {
+                "id": {
+                  "Binding": "__standardCreatedId"
+                },
+                "table": "todos"
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "__standardCreatedId",
+                  "table": "todos",
+                  "values": {
+                    "completed": {
+                      "Arg": "completed"
+                    },
+                    "createdAt": "RuntimeNow",
+                    "ownerId": "AuthUserId",
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "todos"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:ada4d6ce9509c9c07d0d500130448555a6b94b3b725497561b42897960b01c91",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "deleteTodo",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "delete"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
+      "exportedName": "deleteTodo",
+      "handlerForm": "plan",
+      "id": "fixtures:deleteTodo",
+      "implementationHash": "sha256:42aa76501ae6c39eca4f96aeaf567f5a621ddfe56bca3317b0b624c9f05c0d56",
+      "kind": "Mutation",
+      "name": "deleteTodo",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "Get": {
+                  "bind_as": "__standardOwnedRow",
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND",
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "todos"
+                }
+              },
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Field": {
+                          "base": {
+                            "Binding": "__standardOwnedRow"
+                          },
+                          "key": "ownerId"
+                        }
+                      },
+                      "op": "Eq",
+                      "right": "AuthUserId"
+                    }
+                  },
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND"
+                }
+              },
+              {
+                "Delete": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "todos"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "todos"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:ada4d6ce9509c9c07d0d500130448555a6b94b3b725497561b42897960b01c91",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "getTodo",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "getTodo",
+      "handlerForm": "plan",
+      "id": "fixtures:getTodo",
+      "implementationHash": "sha256:615d7cf9e7318e009dcbb6462f594dd56ea67d31f35c4e776eb92387f6f4ccdf",
+      "kind": "LiveQuery",
+      "name": "getTodo",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "todos"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "todos"
+      },
+      "resultContractHash": "sha256:a1c03576646df3d2c5c8757c9391c36ebc753735da2c9f79b3c1b8a0918b53d2",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "_id",
+                "op": "Eq",
+                "value": {
+                  "Arg": "id"
+                }
+              }
+            ],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "todos",
+            "tableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listTodos",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_created",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listTodos",
+      "handlerForm": "plan",
+      "id": "fixtures:listTodos",
+      "implementationHash": "sha256:80962388b2a521a7730fc550cc9dc7f38156fc92c07524754ebb553d9e773f85",
+      "kind": "LiveQuery",
+      "name": "listTodos",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "todos"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "todos"
+      },
+      "resultContractHash": "sha256:a1c03576646df3d2c5c8757c9391c36ebc753735da2c9f79b3c1b8a0918b53d2",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_owner_created",
+            "limit": 100,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "createdAt"
+              }
+            ],
+            "table": "todos",
+            "tableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "todos"
+            }
+          },
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "completed",
+            "required": true,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:986b84ff4df409d1cfeafa337e369779e1959be5934a2f4ff90e7b831c62b59b",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "updateTodo",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
+      "exportedName": "updateTodo",
+      "handlerForm": "plan",
+      "id": "fixtures:updateTodo",
+      "implementationHash": "sha256:8833b9dd61c551675f29c48ab8f10c5eb8b57fa0f15a2788b562863d187256b0",
+      "kind": "Mutation",
+      "name": "updateTodo",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "todos"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "document",
+        "table": "todos"
+      },
+      "resultContractHash": "sha256:151a0ef29b85b268d92b94b26ae0a10fa73e7b0d4fd9efcaa1cc6a54839746db",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Document": {
+                "id": {
+                  "Arg": "id"
+                },
+                "table": "todos"
+              }
+            },
+            "steps": [
+              {
+                "Get": {
+                  "bind_as": "__standardOwnedRow",
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND",
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "todos"
+                }
+              },
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Field": {
+                          "base": {
+                            "Binding": "__standardOwnedRow"
+                          },
+                          "key": "ownerId"
+                        }
+                      },
+                      "op": "Eq",
+                      "right": "AuthUserId"
+                    }
+                  },
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND"
+                }
+              },
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "todos",
+                  "values": {
+                    "completed": {
+                      "Arg": "completed"
+                    },
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "7db228f7c6e9469d1a2f90a0509098fce46e969a4c8ac31ee8d4f96ff7ab6b1c",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "deleteTodo"
+      },
+      "message": "deleteTodo: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    }
+  ]
+}

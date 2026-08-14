@@ -27,6 +27,12 @@
       "mcpDeferralReason": "Generation writes repository files and remains a local CLI workflow.", "sources": ["packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.generate"]
     },
     {
+      "operation": "cli.packaged.data", "packagedCommand": "data", "title": "Promote one generated data write", "intents": ["promote a data write", "customize generated CRUD", "freeze a data operation"],
+      "guide": "data/resources.md#promote-one-write", "policy": { "authority": "none", "effect": "none", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": false, "approvalPosture": "confirmFirst", "idempotent": false, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "Promotion is an identity-checked, approval-gated local source patch with no MCP filesystem-custody contract.", "sources": ["packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.data", "packages/snapback-cli/index.mjs previewDataPromotion"]
+    },
+    {
       "operation": "cli.packaged.reset", "packagedCommand": "reset", "title": "Reset a managed development target", "intents": ["reset the database", "start from fresh dev state", "remint a test session"],
       "guide": "backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients", "policy": { "authority": "operator", "effect": "none", "responseSensitivity": "OperatorMetadata" },
       "behavior": { "readOnly": false, "destructive": true, "approvalPosture": "confirmFirst", "idempotent": false, "openWorld": false, "persistsAcrossRestart": true },
