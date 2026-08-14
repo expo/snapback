@@ -10,16 +10,11 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-14
 reviewed-authorities-digest: sha256:7b6ec20435fc4b96477248b9cf126b9c6654dee7dea84b2907c54e45dc00659f
 ---
 
 # Read, watch, and settle tiny data
-
-> **Unreleased.** The experimental tiny-data lifecycle is newer than the
-> newest published closure, 0.1.20. Use contributor source until a later
-> qualified closure publishes it.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see

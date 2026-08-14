@@ -10,16 +10,11 @@ status: current
 targets: [all]
 maturity: shipped
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-12
 reviewed-authorities-digest: sha256:845519883f83aac197189804f749732f7424d782fbe09a29ee24a7f09f34ff7d
 ---
 
 # Handler runtime profile and generation preflight
-
-> **Unreleased.** The generated handler runtime profile and `generate
-> --check` preflight are not present in the newest published closure, 0.1.20.
-> Use a contributor checkout until a newer closure is published.
 
 Every successful generation writes
 `handler-runtime-profile.v1.json` beside the function and schema manifests.

@@ -173,11 +173,7 @@ Keep importing from `@expo/snapback-react` when the application uses an
 APIs remain synchronous and unchanged on the root; the core entry does not
 replace them with lazy proxies.
 
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Generated nominal reference kinds and their lifecycle JSDoc
-> are not present in the newest published closure, 0.1.20. They are expected
-> in 0.1.21.
+<!-- since: 0.1.21 -->
 
 ## Pass each hook the reference kind it owns
 

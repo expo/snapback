@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:a30ed3b31a027e97104da48200538860601f509a9d6797ec7f717e0da6c79989"
+    "sourceDigest": "sha256:d49552b93b0b8fc607ca07d6e0c33cf40ee71745c5f6e719c13a734c4c666111"
   },
   "limits": {
     "lookupBytes": 16384
@@ -67269,17 +67269,17 @@
       "sites": [
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 222,
+          "line": 230,
           "column": 12
         },
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 301,
+          "line": 309,
           "column": 12
         },
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 360,
+          "line": 368,
           "column": 12
         }
       ],
@@ -67324,7 +67324,7 @@
       "sites": [
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 194,
+          "line": 202,
           "column": 15
         }
       ],
@@ -67354,7 +67354,7 @@
       "sites": [
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 233,
+          "line": 241,
           "column": 12
         }
       ],
@@ -67369,7 +67369,7 @@
       "sites": [
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 111,
+          "line": 112,
           "column": 8
         }
       ],
@@ -67384,7 +67384,7 @@
       "sites": [
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 205,
+          "line": 213,
           "column": 14
         }
       ],
@@ -67444,12 +67444,12 @@
       "sites": [
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 293,
+          "line": 301,
           "column": 15
         },
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 352,
+          "line": 360,
           "column": 15
         }
       ],
@@ -67464,12 +67464,12 @@
       "sites": [
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 316,
+          "line": 324,
           "column": 14
         },
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 367,
+          "line": 375,
           "column": 14
         }
       ],
@@ -67484,12 +67484,12 @@
       "sites": [
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 308,
+          "line": 316,
           "column": 12
         },
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 378,
+          "line": 386,
           "column": 12
         }
       ],
@@ -67504,12 +67504,12 @@
       "sites": [
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 327,
+          "line": 335,
           "column": 12
         },
         {
           "file": "packages/snapback-publication-authority/authority.mjs",
-          "line": 386,
+          "line": 394,
           "column": 12
         }
       ],

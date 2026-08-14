@@ -29,10 +29,7 @@ This is the first sign-in method a browser app can offer end users without a
 mail adapter. Email-code login still has no self-serve production path (no
 delivery), so if you need a real user to sign themselves in today, this is it.
 
-<!-- since: 0.1.21 unreleased -->
-> **Unreleased.** The declarative email-identifier selector is newer than the
-> newest published closure, 0.1.20.
-
+<!-- since: 0.1.21 -->
 ## Declare email identifiers before activation
 
 Choose the password identifier in the app's `defineAuth` program and pass that
@@ -196,10 +193,7 @@ histories and disclose successful-authentication activity. Lock existence,
 threshold, and expiry are observable only through the authenticated admin
 projection and `authProgramReadiness`.
 
-<!-- since: 0.1.21 unreleased -->
-> **Unreleased.** The authenticated password-attempt projection is newer than
-> the newest published closure, 0.1.20.
-
+<!-- since: 0.1.21 -->
 An operator can call `admin.passwordAttempt(email)`. Its AdminRead response
 contains the declared `failureThreshold`, `failureWindowMs`, and
 `lockDurationMs`, plus either `attempt: null` or the canonical identifier,

@@ -1362,6 +1362,55 @@ No unreleased fences were pending; guide install pins advanced to
 0.1.20. The 0.1.20 closure predates the auth catalog v4 landing
 (`b180492e9`), which remains unpublished surface for the next cut.
 
+### 0.1.21 (2026-08-14) — fourth completed qualified promotion; the umbrella first-publishes
+
+The closure widened to twelve packages: `@expo/snapback` — the LLP 0253
+umbrella carrying the LLP 0255 tiny-data doorways — first-published in
+this cut under the author's publish-everything ruling (the path-1
+resolution of `issues/closed/20260814-umbrella-first-publish-gate.md`).
+Candidate revision `c10b454162f6` (tag `bakeoff-0-1-21-c10b454162f6`)
+was promoted to `latest` and closed at publication epoch 28, operation
+`release-0.1.21-20260814-r14` (20:11:08Z–20:21:21Z). The eight-job EAS
+staging workflow ran green on the release branch; a fresh telemetry
+receipt was minted at the branch ref and retained in-tree at the
+candidate; all twelve packages published and byte-verified under the
+holding tag before any lease was requested. Promotion receipt and
+post-promotion ledger are retained in `tests/acceptance/publication/`.
+This publication starts the LLP 0256 D9 evaluation clock.
+
+Operational evidence, in the LLP 0233 tradition — every failure below
+was hit and fixed or dispositioned inside this one ceremony:
+
+- npm's read path for a brand-new name lags its write path by minutes,
+  not seconds: the umbrella's first publish returned eight consecutive
+  E403 "cannot publish over 0.1.21" refusals (the write existed; the
+  resume check's read could not see it) before resuming cleanly. npm
+  also force-sets `latest` on a first publish regardless of `--tag`,
+  so the observed prior vector records the umbrella at 0.1.21 while
+  the eleven veterans sat at 0.1.20.
+- The closure widening (`7023bd3a6`) was defective in production: it
+  widened the v4 name vector in place, but the standing authority
+  re-validates every recorded epoch at boot, so the deployed authority
+  crash-looped over its own eleven-name history. Fixed forward as
+  `TERMINAL_LEASE_WIDTHS` prefix tolerance (recorded widths validate;
+  new issues must bind the full closure) with a regression test.
+- `fly config save` does not capture `[[files]]` secret mounts; the
+  first authority redeploy lost `/run/secrets/*` and crash-looped on
+  ENOENT. The authority's `fly.toml` is now committed in the package.
+- r7: a supervisor commit to the release checkout between lease and
+  promote moved the checkout revision off the prior closure's bound
+  `producerRevision` — the promote correctly refused. The rule of
+  record: the release checkout is frozen from lease to close.
+- r13: the two-platform GitHub latest-root proof exceeded the
+  publication-lease wait budget (runner-queue variance, midday);
+  strict reverse-order rollback held and r14 closed clean in ~10 min.
+
+Post-promotion, `guide/published-closure.json` advances to 0.1.21 and
+the published-symbols registry refresh from the candidate publication
+lands with this record. The `@expo/snapback` README and the
+`guide/data/promotion.md` page landed after the candidate cut and ride
+the next release.
+
 ### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
 
 The eleven-package closure published fast-path to `latest` from clean main

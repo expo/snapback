@@ -15,15 +15,11 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-13
 reviewed-authorities-digest: sha256:4b71b09aeb5c088f81d70edff3108162fbc87583fd6104d44c6636e5743ce6da
 ---
 
 # Generate a tiny typed data resource
-
-> **Unreleased.** DataResourceV1 is newer than the newest published closure,
-> 0.1.20. Use it from contributor source until a later closure publishes it.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
@@ -179,16 +175,11 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-13
 reviewed-authorities-digest: sha256:8145953a62c742f37c1c220a0a810819644148c632cceb5f4a6a9bceebd0dbc8
 ---
 
 # Build a bounded data query
-
-> **Unreleased.** Bounded DataQueryV1 construction and local continuation are
-> newer than the newest published closure, 0.1.20. Use contributor source until
-> a later closure publishes them.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
@@ -309,16 +300,11 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-14
 reviewed-authorities-digest: sha256:2e583728fdd3a9c9afb182e6794fefd3a9b8bcabcc2919f05e0bd4037084ba7e
 ---
 
 # Compose generated data transactions
-
-> **Unreleased.** Generated data transactions and their headless contributor
-> client are newer than the newest published closure, 0.1.20. Use contributor
-> source until a later closure publishes the Phase 4 package doorway.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
@@ -436,16 +422,11 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-14
 reviewed-authorities-digest: sha256:7a5261926cfacd1fa74bb9395e98f758d3134fb706fced1e342789fd25566c25
 ---
 
 # Choose the tiny data doorway
-
-> **Unreleased.** The experimental tiny-data package doorways are newer than
-> the newest published closure, 0.1.20. Use contributor source until a later
-> qualified closure publishes them.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
@@ -528,16 +509,11 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-14
 reviewed-authorities-digest: sha256:7b6ec20435fc4b96477248b9cf126b9c6654dee7dea84b2907c54e45dc00659f
 ---
 
 # Read, watch, and settle tiny data
-
-> **Unreleased.** The experimental tiny-data lifecycle is newer than the
-> newest published closure, 0.1.20. Use contributor source until a later
-> qualified closure publishes it.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see

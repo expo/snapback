@@ -10,16 +10,11 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-12
 reviewed-authorities-digest: sha256:09b52a577407e1e6b1722c9f1d2bd3a8d13098307ff2a44f5c2f213624fd80c1
 ---
 
 # Media happy paths
-
-> **Unreleased.** The empty-safe media controller and React hook are newer
-> than the newest published closure, 0.1.20. Use them from contributor source
-> until a later closure publishes them.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see

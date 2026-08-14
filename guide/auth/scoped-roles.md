@@ -120,10 +120,7 @@ type into the function artifact. An argument or row-field helper bound to
 `Id<'organizations'>` is rejected before publication when the declaration
 requires `Id<'events'>`.
 
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Authority-profile authoring is available in this checkout
-> but is not in the newest published closure, 0.1.20.
+<!-- since: 0.1.21 -->
 
 ## Reuse one role hierarchy in queries and table visibility
 

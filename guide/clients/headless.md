@@ -370,11 +370,7 @@ returns the same phased command task documented in
 `useSnapbackCommand` and `provider.surface(...)` compose this same owner
 rather than a second one.
 
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Generated nominal reference kinds, lifecycle metadata, and
-> pre-transport kind diagnostics are not present in the newest published
-> closure, 0.1.20. They are expected in 0.1.21.
+<!-- since: 0.1.21 -->
 
 ## Generated reference kinds and legal verbs
 

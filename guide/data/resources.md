@@ -10,15 +10,11 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-13
 reviewed-authorities-digest: sha256:4b71b09aeb5c088f81d70edff3108162fbc87583fd6104d44c6636e5743ce6da
 ---
 
 # Generate a tiny typed data resource
-
-> **Unreleased.** DataResourceV1 is newer than the newest published closure,
-> 0.1.20. Use it from contributor source until a later closure publishes it.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see

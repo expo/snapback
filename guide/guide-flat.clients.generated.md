@@ -33,11 +33,7 @@ product code. (Contract *authoring* itself — language, components, styling
 — is the Exact guide's territory; this page covers the Snapback side of
 the seam.)
 
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Explicit Exact metadata output is not present in the newest
-> published closure, 0.1.20. The generated-artifact guide documents the
-> temporary npm-only workaround for earlier releases.
+<!-- since: 0.1.21 -->
 
 ## Opt in to Exact metadata before compiling Contract
 
@@ -916,11 +912,7 @@ returns the same phased command task documented in
 `useSnapbackCommand` and `provider.surface(...)` compose this same owner
 rather than a second one.
 
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Generated nominal reference kinds, lifecycle metadata, and
-> pre-transport kind diagnostics are not present in the newest published
-> closure, 0.1.20. They are expected in 0.1.21.
+<!-- since: 0.1.21 -->
 
 ## Generated reference kinds and legal verbs
 
@@ -1738,11 +1730,7 @@ Keep importing from `@expo/snapback-react` when the application uses an
 APIs remain synchronous and unchanged on the root; the core entry does not
 replace them with lazy proxies.
 
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Generated nominal reference kinds and their lifecycle JSDoc
-> are not present in the newest published closure, 0.1.20. They are expected
-> in 0.1.21.
+<!-- since: 0.1.21 -->
 
 ## Pass each hook the reference kind it owns
 
@@ -3129,7 +3117,7 @@ npm create snapback-app my-app
 #               bun create snapback-app my-app
 #               pnpm create snapback-app my-app
 # scoped CLI spelling, same scaffolder:
-#   npx --yes @expo/snapback-cli@0.1.20 new my-app --template expo-chat
+#   npx --yes @expo/snapback-cli@0.1.21 new my-app --template expo-chat
 ```
 
 `expo-chat` is `create-snapback-app`'s default template, so `--template` is
@@ -3153,11 +3141,11 @@ published closure is the checked-in record in
 
 ```sh
 npx expo install \
-  @expo/snapback-cli@0.1.20 \
-  @expo/snapback-client@0.1.20 \
-  @expo/snapback-codegen@0.1.20 \
-  @expo/snapback-expo@0.1.20 \
-  @expo/snapback-react@0.1.20 \
+  @expo/snapback-cli@0.1.21 \
+  @expo/snapback-client@0.1.21 \
+  @expo/snapback-codegen@0.1.21 \
+  @expo/snapback-expo@0.1.21 \
+  @expo/snapback-react@0.1.21 \
   expo-file-system expo-crypto expo-image-picker
 ```
 

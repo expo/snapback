@@ -10,16 +10,11 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-14
 reviewed-authorities-digest: sha256:7a5261926cfacd1fa74bb9395e98f758d3134fb706fced1e342789fd25566c25
 ---
 
 # Choose the tiny data doorway
-
-> **Unreleased.** The experimental tiny-data package doorways are newer than
-> the newest published closure, 0.1.20. Use contributor source until a later
-> qualified closure publishes them.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see

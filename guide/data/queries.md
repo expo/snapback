@@ -10,16 +10,11 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-13
 reviewed-authorities-digest: sha256:8145953a62c742f37c1c220a0a810819644148c632cceb5f4a6a9bceebd0dbc8
 ---
 
 # Build a bounded data query
-
-> **Unreleased.** Bounded DataQueryV1 construction and local continuation are
-> newer than the newest published closure, 0.1.20. Use contributor source until
-> a later closure publishes them.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see

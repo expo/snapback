@@ -241,11 +241,7 @@ Bare `snapback` is also discovery-only and prints root help. Start the normal
 authoring loop explicitly with `snapback dev`; use native `snapback start` only
 when a lower-level harness deliberately owns server loading and lifecycle.
 
-<!-- since: 0.1.21 unreleased -->
-> **Unreleased.** Declaration suggestions are newer than the newest published
-> `@expo/snapback-*` closure, 0.1.20; use them from this source checkout until
-> a later closure is published.
-
+<!-- since: 0.1.21 -->
 ## Suggest, review, and apply a result contract
 
 After generation has produced current context types, ask Snapback to derive a

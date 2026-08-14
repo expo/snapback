@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-published-closure.v1",
   "scope": "@expo/snapback-*",
   "registry": "https://registry.npmjs.org",
-  "newestPublished": "0.1.20",
-  "publishedAt": "2026-08-12",
-  "newestQualified": "0.1.20",
+  "newestPublished": "0.1.21",
+  "publishedAt": "2026-08-14",
+  "newestQualified": "0.1.21",
   "updateProtocol": "The npm promotion lane updates newestPublished (and publishedAt / newestQualified when applicable) in the same change that publishes a new closure, then regenerates the guide manifest and sweeps unreleased fences per guide/conventions.md."
 }

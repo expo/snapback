@@ -28,11 +28,7 @@ product code. (Contract *authoring* itself — language, components, styling
 — is the Exact guide's territory; this page covers the Snapback side of
 the seam.)
 
-<!-- since: 0.1.21 unreleased -->
-
-> **Unreleased.** Explicit Exact metadata output is not present in the newest
-> published closure, 0.1.20. The generated-artifact guide documents the
-> temporary npm-only workaround for earlier releases.
+<!-- since: 0.1.21 -->
 
 ## Opt in to Exact metadata before compiling Contract
 

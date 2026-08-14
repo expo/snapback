@@ -10,16 +10,11 @@ status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
-unreleased: true
 reviewed: 2026-08-14
 reviewed-authorities-digest: sha256:2e583728fdd3a9c9afb182e6794fefd3a9b8bcabcc2919f05e0bd4037084ba7e
 ---
 
 # Compose generated data transactions
-
-> **Unreleased.** Generated data transactions and their headless contributor
-> client are newer than the newest published closure, 0.1.20. Use contributor
-> source until a later closure publishes the Phase 4 package doorway.
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
