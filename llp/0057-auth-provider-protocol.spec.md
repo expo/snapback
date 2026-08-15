@@ -5,7 +5,11 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-12 (macOS descriptor-copy reconciliation: SQLite online
+**Revised:** 2026-08-15 (password issuance releases its planning
+maintenance/address-stripe admission before projection Begin, then the owned
+durable commit reacquires one fresh shared admission after Begin; a fair
+maintenance gate can no longer self-join behind periodic GC).
+2026-08-12 (macOS descriptor-copy reconciliation: SQLite online
 backup now materializes its complete quiesced snapshot in a private in-memory
 database, sanitizes export-excluded custody there, and serializes the finished
 image through the already pinned staging descriptor; declared restore rebases
@@ -1543,6 +1547,17 @@ auth-maintenance gate
 Ordinary provider calls take the maintenance gate shared; backup, restore,
 catalog activation, rescue, and reset take it exclusive. No code takes an
 earlier lock while holding a later one.
+
+An operation that owns a shared maintenance admission and keyed address stripe
+for password planning releases both before projection `Begin`. The
+independently owned durable commit then acquires one fresh shared admission
+after `Begin` and carries only that guard through Local/SQLite. It MUST NOT
+reacquire shared maintenance while retaining the planning guard. Tokio's fair
+read/write gate blocks new readers behind a queued writer; nested read
+acquisition would self-deadlock when periodic GC queued for the exclusive gate
+while password signup, signin, recovery consume, change, or set was between
+planning and commit. Exact durable predecessor checks make a same-address race
+after planning a typed predecessor-change outcome, never a stale commit.
 
 **Where this lock order meets LLP 0059's projection barrier, 0059 is
 authoritative.** LLP 0059 requires every database/provider guard to be released

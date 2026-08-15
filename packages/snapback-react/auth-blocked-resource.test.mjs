@@ -120,15 +120,17 @@ function fakeClient({ initialAuthority = 'anonymous', raceToAnonymous = false } 
       queueMicrotask(() => options.onUpdate(current.rows, { freshness: 'current' }));
       return Object.freeze(handle);
     },
-    async signIn() {
+    async transitionAuthority(authority, reason) {
       const participant = state.participant;
       assert.ok(participant, 'React provider registered its authority barrier participant');
-      await participant.quiesce({ reason: 'login' });
-      participant.blank({ reason: 'login' });
-      participant.clearMemory({ reason: 'login' });
-      state.authority = 'session';
-      await participant.resume({ reason: 'login' });
+      await participant.quiesce({ reason });
+      participant.blank({ reason });
+      participant.clearMemory({ reason });
+      state.authority = authority;
+      await participant.resume({ reason });
     },
+    async signIn() { return this.transitionAuthority('session', 'login'); },
+    async logout() { return this.transitionAuthority('anonymous', 'logout'); },
   };
   return client;
 }
@@ -217,6 +219,34 @@ test('protected React live resources remain auth-blocked until barrier resume', 
       mounted.lease.release();
       await mounted.provider.dispose();
       mock.timers.reset();
+    }
+  });
+
+  await t.test('signin, logout, and signin refresh one mounted consumer through the barrier', async () => {
+    const client = fakeClient();
+    const mounted = await mount(client);
+    const mountedProvider = mounted.provider;
+    const mountedLease = mounted.lease;
+    try {
+      await client.signIn();
+      await flush();
+      assert.equal(mounted.registry.snapshot(mounted.descriptor).status, 'ready');
+      assert.equal(client.state.attempts, 1);
+
+      await client.logout();
+      await flush();
+      assert.equal(mounted.registry.snapshot(mounted.descriptor).status, 'blocked');
+      assert.equal(client.state.attempts, 1, 'logout does not subscribe anonymously');
+
+      await client.signIn();
+      await flush();
+      assert.strictEqual(mounted.provider, mountedProvider, 'provider was not remounted');
+      assert.strictEqual(mounted.lease, mountedLease, 'consumer lease was not remounted');
+      assert.equal(mounted.registry.snapshot(mounted.descriptor).status, 'ready');
+      assert.equal(client.state.attempts, 2, 'second signin starts one fresh query');
+    } finally {
+      mounted.lease.release();
+      await mounted.provider.dispose();
     }
   });
 });

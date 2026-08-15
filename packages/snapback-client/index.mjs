@@ -2616,6 +2616,7 @@ export class SnapbackClient {
     this.__ephemeralAuthorityByCollection = new Map();
     this.__authControllers = new Set();
     this.__rawLiveStreams = new Set();
+    this.__closeAuthPromise = null;
     this.__authTransportGeneration = 0;
     this.__authSessionCapture = null;
     this.__authMaterializations = new Set();
@@ -6134,36 +6135,69 @@ export class SnapbackClient {
     return null;
   }
 
-  async closeAuth() {
-    let firstError = null;
-    try { this.__outboxDrainController?.handle?.stop(); } catch (error) { firstError ??= error; }
-    for (const entry of [...this.__optimisticMutationViews]) {
-      try { entry.engine.close(); } catch (error) { firstError ??= error; }
-      this.__optimisticMutationViews.delete(entry);
-    }
-    for (const controller of this.__authControllers) {
-      try { controller.abort(); } catch (error) { firstError ??= error; }
-    }
-    try { await this.__authParticipantUnregister?.(); } catch (error) { firstError ??= error; }
-    this.__authParticipantUnregister = null;
-    this.__storeRuntimeClosed = true;
-    if (this.__storeRuntimeModulePromise !== null) {
-      try {
-        const module = await this.__storeRuntimeModulePromise;
-        await module.storeRuntimeMethods.__closeStoreRuntime.call(this);
-      } catch (error) { firstError ??= error; }
-    }
-    // @ref LLP 0090#d3-channel-b--persisted-device-snapshot — the client
-    // owns stores resolved by the default ladder, so final client cleanup
-    // releases their single-writer lease. Injected stores remain caller-owned.
-    if (this.__ownsRqsStore && typeof this.rqsStore?.close === 'function') {
-      this.__rqsStoreClosePromise ??= Promise.resolve().then(() => this.rqsStore.close());
-      try { await this.__rqsStoreClosePromise; } catch (error) { firstError ??= error; }
-    }
-    this.__outboxDiagnosticsProducer.dispose();
-    this.__devDiagnosticsReporter?.dispose();
-    this.__clientDiagnosticsChannel.dispose();
-    if (firstError) throw firstError;
+  closeAuth() {
+    this.__closeAuthPromise ??= (async () => {
+      let firstError = null;
+      try { this.__outboxDrainController?.handle?.stop(); } catch (error) { firstError ??= error; }
+      for (const entry of [...this.__optimisticMutationViews]) {
+        try { entry.engine.close(); } catch (error) { firstError ??= error; }
+        this.__optimisticMutationViews.delete(entry);
+      }
+      for (const controller of this.__authControllers) {
+        try { controller.abort(); } catch (error) { firstError ??= error; }
+      }
+      try { await this.__authParticipantUnregister?.(); } catch (error) { firstError ??= error; }
+      this.__authParticipantUnregister = null;
+
+      // Unregistration removes the transport from future authority barriers;
+      // it does not run a terminal barrier for resources the client already
+      // owns. Drain those resources here so a forgotten live handle cannot
+      // retain socket demand or a backend connection after closeAuth settles.
+      // @ref LLP 0059#participant-contract — an unregistered participant may
+      // retain no predecessor transport or materialization outside the barrier.
+      const transportSettlements = [];
+      for (const stream of [...this.__rawLiveStreams]) {
+        try {
+          transportSettlements.push(Promise.resolve(stream.close?.()));
+        } catch (error) { firstError ??= error; }
+      }
+      this.__rawLiveStreams.clear();
+      for (const manager of [...(this.__liveStreamManagers?.values?.() ?? [])]) {
+        try { manager.close(); } catch (error) { firstError ??= error; }
+        try {
+          if (typeof manager.settled === 'function') {
+            transportSettlements.push(Promise.resolve(manager.settled()));
+          }
+        } catch (error) { firstError ??= error; }
+      }
+      for (const outcome of await Promise.allSettled(transportSettlements)) {
+        if (outcome.status === 'rejected') firstError ??= outcome.reason;
+      }
+      this.__authControllers.clear();
+      this.__liveStreamManagers?.clear?.();
+      this.__connectionGrants.clear();
+      this.__laneConsumers.clear();
+
+      this.__storeRuntimeClosed = true;
+      if (this.__storeRuntimeModulePromise !== null) {
+        try {
+          const module = await this.__storeRuntimeModulePromise;
+          await module.storeRuntimeMethods.__closeStoreRuntime.call(this);
+        } catch (error) { firstError ??= error; }
+      }
+      // @ref LLP 0090#d3-channel-b--persisted-device-snapshot — the client
+      // owns stores resolved by the default ladder, so final client cleanup
+      // releases their single-writer lease. Injected stores remain caller-owned.
+      if (this.__ownsRqsStore && typeof this.rqsStore?.close === 'function') {
+        this.__rqsStoreClosePromise ??= Promise.resolve().then(() => this.rqsStore.close());
+        try { await this.__rqsStoreClosePromise; } catch (error) { firstError ??= error; }
+      }
+      this.__outboxDiagnosticsProducer.dispose();
+      this.__devDiagnosticsReporter?.dispose();
+      this.__clientDiagnosticsChannel.dispose();
+      if (firstError) throw firstError;
+    })();
+    return this.__closeAuthPromise;
   }
   // @ref LLP 0031#migration-plan — system writes moved from ungated root
   //   /admin/* aliases to the gated /_snapback/api/* namespace (D5). Per

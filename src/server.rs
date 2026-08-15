@@ -16315,6 +16315,11 @@ async fn auth_password_signup(
             PasswordIssuanceCustody::Bearer,
         )
         .await?;
+    // @ref LLP 0057#concurrency-locks-and-linearization — projection Begin
+    // never retains the planning admission; the owned commit reacquires one
+    // fresh guard after Begin, so a queued maintenance writer cannot create a
+    // fair-RwLock self-join.
+    drop(address_admission);
     let finish = commit_password_issuance_plan(
         &runtime,
         &provider,
@@ -16323,7 +16328,6 @@ async fn auth_password_signup(
         "password signup transaction",
     )
     .await?;
-    drop(address_admission);
     password_issue_response(finish, password_exists)
 }
 
@@ -16360,6 +16364,9 @@ async fn auth_password_signin(
             PasswordIssuanceCustody::Bearer,
         )
         .await?;
+    // @ref LLP 0057#concurrency-locks-and-linearization — release planning
+    // admission before projection Begin; commit reacquires after Begin.
+    drop(address_admission);
     let finish = commit_password_issuance_plan(
         &runtime,
         &provider,
@@ -16368,7 +16375,6 @@ async fn auth_password_signin(
         "password signin transaction",
     )
     .await?;
-    drop(address_admission);
     password_issue_response(finish, password_credential_invalid)
 }
 
@@ -16466,6 +16472,9 @@ async fn auth_recovery_consume(
     })
     .await;
     let plan = plan.map_err(|_| password_credential_invalid())?;
+    // @ref LLP 0057#concurrency-locks-and-linearization — release planning
+    // admission before projection Begin; commit reacquires after Begin.
+    drop(address_admission);
     let finish = commit_password_issuance_plan(
         &runtime,
         &provider,
@@ -16474,7 +16483,6 @@ async fn auth_recovery_consume(
         "recovery-code consume transaction",
     )
     .await?;
-    drop(address_admission);
     password_issue_response(finish, password_credential_invalid)
 }
 
@@ -16581,8 +16589,10 @@ async fn auth_password_change(
                     PasswordIssuanceCustody::Bearer,
                 )
                 .await?;
-            let finish = commit_password_change_plan(&runtime, &provider, plan, &authority).await?;
+            // @ref LLP 0057#concurrency-locks-and-linearization — address
+            // planning releases its shared gate before projection Begin.
             drop(address_admission);
+            let finish = commit_password_change_plan(&runtime, &provider, plan, &authority).await?;
             match finish {
                 PasswordChangeFinish::Committed(issue) => {
                     let (response, _committed_revocation) = issue.into_parts();
@@ -16641,6 +16651,11 @@ async fn auth_password_change(
                     PasswordIssuanceCustody::Bearer,
                 )
                 .await?;
+            // The verified proof has already been copied into the closed plan;
+            // release its maintenance/address guards before projection Begin.
+            // @ref LLP 0057#concurrency-locks-and-linearization — no provider
+            // planning guard overlaps projection ownership.
+            drop(proof_admission);
             let finish = commit_session_password_issuance_plan(
                 &runtime,
                 &provider,
@@ -16649,7 +16664,6 @@ async fn auth_password_change(
                 "password set transaction",
             )
             .await?;
-            drop(proof_admission);
             password_issue_response(finish, password_credential_invalid)
         }
     }

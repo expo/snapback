@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-12 (first-party unrecognized-authority recovery: a
+**Revised:** 2026-08-15 (external local authority operations, including
+transition/clear sequences used by immediate logout, join the active authority
+barrier before re-evaluating; synchronous participant reentry keeps the prompt
+self-join refusal. Terminal client close drains transport demand before it
+settles). 2026-08-12 (first-party unrecognized-authority recovery: a
 server-witnessed anonymous handshake at a different authorization-stream
 incarnation may enter the standard barrier without an app-visible capture only
 after resume/adoption has failed closed or custody is stuck clearing; healthy
@@ -1976,6 +1980,17 @@ type AuthCustodyBroadcastV1 = {
 `snapback.auth-app.v1\n<canonical-app-id>` and selects the channel/hint names in
 the constants table. It is routing metadata, not authority.
 
+Within one context, an external `transition`, `compareAndClear`, or
+`synchronize` that arrives while another local authority barrier is active
+joins that barrier's terminal completion and then re-evaluates against the
+fresh settled record. It does not expose
+`SNAPBACK_CLIENT_AUTHORITY_CLEARING` as a caller retry protocol. This makes
+signin → immediate logout → signin a single awaitable sequence even when the
+first transition's participant work is still settling. A participant callback
+that synchronously starts one of those operations is different: joining the
+barrier that is awaiting that callback would self-deadlock, so it receives the
+prompt clearing/reentrant refusal described by the participant contract.
+
 Receivers ignore wrong-app, malformed, duplicate, or older messages, then
 reload custody under ownership. Reordering or loss is harmless because every
 foreground operation and connection attempt also reloads/compares durable
@@ -2511,6 +2526,14 @@ same coordinator's active barrier or leave the participant waiting on the
 owner that is waiting on it. This prompt result is restricted to synchronization
 invoked while a participant callback is executing; external publication
 listeners use the terminal-completion join in §Cross-context ownership.
+
+Unregistering a transport participant is not terminal transport cleanup: it
+only removes that participant from future authority barriers. The client owner
+therefore makes `closeAuth()` an idempotent terminal join that aborts active
+controllers, closes raw and managed live streams, settles their local demand
+leases, clears connection-grant/lane registries, and only then resolves. A
+forgotten live-query handle may not keep reconnect demand or a predecessor
+materialization alive after `closeAuth()` settles.
 
 Mandatory participants are:
 

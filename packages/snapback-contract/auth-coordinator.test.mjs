@@ -3164,6 +3164,62 @@ await coordinator.close();
   await subject.close();
 }
 
+// External authority operations join the active local barrier. In particular,
+// logout's compare-and-clear and a same-successor authority transition cannot
+// leak a transient CLEARING refusal or settle early while the predecessor is
+// still being quiesced. Participant callback reentry remains the prompt-refusal
+// exception covered by the Web-Lock-faithful test above.
+{
+  const subject = new AuthCoordinator({
+    appId: `${APP}/queued-authority-operations`,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await subject.establishAnonymous(anonymous());
+  const sessionCapture = await subject.transition(
+    anonymousCapture,
+    successor(session(), 'queued-authority-operations-bearer', 50_000),
+    'signin',
+  );
+  let enteredResolve;
+  let releaseResolve;
+  const entered = new Promise((resolve) => { enteredResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  subject.registerParticipant({
+    name: 'queued-authority-operations-gate',
+    async quiesce(context) {
+      if (context.reason !== 'logout') return;
+      enteredResolve();
+      await release;
+    },
+  });
+  const anonymousSuccessor = successor(anonymous(), null, null);
+  const logout = subject.transition(sessionCapture, anonymousSuccessor, 'logout');
+  await entered;
+  const duplicateLogout = subject.compareAndClear(sessionCapture, 'logout');
+  const duplicateTransition = subject.transition(
+    sessionCapture,
+    anonymousSuccessor,
+    'logout-duplicate',
+  );
+  const early = Symbol('early');
+  assert.equal(
+    await Promise.race([
+      Promise.all([duplicateLogout, duplicateTransition]),
+      new Promise((resolve) => setTimeout(() => resolve(early), 10)),
+    ]),
+    early,
+    'authority operations must remain queued until the active barrier settles',
+  );
+  releaseResolve();
+  const settled = await logout;
+  assert.deepEqual(await duplicateLogout, { cleared: false });
+  assert.deepEqual(await duplicateTransition, settled);
+  assert.equal(subject.authority.kind, 'anonymous');
+  await subject.close();
+}
+
 {
   const inner = createMemoryAuthCustodyStorage();
   let owned = false;

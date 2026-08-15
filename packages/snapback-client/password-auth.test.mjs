@@ -180,6 +180,69 @@ test('password signup adopts the server principal without exposing the bearer', 
   }
 });
 
+test('closeAuth terminally drains realtime demand owned by the client', async () => {
+  const fixture = makeFixture();
+  let managerClosed = false;
+  let rawStreamClosed = false;
+  try {
+    fixture.client.__connectionGrants.set('retained-connection', Promise.resolve({
+      id: 'retained-connection',
+      token: 'retained-token',
+    }));
+    fixture.client.__laneConsumers.set('retained-connection', {
+      durable: new Set([() => {}]),
+      ephemeral: new Set(),
+    });
+    fixture.client.__liveStreamManagers = new Map([['retained-connection', {
+      close() { managerClosed = true; },
+      settled() {
+        assert.equal(managerClosed, true, 'settlement cannot precede manager close');
+        return Promise.resolve();
+      },
+    }]]);
+    fixture.client.__rawLiveStreams.add({
+      close() { rawStreamClosed = true; },
+    });
+
+    await fixture.client.closeAuth();
+
+    assert.equal(managerClosed, true);
+    assert.equal(rawStreamClosed, true);
+    assert.equal(fixture.client.__liveStreamManagers.size, 0);
+    assert.equal(fixture.client.__connectionGrants.size, 0);
+    assert.equal(fixture.client.__laneConsumers.size, 0);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('password signin, immediate logout, and signin serialize in one process', async () => {
+  const fixture = makeFixture();
+  try {
+    fixture.respond('/auth/password/signin', () => Response.json(credential()));
+    fixture.respond('/auth/logout', ({ authorization }) => {
+      assert.equal(authorization, `Bearer ${SIGNUP_BEARER}`);
+      return new Response(null, { status: 204 });
+    });
+
+    const first = await fixture.client.authPasswordSignIn({
+      email: 'person@example.com',
+      password: PASSWORD,
+    });
+    assert.equal(first.session.userId, USER);
+    assert.equal(await fixture.client.authLogout(), null);
+    assert.equal(fixture.coordinator.authority.kind, 'anonymous');
+    const second = await fixture.client.authPasswordSignIn({
+      email: 'person@example.com',
+      password: PASSWORD,
+    });
+    assert.equal(second.session.userId, USER);
+    assert.equal(fixture.coordinator.authority.kind, 'session');
+  } finally {
+    await fixture.close();
+  }
+});
+
 test('password change uses credential rotation and rejects authority mismatch', async (t) => {
   await t.test('preserves the authority instance and replaces only bearer custody', async () => {
     const fixture = makeFixture();

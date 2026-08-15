@@ -44,3 +44,21 @@ lease teardown, or connection accounting). Fix `closeAuth` to release its
 realtime lease deterministically. Add the loop as a stress acceptance test
 with a stall watchdog so regressions are visible in CI rather than in
 downstream agents' correction loops.
+
+## Resolution
+
+Resolved 2026-08-15. A 32-client packaged-client acceptance loop reproduced
+the stall reliably on the twenty-first password signin. Temporary phase
+instrumentation localized the wait to the detached password commit's provider
+admission: planning still held a shared maintenance/address guard after
+projection `Begin`, while periodic garbage collection was queued for the fair
+write side, so the commit's nested shared admission self-deadlocked behind the
+writer. Password flows now release planning guards before `Begin`, and the
+owned commit reacquires one fresh guard afterward; exact predecessor checks
+retain race safety.
+
+`closeAuth()` now idempotently aborts auth work, closes and settles every raw
+stream and live manager, and clears local grants and reconnect demand. The
+acceptance witness completed all 32 signin → mutate → protected-live-query →
+disconnect clients with a per-phase watchdog (slowest phase: 1.333 seconds),
+and `password-auth.test.mjs` proves terminal realtime drain directly.

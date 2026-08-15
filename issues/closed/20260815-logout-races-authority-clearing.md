@@ -31,3 +31,19 @@ Queue logout (and other authority operations) behind the active transition
 barrier inside the coordinator, making the sequence await-able instead of
 refusing. Add an acceptance-style test that performs
 signin → immediate logout → signin in one process.
+
+## Resolution
+
+Resolved 2026-08-15. External `transition`, `compareAndClear` (logout), and
+`synchronize` operations now join an active local authority barrier; only
+synchronous participant reentry retains the typed refusal that prevents a
+self-deadlock. Coordinator conformance holds a transition open and proves
+duplicate logout/transition calls remain pending and then settle, while the
+packaged-client regression proves signin → immediate logout → signin in one
+process.
+
+The React remount workaround was not by design. The React provider already
+owns the authority barrier and resource restart seam. A mounted-consumer test
+now proves one provider instance blanks a protected resource on logout and
+resubscribes after the following signin, so applications should keep the
+provider mounted rather than remounting it around auth changes.

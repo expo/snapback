@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/par
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:5b456c547f3f44e5ffed621499429f08d135537971f179e2b704149992749e55
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:5126ee0ebf123b379a99e10434f3568d5e5f7abfd160d555072b5b37ca9e275b
 ---
 
 # The headless client
@@ -559,9 +559,12 @@ The session entry points are:
 - `authRequestCode(email)` and `authExchange({ challengeId, code })`;
 - `authRefresh()` and `authLogout()`;
 - `authSession({ force })` for the exact server/mode/authority projection;
-- `closeAuth()` to unregister/close the client-side auth participants and
-  release a store resolved by the default persistence ladder (an injected
-  `rqsStore` remains caller-owned);
+- `closeAuth()` to terminally drain the client's auth and realtime ownership:
+  it unregisters the transport participant, aborts active controllers, closes
+  raw/managed live streams (including a forgotten live handle), releases local
+  connection-grant and lane demand, and releases a store resolved by the
+  default persistence ladder. The operation is idempotent and awaitable; an
+  injected `rqsStore` remains caller-owned;
 - `currentAuthorityDescriptor()` and `currentAuthorizationScope()` for
   adapter fences and the blessed **who I am** / **am I signed in**
   identity read — after boot or restore, call

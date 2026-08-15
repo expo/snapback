@@ -1177,7 +1177,7 @@ export class AuthCoordinator {
       ? this.#activeBarrier
       : null;
     const insideParticipantCallback = this.#participants.some((entry) => (
-      entry.callbackDepth > 0
+      entry.invocationDepth > 0
     ));
     if (activeClearing !== null && !insideParticipantCallback) {
       // A clearing publication can wake client machinery that treats the
@@ -1860,6 +1860,7 @@ export class AuthCoordinator {
   }
 
   async compareAndClear(capture, reason = 'terminal_auth_error') {
+    await this.#joinAuthorityOperationBarrier();
     this.#assertOperationAllowed();
     const current = this.#record;
     if (!captureMatches(this.#appId, current, capture)) return { cleared: false };
@@ -1982,6 +1983,7 @@ export class AuthCoordinator {
   }
 
   async transition(expected, successor, reason = 'authority_change') {
+    await this.#joinAuthorityOperationBarrier();
     this.#assertOperationAllowed();
     const normalized = await normalizeSuccessor(successor);
     const owned = await this.#withOwnership(async (owner) => {
@@ -2161,6 +2163,7 @@ export class AuthCoordinator {
       removed: false,
       active: Promise.resolve(),
       callbackDepth: 0,
+      invocationDepth: 0,
       removalTask: null,
     };
     const beforeIndex = before === null
@@ -3247,10 +3250,12 @@ export class AuthCoordinator {
 
   #invokeSyncParticipant(entry, method, context) {
     entry.callbackDepth += 1;
+    entry.invocationDepth += 1;
     let result;
     try {
       result = participantMethod(entry.participant, method, context);
     } finally {
+      entry.invocationDepth -= 1;
       entry.callbackDepth -= 1;
     }
     if (result && typeof result.then === 'function') {
@@ -3268,8 +3273,19 @@ export class AuthCoordinator {
 
   async #invokeAwaitedParticipant(entry, method, context) {
     entry.callbackDepth += 1;
+    entry.invocationDepth += 1;
+    let result;
     try {
-      return await participantMethod(entry.participant, method, context);
+      // Reentry is the synchronous act of a participant starting coordinator
+      // work from its callback. Once the callback returns its promise, other
+      // callers are external observers and must be allowed to join settlement
+      // while that promise remains pending.
+      result = participantMethod(entry.participant, method, context);
+    } finally {
+      entry.invocationDepth -= 1;
+    }
+    try {
+      return await result;
     } finally {
       entry.callbackDepth -= 1;
     }
@@ -3557,6 +3573,30 @@ export class AuthCoordinator {
   #assertUsable() {
     if (this.#closed) throw coordinatorError('SNAPBACK_AUTH_COORDINATOR_CLOSED', 'auth coordinator is closed');
     if (this.#counterExhaustionError) throw this.#counterExhaustionError;
+  }
+
+  async #joinAuthorityOperationBarrier() {
+    this.#assertOperationAllowed();
+    const barrier = this.#activeBarrier;
+    if (barrier === null) return;
+    const insideParticipantCallback = this.#participants.some((entry) => (
+      entry.invocationDepth > 0
+    ));
+    if (insideParticipantCallback) {
+      // Successor resume is allowed to confirm the exact authority the active
+      // barrier already installed. Every earlier participant phase must refuse
+      // promptly: joining a barrier from work that barrier awaits deadlocks.
+      if (barrier.phase === 'resume' && this.#record?.phase === 'settled') return;
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'authority operation cannot reenter an active participant barrier',
+      );
+    }
+    // @ref LLP 0059#cross-context-ownership — external authority operations
+    // join local settlement; only participant reentry receives prompt refusal.
+    await barrier.completion.promise;
+    this.#assertOperationAllowed();
+    if (this.#activeBarrier !== null) await this.#joinAuthorityOperationBarrier();
   }
 
   #assertOperationAllowed() {

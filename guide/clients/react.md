@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:1c80bf1c444d856e7f4b8931bb9121230d876e89389a2d274b09e93e25d2176d
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:185469da32a058a35d64a64020776980440e9d0c96b5afc8e4f2b342fe5ab3e1
 ---
 
 # The React client
@@ -242,8 +242,12 @@ returned by `snapback guide QueryState`.
 
 Same-reference, same-argument siblings under one provider share one store and
 one upstream subscription while retaining independent React consumers.
-Different provider objects, complete generated references, or canonical
-arguments stay isolated.
+Different provider objects, complete generated references, canonical
+arguments, or authority identities do not share it. Keep the provider mounted
+across signin and logout: its LLP 0059 participant blanks the predecessor
+synchronously and starts a fresh protected query under the settled successor.
+An application key/remount is neither required nor desirable; remounting only
+recreates ownership the provider already coordinates.
 
 When one screen composes several reads plus mutations, commands, or
 presence, prefer the generated **application surface** — `useSurface` on

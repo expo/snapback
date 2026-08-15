@@ -121,3 +121,40 @@ unless a retention adapter was present, and the public authority view omitted
 the derived `isAuthenticated` convenience bit even though the durable custody
 record was correct. Fixing those at their projection boundaries was markedly
 cleaner than teaching the demo about internal custody shapes.
+
+## 2026-08-15 auth-lifecycle repair
+
+A 32-client sequential connect → password-signin → mutate → protected
+live-query → disconnect witness reliably stopped on the twenty-first signin.
+Phase instrumentation ruled out session establishment, custody completion,
+realtime teardown, and connection accounting: password planning and KDF had
+completed, projection `Begin` had completed, and the detached commit was
+waiting to reacquire the provider's shared maintenance gate. Periodic garbage
+collection was already queued for the fair write side while the route still
+held its planning read guard, creating a self-deadlock across ownership lanes.
+
+The durable fix is a clearer ownership boundary. Password planning releases
+every provider maintenance/address guard before projection `Begin`; the
+independently owned commit reacquires one fresh shared guard after `Begin`.
+The commit plan's exact predecessor checks preserve the intended race outcome
+without carrying a route-local guard across projection custody. The same rule
+now covers signup, signin, recovery consumption, rotate, and set. The stress
+witness uses a per-phase stall watchdog—an initial whole-loop watchdog was a
+false model because successful debug Argon2 work legitimately exceeds a short
+global deadline. After the repair, all 32 clients completed and the slowest
+phase took 1.333 seconds in the final replay.
+
+The client-side lifecycle had a separate terminal-ownership leak:
+`closeAuth()` unregistered auth custody but left live-query managers capable of
+retaining reconnect demand. It now idempotently aborts auth work, closes and
+settles raw streams and managers, and clears local connection grants. Compared
+with Convex or Supabase clients, this makes disposal once again a client-owned
+terminal operation instead of an application retry convention.
+
+Finally, the mounted React provider already had the right authority-barrier
+seam. A sign-in → logout → sign-in witness proves one mounted consumer blanks
+and restarts its protected subscription, so application remounts are neither
+required nor desirable. The missing piece was coordinator serialization:
+external logout and other authority operations now join the active local
+transition while synchronous participant reentry still refuses to avoid
+self-deadlock.
