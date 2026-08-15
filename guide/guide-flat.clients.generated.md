@@ -3077,8 +3077,8 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:7327367ecd9b003c565ab5989c4852ff6d0d5997bdd3e92ef004d01663db237f
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:0067ca5e30caa1d049007d2453abd3cacf01e272be7e36cdde9cf9ba4fa93004
 ---
 
 # React Expo Online clients
@@ -3376,6 +3376,13 @@ Metro, bootstrap exchange, binding material, and port forwards on exit
 ([LLP 0181 §Supervised development baseline](repo:llp/0181-zero-configuration-expo.rfc.md#supervised-development-baseline),
 [`runExpoDev`](repo:packages/snapback-cli/expo-dev.mjs)).
 
+When a watched backend edit reaches `generated-and-loaded`, the supervisor
+reads the successor `app.descriptor.json` and remints the binding for that exact
+descriptor identity while keeping the same supervisor generation and route.
+The next bootstrap exchange therefore admits the new generated client without
+restarting `snapback dev --expo`; the dev-loop test changes `functions.mjs`,
+boots that successor digest, and calls it against the still-running backend.
+
 `--expo` and `--client-command` are different lifecycle arms. The generic arm
 runs the command in the caller's environment; it does not install
 `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` or publish the supervised bootstrap
@@ -3422,8 +3429,10 @@ for the provider state contract.
 `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` means the imported
 `AppDescriptor` and the delivered `AppBinding` name different descriptor
 identities. Stop any older supervisor, regenerate the conventional
-`snapback/generated/` app from the backend you intend to run, then restart
-`snapback dev --expo`. Do not overwrite the identity, construct a second
+`snapback/generated/` app from the backend you intend to run, and let the
+active supervisor observe its `generated-and-loaded` event. Restart only when
+the mismatch came from a different or stale supervisor rather than a watched
+edit. Do not overwrite the identity, construct a second
 descriptor in application code, or weaken admission: the refusal prevents a
 client generated for one backend shape from being bound to another.
 

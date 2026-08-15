@@ -1940,7 +1940,7 @@ targets: [local]
 maturity: partial
 since: 0.1.21
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:cbb1d479883d92d47848a9c618fc399c4e864ecc8991f9b340baf7fbc64ba297
+reviewed-authorities-digest: sha256:5bbaa09b77b377fd52748aa45b5d12482e00b7c2ad9d20e60f002c5b7409a875
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -1982,7 +1982,7 @@ snapback/
   schema.ts
   todos.ts                 # exports become api.todos.*
   contracts.ts             # non-function helper module
-  _generated/              # generated server/api declarations and runtime
+  generated/               # generated server/api declarations and runtime
 ```
 
 Nested modules are helpers, not function namespaces. A top-level function
@@ -1994,7 +1994,7 @@ helpers out of it.
 The schema vocabulary is the shared `defineSchema`/`defineTable`/`v` surface:
 
 ```ts source=tests/fixtures/familiar-todo/schema.ts
-import { defineSchema, defineTable, v } from "./_generated/server";
+import { defineSchema, defineTable, v } from "./generated/server";
 
 export default defineSchema({
   todos: defineTable({
@@ -2007,6 +2007,13 @@ export default defineSchema({
 Each function declares its authority and data reach next to the handler. A
 module `todos.ts` with export `list` becomes canonical name `todos.list` and
 generated reference `api.todos.list`:
+
+The shared operation-name grammar admits either one identifier or exactly two
+identifiers separated by one dot (`IDENT` or `IDENT.IDENT`). Familiar
+top-level modules generate the two-segment form, and the leaf is not restricted
+to CRUD names. Client-consumed JavaScript exposes dotted operations through
+the generated `api` namespace; it does not emit quoted or dotted ESM export
+aliases.
 
 ```ts source=tests/fixtures/familiar-todo/todos.ts
 export const list = query({
@@ -2151,8 +2158,10 @@ reference exercises:
    the default intent is insufficient.
 5. After every source change run `snapback generate snapback`; review and
    commit the refreshed `snapback/generated/artifacts.json` plus only the
-   projections selected by policy. Never patch `_generated/` or a manifest to
-   make a type error disappear.
+   projections selected by policy. `_generated/` is retired: do not create it,
+   including as a symlink, because codegen and dev admission refuse the
+   alternate root. Never patch a generated manifest to make a type error
+   disappear.
 6. Run `snapback dev snapback --expo` for the supervised device loop. Keep the
    acceptance owner separate from the rendered route: use the generated
    template's headless `acceptance.mjs`/`acceptance.live.mjs` pattern to boot
@@ -5603,7 +5612,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.21
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:9497de62d7d2007efa8590da28c3101c7ed865bdf567ca09e69240e34bb8fbdf
+reviewed-authorities-digest: sha256:f6aa62160c211e2bba8e751f52f3686c91b279a02bf787d12f684952ab881774
 ---
 
 # Evolve a sessions schema without discarding data

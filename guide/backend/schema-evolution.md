@@ -11,7 +11,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.21
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:9497de62d7d2007efa8590da28c3101c7ed865bdf567ca09e69240e34bb8fbdf
+reviewed-authorities-digest: sha256:f6aa62160c211e2bba8e751f52f3686c91b279a02bf787d12f684952ab881774
 ---
 
 # Evolve a sessions schema without discarding data
