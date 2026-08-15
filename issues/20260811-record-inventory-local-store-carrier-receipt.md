@@ -85,3 +85,37 @@ Per LLP 0232 D-2:
 - The full run remains executable and honest, but a closure-identical rebase
   reuses its green receipt rather than re-running it.
 
+
+## Amendment 2026-08-15 — this gate hard-blocks the publication path
+
+Observed while assessing whether the 16 landed clique-0121 sweep fixes could be
+published. `node scripts/check-agent-safe-publication.mjs` does not merely warn
+on this gate — it throws and exits:
+
+```
+Error: agent-safe-publication: sibling custody gate local-store-carrier-receipt
+does not retain its exact registered definition
+    at assertSiblingChainCustodyTransfers (…:993)
+    at validateDerivedForkCoverageTransfers (…:1037)
+    at validatePublicationRecord (…:2564)
+```
+
+Confirmed inherited, not introduced: the identical failure reproduces at
+`f5315002b`, the commit immediately before that fix run began, in the same
+checkout with the same `node_modules`.
+
+This raises the stakes on this ticket beyond diagnostic accuracy. As long as the
+registered definition and the dynamically selected records disagree,
+`validatePublicationRecord` fails closed and **no qualified npm release can be
+assembled**, independent of whether the surface under release is sound. At the
+time of writing, `main` carries a substantial unpublished surface delta against
+the published 0.1.21 closure — the entire clique-0121 sweep fix wave, including
+the canonical `generated/` directory unification, the shared operation-name
+grammar, Metro-transformable generated exports, `ctx.db.elevated`, the password
+`minimumLength` policy, and the familiar scalar/asset work. Every one of those
+tickets was filed by an agent hitting the *published* closure, so the fixes have
+no user-visible effect until a release is possible.
+
+Suggested sequencing: resolve the registry/checker disagreement described above
+first, then re-run `check-agent-safe-publication.mjs` to confirm the publication
+record validates, before attempting candidate assembly under LLP 0233.
