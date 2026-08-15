@@ -214,19 +214,20 @@ snapback/
 Rules:
 
 1. **Classification is by exports, not by path.** Every top-level `.ts` or
-   `.mts` file except `schema.ts` is scanned: a file is a **function
-   module** iff at least one of its named exports is a familiar function
-   value (`query(...)`, `mutation(...)`, `action(...)`); otherwise it is a
-   **helper module**, admitted under the existing LLP 0237 bounded-graph
-   rules with no further constraint. A function module whose other named
-   exports are not familiar function values refuses
+   `.mts` file except `schema.ts` is scanned: a file is a **function/intent
+   module** iff at least one named export is a familiar authored value
+   (`query(...)`, `mutation(...)`, `action(...)`, or
+   `defineAssetUpload(...)`); otherwise it is a **helper module**, admitted
+   under the existing LLP 0237 bounded-graph rules with no further constraint.
+   A function/intent module whose other named exports are not familiar
+   authored values refuses
    (`SNAPBACK_CODEGEN_FAMILIAR_EXPORT_UNSUPPORTED`) — mixing functions and
    exported helpers in one module is the one shape the classifier cannot
    attribute, so it is refused rather than guessed.
 2. **Subdirectories may hold helper modules** (they are reached only by
-   import, under the same bounded-graph admission). Function modules must
-   be top-level: if any imported module below the top level exports a
-   familiar function value, generation refuses
+   import, under the same bounded-graph admission). Function/intent modules
+   must be top-level: if any imported module below the top level exports a
+   familiar authored value, generation refuses
    (`SNAPBACK_CODEGEN_FAMILIAR_MODULE_PATH_UNSUPPORTED`) — a nested
    function can never be silently inert. `crons.ts` and `http.ts` at the
    top level are reserved Convex-shaped names that refuse with
@@ -285,10 +286,12 @@ recorded in the LLP 0252 D7 maintenance ledger.
 
 ### S3.2 Generated local modules
 
-- `generated/server.{mjs,d.ts}` re-exports `query`, `mutation`, `action`
+- `generated/server.{mjs,d.ts}` re-exports `query`, `mutation`, `action`, and
+  `defineAssetUpload`
   bound to the application's schema types (typed `ctx.db`, typed
   `v.doc`/`v.id` table names). It exists so the learned import
-  `import { query, mutation } from "./generated/server"` works verbatim
+  `import { query, mutation, defineAssetUpload } from "./generated/server"`
+  works verbatim
   and carries app-typed generics; it contains no logic beyond typed
   re-export, and S2 rule 5 governs its bootstrap.
 - `generated/api.{mjs,d.ts}` exports the namespaced `api` object (S5.1).

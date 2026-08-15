@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:d912e11ec850c8b3e12d035b2d7955f9a0a2e1f27d08501f33fd8a59145e30b9"
+    "sourceDigest": "sha256:0e9ea9aef9e6d4dab63a2fcf26e9df2ef0ae3fe83f446b39021da8674ffe544b"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3210,
     "sourceFiles": 452,
-    "emittingSites": 10976,
+    "emittingSites": 10977,
     "httpClassified": 995,
     "guideAnchored": 424
   },
@@ -51,17 +51,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4754,
+          "line": 4763,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6773,
+          "line": 6782,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7125,
+          "line": 7134,
           "column": 30
         }
       ],
@@ -81,27 +81,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6774,
+          "line": 6783,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7284,
+          "line": 7293,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 7384,
+          "line": 7393,
           "column": 48
         },
         {
           "file": "src/runtime.rs",
-          "line": 7597,
+          "line": 7606,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7598,
+          "line": 7607,
           "column": 18
         },
         {
@@ -136,7 +136,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1806,
+          "line": 1815,
           "column": 10
         }
       ],
@@ -166,7 +166,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4123,
+          "line": 4132,
           "column": 22
         }
       ],
@@ -211,12 +211,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5010,
+          "line": 5019,
           "column": 42
         },
         {
           "file": "src/runtime.rs",
-          "line": 6787,
+          "line": 6796,
           "column": 12
         },
         {
@@ -319,7 +319,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1921,
+          "line": 1930,
           "column": 25
         }
       ],
@@ -364,7 +364,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 5009,
+          "line": 5018,
           "column": 48
         }
       ],
@@ -391,7 +391,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6778,
+          "line": 6787,
           "column": 12
         },
         {
@@ -428,7 +428,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6779,
+          "line": 6788,
           "column": 12
         },
         {
@@ -476,37 +476,37 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4177,
+          "line": 4186,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 4194,
+          "line": 4203,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4210,
+          "line": 4219,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4236,
+          "line": 4245,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4249,
+          "line": 4258,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4267,
+          "line": 4276,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6780,
+          "line": 6789,
           "column": 12
         },
         {
@@ -613,7 +613,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6782,
+          "line": 6791,
           "column": 12
         },
         {
@@ -656,7 +656,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6781,
+          "line": 6790,
           "column": 12
         },
         {
@@ -691,7 +691,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6783,
+          "line": 6792,
           "column": 12
         },
         {
@@ -754,7 +754,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6784,
+          "line": 6793,
           "column": 12
         },
         {
@@ -781,7 +781,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6785,
+          "line": 6794,
           "column": 12
         },
         {
@@ -813,7 +813,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6786,
+          "line": 6795,
           "column": 12
         },
         {
@@ -916,32 +916,32 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5539,
+          "line": 5548,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6085,
+          "line": 6094,
           "column": 29
         },
         {
           "file": "src/runtime.rs",
-          "line": 6087,
+          "line": 6096,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6775,
+          "line": 6784,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7593,
+          "line": 7602,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7594,
+          "line": 7603,
           "column": 18
         },
         {
@@ -1021,7 +1021,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1452,
+          "line": 1461,
           "column": 18
         }
       ],
@@ -4627,7 +4627,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 15214,
+          "line": 15216,
           "column": 44
         },
         {
@@ -4657,7 +4657,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 15204,
+          "line": 15206,
           "column": 14
         },
         {
@@ -4744,7 +4744,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16277,
+          "line": 16282,
           "column": 4
         },
         {
@@ -4809,7 +4809,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16278,
+          "line": 16283,
           "column": 4
         },
         {
@@ -4819,7 +4819,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 15646,
+          "line": 15648,
           "column": 44
         },
         {
@@ -5019,7 +5019,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16279,
+          "line": 16284,
           "column": 4
         },
         {
@@ -5074,7 +5074,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16280,
+          "line": 16285,
           "column": 4
         },
         {
@@ -5084,7 +5084,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 15703,
+          "line": 15705,
           "column": 44
         },
         {
@@ -5249,7 +5249,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16281,
+          "line": 16286,
           "column": 4
         },
         {
@@ -5646,7 +5646,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16276,
+          "line": 16281,
           "column": 4
         },
         {
@@ -6587,7 +6587,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 6357,
+          "line": 6361,
           "column": 53
         },
         {
@@ -6679,17 +6679,17 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 14183,
+          "line": 14185,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 14246,
+          "line": 14248,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 14296,
+          "line": 14298,
           "column": 41
         },
         {
@@ -9537,37 +9537,37 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5866,
+          "line": 5875,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 5973,
+          "line": 5982,
           "column": 21
         },
         {
           "file": "src/runtime.rs",
-          "line": 6844,
+          "line": 6853,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7449,
+          "line": 7458,
           "column": 62
         },
         {
           "file": "src/runtime.rs",
-          "line": 7458,
+          "line": 7467,
           "column": 47
         },
         {
           "file": "src/runtime.rs",
-          "line": 7480,
+          "line": 7489,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7524,
+          "line": 7533,
           "column": 55
         },
         {
@@ -9619,7 +9619,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7151,
+          "line": 7160,
           "column": 16
         }
       ],
@@ -9644,7 +9644,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13462,
+          "line": 13464,
           "column": 10
         }
       ],
@@ -9664,7 +9664,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13463,
+          "line": 13465,
           "column": 10
         }
       ],
@@ -10082,7 +10082,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1205,
+          "line": 1214,
           "column": 14
         }
       ],
@@ -10122,7 +10122,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 5851,
+          "line": 5855,
           "column": 16
         }
       ],
@@ -10137,7 +10137,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 5841,
+          "line": 5845,
           "column": 16
         },
         {
@@ -10509,12 +10509,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3824,
+          "line": 3833,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 3867,
+          "line": 3876,
           "column": 30
         },
         {
@@ -10554,7 +10554,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3802,
+          "line": 3811,
           "column": 30
         },
         {
@@ -10681,7 +10681,7 @@
         },
         {
           "file": "src/local.rs",
-          "line": 33511,
+          "line": 33508,
           "column": 14
         }
       ],
@@ -11010,7 +11010,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 18705,
+          "line": 18724,
           "column": 14
         }
       ],
@@ -11025,7 +11025,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 5821,
+          "line": 5825,
           "column": 12
         }
       ],
@@ -11045,7 +11045,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 18692,
+          "line": 18711,
           "column": 14
         }
       ],
@@ -11090,7 +11090,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 5780,
+          "line": 5784,
           "column": 12
         }
       ],
@@ -11120,7 +11120,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 5771,
+          "line": 5775,
           "column": 12
         }
       ],
@@ -11135,7 +11135,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 5807,
+          "line": 5811,
           "column": 12
         }
       ],
@@ -11155,7 +11155,7 @@
         },
         {
           "file": "src/local.rs",
-          "line": 33390,
+          "line": 33387,
           "column": 10
         },
         {
@@ -11185,7 +11185,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 18726,
+          "line": 18745,
           "column": 14
         }
       ],
@@ -11240,7 +11240,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 5993,
+          "line": 5997,
           "column": 16
         },
         {
@@ -11265,7 +11265,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 5789,
+          "line": 5793,
           "column": 12
         }
       ],
@@ -11731,7 +11731,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 6088,
+          "line": 6092,
           "column": 10
         }
       ],
@@ -11746,7 +11746,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 6118,
+          "line": 6122,
           "column": 18
         }
       ],
@@ -11761,7 +11761,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 6081,
+          "line": 6085,
           "column": 10
         }
       ],
@@ -11781,17 +11781,17 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13062,
+          "line": 13077,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 13114,
+          "line": 13129,
           "column": 34
         },
         {
           "file": "src/storage.rs",
-          "line": 13130,
+          "line": 13145,
           "column": 30
         },
         {
@@ -12075,7 +12075,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 6057,
+          "line": 6061,
           "column": 18
         }
       ],
@@ -12402,7 +12402,7 @@
       "sites": [
         {
           "file": "src/local.rs",
-          "line": 33398,
+          "line": 33395,
           "column": 10
         }
       ],
@@ -13279,7 +13279,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4135,
+          "line": 4137,
           "column": 10
         },
         {
@@ -15225,42 +15225,42 @@
         },
         {
           "file": "src/local.rs",
-          "line": 33330,
+          "line": 33327,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 4550,
+          "line": 4559,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 4565,
+          "line": 4574,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 4589,
+          "line": 4598,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6772,
+          "line": 6781,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 10201,
+          "line": 10210,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 10231,
+          "line": 10240,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 10488,
+          "line": 10497,
           "column": 41
         },
         {
@@ -15892,17 +15892,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9690,
+          "line": 9692,
           "column": 16
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 11537,
+          "line": 11539,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12011,
+          "line": 12013,
           "column": 21
         },
         {
@@ -15912,17 +15912,17 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4669,
+          "line": 4671,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 3139,
+          "line": 3148,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6770,
+          "line": 6779,
           "column": 12
         },
         {
@@ -20223,17 +20223,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9692,
+          "line": 9694,
           "column": 16
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 11542,
+          "line": 11544,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12013,
+          "line": 12015,
           "column": 21
         },
         {
@@ -20243,22 +20243,22 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4671,
+          "line": 4673,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 3146,
+          "line": 3155,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 3158,
+          "line": 3167,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6771,
+          "line": 6780,
           "column": 12
         },
         {
@@ -20273,7 +20273,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 11446,
+          "line": 11461,
           "column": 14
         }
       ],
@@ -21150,37 +21150,37 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1935,
+          "line": 1944,
           "column": 19
         },
         {
           "file": "src/runtime.rs",
-          "line": 1957,
+          "line": 1966,
           "column": 24
         },
         {
           "file": "src/runtime.rs",
-          "line": 3675,
+          "line": 3684,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 4315,
+          "line": 4324,
           "column": 37
         },
         {
           "file": "src/runtime.rs",
-          "line": 5020,
+          "line": 5029,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 5411,
+          "line": 5420,
           "column": 40
         },
         {
           "file": "src/runtime.rs",
-          "line": 5428,
+          "line": 5437,
           "column": 49
         },
         {
@@ -23382,7 +23382,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6769,
+          "line": 6778,
           "column": 12
         },
         {
@@ -23700,7 +23700,7 @@
       "sites": [
         {
           "file": "src/local.rs",
-          "line": 33626,
+          "line": 33623,
           "column": 10
         },
         {
@@ -24867,12 +24867,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 10446,
+          "line": 10448,
           "column": 19
         },
         {
           "file": "src/manifest.rs",
-          "line": 10558,
+          "line": 10560,
           "column": 14
         },
         {
@@ -24897,7 +24897,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1848,
+          "line": 1857,
           "column": 24
         },
         {
@@ -25545,17 +25545,17 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9701,
+          "line": 9703,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9716,
+          "line": 9718,
           "column": 8
         },
         {
           "file": "src/manifest.rs",
-          "line": 5087,
+          "line": 5089,
           "column": 10
         },
         {
@@ -25607,7 +25607,7 @@
         },
         {
           "file": "src/local.rs",
-          "line": 33096,
+          "line": 33093,
           "column": 22
         },
         {
@@ -25659,7 +25659,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7152,
+          "line": 7161,
           "column": 16
         }
       ],
@@ -25814,7 +25814,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10799,
+          "line": 10801,
           "column": 10
         },
         {
@@ -25824,17 +25824,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6836,
+          "line": 6845,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8755,
+          "line": 8764,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 8760,
+          "line": 8769,
           "column": 18
         },
         {
@@ -25869,17 +25869,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6670,
+          "line": 6679,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6834,
+          "line": 6843,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8841,
+          "line": 8850,
           "column": 14
         },
         {
@@ -25904,57 +25904,57 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6570,
+          "line": 6579,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6577,
+          "line": 6586,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6592,
+          "line": 6601,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6602,
+          "line": 6611,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6613,
+          "line": 6622,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 6626,
+          "line": 6635,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6637,
+          "line": 6646,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 6663,
+          "line": 6672,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6832,
+          "line": 6841,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8881,
+          "line": 8890,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 8892,
+          "line": 8901,
           "column": 44
         },
         {
@@ -25979,17 +25979,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6650,
+          "line": 6659,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6833,
+          "line": 6842,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8818,
+          "line": 8827,
           "column": 14
         },
         {
@@ -26009,7 +26009,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10830,
+          "line": 10832,
           "column": 10
         },
         {
@@ -26019,37 +26019,37 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2981,
+          "line": 2990,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6837,
+          "line": 6846,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8765,
-          "column": 18
-        },
-        {
-          "file": "src/runtime.rs",
-          "line": 8767,
-          "column": 39
-        },
-        {
-          "file": "src/runtime.rs",
-          "line": 8771,
+          "line": 8774,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
           "line": 8776,
+          "column": 39
+        },
+        {
+          "file": "src/runtime.rs",
+          "line": 8780,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 8781,
+          "line": 8785,
+          "column": 18
+        },
+        {
+          "file": "src/runtime.rs",
+          "line": 8790,
           "column": 18
         },
         {
@@ -26094,17 +26094,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2827,
+          "line": 2836,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6835,
+          "line": 6844,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8854,
+          "line": 8863,
           "column": 14
         },
         {
@@ -26129,12 +26129,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3055,
+          "line": 3064,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 6838,
+          "line": 6847,
           "column": 12
         },
         {
@@ -26489,7 +26489,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6193,
+          "line": 6195,
           "column": 14
         },
         {
@@ -26574,7 +26574,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4286,
+          "line": 4288,
           "column": 14
         },
         {
@@ -28414,12 +28414,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4741,
+          "line": 4750,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6814,
+          "line": 6823,
           "column": 12
         },
         {
@@ -29616,57 +29616,57 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 3886,
+          "line": 3888,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 3951,
+          "line": 3953,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 4081,
+          "line": 4083,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 15093,
+          "line": 15095,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 15101,
+          "line": 15103,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 15110,
+          "line": 15112,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 16138,
+          "line": 16157,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 16911,
+          "line": 16930,
           "column": 46
         },
         {
           "file": "src/manifest.rs",
-          "line": 17100,
+          "line": 17119,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 17108,
+          "line": 17127,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 17147,
+          "line": 17166,
           "column": 14
         },
         {
@@ -29731,7 +29731,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6717,
+          "line": 6726,
           "column": 14
         },
         {
@@ -29741,22 +29741,22 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 10589,
+          "line": 10604,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 10640,
+          "line": 10655,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 10725,
+          "line": 10740,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 10735,
+          "line": 10750,
           "column": 14
         }
       ],
@@ -31098,37 +31098,37 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1395,
+          "line": 1426,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1812,
+          "line": 1843,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1876,
+          "line": 1907,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1919,
+          "line": 1950,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3276,
+          "line": 3307,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3293,
+          "line": 3324,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3311,
+          "line": 3342,
           "column": 10
         }
       ],
@@ -31450,7 +31450,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16067,
+          "line": 16082,
           "column": 14
         },
         {
@@ -31520,17 +31520,17 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6440,
+          "line": 6587,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7339,
+          "line": 7486,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7389,
+          "line": 7536,
           "column": 14
         },
         {
@@ -31605,7 +31605,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 16273,
+          "line": 16288,
           "column": 10
         }
       ],
@@ -31620,17 +31620,17 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 15888,
+          "line": 15903,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 16582,
+          "line": 16597,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 16598,
+          "line": 16613,
           "column": 18
         },
         {
@@ -31660,7 +31660,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16639,
+          "line": 16654,
           "column": 14
         }
       ],
@@ -31685,7 +31685,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16694,
+          "line": 16709,
           "column": 14
         }
       ],
@@ -31715,12 +31715,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16079,
+          "line": 16094,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 16248,
+          "line": 16263,
           "column": 10
         }
       ],
@@ -32798,7 +32798,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16863,
+          "line": 16868,
           "column": 20
         }
       ],
@@ -32813,7 +32813,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16221,
+          "line": 16226,
           "column": 8
         }
       ],
@@ -32898,7 +32898,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15792,
+          "line": 15797,
           "column": 8
         }
       ],
@@ -32915,7 +32915,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16596,
+          "line": 16601,
           "column": 10
         }
       ],
@@ -33002,7 +33002,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16346,
+          "line": 16351,
           "column": 140
         }
       ],
@@ -33017,7 +33017,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16716,
+          "line": 16721,
           "column": 25
         }
       ],
@@ -33032,7 +33032,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16714,
+          "line": 16719,
           "column": 40
         }
       ],
@@ -33047,7 +33047,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16704,
+          "line": 16709,
           "column": 23
         }
       ],
@@ -33062,7 +33062,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16708,
+          "line": 16713,
           "column": 23
         }
       ],
@@ -33077,7 +33077,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16699,
+          "line": 16704,
           "column": 74
         }
       ],
@@ -33092,7 +33092,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16747,
+          "line": 16752,
           "column": 61
         }
       ],
@@ -33112,7 +33112,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16274,
+          "line": 16279,
           "column": 4
         }
       ],
@@ -33131,7 +33131,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16694,
+          "line": 16699,
           "column": 23
         }
       ],
@@ -33146,7 +33146,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16733,
+          "line": 16738,
           "column": 25
         }
       ],
@@ -33161,7 +33161,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16724,
+          "line": 16729,
           "column": 23
         }
       ],
@@ -33176,7 +33176,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16737,
+          "line": 16742,
           "column": 27
         }
       ],
@@ -33191,7 +33191,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16743,
+          "line": 16748,
           "column": 25
         }
       ],
@@ -33206,7 +33206,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16372,
+          "line": 16377,
           "column": 21
         }
       ],
@@ -33221,12 +33221,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16275,
+          "line": 16280,
           "column": 4
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16698,
+          "line": 16703,
           "column": 47
         }
       ],
@@ -33245,7 +33245,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10186,
+          "line": 10188,
           "column": 10
         }
       ],
@@ -33260,12 +33260,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15134,
+          "line": 15139,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15149,
+          "line": 15154,
           "column": 12
         }
       ],
@@ -33282,7 +33282,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 7778,
+          "line": 7785,
           "column": 6
         }
       ],
@@ -33297,12 +33297,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 102,
+          "line": 103,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16270,
+          "line": 16275,
           "column": 4
         }
       ],
@@ -33319,12 +33319,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 226,
+          "line": 224,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16271,
+          "line": 16276,
           "column": 4
         }
       ],
@@ -33341,7 +33341,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15186,
+          "line": 15191,
           "column": 10
         }
       ],
@@ -33358,7 +33358,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15237,
+          "line": 15242,
           "column": 10
         }
       ],
@@ -33375,27 +33375,27 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 63,
+          "line": 64,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 71,
+          "line": 72,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 82,
+          "line": 83,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 108,
+          "line": 109,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16272,
+          "line": 16277,
           "column": 4
         }
       ],
@@ -33412,12 +33412,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15213,
+          "line": 15218,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15249,
+          "line": 15254,
           "column": 12
         }
       ],
@@ -33439,7 +33439,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15266,
+          "line": 15271,
           "column": 10
         }
       ],
@@ -33456,7 +33456,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15197,
+          "line": 15202,
           "column": 10
         }
       ],
@@ -33473,17 +33473,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 92,
+          "line": 93,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/familiar.mjs",
-          "line": 159,
+          "line": 160,
           "column": 6
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16273,
+          "line": 16278,
           "column": 4
         }
       ],
@@ -33500,7 +33500,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10165,
+          "line": 10167,
           "column": 8
         }
       ],
@@ -33578,7 +33578,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15170,
+          "line": 15175,
           "column": 10
         }
       ],
@@ -33651,7 +33651,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12270,
+          "line": 12272,
           "column": 12
         }
       ],
@@ -33951,7 +33951,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 7382,
+          "line": 7389,
           "column": 18
         },
         {
@@ -33971,7 +33971,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15452,
+          "line": 15457,
           "column": 16
         },
         {
@@ -34058,7 +34058,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12911,
+          "line": 12913,
           "column": 14
         }
       ],
@@ -34075,12 +34075,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12900,
+          "line": 12902,
           "column": 16
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12965,
+          "line": 12967,
           "column": 19
         }
       ],
@@ -34097,12 +34097,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12925,
+          "line": 12927,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12933,
+          "line": 12935,
           "column": 14
         }
       ],
@@ -34120,7 +34120,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12983,
+          "line": 12985,
           "column": 12
         }
       ],
@@ -34218,7 +34218,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12956,
+          "line": 12958,
           "column": 14
         }
       ],
@@ -34235,7 +34235,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12845,
+          "line": 12847,
           "column": 15
         }
       ],
@@ -34252,12 +34252,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12871,
+          "line": 12873,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12901,
+          "line": 12903,
           "column": 16
         }
       ],
@@ -34274,7 +34274,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12887,
+          "line": 12889,
           "column": 15
         }
       ],
@@ -34308,7 +34308,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12855,
+          "line": 12857,
           "column": 10
         }
       ],
@@ -34342,12 +34342,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12870,
+          "line": 12872,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12882,
+          "line": 12884,
           "column": 15
         }
       ],
@@ -35536,17 +35536,17 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 6499,
+          "line": 6501,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 6513,
+          "line": 6515,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 6557,
+          "line": 6559,
           "column": 14
         }
       ],
@@ -35671,17 +35671,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6102,
+          "line": 6111,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 6103,
+          "line": 6112,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6765,
+          "line": 6774,
           "column": 12
         },
         {
@@ -35963,7 +35963,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8298,
+          "line": 8305,
           "column": 22
         },
         {
@@ -35983,17 +35983,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6097,
+          "line": 6106,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 6101,
+          "line": 6110,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6764,
+          "line": 6773,
           "column": 12
         },
         {
@@ -37151,7 +37151,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 6539,
+          "line": 6543,
           "column": 15
         },
         {
@@ -38203,12 +38203,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2336,
+          "line": 2345,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 6825,
+          "line": 6834,
           "column": 12
         },
         {
@@ -38218,7 +38218,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16021,
+          "line": 16036,
           "column": 22
         }
       ],
@@ -38238,7 +38238,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 10548,
+          "line": 10550,
           "column": 14
         },
         {
@@ -38258,7 +38258,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2349,
+          "line": 2358,
           "column": 22
         }
       ],
@@ -38288,22 +38288,22 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 10463,
+          "line": 10465,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 10532,
+          "line": 10534,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 2360,
+          "line": 2369,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6826,
+          "line": 6835,
           "column": 12
         },
         {
@@ -38313,7 +38313,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16010,
+          "line": 16025,
           "column": 18
         }
       ],
@@ -38333,7 +38333,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2126,
+          "line": 2135,
           "column": 18
         },
         {
@@ -38343,7 +38343,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16051,
+          "line": 16066,
           "column": 18
         }
       ],
@@ -38388,7 +38388,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 10522,
+          "line": 10524,
           "column": 14
         },
         {
@@ -38413,7 +38413,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16864,
+          "line": 16869,
           "column": 20
         }
       ],
@@ -39936,12 +39936,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3818,
+          "line": 3823,
           "column": 6
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16282,
+          "line": 16287,
           "column": 4
         }
       ],
@@ -39958,12 +39958,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3813,
+          "line": 3818,
           "column": 6
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16283,
+          "line": 16288,
           "column": 4
         }
       ],
@@ -42315,12 +42315,12 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2157,
+          "line": 2188,
           "column": 23
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2814,
+          "line": 2845,
           "column": 10
         },
         {
@@ -42665,7 +42665,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2344,
+          "line": 2375,
           "column": 10
         }
       ],
@@ -43055,7 +43055,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2263,
+          "line": 2294,
           "column": 10
         },
         {
@@ -43090,7 +43090,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13464,
+          "line": 13466,
           "column": 10
         }
       ],
@@ -43105,7 +43105,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7156,
+          "line": 7165,
           "column": 16
         }
       ],
@@ -43530,7 +43530,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15960,
+          "line": 15975,
           "column": 14
         }
       ],
@@ -43590,7 +43590,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7150,
+          "line": 7159,
           "column": 16
         }
       ],
@@ -44934,7 +44934,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15591,
+          "line": 15596,
           "column": 8
         }
       ],
@@ -44951,7 +44951,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15719,
+          "line": 15724,
           "column": 57
         }
       ],
@@ -44968,7 +44968,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15715,
+          "line": 15720,
           "column": 324
         }
       ],
@@ -44985,7 +44985,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15718,
+          "line": 15723,
           "column": 55
         }
       ],
@@ -45002,37 +45002,37 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15525,
+          "line": 15530,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15676,
+          "line": 15681,
           "column": 70
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15683,
+          "line": 15688,
           "column": 51
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15684,
+          "line": 15689,
           "column": 61
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15694,
+          "line": 15699,
           "column": 92
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15694,
+          "line": 15699,
           "column": 172
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15696,
+          "line": 15701,
           "column": 55
         }
       ],
@@ -45074,12 +45074,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16284,
+          "line": 16289,
           "column": 4
         },
         {
           "file": "src/manifest.rs",
-          "line": 4064,
+          "line": 4066,
           "column": 14
         },
         {
@@ -45116,12 +45116,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16285,
+          "line": 16290,
           "column": 4
         },
         {
           "file": "src/manifest.rs",
-          "line": 4057,
+          "line": 4059,
           "column": 14
         },
         {
@@ -45148,12 +45148,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4071,
+          "line": 4073,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 15831,
+          "line": 15850,
           "column": 14
         },
         {
@@ -45180,17 +45180,17 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16286,
+          "line": 16291,
           "column": 4
         },
         {
           "file": "src/manifest.rs",
-          "line": 4044,
+          "line": 4046,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15839,
+          "line": 15858,
           "column": 14
         },
         {
@@ -45227,7 +45227,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15527,
+          "line": 15542,
           "column": 22
         }
       ],
@@ -45261,7 +45261,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13772,
+          "line": 13787,
           "column": 22
         }
       ],
@@ -45291,7 +45291,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15785,
+          "line": 15800,
           "column": 10
         },
         {
@@ -45884,7 +45884,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6813,
+          "line": 6822,
           "column": 12
         },
         {
@@ -47491,32 +47491,32 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 3857,
+          "line": 3859,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 3906,
+          "line": 3908,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 3922,
+          "line": 3924,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 3934,
+          "line": 3936,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 15773,
+          "line": 15775,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 18771,
+          "line": 18790,
           "column": 14
         },
         {
@@ -47541,7 +47541,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 5030,
+          "line": 5032,
           "column": 14
         },
         {
@@ -47666,7 +47666,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 3874,
+          "line": 3876,
           "column": 18
         },
         {
@@ -47861,7 +47861,7 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 4193,
+          "line": 4195,
           "column": 14
         },
         {
@@ -47881,7 +47881,7 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 4216,
+          "line": 4218,
           "column": 14
         },
         {
@@ -47971,17 +47971,17 @@
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4363,
+          "line": 4368,
           "column": 66
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4504,
+          "line": 4509,
           "column": 62
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16287,
+          "line": 16292,
           "column": 4
         }
       ],
@@ -48006,7 +48006,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 16876,
+          "line": 16895,
           "column": 14
         },
         {
@@ -48026,12 +48026,12 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 4252,
+          "line": 4254,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15743,
+          "line": 15745,
           "column": 14
         },
         {
@@ -48071,12 +48071,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15861,
+          "line": 15866,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15861,
+          "line": 15866,
           "column": 71
         }
       ],
@@ -48106,7 +48106,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8530,
+          "line": 8537,
           "column": 23
         }
       ],
@@ -48176,7 +48176,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8536,
+          "line": 8543,
           "column": 23
         }
       ],
@@ -48191,7 +48191,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8525,
+          "line": 8532,
           "column": 23
         }
       ],
@@ -48206,7 +48206,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8520,
+          "line": 8527,
           "column": 23
         }
       ],
@@ -48241,7 +48241,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8511,
+          "line": 8518,
           "column": 25
         }
       ],
@@ -48291,7 +48291,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8579,
+          "line": 8586,
           "column": 27
         }
       ],
@@ -48306,7 +48306,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8565,
+          "line": 8572,
           "column": 25
         }
       ],
@@ -48381,17 +48381,17 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 18255,
+          "line": 18274,
           "column": 30
         },
         {
           "file": "src/manifest.rs",
-          "line": 18288,
+          "line": 18307,
           "column": 34
         },
         {
           "file": "src/manifest.rs",
-          "line": 18299,
+          "line": 18318,
           "column": 30
         }
       ],
@@ -48641,57 +48641,57 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4163,
+          "line": 4172,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4431,
+          "line": 4440,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4472,
+          "line": 4481,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6088,
+          "line": 6097,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 6396,
+          "line": 6405,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6399,
+          "line": 6408,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6483,
+          "line": 6492,
           "column": 429
         },
         {
           "file": "src/runtime.rs",
-          "line": 6483,
+          "line": 6492,
           "column": 692
         },
         {
           "file": "src/runtime.rs",
-          "line": 6515,
+          "line": 6524,
           "column": 374
         },
         {
           "file": "src/runtime.rs",
-          "line": 6518,
+          "line": 6527,
           "column": 368
         },
         {
           "file": "src/runtime.rs",
-          "line": 6759,
+          "line": 6768,
           "column": 10
         },
         {
@@ -48744,12 +48744,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6089,
+          "line": 6098,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6759,
+          "line": 6768,
           "column": 58
         },
         {
@@ -48799,32 +48799,32 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6007,
+          "line": 6016,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 7217,
+          "line": 7226,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 7623,
+          "line": 7632,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 7631,
+          "line": 7640,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 7645,
+          "line": 7654,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 7661,
+          "line": 7670,
           "column": 22
         },
         {
@@ -48869,12 +48869,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4825,
+          "line": 4834,
           "column": 43
         },
         {
           "file": "src/runtime.rs",
-          "line": 9877,
+          "line": 9886,
           "column": 48
         }
       ],
@@ -48894,12 +48894,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6036,
+          "line": 6045,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 7197,
+          "line": 7206,
           "column": 14
         },
         {
@@ -48919,7 +48919,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10888,
+          "line": 10890,
           "column": 8
         },
         {
@@ -48929,27 +48929,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5499,
+          "line": 5508,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 5524,
+          "line": 5533,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6090,
+          "line": 6099,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 6091,
+          "line": 6100,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6761,
+          "line": 6770,
           "column": 12
         },
         {
@@ -49093,97 +49093,97 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 8006,
+          "line": 8008,
           "column": 48
         },
         {
           "file": "src/runtime.rs",
-          "line": 1962,
+          "line": 1971,
           "column": 13
         },
         {
           "file": "src/runtime.rs",
-          "line": 5131,
+          "line": 5140,
           "column": 6
         },
         {
           "file": "src/runtime.rs",
-          "line": 5139,
+          "line": 5148,
           "column": 53
         },
         {
           "file": "src/runtime.rs",
-          "line": 5168,
+          "line": 5177,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 5414,
+          "line": 5423,
           "column": 49
         },
         {
           "file": "src/runtime.rs",
-          "line": 5879,
+          "line": 5888,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 5964,
+          "line": 5973,
           "column": 25
         },
         {
           "file": "src/runtime.rs",
-          "line": 6048,
+          "line": 6057,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6110,
+          "line": 6119,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6846,
+          "line": 6855,
           "column": 15
         },
         {
           "file": "src/runtime.rs",
-          "line": 7495,
+          "line": 7504,
           "column": 45
         },
         {
           "file": "src/runtime.rs",
-          "line": 7515,
+          "line": 7524,
           "column": 49
         },
         {
           "file": "src/runtime.rs",
-          "line": 7529,
+          "line": 7538,
           "column": 45
         },
         {
           "file": "src/runtime.rs",
-          "line": 7540,
+          "line": 7549,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 7612,
+          "line": 7621,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 7719,
+          "line": 7728,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 7745,
+          "line": 7754,
           "column": 50
         },
         {
           "file": "src/runtime.rs",
-          "line": 9886,
+          "line": 9895,
           "column": 50
         },
         {
@@ -49281,7 +49281,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6845,
+          "line": 6854,
           "column": 35
         }
       ],
@@ -49346,57 +49346,57 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3197,
+          "line": 3206,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 3769,
+          "line": 3778,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6535,
+          "line": 6544,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6547,
+          "line": 6556,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6560,
+          "line": 6569,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6691,
+          "line": 6700,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6705,
+          "line": 6714,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 10274,
+          "line": 10283,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 10275,
+          "line": 10284,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 10276,
+          "line": 10285,
           "column": 28
         },
         {
           "file": "src/runtime.rs",
-          "line": 10310,
+          "line": 10319,
           "column": 44
         },
         {
@@ -49416,7 +49416,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6145,
+          "line": 6154,
           "column": 18
         },
         {
@@ -49446,12 +49446,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6130,
+          "line": 6139,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6137,
+          "line": 6146,
           "column": 18
         },
         {
@@ -49486,7 +49486,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6183,
+          "line": 6192,
           "column": 41
         }
       ],
@@ -49501,12 +49501,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2820,
+          "line": 2829,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 3284,
+          "line": 3293,
           "column": 26
         }
       ],
@@ -49536,7 +49536,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4510,
+          "line": 4519,
           "column": 18
         },
         {
@@ -49556,12 +49556,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 5386,
+          "line": 5395,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 6156,
+          "line": 6165,
           "column": 22
         }
       ],
@@ -49576,7 +49576,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6955,
+          "line": 6964,
           "column": 10
         }
       ],
@@ -49591,17 +49591,17 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1528,
+          "line": 1537,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 1645,
+          "line": 1654,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 1658,
+          "line": 1667,
           "column": 18
         },
         {
@@ -49621,7 +49621,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 5586,
+          "line": 5595,
           "column": 22
         }
       ],
@@ -49636,7 +49636,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 5604,
+          "line": 5613,
           "column": 10
         }
       ],
@@ -49711,22 +49711,22 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 15854,
+          "line": 15873,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15869,
+          "line": 15888,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15896,
+          "line": 15915,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15933,
+          "line": 15952,
           "column": 14
         },
         {
@@ -49746,32 +49746,32 @@
       "sites": [
         {
           "file": "src/result_contract.rs",
-          "line": 489,
+          "line": 514,
           "column": 10
         },
         {
           "file": "src/result_contract.rs",
-          "line": 526,
+          "line": 551,
           "column": 14
         },
         {
           "file": "src/result_contract.rs",
-          "line": 636,
+          "line": 683,
           "column": 14
         },
         {
           "file": "src/result_contract.rs",
-          "line": 789,
+          "line": 836,
           "column": 18
         },
         {
           "file": "src/result_contract.rs",
-          "line": 823,
+          "line": 870,
           "column": 14
         },
         {
           "file": "src/result_contract.rs",
-          "line": 956,
+          "line": 1003,
           "column": 18
         },
         {
@@ -49799,32 +49799,32 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1138,
-          "column": 14
+          "line": 1146,
+          "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6104,
+          "line": 6113,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 6108,
+          "line": 6117,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6762,
+          "line": 6771,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7568,
+          "line": 7577,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7569,
+          "line": 7578,
           "column": 18
         },
         {
@@ -49851,22 +49851,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6092,
+          "line": 6101,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 6096,
+          "line": 6105,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6170,
+          "line": 6179,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 6763,
+          "line": 6772,
           "column": 12
         },
         {
@@ -49951,12 +49951,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5827,
+          "line": 5836,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 7801,
+          "line": 7810,
           "column": 14
         },
         {
@@ -50021,22 +50021,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1819,
+          "line": 1828,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 4531,
+          "line": 4540,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6760,
+          "line": 6769,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 7365,
+          "line": 7374,
           "column": 48
         },
         {
@@ -50161,7 +50161,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8421,
+          "line": 8422,
           "column": 18
         }
       ],
@@ -51751,7 +51751,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4462,
+          "line": 4471,
           "column": 26
         },
         {
@@ -51791,7 +51791,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4445,
+          "line": 4454,
           "column": 30
         },
         {
@@ -51856,7 +51856,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6809,
+          "line": 6818,
           "column": 12
         },
         {
@@ -51888,7 +51888,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6808,
+          "line": 6817,
           "column": 12
         },
         {
@@ -51947,7 +51947,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6807,
+          "line": 6816,
           "column": 12
         },
         {
@@ -52274,7 +52274,7 @@
         },
         {
           "file": "src/local.rs",
-          "line": 33504,
+          "line": 33501,
           "column": 14
         },
         {
@@ -52631,7 +52631,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6974,
+          "line": 6983,
           "column": 29
         }
       ],
@@ -52691,7 +52691,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6515,
+          "line": 6524,
           "column": 615
         }
       ],
@@ -53127,7 +53127,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 5875,
+          "line": 5879,
           "column": 16
         }
       ],
@@ -53344,12 +53344,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15877,
+          "line": 15892,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 15938,
+          "line": 15953,
           "column": 14
         },
         {
@@ -53404,7 +53404,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6217,
+          "line": 6226,
           "column": 51
         }
       ],
@@ -53529,7 +53529,7 @@
         },
         {
           "file": "src/local.rs",
-          "line": 33586,
+          "line": 33583,
           "column": 14
         },
         {
@@ -54153,7 +54153,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3582,
+          "line": 3591,
           "column": 26
         },
         {
@@ -54213,7 +54213,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3621,
+          "line": 3630,
           "column": 34
         },
         {
@@ -54257,12 +54257,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3592,
+          "line": 3601,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 3600,
+          "line": 3609,
           "column": 26
         },
         {
@@ -54284,7 +54284,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3567,
+          "line": 3576,
           "column": 26
         },
         {
@@ -54306,12 +54306,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3552,
+          "line": 3561,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 3559,
+          "line": 3568,
           "column": 30
         },
         {
@@ -54348,12 +54348,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3638,
+          "line": 3647,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 3650,
+          "line": 3659,
           "column": 30
         },
         {
@@ -54477,7 +54477,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3668,
+          "line": 3677,
           "column": 34
         },
         {
@@ -54574,7 +54574,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 15591,
+          "line": 15606,
           "column": 26
         }
       ],
@@ -54984,7 +54984,7 @@
         },
         {
           "file": "src/local.rs",
-          "line": 33635,
+          "line": 33632,
           "column": 10
         },
         {
@@ -56825,7 +56825,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 13159,
+          "line": 13174,
           "column": 26
         }
       ],
@@ -56840,7 +56840,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 13188,
+          "line": 13203,
           "column": 26
         }
       ],
@@ -56860,7 +56860,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2176,
+          "line": 2185,
           "column": 18
         }
       ],
@@ -56880,12 +56880,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 3847,
+          "line": 3849,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 18814,
+          "line": 18833,
           "column": 14
         }
       ],
@@ -56900,7 +56900,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2224,
+          "line": 2233,
           "column": 22
         }
       ],
@@ -56925,27 +56925,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1734,
+          "line": 1743,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 1753,
+          "line": 1762,
           "column": 44
         },
         {
           "file": "src/storage.rs",
-          "line": 14734,
+          "line": 14749,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 14745,
+          "line": 14760,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 14757,
+          "line": 14772,
           "column": 10
         }
       ],
@@ -56960,7 +56960,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 15503,
+          "line": 15518,
           "column": 18
         }
       ],
@@ -57212,12 +57212,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3901,
+          "line": 3910,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 10152,
+          "line": 10161,
           "column": 14
         },
         {
@@ -57291,22 +57291,22 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3920,
+          "line": 3929,
           "column": 46
         },
         {
           "file": "src/runtime.rs",
-          "line": 3930,
+          "line": 3939,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 3940,
+          "line": 3949,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 10343,
+          "line": 10352,
           "column": 14
         },
         {
@@ -57338,7 +57338,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13498,
+          "line": 13513,
           "column": 14
         }
       ],
@@ -57600,7 +57600,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13583,
+          "line": 13598,
           "column": 10
         }
       ],
@@ -57720,7 +57720,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12957,
+          "line": 12972,
           "column": 14
         },
         {
@@ -57745,7 +57745,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12802,
+          "line": 12817,
           "column": 18
         }
       ],
@@ -57900,7 +57900,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12398,
+          "line": 12413,
           "column": 14
         }
       ],
@@ -57980,7 +57980,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12767,
+          "line": 12782,
           "column": 14
         }
       ],
@@ -57995,7 +57995,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4063,
+          "line": 4072,
           "column": 30
         },
         {
@@ -58215,7 +58215,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 13645,
+          "line": 13660,
           "column": 18
         }
       ],
@@ -58230,7 +58230,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 13599,
+          "line": 13614,
           "column": 18
         }
       ],
@@ -58245,7 +58245,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 10132,
+          "line": 10141,
           "column": 14
         },
         {
@@ -58255,7 +58255,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13570,
+          "line": 13585,
           "column": 10
         }
       ],
@@ -58282,7 +58282,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 8912,
+          "line": 8921,
           "column": 48
         },
         {
@@ -58367,7 +58367,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13554,
+          "line": 13569,
           "column": 18
         }
       ],
@@ -58387,12 +58387,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12525,
+          "line": 12540,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 12916,
+          "line": 12931,
           "column": 18
         },
         {
@@ -58487,7 +58487,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8969,
+          "line": 8970,
           "column": 18
         }
       ],
@@ -58512,7 +58512,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8977,
+          "line": 8978,
           "column": 18
         }
       ],
@@ -58719,7 +58719,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12832,
+          "line": 12847,
           "column": 10
         }
       ],
@@ -58796,7 +58796,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 10433,
+          "line": 10442,
           "column": 44
         },
         {
@@ -58806,7 +58806,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12816,
+          "line": 12831,
           "column": 10
         }
       ],
@@ -58963,22 +58963,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2460,
+          "line": 2469,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 3956,
+          "line": 3965,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4344,
+          "line": 4353,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 6840,
+          "line": 6849,
           "column": 12
         },
         {
@@ -58988,7 +58988,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 10310,
+          "line": 10325,
           "column": 14
         }
       ],
@@ -59008,12 +59008,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4359,
+          "line": 4368,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 10277,
+          "line": 10286,
           "column": 33
         },
         {
@@ -59023,7 +59023,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12778,
+          "line": 12793,
           "column": 10
         }
       ],
@@ -59503,12 +59503,12 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6710,
+          "line": 6857,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6725,
+          "line": 6872,
           "column": 14
         }
       ],
@@ -59535,12 +59535,12 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6770,
+          "line": 6917,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6790,
+          "line": 6937,
           "column": 19
         }
       ],
@@ -59587,7 +59587,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6878,
+          "line": 7025,
           "column": 44
         }
       ],
@@ -59620,7 +59620,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6282,
+          "line": 6429,
           "column": 48
         }
       ],
@@ -59637,7 +59637,7 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 13676,
+          "line": 13678,
           "column": 10
         },
         {
@@ -59667,7 +59667,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6872,
+          "line": 7019,
           "column": 14
         }
       ],
@@ -59694,7 +59694,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7915,
+          "line": 8062,
           "column": 14
         }
       ],
@@ -59721,17 +59721,17 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6208,
+          "line": 6355,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6226,
+          "line": 6373,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6242,
+          "line": 6389,
           "column": 44
         }
       ],
@@ -59758,7 +59758,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6623,
+          "line": 6770,
           "column": 44
         }
       ],
@@ -59785,57 +59785,57 @@
         },
         {
           "file": "src/migration.rs",
-          "line": 443,
+          "line": 460,
           "column": 25
         },
         {
           "file": "src/migration.rs",
-          "line": 901,
+          "line": 945,
           "column": 11
         },
         {
           "file": "src/migration.rs",
-          "line": 929,
+          "line": 973,
           "column": 31
         },
         {
           "file": "src/migration.rs",
-          "line": 1312,
+          "line": 1427,
           "column": 22
         },
         {
           "file": "src/migration.rs",
-          "line": 1320,
+          "line": 1435,
           "column": 18
         },
         {
           "file": "src/migration.rs",
-          "line": 2185,
+          "line": 2300,
           "column": 48
         },
         {
           "file": "src/migration.rs",
-          "line": 2363,
+          "line": 2550,
           "column": 44
         },
         {
           "file": "src/migration.rs",
-          "line": 2448,
+          "line": 2635,
           "column": 44
         },
         {
           "file": "src/migration.rs",
-          "line": 2505,
+          "line": 2692,
           "column": 44
         },
         {
           "file": "src/migration.rs",
-          "line": 2517,
+          "line": 2704,
           "column": 44
         },
         {
           "file": "src/migration.rs",
-          "line": 2528,
+          "line": 2715,
           "column": 44
         },
         {
@@ -59897,22 +59897,22 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6154,
+          "line": 6301,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6368,
+          "line": 6515,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6755,
+          "line": 6902,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 8456,
+          "line": 8603,
           "column": 44
         }
       ],
@@ -59944,22 +59944,22 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6573,
+          "line": 6720,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6648,
+          "line": 6795,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6661,
+          "line": 6808,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6683,
+          "line": 6830,
           "column": 14
         },
         {
@@ -60001,7 +60001,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6543,
+          "line": 6690,
           "column": 14
         }
       ],
@@ -60021,12 +60021,12 @@
         },
         {
           "file": "src/migration.rs",
-          "line": 1620,
+          "line": 1735,
           "column": 14
         },
         {
           "file": "src/migration.rs",
-          "line": 2544,
+          "line": 2731,
           "column": 14
         },
         {
@@ -60080,17 +60080,17 @@
         },
         {
           "file": "src/migration.rs",
-          "line": 1356,
+          "line": 1471,
           "column": 10
         },
         {
           "file": "src/migration.rs",
-          "line": 1360,
+          "line": 1475,
           "column": 18
         },
         {
           "file": "src/migration.rs",
-          "line": 1372,
+          "line": 1487,
           "column": 18
         },
         {
@@ -60161,7 +60161,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 10533,
+          "line": 10548,
           "column": 18
         }
       ],
@@ -60226,12 +60226,12 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7004,
+          "line": 7151,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 8385,
+          "line": 8532,
           "column": 14
         }
       ],
@@ -60269,7 +60269,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6308,
+          "line": 6455,
           "column": 44
         }
       ],
@@ -60296,7 +60296,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6696,
+          "line": 6843,
           "column": 44
         }
       ],
@@ -60376,12 +60376,12 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 8108,
+          "line": 8255,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 8134,
+          "line": 8281,
           "column": 14
         }
       ],
@@ -60398,7 +60398,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7153,
+          "line": 7162,
           "column": 16
         }
       ],
@@ -60448,12 +60448,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 9838,
+          "line": 9847,
           "column": 47
         },
         {
           "file": "src/runtime.rs",
-          "line": 10006,
+          "line": 10015,
           "column": 69
         },
         {
@@ -60463,27 +60463,27 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 10542,
+          "line": 10557,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 10563,
+          "line": 10578,
           "column": 48
         },
         {
           "file": "src/storage.rs",
-          "line": 10748,
+          "line": 10763,
           "column": 27
         },
         {
           "file": "src/storage.rs",
-          "line": 14466,
+          "line": 14481,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14507,
+          "line": 14522,
           "column": 26
         },
         {
@@ -60533,22 +60533,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4083,
+          "line": 4092,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 4090,
+          "line": 4099,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6821,
+          "line": 6830,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7582,
+          "line": 7591,
           "column": 14
         },
         {
@@ -60924,7 +60924,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1526,
+          "line": 1557,
           "column": 22
         }
       ],
@@ -61047,7 +61047,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3606,
+          "line": 3637,
           "column": 10
         }
       ],
@@ -61123,7 +61123,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3607,
+          "line": 3638,
           "column": 10
         }
       ],
@@ -61568,7 +61568,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16921,
+          "line": 16936,
           "column": 18
         }
       ],
@@ -61833,7 +61833,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16825,
+          "line": 16840,
           "column": 14
         }
       ],
@@ -62028,22 +62028,22 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16939,
+          "line": 16954,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 16946,
+          "line": 16961,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 16953,
+          "line": 16968,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 16993,
+          "line": 17008,
           "column": 14
         },
         {
@@ -62058,17 +62058,17 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7310,
+          "line": 7457,
           "column": 18
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7523,
+          "line": 7670,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7541,
+          "line": 7688,
           "column": 44
         },
         {
@@ -62103,7 +62103,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7327,
+          "line": 7474,
           "column": 14
         }
       ],
@@ -62713,7 +62713,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16872,
+          "line": 16887,
           "column": 18
         },
         {
@@ -62803,12 +62803,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16837,
+          "line": 16852,
           "column": 10
         },
         {
           "file": "src/storage.rs",
-          "line": 16932,
+          "line": 16947,
           "column": 14
         }
       ],
@@ -63713,7 +63713,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13825,
+          "line": 13840,
           "column": 10
         }
       ],
@@ -63736,12 +63736,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10866,
+          "line": 10868,
           "column": 18
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10869,
+          "line": 10871,
           "column": 41
         },
         {
@@ -63786,17 +63786,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4169,
+          "line": 4178,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 4437,
+          "line": 4446,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 6308,
+          "line": 6317,
           "column": 24
         }
       ],
@@ -64427,17 +64427,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6815,
+          "line": 6824,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7572,
+          "line": 7581,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7573,
+          "line": 7582,
           "column": 18
         },
         {
@@ -64487,7 +64487,7 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 11607,
+          "line": 11609,
           "column": 54
         }
       ],
@@ -64507,7 +64507,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 11606,
+          "line": 11608,
           "column": 6
         }
       ],
@@ -64694,7 +64694,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4324,
+          "line": 4333,
           "column": 26
         },
         {
@@ -64734,12 +64734,12 @@
       "sites": [
         {
           "file": "src/local.rs",
-          "line": 33106,
+          "line": 33103,
           "column": 22
         },
         {
           "file": "src/local.rs",
-          "line": 33118,
+          "line": 33115,
           "column": 14
         },
         {
@@ -67751,12 +67751,12 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 4355,
+          "line": 4357,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 4371,
+          "line": 4373,
           "column": 10
         },
         {
@@ -68516,7 +68516,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4491,
+          "line": 4500,
           "column": 26
         },
         {
@@ -68546,7 +68546,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4480,
+          "line": 4489,
           "column": 30
         },
         {
@@ -68733,22 +68733,22 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 7807,
+          "line": 7809,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6827,
+          "line": 6836,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7602,
+          "line": 7611,
           "column": 55
         },
         {
           "file": "src/runtime.rs",
-          "line": 7604,
+          "line": 7613,
           "column": 18
         },
         {
@@ -68758,7 +68758,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 10403,
+          "line": 10418,
           "column": 14
         }
       ],
@@ -68790,7 +68790,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 10426,
+          "line": 10441,
           "column": 18
         }
       ],
@@ -68815,22 +68815,22 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 7779,
+          "line": 7781,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6828,
+          "line": 6837,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7607,
+          "line": 7616,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7608,
+          "line": 7617,
           "column": 18
         },
         {
@@ -68840,17 +68840,17 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 10009,
+          "line": 10024,
           "column": 30
         },
         {
           "file": "src/storage.rs",
-          "line": 10460,
+          "line": 10475,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 10483,
+          "line": 10498,
           "column": 10
         }
       ],
@@ -68892,7 +68892,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6830,
+          "line": 6839,
           "column": 12
         },
         {
@@ -68924,12 +68924,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 7787,
+          "line": 7789,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6829,
+          "line": 6838,
           "column": 12
         },
         {
@@ -68939,7 +68939,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 10023,
+          "line": 10038,
           "column": 30
         }
       ],
@@ -68996,12 +68996,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 7766,
+          "line": 7768,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6831,
+          "line": 6840,
           "column": 12
         },
         {
@@ -69068,7 +69068,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15831,
+          "line": 15846,
           "column": 14
         }
       ],
@@ -69523,7 +69523,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 9901,
+          "line": 9916,
           "column": 10
         }
       ],
@@ -69568,7 +69568,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2800,
+          "line": 2831,
           "column": 10
         }
       ],
@@ -69583,7 +69583,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 5443,
+          "line": 5474,
           "column": 8
         }
       ],
@@ -69703,7 +69703,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1975,
+          "line": 2006,
           "column": 25
         }
       ],
@@ -69718,7 +69718,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4905,
+          "line": 4936,
           "column": 8
         }
       ],
@@ -69788,7 +69788,7 @@
         },
         {
           "file": "packages/snapback-client/react-binding.mjs",
-          "line": 2346,
+          "line": 2354,
           "column": 10
         }
       ],
@@ -69853,12 +69853,12 @@
         },
         {
           "file": "packages/snapback-client/react-binding.mjs",
-          "line": 2290,
+          "line": 2296,
           "column": 12
         },
         {
           "file": "packages/snapback-client/react-binding.mjs",
-          "line": 2336,
+          "line": 2344,
           "column": 10
         }
       ],
@@ -69873,12 +69873,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2067,
+          "line": 2098,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4066,
+          "line": 4097,
           "column": 8
         }
       ],
@@ -69893,12 +69893,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 531,
+          "line": 559,
           "column": 8
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4036,
+          "line": 4067,
           "column": 10
         }
       ],
@@ -69973,7 +69973,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 518,
+          "line": 546,
           "column": 8
         }
       ],
@@ -70028,12 +70028,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3001,
+          "line": 3032,
           "column": 45
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3030,
+          "line": 3061,
           "column": 12
         },
         {
@@ -70242,12 +70242,12 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1530,
+          "line": 1561,
           "column": 14
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1545,
+          "line": 1576,
           "column": 10
         }
       ],
@@ -70284,12 +70284,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3169,
+          "line": 3200,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3342,
+          "line": 3373,
           "column": 10
         }
       ],
@@ -70304,7 +70304,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1225,
+          "line": 1256,
           "column": 10
         }
       ],
@@ -70321,7 +70321,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1417,
+          "line": 1448,
           "column": 12
         }
       ],
@@ -70336,7 +70336,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1201,
+          "line": 1232,
           "column": 10
         }
       ],
@@ -70351,7 +70351,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1378,
+          "line": 1409,
           "column": 10
         }
       ],
@@ -70376,22 +70376,27 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1668,
+          "line": 426,
+          "column": 33
+        },
+        {
+          "file": "packages/snapback-react/implementation.mjs",
+          "line": 1699,
           "column": 31
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1756,
+          "line": 1787,
           "column": 27
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1915,
+          "line": 1946,
           "column": 27
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3338,
+          "line": 3369,
           "column": 25
         }
       ],
@@ -70408,7 +70413,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1804,
+          "line": 1835,
           "column": 10
         }
       ],
@@ -70423,17 +70428,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 813,
+          "line": 844,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 882,
+          "line": 913,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1626,
+          "line": 1657,
           "column": 10
         }
       ],
@@ -70448,7 +70453,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1512,
+          "line": 1543,
           "column": 8
         },
         {
@@ -70481,7 +70486,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1795,
+          "line": 1826,
           "column": 10
         }
       ],
@@ -70496,17 +70501,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1371,
+          "line": 1402,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1788,
+          "line": 1819,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3254,
+          "line": 3285,
           "column": 10
         }
       ],
@@ -70523,7 +70528,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 5056,
+          "line": 5087,
           "column": 10
         }
       ],
@@ -70538,7 +70543,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4991,
+          "line": 5022,
           "column": 8
         }
       ],
@@ -70555,12 +70560,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2442,
+          "line": 2473,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2756,
+          "line": 2787,
           "column": 14
         }
       ],
@@ -70575,12 +70580,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2653,
+          "line": 2684,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2665,
+          "line": 2696,
           "column": 12
         }
       ],
@@ -70595,12 +70600,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2242,
+          "line": 2273,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2291,
+          "line": 2322,
           "column": 10
         }
       ],
@@ -70615,7 +70620,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/react-binding.mjs",
-          "line": 2430,
+          "line": 2438,
           "column": 8
         }
       ],
@@ -70640,7 +70645,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2762,
+          "line": 2793,
           "column": 14
         }
       ],
@@ -70655,12 +70660,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2682,
+          "line": 2713,
           "column": 14
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2768,
+          "line": 2799,
           "column": 14
         }
       ],
@@ -70697,7 +70702,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2572,
+          "line": 2603,
           "column": 10
         }
       ],
@@ -70712,7 +70717,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2275,
+          "line": 2306,
           "column": 12
         }
       ],
@@ -70727,7 +70732,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2255,
+          "line": 2286,
           "column": 10
         }
       ],
@@ -70742,77 +70747,77 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 462,
+          "line": 490,
           "column": 26
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1705,
+          "line": 1736,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1721,
+          "line": 1752,
           "column": 44
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1772,
+          "line": 1803,
           "column": 44
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1942,
+          "line": 1973,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1956,
+          "line": 1987,
           "column": 12
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2018,
+          "line": 2049,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2639,
+          "line": 2670,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3241,
+          "line": 3272,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4344,
+          "line": 4375,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4386,
+          "line": 4417,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4415,
+          "line": 4446,
           "column": 42
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4742,
+          "line": 4773,
           "column": 45
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4772,
+          "line": 4803,
           "column": 43
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4803,
+          "line": 4834,
           "column": 43
         }
       ],
@@ -70842,7 +70847,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 497,
+          "line": 525,
           "column": 6
         }
       ],
@@ -70862,7 +70867,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 607,
+          "line": 635,
           "column": 43
         }
       ],
@@ -70877,17 +70882,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1643,
+          "line": 1674,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1906,
+          "line": 1937,
           "column": 29
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3330,
+          "line": 3361,
           "column": 27
         }
       ],
@@ -70902,12 +70907,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1747,
+          "line": 1778,
           "column": 14
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1890,
+          "line": 1921,
           "column": 14
         }
       ],
@@ -70922,11 +70927,6 @@
       "sites": [
         {
           "file": "packages/snapback-client/react-binding.mjs",
-          "line": 2382,
-          "column": 8
-        },
-        {
-          "file": "packages/snapback-client/react-binding.mjs",
           "line": 2390,
           "column": 8
         },
@@ -70937,12 +70937,17 @@
         },
         {
           "file": "packages/snapback-client/react-binding.mjs",
-          "line": 2423,
+          "line": 2406,
+          "column": 8
+        },
+        {
+          "file": "packages/snapback-client/react-binding.mjs",
+          "line": 2431,
           "column": 8
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2975,
+          "line": 3006,
           "column": 38
         }
       ],
@@ -70959,17 +70964,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 1136,
+          "line": 1167,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 2039,
+          "line": 2070,
           "column": 10
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 3113,
+          "line": 3144,
           "column": 16
         }
       ],
@@ -71006,7 +71011,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4450,
+          "line": 4481,
           "column": 8
         }
       ],
@@ -71024,17 +71029,17 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4537,
+          "line": 4568,
           "column": 8
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4709,
+          "line": 4740,
           "column": 27
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4717,
+          "line": 4748,
           "column": 27
         }
       ],
@@ -71056,7 +71061,7 @@
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4525,
+          "line": 4556,
           "column": 19
         }
       ],
@@ -71073,22 +71078,22 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4476,
+          "line": 4507,
           "column": 21
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4480,
+          "line": 4511,
           "column": 21
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4484,
+          "line": 4515,
           "column": 21
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4488,
+          "line": 4519,
           "column": 21
         }
       ],
@@ -71105,12 +71110,12 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4459,
+          "line": 4490,
           "column": 21
         },
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4465,
+          "line": 4496,
           "column": 8
         }
       ],
@@ -71127,7 +71132,7 @@
       "sites": [
         {
           "file": "packages/snapback-react/implementation.mjs",
-          "line": 4498,
+          "line": 4529,
           "column": 10
         }
       ],
@@ -71481,7 +71486,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 5367,
+          "line": 5369,
           "column": 31
         },
         {
@@ -71551,27 +71556,27 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 14157,
+          "line": 14172,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14215,
+          "line": 14230,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14247,
+          "line": 14262,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14273,
+          "line": 14288,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14300,
+          "line": 14315,
           "column": 18
         }
       ],
@@ -71591,7 +71596,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13902,
+          "line": 13917,
           "column": 22
         }
       ],
@@ -71621,7 +71626,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13865,
+          "line": 13880,
           "column": 10
         }
       ],
@@ -71636,7 +71641,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4053,
+          "line": 4058,
           "column": 8
         },
         {
@@ -71646,32 +71651,32 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 7480,
+          "line": 7482,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 18320,
+          "line": 18339,
           "column": 29
         },
         {
           "file": "src/manifest.rs",
-          "line": 18324,
+          "line": 18343,
           "column": 24
         },
         {
           "file": "src/runtime.rs",
-          "line": 1827,
+          "line": 1836,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6822,
+          "line": 6831,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7583,
+          "line": 7592,
           "column": 14
         },
         {
@@ -71681,22 +71686,22 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12380,
+          "line": 12395,
           "column": 17
         },
         {
           "file": "src/storage.rs",
-          "line": 13934,
+          "line": 13949,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14049,
+          "line": 14064,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 14435,
+          "line": 14450,
           "column": 18
         }
       ],
@@ -71721,27 +71726,27 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8503,
+          "line": 8504,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 8514,
+          "line": 8515,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 8532,
+          "line": 8533,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 8551,
+          "line": 8552,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 8570,
+          "line": 8571,
           "column": 26
         }
       ],
@@ -74259,7 +74264,7 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 3785,
+          "line": 3787,
           "column": 14
         },
         {
@@ -75255,17 +75260,17 @@
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4054,
+          "line": 4059,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4212,
+          "line": 4217,
           "column": 22
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4219,
+          "line": 4224,
           "column": 48
         },
         {
@@ -75320,22 +75325,22 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 7478,
+          "line": 7480,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 18115,
+          "line": 18134,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 18155,
+          "line": 18174,
           "column": 43
         },
         {
           "file": "src/manifest.rs",
-          "line": 18166,
+          "line": 18185,
           "column": 38
         },
         {
@@ -75906,12 +75911,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1408,
+          "line": 1417,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 1417,
+          "line": 1426,
           "column": 18
         }
       ],
@@ -76233,7 +76238,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7154,
+          "line": 7163,
           "column": 16
         }
       ],
@@ -76348,7 +76353,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8443,
+          "line": 8444,
           "column": 22
         }
       ],
@@ -76368,7 +76373,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8631,
+          "line": 8632,
           "column": 22
         }
       ],
@@ -76388,7 +76393,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8408,
+          "line": 8409,
           "column": 18
         }
       ],
@@ -76408,7 +76413,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8657,
+          "line": 8658,
           "column": 22
         }
       ],
@@ -76428,7 +76433,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 9097,
+          "line": 9112,
           "column": 22
         }
       ],
@@ -76450,7 +76455,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8472,
+          "line": 8473,
           "column": 26
         }
       ],
@@ -76470,19 +76475,20 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 9026,
+          "line": 9048,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 9327,
+          "line": 9342,
           "column": 26
         }
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/backend/schema-evolution.md#diagnose-the-four-boundary-codes",
+      "guideAnchor": "/_snapback/guide/backend/migrations.md#evolve-vjson-into-a-structured-field",
       "guideAnchors": [
+        "/_snapback/guide/backend/migrations.md#evolve-vjson-into-a-structured-field",
         "/_snapback/guide/backend/schema-evolution.md#diagnose-the-four-boundary-codes",
         "/_snapback/guide/backend/schema-evolution.md#recover-after-a-partial-load-materialized-data"
       ]
@@ -76498,7 +76504,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8640,
+          "line": 8641,
           "column": 22
         }
       ],
@@ -76518,7 +76524,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8683,
+          "line": 8684,
           "column": 22
         }
       ],
@@ -76558,7 +76564,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8586,
+          "line": 8587,
           "column": 18
         }
       ],
@@ -76578,7 +76584,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8613,
+          "line": 8614,
           "column": 26
         }
       ],
@@ -76598,7 +76604,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8601,
+          "line": 8602,
           "column": 26
         }
       ],
@@ -76613,17 +76619,17 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 9599,
+          "line": 9614,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 9610,
+          "line": 9625,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 9625,
+          "line": 9640,
           "column": 18
         }
       ],
@@ -76643,27 +76649,27 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 9158,
+          "line": 9173,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 9190,
+          "line": 9205,
           "column": 30
         },
         {
           "file": "src/storage.rs",
-          "line": 9211,
+          "line": 9226,
           "column": 30
         },
         {
           "file": "src/storage.rs",
-          "line": 9291,
+          "line": 9306,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 9532,
+          "line": 9547,
           "column": 18
         }
       ],
@@ -76686,7 +76692,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8670,
+          "line": 8671,
           "column": 26
         }
       ],
@@ -76706,7 +76712,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8436,
+          "line": 8437,
           "column": 22
         }
       ],
@@ -76893,22 +76899,22 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 10760,
+          "line": 10762,
           "column": 25
         },
         {
           "file": "src/manifest.rs",
-          "line": 15532,
+          "line": 15534,
           "column": 9
         },
         {
           "file": "src/manifest.rs",
-          "line": 15577,
+          "line": 15579,
           "column": 38
         },
         {
           "file": "src/manifest.rs",
-          "line": 15578,
+          "line": 15580,
           "column": 41
         },
         {
@@ -77263,7 +77269,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 5707,
+          "line": 5709,
           "column": 18
         },
         {
@@ -77298,62 +77304,62 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 8702,
+          "line": 8703,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 8717,
+          "line": 8718,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 8737,
+          "line": 8738,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 8766,
+          "line": 8767,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 8782,
+          "line": 8783,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 8797,
+          "line": 8798,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 8812,
+          "line": 8813,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 8860,
+          "line": 8861,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 8874,
+          "line": 8875,
           "column": 30
         },
         {
           "file": "src/storage.rs",
-          "line": 8886,
+          "line": 8887,
           "column": 30
         },
         {
           "file": "src/storage.rs",
-          "line": 8922,
+          "line": 8923,
           "column": 30
         },
         {
           "file": "src/storage.rs",
-          "line": 8939,
+          "line": 8940,
           "column": 18
         }
       ],
@@ -77467,7 +77473,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16288,
+          "line": 16293,
           "column": 4
         }
       ],
@@ -77716,7 +77722,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 5430,
+          "line": 5432,
           "column": 14
         },
         {
@@ -77863,7 +77869,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7155,
+          "line": 7164,
           "column": 16
         }
       ],
@@ -77883,12 +77889,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 6008,
+          "line": 6012,
           "column": 16
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 6015,
+          "line": 6019,
           "column": 16
         },
         {
@@ -77973,7 +77979,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 6031,
+          "line": 6035,
           "column": 20
         },
         {
@@ -77998,7 +78004,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 6035,
+          "line": 6039,
           "column": 20
         },
         {
@@ -78033,7 +78039,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 11558,
+          "line": 11573,
           "column": 26
         }
       ],
@@ -78281,7 +78287,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 17128,
+          "line": 17133,
           "column": 21
         }
       ],
@@ -78361,7 +78367,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 11616,
+          "line": 11631,
           "column": 26
         }
       ],
@@ -78579,7 +78585,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 17140,
+          "line": 17145,
           "column": 21
         },
         {
@@ -78647,7 +78653,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 14358,
+          "line": 14373,
           "column": 18
         }
       ],
@@ -78717,37 +78723,37 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 18390,
+          "line": 18409,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 18415,
+          "line": 18434,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 18442,
+          "line": 18461,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 18455,
+          "line": 18474,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 18473,
+          "line": 18492,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 3444,
+          "line": 3453,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 3497,
+          "line": 3506,
           "column": 30
         },
         {
@@ -78762,17 +78768,17 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13967,
+          "line": 13982,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 14070,
+          "line": 14085,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 15919,
+          "line": 15934,
           "column": 10
         }
       ],
@@ -78792,17 +78798,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3521,
+          "line": 3530,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6819,
+          "line": 6828,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7580,
+          "line": 7589,
           "column": 14
         },
         {
@@ -78812,17 +78818,17 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 14077,
+          "line": 14092,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 14407,
+          "line": 14422,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14459,
+          "line": 14474,
           "column": 18
         }
       ],
@@ -78854,32 +78860,32 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 18372,
+          "line": 18391,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 18493,
+          "line": 18512,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 3458,
+          "line": 3467,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6820,
+          "line": 6829,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7581,
+          "line": 7590,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 9613,
+          "line": 9622,
           "column": 44
         },
         {
@@ -78979,27 +78985,27 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 10761,
+          "line": 10763,
           "column": 25
         },
         {
           "file": "src/manifest.rs",
-          "line": 15532,
+          "line": 15534,
           "column": 35
         },
         {
           "file": "src/manifest.rs",
-          "line": 15578,
+          "line": 15580,
           "column": 66
         },
         {
           "file": "src/manifest.rs",
-          "line": 15612,
+          "line": 15614,
           "column": 29
         },
         {
           "file": "src/manifest.rs",
-          "line": 16811,
+          "line": 16830,
           "column": 29
         }
       ],
@@ -79194,7 +79200,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4498,
+          "line": 4500,
           "column": 10
         },
         {
@@ -79219,32 +79225,32 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6228,
+          "line": 6230,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 6236,
+          "line": 6238,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 6280,
+          "line": 6282,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 6293,
+          "line": 6295,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 16605,
+          "line": 16624,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 16768,
+          "line": 16787,
           "column": 14
         },
         {
@@ -79365,12 +79371,12 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 6221,
+          "line": 6223,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 6273,
+          "line": 6275,
           "column": 18
         },
         {
@@ -79410,132 +79416,132 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6209,
+          "line": 6211,
           "column": 31
         },
         {
           "file": "src/manifest.rs",
-          "line": 6251,
+          "line": 6253,
           "column": 31
         },
         {
           "file": "src/manifest.rs",
-          "line": 6474,
+          "line": 6476,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 6656,
+          "line": 6658,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 6693,
+          "line": 6695,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 6717,
+          "line": 6719,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 6763,
+          "line": 6765,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 6815,
+          "line": 6817,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 6871,
+          "line": 6873,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 6905,
+          "line": 6907,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 6930,
+          "line": 6932,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 6947,
+          "line": 6949,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 6962,
+          "line": 6964,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 7015,
+          "line": 7017,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 7072,
+          "line": 7074,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 7143,
+          "line": 7145,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 7203,
+          "line": 7205,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 7217,
+          "line": 7219,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 7232,
+          "line": 7234,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 7286,
+          "line": 7288,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 7304,
+          "line": 7306,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 8411,
+          "line": 8413,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 16572,
+          "line": 16591,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 16587,
+          "line": 16606,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 16787,
+          "line": 16806,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 16837,
+          "line": 16856,
           "column": 14
         },
         {
@@ -79592,12 +79598,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 7315,
+          "line": 7317,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 16650,
+          "line": 16669,
           "column": 14
         },
         {
@@ -79734,12 +79740,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 15515,
+          "line": 15517,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 15536,
+          "line": 15538,
           "column": 18
         }
       ],
@@ -80465,12 +80471,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15374,
+          "line": 15389,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 15399,
+          "line": 15414,
           "column": 10
         }
       ],
@@ -80490,7 +80496,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 11813,
+          "line": 11828,
           "column": 10
         }
       ],
@@ -80530,102 +80536,102 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 10855,
+          "line": 10870,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 10949,
+          "line": 10964,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 11035,
+          "line": 11050,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 11052,
+          "line": 11067,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 11062,
+          "line": 11077,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 11075,
+          "line": 11090,
           "column": 34
         },
         {
           "file": "src/storage.rs",
-          "line": 11084,
+          "line": 11099,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 11098,
+          "line": 11113,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 11111,
+          "line": 11126,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 11121,
+          "line": 11136,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 11186,
+          "line": 11201,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 11705,
+          "line": 11720,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 11716,
+          "line": 11731,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 11721,
+          "line": 11736,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 11732,
+          "line": 11747,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 11745,
+          "line": 11760,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 11773,
+          "line": 11788,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 11784,
+          "line": 11799,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 11828,
+          "line": 11843,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 15167,
+          "line": 15182,
           "column": 22
         },
         {
@@ -80700,7 +80706,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 11865,
+          "line": 11880,
           "column": 18
         },
         {
@@ -80936,7 +80942,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6791,
+          "line": 6800,
           "column": 12
         },
         {
@@ -80976,7 +80982,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6792,
+          "line": 6801,
           "column": 12
         },
         {
@@ -81021,7 +81027,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6793,
+          "line": 6802,
           "column": 12
         },
         {
@@ -81061,22 +81067,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4279,
+          "line": 4288,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4292,
+          "line": 4301,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4303,
+          "line": 4312,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6794,
+          "line": 6803,
           "column": 12
         },
         {
@@ -81116,7 +81122,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6795,
+          "line": 6804,
           "column": 12
         },
         {
@@ -81181,7 +81187,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6796,
+          "line": 6805,
           "column": 12
         },
         {
@@ -81231,7 +81237,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6797,
+          "line": 6806,
           "column": 12
         },
         {
@@ -81276,7 +81282,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6798,
+          "line": 6807,
           "column": 12
         },
         {
@@ -81316,7 +81322,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6799,
+          "line": 6808,
           "column": 12
         },
         {
@@ -81356,7 +81362,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6800,
+          "line": 6809,
           "column": 12
         },
         {
@@ -81401,7 +81407,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6801,
+          "line": 6810,
           "column": 12
         },
         {
@@ -81586,12 +81592,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13787,
+          "line": 13802,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 15764,
+          "line": 15779,
           "column": 14
         }
       ],
@@ -81611,7 +81617,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15688,
+          "line": 15703,
           "column": 14
         }
       ],
@@ -81636,12 +81642,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15677,
+          "line": 15692,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 15703,
+          "line": 15718,
           "column": 14
         },
         {
@@ -81666,7 +81672,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15572,
+          "line": 15587,
           "column": 22
         }
       ],
@@ -83021,7 +83027,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13103,
+          "line": 13105,
           "column": 12
         }
       ],
@@ -83038,12 +83044,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13132,
+          "line": 13134,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13241,
+          "line": 13243,
           "column": 79
         }
       ],
@@ -83060,12 +83066,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13146,
+          "line": 13148,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13197,
+          "line": 13199,
           "column": 17
         }
       ],
@@ -83082,27 +83088,27 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13042,
+          "line": 13044,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13059,
+          "line": 13061,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13071,
+          "line": 13073,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13159,
+          "line": 13161,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13325,
+          "line": 13327,
           "column": 14
         }
       ],
@@ -83120,12 +83126,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13169,
+          "line": 13171,
           "column": 21
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13296,
+          "line": 13298,
           "column": 21
         }
       ],
@@ -83142,17 +83148,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13051,
+          "line": 13053,
           "column": 15
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13081,
+          "line": 13083,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13214,
+          "line": 13216,
           "column": 19
         }
       ],
@@ -83169,17 +83175,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13127,
+          "line": 13129,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13227,
+          "line": 13229,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13289,
+          "line": 13291,
           "column": 19
         }
       ],
@@ -83196,17 +83202,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13086,
+          "line": 13088,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13119,
+          "line": 13121,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13202,
+          "line": 13204,
           "column": 17
         }
       ],
@@ -83223,7 +83229,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13114,
+          "line": 13116,
           "column": 19
         }
       ],
@@ -83240,7 +83246,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13241,
+          "line": 13243,
           "column": 40
         }
       ],
@@ -83257,12 +83263,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13176,
+          "line": 13178,
           "column": 23
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13307,
+          "line": 13309,
           "column": 23
         }
       ],
@@ -83339,17 +83345,17 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13727,
+          "line": 13742,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14561,
+          "line": 14576,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14646,
+          "line": 14661,
           "column": 18
         }
       ],
@@ -83369,7 +83375,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16289,
+          "line": 16294,
           "column": 4
         }
       ],
@@ -83394,7 +83400,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16290,
+          "line": 16295,
           "column": 4
         },
         {
@@ -83439,7 +83445,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16291,
+          "line": 16296,
           "column": 4
         },
         {
@@ -83469,7 +83475,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16292,
+          "line": 16297,
           "column": 4
         },
         {
@@ -83499,7 +83505,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16293,
+          "line": 16298,
           "column": 4
         }
       ],
@@ -83519,7 +83525,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16294,
+          "line": 16299,
           "column": 4
         }
       ],
@@ -83574,7 +83580,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16295,
+          "line": 16300,
           "column": 4
         }
       ],
@@ -83594,7 +83600,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16296,
+          "line": 16301,
           "column": 4
         }
       ],
@@ -83614,7 +83620,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16297,
+          "line": 16302,
           "column": 4
         },
         {
@@ -83646,7 +83652,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16298,
+          "line": 16303,
           "column": 4
         },
         {
@@ -83676,7 +83682,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16299,
+          "line": 16304,
           "column": 4
         },
         {
@@ -83708,7 +83714,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16300,
+          "line": 16305,
           "column": 4
         }
       ],
@@ -83728,7 +83734,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16301,
+          "line": 16306,
           "column": 4
         },
         {
@@ -83765,22 +83771,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2413,
+          "line": 2422,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 3212,
+          "line": 3221,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6839,
+          "line": 6848,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 9170,
+          "line": 9179,
           "column": 14
         },
         {
@@ -83790,7 +83796,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 10242,
+          "line": 10257,
           "column": 14
         }
       ],
@@ -83810,7 +83816,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16302,
+          "line": 16307,
           "column": 4
         }
       ],
@@ -83830,7 +83836,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16303,
+          "line": 16308,
           "column": 4
         },
         {
@@ -83860,7 +83866,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16304,
+          "line": 16309,
           "column": 4
         },
         {
@@ -83902,7 +83908,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16305,
+          "line": 16310,
           "column": 4
         }
       ],
@@ -85309,7 +85315,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 10498,
+          "line": 10500,
           "column": 10
         },
         {
@@ -85319,7 +85325,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 11535,
+          "line": 11550,
           "column": 14
         }
       ],
@@ -85399,7 +85405,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 14536,
+          "line": 14551,
           "column": 18
         }
       ],
@@ -85456,7 +85462,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15807,
+          "line": 15822,
           "column": 14
         }
       ],
@@ -85565,7 +85571,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15796,
+          "line": 15811,
           "column": 14
         }
       ],
@@ -85595,12 +85601,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 17398,
+          "line": 17403,
           "column": 5
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 17419,
+          "line": 17424,
           "column": 138
         }
       ],
@@ -85912,7 +85918,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 9722,
+          "line": 9724,
           "column": 14
         },
         {
@@ -85952,17 +85958,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6816,
+          "line": 6825,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7576,
+          "line": 7585,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7577,
+          "line": 7586,
           "column": 18
         },
         {
@@ -86051,27 +86057,27 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 5439,
+          "line": 5441,
           "column": 27
         },
         {
           "file": "src/manifest.rs",
-          "line": 16022,
+          "line": 16041,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 16074,
+          "line": 16093,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 16084,
+          "line": 16103,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 16095,
+          "line": 16114,
           "column": 14
         },
         {
@@ -86183,7 +86189,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16306,
+          "line": 16311,
           "column": 4
         }
       ],
@@ -86205,7 +86211,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 11156,
+          "line": 11171,
           "column": 14
         },
         {
@@ -86339,7 +86345,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 5626,
+          "line": 5628,
           "column": 14
         },
         {
@@ -86990,7 +86996,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 11692,
+          "line": 11707,
           "column": 18
         }
       ],
@@ -87170,7 +87176,7 @@
         },
         {
           "file": "src/local.rs",
-          "line": 33614,
+          "line": 33611,
           "column": 10
         },
         {
@@ -87345,7 +87351,7 @@
         },
         {
           "file": "src/local.rs",
-          "line": 33605,
+          "line": 33602,
           "column": 14
         },
         {
@@ -88005,7 +88011,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 7399,
+          "line": 7401,
           "column": 14
         },
         {

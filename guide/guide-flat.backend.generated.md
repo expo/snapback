@@ -109,10 +109,13 @@ and `Function` are refused during generation. The legacy
 cannot be mixed with `handler`. It also reads one closed script: same-file
 helpers work, while imports are refused with `BUNDLE_UNSUPPORTED_IMPORT`.
 
-Every JS query handler returns an **array of rows**, including point reads:
-return `[]` for missing or `[row]` for present. Returning a single object fails
-with `SNAPBACK_HANDLER_RESULT_INVALID`; the diagnostic names whether the
-declaration is a `query` or `live query` and includes its function id.
+Most JS query handlers return an **array of rows**. Point reads and computed
+aggregates may instead declare `results.document(...)` or
+`results.value(v.object({...}))` and return that single value directly. The
+query/live transport keeps one internal row for those declarations, while
+typed consumers project the authored object or scalar back out. Returning a
+single object under a row-shaped `results.documents`/`results.records`
+declaration still fails with `SNAPBACK_HANDLER_RESULT_INVALID`.
 
 Declare what that array contains:
 
@@ -120,6 +123,10 @@ Declare what that array contains:
   server-owned system fields and stored optional-field semantics.
 - `results.records(v.object({...}))` validates exact computed records and does
   not invent system fields.
+- `results.document('todos')` validates one stored document, while
+  `results.value(validator)` validates one direct point/aggregate value. For a
+  missing point read, include `v.null()` in the value validator and return
+  `null`.
 - `v.doc('todos')` references that same complete document shape from inside a
   result validator. For example,
   `results.records(v.object({ todo: v.doc('todos') }))` avoids respelling a
@@ -1954,14 +1961,14 @@ id: backend.familiar-profile
 order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs]
-examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-cli/templates/expo-chat]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, llp/0044-asset-storage-pipeline.rfc.md]
+examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:41d7537b6a9e31b2e9a13ad212340b5821594d6cacaaa98d7002b3a1b97df738
+reviewed-authorities-digest: sha256:6bc6ecfd2478295ba356a56cfdeb7c854d66c9d7fc484c68568e5b945583c973
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -1974,7 +1981,7 @@ reviewed-authorities-digest: sha256:41d7537b6a9e31b2e9a13ad212340b5821594d6cacaa
 Use this profile when top-level TypeScript modules and
 `query`/`mutation`/`action` constructors materially improve authoring. Use the
 default explicit profile for the broadest Snapback vocabulary, especially
-declarative plans, routes, cron, custom asset intents, search/vector, and
+declarative plans, routes, cron, search/vector, and
 effectful actions. One backend selects one profile; mixing explicit
 `schema.mjs`/`functions.mjs` with familiar `schema.ts`/function modules is a
 typed refusal.
@@ -2006,9 +2013,9 @@ snapback/
   generated/               # generated server/api declarations and runtime
 ```
 
-Nested modules are helpers, not function namespaces. A top-level function
-module may export only familiar function values; move exported constants and
-helpers out of it.
+Nested modules are helpers, not function namespaces. A top-level
+function/intent module may export only familiar function or asset-intent
+values; move exported constants and helpers out of it.
 
 ## Declare schema and functions
 
@@ -2024,6 +2031,15 @@ export default defineSchema({
   }).index("by_completed", ["completed"]),
 });
 ```
+
+That shared vocabulary includes typed opaque arrays and objects. A nested
+`v.principal()` may record a historical recipient snapshot, including inside
+`v.array(...)`; it does not grant current authority. Membership, visibility,
+and grants must still use their first-class declarations. If an installed
+Familiar schema used `v.json()` for data that is now structured, keep the field
+name and use the reviewed
+[`ConvertJsonToStructured` migration](./migrations.md#evolve-vjson-into-a-structured-field);
+direct retyping refuses.
 
 Each function declares its authority and data reach next to the handler. A
 module `todos.ts` with export `list` becomes canonical name `todos.list` and
@@ -2052,10 +2068,41 @@ export const list = query({
 Every function requires `args`, `returns`, `auth`, and `handler`. Queries add
 `reads`; mutations add `reads` and `writes`; actions may add `secrets`.
 Queries are live by default; set `delivery: "read"` for a one-shot query.
-Canonical queries are list-shaped. Represent a get as a bounded zero-or-one
-array rather than returning a nullable document. Familiar actions can read
-auth/runtime/secrets, refuse, and call a generated mutation reference; they do
-not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
+Row-shaped query returns remain arrays. A point query can declare an exact
+single value such as `returns: v.union([v.doc("todos"), v.null()])` or a closed
+`v.object(...)` and return that value directly; `useQuery` receives the object
+or `null`, not a one-row array. Familiar actions can read auth/runtime/secrets,
+refuse, and call a generated mutation reference; they do not expose `ctx.db`,
+fetch, assets, jobs, realtime, or streaming.
+
+## Declare non-derived asset intents
+
+A bare `v.assetRef()` still derives the small private JPEG/PNG default. When
+the application needs another media type or policy, export the canonical
+`defineAssetUpload` constructor from a top-level Familiar module. The module
+and export become the same two-segment generated namespace as functions:
+
+```ts source=tests/acceptance/fixtures/familiar-video-asset/media.ts
+import { defineAssetUpload } from './generated/server';
+
+export const videoUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['video/mp4'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  video: { location: 'retain' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+This declaration produces canonical intent `media.videoUpload` and generated
+reference `api.media.videoUpload`. Use that nominal reference with the normal
+asset client; the upload, trusted byte detection, video finalization, custody,
+typed attachment, and authorized readback paths are identical to the explicit
+profile. The [asset guide](./assets.md) owns the complete policy and client
+flow. Do not encode media bytes in JSON or split data URLs across document
+fields when the derived image default is too narrow.
 
 ## Put authorization before business logic
 
@@ -2242,9 +2289,9 @@ reference exercises:
    the bounded default upload intent. Upload through the generated asset
    reference and `assets.upload(...)`, wait for its ready asset id, then attach
    the typed id in a mutation. Use the complete [asset guide](./assets.md), not
-   a base64 data URL. Custom `defineAssetUpload` declarations are not in the
-   familiar function-module grammar in 0.1.21; choose the explicit profile if
-   the default intent is insufficient.
+   a base64 data URL. If the default is insufficient, declare
+   `defineAssetUpload` in a top-level module and upload through its
+   `api.module.export` reference.
 5. After every source change run `snapback generate snapback`; review and
    commit the refreshed `snapback/generated/artifacts.json` plus only the
    projections selected by policy. `_generated/` is retired: do not create it,
@@ -2266,8 +2313,8 @@ linked pages.
 ## Know when to leave the profile
 
 Move the backend to the explicit profile when it needs a surface the familiar
-grammar refuses: declarative plans, routes, cron, search/vector, custom asset
-intents, membership declarations not expressible in the shared schema
+grammar refuses: declarative plans, routes, cron, search/vector, membership
+declarations not expressible in the shared schema
 vocabulary, or action fetch/stream/host effects. Treat the diagnostic's route
 as the boundary; do not import explicit builders into a familiar function
 module or hide them behind a helper.
@@ -2767,13 +2814,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets, clients.asset-signed-delivery, clients.asset-upload]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, src/server/asset_routes.rs, packages/snapback-client/assets.mjs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
-examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control, packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, src/server/asset_routes.rs, packages/snapback-client/assets.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs, packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:6287bc6c8979d956731270da9347db15ad885830243a974db93e9309d29e38bf
+reviewed-authorities-digest: sha256:ac2cd7a89de0a56f4add93da19c9e943c1fd38470c9d223c21fa404259320788
 ---
 
 # Assets
@@ -2856,6 +2903,29 @@ export const avatarUpload = defineAssetUpload({
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 ```
+
+In the Familiar TypeScript profile, import the same constructor from
+`./generated/server` and export it from a top-level module. For example,
+`media.ts` exporting `videoUpload` becomes canonical intent
+`media.videoUpload` and generated reference `api.media.videoUpload`:
+
+```ts source=tests/acceptance/fixtures/familiar-video-asset/media.ts
+import { defineAssetUpload } from './generated/server';
+
+export const videoUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['video/mp4'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  video: { location: 'retain' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+That is only a naming projection. It uses this same intent policy, asset
+client, finalizer, typed reference, and delivery path; it does not derive video
+through the image-only bare-field default.
 
 Reference assets from tables with `v.assetRef`. A restricted field
 (`{ upload: 'avatarUpload' }`) admits only that intent's assets and is
@@ -5701,7 +5771,7 @@ targets: [local]
 maturity: shipped
 since: 0.1.21
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:f6aa62160c211e2bba8e751f52f3686c91b279a02bf787d12f684952ab881774
+reviewed-authorities-digest: sha256:0aa239149530db05c541bcb02491fd9d2f69e8aa558e1b34e8a293ba11aeaa7a
 ---
 
 # Evolve a sessions schema without discarding data
@@ -6100,6 +6170,10 @@ must be declared. The closed intent vocabulary:
   representation).
 - `ConvertField { table, from, to, fieldType, expr }` — a rename with a
   conversion expression (type change).
+- `ConvertJsonToStructured { table, field, generation }` — preserve the field
+  name by staging a full successor table generation; each formerly-JSON value
+  must validate and is rewritten as canonical structured storage before the
+  successor can publish.
 - `CopyTableToGeneration { table, generation, fields, sourceTable }` —
   stage a successor generation and copy into it.
 - `RebuildProjection { projectionId }`.
@@ -6118,6 +6192,33 @@ must be declared. The closed intent vocabulary:
   }
 ]
 ```
+
+### Evolve `v.json()` into a structured field
+
+Changing an installed `v.json()` field directly to `v.object(...)` or
+`v.array(...)` refuses with `SNAPBACK_SCHEMA_FIELD_RETYPED`; the server cannot
+claim existing bytes satisfy the stronger contract. Declare the reviewed
+intent instead:
+
+```json fragment reason="illustrative intent; table and generation are application-specific"
+[
+  {
+    "ConvertJsonToStructured": {
+      "table": "messages",
+      "field": "recipientSnapshot",
+      "generation": 2
+    }
+  }
+]
+```
+
+Preview expands this to `StageTableGeneration` plus an identity `CopyTable`
+covering every successor field and seals the `shadow-generation` strategy. The
+copy runs the structured validator/canonicalizer, then proves row count and a
+full content digest. If even one legacy JSON value is outside the new shape,
+apply refuses and the predecessor generation remains authoritative. Repair the
+data under its old schema, preview again, and approve the new digests; do not
+hand-edit the database or weaken the destination to make apply pass.
 
 ## Rehearse against a restore-derived instance
 

@@ -131,9 +131,15 @@ now compile to a persisted structured contract instead of silently degrading
 to `v.json()`. Objects are closed maps. Nested `v.optional(...)` is legal only
 for object members and means omission, not `null`; declare `v.null()` as a
 union variant when null is data. The admitted leaves are strings, booleans,
-the integer/real/finite-real/number spellings, scalar literals, arrays,
-objects, and syntactically disjoint unions. Generated document, handler, and
-client types preserve the declared shape exactly.
+the integer/real/finite-real/number spellings, scalar literals, principals,
+arrays, objects, and syntactically disjoint unions. Generated document,
+handler, and client types preserve the declared shape exactly.
+
+A nested `v.principal()` is a validated **snapshot value only**. For example,
+`v.array(v.principal(), { maxItems: 32 })` can preserve the recipients recorded
+at send time, but Snapback never derives current membership, row visibility,
+asset access, or another grant from that opaque array. Put current authority in
+a first-class principal field, membership row, or grant.
 
 The runtime carrier is `canonical-json-text.v1`: the server validates the
 whole value, normalizes integral Reals, writes canonical JSON `TEXT`, and
@@ -148,7 +154,10 @@ Project a scalar into an ordinary field when it must be queried.
 local target. Schemas using this grammar carry that explicit capability
 requirement, so older runtimes refuse coherently at capability settlement
 instead of degrading the value to `v.json()`. `v.json()` remains the unchanged
-untyped escape hatch.
+untyped escape hatch. To strengthen an already-installed `v.json()` field into
+this grammar without changing its name, use the reviewed
+[`ConvertJsonToStructured` migration](../backend/migrations.md#evolve-vjson-into-a-structured-field);
+direct retyping correctly refuses.
 The remaining [`backend.structured-stored-fields` GAP](../capabilities.md) is
 queryable structure—interior predicates, containment, and portable declared
 projections—owned by

@@ -11,7 +11,7 @@ targets: [local]
 maturity: partial
 since: 0.1.21
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:41d7537b6a9e31b2e9a13ad212340b5821594d6cacaaa98d7002b3a1b97df738
+reviewed-authorities-digest: sha256:6bc6ecfd2478295ba356a56cfdeb7c854d66c9d7fc484c68568e5b945583c973
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -56,9 +56,9 @@ snapback/
   generated/               # generated server/api declarations and runtime
 ```
 
-Nested modules are helpers, not function namespaces. A top-level function
-module may export only familiar function values; move exported constants and
-helpers out of it.
+Nested modules are helpers, not function namespaces. A top-level
+function/intent module may export only familiar function or asset-intent
+values; move exported constants and helpers out of it.
 
 ## Declare schema and functions
 

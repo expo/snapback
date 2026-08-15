@@ -55,7 +55,6 @@ import {
   resolveHandlerSourceCapability,
 } from './file-read-capability.mjs';
 import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '@expo/snapback-contract/capabilities';
-import { isOperationName } from '@expo/snapback-contract/operation-name';
 import {
   OPERATION_NAME_PATTERN,
   isOperationName,
