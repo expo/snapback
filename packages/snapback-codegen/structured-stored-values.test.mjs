@@ -98,6 +98,7 @@ export default defineSchema({
   messages: defineTable({
     quotedPreview: v.object({ author: v.string(), text: v.string() }),
     pollOptions: v.array(v.object({ label: v.string(), votes: v.integer() })),
+    recipientSnapshot: v.array(v.principal(), { maxItems: 32 }),
   }),
 });
 `);
@@ -142,7 +143,6 @@ export default defineSchema({
     }) }),
     vector: v.object({ value: v.vector(3) }),
     json: v.object({ value: v.json() }),
-    principal: v.object({ value: v.principal() }),
     platform: v.object({ value: platformRef }),
     tuple: v.object({ value: v.tuple([v.string(), v.integer()]) }),
   }),
@@ -155,7 +155,6 @@ export default defineSchema({
     'SCHEMA_STRUCTURED_RELATION_INTERIOR_UNSUPPORTED',
     'SCHEMA_STRUCTURED_VECTOR_INTERIOR_UNSUPPORTED',
     'SCHEMA_STRUCTURED_JSON_INTERIOR_UNSUPPORTED',
-    'SCHEMA_STRUCTURED_PRINCIPAL_INTERIOR_UNSUPPORTED',
     'SCHEMA_STRUCTURED_PLATFORM_REF_INTERIOR_UNSUPPORTED',
     'SCHEMA_STRUCTURED_TUPLE_INTERIOR_UNSUPPORTED',
   ]) assert(refusedCodes.has(code), `${code}: ${JSON.stringify(refused.diagnostics)}`);

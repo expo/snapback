@@ -5,6 +5,10 @@
 **Systems:** Schema, Application data API, Storage, Code generation, Client SDK
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-09
+**Revised:** 2026-08-15 (principal-snapshot amendment: `v.principal()` is
+admitted as a validated nominal leaf inside opaque structured values. Its
+interior occurrence is storage and egress data only; it confers no visibility,
+membership, grant, lookup, or referential semantics.)
 **Revised:** 2026-08-10 (ACCEPTED by the author, Charlie — the
 super-refine close-out's unreviewed-tail caveat acknowledged in the
 acceptance; and the **support flip performed** under the same ruling:
@@ -189,8 +193,8 @@ diagnostic pointing at this Spec:
   numeric builders are distinct spellings and all are admitted):
   `v.string()`, `v.boolean()`, `v.integer()`, `v.real()`,
   `v.finiteReal()`, `v.number()`, `v.literal(...)`, `v.null()` (as a
-  union variant), `v.object(...)`, `v.array(...)`, `v.union(...)`, and
-  `v.optional(...)` at object-member position only.
+  union variant), `v.principal()`, `v.object(...)`, `v.array(...)`,
+  `v.union(...)`, and `v.optional(...)` at object-member position only.
 - **Refused, each with its reason recorded:** `v.assetRef` (the prior
   ruling; authority machinery needs addressable rows); `v.id` / relation
   references / `v.relationIncarnationOf` (referential integrity, cascade,
@@ -198,9 +202,16 @@ diagnostic pointing at this Spec:
   `v.vector` (would silently lose its BLOB binary64 representation,
   dimension enforcement, and index eligibility); `v.json` (an unvalidated
   escape hatch inside a value the platform calls validated — the honesty
-  defect this Spec exists to remove); `v.principal` and
-  platform-constructed schema refs (auth-relevant nominal typing);
+  defect this Spec exists to remove); platform-constructed schema refs
+  (framework-owned typing);
   `v.tuple` (deferred; no demand instance).
+
+An interior principal is a **nominal snapshot**, not an authority edge. The
+ordinary principal validator still rejects values outside its nominal string
+contract, but the enclosing structured column remains opaque: authorization,
+visibility, membership, asset grants, principal lookup, and referential
+integrity never inspect or derive from that leaf. Any current-authority
+decision must use a first-class principal field, membership row, or grant.
 
 This is a deliberate **storage-position admissible-leaf profile** of the
 LLP 0131 grammar — same spellings, no second grammar, but "same grammar"
@@ -481,8 +492,9 @@ tier, because a stable, named refusal covering the complete
    end to end, with a seeded handler/type mismatch failing at typecheck
    (the CV-17 pattern applied to stored positions).
 2. Fail-closed vectors: every refused interior leaf (§Declaration's
-   table: assetRef, id/relation incarnation, vector, json, principal,
-   platform refs, tuple) refuses at schema compile with its named code;
+   table: assetRef, id/relation incarnation, vector, json, platform refs,
+   tuple) refuses at schema compile with its named code; principal arrays
+   round-trip as nominal snapshots and reject invalid principal leaves;
    over-ceiling refusal for all four bounds (value bytes, depth, element
    count, per-row aggregate) with pointer diagnostics; a non-validating
    write provably writes nothing.

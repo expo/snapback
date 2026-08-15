@@ -1065,6 +1065,36 @@ mod stored_structured_value_tests {
     }
 
     #[test]
+    fn structured_principal_arrays_round_trip_as_nominal_snapshots() {
+        let recipients = ResultValueContract::Array {
+            element: Box::new(ResultValueContract::Principal),
+            max_items: 8,
+        };
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema(vec![field("recipients", recipients)]))
+            .expect("principal snapshot schema");
+        insert(
+            &mut db,
+            "message-1",
+            Map::from_iter([("recipients".to_owned(), json!(["user-1", "agent-2"]))]),
+        )
+        .expect("principal snapshot insert");
+        assert_eq!(
+            db.get("items", "message-1").unwrap().unwrap()["recipients"],
+            json!(["user-1", "agent-2"]),
+        );
+
+        let invalid = insert(
+            &mut db,
+            "message-2",
+            Map::from_iter([("recipients".to_owned(), json!([""]))]),
+        )
+        .expect_err("an empty principal is not a nominal snapshot value");
+        assert_eq!(invalid.diagnostic.code, "SNAPBACK_STRUCTURED_VALUE_INVALID");
+        assert_eq!(invalid.diagnostic.details["path"], "/0");
+    }
+
+    #[test]
     fn carrier_hash_and_all_four_bounds_fail_closed() {
         let mut hash_mismatch = field("payload", numeric_payload());
         let FieldType::Structured { contract_hash, .. } = &mut hash_mismatch.field_type else {

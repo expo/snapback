@@ -8356,9 +8356,10 @@ fn validate_stored_structured_descriptor(
                 )?;
             }
         }
-        ResultValueContract::Principal => {
-            return Err("principal leaf is not admitted".to_owned());
-        }
+        // @ref LLP 0211#declaration-closed-dispatch-closed-interior — a
+        // nested principal is a validated nominal snapshot only; structured
+        // interiors remain opaque to visibility, lookup, and authority rules.
+        ResultValueContract::Principal => {}
         ResultValueContract::AssetRef => {
             return Err("assetRef leaf is not admitted".to_owned());
         }

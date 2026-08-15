@@ -8815,12 +8815,6 @@ function validateStoredStructuredValidator(
       'contains v.relationIncarnationOf(), which is framework-authored lifecycle state',
     );
   }
-  if (val.fieldType === 'Principal') {
-    return fail(
-      'SCHEMA_STRUCTURED_PRINCIPAL_INTERIOR_UNSUPPORTED',
-      'contains v.principal(), whose auth-relevant nominal type is not an opaque plain-data leaf',
-    );
-  }
   if (val.primitive === 'platformSchemaRef' || val.primitive === 'appSchemaRef'
       || val.fieldType?.PlatformSchemaRef !== undefined || val.fieldType?.AppSchemaRef !== undefined) {
     return fail(
@@ -8900,6 +8894,7 @@ function validateStoredStructuredValidator(
   }
   const admittedScalar = (
     (val.fieldType === 'String' && val.primitive === 'string')
+    || (val.fieldType === 'Principal' && val.primitive === 'string')
     || (val.fieldType === 'Boolean' && val.primitive === 'boolean')
     || (['Integer', 'Real'].includes(val.fieldType) && val.primitive === 'number')
   );

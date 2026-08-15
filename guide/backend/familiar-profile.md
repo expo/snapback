@@ -75,6 +75,11 @@ export default defineSchema({
 });
 ```
 
+That shared vocabulary includes typed opaque arrays and objects. A nested
+`v.principal()` may record a historical recipient snapshot, including inside
+`v.array(...)`; it does not grant current authority. Membership, visibility,
+and grants must still use their first-class declarations.
+
 Each function declares its authority and data reach next to the handler. A
 module `todos.ts` with export `list` becomes canonical name `todos.list` and
 generated reference `api.todos.list`:
