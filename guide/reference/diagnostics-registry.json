@@ -2,17 +2,17 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:e95646df05728298086125ca00a3f0859e0df7a2b9845bf114a67bd82d68b9c9"
+    "sourceDigest": "sha256:0ff7e9c9bff17dc8c65cba13c483ef066246c136c57a4f7817129ef342db2d5c"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 3205,
+    "codes": 3208,
     "sourceFiles": 452,
-    "emittingSites": 10957,
-    "httpClassified": 992,
-    "guideAnchored": 418
+    "emittingSites": 10969,
+    "httpClassified": 995,
+    "guideAnchored": 421
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -51,17 +51,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4652,
+          "line": 4754,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6671,
+          "line": 6773,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7023,
+          "line": 7125,
           "column": 30
         }
       ],
@@ -81,27 +81,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6672,
+          "line": 6774,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7182,
+          "line": 7284,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 7275,
+          "line": 7384,
           "column": 48
         },
         {
           "file": "src/runtime.rs",
-          "line": 7488,
+          "line": 7597,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7489,
+          "line": 7598,
           "column": 18
         },
         {
@@ -166,7 +166,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4021,
+          "line": 4123,
           "column": 22
         }
       ],
@@ -211,12 +211,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4908,
+          "line": 5010,
           "column": 42
         },
         {
           "file": "src/runtime.rs",
-          "line": 6685,
+          "line": 6787,
           "column": 12
         },
         {
@@ -364,7 +364,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4907,
+          "line": 5009,
           "column": 48
         }
       ],
@@ -391,7 +391,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6676,
+          "line": 6778,
           "column": 12
         },
         {
@@ -428,7 +428,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6677,
+          "line": 6779,
           "column": 12
         },
         {
@@ -476,37 +476,37 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4075,
+          "line": 4177,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 4092,
+          "line": 4194,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4108,
+          "line": 4210,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4134,
+          "line": 4236,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4147,
+          "line": 4249,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4165,
+          "line": 4267,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6678,
+          "line": 6780,
           "column": 12
         },
         {
@@ -613,7 +613,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6680,
+          "line": 6782,
           "column": 12
         },
         {
@@ -656,7 +656,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6679,
+          "line": 6781,
           "column": 12
         },
         {
@@ -691,7 +691,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6681,
+          "line": 6783,
           "column": 12
         },
         {
@@ -754,7 +754,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6682,
+          "line": 6784,
           "column": 12
         },
         {
@@ -781,7 +781,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6683,
+          "line": 6785,
           "column": 12
         },
         {
@@ -813,7 +813,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6684,
+          "line": 6786,
           "column": 12
         },
         {
@@ -916,32 +916,32 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5437,
+          "line": 5539,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 5983,
+          "line": 6085,
           "column": 29
         },
         {
           "file": "src/runtime.rs",
-          "line": 5985,
+          "line": 6087,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6673,
+          "line": 6775,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7484,
+          "line": 7593,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7485,
+          "line": 7594,
           "column": 18
         },
         {
@@ -1061,7 +1061,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1269,
+          "line": 1272,
           "column": 12
         },
         {
@@ -1960,7 +1960,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1406,
+          "line": 1409,
           "column": 12
         }
       ],
@@ -2130,7 +2130,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1412,
+          "line": 1415,
           "column": 10
         }
       ],
@@ -2180,7 +2180,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1407,
+          "line": 1410,
           "column": 12
         }
       ],
@@ -2335,7 +2335,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1404,
+          "line": 1407,
           "column": 10
         }
       ],
@@ -2355,7 +2355,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1405,
+          "line": 1408,
           "column": 12
         }
       ],
@@ -2975,7 +2975,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1403,
+          "line": 1406,
           "column": 12
         }
       ],
@@ -2995,7 +2995,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1414,
+          "line": 1417,
           "column": 12
         }
       ],
@@ -3070,7 +3070,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1397,
+          "line": 1400,
           "column": 10
         }
       ],
@@ -3090,7 +3090,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1398,
+          "line": 1401,
           "column": 12
         }
       ],
@@ -3110,7 +3110,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1399,
+          "line": 1402,
           "column": 12
         }
       ],
@@ -3130,7 +3130,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1400,
+          "line": 1403,
           "column": 12
         }
       ],
@@ -3150,7 +3150,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1415,
+          "line": 1418,
           "column": 10
         }
       ],
@@ -3195,7 +3195,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1424,
+          "line": 1427,
           "column": 10
         }
       ],
@@ -3220,7 +3220,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1425,
+          "line": 1428,
           "column": 12
         }
       ],
@@ -3245,7 +3245,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1413,
+          "line": 1416,
           "column": 12
         }
       ],
@@ -3345,7 +3345,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1408,
+          "line": 1411,
           "column": 12
         }
       ],
@@ -3365,7 +3365,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1409,
+          "line": 1412,
           "column": 12
         }
       ],
@@ -3385,7 +3385,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1410,
+          "line": 1413,
           "column": 12
         }
       ],
@@ -3425,7 +3425,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1401,
+          "line": 1404,
           "column": 12
         }
       ],
@@ -3445,7 +3445,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1411,
+          "line": 1414,
           "column": 12
         }
       ],
@@ -3465,7 +3465,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1402,
+          "line": 1405,
           "column": 12
         }
       ],
@@ -3490,7 +3490,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1421,
+          "line": 1424,
           "column": 10
         }
       ],
@@ -3515,7 +3515,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1421,
+          "line": 1424,
           "column": 51
         }
       ],
@@ -3535,7 +3535,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1416,
+          "line": 1419,
           "column": 10
         }
       ],
@@ -4744,7 +4744,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16250,
+          "line": 16261,
           "column": 4
         },
         {
@@ -4799,7 +4799,7 @@
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2157,
+          "line": 2158,
           "column": 192
         },
         {
@@ -4809,7 +4809,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16251,
+          "line": 16262,
           "column": 4
         },
         {
@@ -4989,13 +4989,8 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2138,
-          "column": 103
-        },
-        {
-          "file": "packages/snapback-codegen/define.mjs",
           "line": 2139,
-          "column": 99
+          "column": 103
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
@@ -5005,11 +5000,16 @@
         {
           "file": "packages/snapback-codegen/define.mjs",
           "line": 2141,
-          "column": 111
+          "column": 99
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
           "line": 2142,
+          "column": 111
+        },
+        {
+          "file": "packages/snapback-codegen/define.mjs",
+          "line": 2143,
           "column": 152
         },
         {
@@ -5019,7 +5019,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16252,
+          "line": 16263,
           "column": 4
         },
         {
@@ -5039,27 +5039,27 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2145,
+          "line": 2146,
           "column": 117
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2146,
+          "line": 2147,
           "column": 180
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2147,
+          "line": 2148,
           "column": 171
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2148,
+          "line": 2149,
           "column": 233
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2151,
+          "line": 2152,
           "column": 222
         },
         {
@@ -5074,7 +5074,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16253,
+          "line": 16264,
           "column": 4
         },
         {
@@ -5239,7 +5239,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2156,
+          "line": 2157,
           "column": 86
         },
         {
@@ -5249,7 +5249,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16254,
+          "line": 16265,
           "column": 4
         },
         {
@@ -5646,7 +5646,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16249,
+          "line": 16260,
           "column": 4
         },
         {
@@ -9392,7 +9392,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1285,
+          "line": 1288,
           "column": 12
         }
       ],
@@ -9427,7 +9427,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1286,
+          "line": 1289,
           "column": 12
         }
       ],
@@ -9447,7 +9447,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1287,
+          "line": 1290,
           "column": 12
         }
       ],
@@ -9467,7 +9467,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1288,
+          "line": 1291,
           "column": 12
         }
       ],
@@ -9537,37 +9537,37 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5764,
+          "line": 5866,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 5871,
+          "line": 5973,
           "column": 21
         },
         {
           "file": "src/runtime.rs",
-          "line": 6742,
+          "line": 6844,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7340,
+          "line": 7449,
           "column": 62
         },
         {
           "file": "src/runtime.rs",
-          "line": 7349,
+          "line": 7458,
           "column": 47
         },
         {
           "file": "src/runtime.rs",
-          "line": 7371,
+          "line": 7480,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7415,
+          "line": 7524,
           "column": 55
         },
         {
@@ -9619,7 +9619,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7049,
+          "line": 7151,
           "column": 16
         }
       ],
@@ -9644,7 +9644,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13444,
+          "line": 13446,
           "column": 10
         }
       ],
@@ -9664,7 +9664,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13445,
+          "line": 13447,
           "column": 10
         }
       ],
@@ -10509,12 +10509,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3764,
+          "line": 3824,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 3807,
+          "line": 3867,
           "column": 30
         },
         {
@@ -10554,7 +10554,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3742,
+          "line": 3802,
           "column": 30
         },
         {
@@ -11781,17 +11781,17 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13055,
+          "line": 13062,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 13107,
+          "line": 13114,
           "column": 34
         },
         {
           "file": "src/storage.rs",
-          "line": 13123,
+          "line": 13130,
           "column": 30
         },
         {
@@ -12025,7 +12025,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1369,
+          "line": 1372,
           "column": 12
         }
       ],
@@ -15230,37 +15230,37 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4448,
+          "line": 4550,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 4463,
+          "line": 4565,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 4487,
+          "line": 4589,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6670,
+          "line": 6772,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 10013,
+          "line": 10201,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 10043,
+          "line": 10231,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 10239,
+          "line": 10488,
           "column": 41
         },
         {
@@ -15632,7 +15632,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1680,
+          "line": 1683,
           "column": 10
         }
       ],
@@ -15652,7 +15652,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1681,
+          "line": 1684,
           "column": 10
         }
       ],
@@ -15892,17 +15892,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9672,
+          "line": 9674,
           "column": 16
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 11519,
+          "line": 11521,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 11993,
+          "line": 11995,
           "column": 21
         },
         {
@@ -15917,12 +15917,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3094,
+          "line": 3139,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6668,
+          "line": 6770,
           "column": 12
         },
         {
@@ -17462,7 +17462,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2075,
+          "line": 2076,
           "column": 12
         }
       ],
@@ -17477,7 +17477,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2067,
+          "line": 2068,
           "column": 14
         }
       ],
@@ -17962,7 +17962,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1679,
+          "line": 1682,
           "column": 10
         }
       ],
@@ -20223,17 +20223,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9674,
+          "line": 9676,
           "column": 16
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 11524,
+          "line": 11526,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 11995,
+          "line": 11997,
           "column": 21
         },
         {
@@ -20248,17 +20248,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3101,
+          "line": 3146,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 3113,
+          "line": 3158,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6669,
+          "line": 6771,
           "column": 12
         },
         {
@@ -21104,27 +21104,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3615,
+          "line": 3675,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 4213,
+          "line": 4315,
           "column": 37
         },
         {
           "file": "src/runtime.rs",
-          "line": 4918,
+          "line": 5020,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 5309,
+          "line": 5411,
           "column": 40
         },
         {
           "file": "src/runtime.rs",
-          "line": 5326,
+          "line": 5428,
           "column": 49
         },
         {
@@ -22328,7 +22328,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1676,
+          "line": 1679,
           "column": 40
         }
       ],
@@ -22393,7 +22393,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1676,
+          "line": 1679,
           "column": 10
         }
       ],
@@ -23326,7 +23326,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6667,
+          "line": 6769,
           "column": 12
         },
         {
@@ -24366,7 +24366,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1427,
+          "line": 1430,
           "column": 12
         }
       ],
@@ -24391,7 +24391,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1428,
+          "line": 1431,
           "column": 12
         }
       ],
@@ -24441,7 +24441,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1426,
+          "line": 1429,
           "column": 10
         }
       ],
@@ -25399,7 +25399,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1699,
+          "line": 1702,
           "column": 18
         }
       ],
@@ -25484,17 +25484,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3335,
+          "line": 3336,
           "column": 61
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9683,
+          "line": 9685,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9698,
+          "line": 9700,
           "column": 8
         },
         {
@@ -25603,7 +25603,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7050,
+          "line": 7152,
           "column": 16
         }
       ],
@@ -25758,7 +25758,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10781,
+          "line": 10783,
           "column": 10
         },
         {
@@ -25768,22 +25768,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6734,
+          "line": 6836,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8574,
+          "line": 8755,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 8579,
+          "line": 8760,
           "column": 18
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1343,
+          "line": 1346,
           "column": 12
         },
         {
@@ -25813,17 +25813,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6568,
+          "line": 6670,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6732,
+          "line": 6834,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8660,
+          "line": 8841,
           "column": 14
         },
         {
@@ -25848,62 +25848,62 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6468,
+          "line": 6570,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6475,
+          "line": 6577,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6490,
+          "line": 6592,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6500,
+          "line": 6602,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6511,
+          "line": 6613,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 6524,
+          "line": 6626,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6535,
+          "line": 6637,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 6561,
+          "line": 6663,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6730,
+          "line": 6832,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8700,
+          "line": 8881,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 8711,
+          "line": 8892,
           "column": 44
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1342,
+          "line": 1345,
           "column": 12
         }
       ],
@@ -25923,17 +25923,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6548,
+          "line": 6650,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6731,
+          "line": 6833,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8637,
+          "line": 8818,
           "column": 14
         },
         {
@@ -25953,7 +25953,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10812,
+          "line": 10814,
           "column": 10
         },
         {
@@ -25963,42 +25963,42 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2940,
+          "line": 2981,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6735,
+          "line": 6837,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8584,
+          "line": 8765,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 8586,
+          "line": 8767,
           "column": 39
         },
         {
           "file": "src/runtime.rs",
-          "line": 8590,
+          "line": 8771,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 8595,
+          "line": 8776,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 8600,
+          "line": 8781,
           "column": 18
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1344,
+          "line": 1347,
           "column": 12
         },
         {
@@ -26038,17 +26038,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2796,
+          "line": 2827,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6733,
+          "line": 6835,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8673,
+          "line": 8854,
           "column": 14
         },
         {
@@ -26073,12 +26073,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3014,
+          "line": 3055,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 6736,
+          "line": 6838,
           "column": 12
         },
         {
@@ -26168,7 +26168,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1478,
+          "line": 1481,
           "column": 10
         }
       ],
@@ -26203,7 +26203,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1479,
+          "line": 1482,
           "column": 12
         }
       ],
@@ -26323,7 +26323,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1265,
+          "line": 1268,
           "column": 12
         }
       ],
@@ -26368,7 +26368,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1262,
+          "line": 1265,
           "column": 12
         }
       ],
@@ -26388,7 +26388,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1266,
+          "line": 1269,
           "column": 12
         }
       ],
@@ -26438,7 +26438,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1261,
+          "line": 1264,
           "column": 12
         }
       ],
@@ -26468,7 +26468,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1263,
+          "line": 1266,
           "column": 12
         }
       ],
@@ -26493,7 +26493,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1264,
+          "line": 1267,
           "column": 12
         }
       ],
@@ -26543,7 +26543,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1480,
+          "line": 1483,
           "column": 12
         }
       ],
@@ -26563,7 +26563,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1453,
+          "line": 1456,
           "column": 10
         }
       ],
@@ -26593,7 +26593,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1481,
+          "line": 1484,
           "column": 12
         }
       ],
@@ -26638,7 +26638,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1627,
+          "line": 1630,
           "column": 10
         }
       ],
@@ -26673,7 +26673,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1557,
+          "line": 1560,
           "column": 10
         }
       ],
@@ -26698,7 +26698,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1571,
+          "line": 1574,
           "column": 10
         }
       ],
@@ -26733,7 +26733,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1609,
+          "line": 1612,
           "column": 10
         }
       ],
@@ -26748,7 +26748,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1531,
+          "line": 1534,
           "column": 10
         }
       ],
@@ -26768,7 +26768,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1482,
+          "line": 1485,
           "column": 12
         }
       ],
@@ -26788,7 +26788,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1454,
+          "line": 1457,
           "column": 12
         }
       ],
@@ -26823,7 +26823,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1483,
+          "line": 1486,
           "column": 12
         }
       ],
@@ -26898,7 +26898,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1484,
+          "line": 1487,
           "column": 12
         },
         {
@@ -26943,7 +26943,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1485,
+          "line": 1488,
           "column": 12
         }
       ],
@@ -26973,7 +26973,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1472,
+          "line": 1475,
           "column": 10
         }
       ],
@@ -26993,7 +26993,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1628,
+          "line": 1631,
           "column": 12
         }
       ],
@@ -27033,7 +27033,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1486,
+          "line": 1489,
           "column": 12
         }
       ],
@@ -27053,7 +27053,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1610,
+          "line": 1613,
           "column": 12
         }
       ],
@@ -27078,7 +27078,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1468,
+          "line": 1471,
           "column": 10
         }
       ],
@@ -27103,7 +27103,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1487,
+          "line": 1490,
           "column": 12
         }
       ],
@@ -27133,7 +27133,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1488,
+          "line": 1491,
           "column": 12
         }
       ],
@@ -27153,7 +27153,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1489,
+          "line": 1492,
           "column": 12
         }
       ],
@@ -27173,7 +27173,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1490,
+          "line": 1493,
           "column": 12
         }
       ],
@@ -27223,7 +27223,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1491,
+          "line": 1494,
           "column": 12
         }
       ],
@@ -27243,7 +27243,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1492,
+          "line": 1495,
           "column": 12
         }
       ],
@@ -27268,7 +27268,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1493,
+          "line": 1496,
           "column": 12
         }
       ],
@@ -27313,7 +27313,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1558,
+          "line": 1561,
           "column": 12
         }
       ],
@@ -27333,7 +27333,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1494,
+          "line": 1497,
           "column": 12
         }
       ],
@@ -27363,7 +27363,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1602,
+          "line": 1605,
           "column": 10
         }
       ],
@@ -27388,7 +27388,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1473,
+          "line": 1476,
           "column": 12
         }
       ],
@@ -27408,7 +27408,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1495,
+          "line": 1498,
           "column": 12
         },
         {
@@ -27463,7 +27463,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1455,
+          "line": 1458,
           "column": 12
         }
       ],
@@ -27483,7 +27483,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1603,
+          "line": 1606,
           "column": 12
         }
       ],
@@ -27503,7 +27503,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1496,
+          "line": 1499,
           "column": 12
         }
       ],
@@ -27558,7 +27558,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1532,
+          "line": 1535,
           "column": 12
         }
       ],
@@ -27588,7 +27588,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1614,
+          "line": 1617,
           "column": 10
         }
       ],
@@ -27603,7 +27603,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1434,
+          "line": 1437,
           "column": 10
         },
         {
@@ -27638,7 +27638,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1572,
+          "line": 1575,
           "column": 12
         }
       ],
@@ -27663,7 +27663,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1567,
+          "line": 1570,
           "column": 10
         }
       ],
@@ -27698,7 +27698,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1573,
+          "line": 1576,
           "column": 12
         }
       ],
@@ -27718,7 +27718,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1574,
+          "line": 1577,
           "column": 12
         }
       ],
@@ -27753,7 +27753,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1456,
+          "line": 1459,
           "column": 12
         }
       ],
@@ -27783,7 +27783,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1533,
+          "line": 1536,
           "column": 12
         }
       ],
@@ -27818,7 +27818,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1497,
+          "line": 1500,
           "column": 12
         }
       ],
@@ -27838,7 +27838,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1435,
+          "line": 1438,
           "column": 12
         }
       ],
@@ -27883,7 +27883,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1615,
+          "line": 1618,
           "column": 12
         }
       ],
@@ -27908,7 +27908,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1457,
+          "line": 1460,
           "column": 12
         }
       ],
@@ -27928,7 +27928,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1498,
+          "line": 1501,
           "column": 12
         }
       ],
@@ -27953,7 +27953,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1629,
+          "line": 1632,
           "column": 12
         }
       ],
@@ -27973,7 +27973,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1436,
+          "line": 1439,
           "column": 12
         }
       ],
@@ -28043,7 +28043,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1437,
+          "line": 1440,
           "column": 12
         }
       ],
@@ -28088,7 +28088,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1534,
+          "line": 1537,
           "column": 12
         }
       ],
@@ -28108,7 +28108,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1535,
+          "line": 1538,
           "column": 12
         }
       ],
@@ -28138,7 +28138,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1630,
+          "line": 1633,
           "column": 12
         }
       ],
@@ -28358,12 +28358,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4639,
+          "line": 4741,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6712,
+          "line": 6814,
           "column": 12
         },
         {
@@ -29675,7 +29675,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6615,
+          "line": 6717,
           "column": 14
         },
         {
@@ -29750,7 +29750,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1611,
+          "line": 1614,
           "column": 12
         }
       ],
@@ -29770,7 +29770,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1631,
+          "line": 1634,
           "column": 12
         }
       ],
@@ -29790,7 +29790,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1632,
+          "line": 1635,
           "column": 12
         }
       ],
@@ -29810,7 +29810,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1575,
+          "line": 1578,
           "column": 12
         }
       ],
@@ -29840,7 +29840,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1536,
+          "line": 1539,
           "column": 12
         }
       ],
@@ -29860,7 +29860,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1612,
+          "line": 1615,
           "column": 12
         }
       ],
@@ -29885,7 +29885,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1458,
+          "line": 1461,
           "column": 12
         }
       ],
@@ -29920,7 +29920,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1499,
+          "line": 1502,
           "column": 12
         }
       ],
@@ -29945,7 +29945,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1438,
+          "line": 1441,
           "column": 12
         }
       ],
@@ -29970,7 +29970,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1500,
+          "line": 1503,
           "column": 12
         }
       ],
@@ -30020,7 +30020,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1633,
+          "line": 1636,
           "column": 12
         }
       ],
@@ -30040,7 +30040,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1634,
+          "line": 1637,
           "column": 12
         }
       ],
@@ -30075,7 +30075,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1604,
+          "line": 1607,
           "column": 12
         }
       ],
@@ -30095,7 +30095,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1635,
+          "line": 1638,
           "column": 12
         }
       ],
@@ -30145,7 +30145,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1568,
+          "line": 1571,
           "column": 12
         }
       ],
@@ -30195,7 +30195,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1459,
+          "line": 1462,
           "column": 12
         }
       ],
@@ -30220,7 +30220,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1636,
+          "line": 1639,
           "column": 12
         }
       ],
@@ -30295,7 +30295,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1637,
+          "line": 1640,
           "column": 12
         }
       ],
@@ -30320,7 +30320,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1537,
+          "line": 1540,
           "column": 12
         }
       ],
@@ -30340,7 +30340,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1638,
+          "line": 1641,
           "column": 12
         }
       ],
@@ -30365,7 +30365,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1639,
+          "line": 1642,
           "column": 12
         }
       ],
@@ -30390,7 +30390,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1576,
+          "line": 1579,
           "column": 12
         }
       ],
@@ -30410,7 +30410,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1640,
+          "line": 1643,
           "column": 12
         }
       ],
@@ -30425,7 +30425,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1624,
+          "line": 1627,
           "column": 10
         },
         {
@@ -30450,7 +30450,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1641,
+          "line": 1644,
           "column": 12
         }
       ],
@@ -30485,7 +30485,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1642,
+          "line": 1645,
           "column": 12
         }
       ],
@@ -30555,7 +30555,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1616,
+          "line": 1619,
           "column": 12
         }
       ],
@@ -31389,7 +31389,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16060,
+          "line": 16067,
           "column": 14
         },
         {
@@ -31544,7 +31544,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 16266,
+          "line": 16273,
           "column": 10
         }
       ],
@@ -31559,17 +31559,17 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 15881,
+          "line": 15888,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 16575,
+          "line": 16582,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 16591,
+          "line": 16598,
           "column": 18
         },
         {
@@ -31599,7 +31599,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16632,
+          "line": 16639,
           "column": 14
         }
       ],
@@ -31624,7 +31624,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16687,
+          "line": 16694,
           "column": 14
         }
       ],
@@ -31654,12 +31654,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16072,
+          "line": 16079,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 16241,
+          "line": 16248,
           "column": 10
         }
       ],
@@ -32737,7 +32737,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16836,
+          "line": 16847,
           "column": 20
         }
       ],
@@ -32752,7 +32752,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16194,
+          "line": 16205,
           "column": 8
         }
       ],
@@ -32837,7 +32837,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15765,
+          "line": 15776,
           "column": 8
         }
       ],
@@ -32854,7 +32854,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16569,
+          "line": 16580,
           "column": 10
         }
       ],
@@ -32941,7 +32941,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16319,
+          "line": 16330,
           "column": 140
         }
       ],
@@ -32956,7 +32956,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16689,
+          "line": 16700,
           "column": 25
         }
       ],
@@ -32971,7 +32971,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16687,
+          "line": 16698,
           "column": 40
         }
       ],
@@ -32986,7 +32986,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16677,
+          "line": 16688,
           "column": 23
         }
       ],
@@ -33001,7 +33001,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16681,
+          "line": 16692,
           "column": 23
         }
       ],
@@ -33016,7 +33016,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16672,
+          "line": 16683,
           "column": 74
         }
       ],
@@ -33031,7 +33031,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16720,
+          "line": 16731,
           "column": 61
         }
       ],
@@ -33051,7 +33051,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16247,
+          "line": 16258,
           "column": 4
         }
       ],
@@ -33070,7 +33070,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16667,
+          "line": 16678,
           "column": 23
         }
       ],
@@ -33085,7 +33085,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16706,
+          "line": 16717,
           "column": 25
         }
       ],
@@ -33100,7 +33100,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16697,
+          "line": 16708,
           "column": 23
         }
       ],
@@ -33115,7 +33115,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16710,
+          "line": 16721,
           "column": 27
         }
       ],
@@ -33130,7 +33130,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16716,
+          "line": 16727,
           "column": 25
         }
       ],
@@ -33145,7 +33145,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16345,
+          "line": 16356,
           "column": 21
         }
       ],
@@ -33160,12 +33160,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16248,
+          "line": 16259,
           "column": 4
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16671,
+          "line": 16682,
           "column": 47
         }
       ],
@@ -33184,7 +33184,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10168,
+          "line": 10170,
           "column": 10
         }
       ],
@@ -33199,12 +33199,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15107,
+          "line": 15118,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15122,
+          "line": 15133,
           "column": 12
         }
       ],
@@ -33241,7 +33241,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16243,
+          "line": 16254,
           "column": 4
         }
       ],
@@ -33263,7 +33263,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16244,
+          "line": 16255,
           "column": 4
         }
       ],
@@ -33280,7 +33280,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15159,
+          "line": 15170,
           "column": 10
         }
       ],
@@ -33297,7 +33297,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15210,
+          "line": 15221,
           "column": 10
         }
       ],
@@ -33334,7 +33334,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16245,
+          "line": 16256,
           "column": 4
         }
       ],
@@ -33351,12 +33351,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15186,
+          "line": 15197,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15222,
+          "line": 15233,
           "column": 12
         }
       ],
@@ -33378,7 +33378,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15239,
+          "line": 15250,
           "column": 10
         }
       ],
@@ -33395,7 +33395,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15170,
+          "line": 15181,
           "column": 10
         }
       ],
@@ -33422,7 +33422,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16246,
+          "line": 16257,
           "column": 4
         }
       ],
@@ -33439,7 +33439,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10147,
+          "line": 10149,
           "column": 8
         }
       ],
@@ -33517,7 +33517,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15143,
+          "line": 15154,
           "column": 10
         }
       ],
@@ -33590,7 +33590,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12252,
+          "line": 12254,
           "column": 12
         }
       ],
@@ -33910,7 +33910,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15425,
+          "line": 15436,
           "column": 16
         },
         {
@@ -33997,7 +33997,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12893,
+          "line": 12895,
           "column": 14
         }
       ],
@@ -34014,12 +34014,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12882,
+          "line": 12884,
           "column": 16
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12947,
+          "line": 12949,
           "column": 19
         }
       ],
@@ -34036,12 +34036,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12907,
+          "line": 12909,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12915,
+          "line": 12917,
           "column": 14
         }
       ],
@@ -34059,7 +34059,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12965,
+          "line": 12967,
           "column": 12
         }
       ],
@@ -34157,7 +34157,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12938,
+          "line": 12940,
           "column": 14
         }
       ],
@@ -34174,7 +34174,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12827,
+          "line": 12829,
           "column": 15
         }
       ],
@@ -34191,12 +34191,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12853,
+          "line": 12855,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12883,
+          "line": 12885,
           "column": 16
         }
       ],
@@ -34213,7 +34213,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12869,
+          "line": 12871,
           "column": 15
         }
       ],
@@ -34247,7 +34247,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12837,
+          "line": 12839,
           "column": 10
         }
       ],
@@ -34281,12 +34281,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12852,
+          "line": 12854,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12864,
+          "line": 12866,
           "column": 15
         }
       ],
@@ -35610,17 +35610,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6000,
+          "line": 6102,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 6001,
+          "line": 6103,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6663,
+          "line": 6765,
           "column": 12
         },
         {
@@ -35922,17 +35922,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5995,
+          "line": 6097,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 5999,
+          "line": 6101,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6662,
+          "line": 6764,
           "column": 12
         },
         {
@@ -36219,7 +36219,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1420,
+          "line": 1423,
           "column": 10
         }
       ],
@@ -38147,7 +38147,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6723,
+          "line": 6825,
           "column": 12
         },
         {
@@ -38157,7 +38157,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16014,
+          "line": 16021,
           "column": 22
         }
       ],
@@ -38242,7 +38242,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6724,
+          "line": 6826,
           "column": 12
         },
         {
@@ -38252,7 +38252,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16003,
+          "line": 16010,
           "column": 18
         }
       ],
@@ -38282,7 +38282,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16044,
+          "line": 16051,
           "column": 18
         }
       ],
@@ -38352,7 +38352,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16837,
+          "line": 16848,
           "column": 20
         }
       ],
@@ -38424,7 +38424,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1336,
+          "line": 1339,
           "column": 12
         }
       ],
@@ -38924,7 +38924,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1341,
+          "line": 1344,
           "column": 12
         }
       ],
@@ -38998,7 +38998,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1337,
+          "line": 1340,
           "column": 12
         }
       ],
@@ -39075,7 +39075,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1338,
+          "line": 1341,
           "column": 12
         }
       ],
@@ -39109,7 +39109,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1339,
+          "line": 1342,
           "column": 12
         }
       ],
@@ -39336,7 +39336,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1340,
+          "line": 1343,
           "column": 12
         }
       ],
@@ -39875,12 +39875,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3794,
+          "line": 3795,
           "column": 6
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16255,
+          "line": 16266,
           "column": 4
         }
       ],
@@ -39897,12 +39897,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3789,
+          "line": 3790,
           "column": 6
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16256,
+          "line": 16267,
           "column": 4
         }
       ],
@@ -42109,7 +42109,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1439,
+          "line": 1442,
           "column": 12
         }
       ],
@@ -42129,7 +42129,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1440,
+          "line": 1443,
           "column": 12
         }
       ],
@@ -42149,7 +42149,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1441,
+          "line": 1444,
           "column": 12
         }
       ],
@@ -43029,7 +43029,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13446,
+          "line": 13448,
           "column": 10
         }
       ],
@@ -43044,7 +43044,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7054,
+          "line": 7156,
           "column": 16
         }
       ],
@@ -43469,7 +43469,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15953,
+          "line": 15960,
           "column": 14
         }
       ],
@@ -43529,7 +43529,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7048,
+          "line": 7150,
           "column": 16
         }
       ],
@@ -44873,7 +44873,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15564,
+          "line": 15575,
           "column": 8
         }
       ],
@@ -44890,7 +44890,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15692,
+          "line": 15703,
           "column": 57
         }
       ],
@@ -44907,7 +44907,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15688,
+          "line": 15699,
           "column": 324
         }
       ],
@@ -44924,7 +44924,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15691,
+          "line": 15702,
           "column": 55
         }
       ],
@@ -44941,37 +44941,37 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15498,
+          "line": 15509,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15649,
+          "line": 15660,
           "column": 70
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15656,
+          "line": 15667,
           "column": 51
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15657,
+          "line": 15668,
           "column": 61
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15667,
+          "line": 15678,
           "column": 92
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15667,
+          "line": 15678,
           "column": 172
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15669,
+          "line": 15680,
           "column": 55
         }
       ],
@@ -45008,12 +45008,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3687,
+          "line": 3688,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16257,
+          "line": 16268,
           "column": 4
         },
         {
@@ -45040,22 +45040,22 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3665,
+          "line": 3666,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3673,
+          "line": 3674,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3678,
+          "line": 3679,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16258,
+          "line": 16269,
           "column": 4
         },
         {
@@ -45114,12 +45114,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3660,
+          "line": 3661,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16259,
+          "line": 16270,
           "column": 4
         },
         {
@@ -45166,7 +45166,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15520,
+          "line": 15527,
           "column": 22
         }
       ],
@@ -45200,7 +45200,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13765,
+          "line": 13772,
           "column": 22
         }
       ],
@@ -45230,7 +45230,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15778,
+          "line": 15785,
           "column": 10
         },
         {
@@ -45330,7 +45330,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1620,
+          "line": 1623,
           "column": 10
         }
       ],
@@ -45353,7 +45353,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1559,
+          "line": 1562,
           "column": 12
         }
       ],
@@ -45375,7 +45375,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1538,
+          "line": 1541,
           "column": 12
         }
       ],
@@ -45397,7 +45397,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1539,
+          "line": 1542,
           "column": 12
         }
       ],
@@ -45442,22 +45442,22 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2764,
+          "line": 2768,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2962,
+          "line": 2966,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5182,
+          "line": 5186,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1541,
+          "line": 1544,
           "column": 12
         }
       ],
@@ -45499,7 +45499,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1540,
+          "line": 1543,
           "column": 12
         }
       ],
@@ -45536,7 +45536,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1643,
+          "line": 1646,
           "column": 12
         }
       ],
@@ -45556,7 +45556,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1621,
+          "line": 1624,
           "column": 12
         }
       ],
@@ -45596,7 +45596,7 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5673,
+          "line": 5677,
           "column": 44
         },
         {
@@ -45616,7 +45616,7 @@
       "sites": [
         {
           "file": "src/instance_fork.rs",
-          "line": 4755,
+          "line": 4759,
           "column": 14
         },
         {
@@ -45636,72 +45636,72 @@
       "sites": [
         {
           "file": "src/instance_fork.rs",
-          "line": 3835,
+          "line": 3839,
           "column": 26
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4175,
+          "line": 4179,
           "column": 34
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4188,
+          "line": 4192,
           "column": 30
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4199,
+          "line": 4203,
           "column": 30
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4455,
+          "line": 4459,
           "column": 26
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4475,
+          "line": 4479,
           "column": 34
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4497,
+          "line": 4501,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4529,
+          "line": 4533,
           "column": 22
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4535,
+          "line": 4539,
           "column": 22
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4548,
+          "line": 4552,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4593,
+          "line": 4597,
           "column": 22
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4609,
+          "line": 4613,
           "column": 22
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4665,
+          "line": 4669,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1644,
+          "line": 1647,
           "column": 12
         }
       ],
@@ -45738,17 +45738,17 @@
       "sites": [
         {
           "file": "src/instance_fork.rs",
-          "line": 3782,
+          "line": 3786,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 7084,
+          "line": 7088,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1605,
+          "line": 1608,
           "column": 12
         }
       ],
@@ -45768,62 +45768,62 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2359,
+          "line": 2363,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5935,
+          "line": 5939,
           "column": 44
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5997,
+          "line": 6001,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6011,
+          "line": 6015,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6393,
+          "line": 6397,
           "column": 48
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6402,
+          "line": 6406,
           "column": 44
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6446,
+          "line": 6450,
           "column": 43
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6456,
+          "line": 6460,
           "column": 45
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6473,
+          "line": 6477,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6547,
+          "line": 6551,
           "column": 49
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6605,
+          "line": 6609,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 6711,
+          "line": 6813,
           "column": 12
         },
         {
@@ -45843,7 +45843,7 @@
       "sites": [
         {
           "file": "src/instance_fork.rs",
-          "line": 2353,
+          "line": 2357,
           "column": 18
         },
         {
@@ -45873,37 +45873,37 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2873,
+          "line": 2877,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3417,
+          "line": 3421,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3764,
+          "line": 3768,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4091,
+          "line": 4095,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5260,
+          "line": 5264,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5294,
+          "line": 5298,
           "column": 22
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6650,
+          "line": 6654,
           "column": 14
         },
         {
@@ -45928,92 +45928,92 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2803,
+          "line": 2807,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2813,
+          "line": 2817,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2832,
+          "line": 2836,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2840,
+          "line": 2844,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2849,
+          "line": 2853,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2858,
+          "line": 2862,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2883,
+          "line": 2887,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3089,
+          "line": 3093,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3710,
+          "line": 3714,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3717,
+          "line": 3721,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3723,
+          "line": 3727,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4119,
+          "line": 4123,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5035,
+          "line": 5039,
           "column": 10
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5287,
+          "line": 5291,
           "column": 22
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6923,
+          "line": 6927,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 7173,
+          "line": 7177,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 8506,
+          "line": 8510,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 8931,
+          "line": 8935,
           "column": 14
         },
         {
@@ -46038,7 +46038,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1650,
+          "line": 1653,
           "column": 12
         }
       ],
@@ -46056,17 +46056,17 @@
       "sites": [
         {
           "file": "src/instance_fork.rs",
-          "line": 2656,
+          "line": 2660,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6846,
+          "line": 6850,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1542,
+          "line": 1545,
           "column": 12
         }
       ],
@@ -46146,7 +46146,7 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3398,
+          "line": 3402,
           "column": 38
         },
         {
@@ -46218,7 +46218,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1645,
+          "line": 1648,
           "column": 12
         }
       ],
@@ -46238,7 +46238,7 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4761,
+          "line": 4765,
           "column": 14
         },
         {
@@ -46263,7 +46263,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1543,
+          "line": 1546,
           "column": 12
         }
       ],
@@ -46290,37 +46290,37 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2697,
+          "line": 2701,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2714,
+          "line": 2718,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2983,
+          "line": 2987,
           "column": 7
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 7128,
+          "line": 7132,
           "column": 49
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 7190,
+          "line": 7194,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 7297,
+          "line": 7301,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1569,
+          "line": 1572,
           "column": 12
         }
       ],
@@ -46372,12 +46372,12 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4772,
+          "line": 4776,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4795,
+          "line": 4799,
           "column": 22
         },
         {
@@ -46402,7 +46402,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1544,
+          "line": 1547,
           "column": 12
         }
       ],
@@ -46422,17 +46422,17 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6626,
+          "line": 6630,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 7364,
+          "line": 7368,
           "column": 18
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1649,
+          "line": 1652,
           "column": 12
         }
       ],
@@ -46536,47 +46536,47 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2567,
+          "line": 2571,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2575,
+          "line": 2579,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2582,
+          "line": 2586,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2908,
+          "line": 2912,
           "column": 22
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2915,
+          "line": 2919,
           "column": 22
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2922,
+          "line": 2926,
           "column": 26
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6817,
+          "line": 6821,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6973,
+          "line": 6977,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1646,
+          "line": 1649,
           "column": 12
         }
       ],
@@ -46596,17 +46596,17 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3676,
+          "line": 3680,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 8949,
+          "line": 8953,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1545,
+          "line": 1548,
           "column": 12
         }
       ],
@@ -46656,47 +46656,47 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2867,
+          "line": 2871,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3268,
+          "line": 3272,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3278,
+          "line": 3282,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3704,
+          "line": 3708,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4108,
+          "line": 4112,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5175,
+          "line": 5179,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5211,
+          "line": 5215,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5253,
+          "line": 5257,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5275,
+          "line": 5279,
           "column": 22
         },
         {
@@ -46716,62 +46716,62 @@
       "sites": [
         {
           "file": "src/instance_fork.rs",
-          "line": 2605,
+          "line": 2609,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2621,
+          "line": 2625,
           "column": 22
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2670,
+          "line": 2674,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2684,
+          "line": 2688,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2706,
+          "line": 2710,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2723,
+          "line": 2727,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2732,
+          "line": 2736,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2743,
+          "line": 2747,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3292,
+          "line": 3296,
           "column": 22
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6908,
+          "line": 6912,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6936,
+          "line": 6940,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1647,
+          "line": 1650,
           "column": 12
         }
       ],
@@ -46801,22 +46801,22 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2793,
+          "line": 2797,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2822,
+          "line": 2826,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 7000,
+          "line": 7004,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1648,
+          "line": 1651,
           "column": 12
         }
       ],
@@ -46838,7 +46838,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1546,
+          "line": 1549,
           "column": 12
         }
       ],
@@ -46861,7 +46861,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1617,
+          "line": 1620,
           "column": 12
         }
       ],
@@ -46885,7 +46885,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1606,
+          "line": 1609,
           "column": 12
         }
       ],
@@ -46973,12 +46973,12 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6723,
+          "line": 6727,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1651,
+          "line": 1654,
           "column": 12
         }
       ],
@@ -47000,12 +47000,12 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6672,
+          "line": 6676,
           "column": 18
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1652,
+          "line": 1655,
           "column": 12
         }
       ],
@@ -47042,7 +47042,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1547,
+          "line": 1550,
           "column": 12
         }
       ],
@@ -47062,7 +47062,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1653,
+          "line": 1656,
           "column": 12
         }
       ],
@@ -47082,7 +47082,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1622,
+          "line": 1625,
           "column": 12
         }
       ],
@@ -47117,7 +47117,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1654,
+          "line": 1657,
           "column": 12
         }
       ],
@@ -47134,32 +47134,32 @@
       "sites": [
         {
           "file": "src/instance_fork.rs",
-          "line": 2393,
+          "line": 2397,
           "column": 10
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3124,
+          "line": 3128,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3368,
+          "line": 3372,
           "column": 49
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 4882,
+          "line": 4886,
           "column": 55
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 7358,
+          "line": 7362,
           "column": 41
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 8987,
+          "line": 8991,
           "column": 41
         },
         {
@@ -47209,47 +47209,47 @@
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 2523,
+          "line": 2527,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3177,
+          "line": 3181,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3197,
+          "line": 3201,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 3203,
+          "line": 3207,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 5217,
+          "line": 5221,
           "column": 18
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 6757,
+          "line": 6761,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 7258,
+          "line": 7262,
           "column": 14
         },
         {
           "file": "src/instance_fork.rs",
-          "line": 7284,
+          "line": 7288,
           "column": 14
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1548,
+          "line": 1551,
           "column": 12
         }
       ],
@@ -47320,7 +47320,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1293,
+          "line": 1296,
           "column": 12
         }
       ],
@@ -47380,7 +47380,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1294,
+          "line": 1297,
           "column": 12
         }
       ],
@@ -47460,7 +47460,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1276,
+          "line": 1279,
           "column": 12
         }
       ],
@@ -47485,7 +47485,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1275,
+          "line": 1278,
           "column": 12
         }
       ],
@@ -47600,7 +47600,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1243,
+          "line": 1263,
           "column": 12
         },
         {
@@ -47610,7 +47610,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1277,
+          "line": 1280,
           "column": 12
         }
       ],
@@ -47905,22 +47905,22 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2748,
+          "line": 2749,
           "column": 57
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4339,
+          "line": 4340,
           "column": 66
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4480,
+          "line": 4481,
           "column": 62
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16260,
+          "line": 16271,
           "column": 4
         }
       ],
@@ -48010,12 +48010,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15834,
+          "line": 15845,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 15834,
+          "line": 15845,
           "column": 71
         }
       ],
@@ -48580,57 +48580,57 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4061,
+          "line": 4163,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4329,
+          "line": 4431,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4370,
+          "line": 4472,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 5986,
+          "line": 6088,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 6294,
+          "line": 6396,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6297,
+          "line": 6399,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6381,
+          "line": 6483,
           "column": 429
         },
         {
           "file": "src/runtime.rs",
-          "line": 6381,
+          "line": 6483,
           "column": 692
         },
         {
           "file": "src/runtime.rs",
-          "line": 6413,
+          "line": 6515,
           "column": 374
         },
         {
           "file": "src/runtime.rs",
-          "line": 6416,
+          "line": 6518,
           "column": 368
         },
         {
           "file": "src/runtime.rs",
-          "line": 6657,
+          "line": 6759,
           "column": 10
         },
         {
@@ -48683,12 +48683,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5987,
+          "line": 6089,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6657,
+          "line": 6759,
           "column": 58
         },
         {
@@ -48738,32 +48738,32 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5905,
+          "line": 6007,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 7115,
+          "line": 7217,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 7514,
+          "line": 7623,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 7522,
+          "line": 7631,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 7536,
+          "line": 7645,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 7552,
+          "line": 7661,
           "column": 22
         },
         {
@@ -48808,12 +48808,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4723,
+          "line": 4825,
           "column": 43
         },
         {
           "file": "src/runtime.rs",
-          "line": 9689,
+          "line": 9877,
           "column": 48
         }
       ],
@@ -48833,12 +48833,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5934,
+          "line": 6036,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 7095,
+          "line": 7197,
           "column": 14
         },
         {
@@ -48858,7 +48858,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10870,
+          "line": 10872,
           "column": 8
         },
         {
@@ -48868,27 +48868,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5397,
+          "line": 5499,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 5422,
+          "line": 5524,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 5988,
+          "line": 6090,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 5989,
+          "line": 6091,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6659,
+          "line": 6761,
           "column": 12
         },
         {
@@ -49042,87 +49042,87 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5029,
+          "line": 5131,
           "column": 6
         },
         {
           "file": "src/runtime.rs",
-          "line": 5037,
+          "line": 5139,
           "column": 53
         },
         {
           "file": "src/runtime.rs",
-          "line": 5066,
+          "line": 5168,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 5312,
+          "line": 5414,
           "column": 49
         },
         {
           "file": "src/runtime.rs",
-          "line": 5777,
+          "line": 5879,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 5862,
+          "line": 5964,
           "column": 25
         },
         {
           "file": "src/runtime.rs",
-          "line": 5946,
+          "line": 6048,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6008,
+          "line": 6110,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6744,
+          "line": 6846,
           "column": 15
         },
         {
           "file": "src/runtime.rs",
-          "line": 7386,
+          "line": 7495,
           "column": 45
         },
         {
           "file": "src/runtime.rs",
-          "line": 7406,
+          "line": 7515,
           "column": 49
         },
         {
           "file": "src/runtime.rs",
-          "line": 7420,
+          "line": 7529,
           "column": 45
         },
         {
           "file": "src/runtime.rs",
-          "line": 7431,
+          "line": 7540,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 7503,
+          "line": 7612,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 7610,
+          "line": 7719,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 7636,
+          "line": 7745,
           "column": 50
         },
         {
           "file": "src/runtime.rs",
-          "line": 9698,
+          "line": 9886,
           "column": 50
         },
         {
@@ -49220,7 +49220,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6743,
+          "line": 6845,
           "column": 35
         }
       ],
@@ -49285,57 +49285,57 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3151,
+          "line": 3197,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 3709,
+          "line": 3769,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6433,
+          "line": 6535,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6445,
+          "line": 6547,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6458,
+          "line": 6560,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6589,
+          "line": 6691,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6603,
+          "line": 6705,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 10086,
+          "line": 10274,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 10087,
+          "line": 10275,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 10088,
+          "line": 10276,
           "column": 28
         },
         {
           "file": "src/runtime.rs",
-          "line": 10122,
+          "line": 10310,
           "column": 44
         },
         {
@@ -49355,7 +49355,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6043,
+          "line": 6145,
           "column": 18
         },
         {
@@ -49385,12 +49385,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6028,
+          "line": 6130,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6035,
+          "line": 6137,
           "column": 18
         },
         {
@@ -49425,7 +49425,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6081,
+          "line": 6183,
           "column": 41
         }
       ],
@@ -49440,12 +49440,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2789,
+          "line": 2820,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 3227,
+          "line": 3284,
           "column": 26
         }
       ],
@@ -49475,7 +49475,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4408,
+          "line": 4510,
           "column": 18
         },
         {
@@ -49495,12 +49495,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 5284,
+          "line": 5386,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 6054,
+          "line": 6156,
           "column": 22
         }
       ],
@@ -49515,7 +49515,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6853,
+          "line": 6955,
           "column": 10
         }
       ],
@@ -49560,7 +49560,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 5484,
+          "line": 5586,
           "column": 22
         }
       ],
@@ -49575,7 +49575,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 5502,
+          "line": 5604,
           "column": 10
         }
       ],
@@ -49670,7 +49670,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1279,
+          "line": 1282,
           "column": 12
         }
       ],
@@ -49715,7 +49715,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1289,
+          "line": 1292,
           "column": 12
         }
       ],
@@ -49743,27 +49743,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6002,
+          "line": 6104,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 6006,
+          "line": 6108,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6660,
+          "line": 6762,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7459,
+          "line": 7568,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7460,
+          "line": 7569,
           "column": 18
         },
         {
@@ -49790,22 +49790,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5990,
+          "line": 6092,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 5994,
+          "line": 6096,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 6068,
+          "line": 6170,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 6661,
+          "line": 6763,
           "column": 12
         },
         {
@@ -49890,12 +49890,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 5725,
+          "line": 5827,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 7692,
+          "line": 7801,
           "column": 14
         },
         {
@@ -49965,17 +49965,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4429,
+          "line": 4531,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6658,
+          "line": 6760,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 7256,
+          "line": 7365,
           "column": 48
         },
         {
@@ -50005,7 +50005,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1560,
+          "line": 1563,
           "column": 12
         }
       ],
@@ -50025,7 +50025,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1655,
+          "line": 1658,
           "column": 12
         }
       ],
@@ -50050,7 +50050,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1577,
+          "line": 1580,
           "column": 12
         }
       ],
@@ -50070,7 +50070,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1549,
+          "line": 1552,
           "column": 12
         }
       ],
@@ -50095,7 +50095,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1550,
+          "line": 1553,
           "column": 12
         },
         {
@@ -50120,7 +50120,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1460,
+          "line": 1463,
           "column": 12
         }
       ],
@@ -50140,7 +50140,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1570,
+          "line": 1573,
           "column": 12
         }
       ],
@@ -51690,7 +51690,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4360,
+          "line": 4462,
           "column": 26
         },
         {
@@ -51730,7 +51730,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4343,
+          "line": 4445,
           "column": 30
         },
         {
@@ -51795,7 +51795,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6707,
+          "line": 6809,
           "column": 12
         },
         {
@@ -51827,7 +51827,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6706,
+          "line": 6808,
           "column": 12
         },
         {
@@ -51886,7 +51886,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6705,
+          "line": 6807,
           "column": 12
         },
         {
@@ -51956,7 +51956,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1578,
+          "line": 1581,
           "column": 12
         }
       ],
@@ -51991,7 +51991,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1551,
+          "line": 1554,
           "column": 12
         }
       ],
@@ -52011,7 +52011,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1579,
+          "line": 1582,
           "column": 12
         }
       ],
@@ -52041,7 +52041,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1580,
+          "line": 1583,
           "column": 12
         }
       ],
@@ -52061,7 +52061,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1474,
+          "line": 1477,
           "column": 12
         }
       ],
@@ -52570,7 +52570,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6872,
+          "line": 6974,
           "column": 29
         }
       ],
@@ -52630,7 +52630,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6413,
+          "line": 6515,
           "column": 615
         }
       ],
@@ -53014,22 +53014,22 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1161,
+          "line": 1181,
           "column": 12
         },
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1209,
+          "line": 1229,
           "column": 12
         },
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1232,
+          "line": 1252,
           "column": 12
         },
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1255,
+          "line": 1275,
           "column": 12
         }
       ],
@@ -53044,7 +53044,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1283,
+          "line": 1303,
           "column": 12
         }
       ],
@@ -53096,12 +53096,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 966,
+          "line": 986,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 973,
+          "line": 993,
           "column": 36
         }
       ],
@@ -53116,7 +53116,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1273,
+          "line": 1293,
           "column": 12
         }
       ],
@@ -53133,7 +53133,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1098,
+          "line": 1118,
           "column": 14
         }
       ],
@@ -53150,7 +53150,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1064,
+          "line": 1084,
           "column": 10
         }
       ],
@@ -53165,12 +53165,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1075,
+          "line": 1095,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1294,
+          "line": 1314,
           "column": 12
         }
       ],
@@ -53188,7 +53188,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/inline-handlers.mjs",
-          "line": 1054,
+          "line": 1074,
           "column": 10
         }
       ],
@@ -53283,12 +53283,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15870,
+          "line": 15877,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 15931,
+          "line": 15938,
           "column": 14
         },
         {
@@ -53343,7 +53343,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6115,
+          "line": 6217,
           "column": 51
         }
       ],
@@ -54092,7 +54092,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3522,
+          "line": 3582,
           "column": 26
         },
         {
@@ -54152,7 +54152,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3561,
+          "line": 3621,
           "column": 34
         },
         {
@@ -54196,12 +54196,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3532,
+          "line": 3592,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 3540,
+          "line": 3600,
           "column": 26
         },
         {
@@ -54223,7 +54223,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3507,
+          "line": 3567,
           "column": 26
         },
         {
@@ -54245,12 +54245,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3492,
+          "line": 3552,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 3499,
+          "line": 3559,
           "column": 30
         },
         {
@@ -54287,12 +54287,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3578,
+          "line": 3638,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 3590,
+          "line": 3650,
           "column": 30
         },
         {
@@ -54416,7 +54416,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3608,
+          "line": 3668,
           "column": 34
         },
         {
@@ -54513,7 +54513,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 15584,
+          "line": 15591,
           "column": 26
         }
       ],
@@ -56764,7 +56764,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 13152,
+          "line": 13159,
           "column": 26
         }
       ],
@@ -56779,7 +56779,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 13181,
+          "line": 13188,
           "column": 26
         }
       ],
@@ -56874,17 +56874,17 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 14727,
+          "line": 14734,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 14738,
+          "line": 14745,
           "column": 26
         },
         {
           "file": "src/storage.rs",
-          "line": 14750,
+          "line": 14757,
           "column": 10
         }
       ],
@@ -56899,7 +56899,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 15496,
+          "line": 15503,
           "column": 18
         }
       ],
@@ -57151,12 +57151,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3841,
+          "line": 3901,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 9964,
+          "line": 10152,
           "column": 14
         },
         {
@@ -57178,7 +57178,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1248,
+          "line": 1251,
           "column": 12
         },
         {
@@ -57188,12 +57188,12 @@
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 81,
+          "line": 82,
           "column": 34
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 766,
+          "line": 772,
           "column": 22
         }
       ],
@@ -57201,6 +57201,70 @@
       "httpStatusClass": "4xx",
       "guideAnchor": null,
       "guideAnchors": []
+    },
+    "SNAPBACK_MEMBERSHIP_BOOTSTRAP_DUPLICATE_PRINCIPAL": {
+      "code": "SNAPBACK_MEMBERSHIP_BOOTSTRAP_DUPLICATE_PRINCIPAL",
+      "subsystem": "server",
+      "sites": [
+        {
+          "file": "src/server/api_error.rs",
+          "line": 1232,
+          "column": 12
+        },
+        {
+          "file": "src/storage/membership_plans.rs",
+          "line": 811,
+          "column": 26
+        }
+      ],
+      "httpStatus": 400,
+      "httpStatusClass": "4xx",
+      "guideAnchor": "/_snapback/guide/auth/scoped-roles.md#change-membership-through-generated-methods",
+      "guideAnchors": [
+        "/_snapback/guide/auth/scoped-roles.md#change-membership-through-generated-methods"
+      ]
+    },
+    "SNAPBACK_MEMBERSHIP_BOOTSTRAP_INITIAL_MEMBERS_INVALID": {
+      "code": "SNAPBACK_MEMBERSHIP_BOOTSTRAP_INITIAL_MEMBERS_INVALID",
+      "subsystem": "server",
+      "sites": [
+        {
+          "file": "src/runtime.rs",
+          "line": 3920,
+          "column": 46
+        },
+        {
+          "file": "src/runtime.rs",
+          "line": 3930,
+          "column": 34
+        },
+        {
+          "file": "src/runtime.rs",
+          "line": 3940,
+          "column": 34
+        },
+        {
+          "file": "src/runtime.rs",
+          "line": 10343,
+          "column": 14
+        },
+        {
+          "file": "src/server/api_error.rs",
+          "line": 1231,
+          "column": 12
+        },
+        {
+          "file": "src/storage/membership_plans.rs",
+          "line": 789,
+          "column": 22
+        }
+      ],
+      "httpStatus": 400,
+      "httpStatusClass": "4xx",
+      "guideAnchor": "/_snapback/guide/auth/scoped-roles.md#change-membership-through-generated-methods",
+      "guideAnchors": [
+        "/_snapback/guide/auth/scoped-roles.md#change-membership-through-generated-methods"
+      ]
     },
     "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED": {
       "code": "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED",
@@ -57213,7 +57277,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13491,
+          "line": 13498,
           "column": 14
         }
       ],
@@ -57228,12 +57292,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1247,
+          "line": 1250,
           "column": 12
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 753,
+          "line": 759,
           "column": 22
         }
       ],
@@ -57241,6 +57305,28 @@
       "httpStatusClass": "4xx",
       "guideAnchor": null,
       "guideAnchors": []
+    },
+    "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_UNEXPECTED": {
+      "code": "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_UNEXPECTED",
+      "subsystem": "server",
+      "sites": [
+        {
+          "file": "src/server/api_error.rs",
+          "line": 1233,
+          "column": 12
+        },
+        {
+          "file": "src/storage/membership_plans.rs",
+          "line": 800,
+          "column": 26
+        }
+      ],
+      "httpStatus": 400,
+      "httpStatusClass": "4xx",
+      "guideAnchor": "/_snapback/guide/auth/scoped-roles.md#change-membership-through-generated-methods",
+      "guideAnchors": [
+        "/_snapback/guide/auth/scoped-roles.md#change-membership-through-generated-methods"
+      ]
     },
     "SNAPBACK_MEMBERSHIP_BOOTSTRAP_ROLE_UNKNOWN": {
       "code": "SNAPBACK_MEMBERSHIP_BOOTSTRAP_ROLE_UNKNOWN",
@@ -57453,7 +57539,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13576,
+          "line": 13583,
           "column": 10
         }
       ],
@@ -57573,12 +57659,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12950,
+          "line": 12957,
           "column": 14
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 1182,
+          "line": 1245,
           "column": 18
         }
       ],
@@ -57598,7 +57684,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12795,
+          "line": 12802,
           "column": 18
         }
       ],
@@ -57698,7 +57784,7 @@
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 1132,
+          "line": 1195,
           "column": 18
         }
       ],
@@ -57748,12 +57834,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1235,
+          "line": 1238,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 12391,
+          "line": 12398,
           "column": 14
         }
       ],
@@ -57768,12 +57854,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1246,
+          "line": 1249,
           "column": 12
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 744,
+          "line": 750,
           "column": 22
         }
       ],
@@ -57793,7 +57879,7 @@
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 1057,
+          "line": 1120,
           "column": 18
         }
       ],
@@ -57808,12 +57894,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1250,
+          "line": 1253,
           "column": 12
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 927,
+          "line": 990,
           "column": 22
         }
       ],
@@ -57833,7 +57919,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12760,
+          "line": 12767,
           "column": 14
         }
       ],
@@ -57848,7 +57934,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3961,
+          "line": 4063,
           "column": 30
         },
         {
@@ -57888,12 +57974,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1234,
+          "line": 1237,
           "column": 12
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 657,
+          "line": 659,
           "column": 26
         }
       ],
@@ -57928,7 +58014,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1243,
+          "line": 1246,
           "column": 12
         },
         {
@@ -57948,12 +58034,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1242,
+          "line": 1245,
           "column": 12
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 521,
+          "line": 523,
           "column": 22
         }
       ],
@@ -57968,12 +58054,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1244,
+          "line": 1247,
           "column": 12
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 532,
+          "line": 534,
           "column": 22
         }
       ],
@@ -58008,12 +58094,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1251,
+          "line": 1254,
           "column": 12
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 1051,
+          "line": 1114,
           "column": 18
         }
       ],
@@ -58028,12 +58114,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1252,
+          "line": 1255,
           "column": 12
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 221,
+          "line": 223,
           "column": 22
         }
       ],
@@ -58068,7 +58154,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 13638,
+          "line": 13645,
           "column": 18
         }
       ],
@@ -58083,7 +58169,7 @@
       "sites": [
         {
           "file": "src/storage.rs",
-          "line": 13592,
+          "line": 13599,
           "column": 18
         }
       ],
@@ -58098,7 +58184,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 9944,
+          "line": 10132,
           "column": 14
         },
         {
@@ -58108,7 +58194,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13563,
+          "line": 13570,
           "column": 10
         }
       ],
@@ -58135,7 +58221,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 8731,
+          "line": 8912,
           "column": 48
         },
         {
@@ -58220,7 +58306,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13547,
+          "line": 13554,
           "column": 18
         }
       ],
@@ -58235,17 +58321,17 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1231,
+          "line": 1234,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 12518,
+          "line": 12525,
           "column": 22
         },
         {
           "file": "src/storage.rs",
-          "line": 12909,
+          "line": 12916,
           "column": 18
         },
         {
@@ -58255,17 +58341,17 @@
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 236,
+          "line": 238,
           "column": 26
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 293,
+          "line": 295,
           "column": 30
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 539,
+          "line": 541,
           "column": 26
         }
       ],
@@ -58400,7 +58486,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1232,
+          "line": 1235,
           "column": 12
         },
         {
@@ -58410,7 +58496,7 @@
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 545,
+          "line": 547,
           "column": 26
         }
       ],
@@ -58552,7 +58638,7 @@
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 916,
+          "line": 979,
           "column": 22
         }
       ],
@@ -58567,12 +58653,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1233,
+          "line": 1236,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 12825,
+          "line": 12832,
           "column": 10
         }
       ],
@@ -58587,12 +58673,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1245,
+          "line": 1248,
           "column": 12
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 585,
+          "line": 587,
           "column": 22
         }
       ],
@@ -58609,12 +58695,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1249,
+          "line": 1252,
           "column": 12
         },
         {
           "file": "src/storage/membership_plans.rs",
-          "line": 822,
+          "line": 885,
           "column": 22
         }
       ],
@@ -58648,13 +58734,18 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "src/runtime.rs",
+          "line": 10433,
+          "column": 44
+        },
+        {
           "file": "src/server/api_error.rs",
           "line": 640,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 12809,
+          "line": 12816,
           "column": 10
         }
       ],
@@ -58816,17 +58907,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3855,
+          "line": 3956,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4242,
+          "line": 4344,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 6738,
+          "line": 6840,
           "column": 12
         },
         {
@@ -58856,12 +58947,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4257,
+          "line": 4359,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 10089,
+          "line": 10277,
           "column": 33
         },
         {
@@ -58871,7 +58962,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12771,
+          "line": 12778,
           "column": 10
         }
       ],
@@ -59532,7 +59623,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1501,
+          "line": 1504,
           "column": 12
         },
         {
@@ -59688,12 +59779,12 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1312,
+          "line": 1315,
           "column": 12
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1319,
+          "line": 1322,
           "column": 12
         },
         {
@@ -59879,7 +59970,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1313,
+          "line": 1316,
           "column": 12
         },
         {
@@ -59943,7 +60034,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1320,
+          "line": 1323,
           "column": 12
         },
         {
@@ -60134,7 +60225,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1314,
+          "line": 1317,
           "column": 12
         },
         {
@@ -60246,7 +60337,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7051,
+          "line": 7153,
           "column": 16
         }
       ],
@@ -60296,12 +60387,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 9650,
+          "line": 9838,
           "column": 47
         },
         {
           "file": "src/runtime.rs",
-          "line": 9818,
+          "line": 10006,
           "column": 69
         },
         {
@@ -60326,12 +60417,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 14459,
+          "line": 14466,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14500,
+          "line": 14507,
           "column": 26
         },
         {
@@ -60381,22 +60472,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3981,
+          "line": 4083,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 3988,
+          "line": 4090,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6719,
+          "line": 6821,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7473,
+          "line": 7582,
           "column": 14
         },
         {
@@ -61101,7 +61192,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1581,
+          "line": 1584,
           "column": 12
         }
       ],
@@ -61296,7 +61387,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1450,
+          "line": 1453,
           "column": 10
         }
       ],
@@ -61316,7 +61407,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1442,
+          "line": 1445,
           "column": 12
         }
       ],
@@ -61331,7 +61422,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1502,
+          "line": 1505,
           "column": 12
         },
         {
@@ -61391,7 +61482,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1656,
+          "line": 1659,
           "column": 12
         }
       ],
@@ -61411,12 +61502,12 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1625,
+          "line": 1628,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 16914,
+          "line": 16921,
           "column": 18
         }
       ],
@@ -61436,7 +61527,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1607,
+          "line": 1610,
           "column": 12
         }
       ],
@@ -61456,7 +61547,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1582,
+          "line": 1585,
           "column": 12
         }
       ],
@@ -61481,7 +61572,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1583,
+          "line": 1586,
           "column": 12
         }
       ],
@@ -61501,7 +61592,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1443,
+          "line": 1446,
           "column": 12
         }
       ],
@@ -61526,7 +61617,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1552,
+          "line": 1555,
           "column": 12
         }
       ],
@@ -61546,7 +61637,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1553,
+          "line": 1556,
           "column": 12
         }
       ],
@@ -61571,7 +61662,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1444,
+          "line": 1447,
           "column": 12
         }
       ],
@@ -61661,7 +61752,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1445,
+          "line": 1448,
           "column": 12
         }
       ],
@@ -61676,12 +61767,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1446,
+          "line": 1449,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 16818,
+          "line": 16825,
           "column": 14
         }
       ],
@@ -61746,7 +61837,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1561,
+          "line": 1564,
           "column": 12
         }
       ],
@@ -61776,7 +61867,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1657,
+          "line": 1660,
           "column": 12
         }
       ],
@@ -61871,13 +61962,8 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1658,
+          "line": 1661,
           "column": 12
-        },
-        {
-          "file": "src/storage.rs",
-          "line": 16932,
-          "column": 14
         },
         {
           "file": "src/storage.rs",
@@ -61891,7 +61977,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16986,
+          "line": 16953,
+          "column": 14
+        },
+        {
+          "file": "src/storage.rs",
+          "line": 16993,
           "column": 14
         },
         {
@@ -61941,7 +62032,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1469,
+          "line": 1472,
           "column": 10
         },
         {
@@ -61971,7 +62062,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1503,
+          "line": 1506,
           "column": 12
         }
       ],
@@ -62006,7 +62097,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1504,
+          "line": 1507,
           "column": 12
         }
       ],
@@ -62021,7 +62112,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1475,
+          "line": 1478,
           "column": 12
         },
         {
@@ -62071,7 +62162,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1447,
+          "line": 1450,
           "column": 12
         }
       ],
@@ -62111,7 +62202,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1562,
+          "line": 1565,
           "column": 12
         }
       ],
@@ -62166,7 +62257,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1461,
+          "line": 1464,
           "column": 12
         }
       ],
@@ -62196,7 +62287,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1462,
+          "line": 1465,
           "column": 12
         }
       ],
@@ -62291,7 +62382,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1618,
+          "line": 1621,
           "column": 12
         }
       ],
@@ -62331,7 +62422,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1584,
+          "line": 1587,
           "column": 12
         }
       ],
@@ -62471,7 +62562,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1505,
+          "line": 1508,
           "column": 12
         },
         {
@@ -62551,7 +62642,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1626,
+          "line": 1629,
           "column": 12
         },
         {
@@ -62561,7 +62652,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 16865,
+          "line": 16872,
           "column": 18
         },
         {
@@ -62606,7 +62697,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1463,
+          "line": 1466,
           "column": 12
         },
         {
@@ -62626,7 +62717,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1506,
+          "line": 1509,
           "column": 12
         },
         {
@@ -62646,17 +62737,17 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1507,
+          "line": 1510,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 16830,
+          "line": 16837,
           "column": 10
         },
         {
           "file": "src/storage.rs",
-          "line": 16925,
+          "line": 16932,
           "column": 14
         }
       ],
@@ -62671,7 +62762,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1508,
+          "line": 1511,
           "column": 12
         },
         {
@@ -63561,7 +63652,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13818,
+          "line": 13825,
           "column": 10
         }
       ],
@@ -63584,12 +63675,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10848,
+          "line": 10850,
           "column": 18
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10851,
+          "line": 10853,
           "column": 41
         },
         {
@@ -63634,17 +63725,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4067,
+          "line": 4169,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 4335,
+          "line": 4437,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 6206,
+          "line": 6308,
           "column": 24
         }
       ],
@@ -64275,17 +64366,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6713,
+          "line": 6815,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7463,
+          "line": 7572,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7464,
+          "line": 7573,
           "column": 18
         },
         {
@@ -64542,7 +64633,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4222,
+          "line": 4324,
           "column": 26
         },
         {
@@ -64592,7 +64683,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1253,
+          "line": 1256,
           "column": 12
         }
       ],
@@ -64692,7 +64783,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1254,
+          "line": 1257,
           "column": 12
         },
         {
@@ -64817,7 +64908,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1255,
+          "line": 1258,
           "column": 12
         },
         {
@@ -64912,7 +65003,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1256,
+          "line": 1259,
           "column": 12
         },
         {
@@ -65316,7 +65407,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1326,
+          "line": 1329,
           "column": 12
         },
         {
@@ -65346,7 +65437,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1325,
+          "line": 1328,
           "column": 12
         }
       ],
@@ -65366,7 +65457,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1324,
+          "line": 1327,
           "column": 12
         }
       ],
@@ -65386,7 +65477,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1321,
+          "line": 1324,
           "column": 12
         }
       ],
@@ -65421,7 +65512,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1323,
+          "line": 1326,
           "column": 12
         }
       ],
@@ -65441,7 +65532,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1563,
+          "line": 1566,
           "column": 12
         }
       ],
@@ -65471,7 +65562,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1585,
+          "line": 1588,
           "column": 12
         }
       ],
@@ -65506,7 +65597,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1659,
+          "line": 1662,
           "column": 12
         }
       ],
@@ -65531,7 +65622,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1564,
+          "line": 1567,
           "column": 12
         }
       ],
@@ -65571,7 +65662,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1586,
+          "line": 1589,
           "column": 12
         }
       ],
@@ -65591,7 +65682,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1660,
+          "line": 1663,
           "column": 12
         }
       ],
@@ -65626,7 +65717,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1587,
+          "line": 1590,
           "column": 12
         }
       ],
@@ -65646,7 +65737,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1661,
+          "line": 1664,
           "column": 12
         }
       ],
@@ -65681,7 +65772,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1464,
+          "line": 1467,
           "column": 12
         }
       ],
@@ -65701,7 +65792,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1623,
+          "line": 1626,
           "column": 12
         }
       ],
@@ -65741,7 +65832,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1619,
+          "line": 1622,
           "column": 12
         }
       ],
@@ -65766,7 +65857,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1554,
+          "line": 1557,
           "column": 12
         }
       ],
@@ -65806,7 +65897,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1588,
+          "line": 1591,
           "column": 12
         }
       ],
@@ -65826,7 +65917,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1589,
+          "line": 1592,
           "column": 12
         }
       ],
@@ -65891,7 +65982,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1509,
+          "line": 1512,
           "column": 12
         }
       ],
@@ -65971,7 +66062,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1662,
+          "line": 1665,
           "column": 12
         }
       ],
@@ -65996,7 +66087,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1590,
+          "line": 1593,
           "column": 12
         }
       ],
@@ -66021,7 +66112,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1469,
+          "line": 1472,
           "column": 55
         }
       ],
@@ -66046,7 +66137,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1591,
+          "line": 1594,
           "column": 12
         }
       ],
@@ -66091,7 +66182,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1592,
+          "line": 1595,
           "column": 12
         }
       ],
@@ -66111,7 +66202,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1448,
+          "line": 1451,
           "column": 12
         }
       ],
@@ -66146,7 +66237,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1593,
+          "line": 1596,
           "column": 12
         }
       ],
@@ -66166,7 +66257,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1594,
+          "line": 1597,
           "column": 12
         }
       ],
@@ -66191,7 +66282,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1595,
+          "line": 1598,
           "column": 12
         }
       ],
@@ -66211,7 +66302,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1596,
+          "line": 1599,
           "column": 12
         }
       ],
@@ -66236,7 +66327,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1565,
+          "line": 1568,
           "column": 12
         }
       ],
@@ -66261,7 +66352,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1465,
+          "line": 1468,
           "column": 12
         }
       ],
@@ -66296,7 +66387,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1597,
+          "line": 1600,
           "column": 12
         }
       ],
@@ -66316,7 +66407,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1598,
+          "line": 1601,
           "column": 12
         }
       ],
@@ -66341,7 +66432,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1663,
+          "line": 1666,
           "column": 12
         }
       ],
@@ -66361,7 +66452,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1664,
+          "line": 1667,
           "column": 12
         }
       ],
@@ -66401,7 +66492,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1608,
+          "line": 1611,
           "column": 12
         }
       ],
@@ -66426,7 +66517,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1555,
+          "line": 1558,
           "column": 12
         }
       ],
@@ -66451,7 +66542,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1599,
+          "line": 1602,
           "column": 12
         }
       ],
@@ -66491,7 +66582,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1566,
+          "line": 1569,
           "column": 12
         }
       ],
@@ -66521,7 +66612,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1556,
+          "line": 1559,
           "column": 12
         }
       ],
@@ -66541,7 +66632,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1665,
+          "line": 1668,
           "column": 12
         }
       ],
@@ -66581,7 +66672,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1600,
+          "line": 1603,
           "column": 12
         }
       ],
@@ -66606,7 +66697,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1601,
+          "line": 1604,
           "column": 12
         }
       ],
@@ -66626,7 +66717,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1613,
+          "line": 1616,
           "column": 12
         }
       ],
@@ -66646,7 +66737,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1666,
+          "line": 1669,
           "column": 12
         }
       ],
@@ -66666,7 +66757,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1667,
+          "line": 1670,
           "column": 12
         }
       ],
@@ -66691,7 +66782,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1668,
+          "line": 1671,
           "column": 12
         }
       ],
@@ -66716,7 +66807,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1669,
+          "line": 1672,
           "column": 12
         }
       ],
@@ -66784,7 +66875,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1451,
+          "line": 1454,
           "column": 12
         }
       ],
@@ -66804,7 +66895,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1466,
+          "line": 1469,
           "column": 12
         }
       ],
@@ -66839,7 +66930,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1467,
+          "line": 1470,
           "column": 12
         }
       ],
@@ -66889,7 +66980,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1510,
+          "line": 1513,
           "column": 12
         }
       ],
@@ -66924,7 +67015,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1449,
+          "line": 1452,
           "column": 12
         }
       ],
@@ -66949,7 +67040,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1452,
+          "line": 1455,
           "column": 10
         }
       ],
@@ -66989,7 +67080,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1511,
+          "line": 1514,
           "column": 12
         }
       ],
@@ -68364,7 +68455,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4389,
+          "line": 4491,
           "column": 26
         },
         {
@@ -68394,7 +68485,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4378,
+          "line": 4480,
           "column": 30
         },
         {
@@ -68586,22 +68677,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6725,
+          "line": 6827,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7493,
+          "line": 7602,
           "column": 55
         },
         {
           "file": "src/runtime.rs",
-          "line": 7495,
+          "line": 7604,
           "column": 18
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1328,
+          "line": 1331,
           "column": 12
         },
         {
@@ -68633,7 +68724,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1327,
+          "line": 1330,
           "column": 12
         },
         {
@@ -68668,22 +68759,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6726,
+          "line": 6828,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7498,
+          "line": 7607,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7499,
+          "line": 7608,
           "column": 18
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1329,
+          "line": 1332,
           "column": 12
         },
         {
@@ -68740,12 +68831,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6728,
+          "line": 6830,
           "column": 12
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1331,
+          "line": 1334,
           "column": 12
         }
       ],
@@ -68777,12 +68868,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6727,
+          "line": 6829,
           "column": 12
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1330,
+          "line": 1333,
           "column": 12
         },
         {
@@ -68849,12 +68940,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6729,
+          "line": 6831,
           "column": 12
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1332,
+          "line": 1335,
           "column": 12
         },
         {
@@ -68911,12 +69002,12 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1345,
+          "line": 1348,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 15824,
+          "line": 15831,
           "column": 14
         }
       ],
@@ -69366,7 +69457,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1346,
+          "line": 1349,
           "column": 12
         },
         {
@@ -71200,7 +71291,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1349,
+          "line": 1352,
           "column": 12
         }
       ],
@@ -71230,7 +71321,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1353,
+          "line": 1356,
           "column": 12
         },
         {
@@ -71272,7 +71363,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 3600,
+          "line": 3601,
           "column": 10
         },
         {
@@ -71282,7 +71373,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1322,
+          "line": 1325,
           "column": 12
         }
       ],
@@ -71334,7 +71425,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1258,
+          "line": 1261,
           "column": 12
         },
         {
@@ -71399,27 +71490,27 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 14150,
+          "line": 14157,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14208,
+          "line": 14215,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14240,
+          "line": 14247,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14266,
+          "line": 14273,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14293,
+          "line": 14300,
           "column": 18
         }
       ],
@@ -71434,12 +71525,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1271,
+          "line": 1274,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 13895,
+          "line": 13902,
           "column": 22
         }
       ],
@@ -71464,12 +71555,12 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1272,
+          "line": 1275,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 13858,
+          "line": 13865,
           "column": 10
         }
       ],
@@ -71484,7 +71575,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4029,
+          "line": 4030,
           "column": 8
         },
         {
@@ -71514,12 +71605,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6720,
+          "line": 6822,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7474,
+          "line": 7583,
           "column": 14
         },
         {
@@ -71529,22 +71620,22 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 12373,
+          "line": 12380,
           "column": 17
         },
         {
           "file": "src/storage.rs",
-          "line": 13927,
+          "line": 13934,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14042,
+          "line": 14049,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 14428,
+          "line": 14435,
           "column": 18
         }
       ],
@@ -71564,7 +71655,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1270,
+          "line": 1273,
           "column": 12
         },
         {
@@ -73718,7 +73809,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1360,
+          "line": 1363,
           "column": 12
         }
       ],
@@ -74112,7 +74203,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1278,
+          "line": 1281,
           "column": 12
         }
       ],
@@ -75103,17 +75194,17 @@
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4030,
+          "line": 4031,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4188,
+          "line": 4189,
           "column": 22
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 4195,
+          "line": 4196,
           "column": 48
         },
         {
@@ -76081,7 +76172,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7052,
+          "line": 7154,
           "column": 16
         }
       ],
@@ -76191,7 +76282,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1370,
+          "line": 1373,
           "column": 12
         },
         {
@@ -76211,7 +76302,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1371,
+          "line": 1374,
           "column": 12
         },
         {
@@ -76231,7 +76322,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1372,
+          "line": 1375,
           "column": 12
         },
         {
@@ -76251,7 +76342,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1373,
+          "line": 1376,
           "column": 12
         },
         {
@@ -76271,7 +76362,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1374,
+          "line": 1377,
           "column": 12
         },
         {
@@ -76293,7 +76384,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1375,
+          "line": 1378,
           "column": 12
         },
         {
@@ -76313,7 +76404,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1376,
+          "line": 1379,
           "column": 12
         },
         {
@@ -76341,7 +76432,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1377,
+          "line": 1380,
           "column": 12
         },
         {
@@ -76361,7 +76452,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1378,
+          "line": 1381,
           "column": 12
         },
         {
@@ -76381,7 +76472,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1382,
+          "line": 1385,
           "column": 12
         },
         {
@@ -76401,7 +76492,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1379,
+          "line": 1382,
           "column": 12
         },
         {
@@ -76421,7 +76512,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1380,
+          "line": 1383,
           "column": 12
         },
         {
@@ -76441,7 +76532,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1381,
+          "line": 1384,
           "column": 12
         },
         {
@@ -76529,7 +76620,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1298,
+          "line": 1301,
           "column": 12
         },
         {
@@ -76549,7 +76640,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1383,
+          "line": 1386,
           "column": 12
         },
         {
@@ -76571,7 +76662,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1384,
+          "line": 1387,
           "column": 12
         }
       ],
@@ -76821,7 +76912,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1302,
+          "line": 1305,
           "column": 12
         }
       ],
@@ -77141,7 +77232,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1303,
+          "line": 1306,
           "column": 12
         },
         {
@@ -77315,7 +77406,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16261,
+          "line": 16272,
           "column": 4
         }
       ],
@@ -77392,7 +77483,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1304,
+          "line": 1307,
           "column": 12
         }
       ],
@@ -77507,7 +77598,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1305,
+          "line": 1308,
           "column": 12
         }
       ],
@@ -77569,7 +77660,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1306,
+          "line": 1309,
           "column": 12
         }
       ],
@@ -77664,7 +77755,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1307,
+          "line": 1310,
           "column": 12
         }
       ],
@@ -77694,7 +77785,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1308,
+          "line": 1311,
           "column": 12
         }
       ],
@@ -77711,7 +77802,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 7053,
+          "line": 7155,
           "column": 16
         }
       ],
@@ -77831,7 +77922,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1366,
+          "line": 1369,
           "column": 12
         }
       ],
@@ -77856,7 +77947,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1367,
+          "line": 1370,
           "column": 12
         }
       ],
@@ -77876,7 +77967,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1368,
+          "line": 1371,
           "column": 12
         },
         {
@@ -78038,7 +78129,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1361,
+          "line": 1364,
           "column": 12
         },
         {
@@ -78129,7 +78220,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 17101,
+          "line": 17112,
           "column": 21
         }
       ],
@@ -78204,7 +78295,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1362,
+          "line": 1365,
           "column": 12
         },
         {
@@ -78427,7 +78518,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 17113,
+          "line": 17124,
           "column": 21
         },
         {
@@ -78495,7 +78586,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 14351,
+          "line": 14358,
           "column": 18
         }
       ],
@@ -78590,12 +78681,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3384,
+          "line": 3444,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 3437,
+          "line": 3497,
           "column": 30
         },
         {
@@ -78610,17 +78701,17 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13960,
+          "line": 13967,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 14063,
+          "line": 14070,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 15912,
+          "line": 15919,
           "column": 10
         }
       ],
@@ -78640,17 +78731,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3461,
+          "line": 3521,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6717,
+          "line": 6819,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7471,
+          "line": 7580,
           "column": 14
         },
         {
@@ -78660,17 +78751,17 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 14070,
+          "line": 14077,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 14400,
+          "line": 14407,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14452,
+          "line": 14459,
           "column": 18
         }
       ],
@@ -78712,22 +78803,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3398,
+          "line": 3458,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6718,
+          "line": 6820,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7472,
+          "line": 7581,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 9425,
+          "line": 9613,
           "column": 44
         },
         {
@@ -79017,7 +79108,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1348,
+          "line": 1351,
           "column": 12
         },
         {
@@ -79047,7 +79138,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1347,
+          "line": 1350,
           "column": 12
         }
       ],
@@ -79144,7 +79235,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1267,
+          "line": 1270,
           "column": 12
         },
         {
@@ -79196,7 +79287,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1268,
+          "line": 1271,
           "column": 12
         }
       ],
@@ -79760,7 +79851,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1385,
+          "line": 1388,
           "column": 12
         }
       ],
@@ -79775,7 +79866,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1386,
+          "line": 1389,
           "column": 12
         }
       ],
@@ -79790,7 +79881,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1387,
+          "line": 1390,
           "column": 12
         }
       ],
@@ -79810,7 +79901,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1388,
+          "line": 1391,
           "column": 12
         }
       ],
@@ -79848,7 +79939,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1356,
+          "line": 1359,
           "column": 12
         },
         {
@@ -80093,7 +80184,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1359,
+          "line": 1362,
           "column": 12
         }
       ],
@@ -80308,17 +80399,17 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1512,
+          "line": 1515,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 15367,
+          "line": 15374,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 15392,
+          "line": 15399,
           "column": 10
         }
       ],
@@ -80333,7 +80424,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1513,
+          "line": 1516,
           "column": 12
         },
         {
@@ -80473,7 +80564,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15160,
+          "line": 15167,
           "column": 22
         },
         {
@@ -80784,7 +80875,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6689,
+          "line": 6791,
           "column": 12
         },
         {
@@ -80824,7 +80915,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6690,
+          "line": 6792,
           "column": 12
         },
         {
@@ -80869,7 +80960,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6691,
+          "line": 6793,
           "column": 12
         },
         {
@@ -80909,22 +81000,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4177,
+          "line": 4279,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4190,
+          "line": 4292,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4201,
+          "line": 4303,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6692,
+          "line": 6794,
           "column": 12
         },
         {
@@ -80964,7 +81055,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6693,
+          "line": 6795,
           "column": 12
         },
         {
@@ -81029,7 +81120,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6694,
+          "line": 6796,
           "column": 12
         },
         {
@@ -81079,7 +81170,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6695,
+          "line": 6797,
           "column": 12
         },
         {
@@ -81124,7 +81215,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6696,
+          "line": 6798,
           "column": 12
         },
         {
@@ -81164,7 +81255,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6697,
+          "line": 6799,
           "column": 12
         },
         {
@@ -81204,7 +81295,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6698,
+          "line": 6800,
           "column": 12
         },
         {
@@ -81249,7 +81340,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6699,
+          "line": 6801,
           "column": 12
         },
         {
@@ -81374,7 +81465,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1299,
+          "line": 1302,
           "column": 12
         },
         {
@@ -81409,7 +81500,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1300,
+          "line": 1303,
           "column": 12
         },
         {
@@ -81434,12 +81525,12 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 13780,
+          "line": 13787,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 15757,
+          "line": 15764,
           "column": 14
         }
       ],
@@ -81459,7 +81550,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15681,
+          "line": 15688,
           "column": 14
         }
       ],
@@ -81479,17 +81570,17 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1301,
+          "line": 1304,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 15670,
+          "line": 15677,
           "column": 14
         },
         {
           "file": "src/storage.rs",
-          "line": 15696,
+          "line": 15703,
           "column": 14
         },
         {
@@ -81509,12 +81600,12 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1517,
+          "line": 1520,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 15565,
+          "line": 15572,
           "column": 22
         }
       ],
@@ -82869,7 +82960,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13085,
+          "line": 13087,
           "column": 12
         }
       ],
@@ -82886,12 +82977,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13114,
+          "line": 13116,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13223,
+          "line": 13225,
           "column": 79
         }
       ],
@@ -82908,12 +82999,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13128,
+          "line": 13130,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13179,
+          "line": 13181,
           "column": 17
         }
       ],
@@ -82930,27 +83021,27 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13024,
+          "line": 13026,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13041,
+          "line": 13043,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13053,
+          "line": 13055,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13141,
+          "line": 13143,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13307,
+          "line": 13309,
           "column": 14
         }
       ],
@@ -82968,12 +83059,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13151,
+          "line": 13153,
           "column": 21
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13278,
+          "line": 13280,
           "column": 21
         }
       ],
@@ -82990,17 +83081,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13033,
+          "line": 13035,
           "column": 15
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13063,
+          "line": 13065,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13196,
+          "line": 13198,
           "column": 19
         }
       ],
@@ -83017,17 +83108,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13109,
+          "line": 13111,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13209,
+          "line": 13211,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13271,
+          "line": 13273,
           "column": 19
         }
       ],
@@ -83044,17 +83135,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13068,
+          "line": 13070,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13101,
+          "line": 13103,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13184,
+          "line": 13186,
           "column": 17
         }
       ],
@@ -83071,7 +83162,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13096,
+          "line": 13098,
           "column": 19
         }
       ],
@@ -83088,7 +83179,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13223,
+          "line": 13225,
           "column": 40
         }
       ],
@@ -83105,12 +83196,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13158,
+          "line": 13160,
           "column": 23
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13289,
+          "line": 13291,
           "column": 23
         }
       ],
@@ -83182,22 +83273,22 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1389,
+          "line": 1392,
           "column": 12
         },
         {
           "file": "src/storage.rs",
-          "line": 13720,
+          "line": 13727,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14554,
+          "line": 14561,
           "column": 18
         },
         {
           "file": "src/storage.rs",
-          "line": 14639,
+          "line": 14646,
           "column": 18
         }
       ],
@@ -83217,7 +83308,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16262,
+          "line": 16273,
           "column": 4
         }
       ],
@@ -83237,12 +83328,12 @@
         },
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2838,
+          "line": 2839,
           "column": 6
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16263,
+          "line": 16274,
           "column": 4
         },
         {
@@ -83287,7 +83378,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16264,
+          "line": 16275,
           "column": 4
         },
         {
@@ -83317,7 +83408,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16265,
+          "line": 16276,
           "column": 4
         },
         {
@@ -83347,7 +83438,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16266,
+          "line": 16277,
           "column": 4
         }
       ],
@@ -83367,7 +83458,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16267,
+          "line": 16278,
           "column": 4
         }
       ],
@@ -83422,7 +83513,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16268,
+          "line": 16279,
           "column": 4
         }
       ],
@@ -83442,7 +83533,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16269,
+          "line": 16280,
           "column": 4
         }
       ],
@@ -83457,12 +83548,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 1988,
+          "line": 1989,
           "column": 12
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16270,
+          "line": 16281,
           "column": 4
         },
         {
@@ -83494,7 +83585,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16271,
+          "line": 16282,
           "column": 4
         },
         {
@@ -83519,12 +83610,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2009,
+          "line": 2010,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16272,
+          "line": 16283,
           "column": 4
         },
         {
@@ -83556,7 +83647,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16273,
+          "line": 16284,
           "column": 4
         }
       ],
@@ -83576,7 +83667,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16274,
+          "line": 16285,
           "column": 4
         },
         {
@@ -83618,12 +83709,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6737,
+          "line": 3212,
+          "column": 30
+        },
+        {
+          "file": "src/runtime.rs",
+          "line": 6839,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 8989,
+          "line": 9170,
           "column": 14
         },
         {
@@ -83653,7 +83749,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16275,
+          "line": 16286,
           "column": 4
         }
       ],
@@ -83668,12 +83764,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 2002,
+          "line": 2003,
           "column": 12
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16276,
+          "line": 16287,
           "column": 4
         },
         {
@@ -83698,12 +83794,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/define.mjs",
-          "line": 1979,
+          "line": 1980,
           "column": 12
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16277,
+          "line": 16288,
           "column": 4
         },
         {
@@ -83745,7 +83841,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16278,
+          "line": 16289,
           "column": 4
         }
       ],
@@ -85007,7 +85103,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1518,
+          "line": 1521,
           "column": 12
         },
         {
@@ -85157,7 +85253,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1390,
+          "line": 1393,
           "column": 12
         },
         {
@@ -85242,7 +85338,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 14529,
+          "line": 14536,
           "column": 18
         }
       ],
@@ -85299,7 +85395,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15800,
+          "line": 15807,
           "column": 14
         }
       ],
@@ -85408,7 +85504,7 @@
         },
         {
           "file": "src/storage.rs",
-          "line": 15789,
+          "line": 15796,
           "column": 14
         }
       ],
@@ -85423,7 +85519,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1391,
+          "line": 1394,
           "column": 12
         }
       ],
@@ -85438,12 +85534,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 17371,
+          "line": 17382,
           "column": 5
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 17392,
+          "line": 17403,
           "column": 138
         }
       ],
@@ -85510,7 +85606,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1393,
+          "line": 1396,
           "column": 12
         },
         {
@@ -85530,7 +85626,7 @@
       "sites": [
         {
           "file": "src/server/api_error.rs",
-          "line": 1394,
+          "line": 1397,
           "column": 12
         },
         {
@@ -85760,7 +85856,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1392,
+          "line": 1395,
           "column": 12
         },
         {
@@ -85795,17 +85891,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6714,
+          "line": 6816,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 7467,
+          "line": 7576,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 7468,
+          "line": 7577,
           "column": 18
         },
         {
@@ -86026,7 +86122,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 16279,
+          "line": 16290,
           "column": 4
         }
       ],
@@ -87598,7 +87694,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1395,
+          "line": 1398,
           "column": 12
         }
       ],
@@ -87643,7 +87739,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1396,
+          "line": 1399,
           "column": 12
         }
       ],
@@ -87853,7 +87949,7 @@
         },
         {
           "file": "src/server/api_error.rs",
-          "line": 1309,
+          "line": 1312,
           "column": 12
         }
       ],

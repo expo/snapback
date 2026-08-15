@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:a53284704a4b68d86dd22564f8bf855079a0350ba839
 # @expo/snapback-client/external-store
 
 Build-bound public API projection for `@expo/snapback-client/external-store`. Canonical registry identity:
-`sha256:a4ecca3663f7691975753c181d189e6afd11762799c9394893d4d6d53d78353b`.
+`sha256:544654bddc0b80d62d9bfba6df06948f9e1c71993de57ac08c01560774156dfb`.
 Runtime parity condition:
 `import` → `packages/snapback-client/external-store.mjs`.
 

@@ -4,14 +4,14 @@ id: backend.familiar-profile
 order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1]
-authorities: [llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs]
 examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:5bbaa09b77b377fd52748aa45b5d12482e00b7c2ad9d20e60f002c5b7409a875
+reviewed-authorities-digest: sha256:41d7537b6a9e31b2e9a13ad212340b5821594d6cacaaa98d7002b3a1b97df738
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -112,16 +112,84 @@ not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
 `auth: "authenticated"` proves only that a principal exists. It does not prove
 the caller is an active member or administrator of an app resource. For every
 protected handler, make the active-member/admin decision before returning rows
-or performing effects. Prefer the declaration-qualified membership helpers so
-the check participates in the transaction and refuses without revealing
-whether the resource or membership exists.
+or performing effects.
 
-The full patterns are [Scoped roles and memberships](../auth/scoped-roles.md)
-and [Bind a principal to your app user](../auth/app-identity-binding.md). In
-particular, use the documented `ctx.permissions.<declaration>.requireRole(...)`
-shape for a denying handler and a declared membership predicate for an
-empty-result list. Do not substitute a client-provided user id or an `auth`
-string for those server-side checks.
+Start with declarative table visibility. A membership declaration can protect
+its resource table through the resource row's system id and protect direct
+children through their required resource id:
+
+```ts fragment reason="membership declaration is application-specific; this shows the two shipped visibility bindings"
+conversations: defineTable({ title: v.string() }).visibility({
+  kind: "membership",
+  declaration: conversationMembers,
+  resourceField: "_id",
+  roles: ["member", "admin"],
+}),
+messages: defineTable({
+  conversationId: v.id("conversations"),
+  body: v.string(),
+}).visibility({
+  kind: "membership",
+  declaration: conversationMembers,
+  resourceField: "conversationId",
+  roles: ["member", "admin"],
+}),
+```
+
+Ordinary `ctx.db` reads enforce those policies, including inside familiar
+queries and mutations. Prefer that fail-closed path whenever the governed row
+directly names the membership resource; it makes an omitted handler check hide
+the row instead of widening access.
+
+For a multi-hop relation the grammar cannot declare, use the sanctioned
+handler sequence: prove the role with the declaration-qualified permission
+helper, elevate only the exact protected read, and validate that every resolved
+row belongs to the authorized resource before returning it:
+
+```ts fragment reason="familiar query declaration fields and result shape vary; this is the authorization-critical handler body"
+handler: async (ctx, args) => {
+  await ctx.permissions.conversationMembers.requireRole(
+    args.conversationId,
+    "member",
+    "admin",
+  );
+
+  const message = await ctx.db.elevated.get("messages", args.messageId);
+  if (!message || message.conversationId !== args.conversationId) return [];
+
+  const quoted = message.quotedMessageId
+    ? await ctx.db.elevated.get("messages", message.quotedMessageId)
+    : null;
+  if (quoted && quoted.conversationId !== args.conversationId) return [];
+  return [{ message, quoted }];
+},
+```
+
+`ctx.db.elevated` is an explicit call-local authority, not an ambient server
+mode. Its closed read allowlist is `get`, `getMany`, `uniqueMany`, and `query`.
+It bypasses only table row visibility and remains bounded, captured, and
+OCC-validated. It has no write members, is refused in actions, and does not
+bypass result/egress, asset, membership-writer, or field-masking rules. If the
+handler receives only a child id, perform one bounded elevated read to derive
+the resource id, immediately call `requireRole` on that derived id, and return
+nothing before the check succeeds.
+
+Repeat this sequence in **every** quote lookup, receipt mutation, live query,
+and other multi-hop handler that remains undeclarable, and add negative tests
+for both a non-member and an authorized resource id paired with a foreign row
+id. This repetition is intentional because it is where otherwise-correct
+realtime code goes subtly unsafe.
+
+The full patterns are [Scoped roles and memberships](../auth/scoped-roles.md),
+[Protecting live and retained data](../auth/protecting-data.md), and
+[Bind a principal to your app user](../auth/app-identity-binding.md). Use
+`ctx.membership.<declaration>.bootstrap(resourceValues, initialMembers?)` when
+one group and its initial roster must be atomic: the host adds the creator,
+accepts at most 64 unique additional principals, authorizes every added seat
+from the creator's bootstrap role through the ordinary transition matrix, and
+writes nothing if any seat is invalid. Do not substitute a client-provided user
+id or an `auth` string for server-side checks, and do not make protected backing
+tables `public-read` just so a trusted handler can inspect them.
 
 ## Keep React hook arguments identity-stable
 

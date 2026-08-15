@@ -9,13 +9,13 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0245-infer-show-freeze-declarations.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-harness/ctx-bootstrap.js, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-harness/ctx-bootstrap.js, src/runtime.rs, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:f4949c42aecb1f52adce18aaf2336512ddd971a5e028f12d7f5cc6de91a06dff
+reviewed-authorities-digest: sha256:41c3a00bd35a8f3531746ad25e722709a8d269bf91fa2172c00b34dddfb3915c
 ---
 
 # Queries
@@ -287,6 +287,15 @@ filters. `authUserId()` in declarative plans and `ctx.auth.userId` in JS
 handlers are server-derived. For sessions-mode details, see
 [sessions and principals](../auth/sessions-and-principals.md).
 
+Ordinary handler `ctx.db` reads also apply the table's owner or membership
+visibility. Trusted named queries and mutations can select
+`ctx.db.elevated.{get,getMany,uniqueMany,query}` for the exact reads needed by
+their own authorization logic, but only after a host-owned permission check and
+with resource relationships validated. Elevated reads remain bounded and
+snapshot-captured; actions and generated/direct plans cannot select them. See
+[authorize first, then elevate the exact handler read](../auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read)
+for the sanctioned pattern and required negative test.
+
 JS handlers also get the LLP 0055 authority verb **`ctx.isDirectHuman()`**:
 `true` exactly when the server-resolved principal is a human acting directly
 — `auth.kind === "human"` **and** no delegated actor is present
@@ -357,13 +366,13 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics, backend.record-history, backend.mutation-settlement-identity]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, src/server.rs, src/runtime.rs, src/result_contract.rs, src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:01fa5dbe529af771cf3fe1bd7bf41650488399086db55b61f7505c6f8910cd1d
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:57c704b548d0d3feb6bc066747148bcb4c897957e4f96527d921bf35c1889cc2
 ---
 
 # Mutations
@@ -563,6 +572,13 @@ Do not omit the bound merely because the query uses an index: index selection
 limits *which* rows qualify, while `take` limits how many qualifying rows the
 handler can materialize. Chain compound-index equalities in declared index
 field order.
+
+These reads are caller-scoped by table visibility. A named mutation that has
+already established authority with `ctx.permissions` may use the explicit
+`ctx.db.elevated` read variants for protected facts needed by its invariant;
+elevation never applies to `insert`, `patch`, or `delete`. Follow the
+[authorization recipe](../auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read),
+including its cross-resource and non-member negative cases.
 
 `delete(table, id)` buffers deletion of one row in the mutation's atomic write
 set. A common toggle shape reads the indexed row first, then deletes by its
@@ -1707,8 +1723,8 @@ status: current
 targets: [all]
 maturity: shipped
 since: 0.1.21
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:5dd953c8870f6b846c1f12114d442a7acebea555d20729e331b1009aa1695239
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:3a2d76c6596d4ae44aa1c9b1b98dfae32e8b5b9946ae149ef656c735f0cbf68d
 ---
 
 # Handler runtime profile and generation preflight
@@ -1825,6 +1841,11 @@ declarations from the same file. Codegen scans the handler and the complete
 reachable helper set with the same positive globals allowlist, syntax rules,
 reflection rules, `ctx.db` member list, and query-builder verbs.
 
+The nested `ctx.db.elevated` allowlist is exact: `get`, `getMany`,
+`uniqueMany`, and `query`. An elevated write or unknown member refuses during
+generation. See the [handler-read authorization recipe](../auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read)
+before using that trusted query/mutation-only surface.
+
 Same-file helper cycles remain forbidden in this legacy profile and produce
 `SNAPBACK_INLINE_HELPER_CYCLE`. This describes current enforcement; it does
 not introduce the bounded multi-file graph, relative imports, or safe computed
@@ -1933,14 +1954,14 @@ id: backend.familiar-profile
 order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1]
-authorities: [llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs]
 examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:5bbaa09b77b377fd52748aa45b5d12482e00b7c2ad9d20e60f002c5b7409a875
+reviewed-authorities-digest: sha256:41d7537b6a9e31b2e9a13ad212340b5821594d6cacaaa98d7002b3a1b97df738
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -2041,16 +2062,84 @@ not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
 `auth: "authenticated"` proves only that a principal exists. It does not prove
 the caller is an active member or administrator of an app resource. For every
 protected handler, make the active-member/admin decision before returning rows
-or performing effects. Prefer the declaration-qualified membership helpers so
-the check participates in the transaction and refuses without revealing
-whether the resource or membership exists.
+or performing effects.
 
-The full patterns are [Scoped roles and memberships](../auth/scoped-roles.md)
-and [Bind a principal to your app user](../auth/app-identity-binding.md). In
-particular, use the documented `ctx.permissions.<declaration>.requireRole(...)`
-shape for a denying handler and a declared membership predicate for an
-empty-result list. Do not substitute a client-provided user id or an `auth`
-string for those server-side checks.
+Start with declarative table visibility. A membership declaration can protect
+its resource table through the resource row's system id and protect direct
+children through their required resource id:
+
+```ts fragment reason="membership declaration is application-specific; this shows the two shipped visibility bindings"
+conversations: defineTable({ title: v.string() }).visibility({
+  kind: "membership",
+  declaration: conversationMembers,
+  resourceField: "_id",
+  roles: ["member", "admin"],
+}),
+messages: defineTable({
+  conversationId: v.id("conversations"),
+  body: v.string(),
+}).visibility({
+  kind: "membership",
+  declaration: conversationMembers,
+  resourceField: "conversationId",
+  roles: ["member", "admin"],
+}),
+```
+
+Ordinary `ctx.db` reads enforce those policies, including inside familiar
+queries and mutations. Prefer that fail-closed path whenever the governed row
+directly names the membership resource; it makes an omitted handler check hide
+the row instead of widening access.
+
+For a multi-hop relation the grammar cannot declare, use the sanctioned
+handler sequence: prove the role with the declaration-qualified permission
+helper, elevate only the exact protected read, and validate that every resolved
+row belongs to the authorized resource before returning it:
+
+```ts fragment reason="familiar query declaration fields and result shape vary; this is the authorization-critical handler body"
+handler: async (ctx, args) => {
+  await ctx.permissions.conversationMembers.requireRole(
+    args.conversationId,
+    "member",
+    "admin",
+  );
+
+  const message = await ctx.db.elevated.get("messages", args.messageId);
+  if (!message || message.conversationId !== args.conversationId) return [];
+
+  const quoted = message.quotedMessageId
+    ? await ctx.db.elevated.get("messages", message.quotedMessageId)
+    : null;
+  if (quoted && quoted.conversationId !== args.conversationId) return [];
+  return [{ message, quoted }];
+},
+```
+
+`ctx.db.elevated` is an explicit call-local authority, not an ambient server
+mode. Its closed read allowlist is `get`, `getMany`, `uniqueMany`, and `query`.
+It bypasses only table row visibility and remains bounded, captured, and
+OCC-validated. It has no write members, is refused in actions, and does not
+bypass result/egress, asset, membership-writer, or field-masking rules. If the
+handler receives only a child id, perform one bounded elevated read to derive
+the resource id, immediately call `requireRole` on that derived id, and return
+nothing before the check succeeds.
+
+Repeat this sequence in **every** quote lookup, receipt mutation, live query,
+and other multi-hop handler that remains undeclarable, and add negative tests
+for both a non-member and an authorized resource id paired with a foreign row
+id. This repetition is intentional because it is where otherwise-correct
+realtime code goes subtly unsafe.
+
+The full patterns are [Scoped roles and memberships](../auth/scoped-roles.md),
+[Protecting live and retained data](../auth/protecting-data.md), and
+[Bind a principal to your app user](../auth/app-identity-binding.md). Use
+`ctx.membership.<declaration>.bootstrap(resourceValues, initialMembers?)` when
+one group and its initial roster must be atomic: the host adds the creator,
+accepts at most 64 unique additional principals, authorizes every added seat
+from the creator's bootstrap role through the ordinary transition matrix, and
+writes nothing if any seat is invalid. Do not substitute a client-provided user
+id or an `auth` string for server-side checks, and do not make protected backing
+tables `public-read` just so a trusted handler can inspect them.
 
 ## Keep React hook arguments identity-stable
 

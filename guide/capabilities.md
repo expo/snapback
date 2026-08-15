@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:eb915656aba0d66a8cdc17baf017b25ba9716497036646112d75675741c132f5
+reviewed-authorities-digest: sha256:35a7a81af289d93e512072be5ec69d48d4b618a7bb86c8acb61582e094b76ca4
 ---
 
 # Capability index

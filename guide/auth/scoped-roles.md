@@ -9,8 +9,8 @@ examples: [demos/rbac, demos/shindig, packages/snapback-codegen/rbac-authoring.t
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:1101d394cafb5c72553238c08f58c2fe2d09ce71bdbd04cb168cb3afce41bfe6
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:8a958396da0e73199cc91cf1a111926b63c17d3f00f69bc94cd2252b8a426577
 ---
 
 # Scoped roles and memberships
@@ -228,12 +228,29 @@ the roster as an existence oracle.
 
 ### Build a per-user resource feed
 
-For a home screen such as “my events,” do not try to membership-gate the
-resource table with `membershipResource.rowField('_id')`. System fields are
-not valid `rowField` operands, and the private membership table is not a UI
-feed. Keep a separate ordinary app-data feed row keyed by both the resource id
-and user id, copy the small display fields the card needs, and query that table
-by the server-derived `authUserId()`.
+For a home screen such as “my events,” prefer table visibility on the resource
+itself when active members should see the resource rows:
+
+```js fragment reason="resource and membership fields vary by application"
+events: defineTable({ title: v.string() }).visibility({
+  kind: 'membership',
+  declaration: eventMembers,
+  resourceField: '_id',
+  roles: ['host', 'cohost', 'guest'],
+}),
+```
+
+The `_id` spelling belongs to table `.visibility(...)`; it is still not a
+valid `membershipResource.rowField('_id')` query operand. Ordinary direct/live
+plans and ordinary handler `ctx.db` reads compose the table policy, so the
+resource table can now be the active-member feed without exposing the private
+roster.
+
+Keep a separate ordinary app-data feed row when the UI must also represent
+pending invitations, non-member discovery, or a denormalized card shape that
+is intentionally different from the protected resource. Key that row by both
+the resource id and user id, copy only the display fields the card needs, and
+query it by the server-derived `authUserId()`.
 
 Shindig uses this shape for its `invites` table. The same row represents the
 host's own feed entry, a pending invitation, or an RSVP, while the private
@@ -496,9 +513,10 @@ coordinator transition.
   the nominal resource binding through arguments and row fields.
 - **Do not query or sync the roster to make an authorization decision.** Use a
   declaration-bound predicate or `ctx.permissions.requireRole`.
-- **Do not use the private roster as a “my resources” feed.** Maintain an
-  ordinary per-user app-data feed and keep authorization on the membership
-  declaration.
+- **Do not use the private roster as a “my resources” feed.** Put membership
+  visibility on the resource table with `resourceField: '_id'`; maintain a
+  separate per-user app-data feed only when the product needs pending or
+  denormalized rows that are not the protected resource itself.
 - **Do not design administrator promotion/removal around private membership
   row ids.** V1 intentionally does not make those ids reachable; use app-data
   invitations plus a self transition, or choose a product flow that does not
@@ -507,9 +525,10 @@ coordinator transition.
   the declaration's self-addressed write methods.
 - **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use
   mutation-only generated membership methods and declare every transition.
-- **Do not batch generated membership commands in one mutation.** V1 permits
-  one; decompose a multi-seat or multi-resource workflow into idempotent,
-  separately authorized mutations.
+- **Do not issue multiple generated membership commands in one mutation.** V1
+  permits one. For one new resource, pass a bounded initial roster to
+  `bootstrap(resourceValues, initialMembers?)`; for multiple resources or
+  post-creation transitions, use idempotent separately authorized mutations.
 - **Do not create a `lastHolder`-protected resource with `ctx.db.insert`.** Use
   the declaration's atomic `bootstrap()` method.
 - **Do not use `ctx.permissions` in an action or retain a role-gated result

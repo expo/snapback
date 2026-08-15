@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-des
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:4b3ef32c2da060b2d5e58e6ade1299acf10313c48876e5ebad94da343c106150
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:57c704b548d0d3feb6bc066747148bcb4c897957e4f96527d921bf35c1889cc2
 ---
 
 # Mutations

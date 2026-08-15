@@ -9,8 +9,8 @@ examples: [demos/card-game, demos/card-game/snapback/schema.mjs, demos/pointing-
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-11
-reviewed-authorities-digest: sha256:6f285172fd891ad1129baff8ae24a825bb3e36c8d5668cb02bfdcae34874edeb
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:ef7dcef6bbb0e5d63e31e1311eebf6781c0807c0da5db8ddb945e22b2618e1c4
 ---
 
 # Protecting live and retained data
@@ -48,6 +48,31 @@ resource table. On that resource table itself, use `resourceField: '_id'` so
 the row's system id is the membership resource. Every named role must be in
 that declaration's non-pending role vocabulary.
 Public-read is a policy decision, not a development fallback.
+
+Use the two bindings together for a private resource and its direct children:
+
+```js fragment reason="membership declaration fields are application-specific; this shows the shipped resource and child visibility bindings"
+conversations: defineTable({ title: v.string() }).visibility({
+  kind: 'membership',
+  declaration: conversationMembers,
+  resourceField: '_id',
+  roles: ['member', 'admin'],
+}),
+messages: defineTable({
+  conversationId: v.id('conversations'),
+  body: v.string(),
+}).visibility({
+  kind: 'membership',
+  declaration: conversationMembers,
+  resourceField: 'conversationId',
+  roles: ['member', 'admin'],
+}),
+```
+
+That declaration removes repeated handler checks for direct reads: ordinary
+plans and ordinary `ctx.db` calls automatically admit members and hide the same
+rows from strangers. Keep the roster private and use `ctx.permissions` for
+imperative authorization questions.
 
 Use `anyOf` for the common “owner or relationship” row boundary:
 
@@ -127,21 +152,24 @@ export const getMessageWithQuote = defineJsQuery({
     const quoted = message.quotedMessageId
       ? await ctx.db.elevated.get('messages', message.quotedMessageId)
       : null;
+    if (quoted && quoted.conversationId !== args.conversationId) return null;
     return { message, quoted };
   },
 });
 ```
 
-Both checks are load-bearing. `requireRole` derives the effective principal on
-the host and returns no roster data. The post-read resource comparison prevents
-an authorized conversation id plus an unrelated message id from becoming an
-object-reference bypass. Caller arguments never select elevated authority.
+The permission check and every resource comparison are load-bearing.
+`requireRole` derives the effective principal on the host and returns no roster
+data. The post-read comparisons prevent an authorized conversation id plus an
+unrelated message or quote id from becoming an object-reference bypass. Caller
+arguments never select elevated authority.
 
 Elevated reads bypass only table row visibility. They keep the same bounds,
 snapshot captures, OCC validation, and media deprojection as `ctx.db`; they do
 not bypass field masking, write policy, membership writer rules, asset access,
-or result/egress checks. The surface is available only to named queries and
-mutations. Actions and generated/direct query plans cannot use it.
+or result/egress checks. The closed surface is `get`, `getMany`, `uniqueMany`,
+and `query`; there are no elevated write members. It is available only to named
+queries and mutations. Actions and generated/direct query plans cannot use it.
 
 Use declarative membership visibility whenever the governed row directly names
 the membership resource, including the resource table's `_id` self-resource
@@ -151,12 +179,16 @@ conversation cannot express that join in the visibility grammar. Either
 denormalize the conversation id onto the receipt and maintain that invariant,
 or repeat the sanctioned handler pattern in **every** named function:
 
-1. Resolve and validate the resource relationship with a bounded elevated read.
-2. Call the declaration-bound `ctx.permissions` check for that resource.
-3. Perform only the remaining bounded elevated reads, validating every supplied
-   id belongs to the authorized resource.
-4. Add a negative identity test proving a non-member or cross-resource id is
-   refused or hidden.
+1. If the resource id is already an argument, call the declaration-bound
+   `ctx.permissions` check first. If only a child id exists, make one bounded
+   elevated read to derive the resource id, then perform the permission check
+   immediately and return no data before it succeeds.
+2. Resolve only the remaining protected facts with bounded elevated reads.
+3. Validate every resolved row—including nested quotes or parents—belongs to
+   the authorized resource; never trust an id merely because it came from
+   another stored row.
+4. Add negative identity tests proving both a non-member and an authorized
+   resource id paired with a foreign row id are refused or hidden.
 
 Do not centralize only the happy path while leaving one live query, receipt
 mutation, or quote lookup unchecked. This repetition is intentional because it

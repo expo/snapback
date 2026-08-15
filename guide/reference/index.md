@@ -17,8 +17,8 @@ reviewed-authorities-digest: sha256:109f043f874e62f3375fcb7e122c1429faa2f87d9e37
 
 # Generated API reference
 
-One build-bound projection of 1182 public symbols (485 runtime values and 697 explicit type-only symbols).
-Registry source identity: `sha256:a4ecca3663f7691975753c181d189e6afd11762799c9394893d4d6d53d78353b`.
+One build-bound projection of 1183 public symbols (485 runtime values and 698 explicit type-only symbols).
+Registry source identity: `sha256:544654bddc0b80d62d9bfba6df06948f9e1c71993de57ac08c01560774156dfb`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -79,4 +79,4 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-expo/data`](./expo-snapback-expo--data.md) | 6 | 1 | 5 |
 | [`@expo/snapback-expo/supervised-environment`](./expo-snapback-expo--supervised-environment.md) | 8 | 4 | 4 |
 | [`@expo/snapback-cli/verify`](./expo-snapback-cli--verify.md) | 25 | 19 | 6 |
-| [`@expo/snapback-codegen/ctx`](./expo-snapback-codegen--ctx.md) | 41 | 0 | 41 |
+| [`@expo/snapback-codegen/ctx`](./expo-snapback-codegen--ctx.md) | 42 | 0 | 42 |

@@ -10,8 +10,8 @@ status: current
 targets: [all]
 maturity: shipped
 since: 0.1.21
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:aff61baf3e3353b1c761122c42a417f5a364327294a9d298662888eef320f7e5
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:3a2d76c6596d4ae44aa1c9b1b98dfae32e8b5b9946ae149ef656c735f0cbf68d
 ---
 
 # Handler runtime profile and generation preflight
