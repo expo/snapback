@@ -551,8 +551,8 @@ examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/par
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:5b456c547f3f44e5ffed621499429f08d135537971f179e2b704149992749e55
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:5126ee0ebf123b379a99e10434f3568d5e5f7abfd160d555072b5b37ca9e275b
 ---
 
 # The headless client
@@ -1101,9 +1101,12 @@ The session entry points are:
 - `authRequestCode(email)` and `authExchange({ challengeId, code })`;
 - `authRefresh()` and `authLogout()`;
 - `authSession({ force })` for the exact server/mode/authority projection;
-- `closeAuth()` to unregister/close the client-side auth participants and
-  release a store resolved by the default persistence ladder (an injected
-  `rqsStore` remains caller-owned);
+- `closeAuth()` to terminally drain the client's auth and realtime ownership:
+  it unregisters the transport participant, aborts active controllers, closes
+  raw/managed live streams (including a forgotten live handle), releases local
+  connection-grant and lane demand, and releases a store resolved by the
+  default persistence ladder. The operation is idempotent and awaitable; an
+  injected `rqsStore` remains caller-owned;
 - `currentAuthorityDescriptor()` and `currentAuthorizationScope()` for
   adapter fences and the blessed **who I am** / **am I signed in**
   identity read — after boot or restore, call
@@ -1566,8 +1569,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:1c80bf1c444d856e7f4b8931bb9121230d876e89389a2d274b09e93e25d2176d
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:185469da32a058a35d64a64020776980440e9d0c96b5afc8e4f2b342fe5ab3e1
 ---
 
 # The React client
@@ -1799,8 +1802,12 @@ returned by `snapback guide QueryState`.
 
 Same-reference, same-argument siblings under one provider share one store and
 one upstream subscription while retaining independent React consumers.
-Different provider objects, complete generated references, or canonical
-arguments stay isolated.
+Different provider objects, complete generated references, canonical
+arguments, or authority identities do not share it. Keep the provider mounted
+across signin and logout: its LLP 0059 participant blanks the predecessor
+synchronously and starts a fresh protected query under the settled successor.
+An application key/remount is neither required nor desirable; remounting only
+recreates ownership the provider already coordinates.
 
 When one screen composes several reads plus mutations, commands, or
 presence, prefer the generated **application surface** — `useSurface` on
