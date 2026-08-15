@@ -345,11 +345,11 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:ecf07d2bfccde4e6",
+          "schemaHash": "sha256:6978a3c933b83c89",
           "bundleHash": "sha256:54d26e37593c256c",
-          "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+          "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
         },
-        "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+        "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
         "sourceSpan": {
           "file": "functions.mjs"
         },
@@ -465,11 +465,11 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:ecf07d2bfccde4e6",
+          "schemaHash": "sha256:6978a3c933b83c89",
           "bundleHash": "sha256:54d26e37593c256c",
-          "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+          "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
         },
-        "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+        "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
         "sourceSpan": {
           "file": "functions.mjs"
         },
@@ -598,11 +598,11 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:ecf07d2bfccde4e6",
+          "schemaHash": "sha256:6978a3c933b83c89",
           "bundleHash": "sha256:54d26e37593c256c",
-          "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+          "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
         },
-        "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+        "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
         "sourceSpan": {
           "file": "functions.mjs"
         },
@@ -690,16 +690,16 @@ export const dataResources = Object.freeze([
             "activation": {
               "schemaVersion": "snapback.v0",
               "appId": "fixtures",
-              "schemaHash": "sha256:ecf07d2bfccde4e6",
+              "schemaHash": "sha256:6978a3c933b83c89",
               "bundleHash": "sha256:54d26e37593c256c",
-              "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+              "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
             },
-            "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234"
+            "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
           },
           "schemaIdentity": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:ecf07d2bfccde4e6"
+            "schemaHash": "sha256:6978a3c933b83c89"
           },
           "capabilityClass": "local-executable",
           "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -760,7 +760,7 @@ export const dataResources = Object.freeze([
           ],
           "usesRuntimeNow": true,
           "boundedSkew": null,
-          "operationHash": "sha256:d19912c330e62d76ffb555e169f85ce2da0c3f842fecf3c4082cdbf757ae67dc"
+          "operationHash": "sha256:07797aababef5a04044672e75185a66e1361cbb817704eac19c3ff2e5f1b135a"
         },
         "argumentSchema": {
           "type": "object",
@@ -820,11 +820,11 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:ecf07d2bfccde4e6",
+          "schemaHash": "sha256:6978a3c933b83c89",
           "bundleHash": "sha256:54d26e37593c256c",
-          "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+          "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
         },
-        "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+        "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
         "sourceSpan": {
           "file": "functions.mjs"
         },
@@ -912,16 +912,16 @@ export const dataResources = Object.freeze([
             "activation": {
               "schemaVersion": "snapback.v0",
               "appId": "fixtures",
-              "schemaHash": "sha256:ecf07d2bfccde4e6",
+              "schemaHash": "sha256:6978a3c933b83c89",
               "bundleHash": "sha256:54d26e37593c256c",
-              "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+              "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
             },
-            "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234"
+            "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
           },
           "schemaIdentity": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:ecf07d2bfccde4e6"
+            "schemaHash": "sha256:6978a3c933b83c89"
           },
           "capabilityClass": "local-executable",
           "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1022,7 +1022,7 @@ export const dataResources = Object.freeze([
           "mintSites": [],
           "usesRuntimeNow": false,
           "boundedSkew": null,
-          "operationHash": "sha256:34205ccb0d147fa216aef063f2d7886a527a101f5430e5fbfe458ad2525e7910"
+          "operationHash": "sha256:6b7c67652c7f3727e881bd884035b7d919552d36d05e437daa23eeec966fd1cf"
         },
         "argumentSchema": {
           "type": "object",
@@ -1071,11 +1071,11 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:ecf07d2bfccde4e6",
+          "schemaHash": "sha256:6978a3c933b83c89",
           "bundleHash": "sha256:54d26e37593c256c",
-          "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+          "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
         },
-        "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+        "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
         "sourceSpan": {
           "file": "functions.mjs"
         },
@@ -1093,16 +1093,16 @@ export const dataResources = Object.freeze([
             "activation": {
               "schemaVersion": "snapback.v0",
               "appId": "fixtures",
-              "schemaHash": "sha256:ecf07d2bfccde4e6",
+              "schemaHash": "sha256:6978a3c933b83c89",
               "bundleHash": "sha256:54d26e37593c256c",
-              "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+              "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
             },
-            "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234"
+            "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
           },
           "schemaIdentity": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:ecf07d2bfccde4e6"
+            "schemaHash": "sha256:6978a3c933b83c89"
           },
           "capabilityClass": "local-executable",
           "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1188,7 +1188,7 @@ export const dataResources = Object.freeze([
           "mintSites": [],
           "usesRuntimeNow": false,
           "boundedSkew": null,
-          "operationHash": "sha256:aca739b74c66b1831452a4d2cb09cf88d0fce7207213c075af1a456676a67fdb"
+          "operationHash": "sha256:d72b60ded0db44c57c3a547b5b98dfb39def9304d2e1fa7678829990e455baf0"
         },
         "argumentSchema": {
           "type": "object",
@@ -1285,11 +1285,11 @@ const __dataTransactionOperations = Object.freeze({
       "expectedGeneration": {
         "schemaVersion": "snapback.v0",
         "appId": "fixtures",
-        "schemaHash": "sha256:ecf07d2bfccde4e6",
+        "schemaHash": "sha256:6978a3c933b83c89",
         "bundleHash": "sha256:54d26e37593c256c",
-        "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+        "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
       },
-      "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+      "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
       "sourceSpan": {
         "file": "functions.mjs"
       },
@@ -1377,16 +1377,16 @@ const __dataTransactionOperations = Object.freeze({
           "activation": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:ecf07d2bfccde4e6",
+            "schemaHash": "sha256:6978a3c933b83c89",
             "bundleHash": "sha256:54d26e37593c256c",
-            "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+            "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
           },
-          "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234"
+          "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
         },
         "schemaIdentity": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:ecf07d2bfccde4e6"
+          "schemaHash": "sha256:6978a3c933b83c89"
         },
         "capabilityClass": "local-executable",
         "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1447,7 +1447,7 @@ const __dataTransactionOperations = Object.freeze({
         ],
         "usesRuntimeNow": true,
         "boundedSkew": null,
-        "operationHash": "sha256:d19912c330e62d76ffb555e169f85ce2da0c3f842fecf3c4082cdbf757ae67dc"
+        "operationHash": "sha256:07797aababef5a04044672e75185a66e1361cbb817704eac19c3ff2e5f1b135a"
       },
       "argumentSchema": {
         "type": "object",
@@ -1507,11 +1507,11 @@ const __dataTransactionOperations = Object.freeze({
       "expectedGeneration": {
         "schemaVersion": "snapback.v0",
         "appId": "fixtures",
-        "schemaHash": "sha256:ecf07d2bfccde4e6",
+        "schemaHash": "sha256:6978a3c933b83c89",
         "bundleHash": "sha256:54d26e37593c256c",
-        "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+        "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
       },
-      "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+      "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
       "sourceSpan": {
         "file": "functions.mjs"
       },
@@ -1599,16 +1599,16 @@ const __dataTransactionOperations = Object.freeze({
           "activation": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:ecf07d2bfccde4e6",
+            "schemaHash": "sha256:6978a3c933b83c89",
             "bundleHash": "sha256:54d26e37593c256c",
-            "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+            "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
           },
-          "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234"
+          "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
         },
         "schemaIdentity": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:ecf07d2bfccde4e6"
+          "schemaHash": "sha256:6978a3c933b83c89"
         },
         "capabilityClass": "local-executable",
         "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1709,7 +1709,7 @@ const __dataTransactionOperations = Object.freeze({
         "mintSites": [],
         "usesRuntimeNow": false,
         "boundedSkew": null,
-        "operationHash": "sha256:34205ccb0d147fa216aef063f2d7886a527a101f5430e5fbfe458ad2525e7910"
+        "operationHash": "sha256:6b7c67652c7f3727e881bd884035b7d919552d36d05e437daa23eeec966fd1cf"
       },
       "argumentSchema": {
         "type": "object",
@@ -1758,11 +1758,11 @@ const __dataTransactionOperations = Object.freeze({
       "expectedGeneration": {
         "schemaVersion": "snapback.v0",
         "appId": "fixtures",
-        "schemaHash": "sha256:ecf07d2bfccde4e6",
+        "schemaHash": "sha256:6978a3c933b83c89",
         "bundleHash": "sha256:54d26e37593c256c",
-        "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+        "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
       },
-      "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+      "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
       "sourceSpan": {
         "file": "functions.mjs"
       },
@@ -1780,16 +1780,16 @@ const __dataTransactionOperations = Object.freeze({
           "activation": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:ecf07d2bfccde4e6",
+            "schemaHash": "sha256:6978a3c933b83c89",
             "bundleHash": "sha256:54d26e37593c256c",
-            "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06"
+            "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
           },
-          "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234"
+          "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
         },
         "schemaIdentity": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:ecf07d2bfccde4e6"
+          "schemaHash": "sha256:6978a3c933b83c89"
         },
         "capabilityClass": "local-executable",
         "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1875,7 +1875,7 @@ const __dataTransactionOperations = Object.freeze({
         "mintSites": [],
         "usesRuntimeNow": false,
         "boundedSkew": null,
-        "operationHash": "sha256:aca739b74c66b1831452a4d2cb09cf88d0fce7207213c075af1a456676a67fdb"
+        "operationHash": "sha256:d72b60ded0db44c57c3a547b5b98dfb39def9304d2e1fa7678829990e455baf0"
       },
       "argumentSchema": {
         "type": "object",

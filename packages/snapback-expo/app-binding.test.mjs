@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import {
+  cpSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import Ajv2020 from 'ajv/dist/2020.js';
+import { generate } from '../snapback-codegen/index.mjs';
 
 import {
   admitAppBindingV1,
@@ -9,8 +19,12 @@ import {
   validateAppBindingV1,
 } from './app-binding.mjs';
 
+const packageRoot = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(packageRoot, '..', '..');
+
 const app = Object.freeze({
   format: 'snapback.app.v1',
+  authoringProfile: 'snapback-explicit-v1',
   identity: Object.freeze({
     app: 'field-notebook',
     schema: 'sha256:schema',
@@ -125,6 +139,80 @@ const admittedDev = await admitAppBindingV1(devBinding, app, {
   delivery: { channel: 'local-supervised-ipc' },
 });
 assert(Object.isFrozen(admittedDev));
+
+const legacyAppWithoutProfile = structuredClone(app);
+delete legacyAppWithoutProfile.authoringProfile;
+await assert.doesNotReject(admitAppBindingV1(devBinding, legacyAppWithoutProfile, {
+  now: Date.parse('2026-08-05T20:30:00.000Z'),
+  delivery: { channel: 'local-supervised-ipc' },
+}));
+const unknownProfileApp = structuredClone(app);
+unknownProfileApp.authoringProfile = 'snapback-future-v2';
+await assert.rejects(
+  admitAppBindingV1(devBinding, unknownProfileApp, {
+    now: Date.parse('2026-08-05T20:30:00.000Z'),
+    delivery: { channel: 'local-supervised-ipc' },
+  }),
+  (error) => error.code === 'SNAPBACK_APP_DESCRIPTOR_INVALID',
+);
+
+// Cross-package closure gate: admission must consume the descriptor emitted by the
+// codegen package at this exact workspace version for both authoring profiles.
+const codegenVersion = JSON.parse(readFileSync(
+  join(repoRoot, 'packages', 'snapback-codegen', 'package.json'),
+  'utf8',
+)).version;
+const expoVersion = JSON.parse(readFileSync(
+  join(repoRoot, 'packages', 'snapback-expo', 'package.json'),
+  'utf8',
+)).version;
+assert.equal(expoVersion, codegenVersion);
+const generatedDescriptorRoot = mkdtempSync(join(tmpdir(), 'snapback-expo-descriptor-contract-'));
+try {
+  for (const [fixtureName, expectedProfile] of [
+    ['familiar-todo-explicit', 'snapback-explicit-v1'],
+    ['familiar-todo', 'snapback-familiar-ts-v1'],
+  ]) {
+    const backendRoot = join(generatedDescriptorRoot, fixtureName);
+    cpSync(join(repoRoot, 'tests', 'fixtures', fixtureName), backendRoot, { recursive: true });
+    rmSync(join(backendRoot, 'generated'), { recursive: true, force: true });
+    if (expectedProfile === 'snapback-explicit-v1') {
+      const defineUrl = pathToFileURL(
+        join(repoRoot, 'packages', 'snapback-codegen', 'define.mjs'),
+      ).href;
+      for (const name of ['schema.mjs', 'functions.mjs']) {
+        const path = join(backendRoot, name);
+        writeFileSync(
+          path,
+          readFileSync(path, 'utf8').replace(
+            '../../../packages/snapback-codegen/define.mjs',
+            defineUrl,
+          ),
+        );
+      }
+    }
+    const generated = await generate(backendRoot);
+    assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+    const descriptor = JSON.parse(readFileSync(
+      join(backendRoot, 'generated', 'app.descriptor.json'),
+      'utf8',
+    ));
+    assert.equal(descriptor.authoringProfile, expectedProfile);
+    const candidate = structuredClone(devBinding);
+    candidate.descriptorIdentity = descriptor.identity.descriptor;
+    candidate.target.app = descriptor.identity.app;
+    candidate.target.schema = descriptor.identity.schema;
+    candidate.target.functions = descriptor.identity.functions;
+    candidate.capabilities.offered = [...descriptor.capabilities.required];
+    const admitted = await admitAppBindingV1(candidate, descriptor, {
+      now: Date.parse('2026-08-05T20:30:00.000Z'),
+      delivery: { channel: 'local-supervised-ipc' },
+    });
+    assert.equal(admitted.descriptorIdentity, descriptor.identity.descriptor);
+  }
+} finally {
+  rmSync(generatedDescriptorRoot, { recursive: true, force: true });
+}
 
 await assert.rejects(
   admitAppBindingV1(devBinding, app, {

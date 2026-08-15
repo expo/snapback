@@ -28,3 +28,14 @@ the supervised binding (or push an invalidation the Expo arm honors) so the
 running client converges without a restart. Add a dev-loop test: boot
 supervised Expo, edit a function, assert the new digest is callable without
 restarting the supervisor.
+
+## Resolution
+
+Resolved 2026-08-15. At each successful `generated-and-loaded` cut, the Expo
+dev supervisor reads the successor descriptor and remints its binding when
+the descriptor identity changed, preserving the route and supervisor
+generation while publishing the new exact digest through the exchange.
+`packages/snapback-cli/expo-dev-loop.test.mjs` boots supervised Expo against
+the real runtime, edits `functions.mjs`, proves the backend PID and supervisor
+generation stay fixed, boots from the rotated exchange, and calls and
+observes the successor mutation without restarting the supervisor.

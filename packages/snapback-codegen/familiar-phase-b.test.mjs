@@ -4,9 +4,11 @@ import {
   cpSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { after, test } from 'node:test';
@@ -42,12 +44,30 @@ const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
 const familiarFixture = join(repoRoot, 'tests', 'fixtures', 'familiar-todo');
 const explicitFixture = join(repoRoot, 'tests', 'fixtures', 'familiar-todo-explicit');
 const temporaryRoots = [];
+const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
+const expoRequire = createRequire(new URL('../snapback-expo/package.json', import.meta.url));
+const expoPackagePath = expoRequire.resolve('expo/package.json');
+const expoDependencyRequire = createRequire(expoPackagePath);
+const metroTransformer = expoDependencyRequire('metro-babel-transformer');
+const expoPackage = readJson(expoPackagePath);
+const metroPackage = readJson(expoDependencyRequire.resolve('metro/package.json'));
 
 after(() => {
   for (const root of temporaryRoots) rmSync(root, { recursive: true, force: true });
 });
 
-const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
+function emittedModules(root) {
+  const modules = [];
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (entry.isFile() && entry.name.endsWith('.mjs')) modules.push(path);
+    }
+  };
+  visit(root);
+  return modules.sort();
+}
 
 function temporaryFamiliarFixture() {
   const root = mkdtempSync(join(tmpdir(), 'snapback-familiar-phase-b-'));
@@ -206,7 +226,7 @@ test('dual-profile todo fixtures normalize equally and emit lawful dotted surfac
     'sha256:d0cbc1c39f98ca5a530a9d17124cd439be23dc61d3365d6cf511cfef63d731fb',
   );
 
-  const familiarOutput = join(familiarFixture, '_generated');
+  const familiarOutput = join(familiarFixture, 'generated');
   const explicitOutput = join(explicitFixture, 'generated');
   for (const name of ['server.mjs', 'server.d.ts', 'api.mjs', 'api.d.ts']) {
     assert.equal(readFileSync(join(familiarOutput, name), 'utf8').length > 0, true, name);
@@ -273,8 +293,10 @@ test('dual-profile todo fixtures normalize equally and emit lawful dotted surfac
   );
 
   const explicitApi = await import(`${pathToFileURL(join(explicitOutput, 'api.mjs')).href}?phase-b=${Date.now()}`);
-  assert.strictEqual(explicitApi['todos.list'], explicitApi.api['todos.list']);
-  assert.strictEqual(explicitApi['todos.create'], explicitApi.api['todos.create']);
+  assert.equal(Object.hasOwn(explicitApi, 'todos.list'), false);
+  assert.equal(Object.hasOwn(explicitApi, 'todos.create'), false);
+  assert.equal(explicitApi.api['todos.list'].name, 'todos.list');
+  assert.equal(explicitApi.api['todos.create'].name, 'todos.create');
   const explicitAction = explicitApi.api['todos.createFromAction'];
   assert.equal(explicitAction.authoringProfile, 'snapback-explicit-v1');
   assert.equal(explicitAction.retention, 'none');
@@ -293,6 +315,24 @@ test('dual-profile todo fixtures normalize equally and emit lawful dotted surfac
       { encoding: 'utf8' },
     );
     assert.equal(modules.status, 0, `${modules.stdout}\n${modules.stderr}`);
+    assert.match(expoPackage.version, /^57\./u);
+    for (const modulePath of emittedModules(output)) {
+      assert.doesNotThrow(
+        () => metroTransformer.transform({
+          filename: modulePath,
+          src: readFileSync(modulePath, 'utf8'),
+          plugins: [],
+          options: {
+            dev: true,
+            enableBabelRCLookup: false,
+            hermesParser: true,
+            platform: 'ios',
+            projectRoot: output,
+          },
+        }),
+        `Expo ${expoPackage.version} / Metro ${metroPackage.version} could not parse ${modulePath}`,
+      );
+    }
     const typeScriptFiles = spawnSync('find', [output, '-name', '*.ts', '-type', 'f'], {
       encoding: 'utf8',
     });
@@ -321,7 +361,10 @@ test('dual-profile todo fixtures normalize equally and emit lawful dotted surfac
   );
   assert.match(dottedBinding, /function __snapbackTodosList/u);
   assert.match(dottedBinding, /__snapbackTodosList as "todos\.list"/u);
-  assert.match(readFileSync(join(familiarOutput, 'app.d.ts'), 'utf8'), /declare const __snapbackTodosList/u);
+  assert.doesNotMatch(
+    readFileSync(join(familiarOutput, 'app.d.ts'), 'utf8'),
+    /export \{ .* as "todos\.list"/u,
+  );
 });
 
 test('familiar read-reference JSDoc follows compatibilityAliases data', async () => {
@@ -337,7 +380,7 @@ test('familiar read-reference JSDoc follows compatibilityAliases data', async ()
   const generated = await generate(root);
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
   assert.match(
-    readFileSync(join(root, '_generated', 'api.d.ts'), 'utf8'),
+    readFileSync(join(root, 'generated', 'api.d.ts'), 'utf8'),
     /Familiar delivery `read` has no v1 hook; call `client\.query` \(planned `client\.read`\)/u,
   );
 });
@@ -474,7 +517,7 @@ test('generation refuses unsupported familiar source and dynamic api references 
   const atomicRoot = temporaryFamiliarFixture();
   const initial = await generate(atomicRoot);
   assert.equal(initial.ok, true, JSON.stringify(initial.diagnostics));
-  const priorApi = readFileSync(join(atomicRoot, '_generated', 'api.mjs'), 'utf8');
+  const priorApi = readFileSync(join(atomicRoot, 'generated', 'api.mjs'), 'utf8');
   writeFileSync(
     join(atomicRoot, 'todos.ts'),
     readFileSync(join(atomicRoot, 'todos.ts'), 'utf8').replace(
@@ -484,7 +527,7 @@ test('generation refuses unsupported familiar source and dynamic api references 
   );
   const refusedAfterSuccess = await generate(atomicRoot);
   assert.equal(refusedAfterSuccess.ok, false);
-  assert.equal(readFileSync(join(atomicRoot, '_generated', 'api.mjs'), 'utf8'), priorApi);
+  assert.equal(readFileSync(join(atomicRoot, 'generated', 'api.mjs'), 'utf8'), priorApi);
 
   const unsupportedRoot = temporaryFamiliarFixture();
   writeFileSync(

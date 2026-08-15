@@ -1325,7 +1325,7 @@ export function suggestDeclarations({
   }
   const definitionPath = join(backendRoot, ...definitionFile.split('/'));
   const familiarProfile = existsSync(join(backendRoot, 'schema.ts'));
-  const outputDirectory = familiarProfile ? '_generated' : 'generated';
+  const outputDirectory = 'generated';
   const schemaPath = join(backendRoot, familiarProfile ? 'schema.ts' : 'schema.mjs');
   const apiPath = join(backendRoot, outputDirectory, 'api.d.ts');
   const schemaManifestPath = join(backendRoot, outputDirectory, 'schema.manifest.json');

@@ -227,6 +227,7 @@ export interface ArtifactGeneration {
  * preparation. Environment endpoints and authority remain separate inputs. */
 export interface SnapbackAppDescriptorV1 {
   readonly format: 'snapback.app.v1';
+  readonly authoringProfile: 'snapback-explicit-v1' | 'snapback-familiar-ts-v1';
   readonly identity: Readonly<{
     app: string;
     schema: string;

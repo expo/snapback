@@ -63,14 +63,4 @@ export interface AppDescriptorV1 {
 export type GeneratedAppDescriptorV1 = AppDescriptorV1;
 export declare const artifacts: GeneratedArtifacts;
 export declare const app: GeneratedAppDescriptorV1;
-declare const __snapbackTodosList: GeneratedAppDescriptorV1['api']['queries']["todos.list"];
-export { __snapbackTodosList as "todos.list" };
-declare const __snapbackTodosGet: GeneratedAppDescriptorV1['api']['queries']["todos.get"];
-export { __snapbackTodosGet as "todos.get" };
-declare const __snapbackTodosCreate: GeneratedAppDescriptorV1['api']['mutations']["todos.create"];
-export { __snapbackTodosCreate as "todos.create" };
-declare const __snapbackTodosUpdate: GeneratedAppDescriptorV1['api']['mutations']["todos.update"];
-export { __snapbackTodosUpdate as "todos.update" };
-declare const __snapbackTodosDelete: GeneratedAppDescriptorV1['api']['mutations']["todos.delete"];
-export { __snapbackTodosDelete as "todos.delete" };
 export default app;

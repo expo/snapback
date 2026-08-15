@@ -2179,6 +2179,32 @@ export async function loadGenerated(
     env = process.env,
   } = {},
 ) {
+  const legacyGeneratedDirectory = join(backendRoot, '_generated');
+  let legacyGeneratedDirectoryPresent = false;
+  try {
+    lstatSync(legacyGeneratedDirectory);
+    legacyGeneratedDirectoryPresent = true;
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      throw diagnosticError(
+        'SNAPBACK_CODEGEN_LEGACY_GENERATED_DIRECTORY_UNREADABLE',
+        `${legacyGeneratedDirectory} could not be checked: ${error.message}`,
+        { path: legacyGeneratedDirectory },
+      );
+    }
+  }
+  if (legacyGeneratedDirectoryPresent) {
+    const canonicalPath = join(backendRoot, 'generated');
+    throw diagnosticError(
+      'SNAPBACK_CODEGEN_LEGACY_GENERATED_DIRECTORY',
+      `${legacyGeneratedDirectory} is the retired generated-artifact spelling; remove it (including symlinks) and use ${canonicalPath} only`,
+      {
+        path: legacyGeneratedDirectory,
+        canonicalPath,
+        reason: 'one-generated-directory-no-watcher-aliases',
+      },
+    );
+  }
   const generated = join(backendRoot, 'generated');
   const targetArgs = ['--ready-file', readyFile];
   const nativeEnvironment = adminToken

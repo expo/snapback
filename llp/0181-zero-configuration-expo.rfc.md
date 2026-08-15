@@ -6,6 +6,12 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-15 (m) — Generated descriptors' required
+`authoringProfile` field is part of Expo's closed admission schema and is
+contract-tested against fresh explicit and Familiar codegen output. Supervised
+development now remints the binding at each `generated-and-loaded` descriptor
+rotation, so a function edit becomes callable without restarting the
+supervisor; the Expo 57 Metro/Hermes parser gates every emitted client module.
 **Revised:** 2026-08-10 (l) — The already-paved supervised web carrier is now
 a first-class `--expo-platform web` selection: the supervisor starts Expo with
 `--web` and injects the bootstrap origin before bundling. A recognizable
@@ -503,7 +509,10 @@ than assumed.
 
 - starts or adopts the exact Snapback backend generation;
 - starts Expo/Metro in a routing mode compatible with the selected device;
-- issues one expiring `source: "supervised-dev"` binding;
+- issues one expiring `source: "supervised-dev"` binding and, after each
+  successor graph reaches the backend's `generated-and-loaded` compatible-cut
+  event, atomically remints it for the new descriptor identity while retaining
+  the supervisor generation and resolved route;
 - makes an ordinary session available through the local bootstrap seam —
   today by email, per LLP 0176 G0's primitive; a declared-dev-persona layer
   once the routed ask to the auth owner is accepted;
@@ -619,6 +628,11 @@ Before local Metro starts and before EAS submission, the verifier checks:
 - exactly one compatible copy of each Snapback public client package;
 - React Native/export-condition resolution;
 - descriptor, binding, plugin, and package version compatibility;
+- fresh same-version descriptors from both authoring profiles pass the Expo
+  closed-schema admission (including required `authoringProfile`);
+- every generated client `.mjs` passes the shipped Expo tuple's actual
+  Metro/Hermes transformer, so unsupported ESM alias grammar cannot hide behind
+  Node-only parsing;
 - absence of server/admin/contributor-only imports from the app graph;
 - inclusion of every local package and generated artifact in the EAS archive;
   and
@@ -928,8 +942,10 @@ E5 is LLP 0176 G5 and does not block E0–E4.
   construction — refuses unless `provenance.buildReceipt` verifies through
   the existing build-receipt mechanism. Neither arm falls back to a
   supervised or arbitrary origin on a verification failure.
-- `snapback dev --expo` reaches one readiness state, survives HMR, and cleans
-  up every owned resource on success, failure, and signal.
+- `snapback dev --expo` reaches one readiness state, survives HMR, remints its
+  binding when a function edit rotates the loaded descriptor, proves the new
+  digest callable without a supervisor restart, and cleans up every owned
+  resource on success, failure, and signal.
 - The release graph contains only public client code and the intended release
   binding; no dev secret or endpoint leaks.
 - iOS and Android claims have separate LLP 0064 receipts.

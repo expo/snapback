@@ -30,6 +30,7 @@ try {
   writeFileSync(join(root, 'package.json'), '{"name":"fixture","private":true}\n');
   const descriptor = {
     format: 'snapback.app.v1',
+    authoringProfile: 'snapback-explicit-v1',
     identity: {
       app: 'fixture',
       schema: 'sha256:schema',

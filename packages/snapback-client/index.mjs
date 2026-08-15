@@ -20,6 +20,10 @@ import {
 } from '@expo/snapback-contract/client-store';
 import { isMintedIdentifier } from '@expo/snapback-contract/ids';
 import {
+  OPERATION_NAME_PATTERN,
+  isOperationName,
+} from '@expo/snapback-contract/operation-name';
+import {
   createLiveQueryAuthorizationFence,
   createLiveQueryInstanceAllocator,
   createLiveQueryNamespace,
@@ -812,13 +816,10 @@ const RQS_PRE_SUBSCRIBE_DURABLE_BUFFER_CAP = 1_024;
 // @ref LLP 0031#the-invariant — app-data names must never normalize into the
 // privileged system namespace.
 const GENERATED_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
-// @ref LLP 0255#s2-lowering-to-standard-operations — DataResourceV1 owns the
-// one-segment resource.operation namespace; collection names remain plain
-// identifiers and additional nesting stays unavailable.
-// @ref LLP 0255#s71b-transaction-resolution--one-replayable-function-identity
-// — statically catalogued multi-chunk transactions add the one reserved
-// `data.tx_<16 hex>` member family to that closed ordinary namespace.
-const GENERATED_OPERATION_NAME = /^(?:[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*\.(?:list|get|create|update|delete|query_[0-9a-f]{16})|data\.tx_[0-9a-f]{16})$/;
+// @ref LLP 0253#s52-operation-names-and-normalizedapplicationdefinitionv1 —
+// canonical clients accept the same one-segment or IDENT.IDENT grammar that
+// codegen admits; profile-specific leaf allowlists would create uncallable
+// generated references.
 const AUTHORIZED_LEASE_V1_DURATION_MS = 86_400_000;
 // Channel B persistence cadence (LLP 0091 §0A.5): trailing debounce after the
 // last result-changing envelope, hard cap under continuous change, immediate
@@ -15786,9 +15787,9 @@ function functionName(ref) {
   // @ref LLP 0100#product-receipt — Team Chat observes the caller's own seat
   // drop through the ordinary client at the same authorization cut.
   if (name === '_snapback.assetRecord' || name === '_snapback.myMemberships') return name;
-  if (typeof name === 'string' && GENERATED_OPERATION_NAME.test(name)) return name;
+  if (isOperationName(name)) return name;
   if (typeof name === 'string') {
-    throw new TypeError(`Snapback function name must match ${GENERATED_OPERATION_NAME}, got ${JSON.stringify(name)}`);
+    throw new TypeError(`Snapback function name must match ${OPERATION_NAME_PATTERN}, got ${JSON.stringify(name)}`);
   }
   throw new TypeError(`Snapback function reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
 }

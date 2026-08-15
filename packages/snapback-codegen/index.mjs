@@ -18,6 +18,7 @@ import { createHash } from 'node:crypto';
 import { fork, spawn } from 'node:child_process';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -54,6 +55,10 @@ import {
   resolveHandlerSourceCapability,
 } from './file-read-capability.mjs';
 import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '@expo/snapback-contract/capabilities';
+import {
+  OPERATION_NAME_PATTERN,
+  isOperationName,
+} from '@expo/snapback-contract/operation-name';
 import {
   generatedByHeader,
   importsExactPackage,
@@ -258,7 +263,6 @@ const CTX_DECLARATION_MODULE = '@expo/snapback-codegen/ctx';
 
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const OPERATION_NAME = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$/u;
 
 const compositionDomainHash = (domain, value) => `sha256:${createHash('sha256')
   .update(domain)
@@ -1966,8 +1970,31 @@ async function generateInProcessLocked({
     return { ok: false, diagnostics };
   }
   const authoringProfile = codegenPolicy.authoringProfile;
-  if (authoringProfile === FAMILIAR_AUTHORING_PROFILE) {
-    targetConfig = { ...targetConfig, outputDirectory: '_generated' };
+  const legacyGeneratedDirectory = join(backendRoot, '_generated');
+  try {
+    lstatSync(legacyGeneratedDirectory);
+    err(
+      'SNAPBACK_CODEGEN_LEGACY_GENERATED_DIRECTORY',
+      'codegen',
+      `${legacyGeneratedDirectory} is the retired generated-artifact spelling; remove it (including symlinks) and use ${join(backendRoot, 'generated')} only`,
+      {
+        path: legacyGeneratedDirectory,
+        canonicalPath: join(backendRoot, 'generated'),
+        reason: 'one-generated-directory-no-watcher-aliases',
+      },
+    );
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      err(
+        'SNAPBACK_CODEGEN_LEGACY_GENERATED_DIRECTORY_UNREADABLE',
+        'codegen',
+        `${legacyGeneratedDirectory} could not be checked: ${error.message}`,
+        { path: legacyGeneratedDirectory },
+      );
+    }
+  }
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
   }
   const sourceLayout = discoverAuthoringSources(backendRoot, authoringProfile, err);
   if (diagnostics.some((d) => d.severity === 'error')) {
@@ -3647,7 +3674,7 @@ async function generateInProcessLocked({
     // reachable, and `export { f as delete }` makes reserved words reachable.
     // Fail closed like the table/field/ephemeral/cron namespaces.
     const generatedDataOperation = dataOperationNames.has(name);
-    if (!OPERATION_NAME.test(name)
+    if (!isOperationName(name)
       || (!generatedDataOperation && name.split('.').some((segment) => RESERVED_WORDS.has(segment)))) {
       err('FUNCTION_INVALID_IDENTIFIER', 'function', `invalid function export name ${name}`, { function: name });
       continue;
@@ -12646,19 +12673,19 @@ function renderMicroRuntimeEntry(functions, expectedGeneration, profileName, inc
     const local = IDENT.test(fn.name) ? fn.name : generatedOperationLocal(fn.name);
     if (fn.kind === 'LiveQuery') {
       lines.push(
-        `${IDENT.test(fn.name) ? 'export ' : ''}function ${local}(client, args, options) {`,
+        `export function ${local}(client, args, options) {`,
         `  return client.subscribe(descriptors[${JSON.stringify(fn.name)}], args, options);`,
         '}',
       );
     } else {
       lines.push(
-        `${IDENT.test(fn.name) ? 'export ' : ''}function ${local}(client, args) {`,
+        `export function ${local}(client, args) {`,
         `  return client.invoke(descriptors[${JSON.stringify(fn.name)}], args);`,
         '}',
       );
     }
-    if (!IDENT.test(fn.name)) lines.push(`export { ${renderedOperationExport(fn.name, local)} };`);
   }
+  lines.push(`export const operations = Object.freeze({ ${functions.map((fn) => `${JSON.stringify(fn.name)}: ${IDENT.test(fn.name) ? fn.name : generatedOperationLocal(fn.name)}`).join(', ')} });`);
   return `${lines.join('\n')}\n`;
 }
 
@@ -12701,17 +12728,17 @@ function renderMicroDeclaration(functions, functionsModule, schemaDef) {
       (table) => `MicroDataModel[${JSON.stringify(table)}]`,
     );
     if (fn.kind === 'LiveQuery') {
-      lines.push(`${IDENT.test(fn.name) ? 'export ' : ''}function ${local}(client: MicroRuntime, args: ${args}, options?: { readonly onUpdate?: (rows: ${result}, detail: Readonly<{ kind: string; version: number }>) => void }): Promise<MicroLiveHandle<${result}>>;`);
+      lines.push(`export function ${local}(client: MicroRuntime, args: ${args}, options?: { readonly onUpdate?: (rows: ${result}, detail: Readonly<{ kind: string; version: number }>) => void }): Promise<MicroLiveHandle<${result}>>;`);
     } else {
       const output = fn.kind === 'Mutation'
         ? `MicroMutationOutput<${result}>`
         : fn.kind === 'Action'
           ? `MicroActionOutput<${result}>`
           : `MicroQueryOutput<${result}>`;
-      lines.push(`${IDENT.test(fn.name) ? 'export ' : ''}function ${local}(client: MicroRuntime, args: ${args}): Promise<${output}>;`);
+      lines.push(`export function ${local}(client: MicroRuntime, args: ${args}): Promise<${output}>;`);
     }
-    if (!IDENT.test(fn.name)) lines.push(`export { ${renderedOperationExport(fn.name, local)} };`);
   }
+  lines.push(`export declare const operations: Readonly<{ ${functions.map((fn) => `readonly ${JSON.stringify(fn.name)}: typeof ${IDENT.test(fn.name) ? fn.name : generatedOperationLocal(fn.name)}`).join('; ')} }>;`);
   return `${lines.join('\n')}\n`;
 }
 
@@ -13571,12 +13598,8 @@ function generatedOperationLocal(name) {
   return `__snapback${pascal(name)}`;
 }
 
-function renderedOperationExport(name, local = name) {
-  return IDENT.test(name) ? local : `${local} as ${JSON.stringify(name)}`;
-}
-
-function renderedOperationReexport(name) {
-  return IDENT.test(name) ? name : JSON.stringify(name);
+function standaloneIdentifierFunctions(functions) {
+  return standaloneDescriptorFunctions(functions).filter(({ name }) => IDENT.test(name));
 }
 
 function contentAddressedArtifactPath(path, identity) {
@@ -13603,17 +13626,10 @@ function renderAppBindingModule(
   trustedCompositionActivation = null,
   hasData = false,
 ) {
-  const standalone = standaloneDescriptorFunctions(functions);
-  const aliases = standalone.flatMap(({ name, kind }) => {
+  const standalone = standaloneIdentifierFunctions(functions);
+  const aliases = standalone.map(({ name, kind }) => {
     const namespace = kind === 'Mutation' ? 'mutations' : 'queries';
-    if (IDENT.test(name)) {
-      return [`export const ${name} = app.api.${namespace}[${JSON.stringify(name)}];`];
-    }
-    const local = generatedOperationLocal(name);
-    return [
-      `const ${local} = app.api.${namespace}[${JSON.stringify(name)}];`,
-      `export { ${renderedOperationExport(name, local)} };`,
-    ];
+    return `export const ${name} = app.api.${namespace}[${JSON.stringify(name)}];`;
   });
   const descriptorSpecifier = contentAddressedModuleSpecifier('./app.descriptor.json', descriptorIdentity);
   return `${HEADER}\n` +
@@ -13637,8 +13653,8 @@ function renderAppBindingModule(
 }
 
 function renderAppBindingAlias(functions, appBindingIdentity) {
-  const standalone = standaloneDescriptorFunctions(functions);
-  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => renderedOperationReexport(name))].join(', ');
+  const standalone = standaloneIdentifierFunctions(functions);
+  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => name)].join(', ');
   const bindingSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
   return `${HEADER}\n` +
     `// Stable compatibility alias; the digest-named module is the sole hydrated binding.\n` +
@@ -13647,8 +13663,8 @@ function renderAppBindingAlias(functions, appBindingIdentity) {
 }
 
 function renderAppModule(functions, appBindingIdentity) {
-  const standalone = standaloneDescriptorFunctions(functions);
-  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => renderedOperationReexport(name))].join(', ');
+  const standalone = standaloneIdentifierFunctions(functions);
+  const reexports = ['app', 'artifacts', ...standalone.map(({ name }) => name)].join(', ');
   const bindingSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
   return `${HEADER}\n` +
     `export { ${reexports} } from ${JSON.stringify(bindingSpecifier)};\n` +
@@ -13800,25 +13816,17 @@ function renderAppTypes(
     'export declare const artifacts: GeneratedArtifacts;',
     'export declare const app: GeneratedAppDescriptorV1;',
   ];
-  for (const { name, kind } of standalone) {
+  for (const { name, kind } of standalone.filter(({ name }) => IDENT.test(name))) {
     const namespace = kind === 'Mutation' ? 'mutations' : 'queries';
-    if (IDENT.test(name)) {
-      lines.push(`export declare const ${name}: GeneratedAppDescriptorV1['api']['${namespace}'][${JSON.stringify(name)}];`);
-    } else {
-      const local = generatedOperationLocal(name);
-      lines.push(
-        `declare const ${local}: GeneratedAppDescriptorV1['api']['${namespace}'][${JSON.stringify(name)}];`,
-        `export { ${renderedOperationExport(name, local)} };`,
-      );
-    }
+    lines.push(`export declare const ${name}: GeneratedAppDescriptorV1['api']['${namespace}'][${JSON.stringify(name)}];`);
   }
   lines.push('export default app;');
   return `${lines.join('\n')}\n`;
 }
 
 function renderApiModule(functions, actionReferences, defaultAssetNames, appBindingIdentity) {
-  const standalone = standaloneDescriptorFunctions(functions);
-  const reexports = ['app', ...standalone.map(({ name }) => renderedOperationReexport(name))].join(', ');
+  const standalone = standaloneIdentifierFunctions(functions);
+  const reexports = ['app', ...standalone.map(({ name }) => name)].join(', ');
   const appSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
   const defaultAssignments = [];
   for (const [tableName, fields] of Object.entries(defaultAssetNames)) {
@@ -14413,8 +14421,8 @@ function renderApiTypes(
   } else {
     lines.push('export declare const api: GeneratedApi;');
   }
-  const descriptorExports = standaloneDescriptorFunctions(functions)
-    .map(({ name }) => renderedOperationReexport(name));
+  const descriptorExports = standaloneIdentifierFunctions(functions)
+    .map(({ name }) => name);
   lines.push(`export { app${descriptorExports.length > 0 ? `, ${descriptorExports.join(', ')}` : ''} } from './app';`);
   lines.push("export type { AppDescriptorV1, CapabilityRequirement, CommandDescriptor, GeneratedAppDescriptorV1, SurfaceDescriptor } from './app';");
   lines.push('export default api;');
@@ -14992,7 +15000,7 @@ function familiarModuleClassification(path, source) {
       || !ts.isStringLiteral(statement.moduleSpecifier)
       || !(FAMILIAR_ENTRYPOINTS.has(statement.moduleSpecifier.text)
         || /(?:^|\/)familiar\.(?:mjs|js|mts|ts)$/u.test(statement.moduleSpecifier.text)
-        || /(?:^|\/)_generated\/server(?:\.(?:mjs|js|mts|ts))?$/u.test(statement.moduleSpecifier.text))) continue;
+        || /(?:^|\/)generated\/server(?:\.(?:mjs|js|mts|ts))?$/u.test(statement.moduleSpecifier.text))) continue;
     const bindings = statement.importClause?.namedBindings;
     if (!bindings || !ts.isNamedImports(bindings)) continue;
     for (const specifier of bindings.elements) {
@@ -15126,6 +15134,24 @@ function discoverAuthoringSources(backendRoot, authoringProfile, err) {
     };
   }
 
+  for (const path of familiarTypeScriptFiles(backendRoot)) {
+    let source;
+    try { source = readDefinitionSource(path, backendRoot); } catch { continue; }
+    for (const specifier of staticImportSpecifiers(source, path)) {
+      if (!/(?:^|\/)_generated\/(?:server|api)(?:\.(?:mjs|js|mts|ts))?$/u.test(specifier)) continue;
+      err(
+        'SNAPBACK_CODEGEN_LEGACY_GENERATED_IMPORT',
+        'codegen',
+        `${relative(backendRoot, path)} imports retired path ${specifier}; use ${specifier.replace('_generated/', 'generated/')} and keep no _generated symlink`,
+        {
+          path,
+          specifier,
+          canonicalSpecifier: specifier.replace('_generated/', 'generated/'),
+        },
+      );
+    }
+  }
+
   for (const name of ['schema.mjs', 'functions.mjs', 'routes.mjs']) {
     const path = join(backendRoot, name);
     if (existsSync(path)) {
@@ -15191,7 +15217,7 @@ function discoverAuthoringSources(backendRoot, authoringProfile, err) {
     const moduleName = entry.name.replace(/\.(?:ts|mts)$/iu, '');
     for (const operation of classified.operations) {
       const name = `${moduleName}.${operation.exportedName}`;
-      if (!OPERATION_NAME.test(name)) {
+      if (!isOperationName(name)) {
         err(
           'SNAPBACK_CODEGEN_FAMILIAR_MODULE_PATH_UNSUPPORTED',
           'function',
@@ -15353,7 +15379,7 @@ function renderFamiliarApiBootstrapModule(operationNames) {
 }
 
 function synthesizeFamiliarBootstrap(backendRoot, operationNames) {
-  const directory = join(backendRoot, '_generated');
+  const directory = join(backendRoot, 'generated');
   mkdirSync(directory, { recursive: true });
   const files = new Map([
     ['server.mjs', renderFamiliarServerModule()],
@@ -15517,7 +15543,7 @@ function captureFamiliarApiReferences(source, sourcePath, apiDigest, err) {
   for (const statement of sourceFile.statements) {
     if (!ts.isImportDeclaration(statement)
       || !ts.isStringLiteral(statement.moduleSpecifier)
-      || !/^\.\/_generated\/api(?:\.(?:mjs|js|mts|ts))?$/u.test(statement.moduleSpecifier.text)) continue;
+      || !/^\.\/generated\/api(?:\.(?:mjs|js|mts|ts))?$/u.test(statement.moduleSpecifier.text)) continue;
     const bindings = statement.importClause?.namedBindings;
     if (bindings && ts.isNamedImports(bindings)) {
       for (const specifier of bindings.elements) {
@@ -15659,7 +15685,7 @@ export function renderFamiliarHandlerRuntime(name, extracted, canonicalRendered,
     '    const outerKeys = reference && typeof reference === "object" ? Object.keys(reference) : [];',
     '    const marker = outerKeys.length === 1 && outerKeys[0] === "__snapbackFamiliarApiReference" ? reference.__snapbackFamiliarApiReference : null;',
     '    const markerKeys = marker && typeof marker === "object" ? Object.keys(marker).sort() : [];',
-    `    if (!__snapbackFamiliarReferences.has(reference) || !Object.isFrozen(reference) || !Object.isFrozen(marker) || markerKeys.join(",") !== "apiDigest,name" || marker.apiDigest !== ${JSON.stringify(apiDigest)} || typeof marker.name !== "string" || !${OPERATION_NAME}.test(marker.name)) __snapbackFamiliarFail("SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED", "runMutation requires a generated api.module.operation reference from this application generation");`,
+    `    if (!__snapbackFamiliarReferences.has(reference) || !Object.isFrozen(reference) || !Object.isFrozen(marker) || markerKeys.join(",") !== "apiDigest,name" || marker.apiDigest !== ${JSON.stringify(apiDigest)} || typeof marker.name !== "string" || !${OPERATION_NAME_PATTERN}.test(marker.name)) __snapbackFamiliarFail("SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED", "runMutation requires a generated api.module.operation reference from this application generation");`,
     '    return ctx.runMutation(marker.name, args);',
     '  };',
     '  const runQuery = () => __snapbackFamiliarFail("SNAPBACK_FAMILIAR_RUNQUERY_UNSUPPORTED", "familiar v1 actions do not expose runQuery; route through an explicit profile action when required");',
@@ -15904,7 +15930,7 @@ function definitionAttributionFromSource(source, path = 'functions.mjs') {
     specifier === '@expo/snapback-codegen/define'
     || specifier === '@snapback/codegen/define'
     || FAMILIAR_ENTRYPOINTS.has(specifier)
-    || /(?:^|\/)_generated\/server(?:\.(?:mjs|js|mts|ts))?$/u.test(specifier)
+    || /(?:^|\/)generated\/server(?:\.(?:mjs|js|mts|ts))?$/u.test(specifier)
     || /(?:^|\/)familiar\.(?:mjs|js|mts|ts)(?:[?#].*)?$/u.test(specifier)
     || /(?:^|\/)define\.(?:mjs|js|mts|ts)(?:[?#].*)?$/u.test(specifier)
   );

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { isOperationName } from '@expo/snapback-contract/operation-name';
 import { createCommandClient } from './commands.mjs';
 import { SnapbackClient } from './index.mjs';
 import { assertClientReferenceKind } from './reference-kinds.mjs';
@@ -191,22 +192,37 @@ test('profile admission is opt-in and refuses before a familiar alias can dispat
   );
 });
 
-test('the client admits only the reserved synthesized data transaction name family', async () => {
+test('shared operation-name grammar makes every generated spelling callable', async () => {
   const client = new SnapbackClient('http://127.0.0.1:9', {
     offlineQueue: false,
     devDiagnosticsReporter: false,
   });
   try {
-    assert.equal(
-      client.__storeFunctionName({ name: 'data.tx_0123456789abcdef' }),
-      'data.tx_0123456789abcdef',
-    );
-    for (const name of [
+    const accepted = [
+      'publish',
+      '_publish2',
+      'todos.list',
+      'todos.publish',
       'todos.tx_0123456789abcdef',
-      'data.tx_0123456789abcde',
-      'data.tx_0123456789abcdeg',
-      'data.tx_0123456789abcdef.extra',
-    ]) {
+      'data.tx_0123456789abcdef',
+    ];
+    const refused = [
+      '',
+      '1publish',
+      'todos.',
+      '.publish',
+      'todos.publish.extra',
+      'todos/publish',
+      'todos-publish',
+      'todos publish',
+      'todos.publísh',
+    ];
+    for (const name of accepted) {
+      assert.equal(isOperationName(name), true, name);
+      assert.equal(client.__storeFunctionName({ name }), name);
+    }
+    for (const name of refused) {
+      assert.equal(isOperationName(name), false, name);
       assert.throws(
         () => client.__storeFunctionName({ name }),
         /Snapback function name must match/u,

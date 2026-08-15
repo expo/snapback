@@ -1305,6 +1305,8 @@ export async function runExpoDev(options = {}) {
   let closePromise = null;
   let closeSupervisor = null;
   let supervisorDescriptorFile = null;
+  const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
+  let rotateBindingAfterLoad = () => null;
   try {
     const selectedDevice = resolveExpoDeviceSelection({ ...options, env: childEnv });
     const metroPort = options.metroPort ?? await freeLoopbackPort();
@@ -1328,7 +1330,9 @@ export async function runExpoDev(options = {}) {
       watch: true,
       serverStdio: options.serverStdio ?? ['ignore', 'ignore', 'ignore'],
       onEvent(event) {
+        const bindingRotation = rotateBindingAfterLoad(event);
         emit({ ok: event.ok !== false, state: 'backend-event', backend: event });
+        if (bindingRotation !== null) emit(bindingRotation);
       },
       onServerExit(code, signal) {
         if (closed) return;
@@ -1351,7 +1355,6 @@ export async function runExpoDev(options = {}) {
         { host: backendRoute.host, port: backendRoute.port },
       );
     }
-    const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
     let descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
     const readyDescriptor = readReadyDescriptor(dev.readyFile);
     const mintAndSwapAuthority = (email, { emitReplacement = true } = {}) => {
@@ -1538,6 +1541,34 @@ export async function runExpoDev(options = {}) {
       now: options.now?.() ?? Date.now(),
       ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
     });
+    // @ref LLP 0241#d6-development-commands-share-one-recovery-model —
+    // generated-and-loaded is the compatible-cut boundary: only then may the
+    // supervisor expose a binding for the successor descriptor identity.
+    // @ref LLP 0181#appbinding-v1 — the binding remint keeps the supervised
+    // route/provenance but must carry the exact newly imported descriptor.
+    rotateBindingAfterLoad = (event) => {
+      if (closed || event?.ok !== true || event.state !== 'generated-and-loaded') return null;
+      const successor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
+      if (successor.identity.descriptor === descriptor.identity.descriptor) return null;
+      const previousDescriptorIdentity = descriptor.identity.descriptor;
+      descriptor = successor;
+      binding = bindingFromDescriptor({
+        descriptor,
+        origin: appOrigin(route.appHost, backendRoute.port),
+        routing: route.bindingRouting,
+        generation,
+        now: options.now?.() ?? Date.now(),
+        ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
+      });
+      return {
+        ok: true,
+        state: 'binding-rotated',
+        changed: event.changed ?? null,
+        previousDescriptorIdentity,
+        descriptorIdentity: descriptor.identity.descriptor,
+        binding: publicBinding(binding),
+      };
+    };
     metro = startMetro({
       command: options.metroCommand,
       directory: expoDirectory,

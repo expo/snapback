@@ -13,5 +13,5 @@
     "strict": true,
     "target": "ES2022"
   },
-  "include": ["contracts.ts", "schema.ts", "todos.ts", "_generated/*.d.ts"]
+  "include": ["contracts.ts", "schema.ts", "todos.ts", "generated/*.d.ts"]
 }

@@ -26,3 +26,12 @@ Make the admission validator tolerant of (or explicitly aware of)
 freshly generated descriptor from each authoring profile at the same
 version. This is the same class of drift the package-closure work exists to
 prevent; worth a gate, not just a fix.
+
+## Resolution
+
+Resolved 2026-08-15. Expo descriptor admission now accepts and validates the
+closed `authoringProfile` union emitted by codegen, and the public descriptor
+type names the same field. `packages/snapback-expo/app-binding.test.mjs` is the
+cross-package drift gate: it verifies matching package versions, freshly
+generates explicit and Familiar descriptors, and admits both without
+projecting away any descriptor keys.

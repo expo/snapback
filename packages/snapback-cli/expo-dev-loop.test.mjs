@@ -24,6 +24,7 @@ import {
   observeSnapbackPresence,
   observeSnapbackQueries,
   observeSnapbackSurface,
+  invokeSnapbackMutation,
 } from '@expo/snapback-react';
 
 import {
@@ -599,6 +600,96 @@ try {
     () => query.snapshot().queries.rows.data.some((row) => row.body === secondBody),
     { label: 'successor ordinary mutation observation' },
   );
+
+  // A source edit rotates the generated descriptor while this supervisor and
+  // backend process stay alive. The bootstrap exchange must immediately carry
+  // the reminted binding, and that exact successor digest must be callable.
+  const functionsPath = join(settled.backendRoot, 'functions.mjs');
+  const predecessorFunctions = readFileSync(functionsPath, 'utf8');
+  const predecessorDescriptorIdentity = supervisor.binding.descriptorIdentity;
+  const predecessorBackendPid = JSON.parse(readFileSync(settled.readyFile, 'utf8')).pid;
+  const rotationEventStart = events.length;
+  const successorFunctions = predecessorFunctions
+    .replace(
+      'export const publishLiveRow = defineJsMutation({',
+      'export const publishLiveRowAfterReload = defineJsMutation({',
+    )
+    .replace(
+      'mutations: { publish: bind(publishLiveRow,',
+      'mutations: { publish: bind(publishLiveRowAfterReload,',
+    );
+  assert.notEqual(successorFunctions, predecessorFunctions);
+  writeFileSync(functionsPath, successorFunctions);
+  const rotated = await eventually(
+    () => {
+      const successorEvents = events.slice(rotationEventStart);
+      const event = successorEvents.find((candidate) => candidate.state === 'binding-rotated');
+      if (event) return event;
+      const failed = successorEvents.find((candidate) => (
+        candidate.state === 'backend-event'
+        && ['generation-failed', 'generated-but-not-loaded'].includes(candidate.backend?.state)
+      ));
+      if (failed) throw new Error(JSON.stringify(failed));
+      return false;
+    },
+    { timeoutMs: 60_000, label: 'supervised binding rotation after functions edit' },
+  );
+  assert.match(rotated.changed, /functions\.mjs$/u);
+  assert.equal(rotated.previousDescriptorIdentity, predecessorDescriptorIdentity);
+  assert.notEqual(rotated.descriptorIdentity, predecessorDescriptorIdentity);
+  assert.equal(JSON.parse(readFileSync(settled.readyFile, 'utf8')).pid, predecessorBackendPid);
+  const successorExchange = await (
+    await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
+  ).json();
+  assert.equal(successorExchange.binding.descriptorIdentity, rotated.descriptorIdentity);
+  assert.equal(successorExchange.binding.provenance.supervisorGeneration, supervisor.supervisorGeneration);
+  const successorApp = JSON.parse(readFileSync(
+    join(settled.backendRoot, 'generated', 'app.descriptor.json'),
+    'utf8',
+  ));
+  const successorGenerated = await import(
+    `${pathToFileURL(join(settled.backendRoot, 'generated', 'api.mjs')).href}?hot=${Date.now()}`
+  );
+  const successorState = appStateHarness();
+  const successorBoot = createSnapbackExpoBoot({
+    app: successorApp,
+    environment: createSupervisedExpoEnvironment({
+      exchangeOrigin: supervisor.exchangeOrigin,
+      appState: successorState,
+      clientOptions: {
+        rqsStore: null,
+        offlineQueue: false,
+        clientStoreId: 'expo-e1-hot-successor',
+      },
+    }),
+  });
+  const successorReady = await successorBoot.start();
+  assert.equal(successorReady.status, 'ready');
+  assert.equal(successorReady.binding.descriptorIdentity, rotated.descriptorIdentity);
+  const successorProvider = successorBoot.reactProvider();
+  const successorQuery = observeSnapbackQueries(
+    successorProvider,
+    { rows: { ref: successorGenerated.default.liveRows, args: {} } },
+    () => {},
+  );
+  await eventually(
+    () => successorQuery.snapshot().queries.rows.status === 'ready',
+    { label: 'successor descriptor live query ready' },
+  );
+  const hotBody = `expo-e1-hot-${process.pid}`;
+  await invokeSnapbackMutation(
+    successorProvider,
+    successorGenerated.default.publishLiveRowAfterReload,
+    { body: hotBody },
+  );
+  await eventually(
+    () => successorQuery.snapshot().queries.rows.data.some((row) => row.body === hotBody),
+    { label: 'new descriptor digest callable without supervisor restart' },
+  );
+  successorQuery.dispose();
+  await successorBoot.dispose();
+  assert.equal(successorState.count(), 0);
+
   assert(queryStates.length > 0, 'live-query projections must reach the fixture');
   assert(surfaceStates.length > 0, 'surface projections must reach the fixture');
   assert(presenceStates.length > 0, 'presence projections must reach the fixture');

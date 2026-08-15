@@ -50,6 +50,8 @@
     "mutation-output.mjs",
     "online-surface.d.mts",
     "online-surface.mjs",
+    "operation-name.d.mts",
+    "operation-name.mjs",
     "package-export-path.mjs",
     "query-authorization.d.mts",
     "query-authorization.mjs",
@@ -110,6 +112,10 @@
     "./online-surface": {
       "types": "./online-surface.d.mts",
       "default": "./online-surface.mjs"
+    },
+    "./operation-name": {
+      "types": "./operation-name.d.mts",
+      "default": "./operation-name.mjs"
     },
     "./client-store": {
       "types": "./client-store.d.mts",

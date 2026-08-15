@@ -31,3 +31,14 @@ Pick one canonical directory name across codegen and the CLI dev path (and
 admission/build tooling), and make the other spelling a hard, explanatory
 error rather than a silently different location. Add a regression test that
 runs familiar codegen and then boots `snapback dev` against the same tree.
+
+## Resolution
+
+Resolved 2026-08-15. `snapback/generated/` is now the sole output and
+admission directory for explicit and Familiar authoring. Codegen, retired
+Familiar imports, and direct CLI generated-graph loading refuse an
+`_generated/` directory or symlink with a structured diagnostic, so no alias
+can enter the watcher graph. `packages/snapback-cli/familiar-dev-loop.test.mjs`
+generates a fresh Familiar tree, boots the real `snapback dev` runtime from
+that same tree, and proves the retired symlink is refused; the direct loader
+refusal is covered by `packages/snapback-cli/load-generated.test.mjs`.

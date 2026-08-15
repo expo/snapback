@@ -14,6 +14,10 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // visible review decision.
 export const AUTHORING_PROFILE_READ_ALLOWLIST = Object.freeze([
   Object.freeze({
+    path: 'packages/snapback-client/index.d.mts',
+    category: 'client-descriptor-custody-type',
+  }),
+  Object.freeze({
     path: 'packages/snapback-client/reference-kinds.mjs',
     category: 'client-profile-admission',
   }),

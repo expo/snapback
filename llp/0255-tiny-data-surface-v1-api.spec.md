@@ -7,6 +7,9 @@ Code generation, Client SDK, React, Local sync, Offline sync, Authorization,
 Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-13
+**Revised:** 2026-08-15 (artifact-directory correction: LLP 0253 r4 makes
+`snapback/generated/` canonical for explicit and Familiar profiles, including
+the generated data doorway and API namespace.)
 **Revised:** 2026-08-13 (r9, commissioned-round revision: the cursor
 `lastKey` redefined as the ordered vector of the complete effective
 order — every post-prefix index field in plan order, then `_id`, with
@@ -1572,7 +1575,7 @@ const db = createDataClient({ client, data });
 import { db } from "@expo/snapback/react/data";
 ```
 
-Familiar uses `./snapback/_generated/data.mjs`. Generated `data.mjs` holds
+Familiar also uses `./snapback/generated/data.mjs`. Generated `data.mjs` holds
 witnesses/references; `data.d.ts` supplies schema typestate/results, never
 policy execution. The existing provider supplies client, generation, auth and
 store. A mismatched React binding throws `SNAPBACK_DATA_BINDING_REQUIRED` with
@@ -1632,8 +1635,9 @@ terminal settlement; promotion never rewrites them. Demotion is unsupported.
 LLP 0252 D1's one selected profile, single canonical/runtime pipeline, and no
 runtime profile branch are preserved. Explicit/familiar discovery, dotted
 names/collision checks, profile-branded references/envelopes, and
-`generated/` versus `_generated/` remain; only normalized data cores exclude
-profile custody. Zero data resources wholly omit the addition.
+the one canonical `generated/` directory remains profile-neutral; only
+normalized data cores exclude profile custody. Zero data resources wholly
+omit the addition.
 
 LLP 0253 Appendix A is disposed field-completely:
 
@@ -1834,7 +1838,7 @@ export const create = mutation({ args:{title:v.string(),completed:v.boolean()},
 
 // TodoList.tsx
 import { useMutation, useQuery } from "@expo/snapback/react";
-import { api } from "./snapback/_generated/api.mjs";
+import { api } from "./snapback/generated/api.mjs";
 const todos = useQuery(api.todos.list, {});
 const createTodo = useMutation(api.todos.create);
 const add = (title:string) => createTodo({title,completed:false});

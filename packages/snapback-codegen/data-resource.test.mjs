@@ -45,7 +45,7 @@ function familiarFixture(schemaBody, { dataSync } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'snapback-data-resource-familiar-'));
   roots.push(root);
   writeFileSync(join(root, 'schema.ts'), `
-import { defineSchema, defineTable, v } from './_generated/server';
+import { defineSchema, defineTable, v } from './generated/server';
 ${schemaBody}
 `);
   writeFileSync(join(root, 'codegen.policy.json'), JSON.stringify({

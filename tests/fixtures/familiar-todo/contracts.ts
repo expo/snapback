@@ -1,3 +1,3 @@
-import { v } from "./_generated/server";
+import { v } from "./generated/server";
 
 export const titleValidator: ReturnType<typeof v.string> = v.string();

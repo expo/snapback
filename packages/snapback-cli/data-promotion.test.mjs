@@ -39,7 +39,7 @@ function familiarFixture() {
   const root = mkdtempSync(join(tmpdir(), 'snapback-data-promotion-familiar-'));
   roots.push(root);
   writeFileSync(join(root, 'schema.ts'), `
-import { defineSchema, defineTable, v } from './_generated/server';
+import { defineSchema, defineTable, v } from './generated/server';
 export default defineSchema({
   todos: defineTable({
     ownerId: v.principal(), title: v.string(), createdAt: v.integer(),

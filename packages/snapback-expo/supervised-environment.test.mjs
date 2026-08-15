@@ -9,6 +9,7 @@ import {
 
 const app = Object.freeze({
   format: 'snapback.app.v1',
+  authoringProfile: 'snapback-explicit-v1',
   identity: Object.freeze({
     app: 'expo-supervised-test',
     schema: 'sha256:schema',

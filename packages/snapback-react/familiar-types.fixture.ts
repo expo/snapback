@@ -5,7 +5,7 @@ import type {
 import type {
   FunctionReference as FamiliarFunctionReference,
   GeneratedApi as FamiliarGeneratedApi,
-} from '../../tests/fixtures/familiar-todo/_generated/api.d.ts';
+} from '../../tests/fixtures/familiar-todo/generated/api.d.ts';
 import { skip, useAction, useMutation, useQuery, useQueryState } from './familiar.mjs';
 import { useSnapbackQuery } from './index.mjs';
 

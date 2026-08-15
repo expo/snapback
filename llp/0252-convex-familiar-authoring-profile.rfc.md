@@ -7,6 +7,10 @@ TypeScript, Code generation, React, Client integration, Competitive evaluation,
 Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Codex / Claude
 **Date:** 2026-08-12
+**Revised:** 2026-08-15 (implementation correction: LLP 0253 r4 unifies
+Familiar and explicit generated artifacts under `snapback/generated/`; the
+Convex `_generated` spelling is deliberately not retained because a second
+path conflicts with the packaged dev watcher and artifact admission.)
 **Revised:** 2026-08-13 (accepted: author build directive of 2026-08-13 ratified the r5 pins (runMutation-only action seam, closed skip set, callback-withIndex no-drop lowering) and accepted the RFC; the v1 API is specified by LLP 0253 and implementation proceeds under it. r5: post-loop Grok-review repairs — familiar
 action seam pinned to `ctx.runMutation` only (no invented `runQuery` host
 op), skip second argument closed as `Args | "skip" | typeof skip` over the
@@ -297,7 +301,7 @@ export default defineSchema({
 
 ```ts
 // snapback/todos.ts
-import { query, mutation } from "./_generated/server";
+import { query, mutation } from "./generated/server";
 import { v } from "@expo/snapback/values";
 
 export const list = query({
@@ -459,7 +463,7 @@ import {
   useMutation,
   useAction,
 } from "@expo/snapback/react";
-import { api } from "../snapback/_generated/api";
+import { api } from "../snapback/generated/api";
 
 const todos = useQuery(api.todos.list, {});
 const create = useMutation(api.todos.create);

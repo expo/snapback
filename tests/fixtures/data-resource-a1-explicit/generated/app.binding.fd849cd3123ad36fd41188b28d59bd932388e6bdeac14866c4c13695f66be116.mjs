@@ -16,14 +16,5 @@ for (const surface of Object.values(hydratedDescriptor.surfaces)) { for (const m
 Object.defineProperty(hydratedDescriptor, 'data', { value: generatedData, enumerable: false });
 /** @type {import('./app.d.ts').GeneratedAppDescriptorV1} */
 export const app = deepFreeze(hydratedDescriptor);
-const __snapbackTodosList = app.api.queries["todos.list"];
-export { __snapbackTodosList as "todos.list" };
-const __snapbackTodosGet = app.api.queries["todos.get"];
-export { __snapbackTodosGet as "todos.get" };
-const __snapbackTodosCreate = app.api.mutations["todos.create"];
-export { __snapbackTodosCreate as "todos.create" };
-const __snapbackTodosUpdate = app.api.mutations["todos.update"];
-export { __snapbackTodosUpdate as "todos.update" };
-const __snapbackTodosDelete = app.api.mutations["todos.delete"];
-export { __snapbackTodosDelete as "todos.delete" };
+
 export default app;

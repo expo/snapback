@@ -271,6 +271,6 @@ export interface GeneratedAssetUploadDefaults {
 }
 export declare const defaults: GeneratedAssetUploadDefaults;
 export declare const api: GeneratedApi;
-export { app, "todos.list", "todos.get", "todos.create", "todos.update", "todos.delete" } from './app';
+export { app } from './app';
 export type { AppDescriptorV1, CapabilityRequirement, CommandDescriptor, GeneratedAppDescriptorV1, SurfaceDescriptor } from './app';
 export default api;

@@ -5,7 +5,7 @@
   ],
   "appId": "fixtures",
   "artifactKind": "functionManifest",
-  "authoredSourceHash": "sha256:db3ea636a08ef3a155b721a8c5b900a6bf1c174a64c64002a242b5a258771234",
+  "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
   "authoringProfile": "snapback-familiar-ts-v1",
   "bundleHash": "sha256:54d26e37593c256c",
   "config": [],
@@ -897,7 +897,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "63fd2c4323aacc262950643fe4a088111b23a925da0473f492bc6d62e7a31e06",
+  "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

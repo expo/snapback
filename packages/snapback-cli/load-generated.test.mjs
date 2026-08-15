@@ -130,6 +130,28 @@ try {
   }
 
   {
+    const projectRoot = join(root, 'retired-generated-directory');
+    const backendRoot = join(projectRoot, 'snapback');
+    mkdirSync(join(backendRoot, '_generated'), { recursive: true });
+    await assert.rejects(
+      loadGenerated(
+        join(projectRoot, 'unused-runtime'),
+        projectRoot,
+        backendRoot,
+        join(projectRoot, '.snapback', 'dev.ready.json'),
+        null,
+      ),
+      (error) => {
+        assert.equal(error.code, 'SNAPBACK_CODEGEN_LEGACY_GENERATED_DIRECTORY');
+        assert.equal(error.diagnostic.details.path, join(backendRoot, '_generated'));
+        assert.equal(error.diagnostic.details.canonicalPath, join(backendRoot, 'generated'));
+        assert.equal(error.diagnostic.details.reason, 'one-generated-directory-no-watcher-aliases');
+        return true;
+      },
+    );
+  }
+
+  {
     const projectRoot = join(root, 'dev-routes');
     const backendRoot = join(projectRoot, 'snapback');
     const readyFile = join(projectRoot, '.snapback', 'dev.ready.json');

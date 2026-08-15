@@ -14,6 +14,10 @@ const CAPABILITY_KEYS = ['offered'];
 const DEV_PROVENANCE_KEYS = ['expiresAt', 'issuedAt', 'supervisorGeneration'];
 const RELEASE_PROVENANCE_KEYS = ['buildReceipt', 'environment', 'releaseChannel'];
 const SUPERVISED_ISSUANCE_CLOCK_SKEW_MS = 60_000;
+const AUTHORING_PROFILES = new Set([
+  'snapback-explicit-v1',
+  'snapback-familiar-ts-v1',
+]);
 
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -305,11 +309,13 @@ export function validateAppBindingV1(candidate) {
 }
 
 function assertDescriptorV1(app) {
-  const rootKeys = ['api', 'capabilities', 'commands', 'format', 'identity', 'surfaces'];
+  const rootKeys = ['api', 'authoringProfile', 'capabilities', 'commands', 'format', 'identity', 'surfaces'];
+  const legacyRootKeys = ['api', 'capabilities', 'commands', 'format', 'identity', 'surfaces'];
   const identityKeys = ['app', 'descriptor', 'functions', 'schema'];
   if (
-    !exactKeys(app, rootKeys)
+    (!exactKeys(app, rootKeys) && !exactKeys(app, legacyRootKeys))
     || app.format !== 'snapback.app.v1'
+    || (Object.hasOwn(app, 'authoringProfile') && !AUTHORING_PROFILES.has(app.authoringProfile))
     || !exactKeys(app.identity, identityKeys)
     || identityKeys.some((key) => !nonEmptyString(app.identity[key]))
     || !isRecord(app.capabilities)

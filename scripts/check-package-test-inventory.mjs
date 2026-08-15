@@ -71,6 +71,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'expo-dev-loop.test.mjs',
       'expo-metro-watch-advisory.test.mjs',
       'fake-expo-push.test.mjs',
+      'familiar-dev-loop.test.mjs',
       'generate-check.test.mjs',
       'hosted-admission-producer.test.mjs',
       'hosted-control.test.mjs',
@@ -501,7 +502,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 283,
+  expectedTotal = 284,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -889,6 +890,8 @@ export function checkPackageTestInventories(options = {}) {
 // gains handle, custody, real-store crash-cut, and pendingWrites coverage.
 // 281 -> 283 (2026-08-14, LLP 0254 Phase 4): @expo/snapback-react gains the
 // provider/skip/binding doorway and one-owner architecture-negative suites.
+// 283 -> 284 (2026-08-15, LLP 0253 r4): @expo/snapback-cli gains the Familiar
+// codegen-to-dev-loop canonical generated-directory acceptance proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

@@ -42,3 +42,16 @@ namespace object) for every module the client tuple imports; add the shipped
 Expo tuple's bundler to codegen CI as a parse gate. Unify the operation-name
 grammar between codegen validation and client admission, with a shared
 conformance test enumerating accepted/refused spellings.
+
+## Resolution
+
+Resolved 2026-08-15. Client-consumed generated modules now expose dotted
+operations through descriptor/API namespace objects and emit only identifier
+ESM exports. `packages/snapback-codegen/familiar-phase-b.test.mjs` runs the
+Expo 57 package closure's installed Metro/Hermes transformer over every
+emitted `.mjs` for fresh explicit and Familiar graphs. The canonical `IDENT`
+or `IDENT.IDENT` operation grammar now lives in
+`@expo/snapback-contract/operation-name` and is imported by codegen and the
+canonical client; `packages/snapback-client/reference-kind.test.mjs`
+enumerates accepted and refused spellings and proves every accepted name
+passes client admission.

@@ -1,4 +1,4 @@
-import { defineSchema, defineTable, v } from "./_generated/server";
+import { defineSchema, defineTable, v } from "./generated/server";
 
 export default defineSchema({
   todos: defineTable({

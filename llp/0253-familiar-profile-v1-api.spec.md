@@ -6,6 +6,13 @@
 Code generation, React, Client integration, Packaging, Documentation, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-13
+**Revised:** 2026-08-15 (r4: unified both authoring profiles on the canonical
+`snapback/generated/` artifact directory; retired `_generated/` as a hard
+diagnostic including symlinks and imports; centralized the one-segment or
+`IDENT.IDENT` operation grammar across codegen and the canonical client;
+replaced dotted ESM aliases in client-consumed output with namespace access;
+and bound both-profile descriptor admission plus the Expo 57 Metro/Hermes
+parse gate into cross-package contract tests.)
 **Revised:** 2026-08-13 (r3: dual delta-review repairs — the S4.3 query
 lowering is a true partition (bounded record arrays pinned to
 `{minItems: 0, maxItems}` as exact translation; record-union and 1-tuple
@@ -193,7 +200,7 @@ snapback/
   <module>.ts          (top-level .ts/.mts modules: function or helper)
   seed.json            (optional, unchanged)
   codegen.policy.json  (profile selection, committed projections)
-  _generated/          (codegen output; never authored)
+  generated/           (codegen output; never authored)
 ```
 
 Rules:
@@ -229,21 +236,23 @@ Rules:
    for familiar generations. The bundler's fail-closed import policy is
    unchanged; the familiar import allowlist adds `@expo/snapback/server`
    and `@expo/snapback/values` (S3.1) plus the generated-local
-   `./_generated/server` specifier.
+   `./generated/server` specifier.
 5. **First-generation bootstrap.** Because the learned import
-   `from "./_generated/server"` must work on a clean checkout, generation
-   synthesizes the `_generated/server.{mjs,d.ts}` module (S3.2) **before**
+   `from "./generated/server"` must work on a clean checkout, generation
+   synthesizes the `generated/server.{mjs,d.ts}` module (S3.2) **before**
    definition evaluation when it is absent or stale; the definition bundle
-   resolves against the synthesized file. A missing `_generated/` is never
+   resolves against the synthesized file. A missing `generated/` is never
    a refusal for the first generate.
 6. **Inline handlers.** Familiar `handler:` closures are inline by design;
    the existing `extractInlineHandlers` lift applies after TS erasure, so
    handler custody, source maps, and the bounded handler graph work
    identically to the explicit JS-handler forms.
-7. **Output.** Familiar generations write to `_generated/` (the learned
-   Convex location) instead of `generated/`. The artifact set is identical
-   to the explicit profile's, plus `server.{mjs,d.ts}` and the
-   familiar-shaped `api.{mjs,d.ts}` namespace projection (S5.1).
+7. **Output.** Both profiles write exactly one graph to `generated/`.
+   `_generated/` is a retired spelling: a directory, symlink, or Familiar
+   import using it refuses with a stable explanatory diagnostic. A symlink
+   compatibility bridge is forbidden because it creates two watcher-visible
+   paths for one graph. The Familiar artifact set adds `server.{mjs,d.ts}`
+   and the familiar-shaped `api.{mjs,d.ts}` namespace projection (S5.1).
 
 ## S3. Package shape (resolves LLP 0252 OQ1)
 
@@ -268,13 +277,13 @@ recorded in the LLP 0252 D7 maintenance ledger.
 
 ### S3.2 Generated local modules
 
-- `_generated/server.{mjs,d.ts}` re-exports `query`, `mutation`, `action`
+- `generated/server.{mjs,d.ts}` re-exports `query`, `mutation`, `action`
   bound to the application's schema types (typed `ctx.db`, typed
   `v.doc`/`v.id` table names). It exists so the learned import
-  `import { query, mutation } from "./_generated/server"` works verbatim
+  `import { query, mutation } from "./generated/server"` works verbatim
   and carries app-typed generics; it contains no logic beyond typed
   re-export, and S2 rule 5 governs its bootstrap.
-- `_generated/api.{mjs,d.ts}` exports the namespaced `api` object (S5.1).
+- `generated/api.{mjs,d.ts}` exports the namespaced `api` object (S5.1).
 
 ## S4. Familiar server grammar and lowering
 
@@ -400,12 +409,12 @@ accepted source carries the declaration (LLP 0252 D2).
 
   **The composition seam and generated-reference capture.** The learned
   spelling is `ctx.runMutation(api.x.y, args)` with `api` imported from
-  `./_generated/api`. The shipped inline-handler lift refuses free
+  `./generated/api`. The shipped inline-handler lift refuses free
   top-level identifiers (`SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER`), so an
   imported `api` binding cannot flow into the extracted handler graph
   unspecified. The familiar adapter therefore performs **custody-bound
   reference capture before inline extraction**: member expressions rooted
-  at the module's `./_generated/api` import binding are statically
+  at the module's `./generated/api` import binding are statically
   resolved to their nominal operation names and rewritten to generated
   frozen marker literals. The marker digest is the deterministic
   capability-empty bootstrap API projection's content digest — not the
@@ -459,7 +468,7 @@ familiar table is live-capable without ceremony. Generated JSDoc for a
 
 ### S5.1 The `api` namespace
 
-`_generated/api.mjs` exports `api` with one property per module, one per
+`generated/api.mjs` exports `api` with one property per module, one per
 export: `api.todos.list`, deep-frozen, backed by the same
 `FunctionReference` records the explicit profile emits (nominal ids, not
 string paths — LLP 0252 D2). Group/ephemeral/asset members keep their
@@ -472,10 +481,17 @@ vocabulary.
 grammar extends to admit names of the form `IDENT.IDENT` (exactly one
 dot) for every profile, alongside the existing single-IDENT names:
 
-- name validation admits the dotted form; every emitter that renders names
-  as TypeScript members quotes non-IDENT names; the Rust lookup is already
-  name-agnostic (Ground truth 1). Phase B audits the functionId consumers
-  and lands the quoting sweep.
+- one shared definition in `@expo/snapback-contract/operation-name` admits
+  the dotted form for codegen and the canonical client. A conformance table
+  enumerates accepted and refused spellings, so a name that generates is
+  callable and profile-specific client leaf allowlists cannot drift.
+- Client-consumed JavaScript exports only plain identifiers. Dotted operations
+  remain addressable through the generated namespace (`api.todos.list` for
+  Familiar, `api["todos.list"]` / `app.api.queries["todos.list"]` for the
+  canonical descriptor). Generated type members use quoted object keys where
+  legal; no client-consumed ESM export clause carries a string alias. The
+  Expo 57 package closure runs its shipped Metro/Hermes transformer over every
+  emitted `.mjs` for both profiles.
 - The **explicit profile can spell dotted names via ES2022 string export
   names**: `export { listImpl as "todos.list" }` in `functions.mjs`. This
   is a small explicit-grammar extension owned by this Spec; it is what
@@ -574,6 +590,14 @@ Familiar client aliases admit references via the existing
 refusing `SNAPBACK_CLIENT_REFERENCE_PROFILE_MISMATCH` before any resource
 or transport work (LLP 0252 Acceptance 2). Canonical hooks and verbs
 accept both profiles (the sanctioned reverse direction, D1/D5).
+
+`AppDescriptorV1.authoringProfile` is a required closed-union field on current
+generated descriptors, not an emitter-only annotation. Expo admission validates
+exactly the two S1 values when the field is present and retains one explicit
+legacy descriptor shape without the field; no unknown value is tolerated. The
+Expo/codegen cross-package gate freshly generates and admits one descriptor
+from each profile at the same package version, preventing the current emitter
+and admission schema from drifting independently.
 
 ### S5.4 The no-branch gate
 
@@ -734,13 +758,13 @@ for bundled-facade runtime, client family for admission):
   changes); the no-branch gate. All landable before any familiar source
   parses.
 - **Phase B (0252 Phase 1):** dotted-name admission + the full
-  name-emission sweep (quoted members where legal, bracket property
-  access, ES2022 string re-exports, deterministic safe local bindings for
-  generated declarations that cannot carry a dotted name, string-alias-
+  name-emission sweep (quoted object members where legal, bracket property
+  access, namespace projection instead of client-facing string re-exports,
+  deterministic safe local bindings for generated declarations, string-alias-
   aware inline attribution, and pascal-case collision detection refusing
   `SNAPBACK_CODEGEN_FAMILIAR_NAME_COLLISION`) + string export names;
   discovery + TS definition modules + familiar
-  constructors + lowerings (S4) + `_generated/server`/`api` emission +
+  constructors + lowerings (S4) + `generated/server`/`api` emission +
   reference facts + refusal codes + the equivalence proof: the todo app
   authored in both profiles with equal `normalizedContractId` for the
   intended-equal facts (names included, via string export names) and

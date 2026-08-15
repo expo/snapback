@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/review-surface.test.mjs, packages/snapback-
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-13
-reviewed-authorities-digest: sha256:9b290526df1e485e0c4a2818c3b4f4a0d3060a88b5526911e8faeac8e0de8163
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:88e5be1e178a53be282e824c2f4d83697cba481474c140c0fa180880c2fe48ca
 ---
 
 # Generated artifact custody and review
@@ -162,9 +162,16 @@ graph untouched when policy validation fails.
 Select `"snapback-familiar-ts-v1"` only in `codegen.policy.json`. A familiar
 backend has a required top-level `schema.ts`, top-level function modules such
 as `todos.ts`, optional helper modules, and generated imports under
-`_generated/`. On a clean checkout, codegen synthesizes `_generated/server`
-and `_generated/api` before it evaluates definitions, so imports from those
+`generated/`. On a clean checkout, codegen synthesizes `generated/server`
+and `generated/api` before it evaluates definitions, so imports from those
 modules work on the first generation.
+
+`snapback/generated/` is the one canonical artifact directory for both
+profiles, the CLI dev loop, and client/build admission. Do not create an
+`_generated/` compatibility directory or symlink: codegen refuses either form
+with `SNAPBACK_CODEGEN_LEGACY_GENERATED_DIRECTORY`, and refuses retired source
+imports with `SNAPBACK_CODEGEN_LEGACY_GENERATED_IMPORT`. Two filesystem names
+for one graph would also turn generated writes into watch inputs.
 
 The constructors are `query`, `mutation`, and `action`. Every function must
 declare `args`, `returns`, `auth`, and `handler`. Queries also declare `reads`;
@@ -184,6 +191,15 @@ and supply the default `retention` fact at binding time. Only non-default
 retention is serialized per reference. `normalized-definition.v1.json`
 deliberately excludes the source profile so equivalent definitions can compare
 equal without erasing the profile from semantic and generation identity.
+Client-consumed generated JavaScript does not re-export dotted names as string
+ESM aliases. Consume them through `api.todos.list`, `api["todos.list"]`, or
+`app.api.queries["todos.list"]`; those namespace forms pass the shipped Expo
+57 Metro/Hermes transformer. Codegen and the canonical client import the same
+operation-name grammar, so every generated `IDENT` or `IDENT.IDENT` name is
+callable. Current descriptors require the app-level `authoringProfile`; Expo
+validates its closed values while retaining the field-less legacy descriptor
+shape. A cross-package contract gate freshly generates and admits both profiles
+at the same version.
 
 Familiar query/mutation handlers use the canonical context. The callback form
 of `withIndex` accepts only one `eq`/`in`/`lt`/`lte`/`gt`/`gte` chain and
@@ -196,6 +212,8 @@ explicit profile for other action host effects or declarative plans.
 
 | Code | Repair |
 | --- | --- |
+| `SNAPBACK_CODEGEN_LEGACY_GENERATED_DIRECTORY` | Remove the `_generated/` directory or symlink and use only `snapback/generated/`. |
+| `SNAPBACK_CODEGEN_LEGACY_GENERATED_IMPORT` | Change Familiar imports from `./_generated/{server,api}` to `./generated/{server,api}`. |
 | `SNAPBACK_CODEGEN_FAMILIAR_EXPLICIT_SOURCE_PRESENT` | Remove `schema.mjs`, `functions.mjs`, and `routes.mjs`, or select the explicit profile. |
 | `SNAPBACK_CODEGEN_EXPLICIT_FAMILIAR_SOURCE_PRESENT` | Remove `schema.ts` and top-level familiar imports, or select the familiar profile. |
 | `SNAPBACK_CODEGEN_FAMILIAR_MODULE_PATH_UNSUPPORTED` | Keep function modules at the backend root; nested modules are helpers only. |

@@ -1,5 +1,5 @@
-import { action, mutation, query, v } from "./_generated/server";
-import { api } from "./_generated/api";
+import { action, mutation, query, v } from "./generated/server";
+import { api } from "./generated/api";
 import { titleValidator } from "./contracts";
 
 function createMutationReference() {

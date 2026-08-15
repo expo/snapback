@@ -30,6 +30,7 @@ const capabilityManifest = Object.freeze({
 });
 const app = Object.freeze({
   format: 'snapback.app.v1',
+  authoringProfile: 'snapback-explicit-v1',
   identity: Object.freeze({
     app: APP_ID,
     schema: 'sha256:supervised-offline-schema',
