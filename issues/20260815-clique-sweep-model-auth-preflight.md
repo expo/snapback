@@ -92,3 +92,32 @@ The exact operator procedure is in `~/clique-0121-20260814/RECOVERY.md`. The
 sweep was deliberately not restarted and no lane status was altered. Close this
 ticket once those two credentials are supplied and the sequencer has filled the
 14 missing cells.
+
+## Update 2026-08-15 (later) — grok resolved; one blocker left
+
+Re-ran `scripts/preflight.sh` after the author supplied credentials. All three
+model probes now pass live:
+
+```
+PASS model:claude-opus-5     live mini-completion returned READY
+PASS model:gpt-5.6-sol       live mini-completion returned READY
+PASS model:grok-4.6-build    live mini-completion returned READY
+FAIL provider:supabase-ddl   SUPABASE_DB_URL is absent or a placeholder and no
+                             SUPABASE_ACCESS_TOKEN/SUPABASE_MANAGEMENT_TOKEN
+                             plus project ref is available
+PREFLIGHT REFUSED: 1 problem(s); no lane may start
+```
+
+`~/.grok/auth.json` now exists, so the grok lanes are unblocked. The Supabase
+packet is the only remaining blocker: `SUPABASE_DB_URL` in
+`secrets/provider-secrets.md` is still the placeholder and no PAT / management
+token is present.
+
+A candidate credential exists at `~/Dropbox/APIKeys/supabase.txt` (113 bytes,
+mode 600) but could not be read: every content read of that directory returns
+`EINTR: interrupted system call`, including `ls`, which reports `total 0`.
+Metadata reads succeed, the Dropbox daemon is running, and `~/Dropbox` resolves
+to `~/Library/CloudStorage/Dropbox`. This is the macOS FileProvider returning
+interrupted reads for unmaterialized placeholders; 12 retries over 60 s did not
+hydrate it. The file must be materialized locally (open it once, or mark it
+available offline) before the packet can be populated.
