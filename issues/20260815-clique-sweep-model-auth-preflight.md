@@ -121,3 +121,39 @@ to `~/Library/CloudStorage/Dropbox`. This is the macOS FileProvider returning
 interrupted reads for unmaterialized placeholders; 12 retries over 60 s did not
 hydrate it. The file must be materialized locally (open it once, or mark it
 available offline) before the packet can be populated.
+
+## Update 2026-08-15 (final) — preflight fully green; launch deferred to the author
+
+The author supplied a Supabase personal access token via the repo's gitignored
+`.agent-local-secrets.md`, and it was written into
+`secrets/provider-secrets.md` as `SUPABASE_ACCESS_TOKEN` (mode 600, outside any
+git repository). The probe derives the project ref from the packet's existing
+`SUPABASE_URL`, so no separate ref was needed.
+
+All four preflight gates now pass:
+
+```
+PASS model:claude-opus-5     live mini-completion returned READY
+PASS model:gpt-5.6-sol       live mini-completion returned READY
+PASS model:grok-4.6-build    live mini-completion returned READY
+PASS provider:supabase-ddl   DDL probe created and dropped a table using the
+                             Supabase Management API
+preflight ok
+```
+
+`receipts/provider-supabase-ddl.json` records
+`attempted/created/dropped/ok = true` — a real round-trip that cleaned up after
+itself.
+
+**Both original credential blockers are therefore closed.** What remains is
+purely operational: 21 lanes have a terminal status, 7 succeeded, and the
+14 authentication-failed cells are still empty. The author elected not to
+launch the sequencer in this session, so that step is deliberately outstanding.
+
+To finish, run `./scripts/run-matrix.sh` per `RECOVERY.md` §4. **Run it from an
+ordinary interactive shell, not launchd** — RECOVERY.md §4 now carries the full
+warning and the evidence for it. The sequencer skips the 7 successful lanes,
+archives only recognized auth failures, and re-probes each model just before
+that model's first pending lane.
+
+Close this ticket once the 14 cells are filled.
