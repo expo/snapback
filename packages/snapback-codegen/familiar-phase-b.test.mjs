@@ -128,7 +128,7 @@ function mockQueryContext(rows, trace) {
   };
 }
 
-test('familiar returns lowering implements every r3 success row and total refusals', () => {
+test('familiar returns lowering preserves row shapes and admits exact scalar values', () => {
   const record = v.object({ title: v.string() });
   assert.deepEqual(lowerFamiliarReturns('query', v.array(v.doc('todos'))), {
     __resultContract: true,
@@ -148,6 +148,7 @@ test('familiar returns lowering implements every r3 success row and total refusa
     lowerFamiliarReturns('query', v.tuple([record])).rows,
     { minItems: 1, maxItems: 1 },
   );
+  assert.equal(lowerFamiliarReturns('query', record).kind, 'value');
   assert.equal(lowerFamiliarReturns('mutation', v.doc('todos')).kind, 'document');
   assert.equal(lowerFamiliarReturns('action', v.array(v.string())).kind, 'value');
 
@@ -155,21 +156,16 @@ test('familiar returns lowering implements every r3 success row and total refusa
     v.string(),
     v.id('todos'),
     v.doc('todos'),
-    v.object({ value: v.string() }),
     v.array(v.string()),
     v.array(v.id('todos')),
     v.array(v.doc('todos'), { maxItems: 1 }),
     v.tuple([v.doc('todos')]),
   ]) {
-    assert.throws(
-      () => lowerFamiliarReturns('query', validator),
-      ({ code }) => code === 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE',
-    );
+    assert.equal(lowerFamiliarReturns('query', validator).kind, 'value');
   }
-  assert.throws(
-    () => lowerFamiliarReturns('query', v.union([v.doc('todos'), v.null()])),
-    (error) => error.code === 'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE'
-      && /canonical queries are list-shaped/u.test(error.message),
+  assert.equal(
+    lowerFamiliarReturns('query', v.union([v.doc('todos'), v.null()])).kind,
+    'value',
   );
   assert.throws(
     () => lowerFamiliarReturns('mutation', v.array(v.doc('todos'))),

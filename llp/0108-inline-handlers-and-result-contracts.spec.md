@@ -5,6 +5,10 @@
 **Systems:** Authoring, Code generation, Runtime, Data API, Client integration, Contract, Security, Artifacts, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
+**Revised:** 2026-08-15 (single-value query egress: query/live-query
+declarations admit `results.document` and `results.value`; authored handlers
+return that value directly while the existing query/live transport carries it
+as exactly one internal row, and typed consumers project the value back out).
 **Revised:** 2026-08-08 (result-contract violations name the closed,
 value-free constraint and report aggregate bound measurements only); 2026-08-03
 (Accepted 2026-08-03 by the author — decision
@@ -360,13 +364,24 @@ an array of computed closed records. Those records contain exactly the declared
 properties. Codegen never invents `_id`, `_version`, `_createdAt`, or
 `_updatedAt`.
 
-`document(table)` is valid for mutation/action and validates one complete
-stored-document shape. It is the precise migration path for generated CRUD and
-other operations returning one row. `value(validator)` is valid for
-mutation/action and validates the direct returned value. Scalar queries are
-outside v1: the existing query/live wire remains the closed
-`{version, rows}` array protocol and `snapback.external-store.v1` does not
-change.
+`document(table)` validates one complete stored-document shape, and
+`value(validator)` validates one direct returned value. Both are valid for
+mutation/action and for query/live query. They are the precise result shape
+for generated CRUD, point reads, aggregates, and other operations returning
+one value rather than an authored list.
+
+### Query single-value egress — 2026-08-15
+
+Query and live-query transport remains the closed `{version, rows}` protocol,
+and the live-diff/external-store owners remain row-oriented. A query declared
+with `results.document` or `results.value` therefore places the authored
+handler value in **exactly one internal row**. Runtime result validation checks
+that one row against the declared single-value contract; zero or multiple
+internal rows are a contract violation. Typed query consumers project the row
+back to the authored value, so an object handler result is an object at the
+Familiar React surface rather than a one-element array. Row-shaped contracts
+(`documents`, `records`, and the legacy form) retain the array-only safety
+floor unchanged.
 
 The recursive v1 value vocabulary is:
 

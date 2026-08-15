@@ -104,10 +104,13 @@ and `Function` are refused during generation. The legacy
 cannot be mixed with `handler`. It also reads one closed script: same-file
 helpers work, while imports are refused with `BUNDLE_UNSUPPORTED_IMPORT`.
 
-Every JS query handler returns an **array of rows**, including point reads:
-return `[]` for missing or `[row]` for present. Returning a single object fails
-with `SNAPBACK_HANDLER_RESULT_INVALID`; the diagnostic names whether the
-declaration is a `query` or `live query` and includes its function id.
+Most JS query handlers return an **array of rows**. Point reads and computed
+aggregates may instead declare `results.document(...)` or
+`results.value(v.object({...}))` and return that single value directly. The
+query/live transport keeps one internal row for those declarations, while
+typed consumers project the authored object or scalar back out. Returning a
+single object under a row-shaped `results.documents`/`results.records`
+declaration still fails with `SNAPBACK_HANDLER_RESULT_INVALID`.
 
 Declare what that array contains:
 
@@ -115,6 +118,10 @@ Declare what that array contains:
   server-owned system fields and stored optional-field semantics.
 - `results.records(v.object({...}))` validates exact computed records and does
   not invent system fields.
+- `results.document('todos')` validates one stored document, while
+  `results.value(validator)` validates one direct point/aggregate value. For a
+  missing point read, include `v.null()` in the value validator and return
+  `null`.
 - `v.doc('todos')` references that same complete document shape from inside a
   result validator. For example,
   `results.records(v.object({ todo: v.doc('todos') }))` avoids respelling a

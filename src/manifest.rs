@@ -3773,7 +3773,9 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
                 FunctionKind::Query | FunctionKind::LiveQuery,
                 FunctionResultContract::Documents { .. }
                     | FunctionResultContract::Records { .. }
-                    | FunctionResultContract::LegacyQueryRowsV0 { .. },
+                    | FunctionResultContract::LegacyQueryRowsV0 { .. }
+                    | FunctionResultContract::Document { .. }
+                    | FunctionResultContract::Value { .. },
             )
             | (
                 FunctionKind::Mutation | FunctionKind::Action,
@@ -15780,6 +15782,23 @@ mod membership_manifest_grammar_tests {
         explicit_unknown.required_capabilities.clear();
         validate_result_contract_definition(&explicit_unknown)
             .expect("legacy manifests may omit the result contract identity");
+    }
+
+    #[test]
+    fn queries_admit_declared_single_value_result_contracts() {
+        let mut function = result_contract_function(FunctionResultContract::Value {
+            value: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "title".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 32 },
+                }],
+                allow_extra: false,
+            },
+        });
+        function.kind = FunctionKind::LiveQuery;
+        validate_result_contract_definition(&function)
+            .expect("a live query may declare one scalar object result");
     }
 
     #[test]

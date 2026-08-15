@@ -163,9 +163,10 @@ function unlowerable(kind, validator, route) {
   );
 }
 
-// @ref LLP 0253#s43-returns-lowering-kind-partitioned-refusing — the five
-// query rows and the two single-value rows below are exhaustive; everything
-// else reaches the one shape-specific refusal route.
+// @ref LLP 0253#s43-returns-lowering-kind-partitioned-refusing — Familiar
+// preserves the canonical row contracts where the authored shape is already
+// row-shaped and uses the canonical single-value query carrier for every
+// other exact v.* result.
 export function lowerFamiliarReturns(kind, validator) {
   if (!validator?.__validator) {
     unlowerable(kind, validator, 'declare returns with the familiar v.* grammar');
@@ -193,11 +194,7 @@ export function lowerFamiliarReturns(kind, validator) {
       && isClosedRecord(validator.elements[0])) {
       return results.records(validator.elements[0], { minItems: 1, maxItems: 1 });
     }
-    return unlowerable(
-      kind,
-      validator,
-      'use a list-shaped v.array/v.tuple success row or the explicit result: grammar',
-    );
+    return results.value(validator);
   }
   if (isDoc(validator)) {
     return results.document(validator.fieldType.AppSchemaRef.table);

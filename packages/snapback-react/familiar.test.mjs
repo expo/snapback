@@ -51,8 +51,23 @@ const resultContract = Object.freeze({
     allowExtra: false,
   }),
 });
+const scalarResultContract = Object.freeze({
+  kind: 'value',
+  value: Object.freeze({
+    kind: 'object',
+    fields: Object.freeze([
+      Object.freeze({ name: 'id', required: true, value: { kind: 'string', maxBytes: 64 } }),
+    ]),
+    allowExtra: false,
+  }),
+});
 
-const reference = (name, kind, authoringProfile = 'snapback-familiar-ts-v1') => Object.freeze({
+const reference = (
+  name,
+  kind,
+  authoringProfile = 'snapback-familiar-ts-v1',
+  contract = resultContract,
+) => Object.freeze({
   artifactKind: 'functionReference',
   schemaVersion: 'snapback.v0',
   appId: 'familiar-react-fixture',
@@ -65,11 +80,17 @@ const reference = (name, kind, authoringProfile = 'snapback-familiar-ts-v1') => 
   implementationHash: `sha256:${name}-implementation`,
   argsContractHash: `sha256:${name}-args`,
   argsContract: { fields: [] },
-  resultContractHash: resultContractHash(resultContract),
-  resultContract,
+  resultContractHash: resultContractHash(contract),
+  resultContract: contract,
 });
 
 const liveRef = reference('todos.list', 'LiveQuery');
+const scalarLiveRef = reference(
+  'todos.get',
+  'LiveQuery',
+  'snapback-familiar-ts-v1',
+  scalarResultContract,
+);
 const mutationRef = reference('todos.create', 'Mutation');
 const actionRef = reference('todos.rebuild', 'Action');
 const explicitLiveRef = reference('todos.explicit', 'LiveQuery', 'snapback-explicit-v1');
@@ -78,7 +99,7 @@ const functions = Object.freeze({
   schemaVersion: 'snapback.v0',
   appId: 'familiar-react-fixture',
   bundleHash: 'sha256:familiar-react-fixture-bundle',
-  functions: Object.freeze([liveRef, mutationRef, actionRef, explicitLiveRef]),
+  functions: Object.freeze([liveRef, scalarLiveRef, mutationRef, actionRef, explicitLiveRef]),
 });
 
 async function fixture() {
@@ -121,9 +142,12 @@ async function fixture() {
     },
     registerAuthBarrierParticipant() { return async () => {}; },
     liveStreamManager() { return { inspection: () => ({ socketDemand: 0 }) }; },
-    startLiveQuery(_ref, options) {
+    startLiveQuery(ref, options) {
       let disposed = false;
-      const current = { rows: currentRows, connection: 'live', retention: 'none' };
+      const rows = ref.id === scalarLiveRef.id
+        ? Object.freeze([Object.freeze({ id: 'todo-1' })])
+        : currentRows;
+      const current = { rows, connection: 'live', retention: 'none' };
       queueMicrotask(() => {
         if (!disposed) options.onUpdate?.(current.rows, {});
       });
@@ -411,6 +435,27 @@ test('cross-profile admission refuses before resources while canonical hooks adm
   assert.deepEqual(states.at(-1).data, currentRows);
   await act(async () => { renderer.unmount(); await flush(); });
   await canonicalProvider.dispose();
+});
+
+test('scalar familiar query contracts project the one internal row as one object', async () => {
+  const admitted = await fixture();
+  const provider = createSnapbackReactCoreProvider(admitted.provider.binding, {
+    connectionId: 'familiar-scalar-query',
+  });
+  const values = [];
+  const Probe = () => (values.push(useQuery(scalarLiveRef, {})), null);
+  let renderer;
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(
+      HookHost,
+      { provider },
+      React.createElement(Probe),
+    ));
+    await flush();
+  });
+  assert.deepEqual(values.at(-1), { id: 'todo-1' });
+  await act(async () => { renderer.unmount(); await flush(); });
+  await provider.dispose();
 });
 
 test('settled mutations use queue:false and harden pre-custody transport rejection', async () => {

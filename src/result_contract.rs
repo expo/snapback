@@ -104,6 +104,31 @@ pub fn validate_handler_result(function: &FunctionDefinition, value: &Value) -> 
     .map_err(|failure| violation(function, failure))
 }
 
+/// Query transport and live-diff machinery remain row-oriented. A declared
+/// single-value query therefore carries exactly one internal row, while its
+/// authored result contract still validates the scalar value itself.
+///
+/// @ref LLP 0108#query-single-value-egress--2026-08-15 — the one-row carrier
+/// is an internal compatibility envelope, not part of the authored result.
+pub fn validate_query_handler_result(
+    function: &FunctionDefinition,
+    rows: &[Value],
+) -> SnapbackResult<()> {
+    if matches!(
+        function.result_contract,
+        FunctionResultContract::Document { .. } | FunctionResultContract::Value { .. }
+    ) {
+        if rows.len() != 1 {
+            return Err(violation(
+                function,
+                Violation::bound("$", ARITY, 1, rows.len()),
+            ));
+        }
+        return validate_handler_result(function, &rows[0]);
+    }
+    validate_handler_result(function, &Value::Array(rows.to_vec()))
+}
+
 fn validate_rows(
     function: &FunctionDefinition,
     value: &Value,
@@ -552,6 +577,28 @@ mod tests {
         assert!(error.diagnostic.details.get("limit").is_none());
         assert!(error.diagnostic.details.get("observed").is_none());
         assert_redacted(&error, &user_number.to_string());
+    }
+
+    #[test]
+    fn scalar_query_validates_exactly_one_internal_row_as_the_authored_value() {
+        let function = function(FunctionResultContract::Value {
+            value: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "title".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 32 },
+                }],
+                allow_extra: false,
+            },
+        });
+        validate_query_handler_result(&function, &[json!({ "title": "one" })])
+            .expect("one internal row validates as one authored object");
+
+        let error = validate_query_handler_result(&function, &[])
+            .expect_err("a scalar query cannot lose its internal row");
+        assert_eq!(error.diagnostic.details["constraint"], ARITY);
+        assert_eq!(error.diagnostic.details["limit"], 1);
+        assert_eq!(error.diagnostic.details["observed"], 0);
     }
 
     #[test]

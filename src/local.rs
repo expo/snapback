@@ -32994,10 +32994,7 @@ fn execute_query_invocation(
             hook();
         }
     });
-    crate::result_contract::validate_handler_result(
-        function,
-        &Value::Array(invocation.output.rows.clone()),
-    )?;
+    crate::result_contract::validate_query_handler_result(function, &invocation.output.rows)?;
     let _publication = prepared.effect_guard("query result handoff")?;
     Ok(invocation)
 }

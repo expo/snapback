@@ -2284,7 +2284,13 @@ export async function prepareReactQueryGroupForBinding(
         sawAuthorization = true;
       }
       const contract = functionAdmission.resultContractsById.get(entry.ref.id);
-      const verdict = contract?.validator.validate(response.rows);
+      const singleValue = contract?.descriptor?.kind === 'value'
+        || contract?.descriptor?.kind === 'document';
+      const internalRowsValid = !singleValue
+        || (Array.isArray(response.rows) && response.rows.length === 1);
+      const verdict = internalRowsValid
+        ? contract?.validator.validate(singleValue ? response.rows[0] : response.rows)
+        : null;
       if (!verdict?.ok) {
         throw diagnosticError(
           'SNAPBACK_REACT_GROUP_BUNDLE_INVALID',
@@ -2296,7 +2302,9 @@ export async function prepareReactQueryGroupForBinding(
           },
         );
       }
-      const acceptedRows = deepFreeze(structuredClone(verdict.value));
+      const acceptedRows = deepFreeze(structuredClone(
+        singleValue ? [verdict.value] : verdict.value,
+      ));
       return Object.freeze({
         name: entry.name,
         ref: entry.ref,

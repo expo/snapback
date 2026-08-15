@@ -413,6 +413,34 @@ function validateResultContract(contract, value, {
   return deepFreeze(result.value);
 }
 
+const singleValueQueryContract = (contract) => (
+  contract?.descriptor?.kind === 'value' || contract?.descriptor?.kind === 'document'
+);
+
+function validateQueryRows(contract, rows, options = {}) {
+  if (!singleValueQueryContract(contract)) {
+    return validateResultContract(contract, rows, options);
+  }
+  if (!Array.isArray(rows) || rows.length !== 1) {
+    throw diagnosticError(
+      options.violationCode ?? 'SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED',
+      'single-value query delivery must carry exactly one internal row',
+      { resultContractHash: contract?.hash ?? null, rowCount: Array.isArray(rows) ? rows.length : null },
+    );
+  }
+  return deepFreeze([validateResultContract(contract, rows[0], options)]);
+}
+
+const validateQueryProjection = (contract, value, options = {}) => (
+  singleValueQueryContract(contract)
+    ? deepFreeze([validateResultContract(contract, value, options)])
+    : validateResultContract(contract, value, options)
+);
+
+const projectQueryRows = (contract, rows) => (
+  singleValueQueryContract(contract) ? rows[0] : rows
+);
+
 function heartbeatInterval(ttlMs) {
   return Math.max(250, Math.min(Math.floor(ttlMs / 2), 10_000));
 }
@@ -799,9 +827,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     for (const layer of store.optimisticLayers) {
       if (layer.failed) continue;
       try {
-        rows = validateResultContract(
+        rows = validateQueryProjection(
           store.resultContract,
-          layer.update(immutableClone(rows), immutableClone(layer.mutationArgs)),
+          layer.update(
+            immutableClone(projectQueryRows(store.resultContract, rows)),
+            immutableClone(layer.mutationArgs),
+          ),
           { requireKnown: true },
         );
       } catch (error) {
@@ -833,12 +864,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   // state is the outbox surface (useSnapbackOutbox); the retained frame never
   // fabricates an overlay for it.
   const publishRetained = (store, rows, generation = store.generation) => {
-    store.authoritativeData = validateResultContract(store.resultContract, rows);
+    store.authoritativeData = validateQueryRows(store.resultContract, rows);
     store.freshness = 'retained';
     captureRetention(store);
     publish(store, freezeBootDelivery(store, {
       status: 'refreshing',
-      data: store.authoritativeData,
+      data: projectQueryRows(store.resultContract, store.authoritativeData),
       error: null,
       connection: normalizeConnection(store.handle?.current?.connection ?? 'connecting'),
       freshness: 'retained',
@@ -848,7 +879,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const publishAuthoritative = (store, rows, generation = store.generation) => {
     store.authoritativeRevision += 1;
-    store.authoritativeData = validateResultContract(store.resultContract, rows);
+    store.authoritativeData = validateQueryRows(store.resultContract, rows);
     store.freshness = 'current';
     captureRetention(store);
     observeOptimisticCreateAuthority(store);
@@ -888,7 +919,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     store.optimisticLayers = store.optimisticLayers.filter((layer) => !layer.retired);
     publish(store, freezeBootDelivery(store, {
       status: 'ready',
-      data: materializeStore(store),
+      data: projectQueryRows(store.resultContract, materializeStore(store)),
       error: null,
       connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
       freshness: 'current',
@@ -1152,7 +1183,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         ? pending()
         : freezeBootDelivery(descriptor, {
             status: 'ready',
-            data: readOnlySnapshot.rows,
+            data: projectQueryRows(descriptor.resultContract, readOnlySnapshot.rows),
             error: null,
             connection: 'idle',
             freshness: 'snapshot',

@@ -102,10 +102,12 @@ export const list = query({
 Every function requires `args`, `returns`, `auth`, and `handler`. Queries add
 `reads`; mutations add `reads` and `writes`; actions may add `secrets`.
 Queries are live by default; set `delivery: "read"` for a one-shot query.
-Canonical queries are list-shaped. Represent a get as a bounded zero-or-one
-array rather than returning a nullable document. Familiar actions can read
-auth/runtime/secrets, refuse, and call a generated mutation reference; they do
-not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
+Row-shaped query returns remain arrays. A point query can declare an exact
+single value such as `returns: v.union([v.doc("todos"), v.null()])` or a closed
+`v.object(...)` and return that value directly; `useQuery` receives the object
+or `null`, not a one-row array. Familiar actions can read auth/runtime/secrets,
+refuse, and call a generated mutation reference; they do not expose `ctx.db`,
+fetch, assets, jobs, realtime, or streaming.
 
 ## Put authorization before business logic
 

@@ -12,7 +12,10 @@ diagnostic including symlinks and imports; centralized the one-segment or
 `IDENT.IDENT` operation grammar across codegen and the canonical client;
 replaced dotted ESM aliases in client-consumed output with namespace access;
 and bound both-profile descriptor admission plus the Expo 57 Metro/Hermes
-parse gate into cross-package contract tests.)
+parse gate into cross-package contract tests. r5, scalar-query amendment:
+LLP 0108 now admits the canonical single-value query carrier, so every exact
+Familiar `v.*` query result outside the existing row-shaped translations
+lowers to `results.value`; Familiar `useQuery` projects the authored value.)
 **Revised:** 2026-08-13 (r3: dual delta-review repairs — the S4.3 query
 lowering is a true partition (bounded record arrays pinned to
 `{minItems: 0, maxItems}` as exact translation; record-union and 1-tuple
@@ -83,12 +86,12 @@ incorporated:
    Key sets are closed by `assertKnownSpecFields`
    (`SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN`).
 4. The canonical egress contract space is **kind-partitioned**: JS queries
-   admit `results.documents`, `results.records`, or the legacy row
-   `v.object` form (list-shaped results only); mutations/actions admit
-   `results.document` or `results.value`. LLP 0245's `topLevelContract`
-   encodes the same partition, and its suggestion renderer emits `result:`
-   source. The key `returns:` on `defineMutation`/`defineAction` is the
-   *plan return expression*.
+   admit `results.documents`, `results.records`, the legacy row `v.object`
+   form, and the LLP 0108 single-value `results.document`/`results.value`
+   forms; mutations/actions admit `results.document` or `results.value`.
+   LLP 0245's `topLevelContract` encodes the same partition, and its
+   suggestion renderer emits `result:` source. The key `returns:` on
+   `defineMutation`/`defineAction` is the *plan return expression*.
 5. The canonical auth enum is `public | optional-user | authenticated`
    (`AUTH_REQUIREMENTS`); there is no `required-user` value.
 6. `withIndex` in the handler query builder is name-only
@@ -332,11 +335,9 @@ Familiar `returns:` takes the `v.*` grammar and lowers onto the canonical
 egress contract space **per operation kind**, matching the shipped
 partition (Ground truth 4) and LLP 0245's `topLevelContract` rules:
 
-**Queries (list-shaped results only).** The table is a true partition:
-five success rows, and one refusal catch-all covering **every** shape
-without a success row — including all non-arrays, `v.array` of scalar or
-id elements, `v.array(v.doc(t), {maxItems})`, tuples other than the
-1-tuple-of-records form, and any doc-containing union:
+**Queries.** Familiar preserves the canonical row contracts for the five
+already-row-shaped cases and uses LLP 0108's single-value carrier for every
+other exact validator:
 
 | Familiar `returns` | Canonical `result:` |
 | --- | --- |
@@ -345,15 +346,12 @@ id elements, `v.array(v.doc(t), {maxItems})`, tuples other than the
 | `v.array(v.object({...}), {maxItems})` | `results.records({...}, {minItems: 0, maxItems})` — the pair is the **exact translation** of the authored bound (`v.array`'s `maxItems` means length ∈ [0, maxItems]; the canonical constructor requires both members), not an approximation |
 | `v.array(v.union(...))` where every union arm is a closed record validator | `results.records(union)` (the canonical constructor admits record unions) |
 | 1-tuple `v.tuple([v.object({...})])` | `results.records(..., {minItems: 1, maxItems: 1})` |
-| **every other shape** — e.g. `v.doc(t)`, `v.union(v.doc(t), v.null())`, `v.object({...})`, scalars, `v.array(v.string())`, `v.array(v.id(t))`, `v.array(v.doc(t), {maxItems})`, `v.tuple([v.doc(t)])` | refuse `SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE` with a shape-specific route |
+| every other exact `v.*` shape — including `v.object({...})`, `v.doc(t)`, `v.union([v.doc(t), v.null()])`, scalars, bounded document arrays, scalar/id arrays, and other tuples | `results.value(validator)`; the handler returns the authored value directly and Familiar consumers receive that value |
 
-The refusal message is specific for the Convex-`get` shape
-(`v.union(v.doc(t), v.null())`): canonical query results are list-shaped;
-the route is `returns: v.array(v.doc(t))` with a handler returning zero or
-one element. This is a real familiar-lane ergonomic cost; it is recorded
-as preregistered component evidence under LLP 0252 D7 sub-attribution, and
-a scalar-query egress form would be a canonical-grammar RFC owned outside
-this Spec — the adapter never extends canonical grammar (LLP 0252 D1).
+The adapter does not invent a second query grammar: this catch-all is the
+canonical `results.value` query contract admitted by LLP 0108. Query/live
+transport uses exactly one internal row for it, but that carrier is not exposed
+as a one-element Familiar result.
 
 **Mutations and actions (single-valued results):**
 
@@ -804,10 +802,9 @@ for bundled-facade runtime, client family for admission):
 1. **Bounded doc-array returns** — whether `results.documents` should gain
    an optional bound (canonical-grammar RFC territory) so
    `v.array(v.doc(t), {maxItems})` stops refusing; v1 refuses honestly.
-2. **Scalar query results** — the Convex-`get` shape (`doc | null`) needs
-   a canonical scalar-query egress form to stop refusing; that is a
-   separately owned RFC, preregistered as expected D7 component evidence
-   against the familiar lane until it exists.
+2. **Scalar query results (resolved 2026-08-15)** — LLP 0108 owns the
+   canonical single-value query carrier; S4.3 lowers the Convex-`get` shape
+   and other exact `v.*` values onto it.
 3. **Offline typed rejection** — whether today's `queue: false` transport
    failure already surfaces as `SnapbackDiagnosticError` pre-custody
    (S6.3); Phase C verifies and hardens.

@@ -3733,10 +3733,15 @@ function jsQueryDef(kind, spec) {
     assert(
       (
         spec.result?.__resultContract === true
-        && (spec.result.kind === 'documents' || spec.result.kind === 'records')
+        && (
+          spec.result.kind === 'documents'
+          || spec.result.kind === 'records'
+          || spec.result.kind === 'document'
+          || spec.result.kind === 'value'
+        )
       )
         || (spec.result?.__validator === true && spec.result.primitive === 'object'),
-      `${kind} result must be results.documents(...), results.records(...), or the legacy v.object(...) row validator`,
+      `${kind} result must use results.documents(...), results.records(...), results.document(...), results.value(...), or the legacy v.object(...) row validator`,
     );
   }
   return {

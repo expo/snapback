@@ -1126,23 +1126,32 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
     }
     let mut value = value?;
     invocation.normalize_media_result(&mut value, prepared)?;
-    // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
-    // query handler that returns a non-array fails closed.
-    let rows = value.as_array().cloned().ok_or_else(|| {
-        let function_kind = match prepared.function_kind() {
-            FunctionKind::Query => "query",
-            FunctionKind::LiveQuery => "live query",
-            _ => "query-shaped",
-        };
-        SnapbackError::error(
-            "SNAPBACK_HANDLER_RESULT_INVALID",
-            "runtime",
-            format!(
-                "{function_kind} handler {:?} must return an array of rows",
-                prepared.function_id()
-            ),
-        )
-    })?;
+    // @ref LLP 0108#query-single-value-egress--2026-08-15 — scalar query
+    // declarations use one internal row so the existing query/live transport
+    // remains the sole owner; every row-shaped or unknown query retains the
+    // LLP 0032 S5.D9 array-only safety floor.
+    let rows = if matches!(
+        prepared.result_contract(),
+        FunctionResultContract::Document { .. } | FunctionResultContract::Value { .. }
+    ) {
+        vec![value]
+    } else {
+        value.as_array().cloned().ok_or_else(|| {
+            let function_kind = match prepared.function_kind() {
+                FunctionKind::Query => "query",
+                FunctionKind::LiveQuery => "live query",
+                _ => "query-shaped",
+            };
+            SnapbackError::error(
+                "SNAPBACK_HANDLER_RESULT_INVALID",
+                "runtime",
+                format!(
+                    "{function_kind} handler {:?} must return an array of rows",
+                    prepared.function_id()
+                ),
+            )
+        })?
+    };
     // Strict declaration conformance (LLP 0146 D1, per-app opt-in): refuse an
     // undeclared application-table read before the result handoff.
     crate::conformance::enforce_strict_reads(
