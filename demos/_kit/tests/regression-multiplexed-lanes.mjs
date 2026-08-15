@@ -41,6 +41,24 @@ const waitFor = async (predicate, label, timeoutMs = 6_000) => {
   throw new Error(`timed out waiting for ${label}`);
 };
 
+const withDeadline = async (promise, label, timeoutMs = 5_000) => {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out waiting for ${label}`)), timeoutMs);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((accept) => { resolve = accept; });
+  return { promise, resolve };
+};
+
 try {
   // Board-cursor ephemeral collection codegen'd from the shared fixture, then
   // merged into the todo schema (the todo headless suite's pattern). The
@@ -114,6 +132,108 @@ try {
       b.dispose();
       overlay.dispose();
       // The writer holds no stream; nothing to close.
+    }
+  });
+
+  // @ref LLP 0013#first-delivery-latency-budget — eight real two-client cuts
+  // distinguish accept, fan-out dispatch, socket flush, and overlay apply.
+  await suite.check('first ephemeral delivery has a timestamped sub-second accept-to-apply path', async () => {
+    const scope = { boardId: 'latency_room' };
+    const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
+    const viewerConnection = 'latency_viewer';
+    const viewer = await db.subscribeEphemeral(cursorRef, {
+      connectionId: viewerConnection,
+      scope,
+      userId: ADA,
+      permissions,
+    });
+    const publisher = new SnapbackClient(server.baseUrl, server.clientOptions);
+    const samples = [];
+    try {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const rawFrame = deferred();
+        const clientApply = deferred();
+        const offRaw = db.liveStreamManager(viewerConnection).onEphemeral((frame) => {
+          const upsert = frame?.message?.Upsert;
+          if (!upsert) return;
+          rawFrame.resolve({
+            acceptedAtMs: upsert.entry.received_at_ms,
+            flushedAtMs: frame.serverObservedAtMs,
+            receivedAtMs: Date.now(),
+            entryVersion: upsert.entry.entry_version,
+          });
+        });
+        const offApply = viewer.onChange((result, overlay) => {
+          if (result !== 'applied') return;
+          const entry = overlay.currentEntries().find((candidate) => candidate.value?.x === attempt);
+          if (!entry) return;
+          clientApply.resolve({
+            appliedAtMs: Date.now(),
+            entryVersion: entry.entryVersion,
+          });
+        });
+        try {
+          const startedAtMs = Date.now();
+          const startedMonotonicMs = performance.now();
+          const outcome = await publisher.publishEphemeral(cursorRef, {
+            connectionId: `latency_publisher_${attempt}`,
+            scope,
+            userId: ADA,
+            permissions,
+            value: { x: attempt, y: attempt },
+          });
+          const [raw, applied] = await Promise.all([
+            withDeadline(rawFrame.promise, `raw ephemeral frame ${attempt}`),
+            withDeadline(clientApply.promise, `client apply ${attempt}`),
+          ]);
+          assert(
+            Number.isSafeInteger(outcome.serverDispatchedAtMs),
+            'publish acknowledgement carries the post-fan-out server dispatch timestamp',
+          );
+          assert(raw.entryVersion === outcome.entry_version, 'raw frame matches the publish outcome');
+          assert(applied.entryVersion === outcome.entry_version, 'client apply matches the publish outcome');
+          assert(raw.acceptedAtMs === outcome.serverObservedAtMs, 'entry receive time matches publish acceptance');
+          assert(raw.acceptedAtMs <= outcome.serverDispatchedAtMs, 'server dispatch follows publish acceptance');
+          assert(outcome.serverDispatchedAtMs <= raw.flushedAtMs, 'connection flush follows server dispatch');
+          assert(raw.flushedAtMs <= raw.receivedAtMs, 'client receive follows connection flush');
+          assert(raw.receivedAtMs <= applied.appliedAtMs, 'client apply follows client receive');
+          samples.push({
+            attempt,
+            acceptToDispatchMs: outcome.serverDispatchedAtMs - raw.acceptedAtMs,
+            dispatchToFlushMs: raw.flushedAtMs - outcome.serverDispatchedAtMs,
+            flushToReceiveMs: raw.receivedAtMs - raw.flushedAtMs,
+            receiveToApplyMs: applied.appliedAtMs - raw.receivedAtMs,
+            flushToApplyMs: applied.appliedAtMs - raw.flushedAtMs,
+            acceptToApplyMs: applied.appliedAtMs - raw.acceptedAtMs,
+            callerToApplyMs: performance.now() - startedMonotonicMs,
+            callerWallToApplyMs: applied.appliedAtMs - startedAtMs,
+          });
+        } finally {
+          offApply();
+          offRaw();
+        }
+      }
+
+      const max = (field) => Math.max(...samples.map((sample) => sample[field]));
+      assert(
+        max('acceptToApplyMs') <= 1_000,
+        `first ephemeral delivery exceeded its 1000ms regression ceiling: ${JSON.stringify(samples)}`,
+      );
+      return {
+        sampleCount: samples.length,
+        maximaMs: {
+          acceptToDispatch: max('acceptToDispatchMs'),
+          dispatchToFlush: max('dispatchToFlushMs'),
+          flushToReceive: max('flushToReceiveMs'),
+          receiveToApply: max('receiveToApplyMs'),
+          flushToApply: max('flushToApplyMs'),
+          acceptToApply: max('acceptToApplyMs'),
+          callerToApply: max('callerToApplyMs'),
+        },
+        samples,
+      };
+    } finally {
+      viewer.dispose();
     }
   });
 

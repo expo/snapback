@@ -4,13 +4,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, demos/_kit/tests/regression-multiplexed-lanes.mjs]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:6012197ffa75017c16a1b0bb8f17383d49a487d37a29cde381426e635e58f62a
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:1dfb1bb7330852b80eafba26b21c6c650ac47bfdff67a0ea21bff4bf31eb925d
 ---
 
 # Ephemeral realtime state
@@ -226,6 +226,44 @@ Each current entry is:
 The client prunes by the server-stamped expiry deadline. Server expiry,
 explicit delete, and disconnect normally emit remove deltas, but TTL is the
 backstop when that remove is lost.
+
+<!-- since: 0.1.22 unreleased -->
+> **Unreleased.** The timestamped first-delivery budget is newer than the
+> newest published closure, 0.1.21.
+
+### Measure first visibility without timing the input action
+
+On the local target, an already-subscribed two-client room has a **1,000 ms
+server-accept-to-overlay-apply regression ceiling** under the `normal` network
+profile. The budget keeps 1,000 ms of headroom under a 2,000 ms interactive
+typing ceiling:
+
+| Segment | Diagnostic allocation |
+| --- | ---: |
+| publish accept → fan-out dispatch | 100 ms |
+| fan-out dispatch → WebSocket flush | 500 ms |
+| WebSocket flush → overlay apply | 200 ms |
+| scheduler and measurement reserve | 200 ms |
+
+The default client negotiation exposes the cuts needed for a contributor
+measurement: the publish acknowledgement's `serverObservedAtMs` is the accept
+cut, its additive `serverDispatchedAtMs` is sampled after room fan-out and the
+delivery wake, and the ephemeral WebSocket frame's `serverObservedAtMs` is the
+flush cut. Observe `onChange('applied')` on the same local machine for the last
+cut. These are diagnostic timestamps; ordinary application rendering should
+continue to read `currentEntries()`.
+
+The regression in
+[`regression-multiplexed-lanes.mjs`](repo:demos/_kit/tests/regression-multiplexed-lanes.mjs)
+takes eight first-update samples and records every hop. Its clean-machine
+2026-08-15 run measured maxima of 0 ms accept→dispatch, 1 ms dispatch→flush,
+1 ms flush→apply, and 1 ms total. The first delivery is already eager; an empty
+subscriber outbox does not wait for `dispatchMs` or a poll tick.
+
+For a browser proof, arm the observer before triggering one input state
+transition. Do not start the clock, await an entire multi-character
+`pressSequentially` action, and only then check the second browser: that number
+includes the synthetic typing duration and is not first-visibility latency.
 
 ### Do not use two tabs as a two-device presence test
 

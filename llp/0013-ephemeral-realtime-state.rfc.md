@@ -5,7 +5,7 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-10 (LLP 0222 boundary amendment: server-owned connected-client witnesses are not author-writable ephemeral collections). 2026-07-23 (LLP 0086 CC-8 row 4: deliberate partyserver posture recorded — parallel, not wrap; hibernation bounds noted). 2026-07-17 (client-visible scope, entry, and room-authority generations are bounded by `Number.MAX_SAFE_INTEGER`; entry exhaustion terminally retires the room and emits only a clearing epoch boundary). 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (item-6 implementation reconciliation: the local target now installs the accepted dependency-indexed room barriers, generation-checks protected-room sinks, and exposes the capability only under exact auth-invalidation negotiation; custom-key authorization remains refused). 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 installs and quiesces dependency-indexed room barriers before an authorization-changing commit, generation-checks every effect sink atomically with its act, then projects level-triggered reauthorization and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
+**Revised:** 2026-08-15 (first-delivery latency budget: the local target's already-subscribed accept-to-client-apply path has a 1,000 ms regression ceiling, additive accept/dispatch/flush timestamps, and an observation-honesty rule that excludes synthetic typing-action duration). 2026-08-10 (LLP 0222 boundary amendment: server-owned connected-client witnesses are not author-writable ephemeral collections). 2026-07-23 (LLP 0086 CC-8 row 4: deliberate partyserver posture recorded — parallel, not wrap; hibernation bounds noted). 2026-07-17 (client-visible scope, entry, and room-authority generations are bounded by `Number.MAX_SAFE_INTEGER`; entry exhaustion terminally retires the room and emits only a clearing epoch boundary). 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (item-6 implementation reconciliation: the local target now installs the accepted dependency-indexed room barriers, generation-checks protected-room sinks, and exposes the capability only under exact auth-invalidation negotiation; custom-key authorization remains refused). 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 installs and quiesces dependency-indexed room barriers before an authorization-changing commit, generation-checks every effect sink atomically with its act, then projects level-triggered reauthorization and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026, LLP 0039, LLP 0053, LLP 0083, LLP 0086
 
 ## Summary
@@ -239,6 +239,46 @@ needs more than the value-size budget is probably modeling view state that
 belongs in durable data or an asset. The `boardCursors` example above deliberately
 mirrors these defaults so the example remains an implementation-sized fixture, not
 an aspirational hosted-scale claim.
+
+### First-delivery latency budget
+
+For an already-subscribed two-client room on the local target under the
+`normal` network profile, the first accepted update has a **1,000 ms
+server-accept-to-client-overlay-apply regression ceiling**. This is a
+conservative contributor/CI bound with 1,000 ms of headroom against the
+2,000 ms interactive typing ceiling that motivated it, not a hosted-target or
+paint-time SLO. Its diagnostic allocations are:
+
+| Segment | Timestamp cuts | Allocation |
+| --- | --- | ---: |
+| publish accept → server fan-out dispatch | `serverObservedAtMs` on the publish acknowledgement / `Upsert.entry.received_at_ms` → `serverDispatchedAtMs` on the acknowledgement | 100 ms |
+| server dispatch → connection flush | `serverDispatchedAtMs` → `serverObservedAtMs` on the WebSocket frame | 500 ms |
+| connection flush → client overlay apply | frame `serverObservedAtMs` → the overlay `onChange('applied')` observation on the same local machine | 200 ms |
+| scheduler and measurement reserve | unallocated | 200 ms |
+
+The dispatch timestamp is sampled only after the synchronous room mutation,
+per-subscriber outbox enqueue, and L8 notifier wake return. The WebSocket
+timestamp is sampled when the selected frame is serialized for final handoff.
+These cuts therefore distinguish the fan-out mechanism from connection
+scheduling and client application without adding latency to the delivery
+path. `dispatchMs` remains a capability budget for latest-state coalescing; it
+is not a poll timer and does not delay an otherwise empty subscriber outbox.
+
+The named two-client regression takes eight sequential first-update samples,
+records every segment, and hard-fails only the 1,000 ms end-to-end ceiling so
+millisecond-scale scheduling noise does not create three independent flaky
+gates. Its 2026-08-15 clean-machine run measured maxima of 0 ms
+accept→dispatch, 1 ms dispatch→flush, 1 ms flush→apply, and 1 ms total. That
+evidence rules out a fixed runtime batching interval near two seconds, so no
+eager-first scheduling change is warranted: delivery is already eager and
+only a newer update waiting in the same bounded outbox may supersede an older
+one.
+
+Observation starts before the single state transition whose visibility is
+being measured and remains armed while it happens. A browser harness must not
+start its clock, await a long `pressSequentially` or animation sequence, and
+only then begin checking the observer; that measures the synthetic action plus
+delivery and cannot be reported as first-delivery latency.
 
 ### Stored entry shape
 

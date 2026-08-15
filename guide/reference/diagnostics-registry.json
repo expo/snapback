@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:0e9ea9aef9e6d4dab63a2fcf26e9df2ef0ae3fe83f446b39021da8674ffe544b"
+    "sourceDigest": "sha256:92646be4ab26d96551e2326b55e2731681a191908c9500e7a39929fd63be9ed0"
   },
   "limits": {
     "lookupBytes": 16384
@@ -36325,7 +36325,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 31029,
+          "line": 31061,
           "column": 18
         }
       ],
@@ -42555,7 +42555,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 31090,
+          "line": 31122,
           "column": 14
         },
         {
@@ -42575,7 +42575,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 31129,
+          "line": 31161,
           "column": 14
         }
       ],
@@ -42590,7 +42590,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 31098,
+          "line": 31130,
           "column": 14
         },
         {
@@ -42610,7 +42610,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 31056,
+          "line": 31088,
           "column": 14
         },
         {
@@ -42630,7 +42630,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 31064,
+          "line": 31096,
           "column": 14
         },
         {

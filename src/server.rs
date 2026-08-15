@@ -30818,10 +30818,22 @@ async fn publish_ephemeral_inner(
         .ephemeral_expiry_protocol(&connection_act.connection_id)
         == Some(crate::ephemeral::EPHEMERAL_EXPIRY_PROTOCOL_V1))
     .then_some(epoch_now_ms);
+    // publish_with_room_authority returns only after the room mutation,
+    // per-subscriber outbox enqueue, and L8 notifier wake complete. Keep an
+    // additive timestamp at that cut so two-client latency probes can split
+    // accept->dispatch from dispatch->socket flush without changing delivery.
+    // @ref LLP 0013#room-store-model — publish synchronously enqueues latest-state fan-out.
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L8 delivery is on-enqueue, not timer-polled.
+    let dispatched = observed.map(|accepted| now_millis().max(accepted));
     let authority_instance = runtime
         .connections
         .ephemeral_authority_instance(&connection_act.connection_id);
-    let response = ephemeral_http_json(output, observed, authority_instance.as_deref());
+    let response = ephemeral_http_json_with_dispatch_timing(
+        output,
+        observed,
+        dispatched,
+        authority_instance.as_deref(),
+    );
     Ok(retain_room_authority(response, room_authority))
 }
 
@@ -30979,12 +30991,32 @@ fn ephemeral_http_json(
     server_observed_at_ms: Option<u64>,
     ephemeral_authority_instance: Option<&str>,
 ) -> Response {
+    ephemeral_http_json_with_dispatch_timing(
+        value,
+        server_observed_at_ms,
+        None,
+        ephemeral_authority_instance,
+    )
+}
+
+fn ephemeral_http_json_with_dispatch_timing(
+    value: impl Serialize,
+    server_observed_at_ms: Option<u64>,
+    server_dispatched_at_ms: Option<u64>,
+    ephemeral_authority_instance: Option<&str>,
+) -> Response {
     let mut value = serde_json::to_value(value).unwrap_or(Value::Null);
     if let Some(object) = value.as_object_mut() {
         if let Some(server_observed_at_ms) = server_observed_at_ms {
             object.insert(
                 "serverObservedAtMs".to_owned(),
                 json!(server_observed_at_ms),
+            );
+        }
+        if let Some(server_dispatched_at_ms) = server_dispatched_at_ms {
+            object.insert(
+                "serverDispatchedAtMs".to_owned(),
+                json!(server_dispatched_at_ms),
             );
         }
         // LLP 0111 explicitly amends the flattened acknowledgement exception:

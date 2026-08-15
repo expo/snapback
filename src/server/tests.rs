@@ -30077,6 +30077,32 @@ fn hosted_ephemeral_four_way_enforcement_is_lineage_owned() {
 }
 
 #[tokio::test]
+async fn ephemeral_publish_http_timing_separates_accept_from_dispatch() {
+    let response = super::ephemeral_http_json_with_dispatch_timing(
+        json!({ "entry_version": 7 }),
+        Some(100),
+        Some(104),
+        None,
+    );
+    let body = to_bytes(response.into_body(), 4 * 1024)
+        .await
+        .expect("ephemeral publish timing response body");
+    let body: Value = serde_json::from_slice(&body).expect("ephemeral publish timing JSON");
+    assert_eq!(body["serverObservedAtMs"], 100);
+    assert_eq!(body["serverDispatchedAtMs"], 104);
+    assert_eq!(body["entry_version"], 7);
+
+    let ordinary = super::ephemeral_http_json(json!({ "removed": false }), Some(200), None);
+    let ordinary = to_bytes(ordinary.into_body(), 4 * 1024)
+        .await
+        .expect("ordinary ephemeral response body");
+    let ordinary: Value =
+        serde_json::from_slice(&ordinary).expect("ordinary ephemeral response JSON");
+    assert_eq!(ordinary["serverObservedAtMs"], 200);
+    assert!(ordinary.get("serverDispatchedAtMs").is_none());
+}
+
+#[tokio::test]
 async fn hosted_ephemeral_post_verification_errors_repeat_the_instance() {
     let state =
         test_detached_app_state(LocalSnapback::memory().expect("post-verification error state"));
