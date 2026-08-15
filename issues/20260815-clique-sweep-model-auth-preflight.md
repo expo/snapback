@@ -40,3 +40,55 @@ state.
 3. For this run: re-auth Claude and Grok on Durand and let the idempotent
    sequencer fill the 14 missing cells; fix or re-scope the Supabase
    packet. The instrument, prompts, and receipts are already in place.
+
+## Status 2026-08-15 — items 1 and 2 done; item 3 blocked on two credentials
+
+Landed in the sweep harness at `/Users/ccheever/clique-0121-20260814`, which is
+not a git repository, so this ticket is the only record in version control.
+
+**Item 1 (real preflight) — done.** `scripts/preflight.sh` previously only ran
+`test -r` against credential *files*. It now performs a live mini-completion per
+model credential (Claude Opus 5, GPT-5.6 Sol, Grok 4.6) and a real create+drop
+DDL probe for the Supabase packet, aggregates every failure, and refuses to
+start with the complete list rather than exiting at the first one. Probe
+outcomes are written to `receipts/{model-*,provider-*}` beside `preflight.txt`.
+
+**Item 2 (bounded retry) — done.** `retry-opus-after-sweep.sh` was an unbounded
+`while true` at 300 s spacing. It is now capped at five failed preflights
+(~20 min), after which it writes `logs/OPUS-RETRY-ACTION-REQUIRED.txt`, logs
+unmistakably, emits a macOS notification, and exits 0 so launchd cannot restart
+another failure cycle. `status.sh` surfaces that file. The 169 stale
+per-attempt receipts were archived (not deleted) under
+`receipts/archive/opus-retry-unbounded-20260815/`; future attempts overwrite one
+stable receipt.
+
+**Additional hole found and closed.** The original preflight *did* have a
+`test -r "$HOME/.grok/auth.json"` and that file does not exist, yet the sweep
+started anyway — so a file-existence gate was not even being enforced. The
+sequencer now also runs a just-in-time model probe before each model's first
+pending lane, closing the multi-hour time-of-check/time-of-use gap that let Grok
+auth lapse between preflight and the grok lanes hours later.
+
+**Correction to this ticket's diagnosis.** The ticket says the Opus lanes need
+"a human `claude` re-login on the box." That is not sufficient on its own: a
+direct `claude -p ... --model claude-opus-5` from an ordinary shell returned
+`is_error:false` at 2026-08-15 18:12Z while the LaunchAgent's own tick three
+minutes later still logged `401 OAuth access token has expired`. The credential
+works; the launchd context cannot use it. Whoever picks up item 3 should expect
+to fix the agent's credential access, not just re-login. The new bounded retry
+means this now surfaces in ~20 minutes instead of spinning for 14 hours.
+
+**Item 3 — still open, needs a human.** Verified by re-running the new
+preflight independently (exit 70, no lane started):
+
+- `grok` has no credential at all — `~/.grok/auth.json` is absent. Needs
+  `grok login --device-code` or `XAI_API_KEY`.
+- The Supabase packet has `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY`
+  but `SUPABASE_DB_URL` is still the literal placeholder `postgresql://...` and
+  there is no PAT / management token, so DDL remains impossible. Needs a
+  DDL-capable credential or a re-scope to a local Supabase deployment.
+
+The exact operator procedure is in `~/clique-0121-20260814/RECOVERY.md`. The
+sweep was deliberately not restarted and no lane status was altered. Close this
+ticket once those two credentials are supplied and the sequencer has filled the
+14 missing cells.
