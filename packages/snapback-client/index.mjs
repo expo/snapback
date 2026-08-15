@@ -11391,11 +11391,10 @@ export class SnapbackClient {
     //   never-reused query identity and a synchronous publication fence.
     const authorizationProtocolEnabled = this.authProtocols.authInvalidation != null;
     const queryKey = retainedQueryKey(name, args);
-    // Ordinary generated LiveQueries use the same durable carrier domain as
-    // RQS, but protected bytes never become RQS entries. Prepare the
-    // never-reused namespace before subscribe_live; the optional Full-profile
-    // runtime performs every payload/lease mutation transactionally.
-    // @ref LLP 0043#milestone-1-retained-reads
+    // Ordinary generated LiveQueries share the RQS carrier domain, but protected
+    // bytes use their own namespace and prepare before subscribe_live.
+    // @ref LLP 0043#jsreact-owned-carrier-composition-2026-08-10 — per-query lease admission
+    const protectedLeaseEligible = ref?.retention === 'opaque-authorized-snapshot-v1';
     let preparedProtectedRetention = null;
     if (
       preparedMaterialization === null
@@ -11403,6 +11402,7 @@ export class SnapbackClient {
       && authorizationNamespace === null
       && this.authProtocols.authInvalidation === 1
       && this.authProtocols.authorizedLease === 1
+      && protectedLeaseEligible
       && this.rqsStoreInfo.durable === true
       && expectedGeneration(ref) !== null
     ) {

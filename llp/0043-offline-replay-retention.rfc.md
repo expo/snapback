@@ -5,7 +5,10 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-12 (target settlement-ledger capability gate: durable
+**Revised:** 2026-08-15 (authorized-lease offer/query-admission separation:
+the session-level offer only makes the protocol available; a generated
+query's explicit retainable class admits lease custody, so ordinary live
+queries never probe the lease endpoint). 2026-08-12 (target settlement-ledger capability gate: durable
 JS outbox enqueue and replay require the target's positive
 `offline_mutation_replay` advertisement; Cloudflare remains fail-loud while
 local SQLite retains its exactly-once replay path). 2026-08-10 (LLP 0218 P3 React dispatch handoff: a queued React
@@ -233,11 +236,16 @@ the generated JS surface:
 - preparation allocates the exact `(clientStoreId, queryKey,
   queryInstanceId)` before `subscribe_live`; the live subscription and lease
   request reuse it;
-- only a generated `LiveQuery` with exact deployment identity, a durable
-  writer-owned store, and negotiated sessions/invalidation/lease v1 protocols
-  enters the path. The server-issued activation hash binds that generated
-  deployment and target capability; the JS reference has no independent
-  author-supplied `targetProfileId` that the client could safely invent;
+- only a generated `LiveQuery` whose reference carries the explicit
+  `opaque-authorized-snapshot-v1` retainable class, with exact deployment
+  identity, a durable writer-owned store, and negotiated
+  sessions/invalidation/lease v1 protocols enters the path. The session-level
+  lease offer is availability, not admission: without that per-query class an
+  ordinary online live query proceeds without preparing protected custody or
+  calling the authorized-lease endpoint. The server-issued activation hash
+  binds the generated deployment and target capability; the JS reference has
+  no independent author-supplied `targetProfileId` that the client could
+  safely invent;
 - request id, query generation, authority tuple, request-start time, and clock
   high-water commit before the full `authorizedLeaseQuery`. The returned full
   snapshot must equal the just-authorized live snapshot, then rows, cursor,

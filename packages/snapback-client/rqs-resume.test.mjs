@@ -279,6 +279,240 @@ test('an auth-scoped subscription refuses retention with SNAPBACK_RETENTION_NOT_
   handle.dispose();
 });
 
+test('authorized-lease offer degrades per query across the retainability matrix', async (t) => {
+  const previousFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = previousFetch; });
+  const { SnapbackClient } = await import('./index.mjs');
+  const identity = {
+    schemaVersion: 'snapback.v1',
+    appId: 'lease-offer-matrix',
+    schemaHash: `snapback.v1:sessions:schema:sha256:${'a'.repeat(64)}`,
+    bundleHash: `snapback.v1:sessions:function:sha256:${'b'.repeat(64)}`,
+    inputsHash: `snapback.v1:sessions:inputs:sha256:${'c'.repeat(64)}`,
+  };
+  const incarnation = '018f0d90-7b11-7a22-8c33-4455667788aa';
+  const principalId = '018f0d90-7b12-7a22-8c33-4455667788aa';
+  const sessionId = '018f0d90-7b13-7a22-8c33-4455667788aa';
+  const authorityInstanceId = '018f0d90-7b14-7a22-8c33-4455667788aa';
+  const issuerId = {
+    authorizationIncarnation: incarnation,
+    bootSequence: 3,
+    bootNonce: 'CCCCCCCCCCCCCCCCCCCCCC',
+  };
+  const authorization = { incarnation, epoch: 6 };
+
+  for (const leaseOffered of [false, true]) {
+    for (const retainable of [false, true]) {
+      await t.test(`lease=${leaseOffered ? 'offered' : 'absent'} query=${retainable ? 'retainable' : 'non-retainable'}`, async () => {
+        const suffix = `${leaseOffered ? 'offer' : 'absent'}-${retainable ? 'retained' : 'volatile'}`;
+        const queryName = retainable ? 'retainedRows' : 'ordinaryRows';
+        const ref = Object.freeze({
+          artifactKind: 'functionReference',
+          schemaVersion: 'snapback.v0',
+          appId: identity.appId,
+          id: `${identity.appId}:${queryName}`,
+          name: queryName,
+          kind: 'LiveQuery',
+          ...(retainable ? { retention: 'opaque-authorized-snapshot-v1' } : {}),
+          implementationHash: `sha256:${'d'.repeat(64)}`,
+          argsContractHash: `sha256:${'e'.repeat(64)}`,
+          resultContractHash: `sha256:${'f'.repeat(64)}`,
+          expectedGeneration: identity,
+          argumentSchema: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {},
+            required: [],
+          },
+        });
+        const rows = [{ _id: `row-${suffix}`, value: suffix }];
+        const indexedDB = new IDBFactory();
+        const lockManager = createLockManagerDouble();
+        const store = createIndexedDbRqsResumeStore({ indexedDB, lockManager });
+        await tick();
+        const leaseRequests = [];
+        const leaseRefusals = [];
+        const handshake = {
+          protocolVersion: 1,
+          serverStartupNonce: `startup-${suffix}`,
+          authorizationStreamIncarnation: incarnation,
+          transitionGeneration: 1,
+          activeMode: 'sessions',
+          desiredMode: 'sessions',
+          modeState: 'settled',
+          appDataAvailability: 'available',
+          quarantineCode: null,
+          clientProtocols: {
+            authClient: 1,
+            authInvalidation: 1,
+            authorityDescriptor: 1,
+            authorizedLease: leaseOffered ? 1 : null,
+          },
+          availability: {
+            onlineRequestResponse: { available: true, reason: null },
+            authScopedLive: { available: true, minimumAuthInvalidationProtocol: 1, reason: null },
+            retainedReads: {
+              available: leaseOffered,
+              minimumAuthInvalidationProtocol: 1,
+              minimumAuthorizedLeaseProtocol: 1,
+              reason: leaseOffered ? null : 'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
+            },
+            queuedReplay: {
+              available: true,
+              minimumAuthorityDescriptorProtocol: 1,
+              reason: null,
+            },
+          },
+          provider: { key: 'email-code', available: true },
+          transports: ['bearer'],
+          authority: {
+            kind: 'humanSession',
+            userId: principalId,
+            sessionId,
+            isAuthenticated: true,
+          },
+          authorityDescriptor: {
+            descriptorVersion: 1,
+            authorityInstanceId,
+            sessionGeneration: 1,
+          },
+          deploymentIdentity: { ...identity, authMode: 'sessions' },
+          authorizedLease: leaseOffered ? {
+            protocolVersion: 1,
+            defaultMs: 86_400_000,
+            hardMaxMs: 86_400_000,
+            configuredMs: 60_000,
+            clamps: ['session', 'provider'],
+            renewal: 'full-revalidation',
+            timeBasis: 'server-absolute+client-request-elapsed',
+            clockRollback: 'delete-before-read',
+          } : null,
+        };
+        let subscribedNamespace = null;
+        globalThis.fetch = async (url, init = {}) => {
+          const path = new URL(url).pathname;
+          if (path === '/auth/session') return Response.json(handshake);
+          if (path === '/connection/open') {
+            return Response.json({
+              connectionId: `connection-${suffix}`,
+              connectionToken: `sct_${suffix}`,
+              wireVersion: 'snapback.v1',
+              authorizationInvalidation: {
+                protocolVersion: 1,
+                issuerId,
+                connectionGeneration: 1,
+                authorization,
+                versionStream: 'lease-offer-matrix-stream',
+              },
+            });
+          }
+          if (path === `/live/${queryName}/subscribe`) {
+            const body = JSON.parse(init.body);
+            subscribedNamespace = body.authorizationNamespace;
+            return Response.json({
+              subscription_id: `sub-${suffix}`,
+              snapshot: { version: 13, rows },
+              permission_epochs: {},
+              authorizationScope: {
+                kind: 'subscription',
+                issuerId,
+                namespace: subscribedNamespace,
+                scopeSequence: 1,
+                connectionGeneration: 1,
+                subscriptionId: `sub-${suffix}`,
+              },
+            });
+          }
+          if (path === `/query/${queryName}/authorized-lease`) {
+            leaseRequests.push(path);
+            if (!retainable) {
+              const code = 'SNAPBACK_AUTHORIZED_LEASE_QUERY_NOT_RETAINABLE';
+              leaseRefusals.push({ path, code });
+              return Response.json({
+                diagnostic: {
+                  code,
+                  message: 'authorized leases require a declared userId-only retainable query',
+                },
+              }, { status: 400 });
+            }
+            const body = JSON.parse(init.body);
+            return Response.json({
+              version: 13,
+              rows,
+              authorizedLease: {
+                protocolVersion: 1,
+                leaseId: `lease-${suffix}`,
+                leaseRequestId: body.leaseRequestId,
+                issuerId,
+                clientStoreId: body.clientStoreId,
+                queryKey: body.queryKey,
+                queryInstanceId: body.queryInstanceId,
+                principalId,
+                sessionIdAtIssue: sessionId,
+                providerKey: 'email-code',
+                authorization,
+                data: {
+                  versionStream: 'lease-offer-matrix-stream',
+                  snapshotCommitVersion: 13,
+                },
+                activationHash: (await import('@expo/snapback-contract/authorized-lease'))
+                  .authorizedLeaseActivationHash({ ...identity, authMode: 'sessions' }),
+                issuedAtServerMs: Date.now(),
+                authorizedUntilServerMs: Date.now() + 60_000,
+                sessionNotAfterMs: Date.now() + 60_000,
+                providerNotAfterMs: null,
+                authorityInstanceId,
+                keyId: 'lease-key-matrix',
+                mac: 'A'.repeat(43),
+              },
+            });
+          }
+          if (path === `/live/${queryName}/unsubscribe`) {
+            return Response.json({ subscription_id: `sub-${suffix}`, disposed: true });
+          }
+          throw new Error(`unexpected lease-offer matrix request: ${path}`);
+        };
+
+        const client = new SnapbackClient('http://lease-offer-matrix.test', {
+          bearerToken: `bearer-${suffix}`,
+          authClientProtocol: 1,
+          authInvalidationProtocol: 1,
+          authorizedLeaseProtocol: leaseOffered ? 1 : null,
+          clientStoreId: `store-${suffix}`,
+          rqsStore: store,
+          offlineQueue: false,
+        });
+        let handle = null;
+        try {
+          handle = await client.liveQuery(ref, {
+            connectionId: `connection-${suffix}`,
+          });
+          assert.deepEqual(handle.rows, rows, 'ordinary online rows remain usable');
+          assert.equal(
+            handle.retention?.retainable,
+            leaseOffered && retainable,
+            'only an offered lease for a retainable query installs protected custody',
+          );
+          assert.deepEqual(
+            leaseRefusals,
+            [],
+            'no ordinary query reaches the backend refusal path merely because leases were offered',
+          );
+          assert.deepEqual(
+            leaseRequests,
+            leaseOffered && retainable ? [`/query/${queryName}/authorized-lease`] : [],
+            'a session-level offer never promotes a non-retainable query into lease admission',
+          );
+        } finally {
+          handle?.dispose();
+          if (handle) await handle.settled();
+          await store.close();
+        }
+      });
+    }
+  }
+});
+
 // LLP 0043 M1 / LLP 0053 item 8 cold-carrier matrix. These are deliberately
 // not RQS-token tests: the same IndexedDB carrier holds a separate format-6-
 // disciplined query authorization + AuthorizedLease record, and a fresh store
@@ -454,6 +688,7 @@ test('SnapbackClient projects a lease-valid protected record on a cold offline h
     argsContractHash: `sha256:${'8'.repeat(64)}`,
     resultContractHash: `sha256:${'9'.repeat(64)}`,
     expectedGeneration: identity,
+    retention: 'opaque-authorized-snapshot-v1',
     argumentSchema: {
       type: 'object',
       additionalProperties: false,

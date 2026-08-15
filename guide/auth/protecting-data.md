@@ -276,6 +276,12 @@ auth-scoped retained snapshot needs a server-issued `AuthorizedLease`, bound to
 the exact principal, authorization version, app/data version stream, active
 artifacts, client store, query key, and query-instance id.
 
+`authorizedLeaseProtocol: 1` advertises that the session can use this optional
+protocol; it does not make every query retainable. The canonical client calls
+the lease endpoint only when the generated live-query reference carries its
+explicit protected-retention class. A non-retainable query remains an ordinary
+online live query even when the same client offers lease support.
+
 Lease acquisition is one full revalidation, not a heartbeat:
 
 1. The client durably reserves a fresh `leaseRequestId` and records the request
