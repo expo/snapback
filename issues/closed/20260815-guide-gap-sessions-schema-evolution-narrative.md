@@ -40,3 +40,18 @@ identity rotates → what the pin means → how the successor path advances it
 → what the diagnostics' hashes refer to → the recovery recipe when a
 partial load has materialized data. Link the diagnostics' error codes to
 the page.
+
+## Resolution
+
+Resolved 2026-08-15 by `2e0e5e03a`. New
+`guide/backend/schema-evolution.md` follows the requested loop, distinguishes
+`schemaHash`, `bundleHash`, and shared `inputsHash`, explains the complete-pair
+sessions pin and managed successor, and gives exact-carrier recovery recipes
+for both startup mismatch and partially materialized incompatible data. The
+capability row and retrieval case 56 route to it, and regenerated diagnostics
+link the startup-artifact and schema-evolution codes to the relevant sections.
+
+LLP 0160 G6 is closed with an implementation record, and its program ticket is
+updated as the single continuing tracker. Proof:
+`packages/snapback-cli/sessions-dev-loop.test.mjs`, `node
+scripts/check-guide.mjs`, and `node scripts/check-retrieval-eval.mjs`.

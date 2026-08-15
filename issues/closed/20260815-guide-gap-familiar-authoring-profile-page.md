@@ -57,3 +57,21 @@ pointer. Keep the profile documented as Experimental/non-default while
 the LLP 0256 D9/D10 window is open — the tiny-data freeze verifier
 covers doorway posture, and the familiar profile's default posture is
 similarly reserved to its own program's acceptance gates.
+
+Implemented 2026-08-15 by `2e0e5e03a`. The new authored page documents the
+grammar that ships in 0.1.21 as **Experimental / non-default**, flips the
+capability GAP to a page pointer, puts per-handler active-member/admin checks
+before business logic, shows stable React-hook argument memoization, and gives
+a tested Expo SecureStore adapter for process-restart session custody. Its
+single Expo Router journey connects generation, provider ownership,
+authorization, asset upload, generated-artifact refresh, acceptance process
+ownership, and native relaunch proof.
+
+Proof: `packages/snapback-codegen/familiar-phase-b.test.mjs`,
+`packages/snapback-react/familiar.test.mjs`,
+`packages/snapback-react/package.test.mjs`, the SecureStore restoration block
+in `packages/snapback-contract/auth-coordinator.test.mjs`, and the guide and
+retrieval checks. Lane F's familiar asset-intent/query-lowering changes and
+Lane G's membership grammar/authorization recipe were deliberately not
+anticipated; the asset-boundary and short link-shaped authorization sections
+need a follow-up accuracy pass after those branches land.

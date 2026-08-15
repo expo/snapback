@@ -37,3 +37,22 @@ discoverable from package source.
 
 Guide page + capability-index touch for the catalogue location rule;
 refusal text that names the scan root; fix the served promotion.md route.
+
+## Resolution
+
+Resolved 2026-08-15 by `2e0e5e03a`. The data-query guide and capability row
+now route authors to a complete literal chain under the codegen backend root,
+conventionally `snapback/data-queries.mjs`, and document `_id` as the totalizer
+after an exact unique-index predicate. Both the generated builder and client
+admission refusal name that scan boundary, regeneration, and generated-
+descriptor repair. The exact served `/_snapback/guide/data/promotion.md` URL is
+linked and pinned by the embedded-server route regression.
+
+The refusal intentionally remains synchronous when `.take(...)` completes the
+shape: without a catalogue witness there is no valid generated function
+reference to issue, so delaying it would return a descriptor already known to
+be invalid and move the repair away from the authored chain. Proof:
+`packages/snapback-codegen/data-query.test.mjs` (including the new unique-index
+totalizer and refusal-copy assertions),
+`packages/snapback-client/data-client.test.mjs`, and
+`tests/served_guide_v1.rs::index_and_individual_build_embedded_files_are_public_read_only`.

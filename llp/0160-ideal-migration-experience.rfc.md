@@ -5,7 +5,9 @@
 **Systems:** Migrations, Developer experience, Agent experience, CLI, Diagnostics, Client integration, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (Accepted by the author after the five-round
+**Revised:** 2026-08-15 (G6 closed by `2e0e5e03a`: the Guide now joins the
+reviewed migration command loop to a sessions deployment-identity narrative,
+capability rows, generated diagnostic links, and retrieval evidence); 2026-08-03 (Accepted by the author after the five-round
 dual-family super-refine loop closed on the asymmetric stopping rule —
 Fable READY rounds 3–5 recommending accept-track, Codex NOT READY×5
 with monotonically narrowing new-surface findings, all absorbed
@@ -486,7 +488,7 @@ provider). The experience work is leverage on rigor already paid for.
 | G4′a | R | First-party presentation/copy over shipped `migrationBoundary()` state | 8 | S–M |
 | G4′b | D-audit (OQ6 ruled 2026-08-03: tombstone-and-re-entry blessed; dated 0081 amendment landed) | Cross-artifact settlement: audit the shipped tombstone-and-re-entry path against the amended 0081 text; plus non-JS carriers (protocol half restated in LLP 0093 per the OQ3 blessing) | 8 | S–M audit |
 | G5 | R | No `snapback migrate status`; recovery experience (operation discovery — including the second-operator collision case under 0081's one-migration-per-app rule — resume, cancellation surfaces) rides with it; the transport choice is load-bearing on the single-writer profile | 6, 9 | M |
-| G6 | R | No guide page walks preview→approve→rehearse→apply→verify→rollback→activation; `guide/capabilities.md` has no reviewed-migration row (LLP 0061 requires a guide page or an explicit GAP row; a migration retrieval-eval case is this RFC's recommendation) | all | S |
+| ~~G6~~ | ~~R~~ | ~~No guide page joins preview→approve→rehearse→apply→verify→rollback to sessions deployment activation, capability routing, and retrieval evidence.~~ **Closed by `2e0e5e03a`: `guide/backend/migrations.md` owns the reviewed command loop; new `guide/backend/schema-evolution.md` owns identity rotation, the sessions pin, managed successor activation, hash interpretation, and exact-carrier recovery; the capability index, generated diagnostic registry, and retrieval case 56 route into those pages.** | ~~all~~ | ~~S~~ |
 | G7 | R (informational) / A-blocked (receipt-qualifying) | Fork-accelerated rehearsal: informational what-if is pure experience work once 0158 ships; receipt qualification is blocked on 0158's custody/fidelity proofs plus a dated 0081 §7 amendment | 5 | blocked on LLP 0158 |
 | G7′ | A | Canonical impact-summary fields (rows retained/re-stamped) — a dated LLP 0081 §2 amendment | 3 | S spec / M with proof plumbing |
 | G8 | D + R | Migration-scale evidence. **D:** 0081's acceptance requires fault injection at every batch boundary, and no test seeds past 512 rows, so the second-batch boundary is provably unexercised — conformance drift, not preference. **R:** the real-process-kill rung and the ≥1M-row soak are additional strengthening beyond the acceptance floor | trust in 6, 7 | M |
@@ -502,6 +504,12 @@ provider). The experience work is leverage on rigor already paid for.
 
 ### Implementation record
 
+- **2026-08-15 — G6 complete.** `2e0e5e03a` authored the sessions schema-
+  evolution narrative, joined it to the existing reviewed-migration loop,
+  added capability and retrieval routing, and regenerated diagnostic links
+  for the startup-artifact and storage-evolution refusals. This was a
+  documentation/discoverability closure; it changed no LLP 0058 or LLP 0081
+  deployment or migration semantics.
 - **2026-08-03 — tranche 1 complete.** G2 landed in `eff005a7`, G1 in
   `e933babc`, and G11 in `120a2a7d`. The tranche changed refusal and human
   presentation text plus the separately digested preview observation; it did

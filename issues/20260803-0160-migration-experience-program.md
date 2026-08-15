@@ -71,6 +71,21 @@ F0a/F0b alone.
 These notes record row status only. LLP 0160 ledger reconciliation remains the
 landing orchestrator's responsibility.
 
+## Tranche 2 row status notes
+
+- **2026-08-15 — G6 verified complete.** Commit `2e0e5e03a` joins the
+  established `guide/backend/migrations.md` command loop to the new
+  `guide/backend/schema-evolution.md` sessions narrative: schema identity
+  rotation, complete-pair pin semantics, managed successor activation,
+  diagnostic hashes, and exact-carrier recovery after partially materialized
+  data. The capability index now has distinct migration and sessions-evolution
+  rows, generated diagnostics route the startup-artifact and schema-evolution
+  codes to the recovery sections, and retrieval case 56 proves intent routing.
+  Evidence: `node scripts/check-guide.mjs` passed (140 pages, 1513 snippets,
+  171 routes); `node scripts/check-retrieval-eval.mjs` passed (57 cases, 0
+  errors); `packages/snapback-cli/sessions-dev-loop.test.mjs` passed; the
+  filtered served-guide Rust route test passed.
+
 ## House rules
 
 As the 0133/0154 programs: verify-against-main first; the R/D/A
