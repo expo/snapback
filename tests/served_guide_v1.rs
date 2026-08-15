@@ -290,6 +290,19 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
         GUIDE_CONTENT_SHA256
     );
 
+    // Regression for the exact URL advertised by the Data Resources page:
+    // the recursive wildcard must serve nested authored pages, not only the
+    // section index and generated projections.
+    let promotion = get("/_snapback/guide/data/promotion.md").await;
+    assert_eq!(promotion.status(), StatusCode::OK);
+    assert_eq!(
+        to_bytes(promotion.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .as_ref(),
+        include_bytes!("../guide/data/promotion.md")
+    );
+
     let manifest = get("/_snapback/guide/guide-manifest.generated.json").await;
     assert_eq!(manifest.status(), StatusCode::OK);
     assert_eq!(

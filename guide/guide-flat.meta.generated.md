@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:5b2a8a72165d469ef73ce705a2c09f5c97d941c45eeef3ecb1bea44c46fbf469
+reviewed-authorities-digest: sha256:80af60c8915b1342e86fc952ffa4040036c2e4e1af02f1e5dd53867d0a0ca72f
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -149,6 +149,10 @@ proof command, and honest nonclaims without opening every demo.
   cache, summaries, and fail-closed resolution.
 
 ### Backend
+- [Familiar TypeScript profile](./backend/familiar-profile.md) — the
+  Experimental/non-default 0.1.21 grammar, server-side authorization,
+  identity-stable React hooks, native SecureStore custody, and one Expo Router
+  journey.
 - [Handler runtime profile and generation preflight](./backend/handler-runtime.md)
   — inspect current handler module/syntax/global limits, run the full
   non-replacing `generate --check` path, and follow build-bound refusal
@@ -186,6 +190,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Reviewed migrations](./backend/migrations.md) — the `snapback migrate`
   preview → approve → rehearse → apply → verify loop for destructive schema
   changes, its intents, and its refusal codes.
+- [Sessions schema evolution](./backend/schema-evolution.md) — change schema,
+  interpret the deployment pin and diagnostic hashes, let managed successor
+  activation advance it, and recover partial loads without discarding data.
 - [Assets](./backend/assets.md) — generated upload intents, one-call
   File/Blob/picker upload, signed-URL issuance with a shared TTL-refresh
   controller and React hook, TUS resumable transfer, typed `v.assetRef`
@@ -421,7 +428,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:148f869dd280f1e44c8812d41306327bfc5c5f503d08e5bbd1b938c4fe0af51e
+reviewed-authorities-digest: sha256:34869931ec4d7c7ff60070678a9e891736271e99aff08187fbc15c75044bebe4
 ---
 
 # Capability index
@@ -441,13 +448,14 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.stored-enums | Closed string domains on stored fields: 2–7 literals, fail-closed at every writer, literal-union types, scanned narrowing | enum, stored enum, literal union field, closed domain, role enum, varchar enum, v.union table field | local | shipped | packages/snapback-codegen/stored-enum-authoring.test.mjs | llp/0004, llp/0007 | getting-started/your-first-backend.md |
 | backend.identity-columns | Server-owned monotonic numeric/default columns (SQL IDENTITY, SERIAL) declared on a field | identity column, serial, autoincrement, sequence column, default value, GENERATED AS IDENTITY | none | design-only | llp/0191-scale-architecture-revisits.research.md (§3; no shipped witness) | llp/0191, llp/0007 | GAP (owner: LLP 0191 identity Decision, review: 2026-09-15; issue: issues/20260808-numeric-identity-default-columns.md); getting-started/your-first-backend.md |
 | backend.migrations | Reviewed destructive schema evolution (LLP 0081): explicit intents, deterministic preview + digested observation, digest-acknowledged approval, restore-derived rehearsal, apply with consumed rehearsal receipt, receipt-vs-journal verify; `rollback` declared-but-unbuilt | migration, schema migration, alter column, rename column, drop field, backfill, snapback migrate | local | shipped | `MigrateCommand` in src/cli.rs | llp/0081 | backend/migrations.md |
+| backend.schema-evolution | Sessions schema evolution: complete-pair pin, managed successor, hash diagnostics, exact-carrier recovery without data loss | sessions schema change, expectedDeployment, partial load, successor activation | local | shipped | packages/snapback-cli/sessions-dev-loop.test.mjs | llp/0058, llp/0160, llp/0081 | backend/schema-evolution.md |
 | backend.record-history | Bounded per-record version retention: `defineTable(...).history({ retainMs, maxVersionsPerRecord })` (≤ 30 days, 1–1,000 versions), captured at committed writes, consumed by host proof machinery; no author-facing read query | history, record history, version history, audit trail, time travel, retainMs, maxVersionsPerRecord | local | shipped | `history(` in packages/snapback-codegen/define.mjs | llp/0162 | backend/mutations.md |
 | backend.functions | Queries/live queries/mutations/actions: declarative plans or colocated JS + same-file helpers; document/record/value result contracts incl. result-side `v.doc(table)` refs; manifest-derived handler/helper `ctx.db` types split read/write; exact client refs; runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase, ctx.refuse, refusals, application error code, domain error, app refusal, mutationPlan, letBind, insertEach, return binding, declarative mutation | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.mutation-settlement-identity | Mutation-only client identity and server-namespaced digest for replay-stable effects; genuine re-entry preserves it, while hosted returns null. | ctx.mutation.settlement, settlementId, replay-stable effect, provider idempotency key, effect dedupe | local | shipped | `recordEffectIntent` in tests/mutation_settlement_identity_v0.rs | llp/0043 | backend/mutations.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | data.resources-v1 | Generated owner/public data resources with CRUD, sync policy, cursors, and promotion | .data, DataResourceV1, dataSync, DataCursorV1 | local | partial | packages/snapback-codegen/data-resource.test.mjs | llp/0255, llp/0065 | data/resources.md |
-| data.queries-v1 | Static bounded indexed queries with exact/synthesized routes, cursors, ceilings, and explain | DataQueryV1, using, where, select, take, after | local | partial | packages/snapback-codegen/data-query.test.mjs | llp/0255, llp/0157 | data/queries.md |
+| data.queries-v1 | Static bounded indexed queries with backend-root catalogue, exact/synthesized routes, `_id` totalizer, cursors, ceilings, and explain | DataQueryV1, data-queries.mjs, SNAPBACK_DATA_QUERY_NOT_CATALOGUED, unique index _id order, using, where, select, take, after | local | partial | packages/snapback-codegen/data-query.test.mjs | llp/0255, llp/0157 | data/queries.md |
 | data.transactions-v1 | Generated atomic data transactions with prediction, declared custody, recovery, and pendingWrites | db.tx, db.transact, outcome-unknown | local | partial | packages/snapback-client/data-client.test.mjs | llp/0255, llp/0043 | data/transactions.md |
 | data.doorways-v1 | Experimental generated tiny-data facade over the one canonical client: headless createDataClient plus provider-bound React db and identity-preserving Expo reexport | @expo/snapback/data, @expo/snapback/react/data, @expo/snapback-expo/data, db.useQuery, useQuery | local | partial | packages/snapback-umbrella/package.json (`./data`, `./react/data`) + packages/snapback-expo/package.json (`./data`) | llp/0255, llp/0012, llp/0064 | data/doorways.md |
 | data.lifecycle-v1 | One-shot pages, canonical live handle with refresh, full query-state union plus pendingWrites, skip, explain, transaction settlement and recovery | db.read, db.watch, db.useQuery, skip, pendingWrites, refresh, db.explain, db.transaction | local | partial | packages/snapback-client/data-client.test.mjs + packages/snapback-react/data.test.mjs | llp/0255, llp/0043, llp/0218 | data/lifecycle.md |
@@ -465,12 +473,12 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.handler-runtime-profile | Current-rule handler admission profile + complete non-replacing generation preflight: operation selection, build-bound diagnostics, exact definition paths, separate executable/raw-evidence digests | handler runtime profile, generate --check, Can I import a helper?, Can I use Node crypto?, BUNDLE_UNSUPPORTED_IMPORT, SNAPBACK_INLINE_HELPER_INADMISSIBLE, SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED, SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE | all | shipped | packages/snapback-codegen/handler-runtime-profile.test.mjs + packages/snapback-cli/generate-check.test.mjs | llp/0237, llp/0108 | backend/handler-runtime.md |
 | backend.batch-reads | Bounded same-snapshot exact-id and complete-unique-key batch reads (`ctx.db.getMany`, `ctx.db.uniqueMany`) | batch get, getMany, uniqueMany, N+1, dataloader, IN clause, where id in, Convex db.get loop | local | partial | `db.getMany` in packages/snapback-harness/ctx-bootstrap.js | llp/0248 | GAP (guide section pending; owner: LLP 0248, review: 2026-09-15; issue: issues/20260812-guide-gap-batch-reads-page.md); backend/queries.md |
 | backend.handler-typescript | Single-file `.ts`/`.mts` handler modules under the pinned syntax-erasing `bounded-handler-typescript-v1` profile | typescript handler, .ts backend, ts handler, type-check handler, erasure | local | partial | `transformTypeScriptHandler` in packages/snapback-codegen/typescript-transform.mjs | llp/0246 | GAP (page pending multi-file custody; owner: LLP 0246, review: 2026-09-15; issue: issues/20260812-0246-remaining-rollouts-stacked-on-0237.md); getting-started/generated-artifacts.md |
-| backend.familiar-profile-v1 | Experimental non-default Convex-familiar TS authoring profile: `authoringProfile` selection, `query`/`mutation`/`action` constructors lowering to the canonical grammar | familiar profile, snapback-familiar-ts-v1, authoringProfile, convex-style handlers | local | partial | packages/snapback-codegen/familiar-phase-b.test.mjs | llp/0253, llp/0252 | GAP (authored profile page; owner: LLP 0252/0253, review: 2026-08-29; issue: issues/20260815-guide-gap-familiar-authoring-profile-page.md) |
+| backend.familiar-profile-v1 | Experimental non-default TS profile: `authoringProfile` selection and familiar constructors lowering to canonical grammar | familiar profile, snapback-familiar-ts-v1, Familiar TypeScript, SecureStore custody, Expo Router familiar | local | partial | packages/snapback-codegen/familiar-phase-b.test.mjs | llp/0253, llp/0252 | backend/familiar-profile.md |
 | authoring.declaration-suggestions | Review/apply result-only candidates; committed declaration stays authoritative | infer result, suggest contract, write my result contract, convex-style inference | local | partial | packages/snapback-codegen/declaration-suggestion.test.mjs | llp/0245, llp/0108 | getting-started/the-authoring-loop.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense `ctx.sequence.allocate` with replay/contention/exhaustion evidence; contributor-source local only | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public/hosted qualification; owner: Charlie, review: 2026-09-30; issue: issues/20260808-main-drift-sequence-allocation-publication.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated local assets: generated intents, resumable upload, trusted image/video finalization/renditions, typed attachment, strict/signed/public delivery, GC, callbacks/receipts, consistent cuts, key rotation, frozen recipient grants. Atomic grant mint/activate/revoke; active-edge read/GC; revoke blanks live; typed refusals; 1,024 edges/app. `via-references` remains. Nonclaims: byte backup, transcoding, hosted. | files, images, video, asset grant, grants: true, ctx.assets.grant, ctx.assets.activate, ctx.assets.revoke, pending grant, view once, object storage, browser upload, native upload, SVG, Expo ImagePicker, asset export, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json + `asset_grant_ops_pilot_strict_signed_and_lifecycle` / `asset_grant_commit_wakes_and_revoke_blanks_live_projection` / `asset_cut_carries_grants_at_the_same_consistent_cut` in src/local/tests.rs + tests/acceptance/asset-conformance-v1.mjs + demos/file-drop/tests/acceptance/browser-relay.mjs + demos/messaging-snapback/tests/acceptance/headless.mjs (view-once grant probes) | llp/0044, llp/0210, llp/0220 | backend/assets.md |
+| backend.assets | Local asset intents/upload, trusted image/video finalization, typed attachment/delivery, GC, receipts, consistent cuts, key rotation, and recipient grants; no byte backup/transcoding/hosted claim | storing media, data URL media, base64 image, files, images, video, asset grants, grants: true, ctx.assets.grant, ctx.assets.activate, ctx.assets.revoke, pending grant, view once, object storage, browser upload, native upload, SVG, Expo ImagePicker, asset export, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | tests/acceptance/asset-conformance-v1.mjs + `asset_grant_ops_pilot_strict_signed_and_lifecycle` in src/local/tests.rs | llp/0044, llp/0210, llp/0220 | backend/assets.md |
 | assets.media-field.v1 | Finalized-only top-level `v.media()` with same-snapshot `MediaRef`, exact mutation settlement, and empty-safe delivery controller; no collection, command, class-M activation, or playable-video claim. | v.media, MediaRef, useSnapbackMedia, profile image | local | shipped | packages/snapback-codegen/media-field-authoring.test.mjs + tests/acceptance/fixtures/media-profile/snapback/schema.mjs + packages/snapback-react/assets.test.mjs + src/storage/tests.rs | llp/0239; llp/0244 | backend/media-happy-paths.md |
 | assets.media-collection.v1 | Bounded ordered media collection | assetCollection, media array | none | design-only | llp/0239-asset-collections-and-media-field.rfc.md (no witness) | llp/0239 | GAP (owner: LLP 0239 R3, review: 2026-08-26; issue: issues/20260812-media-ref-snapshot-projection.md); backend/media-happy-paths.md |
 | assets.media-command.v1 | Atomic media command | mediaCommand | none | design-only | llp/0239-asset-collections-and-media-field.rfc.md (no witness) | llp/0239 | GAP (owner: LLP 0239 R4, review: 2026-09-02; issue: issues/20260812-media-ref-snapshot-projection.md); backend/media-happy-paths.md |
@@ -1670,6 +1678,45 @@ restriction profile.
     `backend/queries.md`.
     Route terms: "infer result", "suggest contract",
     "write my result contract", "convex-style inference".
+
+Cases 54–57 absorb the 2026-08-15 multi-profile sweep's catalogue-root,
+asset-authoring, sessions-evolution, and familiar-profile discovery misses.
+
+54. **Tiny-data catalogue root:** "My literal `data.*` query works in an Expo
+    route but render throws `SNAPBACK_DATA_QUERY_NOT_CATALOGUED`." The run
+    fails if it merely makes the values static in the UI file or defers the
+    refusal; it must move the complete chain under the backend scan root,
+    conventionally `snapback/data-queries.mjs`, and regenerate.
+    Expected pages: `data/queries.md`.
+    Route terms: "SNAPBACK_DATA_QUERY_NOT_CATALOGUED", "data-queries.mjs",
+    "backend source root".
+
+55. **Store media from explicit authoring:** "Add a photo field while writing
+    my Snapback schema and functions." The run fails if the plan stores a
+    base64/data URL in `v.string()` or `v.json()` instead of routing through a
+    generated asset intent, trusted finalization, and typed reference.
+    Expected pages: `backend/assets.md` or
+    `getting-started/your-first-backend.md` or `backend/handler-runtime.md`.
+    Route terms: "storing media", "data URL media", "base64 image".
+
+56. **Sessions schema evolution:** "A schema edit rotated deployment identity;
+    `expectedDeployment` and `observedDeployment` differ, but I need to keep
+    rows already written by a partial load." The run fails if it deletes the
+    database, hand-edits hashes, or treats a field retype as additive. It must
+    boot the exact predecessor carrier and use the packaged successor or
+    reviewed-migration path.
+    Expected pages: `backend/schema-evolution.md`.
+    Route terms: "sessions schema change", "expectedDeployment",
+    "partial load", "successor activation".
+
+57. **Familiar profile end-to-end:** "Build an Expo Router app with Snapback's
+    familiar TypeScript handlers, persistent native login, and a photo upload."
+    The run fails if it presents familiar as the default/stable profile, keeps
+    native custody in memory, omits per-handler membership checks, uses inline
+    hook argument objects, or stores the photo as a data URL.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "Familiar TypeScript", "Expo Router familiar",
+    "SecureStore custody".
 
 ## Static routing check
 

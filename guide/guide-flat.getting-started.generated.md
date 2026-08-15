@@ -15,7 +15,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-09
-reviewed-authorities-digest: sha256:fee04f8766ab6c2d182a1b287011ef896f16ba001922217f326d56ce73e2395b
+reviewed-authorities-digest: sha256:b3d9adcd8e76825df7794cd4c78f72926c6f0cd6fa43552f8d54d2f82cc125ba
 ---
 
 # Your first backend
@@ -82,6 +82,15 @@ The core validators: `v.string()`, `v.principal()`, `v.id(table)`,
 partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
+
+**Storing media is an asset workflow, not a string-field shortcut.** If a
+field will hold an uploaded photo, video, or file, stop here and follow
+[Assets](../backend/assets.md): declare an asset intent, upload and finalize
+through the generated asset surface, then attach a typed `v.assetRef` (or use
+the finalized-only [`v.media()` happy path](../backend/media-happy-paths.md)).
+Do not place a `data:image/...;base64,...` or `data:video/...` value in
+`v.string()`/`v.json()` merely because it type-checks; that bypasses upload
+bounds, trusted media finalization, delivery policy, GC, and rendition state.
 
 <!-- since: 0.1.18 -->
 
@@ -204,6 +213,11 @@ export const listTodosOnce = defineQuery({
 A JS mutation and a JS live query in the paved inline form — each definition
 carries its `handler` directly, next to `args`, `result`, and the declared
 `reads`/`writes`:
+
+If the function accepts, finalizes, attaches, or delivers a file, use the
+generated [asset intent and finalization flow](../backend/assets.md) alongside
+the mutation. Base64/data-URL payloads are ordinary oversized strings, not a
+second media pipeline.
 
 ```js source=packages/snapback-codegen/inline-result-contracts.test.mjs
   export const createTodo = defineJsMutation({
@@ -471,7 +485,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:0af8f5acd5cd1550dd9e76f0f7bd95bafe486035c46d59b08ca37aba0bd02d16
+reviewed-authorities-digest: sha256:f1d8f7daf9ba99659b9c7a72003879add600b9353f0cea566636052afe2f9727
 ---
 
 # The authoring loop
@@ -774,12 +788,18 @@ watch reload pick it up. The reload evolves the catalog in place, and live
 handles may stay attached while it happens — a subscriber does not have to be
 torn down first.
 
+For the complete sessions loop — what the pin records, why identities rotate,
+how packaged cold-successor activation advances it, and how to preserve rows
+after a partial load — use
+[Evolve a sessions schema without discarding data](../backend/schema-evolution.md).
+
 What matters is *where* you do it. Stop the server, regenerate, and restart,
 and a sessions-mode app refuses with
 `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`, whose details carry the expected
 and observed deployment identities: the settled deployment's startup carrier
-no longer matches the artifacts on disk. The recovery is the running-server
-path above — evolve through the watch reload rather than through a restart.
+no longer matches the artifacts on disk. The recovery is the exact-carrier
+then packaged-successor path on the detailed page; do not discard the database
+or hand-edit its pin.
 
 Additive changes (new optional fields, new tables, new indexes) are what this
 loop supports. Destructive changes — dropping a field, tightening an optional

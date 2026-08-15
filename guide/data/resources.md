@@ -115,6 +115,10 @@ surface that rotates existing applications.
 
 ## Promote one write
 
+The served companion page for this operation is
+[Promote a generated data operation](./promotion.md); its build-bound URL is
+`/_snapback/guide/data/promotion.md`.
+
 Preview a generated owner write as ordinary explicit source:
 
 ```sh

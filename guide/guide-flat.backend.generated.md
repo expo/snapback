@@ -1708,7 +1708,7 @@ targets: [all]
 maturity: shipped
 since: 0.1.21
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:845519883f83aac197189804f749732f7424d782fbe09a29ee24a7f09f34ff7d
+reviewed-authorities-digest: sha256:5dd953c8870f6b846c1f12114d442a7acebea555d20729e331b1009aa1695239
 ---
 
 # Handler runtime profile and generation preflight
@@ -1720,6 +1720,12 @@ module bounds, syntax, globals, computed access, runtime capabilities, target
 differences, diagnostics, and the profile selected for each operation. The
 artifact is projected from the same versioned tables used by codegen's
 scanners, rather than from a separate prose restriction list.
+
+Authoring a function that stores media? Route to [Assets](./assets.md) before
+choosing handler arguments or stored fields. The explicit function surface is
+where you declare asset intents, perform trusted finalization, and attach typed
+references. A data URL in `v.string()` or `v.json()` is not an asset upload and
+loses the pipeline's size, media, delivery, GC, and rendition guarantees.
 
 ## Inspect the generated profile
 
@@ -1917,6 +1923,259 @@ into the executable graph identity.
   happened to exist in one process.
 - Do not hand-edit `handler-runtime-profile.v1.json`; regenerate it from the
   authored backend and executable rules.
+
+---
+
+<!-- snapback-guide-source: guide/backend/familiar-profile.md -->
+---
+title: Familiar TypeScript profile (Experimental, non-default)
+id: backend.familiar-profile
+order: 5
+audience: agent-first
+capabilities: [backend.familiar-profile-v1]
+authorities: [llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs]
+examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-cli/templates/expo-chat]
+status: current
+targets: [local]
+maturity: partial
+since: 0.1.21
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:cbb1d479883d92d47848a9c618fc399c4e864ecc8991f9b340baf7fbc64ba297
+---
+
+# Familiar TypeScript profile (Experimental, non-default)
+
+> **Experimental / non-default in 0.1.21.** The familiar profile is a source
+> adapter over Snapback's canonical schema, function, runtime, and client
+> owners. It is not a second backend and does not make Convex compatibility a
+> target claim.
+
+Use this profile when top-level TypeScript modules and
+`query`/`mutation`/`action` constructors materially improve authoring. Use the
+default explicit profile for the broadest Snapback vocabulary, especially
+declarative plans, routes, cron, custom asset intents, search/vector, and
+effectful actions. One backend selects one profile; mixing explicit
+`schema.mjs`/`functions.mjs` with familiar `schema.ts`/function modules is a
+typed refusal.
+
+## Select the profile explicitly
+
+The opt-in lives only in `snapback/codegen.policy.json`:
+
+```json source=tests/fixtures/familiar-todo/codegen.policy.json
+{
+  "schemaVersion": "snapback.codegen-policy.v1",
+  "committedProjections": ["normalized-definition.v1.json"],
+  "authoringProfile": "snapback-familiar-ts-v1"
+}
+```
+
+Omitting `authoringProfile` selects `snapback-explicit-v1`. Do not add a
+runtime flag or client-side profile switch; generated app identity carries the
+selection.
+
+The familiar backend root is flat:
+
+```text
+snapback/
+  codegen.policy.json
+  schema.ts
+  todos.ts                 # exports become api.todos.*
+  contracts.ts             # non-function helper module
+  _generated/              # generated server/api declarations and runtime
+```
+
+Nested modules are helpers, not function namespaces. A top-level function
+module may export only familiar function values; move exported constants and
+helpers out of it.
+
+## Declare schema and functions
+
+The schema vocabulary is the shared `defineSchema`/`defineTable`/`v` surface:
+
+```ts source=tests/fixtures/familiar-todo/schema.ts
+import { defineSchema, defineTable, v } from "./_generated/server";
+
+export default defineSchema({
+  todos: defineTable({
+    title: v.string(),
+    completed: v.boolean(),
+  }).index("by_completed", ["completed"]),
+});
+```
+
+Each function declares its authority and data reach next to the handler. A
+module `todos.ts` with export `list` becomes canonical name `todos.list` and
+generated reference `api.todos.list`:
+
+```ts source=tests/fixtures/familiar-todo/todos.ts
+export const list = query({
+  args: { completed: v.boolean() },
+  returns: v.array(v.doc("todos")),
+  auth: "public",
+  reads: ["todos"],
+  handler: async (ctx, args) => ctx.db
+    .query("todos")
+    .withIndex("by_completed", (q) => q.eq("completed", args.completed))
+    .collect(),
+});
+```
+
+Every function requires `args`, `returns`, `auth`, and `handler`. Queries add
+`reads`; mutations add `reads` and `writes`; actions may add `secrets`.
+Queries are live by default; set `delivery: "read"` for a one-shot query.
+Canonical queries are list-shaped. Represent a get as a bounded zero-or-one
+array rather than returning a nullable document. Familiar actions can read
+auth/runtime/secrets, refuse, and call a generated mutation reference; they do
+not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
+
+## Put authorization before business logic
+
+`auth: "authenticated"` proves only that a principal exists. It does not prove
+the caller is an active member or administrator of an app resource. For every
+protected handler, make the active-member/admin decision before returning rows
+or performing effects. Prefer the declaration-qualified membership helpers so
+the check participates in the transaction and refuses without revealing
+whether the resource or membership exists.
+
+The full patterns are [Scoped roles and memberships](../auth/scoped-roles.md)
+and [Bind a principal to your app user](../auth/app-identity-binding.md). In
+particular, use the documented `ctx.permissions.<declaration>.requireRole(...)`
+shape for a denying handler and a declared membership predicate for an
+empty-result list. Do not substitute a client-provided user id or an `auth`
+string for those server-side checks.
+
+## Keep React hook arguments identity-stable
+
+Familiar's React doorway is `@expo/snapback-react/familiar`. It exports
+`SnapbackProvider`, `useQuery`, `useMutation`, `useAction`, `useQueryState`,
+and `skip` over the canonical React owner. `useQuery` returns current live data
+or `undefined`; use `useQueryState` when the UI must render connection,
+freshness, blocked, or diagnostic state.
+
+Memoize stable-content argument objects at the component boundary:
+
+```tsx fragment reason="application component names vary; packages/snapback-react/package.test.mjs proves stable identity stays silent while five consecutive equal-content identities emit SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN"
+const listArgs = useMemo(() => ({ completed }), [completed]);
+const todos = useQuery(api.todos.list, listArgs);
+```
+
+Do the same for nested scope/value objects passed to live or presence hooks.
+The canonical store key is content-based, so an inline equal-content object is
+not a data-integrity bug, but repeated identity churn performs descriptor
+handoffs and triggers the development diagnostic
+`SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN`. Memoization is lifecycle
+hygiene, not a workaround for stale data.
+
+## Persist native session custody with SecureStore
+
+Web uses `createIndexedDbAuthCustodyStorage()`. React Native has no shipped
+SecureStore adapter in 0.1.21, so do not silently fall back to
+`createMemoryAuthCustodyStorage()` for a user session that must survive a
+process restart. Install the SDK-compatible `expo-secure-store`, then adapt it
+to `AuthCoordinator`'s ownership and compare-and-swap contract. This tested
+adapter namespaces records by the canonical app-id hash and validates bytes on
+both read and write:
+
+```js source=packages/snapback-contract/auth-coordinator.test.mjs
+function createSecureStoreAuthCustodyStorage(SecureStore) {
+  const ownershipTails = new Map();
+  return {
+    async withOwnership(appId, operation) {
+      const key = `snapback.auth-custody.${authAppIdHash(appId)}`;
+      const previous = ownershipTails.get(key) ?? Promise.resolve();
+      let release;
+      const next = new Promise((resolve) => { release = resolve; });
+      ownershipTails.set(key, previous.then(() => next));
+      await previous;
+      const read = async () => {
+        const encoded = await SecureStore.getItemAsync(key);
+        return encoded === null ? null : validateAuthCustody(JSON.parse(encoded), appId);
+      };
+      try {
+        return await operation({
+          read,
+          async replace(expectedRevision, record) {
+            const current = await read();
+            const actualRevision = current?.revision ?? null;
+            if (actualRevision !== expectedRevision) {
+              throw Object.assign(new Error('durable custody changed before compare-and-swap'), {
+                code: 'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
+              });
+            }
+            const validated = validateAuthCustody(record, appId);
+            await SecureStore.setItemAsync(key, JSON.stringify(validated));
+            return validated;
+          },
+        });
+      } finally {
+        release();
+      }
+    },
+  };
+}
+```
+
+Import `authAppIdHash`, `AuthCoordinator`, and `validateAuthCustody` from
+`@expo/snapback-contract/auth-coordinator`, import `* as SecureStore` from
+`expo-secure-store`, construct the adapter once, and pass it as `storage` with
+`broadcastChannelFactory: null` and `hintStorage: null` on native. On web keep
+the IndexedDB adapter. Acceptance must terminate and relaunch the native
+process, then prove `synchronize()` restores the settled session without a new
+email-code exchange.
+
+This JSON carrier is for ordinary bearer custody. It does not claim native
+sender-constrained key custody; the Secure Enclave/Keystore proof transport is
+still outside the shipped native target.
+
+## One Expo Router journey
+
+Here is the shortest coherent application loop, rather than six disconnected
+reference exercises:
+
+1. Scaffold the published Expo app, install `expo-router` and SDK-compatible
+   `expo-secure-store`, copy the conventional `snapback/` backend when adding
+   Snapback to an existing project, and select the familiar policy above.
+2. Author `schema.ts` plus top-level function modules. Put
+   `SnapbackExpoProvider`/`SnapbackProvider` and the one long-lived client in
+   `app/_layout.tsx`; route files import generated `api.module.export`
+   references and use memoized argument objects.
+3. Gate each protected query/mutation with active membership or admin checks.
+   Keep this server-side even if Expo Router already hid the screen.
+4. For a simple private JPEG/PNG field in 0.1.21, a bare `v.assetRef()` derives
+   the bounded default upload intent. Upload through the generated asset
+   reference and `assets.upload(...)`, wait for its ready asset id, then attach
+   the typed id in a mutation. Use the complete [asset guide](./assets.md), not
+   a base64 data URL. Custom `defineAssetUpload` declarations are not in the
+   familiar function-module grammar in 0.1.21; choose the explicit profile if
+   the default intent is insufficient.
+5. After every source change run `snapback generate snapback`; review and
+   commit the refreshed `snapback/generated/artifacts.json` plus only the
+   projections selected by policy. Never patch `_generated/` or a manifest to
+   make a type error disappear.
+6. Run `snapback dev snapback --expo` for the supervised device loop. Keep the
+   acceptance owner separate from the rendered route: use the generated
+   template's headless `acceptance.mjs`/`acceptance.live.mjs` pattern to boot
+   isolated state, mint the test persona, drive generated references, observe
+   the live result, and shut down. Add an on-device process-kill/relaunch rung
+   for SecureStore restoration and the actual picker/upload path.
+
+The profile changes authoring syntax only. Expo boot, asset custody,
+acceptance process ownership, generated-artifact review, live delivery, and
+authorization remain the same canonical Snapback systems documented by their
+linked pages.
+
+## Know when to leave the profile
+
+Move the backend to the explicit profile when it needs a surface the familiar
+grammar refuses: declarative plans, routes, cron, search/vector, custom asset
+intents, membership declarations not expressible in the shared schema
+vocabulary, or action fetch/stream/host effects. Treat the diagnostic's route
+as the boundary; do not import explicit builders into a familiar function
+module or hide them behind a helper.
+
+The complete refusal table remains in
+[Generated artifact custody](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals).
 
 ---
 
@@ -5327,6 +5586,165 @@ writer rejects oversized values with
   experimental local target supports it independently; see
   [Snapshot batches](./snapshot-batches.md). Sequence qualification did not
   change that capability.
+
+---
+
+<!-- snapback-guide-source: guide/backend/schema-evolution.md -->
+---
+title: Evolve a sessions schema without discarding data
+id: backend.schema-evolution
+order: 29
+audience: agent-first
+capabilities: [backend.schema-evolution]
+authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, src/auth/mode.rs, src/cli.rs, src/storage.rs, packages/snapback-cli/index.mjs]
+examples: [packages/snapback-cli/sessions-dev-loop.test.mjs, src/cli/tests.rs, src/storage/tests.rs]
+status: current
+targets: [local]
+maturity: shipped
+since: 0.1.21
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:135967733e4ca35636229fb5509bb9035f299a4245aab62ec095b9410142a5d0
+---
+
+# Evolve a sessions schema without discarding data
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+The ordinary sessions-mode loop is: edit the schema, let generation produce a
+complete candidate pair, and let the packaged `snapback dev` owner advance the
+deployment. Keep the database. A deployment-identity refusal is a safety fence
+around that loop, not a request to delete local state.
+
+## Change schema, then let the identity rotate
+
+Additive changes such as a new table, index, or optional field can load through
+the running watch loop:
+
+```sh
+snapback dev snapback --db .snapback/dev.sqlite3
+```
+
+Edit while that process owns the server. Generation creates one coherent
+schema/function pair; the running load path preflights and activates it. If the
+managed process must restart, it owns the cold successor handshake described
+below. Raw `snapback start` is a lower-level harness surface and does not own
+this authoring recovery loop.
+
+A schema edit changes `schemaHash`. Because the manifests are one coherent
+pair, it also changes their shared `inputsHash`; `bundleHash` identifies the
+function-manifest content and may rotate with shared generated inputs even
+when the handler you were thinking about did not change. A function-only edit
+can rotate `bundleHash` while leaving `schemaHash` unchanged. Compare the
+whole identity, never one digest in isolation.
+
+## What the sessions pin means
+
+A settled sessions database records the exact complete deployment it admitted:
+
+| Field | What it identifies |
+| --- | --- |
+| `schemaVersion`, `authMode`, `appId` | The artifact protocol, sessions mode, and application namespace. |
+| `schemaHash` | Canonical schema-manifest content. |
+| `bundleHash` | Canonical function-manifest content. |
+| `inputsHash` | The shared schema/function input closure; both halves must match it. |
+
+The pin is executable-authority custody. It prevents an arbitrary cold binary
+from opening an existing sessions store with a different half-pair. It is not
+a hash of SQLite bytes, not a claim that application rows are unchanged, and
+not a runtime/codegen compatibility stamp. The `expectedDeployment` in a
+startup diagnostic is the database's settled pin; `observedDeployment` is the
+complete startup carrier that just passed enough preflight to be compared.
+Neither object contains a bearer or another secret.
+
+Every settled sessions start requires the single closed startup carrier. A
+missing or unreadable carrier produces
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED`; a malformed, incoherent, or
+different pair produces `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`. Do not hand
+edit either hash to make them agree.
+
+## Let the packaged successor path advance the pin
+
+The packaged dev owner reacts only to a structured mismatch that includes a
+preflighted observed identity. It stops the refused child and retries before
+listener bind with the managed-only successor opt-in. Native startup then
+preflights the complete pair again under the closed transition guard, validates
+storage compatibility, atomically advances the manifest and pin, and publishes
+functions only after commit. A success event has state
+`startup-successor-activated` and carries the old and new identities.
+
+This is not subset or superset admission. The whole candidate pair advances,
+including comment-only function changes. If preparation, capability, schema,
+or storage validation fails, startup remains closed, the old pin stays active,
+and the existing database is not discarded. Fix the candidate and rerun the
+managed loop.
+
+## Recover from SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH
+
+Use this recipe when regeneration happened while the sessions server was
+stopped, or a failed/partial attempt left the files and pin on different
+generations:
+
+1. Stop retry churn. Preserve the database, its auth sibling files, the
+   current sources, and the last generated schema/function pair whose identity
+   equals `expectedDeployment`. Do not edit the database or manifest hashes.
+2. If the previous pair was overwritten, restore the previous sources from
+   version control and regenerate them into a separate preserved directory.
+   Verify its complete identity equals `expectedDeployment`.
+3. Boot that exact predecessor carrier against the existing store. This
+   restores a running authority that agrees with the pin; it does not roll
+   application rows back.
+4. Put the intended additive schema and functions back, then run them through
+   the packaged `snapback dev` watch/restart path. Let its
+   `startup-successor-activated` event prove the guarded pin advance.
+5. Rerun the acceptance process against the preserved rows and inspect the
+   new generated identities. Only then retire the predecessor carrier.
+
+The conformance witness in
+[`sessions-dev-loop.test.mjs`](repo:packages/snapback-cli/sessions-dev-loop.test.mjs)
+does exactly this boundary: it writes a row under the predecessor, restarts on
+a successor, observes `startup-successor-activated`, and proves the row
+survived. It also proves that an invalid successor refuses while the old data
+remains available.
+
+## Recover after a partial load materialized data
+
+A deployment recovery does not make a destructive field change additive. For
+example, if one generation admitted an optional object field and application
+code wrote object values, changing that same field directly to an array must
+refuse with `SNAPBACK_SCHEMA_FIELD_RETYPED`. Likewise, adding a required field
+to populated rows refuses with
+`SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED`.
+
+Preserve the store and boot the exact carrier named by `expectedDeployment` as
+above. Then choose one of two valid continuations:
+
+- introduce a new optional field, deploy it through the managed successor
+  path, backfill with an ordinary bounded mutation, and only later retire the
+  old field through a reviewed migration; or
+- author explicit migration intents and use the
+  [reviewed migration loop](./migrations.md) to preview, approve, rehearse,
+  apply, and verify the retype/backfill.
+
+Do not delete the database to make the new type load, and do not patch the
+stored JSON manually. The data already materialized under the predecessor is
+the reason the applier refuses; preserving it is the recovery objective.
+
+## Diagnose the four boundary codes
+
+| Code | Meaning and next action |
+| --- | --- |
+| `SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | A settled sessions start has no readable trusted complete-pair carrier. Restore the exact generated carrier and retry. |
+| `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | The carrier differs from the pin or is not a coherent closed pair. Read `expectedDeployment`/`observedDeployment`; use the exact-carrier then managed-successor recipe above. |
+| `SNAPBACK_SCHEMA_FIELD_RETYPED` | Existing storage makes a direct field retype non-additive. Preserve the predecessor and route through a new-field backfill or reviewed migration. |
+| `SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED` | Populated rows lack the proposed required value. Add it as optional and backfill, or declare the reviewed migration. |
+
+For seed identity changes, use [versioned seeds](./versioned-seeds.md). For
+renames, drops, retypes, required-field backfills, or domain narrowing, use
+[reviewed migrations](./migrations.md). Those are storage-evolution decisions;
+the sessions successor path is the safe carrier for a candidate after its
+storage semantics are valid.
 
 ---
 

@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:5b2a8a72165d469ef73ce705a2c09f5c97d941c45eeef3ecb1bea44c46fbf469
+reviewed-authorities-digest: sha256:80af60c8915b1342e86fc952ffa4040036c2e4e1af02f1e5dd53867d0a0ca72f
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -144,6 +144,10 @@ proof command, and honest nonclaims without opening every demo.
   cache, summaries, and fail-closed resolution.
 
 ### Backend
+- [Familiar TypeScript profile](./backend/familiar-profile.md) — the
+  Experimental/non-default 0.1.21 grammar, server-side authorization,
+  identity-stable React hooks, native SecureStore custody, and one Expo Router
+  journey.
 - [Handler runtime profile and generation preflight](./backend/handler-runtime.md)
   — inspect current handler module/syntax/global limits, run the full
   non-replacing `generate --check` path, and follow build-bound refusal
@@ -181,6 +185,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Reviewed migrations](./backend/migrations.md) — the `snapback migrate`
   preview → approve → rehearse → apply → verify loop for destructive schema
   changes, its intents, and its refusal codes.
+- [Sessions schema evolution](./backend/schema-evolution.md) — change schema,
+  interpret the deployment pin and diagnostic hashes, let managed successor
+  activation advance it, and recover partial loads without discarding data.
 - [Assets](./backend/assets.md) — generated upload intents, one-call
   File/Blob/picker upload, signed-URL issuance with a shared TTL-refresh
   controller and React hook, TUS resumable transfer, typed `v.assetRef`

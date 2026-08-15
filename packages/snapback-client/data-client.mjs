@@ -17,6 +17,7 @@ const MAX_CHUNKS = 16;
 const MAX_DESCRIPTOR_BYTES = 65_536;
 const MAX_DURABLE_RECORD_BYTES = 262_144;
 const DATA_SETUP_ACTION = 'run normal Snapback generation and install the generated app binding in SnapbackProvider';
+const DATA_QUERY_CATALOGUE_REPAIR = 'Snapback generation scans query shapes only inside the backend source root passed to codegen (conventionally <app>/snapback/); keep the complete literal chain in <backend-root>/data-queries.mjs, regenerate, and consume the generated descriptor from app code';
 
 const hex = (bytes) => [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 const digest = (domain, value) => `sha256:${hex(sha256(utf8.encode(
@@ -132,7 +133,8 @@ function assertQueryDescriptor(binding, descriptor, method) {
   if (!entry) {
     throw dataError(
       'SNAPBACK_DATA_QUERY_NOT_CATALOGUED',
-      'the descriptor is absent from the active generated data catalogue',
+      `the descriptor is absent from the active generated data catalogue; ${DATA_QUERY_CATALOGUE_REPAIR}`,
+      { guideAnchor: 'guide/data/queries' },
     );
   }
   return descriptor;

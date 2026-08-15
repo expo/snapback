@@ -78,6 +78,43 @@ const withDeadline = async (promise, label, timeoutMs = 1_000) => {
   }
 };
 
+function createSecureStoreAuthCustodyStorage(SecureStore) {
+  const ownershipTails = new Map();
+  return {
+    async withOwnership(appId, operation) {
+      const key = `snapback.auth-custody.${authAppIdHash(appId)}`;
+      const previous = ownershipTails.get(key) ?? Promise.resolve();
+      let release;
+      const next = new Promise((resolve) => { release = resolve; });
+      ownershipTails.set(key, previous.then(() => next));
+      await previous;
+      const read = async () => {
+        const encoded = await SecureStore.getItemAsync(key);
+        return encoded === null ? null : validateAuthCustody(JSON.parse(encoded), appId);
+      };
+      try {
+        return await operation({
+          read,
+          async replace(expectedRevision, record) {
+            const current = await read();
+            const actualRevision = current?.revision ?? null;
+            if (actualRevision !== expectedRevision) {
+              throw Object.assign(new Error('durable custody changed before compare-and-swap'), {
+                code: 'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
+              });
+            }
+            const validated = validateAuthCustody(record, appId);
+            await SecureStore.setItemAsync(key, JSON.stringify(validated));
+            return validated;
+          },
+        });
+      } finally {
+        release();
+      }
+    },
+  };
+}
+
 class BroadcastHub {
   channels = new Map();
   messages = [];
@@ -104,6 +141,35 @@ const hintBytes = new Map();
 const hintStorage = {
   setItem(key, value) { hintBytes.set(key, value); },
 };
+
+// Expo SecureStore can satisfy the same transactional custody contract as
+// IndexedDB for ordinary (not sender-constrained) native sessions.
+{
+  const bytes = new Map();
+  const SecureStore = {
+    async getItemAsync(key) { return bytes.get(key) ?? null; },
+    async setItemAsync(key, value) { bytes.set(key, value); },
+  };
+  const appId = `${APP}/secure-store`;
+  const storage = createSecureStoreAuthCustodyStorage(SecureStore);
+  const writer = new AuthCoordinator({
+    appId, storage, broadcastChannelFactory: null, hintStorage: null,
+  });
+  const anonymousCapture = await writer.establishAnonymous(anonymous());
+  await writer.transition(
+    anonymousCapture,
+    successor(session(), 'secure-store-bearer', 10_000),
+    'secure_store_fixture',
+  );
+  const restored = new AuthCoordinator({
+    appId, storage, broadcastChannelFactory: null, hintStorage: null,
+  });
+  await restored.synchronize();
+  assert.equal(restored.settledView().authority.kind, 'session');
+  assert.equal(restored.credentialFor(restored.capture()).bearer, 'secure-store-bearer');
+  await restored.close();
+  await writer.close();
+}
 
 // Authority keys are a closed byte protocol, not generic object canonicalization.
 {

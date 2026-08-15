@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:0af8f5acd5cd1550dd9e76f0f7bd95bafe486035c46d59b08ca37aba0bd02d16
+reviewed-authorities-digest: sha256:f1d8f7daf9ba99659b9c7a72003879add600b9353f0cea566636052afe2f9727
 ---
 
 # The authoring loop
@@ -313,12 +313,18 @@ watch reload pick it up. The reload evolves the catalog in place, and live
 handles may stay attached while it happens — a subscriber does not have to be
 torn down first.
 
+For the complete sessions loop — what the pin records, why identities rotate,
+how packaged cold-successor activation advances it, and how to preserve rows
+after a partial load — use
+[Evolve a sessions schema without discarding data](../backend/schema-evolution.md).
+
 What matters is *where* you do it. Stop the server, regenerate, and restart,
 and a sessions-mode app refuses with
 `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`, whose details carry the expected
 and observed deployment identities: the settled deployment's startup carrier
-no longer matches the artifacts on disk. The recovery is the running-server
-path above — evolve through the watch reload rather than through a restart.
+no longer matches the artifacts on disk. The recovery is the exact-carrier
+then packaged-successor path on the detailed page; do not discard the database
+or hand-edit its pin.
 
 Additive changes (new optional fields, new tables, new indexes) are what this
 loop supports. Destructive changes — dropping a field, tightening an optional

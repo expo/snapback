@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:148f869dd280f1e44c8812d41306327bfc5c5f503d08e5bbd1b938c4fe0af51e
+reviewed-authorities-digest: sha256:34869931ec4d7c7ff60070678a9e891736271e99aff08187fbc15c75044bebe4
 ---
 
 # Capability index
@@ -35,13 +35,14 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.stored-enums | Closed string domains on stored fields: 2–7 literals, fail-closed at every writer, literal-union types, scanned narrowing | enum, stored enum, literal union field, closed domain, role enum, varchar enum, v.union table field | local | shipped | packages/snapback-codegen/stored-enum-authoring.test.mjs | llp/0004, llp/0007 | getting-started/your-first-backend.md |
 | backend.identity-columns | Server-owned monotonic numeric/default columns (SQL IDENTITY, SERIAL) declared on a field | identity column, serial, autoincrement, sequence column, default value, GENERATED AS IDENTITY | none | design-only | llp/0191-scale-architecture-revisits.research.md (§3; no shipped witness) | llp/0191, llp/0007 | GAP (owner: LLP 0191 identity Decision, review: 2026-09-15; issue: issues/20260808-numeric-identity-default-columns.md); getting-started/your-first-backend.md |
 | backend.migrations | Reviewed destructive schema evolution (LLP 0081): explicit intents, deterministic preview + digested observation, digest-acknowledged approval, restore-derived rehearsal, apply with consumed rehearsal receipt, receipt-vs-journal verify; `rollback` declared-but-unbuilt | migration, schema migration, alter column, rename column, drop field, backfill, snapback migrate | local | shipped | `MigrateCommand` in src/cli.rs | llp/0081 | backend/migrations.md |
+| backend.schema-evolution | Sessions schema evolution: complete-pair pin, managed successor, hash diagnostics, exact-carrier recovery without data loss | sessions schema change, expectedDeployment, partial load, successor activation | local | shipped | packages/snapback-cli/sessions-dev-loop.test.mjs | llp/0058, llp/0160, llp/0081 | backend/schema-evolution.md |
 | backend.record-history | Bounded per-record version retention: `defineTable(...).history({ retainMs, maxVersionsPerRecord })` (≤ 30 days, 1–1,000 versions), captured at committed writes, consumed by host proof machinery; no author-facing read query | history, record history, version history, audit trail, time travel, retainMs, maxVersionsPerRecord | local | shipped | `history(` in packages/snapback-codegen/define.mjs | llp/0162 | backend/mutations.md |
 | backend.functions | Queries/live queries/mutations/actions: declarative plans or colocated JS + same-file helpers; document/record/value result contracts incl. result-side `v.doc(table)` refs; manifest-derived handler/helper `ctx.db` types split read/write; exact client refs; runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase, ctx.refuse, refusals, application error code, domain error, app refusal, mutationPlan, letBind, insertEach, return binding, declarative mutation | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.mutation-settlement-identity | Mutation-only client identity and server-namespaced digest for replay-stable effects; genuine re-entry preserves it, while hosted returns null. | ctx.mutation.settlement, settlementId, replay-stable effect, provider idempotency key, effect dedupe | local | shipped | `recordEffectIntent` in tests/mutation_settlement_identity_v0.rs | llp/0043 | backend/mutations.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | data.resources-v1 | Generated owner/public data resources with CRUD, sync policy, cursors, and promotion | .data, DataResourceV1, dataSync, DataCursorV1 | local | partial | packages/snapback-codegen/data-resource.test.mjs | llp/0255, llp/0065 | data/resources.md |
-| data.queries-v1 | Static bounded indexed queries with exact/synthesized routes, cursors, ceilings, and explain | DataQueryV1, using, where, select, take, after | local | partial | packages/snapback-codegen/data-query.test.mjs | llp/0255, llp/0157 | data/queries.md |
+| data.queries-v1 | Static bounded indexed queries with backend-root catalogue, exact/synthesized routes, `_id` totalizer, cursors, ceilings, and explain | DataQueryV1, data-queries.mjs, SNAPBACK_DATA_QUERY_NOT_CATALOGUED, unique index _id order, using, where, select, take, after | local | partial | packages/snapback-codegen/data-query.test.mjs | llp/0255, llp/0157 | data/queries.md |
 | data.transactions-v1 | Generated atomic data transactions with prediction, declared custody, recovery, and pendingWrites | db.tx, db.transact, outcome-unknown | local | partial | packages/snapback-client/data-client.test.mjs | llp/0255, llp/0043 | data/transactions.md |
 | data.doorways-v1 | Experimental generated tiny-data facade over the one canonical client: headless createDataClient plus provider-bound React db and identity-preserving Expo reexport | @expo/snapback/data, @expo/snapback/react/data, @expo/snapback-expo/data, db.useQuery, useQuery | local | partial | packages/snapback-umbrella/package.json (`./data`, `./react/data`) + packages/snapback-expo/package.json (`./data`) | llp/0255, llp/0012, llp/0064 | data/doorways.md |
 | data.lifecycle-v1 | One-shot pages, canonical live handle with refresh, full query-state union plus pendingWrites, skip, explain, transaction settlement and recovery | db.read, db.watch, db.useQuery, skip, pendingWrites, refresh, db.explain, db.transaction | local | partial | packages/snapback-client/data-client.test.mjs + packages/snapback-react/data.test.mjs | llp/0255, llp/0043, llp/0218 | data/lifecycle.md |
@@ -59,12 +60,12 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.handler-runtime-profile | Current-rule handler admission profile + complete non-replacing generation preflight: operation selection, build-bound diagnostics, exact definition paths, separate executable/raw-evidence digests | handler runtime profile, generate --check, Can I import a helper?, Can I use Node crypto?, BUNDLE_UNSUPPORTED_IMPORT, SNAPBACK_INLINE_HELPER_INADMISSIBLE, SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED, SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE | all | shipped | packages/snapback-codegen/handler-runtime-profile.test.mjs + packages/snapback-cli/generate-check.test.mjs | llp/0237, llp/0108 | backend/handler-runtime.md |
 | backend.batch-reads | Bounded same-snapshot exact-id and complete-unique-key batch reads (`ctx.db.getMany`, `ctx.db.uniqueMany`) | batch get, getMany, uniqueMany, N+1, dataloader, IN clause, where id in, Convex db.get loop | local | partial | `db.getMany` in packages/snapback-harness/ctx-bootstrap.js | llp/0248 | GAP (guide section pending; owner: LLP 0248, review: 2026-09-15; issue: issues/20260812-guide-gap-batch-reads-page.md); backend/queries.md |
 | backend.handler-typescript | Single-file `.ts`/`.mts` handler modules under the pinned syntax-erasing `bounded-handler-typescript-v1` profile | typescript handler, .ts backend, ts handler, type-check handler, erasure | local | partial | `transformTypeScriptHandler` in packages/snapback-codegen/typescript-transform.mjs | llp/0246 | GAP (page pending multi-file custody; owner: LLP 0246, review: 2026-09-15; issue: issues/20260812-0246-remaining-rollouts-stacked-on-0237.md); getting-started/generated-artifacts.md |
-| backend.familiar-profile-v1 | Experimental non-default Convex-familiar TS authoring profile: `authoringProfile` selection, `query`/`mutation`/`action` constructors lowering to the canonical grammar | familiar profile, snapback-familiar-ts-v1, authoringProfile, convex-style handlers | local | partial | packages/snapback-codegen/familiar-phase-b.test.mjs | llp/0253, llp/0252 | GAP (authored profile page; owner: LLP 0252/0253, review: 2026-08-29; issue: issues/20260815-guide-gap-familiar-authoring-profile-page.md) |
+| backend.familiar-profile-v1 | Experimental non-default TS profile: `authoringProfile` selection and familiar constructors lowering to canonical grammar | familiar profile, snapback-familiar-ts-v1, Familiar TypeScript, SecureStore custody, Expo Router familiar | local | partial | packages/snapback-codegen/familiar-phase-b.test.mjs | llp/0253, llp/0252 | backend/familiar-profile.md |
 | authoring.declaration-suggestions | Review/apply result-only candidates; committed declaration stays authoritative | infer result, suggest contract, write my result contract, convex-style inference | local | partial | packages/snapback-codegen/declaration-suggestion.test.mjs | llp/0245, llp/0108 | getting-started/the-authoring-loop.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense `ctx.sequence.allocate` with replay/contention/exhaustion evidence; contributor-source local only | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public/hosted qualification; owner: Charlie, review: 2026-09-30; issue: issues/20260808-main-drift-sequence-allocation-publication.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated local assets: generated intents, resumable upload, trusted image/video finalization/renditions, typed attachment, strict/signed/public delivery, GC, callbacks/receipts, consistent cuts, key rotation, frozen recipient grants. Atomic grant mint/activate/revoke; active-edge read/GC; revoke blanks live; typed refusals; 1,024 edges/app. `via-references` remains. Nonclaims: byte backup, transcoding, hosted. | files, images, video, asset grant, grants: true, ctx.assets.grant, ctx.assets.activate, ctx.assets.revoke, pending grant, view once, object storage, browser upload, native upload, SVG, Expo ImagePicker, asset export, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json + `asset_grant_ops_pilot_strict_signed_and_lifecycle` / `asset_grant_commit_wakes_and_revoke_blanks_live_projection` / `asset_cut_carries_grants_at_the_same_consistent_cut` in src/local/tests.rs + tests/acceptance/asset-conformance-v1.mjs + demos/file-drop/tests/acceptance/browser-relay.mjs + demos/messaging-snapback/tests/acceptance/headless.mjs (view-once grant probes) | llp/0044, llp/0210, llp/0220 | backend/assets.md |
+| backend.assets | Local asset intents/upload, trusted image/video finalization, typed attachment/delivery, GC, receipts, consistent cuts, key rotation, and recipient grants; no byte backup/transcoding/hosted claim | storing media, data URL media, base64 image, files, images, video, asset grants, grants: true, ctx.assets.grant, ctx.assets.activate, ctx.assets.revoke, pending grant, view once, object storage, browser upload, native upload, SVG, Expo ImagePicker, asset export, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | tests/acceptance/asset-conformance-v1.mjs + `asset_grant_ops_pilot_strict_signed_and_lifecycle` in src/local/tests.rs | llp/0044, llp/0210, llp/0220 | backend/assets.md |
 | assets.media-field.v1 | Finalized-only top-level `v.media()` with same-snapshot `MediaRef`, exact mutation settlement, and empty-safe delivery controller; no collection, command, class-M activation, or playable-video claim. | v.media, MediaRef, useSnapbackMedia, profile image | local | shipped | packages/snapback-codegen/media-field-authoring.test.mjs + tests/acceptance/fixtures/media-profile/snapback/schema.mjs + packages/snapback-react/assets.test.mjs + src/storage/tests.rs | llp/0239; llp/0244 | backend/media-happy-paths.md |
 | assets.media-collection.v1 | Bounded ordered media collection | assetCollection, media array | none | design-only | llp/0239-asset-collections-and-media-field.rfc.md (no witness) | llp/0239 | GAP (owner: LLP 0239 R3, review: 2026-08-26; issue: issues/20260812-media-ref-snapshot-projection.md); backend/media-happy-paths.md |
 | assets.media-command.v1 | Atomic media command | mediaCommand | none | design-only | llp/0239-asset-collections-and-media-field.rfc.md (no witness) | llp/0239 | GAP (owner: LLP 0239 R4, review: 2026-09-02; issue: issues/20260812-media-ref-snapshot-projection.md); backend/media-happy-paths.md |
@@ -170,7 +171,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:5b2a8a72165d469ef73ce705a2c09f5c97d941c45eeef3ecb1bea44c46fbf469
+reviewed-authorities-digest: sha256:80af60c8915b1342e86fc952ffa4040036c2e4e1af02f1e5dd53867d0a0ca72f
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -304,6 +305,10 @@ proof command, and honest nonclaims without opening every demo.
   cache, summaries, and fail-closed resolution.
 
 ### Backend
+- [Familiar TypeScript profile](./backend/familiar-profile.md) — the
+  Experimental/non-default 0.1.21 grammar, server-side authorization,
+  identity-stable React hooks, native SecureStore custody, and one Expo Router
+  journey.
 - [Handler runtime profile and generation preflight](./backend/handler-runtime.md)
   — inspect current handler module/syntax/global limits, run the full
   non-replacing `generate --check` path, and follow build-bound refusal
@@ -341,6 +346,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Reviewed migrations](./backend/migrations.md) — the `snapback migrate`
   preview → approve → rehearse → apply → verify loop for destructive schema
   changes, its intents, and its refusal codes.
+- [Sessions schema evolution](./backend/schema-evolution.md) — change schema,
+  interpret the deployment pin and diagnostic hashes, let managed successor
+  activation advance it, and recover partial loads without discarding data.
 - [Assets](./backend/assets.md) — generated upload intents, one-call
   File/Blob/picker upload, signed-URL issuance with a shared TTL-refresh
   controller and React hook, TUS resumable transfer, typed `v.assetRef`
@@ -1670,6 +1678,45 @@ restriction profile.
     `backend/queries.md`.
     Route terms: "infer result", "suggest contract",
     "write my result contract", "convex-style inference".
+
+Cases 54–57 absorb the 2026-08-15 multi-profile sweep's catalogue-root,
+asset-authoring, sessions-evolution, and familiar-profile discovery misses.
+
+54. **Tiny-data catalogue root:** "My literal `data.*` query works in an Expo
+    route but render throws `SNAPBACK_DATA_QUERY_NOT_CATALOGUED`." The run
+    fails if it merely makes the values static in the UI file or defers the
+    refusal; it must move the complete chain under the backend scan root,
+    conventionally `snapback/data-queries.mjs`, and regenerate.
+    Expected pages: `data/queries.md`.
+    Route terms: "SNAPBACK_DATA_QUERY_NOT_CATALOGUED", "data-queries.mjs",
+    "backend source root".
+
+55. **Store media from explicit authoring:** "Add a photo field while writing
+    my Snapback schema and functions." The run fails if the plan stores a
+    base64/data URL in `v.string()` or `v.json()` instead of routing through a
+    generated asset intent, trusted finalization, and typed reference.
+    Expected pages: `backend/assets.md` or
+    `getting-started/your-first-backend.md` or `backend/handler-runtime.md`.
+    Route terms: "storing media", "data URL media", "base64 image".
+
+56. **Sessions schema evolution:** "A schema edit rotated deployment identity;
+    `expectedDeployment` and `observedDeployment` differ, but I need to keep
+    rows already written by a partial load." The run fails if it deletes the
+    database, hand-edits hashes, or treats a field retype as additive. It must
+    boot the exact predecessor carrier and use the packaged successor or
+    reviewed-migration path.
+    Expected pages: `backend/schema-evolution.md`.
+    Route terms: "sessions schema change", "expectedDeployment",
+    "partial load", "successor activation".
+
+57. **Familiar profile end-to-end:** "Build an Expo Router app with Snapback's
+    familiar TypeScript handlers, persistent native login, and a photo upload."
+    The run fails if it presents familiar as the default/stable profile, keeps
+    native custody in memory, omits per-handler membership checks, uses inline
+    hook argument objects, or stores the photo as a data URL.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "Familiar TypeScript", "Expo Router familiar",
+    "SecureStore custody".
 
 ## Static routing check
 
@@ -5983,7 +6030,7 @@ targets: [all]
 maturity: shipped
 since: 0.1.21
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:845519883f83aac197189804f749732f7424d782fbe09a29ee24a7f09f34ff7d
+reviewed-authorities-digest: sha256:5dd953c8870f6b846c1f12114d442a7acebea555d20729e331b1009aa1695239
 ---
 
 # Handler runtime profile and generation preflight
@@ -5995,6 +6042,12 @@ module bounds, syntax, globals, computed access, runtime capabilities, target
 differences, diagnostics, and the profile selected for each operation. The
 artifact is projected from the same versioned tables used by codegen's
 scanners, rather than from a separate prose restriction list.
+
+Authoring a function that stores media? Route to [Assets](./assets.md) before
+choosing handler arguments or stored fields. The explicit function surface is
+where you declare asset intents, perform trusted finalization, and attach typed
+references. A data URL in `v.string()` or `v.json()` is not an asset upload and
+loses the pipeline's size, media, delivery, GC, and rendition guarantees.
 
 ## Inspect the generated profile
 
@@ -6192,6 +6245,259 @@ into the executable graph identity.
   happened to exist in one process.
 - Do not hand-edit `handler-runtime-profile.v1.json`; regenerate it from the
   authored backend and executable rules.
+
+---
+
+<!-- snapback-guide-source: guide/backend/familiar-profile.md -->
+---
+title: Familiar TypeScript profile (Experimental, non-default)
+id: backend.familiar-profile
+order: 5
+audience: agent-first
+capabilities: [backend.familiar-profile-v1]
+authorities: [llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs]
+examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-cli/templates/expo-chat]
+status: current
+targets: [local]
+maturity: partial
+since: 0.1.21
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:cbb1d479883d92d47848a9c618fc399c4e864ecc8991f9b340baf7fbc64ba297
+---
+
+# Familiar TypeScript profile (Experimental, non-default)
+
+> **Experimental / non-default in 0.1.21.** The familiar profile is a source
+> adapter over Snapback's canonical schema, function, runtime, and client
+> owners. It is not a second backend and does not make Convex compatibility a
+> target claim.
+
+Use this profile when top-level TypeScript modules and
+`query`/`mutation`/`action` constructors materially improve authoring. Use the
+default explicit profile for the broadest Snapback vocabulary, especially
+declarative plans, routes, cron, custom asset intents, search/vector, and
+effectful actions. One backend selects one profile; mixing explicit
+`schema.mjs`/`functions.mjs` with familiar `schema.ts`/function modules is a
+typed refusal.
+
+## Select the profile explicitly
+
+The opt-in lives only in `snapback/codegen.policy.json`:
+
+```json source=tests/fixtures/familiar-todo/codegen.policy.json
+{
+  "schemaVersion": "snapback.codegen-policy.v1",
+  "committedProjections": ["normalized-definition.v1.json"],
+  "authoringProfile": "snapback-familiar-ts-v1"
+}
+```
+
+Omitting `authoringProfile` selects `snapback-explicit-v1`. Do not add a
+runtime flag or client-side profile switch; generated app identity carries the
+selection.
+
+The familiar backend root is flat:
+
+```text
+snapback/
+  codegen.policy.json
+  schema.ts
+  todos.ts                 # exports become api.todos.*
+  contracts.ts             # non-function helper module
+  _generated/              # generated server/api declarations and runtime
+```
+
+Nested modules are helpers, not function namespaces. A top-level function
+module may export only familiar function values; move exported constants and
+helpers out of it.
+
+## Declare schema and functions
+
+The schema vocabulary is the shared `defineSchema`/`defineTable`/`v` surface:
+
+```ts source=tests/fixtures/familiar-todo/schema.ts
+import { defineSchema, defineTable, v } from "./_generated/server";
+
+export default defineSchema({
+  todos: defineTable({
+    title: v.string(),
+    completed: v.boolean(),
+  }).index("by_completed", ["completed"]),
+});
+```
+
+Each function declares its authority and data reach next to the handler. A
+module `todos.ts` with export `list` becomes canonical name `todos.list` and
+generated reference `api.todos.list`:
+
+```ts source=tests/fixtures/familiar-todo/todos.ts
+export const list = query({
+  args: { completed: v.boolean() },
+  returns: v.array(v.doc("todos")),
+  auth: "public",
+  reads: ["todos"],
+  handler: async (ctx, args) => ctx.db
+    .query("todos")
+    .withIndex("by_completed", (q) => q.eq("completed", args.completed))
+    .collect(),
+});
+```
+
+Every function requires `args`, `returns`, `auth`, and `handler`. Queries add
+`reads`; mutations add `reads` and `writes`; actions may add `secrets`.
+Queries are live by default; set `delivery: "read"` for a one-shot query.
+Canonical queries are list-shaped. Represent a get as a bounded zero-or-one
+array rather than returning a nullable document. Familiar actions can read
+auth/runtime/secrets, refuse, and call a generated mutation reference; they do
+not expose `ctx.db`, fetch, assets, jobs, realtime, or streaming.
+
+## Put authorization before business logic
+
+`auth: "authenticated"` proves only that a principal exists. It does not prove
+the caller is an active member or administrator of an app resource. For every
+protected handler, make the active-member/admin decision before returning rows
+or performing effects. Prefer the declaration-qualified membership helpers so
+the check participates in the transaction and refuses without revealing
+whether the resource or membership exists.
+
+The full patterns are [Scoped roles and memberships](../auth/scoped-roles.md)
+and [Bind a principal to your app user](../auth/app-identity-binding.md). In
+particular, use the documented `ctx.permissions.<declaration>.requireRole(...)`
+shape for a denying handler and a declared membership predicate for an
+empty-result list. Do not substitute a client-provided user id or an `auth`
+string for those server-side checks.
+
+## Keep React hook arguments identity-stable
+
+Familiar's React doorway is `@expo/snapback-react/familiar`. It exports
+`SnapbackProvider`, `useQuery`, `useMutation`, `useAction`, `useQueryState`,
+and `skip` over the canonical React owner. `useQuery` returns current live data
+or `undefined`; use `useQueryState` when the UI must render connection,
+freshness, blocked, or diagnostic state.
+
+Memoize stable-content argument objects at the component boundary:
+
+```tsx fragment reason="application component names vary; packages/snapback-react/package.test.mjs proves stable identity stays silent while five consecutive equal-content identities emit SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN"
+const listArgs = useMemo(() => ({ completed }), [completed]);
+const todos = useQuery(api.todos.list, listArgs);
+```
+
+Do the same for nested scope/value objects passed to live or presence hooks.
+The canonical store key is content-based, so an inline equal-content object is
+not a data-integrity bug, but repeated identity churn performs descriptor
+handoffs and triggers the development diagnostic
+`SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN`. Memoization is lifecycle
+hygiene, not a workaround for stale data.
+
+## Persist native session custody with SecureStore
+
+Web uses `createIndexedDbAuthCustodyStorage()`. React Native has no shipped
+SecureStore adapter in 0.1.21, so do not silently fall back to
+`createMemoryAuthCustodyStorage()` for a user session that must survive a
+process restart. Install the SDK-compatible `expo-secure-store`, then adapt it
+to `AuthCoordinator`'s ownership and compare-and-swap contract. This tested
+adapter namespaces records by the canonical app-id hash and validates bytes on
+both read and write:
+
+```js source=packages/snapback-contract/auth-coordinator.test.mjs
+function createSecureStoreAuthCustodyStorage(SecureStore) {
+  const ownershipTails = new Map();
+  return {
+    async withOwnership(appId, operation) {
+      const key = `snapback.auth-custody.${authAppIdHash(appId)}`;
+      const previous = ownershipTails.get(key) ?? Promise.resolve();
+      let release;
+      const next = new Promise((resolve) => { release = resolve; });
+      ownershipTails.set(key, previous.then(() => next));
+      await previous;
+      const read = async () => {
+        const encoded = await SecureStore.getItemAsync(key);
+        return encoded === null ? null : validateAuthCustody(JSON.parse(encoded), appId);
+      };
+      try {
+        return await operation({
+          read,
+          async replace(expectedRevision, record) {
+            const current = await read();
+            const actualRevision = current?.revision ?? null;
+            if (actualRevision !== expectedRevision) {
+              throw Object.assign(new Error('durable custody changed before compare-and-swap'), {
+                code: 'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
+              });
+            }
+            const validated = validateAuthCustody(record, appId);
+            await SecureStore.setItemAsync(key, JSON.stringify(validated));
+            return validated;
+          },
+        });
+      } finally {
+        release();
+      }
+    },
+  };
+}
+```
+
+Import `authAppIdHash`, `AuthCoordinator`, and `validateAuthCustody` from
+`@expo/snapback-contract/auth-coordinator`, import `* as SecureStore` from
+`expo-secure-store`, construct the adapter once, and pass it as `storage` with
+`broadcastChannelFactory: null` and `hintStorage: null` on native. On web keep
+the IndexedDB adapter. Acceptance must terminate and relaunch the native
+process, then prove `synchronize()` restores the settled session without a new
+email-code exchange.
+
+This JSON carrier is for ordinary bearer custody. It does not claim native
+sender-constrained key custody; the Secure Enclave/Keystore proof transport is
+still outside the shipped native target.
+
+## One Expo Router journey
+
+Here is the shortest coherent application loop, rather than six disconnected
+reference exercises:
+
+1. Scaffold the published Expo app, install `expo-router` and SDK-compatible
+   `expo-secure-store`, copy the conventional `snapback/` backend when adding
+   Snapback to an existing project, and select the familiar policy above.
+2. Author `schema.ts` plus top-level function modules. Put
+   `SnapbackExpoProvider`/`SnapbackProvider` and the one long-lived client in
+   `app/_layout.tsx`; route files import generated `api.module.export`
+   references and use memoized argument objects.
+3. Gate each protected query/mutation with active membership or admin checks.
+   Keep this server-side even if Expo Router already hid the screen.
+4. For a simple private JPEG/PNG field in 0.1.21, a bare `v.assetRef()` derives
+   the bounded default upload intent. Upload through the generated asset
+   reference and `assets.upload(...)`, wait for its ready asset id, then attach
+   the typed id in a mutation. Use the complete [asset guide](./assets.md), not
+   a base64 data URL. Custom `defineAssetUpload` declarations are not in the
+   familiar function-module grammar in 0.1.21; choose the explicit profile if
+   the default intent is insufficient.
+5. After every source change run `snapback generate snapback`; review and
+   commit the refreshed `snapback/generated/artifacts.json` plus only the
+   projections selected by policy. Never patch `_generated/` or a manifest to
+   make a type error disappear.
+6. Run `snapback dev snapback --expo` for the supervised device loop. Keep the
+   acceptance owner separate from the rendered route: use the generated
+   template's headless `acceptance.mjs`/`acceptance.live.mjs` pattern to boot
+   isolated state, mint the test persona, drive generated references, observe
+   the live result, and shut down. Add an on-device process-kill/relaunch rung
+   for SecureStore restoration and the actual picker/upload path.
+
+The profile changes authoring syntax only. Expo boot, asset custody,
+acceptance process ownership, generated-artifact review, live delivery, and
+authorization remain the same canonical Snapback systems documented by their
+linked pages.
+
+## Know when to leave the profile
+
+Move the backend to the explicit profile when it needs a surface the familiar
+grammar refuses: declarative plans, routes, cron, search/vector, custom asset
+intents, membership declarations not expressible in the shared schema
+vocabulary, or action fetch/stream/host effects. Treat the diagnostic's route
+as the boundary; do not import explicit builders into a familiar function
+module or hide them behind a helper.
+
+The complete refusal table remains in
+[Generated artifact custody](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals).
 
 ---
 
@@ -9602,6 +9908,165 @@ writer rejects oversized values with
   experimental local target supports it independently; see
   [Snapshot batches](./snapshot-batches.md). Sequence qualification did not
   change that capability.
+
+---
+
+<!-- snapback-guide-source: guide/backend/schema-evolution.md -->
+---
+title: Evolve a sessions schema without discarding data
+id: backend.schema-evolution
+order: 29
+audience: agent-first
+capabilities: [backend.schema-evolution]
+authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, src/auth/mode.rs, src/cli.rs, src/storage.rs, packages/snapback-cli/index.mjs]
+examples: [packages/snapback-cli/sessions-dev-loop.test.mjs, src/cli/tests.rs, src/storage/tests.rs]
+status: current
+targets: [local]
+maturity: shipped
+since: 0.1.21
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:135967733e4ca35636229fb5509bb9035f299a4245aab62ec095b9410142a5d0
+---
+
+# Evolve a sessions schema without discarding data
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+The ordinary sessions-mode loop is: edit the schema, let generation produce a
+complete candidate pair, and let the packaged `snapback dev` owner advance the
+deployment. Keep the database. A deployment-identity refusal is a safety fence
+around that loop, not a request to delete local state.
+
+## Change schema, then let the identity rotate
+
+Additive changes such as a new table, index, or optional field can load through
+the running watch loop:
+
+```sh
+snapback dev snapback --db .snapback/dev.sqlite3
+```
+
+Edit while that process owns the server. Generation creates one coherent
+schema/function pair; the running load path preflights and activates it. If the
+managed process must restart, it owns the cold successor handshake described
+below. Raw `snapback start` is a lower-level harness surface and does not own
+this authoring recovery loop.
+
+A schema edit changes `schemaHash`. Because the manifests are one coherent
+pair, it also changes their shared `inputsHash`; `bundleHash` identifies the
+function-manifest content and may rotate with shared generated inputs even
+when the handler you were thinking about did not change. A function-only edit
+can rotate `bundleHash` while leaving `schemaHash` unchanged. Compare the
+whole identity, never one digest in isolation.
+
+## What the sessions pin means
+
+A settled sessions database records the exact complete deployment it admitted:
+
+| Field | What it identifies |
+| --- | --- |
+| `schemaVersion`, `authMode`, `appId` | The artifact protocol, sessions mode, and application namespace. |
+| `schemaHash` | Canonical schema-manifest content. |
+| `bundleHash` | Canonical function-manifest content. |
+| `inputsHash` | The shared schema/function input closure; both halves must match it. |
+
+The pin is executable-authority custody. It prevents an arbitrary cold binary
+from opening an existing sessions store with a different half-pair. It is not
+a hash of SQLite bytes, not a claim that application rows are unchanged, and
+not a runtime/codegen compatibility stamp. The `expectedDeployment` in a
+startup diagnostic is the database's settled pin; `observedDeployment` is the
+complete startup carrier that just passed enough preflight to be compared.
+Neither object contains a bearer or another secret.
+
+Every settled sessions start requires the single closed startup carrier. A
+missing or unreadable carrier produces
+`SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED`; a malformed, incoherent, or
+different pair produces `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`. Do not hand
+edit either hash to make them agree.
+
+## Let the packaged successor path advance the pin
+
+The packaged dev owner reacts only to a structured mismatch that includes a
+preflighted observed identity. It stops the refused child and retries before
+listener bind with the managed-only successor opt-in. Native startup then
+preflights the complete pair again under the closed transition guard, validates
+storage compatibility, atomically advances the manifest and pin, and publishes
+functions only after commit. A success event has state
+`startup-successor-activated` and carries the old and new identities.
+
+This is not subset or superset admission. The whole candidate pair advances,
+including comment-only function changes. If preparation, capability, schema,
+or storage validation fails, startup remains closed, the old pin stays active,
+and the existing database is not discarded. Fix the candidate and rerun the
+managed loop.
+
+## Recover from SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH
+
+Use this recipe when regeneration happened while the sessions server was
+stopped, or a failed/partial attempt left the files and pin on different
+generations:
+
+1. Stop retry churn. Preserve the database, its auth sibling files, the
+   current sources, and the last generated schema/function pair whose identity
+   equals `expectedDeployment`. Do not edit the database or manifest hashes.
+2. If the previous pair was overwritten, restore the previous sources from
+   version control and regenerate them into a separate preserved directory.
+   Verify its complete identity equals `expectedDeployment`.
+3. Boot that exact predecessor carrier against the existing store. This
+   restores a running authority that agrees with the pin; it does not roll
+   application rows back.
+4. Put the intended additive schema and functions back, then run them through
+   the packaged `snapback dev` watch/restart path. Let its
+   `startup-successor-activated` event prove the guarded pin advance.
+5. Rerun the acceptance process against the preserved rows and inspect the
+   new generated identities. Only then retire the predecessor carrier.
+
+The conformance witness in
+[`sessions-dev-loop.test.mjs`](repo:packages/snapback-cli/sessions-dev-loop.test.mjs)
+does exactly this boundary: it writes a row under the predecessor, restarts on
+a successor, observes `startup-successor-activated`, and proves the row
+survived. It also proves that an invalid successor refuses while the old data
+remains available.
+
+## Recover after a partial load materialized data
+
+A deployment recovery does not make a destructive field change additive. For
+example, if one generation admitted an optional object field and application
+code wrote object values, changing that same field directly to an array must
+refuse with `SNAPBACK_SCHEMA_FIELD_RETYPED`. Likewise, adding a required field
+to populated rows refuses with
+`SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED`.
+
+Preserve the store and boot the exact carrier named by `expectedDeployment` as
+above. Then choose one of two valid continuations:
+
+- introduce a new optional field, deploy it through the managed successor
+  path, backfill with an ordinary bounded mutation, and only later retire the
+  old field through a reviewed migration; or
+- author explicit migration intents and use the
+  [reviewed migration loop](./migrations.md) to preview, approve, rehearse,
+  apply, and verify the retype/backfill.
+
+Do not delete the database to make the new type load, and do not patch the
+stored JSON manually. The data already materialized under the predecessor is
+the reason the applier refuses; preserving it is the recovery objective.
+
+## Diagnose the four boundary codes
+
+| Code | Meaning and next action |
+| --- | --- |
+| `SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | A settled sessions start has no readable trusted complete-pair carrier. Restore the exact generated carrier and retry. |
+| `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | The carrier differs from the pin or is not a coherent closed pair. Read `expectedDeployment`/`observedDeployment`; use the exact-carrier then managed-successor recipe above. |
+| `SNAPBACK_SCHEMA_FIELD_RETYPED` | Existing storage makes a direct field retype non-additive. Preserve the predecessor and route through a new-field backfill or reviewed migration. |
+| `SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED` | Populated rows lack the proposed required value. Add it as optional and backfill, or declare the reviewed migration. |
+
+For seed identity changes, use [versioned seeds](./versioned-seeds.md). For
+renames, drops, retypes, required-field backfills, or domain narrowing, use
+[reviewed migrations](./migrations.md). Those are storage-evolution decisions;
+the sessions successor path is the safe carrier for a candidate after its
+storage semantics are valid.
 
 ---
 
@@ -14860,6 +15325,10 @@ surface that rotates existing applications.
 
 ## Promote one write
 
+The served companion page for this operation is
+[Promote a generated data operation](./promotion.md); its build-bound URL is
+`/_snapback/guide/data/promotion.md`.
+
 Preview a generated owner write as ordinary explicit source:
 
 ```sh
@@ -14916,7 +15385,7 @@ targets: [local]
 maturity: partial
 since: 0.1.21
 reviewed: 2026-08-13
-reviewed-authorities-digest: sha256:8145953a62c742f37c1c220a0a810819644148c632cceb5f4a6a9bceebd0dbc8
+reviewed-authorities-digest: sha256:481583af53961baed0576ac1543d4e7ca5f8915cc9a28e9e84618d61c4e23b10
 ---
 
 # Build a bounded data query
@@ -14930,6 +15399,37 @@ over a `.data()` resource. Codegen extracts each complete chain into the static
 `dataQueryCatalog`, resolves it to an exact generated list when possible, and
 otherwise emits an ordinary `<resource>.query_<16hex>` function. Runtime values
 fill frozen slots; they never change the plan or its authority policy.
+
+## Put catalogue shapes under the backend root
+
+Generation scans only the backend source root passed to codegen — by
+convention `<app>/snapback/`. It does not scan React components, Expo Router
+routes, or any other application-source sibling. Keep the literal shape in a
+backend-owned catalogue file even when only a screen consumes it:
+
+```text
+<app>/
+  app/                         # Expo Router or other UI; not scanned
+  snapback/
+    schema.mjs
+    functions.mjs
+    data-queries.mjs           # complete literal data.* chains live here
+    generated/data.mjs         # application imports the descriptor from here
+```
+
+The file has no registration wrapper. A complete chain is the declaration;
+exporting it gives application code a stable local name:
+
+```ts source=tests/fixtures/data-query-a1/query.ts
+export const ascending = data.todos
+  .using('by_owner_bucket_created')
+  .orderBy('bucket', 'asc')
+  .take(2);
+```
+
+Name the application file `snapback/data-queries.mjs` (or `.ts`), regenerate,
+then consume the generated `data` binding or descriptor from application code.
+Copying the same literal chain into a screen does not catalogue it.
 
 ## Write one complete static chain
 
@@ -14977,6 +15477,13 @@ the same-direction `_id` totalizer. Duplicate and null order values are safe.
 Owner policy is composed before the seek, so a fabricated but well-typed
 boundary can select only a suffix of the caller's own authorized scan.
 
+Equality predicates consume index fields from left to right. When they consume
+every remaining field — including an exact predicate over a unique index — the
+next order field is `_id`, so author `.orderBy('_id', 'asc' | 'desc')`. The
+unique predicate may make the result cardinality zero-or-one, but `_id` is
+still the closed grammar's deterministic totalizer. Never add `_id` to the
+schema index declaration; Snapback appends it to the effective order.
+
 Treat `dc1.*` as opaque. Malformed, stale-generation, changed-argument,
 cross-plan, and cross-authority presentations all return the same
 `SNAPBACK_DATA_CURSOR_INVALID` response. A boundary too large to encode within
@@ -15013,7 +15520,7 @@ For query state, `"skip"`, pagination, `read`, `watch`, and `useQuery`, see the
 
 | Code | Next action |
 | --- | --- |
-| `SNAPBACK_DATA_QUERY_NOT_CATALOGUED` | Make the complete shape static and regenerate, or use a named function. |
+| `SNAPBACK_DATA_QUERY_NOT_CATALOGUED` | Move the complete literal chain under the backend scan root, conventionally `snapback/data-queries.mjs`, regenerate, and consume the generated descriptor from app code; or use a named function. |
 | `SNAPBACK_DATA_QUERY_SHAPE_INVALID` | Restore the method order, contiguous index grammar, valid projection, or exact generated plan facts. |
 | `SNAPBACK_DATA_QUERY_BOUND_EXCEEDED` | Reduce filters, `in` values, projection, take, candidate work, descriptor bytes, or result bytes; results are never silently truncated. |
 | `SNAPBACK_DATA_QUERY_RESOLUTION_AMBIGUOUS` | Remove the duplicate generated candidate; resolution never chooses by order. |
@@ -15024,6 +15531,13 @@ For query state, `"skip"`, pagination, `read`, `watch`, and `useQuery`, see the
 Relationship predicates, retention, transactions, and dynamic shape compilers
 remain outside DataQueryV1. Use existing named functions/composition rather
 than trying to smuggle those powers into a catalogue descriptor.
+
+The generated builder raises `SNAPBACK_DATA_QUERY_NOT_CATALOGUED`
+synchronously when `.take(...)` completes an unknown shape. That is deliberate:
+without a catalogue witness there is no valid generated function reference to
+issue. Deferring the refusal to `db.read`, `db.watch`, or a React render would
+require returning a descriptor already known to be invalid and would make the
+repair farther from the authored chain.
 
 ---
 
@@ -16359,7 +16873,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-09
-reviewed-authorities-digest: sha256:fee04f8766ab6c2d182a1b287011ef896f16ba001922217f326d56ce73e2395b
+reviewed-authorities-digest: sha256:b3d9adcd8e76825df7794cd4c78f72926c6f0cd6fa43552f8d54d2f82cc125ba
 ---
 
 # Your first backend
@@ -16426,6 +16940,15 @@ The core validators: `v.string()`, `v.principal()`, `v.id(table)`,
 partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
+
+**Storing media is an asset workflow, not a string-field shortcut.** If a
+field will hold an uploaded photo, video, or file, stop here and follow
+[Assets](../backend/assets.md): declare an asset intent, upload and finalize
+through the generated asset surface, then attach a typed `v.assetRef` (or use
+the finalized-only [`v.media()` happy path](../backend/media-happy-paths.md)).
+Do not place a `data:image/...;base64,...` or `data:video/...` value in
+`v.string()`/`v.json()` merely because it type-checks; that bypasses upload
+bounds, trusted media finalization, delivery policy, GC, and rendition state.
 
 <!-- since: 0.1.18 -->
 
@@ -16548,6 +17071,11 @@ export const listTodosOnce = defineQuery({
 A JS mutation and a JS live query in the paved inline form — each definition
 carries its `handler` directly, next to `args`, `result`, and the declared
 `reads`/`writes`:
+
+If the function accepts, finalizes, attaches, or delivers a file, use the
+generated [asset intent and finalization flow](../backend/assets.md) alongside
+the mutation. Base64/data-URL payloads are ordinary oversized strings, not a
+second media pipeline.
 
 ```js source=packages/snapback-codegen/inline-result-contracts.test.mjs
   export const createTodo = defineJsMutation({
@@ -16815,7 +17343,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:0af8f5acd5cd1550dd9e76f0f7bd95bafe486035c46d59b08ca37aba0bd02d16
+reviewed-authorities-digest: sha256:f1d8f7daf9ba99659b9c7a72003879add600b9353f0cea566636052afe2f9727
 ---
 
 # The authoring loop
@@ -17118,12 +17646,18 @@ watch reload pick it up. The reload evolves the catalog in place, and live
 handles may stay attached while it happens — a subscriber does not have to be
 torn down first.
 
+For the complete sessions loop — what the pin records, why identities rotate,
+how packaged cold-successor activation advances it, and how to preserve rows
+after a partial load — use
+[Evolve a sessions schema without discarding data](../backend/schema-evolution.md).
+
 What matters is *where* you do it. Stop the server, regenerate, and restart,
 and a sessions-mode app refuses with
 `SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH`, whose details carry the expected
 and observed deployment identities: the settled deployment's startup carrier
-no longer matches the artifacts on disk. The recovery is the running-server
-path above — evolve through the watch reload rather than through a restart.
+no longer matches the artifacts on disk. The recovery is the exact-carrier
+then packaged-successor path on the detailed page; do not discard the database
+or hand-edit its pin.
 
 Additive changes (new optional fields, new tables, new indexes) are what this
 loop supports. Destructive changes — dropping a field, tightening an optional
@@ -24739,7 +25273,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-credential-superseded"></a>`SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED` | auth | 401 | — | `packages/snapback-client/index.mjs:1327` | 10 |
 | <a id="diagnostic-snapback-auth-custody-ambiguous"></a>`SNAPBACK_AUTH_CUSTODY_AMBIGUOUS` | auth | — | — | `packages/snapback-client/agent-authority.mjs:4084` | 2 |
 | <a id="diagnostic-snapback-auth-custody-bootstrap-invalid"></a>`SNAPBACK_AUTH_CUSTODY_BOOTSTRAP_INVALID` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:1122` | 2 |
-| <a id="diagnostic-snapback-auth-custody-cas-stale"></a>`SNAPBACK_AUTH_CUSTODY_CAS_STALE` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1210` | 7 |
+| <a id="diagnostic-snapback-auth-custody-cas-stale"></a>`SNAPBACK_AUTH_CUSTODY_CAS_STALE` | auth | — | [guide](../backend/familiar-profile.md#persist-native-session-custody-with-securestore) | `packages/snapback-client/agent-authority.mjs:1210` | 7 |
 | <a id="diagnostic-snapback-auth-custody-corrupt"></a>`SNAPBACK_AUTH_CUSTODY_CORRUPT` | auth | — | — | `packages/snapback-client/agent-authority.mjs:108` | 8 |
 | <a id="diagnostic-snapback-auth-custody-counter-exhausted"></a>`SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED` | auth | — | — | `packages/snapback-client/agent-authority.mjs:117` | 5 |
 | <a id="diagnostic-snapback-auth-custody-format-version"></a>`SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:9` | 11 |
@@ -24908,7 +25442,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-rehearsal-selector-denied"></a>`SNAPBACK_AUTH_REHEARSAL_SELECTOR_DENIED` | auth | 403 | — | `packages/snapback-react/familiar-error-classes.mjs:51` | 5 |
 | <a id="diagnostic-snapback-auth-rehearsal-state-present"></a>`SNAPBACK_AUTH_REHEARSAL_STATE_PRESENT` | auth | 409 | — | `src/auth/rehearsal.rs:2311` | 4 |
 | <a id="diagnostic-snapback-auth-request-invalid"></a>`SNAPBACK_AUTH_REQUEST_INVALID` | auth | 400 | [guide](../operating/host-ops.md#mint-a-session-over-http) | `src/auth/provider.rs:4420` | 4 |
-| <a id="diagnostic-snapback-auth-required"></a>`SNAPBACK_AUTH_REQUIRED` | auth | 401 | [guide](../auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals) | `packages/snapback-client/data-client.mjs:539` | 29 |
+| <a id="diagnostic-snapback-auth-required"></a>`SNAPBACK_AUTH_REQUIRED` | auth | 401 | [guide](../auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals) | `packages/snapback-client/data-client.mjs:541` | 29 |
 | <a id="diagnostic-snapback-auth-requirement-implicit"></a>`SNAPBACK_AUTH_REQUIREMENT_IMPLICIT` | auth | — | [guide](../auth/sessions-and-principals.md#choose-each-functions-auth-requirement) | `packages/snapback-codegen/codegen-summary.mjs:25` | 2 |
 | <a id="diagnostic-snapback-auth-rescue-invalid"></a>`SNAPBACK_AUTH_RESCUE_INVALID` | auth | 400 | — | `src/auth/rescue.rs:435` | 6 |
 | <a id="diagnostic-snapback-auth-rescue-managed-state-unsupported"></a>`SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED` | auth | 400 | — | `src/server/api_error.rs:1029` | 3 |
@@ -24948,8 +25482,8 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-session-token-carrier-invalid"></a>`SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID` | auth | — | — | `src/cli.rs:4425` | 6 |
 | <a id="diagnostic-snapback-auth-source-untrusted"></a>`SNAPBACK_AUTH_SOURCE_UNTRUSTED` | auth | — | — | `src/auth/effective_source.rs:29` | 7 |
 | <a id="diagnostic-snapback-auth-stale-result"></a>`SNAPBACK_AUTH_STALE_RESULT` | auth | 400 | [guide](../sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes) | `packages/snapback-client/index.mjs:356` | 14 |
-| <a id="diagnostic-snapback-auth-startup-artifact-mismatch"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | auth | — | [guide](../getting-started/the-authoring-loop.md#evolve-a-table-that-already-has-data) | `packages/snapback-cli/index.mjs:1900` | 17 |
-| <a id="diagnostic-snapback-auth-startup-artifact-required"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | auth | — | — | `src/cli.rs:44` | 4 |
+| <a id="diagnostic-snapback-auth-startup-artifact-mismatch"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | auth | — | [guide](../backend/schema-evolution.md#recover-from-snapbackauthstartupartifactmismatch) | `packages/snapback-cli/index.mjs:1900` | 17 |
+| <a id="diagnostic-snapback-auth-startup-artifact-required"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | auth | — | [guide](../backend/schema-evolution.md#diagnose-the-four-boundary-codes) | `src/cli.rs:44` | 4 |
 | <a id="diagnostic-snapback-auth-step-up-delivery-unavailable"></a>`SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE` | auth | — | [guide](../auth/sessions-and-principals.md#mint-a-local-session-from-a-trusted-server) | `src/auth/provider.rs:4457` | 2 |
 | <a id="diagnostic-snapback-auth-step-up-required"></a>`SNAPBACK_AUTH_STEP_UP_REQUIRED` | auth | 401 | [guide](../auth/sessions-and-principals.md#mint-a-local-session-from-a-trusted-server) | `packages/snapback-react/familiar-error-classes.mjs:60` | 6 |
 | <a id="diagnostic-snapback-auth-stream-incarnation-corrupt"></a>`SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT` | auth | — | — | `src/auth/invocation.rs:2326` | 10 |
@@ -25451,9 +25985,9 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-ctx-ledger-version"></a>`SNAPBACK_CTX_LEDGER_VERSION` | contract | — | — | `packages/snapback-contract/client-store.mjs:31` | 2 |
 | <a id="diagnostic-snapback-ctx-ledger-version-unsupported"></a>`SNAPBACK_CTX_LEDGER_VERSION_UNSUPPORTED` | client | 400 | — | `packages/snapback-client/ir-evaluator.mjs:198` | 4 |
 | <a id="diagnostic-snapback-data-"></a>`SNAPBACK_DATA_` | codegen | — | — | `packages/snapback-codegen/data-resource.mjs:250` | 2 |
-| <a id="diagnostic-snapback-data-binding-required"></a>`SNAPBACK_DATA_BINDING_REQUIRED` | client | — | [guide](../data/doorways.md#use-the-provider-bound-react-or-expo-doorway) | `packages/snapback-client/data-client.mjs:394` | 4 |
-| <a id="diagnostic-snapback-data-cursor-invalid"></a>`SNAPBACK_DATA_CURSOR_INVALID` | codegen | 400 | [guide](../data/queries.md#continue-without-changing-the-query) | `packages/snapback-codegen/data-query.mjs:50` | 6 |
-| <a id="diagnostic-snapback-data-cursor-mint-unavailable"></a>`SNAPBACK_DATA_CURSOR_MINT_UNAVAILABLE` | codegen | — | [guide](../data/queries.md#continue-without-changing-the-query) | `packages/snapback-codegen/data-query.mjs:51` | 4 |
+| <a id="diagnostic-snapback-data-binding-required"></a>`SNAPBACK_DATA_BINDING_REQUIRED` | client | — | [guide](../data/doorways.md#use-the-provider-bound-react-or-expo-doorway) | `packages/snapback-client/data-client.mjs:396` | 4 |
+| <a id="diagnostic-snapback-data-cursor-invalid"></a>`SNAPBACK_DATA_CURSOR_INVALID` | codegen | 400 | [guide](../data/queries.md#continue-without-changing-the-query) | `packages/snapback-codegen/data-query.mjs:51` | 6 |
+| <a id="diagnostic-snapback-data-cursor-mint-unavailable"></a>`SNAPBACK_DATA_CURSOR_MINT_UNAVAILABLE` | codegen | — | [guide](../data/queries.md#continue-without-changing-the-query) | `packages/snapback-codegen/data-query.mjs:52` | 4 |
 | <a id="diagnostic-snapback-data-custody-unavailable"></a>`SNAPBACK_DATA_CUSTODY_UNAVAILABLE` | client | — | [guide](../data/transactions.md#custody-and-prediction-are-separate) | `packages/snapback-client/index.mjs:2111` | 3 |
 | <a id="diagnostic-snapback-data-dispatch-not-accepted"></a>`SNAPBACK_DATA_DISPATCH_NOT_ACCEPTED` | client | — | — | `packages/snapback-client/index.mjs:7339` | 1 |
 | <a id="diagnostic-snapback-data-function-record-parity-failed"></a>`SNAPBACK_DATA_FUNCTION_RECORD_PARITY_FAILED` | codegen | — | [guide](../data/resources.md#recover-from-data-resource-refusals) | `packages/snapback-codegen/data-resource.mjs:415` | 7 |
@@ -25469,12 +26003,12 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-data-patch-unknown-field"></a>`SNAPBACK_DATA_PATCH_UNKNOWN_FIELD` | server | — | — | `src/data_patch.rs:524` | 1 |
 | <a id="diagnostic-snapback-data-patch-validation-failed"></a>`SNAPBACK_DATA_PATCH_VALIDATION_FAILED` | server | — | — | `src/data_patch.rs:540` | 4 |
 | <a id="diagnostic-snapback-data-promotion-refused"></a>`SNAPBACK_DATA_PROMOTION_REFUSED` | cli | — | [guide](../data/promotion.md#promote-a-generated-data-operation-into-your-function-profile) | `packages/snapback-cli/index.mjs:3530` | 3 |
-| <a id="diagnostic-snapback-data-query-bound-exceeded"></a>`SNAPBACK_DATA_QUERY_BOUND_EXCEEDED` | codegen | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-codegen/data-query.mjs:46` | 13 |
-| <a id="diagnostic-snapback-data-query-capability-unavailable"></a>`SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE` | client | — | [guide](../data/resources.md#recover-from-data-resource-refusals) | `packages/snapback-client/data-client.mjs:152` | 6 |
-| <a id="diagnostic-snapback-data-query-name-collision"></a>`SNAPBACK_DATA_QUERY_NAME_COLLISION` | codegen | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-codegen/data-query.mjs:49` | 4 |
-| <a id="diagnostic-snapback-data-query-not-catalogued"></a>`SNAPBACK_DATA_QUERY_NOT_CATALOGUED` | client | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-client/data-client.mjs:134` | 12 |
-| <a id="diagnostic-snapback-data-query-resolution-ambiguous"></a>`SNAPBACK_DATA_QUERY_RESOLUTION_AMBIGUOUS` | codegen | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-codegen/data-query.mjs:48` | 4 |
-| <a id="diagnostic-snapback-data-query-shape-invalid"></a>`SNAPBACK_DATA_QUERY_SHAPE_INVALID` | client | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-client/data-client.mjs:123` | 43 |
+| <a id="diagnostic-snapback-data-query-bound-exceeded"></a>`SNAPBACK_DATA_QUERY_BOUND_EXCEEDED` | codegen | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-codegen/data-query.mjs:47` | 13 |
+| <a id="diagnostic-snapback-data-query-capability-unavailable"></a>`SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE` | client | — | [guide](../data/resources.md#recover-from-data-resource-refusals) | `packages/snapback-client/data-client.mjs:154` | 6 |
+| <a id="diagnostic-snapback-data-query-name-collision"></a>`SNAPBACK_DATA_QUERY_NAME_COLLISION` | codegen | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-codegen/data-query.mjs:50` | 4 |
+| <a id="diagnostic-snapback-data-query-not-catalogued"></a>`SNAPBACK_DATA_QUERY_NOT_CATALOGUED` | client | 400 | [guide](../capabilities.md#capabilities) | `packages/snapback-client/data-client.mjs:135` | 13 |
+| <a id="diagnostic-snapback-data-query-resolution-ambiguous"></a>`SNAPBACK_DATA_QUERY_RESOLUTION_AMBIGUOUS` | codegen | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-codegen/data-query.mjs:49` | 4 |
+| <a id="diagnostic-snapback-data-query-shape-invalid"></a>`SNAPBACK_DATA_QUERY_SHAPE_INVALID` | client | 400 | [guide](../data/queries.md#refusals-and-escape-hatches) | `packages/snapback-client/data-client.mjs:124` | 43 |
 | <a id="diagnostic-snapback-data-resource-declaration-invalid"></a>`SNAPBACK_DATA_RESOURCE_DECLARATION_INVALID` | codegen | — | [guide](../data/resources.md#recover-from-data-resource-refusals) | `packages/snapback-codegen/data-resource.mjs:159` | 8 |
 | <a id="diagnostic-snapback-data-resource-ineligible"></a>`SNAPBACK_DATA_RESOURCE_INELIGIBLE` | codegen | — | [guide](../data/resources.md#recover-from-data-resource-refusals) | `packages/snapback-codegen/data-resource.mjs:97` | 10 |
 | <a id="diagnostic-snapback-data-resource-sync-per-table-forbidden"></a>`SNAPBACK_DATA_RESOURCE_SYNC_PER_TABLE_FORBIDDEN` | codegen | — | [guide](../data/resources.md#recover-from-data-resource-refusals) | `packages/snapback-codegen/data-resource.mjs:70` | 2 |
@@ -25482,10 +26016,10 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-data-settlement-response-invalid"></a>`SNAPBACK_DATA_SETTLEMENT_RESPONSE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:7420` | 2 |
 | <a id="diagnostic-snapback-data-tier-version-required"></a>`SNAPBACK_DATA_TIER_VERSION_REQUIRED` | server | 400 | — | `src/data_tier.rs:121` | 4 |
 | <a id="diagnostic-snapback-data-tier-version-unsupported"></a>`SNAPBACK_DATA_TIER_VERSION_UNSUPPORTED` | server | 400 | — | `src/data_tier.rs:122` | 4 |
-| <a id="diagnostic-snapback-data-transaction-bound-exceeded"></a>`SNAPBACK_DATA_TRANSACTION_BOUND_EXCEEDED` | client | — | [guide](../data/transactions.md#refusals-and-ceilings) | `packages/snapback-client/data-client.mjs:423` | 9 |
-| <a id="diagnostic-snapback-data-transaction-invalid"></a>`SNAPBACK_DATA_TRANSACTION_INVALID` | client | — | [guide](../data/transactions.md#refusals-and-ceilings) | `packages/snapback-client/data-client.mjs:176` | 18 |
-| <a id="diagnostic-snapback-data-transaction-not-catalogued"></a>`SNAPBACK_DATA_TRANSACTION_NOT_CATALOGUED` | client | — | [guide](../data/transactions.md#refusals-and-ceilings) | `packages/snapback-client/data-client.mjs:453` | 3 |
-| <a id="diagnostic-snapback-data-transaction-refused"></a>`SNAPBACK_DATA_TRANSACTION_REFUSED` | client | — | — | `packages/snapback-client/data-client.mjs:70` | 1 |
+| <a id="diagnostic-snapback-data-transaction-bound-exceeded"></a>`SNAPBACK_DATA_TRANSACTION_BOUND_EXCEEDED` | client | — | [guide](../data/transactions.md#refusals-and-ceilings) | `packages/snapback-client/data-client.mjs:425` | 9 |
+| <a id="diagnostic-snapback-data-transaction-invalid"></a>`SNAPBACK_DATA_TRANSACTION_INVALID` | client | — | [guide](../data/transactions.md#refusals-and-ceilings) | `packages/snapback-client/data-client.mjs:178` | 18 |
+| <a id="diagnostic-snapback-data-transaction-not-catalogued"></a>`SNAPBACK_DATA_TRANSACTION_NOT_CATALOGUED` | client | — | [guide](../data/transactions.md#refusals-and-ceilings) | `packages/snapback-client/data-client.mjs:455` | 3 |
+| <a id="diagnostic-snapback-data-transaction-refused"></a>`SNAPBACK_DATA_TRANSACTION_REFUSED` | client | — | — | `packages/snapback-client/data-client.mjs:71` | 1 |
 | <a id="diagnostic-snapback-debug-perturbation-target-refused"></a>`SNAPBACK_DEBUG_PERTURBATION_TARGET_REFUSED` | server | 403 | — | `src/admin.rs:2770` | 4 |
 | <a id="diagnostic-snapback-declaration-suggestion-stale"></a>`SNAPBACK_DECLARATION_SUGGESTION_STALE` | codegen | — | — | `packages/snapback-codegen/declaration-suggestion.mjs:47` | 1 |
 | <a id="diagnostic-snapback-definition-in-schema-module"></a>`SNAPBACK_DEFINITION_IN_SCHEMA_MODULE` | codegen | — | — | `packages/snapback-codegen/index.mjs:2192` | 1 |
@@ -26701,7 +27235,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-react-group-reference-invalid"></a>`SNAPBACK_REACT_GROUP_REFERENCE_INVALID` | client | — | — | `packages/snapback-client/react-binding.mjs:1666` | 3 |
 | <a id="diagnostic-snapback-react-group-register-unavailable"></a>`SNAPBACK_REACT_GROUP_REGISTER_UNAVAILABLE` | client | — | — | `packages/snapback-client/react-binding.mjs:2002` | 1 |
 | <a id="diagnostic-snapback-react-hmr-rebind-failed"></a>`SNAPBACK_REACT_HMR_REBIND_FAILED` | react | — | [guide](../clients/react.md#the-react-client) | `packages/snapback-react/implementation.mjs:3001` | 4 |
-| <a id="diagnostic-snapback-react-live-hook-args-identity-churn"></a>`SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN` | react | — | — | `packages/snapback-react/react-runtime.mjs:45` | 2 |
+| <a id="diagnostic-snapback-react-live-hook-args-identity-churn"></a>`SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN` | react | — | [guide](../backend/familiar-profile.md#keep-react-hook-arguments-identity-stable) | `packages/snapback-react/react-runtime.mjs:45` | 2 |
 | <a id="diagnostic-snapback-react-manifest-invalid"></a>`SNAPBACK_REACT_MANIFEST_INVALID` | client | — | — | `packages/snapback-client/react-binding-hmr.mjs:95` | 26 |
 | <a id="diagnostic-snapback-react-mutation-queued"></a>`SNAPBACK_REACT_MUTATION_QUEUED` | client | — | [guide](../clients/react.md#inspect-client-dev-diagnostics) | `packages/snapback-client/client-diagnostics.mjs:26` | 6 |
 | <a id="diagnostic-snapback-react-mutation-queue-wedged"></a>`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` | client | — | [guide](../clients/react.md#inspect-client-dev-diagnostics) | `packages/snapback-client/client-diagnostics.mjs:28` | 1 |
@@ -26960,7 +27494,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-schema-empty-index"></a>`SNAPBACK_SCHEMA_EMPTY_INDEX` | server | 400 | — | `src/server/api_error.rs:1373` | 2 |
 | <a id="diagnostic-snapback-schema-enum-domain-backfill-required"></a>`SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED` | server | 400 | [guide](../getting-started/your-first-backend.md#declare-the-schema) | `src/server/api_error.rs:1374` | 2 |
 | <a id="diagnostic-snapback-schema-enum-domain-invalid"></a>`SNAPBACK_SCHEMA_ENUM_DOMAIN_INVALID` | server | 400 | — | `src/server/api_error.rs:1375` | 2 |
-| <a id="diagnostic-snapback-schema-field-retyped"></a>`SNAPBACK_SCHEMA_FIELD_RETYPED` | server | 400 | — | `src/server/api_error.rs:1376` | 3 |
+| <a id="diagnostic-snapback-schema-field-retyped"></a>`SNAPBACK_SCHEMA_FIELD_RETYPED` | server | 400 | [guide](../backend/schema-evolution.md#diagnose-the-four-boundary-codes) | `src/server/api_error.rs:1376` | 3 |
 | <a id="diagnostic-snapback-schema-index-name-collision"></a>`SNAPBACK_SCHEMA_INDEX_NAME_COLLISION` | server | 400 | — | `src/server/api_error.rs:1377` | 2 |
 | <a id="diagnostic-snapback-schema-index-where-applicable-mismatch"></a>`SNAPBACK_SCHEMA_INDEX_WHERE_APPLICABLE_MISMATCH` | server | 400 | — | `src/server/api_error.rs:1378` | 2 |
 | <a id="diagnostic-snapback-schema-parse-failed"></a>`SNAPBACK_SCHEMA_PARSE_FAILED` | server | 400 | — | `src/server/api_error.rs:1382` | 2 |
@@ -26968,7 +27502,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-schema-permission-field-duplicate"></a>`SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE` | server | 400 | — | `src/server/api_error.rs:1380` | 2 |
 | <a id="diagnostic-snapback-schema-permission-field-unknown"></a>`SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN` | server | 400 | — | `src/server/api_error.rs:1381` | 2 |
 | <a id="diagnostic-snapback-schema-physical-column-invalid"></a>`SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID` | server | — | — | `src/storage.rs:9599` | 3 |
-| <a id="diagnostic-snapback-schema-required-field-backfill-required"></a>`SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED` | server | 409 | — | `src/server/api_error.rs:586` | 6 |
+| <a id="diagnostic-snapback-schema-required-field-backfill-required"></a>`SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED` | server | 409 | [guide](../backend/schema-evolution.md#diagnose-the-four-boundary-codes) | `src/server/api_error.rs:586` | 6 |
 | <a id="diagnostic-snapback-schema-structured-index-unsupported"></a>`SNAPBACK_SCHEMA_STRUCTURED_INDEX_UNSUPPORTED` | server | 400 | — | `src/server/api_error.rs:1298` | 2 |
 | <a id="diagnostic-snapback-schema-system-field"></a>`SNAPBACK_SCHEMA_SYSTEM_FIELD` | server | 400 | [guide](../getting-started/your-first-backend.md#declare-the-schema) | `src/server/api_error.rs:1383` | 2 |
 | <a id="diagnostic-snapback-schema-unique-index-optional-field"></a>`SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD` | server | 400 | — | `src/server/api_error.rs:1384` | 1 |
@@ -27406,7 +27940,7 @@ reviewed-authorities-digest: sha256:109f043f874e62f3375fcb7e122c1429faa2f87d9e37
 # Generated API reference
 
 One build-bound projection of 1182 public symbols (485 runtime values and 697 explicit type-only symbols).
-Registry source identity: `sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+Registry source identity: `sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -27492,7 +28026,7 @@ reviewed-authorities-digest: sha256:76b2e5c17b9c6db4c206588b236ee7be8a5a4e11767f
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -37853,7 +38387,7 @@ reviewed-authorities-digest: sha256:878dec4747470d383ece6c874dc2659d1f7c3152e80d
 # @expo/snapback-client/agent-authority
 
 Build-bound public API projection for `@expo/snapback-client/agent-authority`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/agent-authority.mjs`.
 
@@ -38378,7 +38912,7 @@ reviewed-authorities-digest: sha256:2efbc4d4e30e0ef4bbe4777ccdd3ef6bcfeb4acc954e
 # @expo/snapback-client/app-data
 
 Build-bound public API projection for `@expo/snapback-client/app-data`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/app-data.mjs`.
 
@@ -38630,7 +39164,7 @@ reviewed-authorities-digest: sha256:9226b54180f0c8cb0acd64da93854bf0a4f9fc154250
 # @expo/snapback-client/argument-normalization
 
 Build-bound public API projection for `@expo/snapback-client/argument-normalization`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/argument-normalization.mjs`.
 
@@ -38743,7 +39277,7 @@ reviewed-authorities-digest: sha256:5f7d98a786629e2a4ae89437e7e65e0bbc2fea1e661e
 # @expo/snapback-client/assets
 
 Build-bound public API projection for `@expo/snapback-client/assets`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/assets.mjs`.
 
@@ -39485,7 +40019,7 @@ reviewed-authorities-digest: sha256:38669fd6774b3dfaf77c1b037c62773a1862cf5121d6
 # @expo/snapback-client/canonical-client-value
 
 Build-bound public API projection for `@expo/snapback-client/canonical-client-value`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/canonical-client-value.mjs`.
 
@@ -39592,7 +40126,7 @@ reviewed-authorities-digest: sha256:ff412bf67910948154d00067c86a8c8fc88e0b605986
 # @expo/snapback-client/client-diagnostics
 
 Build-bound public API projection for `@expo/snapback-client/client-diagnostics`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/client-diagnostics.mjs`.
 
@@ -39980,7 +40514,7 @@ reviewed-authorities-digest: sha256:4801b074c0eba3edb1b6ec0a681a040c4a5dbc3141aa
 # @expo/snapback-client/commands
 
 Build-bound public API projection for `@expo/snapback-client/commands`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/commands.mjs`.
 
@@ -40449,7 +40983,7 @@ reviewed-authorities-digest: sha256:837e7467693df1096d0f0e7d027885bbdd248f2d4233
 # @expo/snapback-client/data
 
 Build-bound public API projection for `@expo/snapback-client/data`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/data-client.mjs`.
 
@@ -40800,7 +41334,7 @@ reviewed-authorities-digest: sha256:615551a7984890e17e1d1fcc3283cd08111189e7cfb5
 # @expo/snapback-client/diagnostic-error
 
 Build-bound public API projection for `@expo/snapback-client/diagnostic-error`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/diagnostic-error.mjs`.
 
@@ -40998,7 +41532,7 @@ reviewed-authorities-digest: sha256:273ab3b3b5190b74e5a0ea63547e8b78fbd105362e53
 # @expo/snapback-client/evaluation-floor
 
 Build-bound public API projection for `@expo/snapback-client/evaluation-floor`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/evaluation-floor.mjs`.
 
@@ -41137,7 +41671,7 @@ reviewed-authorities-digest: sha256:a53284704a4b68d86dd22564f8bf855079a0350ba839
 # @expo/snapback-client/external-store
 
 Build-bound public API projection for `@expo/snapback-client/external-store`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/external-store.mjs`.
 
@@ -41499,7 +42033,7 @@ reviewed-authorities-digest: sha256:20e42f196014800ea334b135228cfa6ca9c8238de12e
 # @expo/snapback-client/hosted-browser
 
 Build-bound public API projection for `@expo/snapback-client/hosted-browser`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/hosted-browser.mjs`.
 
@@ -41590,7 +42124,7 @@ reviewed-authorities-digest: sha256:612daf2fe1e1f7cf37a208f25e42919b34e95217806b
 # @expo/snapback-client/ir-evaluator
 
 Build-bound public API projection for `@expo/snapback-client/ir-evaluator`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/ir-evaluator.mjs`.
 
@@ -41959,7 +42493,7 @@ reviewed-authorities-digest: sha256:21c38ccb467c2c24f7ceafbe5c0b5c3c2fe5a837096e
 # @expo/snapback-client/lease-convergence
 
 Build-bound public API projection for `@expo/snapback-client/lease-convergence`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/lease-convergence.mjs`.
 
@@ -42109,7 +42643,7 @@ reviewed-authorities-digest: sha256:ae86fefb766769a8551de228e095e738f1a92fe2878a
 # @expo/snapback-client/local-read-admission
 
 Build-bound public API projection for `@expo/snapback-client/local-read-admission`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/local-read-admission.mjs`.
 
@@ -42612,7 +43146,7 @@ reviewed-authorities-digest: sha256:ea2e30a3d0094e0fd88b018e9cf0ebe70374cc3ff3a8
 # @expo/snapback-client/materialization-store
 
 Build-bound public API projection for `@expo/snapback-client/materialization-store`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/materialization-store.mjs`.
 
@@ -43113,7 +43647,7 @@ reviewed-authorities-digest: sha256:8ad7c90ad99298d93d6cbc290920bf23738c4c5ec48a
 # @expo/snapback-client/micro
 
 Build-bound public API projection for `@expo/snapback-client/micro`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro.mjs`.
 
@@ -43347,7 +43881,7 @@ reviewed-authorities-digest: sha256:c2063af1eedf37e134085f7ad608edee19fda422f303
 # @expo/snapback-client/micro/core
 
 Build-bound public API projection for `@expo/snapback-client/micro/core`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-core.mjs`.
 
@@ -43710,7 +44244,7 @@ reviewed-authorities-digest: sha256:ea681db0856fb66c7aa6017839a2cd2aa500ccea447c
 # @expo/snapback-client/micro/live
 
 Build-bound public API projection for `@expo/snapback-client/micro/live`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-live.mjs`.
 
@@ -43824,7 +44358,7 @@ reviewed-authorities-digest: sha256:d68f29bd14f4850cfa82911fc6574c32ae6053cdabdf
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -44542,7 +45076,7 @@ reviewed-authorities-digest: sha256:d0a9d69562cedeb8c21555c377e97606e07ab65fcd8d
 # @expo/snapback-client/optimistic-rebase
 
 Build-bound public API projection for `@expo/snapback-client/optimistic-rebase`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/optimistic-rebase.mjs`.
 
@@ -44847,7 +45381,7 @@ reviewed-authorities-digest: sha256:fcd038176e13bc2944380ba80aa745af263bc880d5b2
 # @expo/snapback-client/outbox-shared
 
 Build-bound public API projection for `@expo/snapback-client/outbox-shared`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/outbox-shared.mjs`.
 
@@ -45294,7 +45828,7 @@ reviewed-authorities-digest: sha256:18ee0065acefe6555a8f1d38cde431615bdf962ef006
 # @expo/snapback-client/push-installation-expo
 
 Build-bound public API projection for `@expo/snapback-client/push-installation-expo`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-installation-expo.mjs`.
 
@@ -45420,7 +45954,7 @@ reviewed-authorities-digest: sha256:b92a6ea9f650641d72151854961429889f884a608764
 # @expo/snapback-client/push-registry
 
 Build-bound public API projection for `@expo/snapback-client/push-registry`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-registry.mjs`.
 
@@ -45592,7 +46126,7 @@ reviewed-authorities-digest: sha256:631c29fd9f00243f38365b280509f2e4afe8dfb4b7d9
 # @expo/snapback-client/react-binding
 
 Build-bound public API projection for `@expo/snapback-client/react-binding`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/react-binding.mjs`.
 
@@ -46061,7 +46595,7 @@ reviewed-authorities-digest: sha256:bd145de0c33bef095b26de2cffe744ba0a3b5010cab8
 # @expo/snapback-client/reference-kinds
 
 Build-bound public API projection for `@expo/snapback-client/reference-kinds`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/reference-kinds.mjs`.
 
@@ -46149,7 +46683,7 @@ reviewed-authorities-digest: sha256:2c40df9294435e47b751e7b890100cf81bcf5417516c
 # @expo/snapback-client/remediation
 
 Build-bound public API projection for `@expo/snapback-client/remediation`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/remediation.mjs`.
 
@@ -46336,7 +46870,7 @@ reviewed-authorities-digest: sha256:08801c52622e0169b56649cdeb9ab639b72a13bee7bb
 # @expo/snapback-client/result-transform
 
 Build-bound public API projection for `@expo/snapback-client/result-transform`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/result-transform.mjs`.
 
@@ -46741,7 +47275,7 @@ reviewed-authorities-digest: sha256:8a3c674efb553b4d40e48dc27050db88f7df9bd984ce
 # @expo/snapback-client/rqs
 
 Build-bound public API projection for `@expo/snapback-client/rqs`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs.mjs`.
 
@@ -47208,7 +47742,7 @@ reviewed-authorities-digest: sha256:0827536d62b3d3e5132c2ee2f4ae09496b117eccb1ac
 # @expo/snapback-client/rqs-preload
 
 Build-bound public API projection for `@expo/snapback-client/rqs-preload`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload-core.mjs`.
 
@@ -47465,7 +47999,7 @@ reviewed-authorities-digest: sha256:1158b43e29a624e8d926ad67868e3695f6954def6ff6
 # @expo/snapback-client/rqs-registered
 
 Build-bound public API projection for `@expo/snapback-client/rqs-registered`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload.mjs`.
 
@@ -47855,7 +48389,7 @@ reviewed-authorities-digest: sha256:ee3173932d934a14b907e44cff0d1d7755496aaad627
 # @expo/snapback-client/rqs-store
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store.mjs`.
 
@@ -48479,7 +49013,7 @@ reviewed-authorities-digest: sha256:abd5ce39edf0e2eb72e73216ebbd75d2db464b0a681c
 # @expo/snapback-client/rqs-store-default
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-default`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-default.mjs`.
 
@@ -48627,7 +49161,7 @@ reviewed-authorities-digest: sha256:eb825985247194610e6dfde16a38e4576203f4a37e0a
 # @expo/snapback-client/rqs-store-expo
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-expo`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-expo.mjs`.
 
@@ -48835,7 +49369,7 @@ reviewed-authorities-digest: sha256:e8cd704d4e63e222fca99be1948fa5418e472ba304f8
 # @expo/snapback-client/rqs-store-file
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-file`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-file.mjs`.
 
@@ -49028,7 +49562,7 @@ reviewed-authorities-digest: sha256:1973096677f56d6a826dc43c002f96114c17d168a0d4
 # @expo/snapback-client/search
 
 Build-bound public API projection for `@expo/snapback-client/search`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/search.mjs`.
 
@@ -49281,7 +49815,7 @@ reviewed-authorities-digest: sha256:c3ad7c7a2d7b65d4c509d14b7163fb1e4b736629868d
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -49971,7 +50505,7 @@ reviewed-authorities-digest: sha256:a1cdae0286f5670d7b50111ffcff9c0907657c78b6ce
 # @expo/snapback-react
 
 Build-bound public API projection for `@expo/snapback-react`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-react/index.mjs`.
 
@@ -52449,7 +52983,7 @@ reviewed-authorities-digest: sha256:d21782427d7e1d60492e1fdc3aa66557a8b367ab53ad
 # @expo/snapback-react/core
 
 Build-bound public API projection for `@expo/snapback-react/core`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-react/core.mjs`.
 
@@ -53558,7 +54092,7 @@ reviewed-authorities-digest: sha256:4c925bdde33e521143a61eb35737d07b6820b49835bb
 # @expo/snapback-react/data
 
 Build-bound public API projection for `@expo/snapback-react/data`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-react/data.mjs`.
 
@@ -53709,7 +54243,7 @@ reviewed-authorities-digest: sha256:43d2ebc251ba1f0b61f955935caf919b0235adb790c8
 # @expo/snapback-react/familiar
 
 Build-bound public API projection for `@expo/snapback-react/familiar`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-react/familiar.mjs`.
 
@@ -53930,7 +54464,7 @@ reviewed-authorities-digest: sha256:f9c651b2b04f2b7f8b931b96e0738cce76fb3c53b452
 # @expo/snapback-react/thumbhash
 
 Build-bound public API projection for `@expo/snapback-react/thumbhash`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-react/thumbhash.mjs`.
 
@@ -54043,7 +54577,7 @@ reviewed-authorities-digest: sha256:5db67d187e9470ed906a9f76f2f6d7d568a3924c2adb
 # @expo/snapback-expo
 
 Build-bound public API projection for `@expo/snapback-expo`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import, default` → `packages/snapback-expo/index.mjs`.
 
@@ -57308,7 +57842,7 @@ reviewed-authorities-digest: sha256:e6dc1164df19da2637674f143a1c5924c23b904145a4
 # @expo/snapback-expo/app-binding
 
 Build-bound public API projection for `@expo/snapback-expo/app-binding`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/app-binding.mjs`.
 
@@ -57590,7 +58124,7 @@ reviewed-authorities-digest: sha256:f7cacd64e681d14a9c59fa899e7383df7829fb5f6c61
 # @expo/snapback-expo/app.plugin
 
 Build-bound public API projection for `@expo/snapback-expo/app.plugin`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/app.plugin.js`.
 
@@ -57714,7 +58248,7 @@ reviewed-authorities-digest: sha256:e3cea3feca623eb3ad3dc728e16f74a0e6a8486c8492
 # @expo/snapback-expo/asset-source
 
 Build-bound public API projection for `@expo/snapback-expo/asset-source`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/asset-source.mjs`.
 
@@ -57869,7 +58403,7 @@ reviewed-authorities-digest: sha256:f7cacd64e681d14a9c59fa899e7383df7829fb5f6c61
 # @expo/snapback-expo/config-plugin
 
 Build-bound public API projection for `@expo/snapback-expo/config-plugin`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/config-plugin.cjs`.
 
@@ -57993,7 +58527,7 @@ reviewed-authorities-digest: sha256:1ddfe33f357672f36b3e52c932141ab60b1d45cc6f1c
 # @expo/snapback-expo/data
 
 Build-bound public API projection for `@expo/snapback-expo/data`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/data.mjs`.
 
@@ -58144,7 +58678,7 @@ reviewed-authorities-digest: sha256:c59cf5809618a00067ae4652084891ae47c4e803fa02
 # @expo/snapback-expo/supervised-environment
 
 Build-bound public API projection for `@expo/snapback-expo/supervised-environment`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/supervised-environment.mjs`.
 
@@ -58314,7 +58848,7 @@ reviewed-authorities-digest: sha256:ec512b682f4731b564839f92d6c7433d2d22d948fc14
 # @expo/snapback-cli/verify
 
 Build-bound public API projection for `@expo/snapback-cli/verify`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 Runtime parity condition:
 `default` → `packages/snapback-cli/verify.mjs`.
 
@@ -58736,7 +59270,7 @@ reviewed-authorities-digest: sha256:d76555aede691a33fd5b1c2f0d523d5680ef3309551e
 # @expo/snapback-codegen/ctx
 
 Build-bound public API projection for `@expo/snapback-codegen/ctx`. Canonical registry identity:
-`sha256:55e04c8059c0554ed099e8958cb4218676ed0d724f782fed87acff0949b19b72`.
+`sha256:f5236e8404a09c14d4303ef071c4aeea1f07fbd137339688ab982e4c32208131`.
 This package subpath is type-only; runtime export parity is not applicable.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)

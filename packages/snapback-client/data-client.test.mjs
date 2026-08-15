@@ -355,7 +355,11 @@ test('query admission refuses stale catalogues and missing capabilities before t
   const db = createDataClient({ client, data: binding() });
   assert.throws(
     () => db.watch({ ...queryDescriptor, normalizedDataQueryId: `sha256:${'f'.repeat(64)}` }),
-    ({ code }) => code === 'SNAPBACK_DATA_QUERY_NOT_CATALOGUED',
+    (error) => error.code === 'SNAPBACK_DATA_QUERY_NOT_CATALOGUED'
+      && error.diagnostic.details.guideAnchor === 'guide/data/queries'
+      && /backend source root/u.test(error.message)
+      && /data-queries\.mjs/u.test(error.message)
+      && /regenerate/u.test(error.message),
   );
   assert.throws(
     () => db.watch({

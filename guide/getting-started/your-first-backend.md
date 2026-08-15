@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-09
-reviewed-authorities-digest: sha256:fee04f8766ab6c2d182a1b287011ef896f16ba001922217f326d56ce73e2395b
+reviewed-authorities-digest: sha256:b3d9adcd8e76825df7794cd4c78f72926c6f0cd6fa43552f8d54d2f82cc125ba
 ---
 
 # Your first backend
@@ -77,6 +77,15 @@ The core validators: `v.string()`, `v.principal()`, `v.id(table)`,
 partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
+
+**Storing media is an asset workflow, not a string-field shortcut.** If a
+field will hold an uploaded photo, video, or file, stop here and follow
+[Assets](../backend/assets.md): declare an asset intent, upload and finalize
+through the generated asset surface, then attach a typed `v.assetRef` (or use
+the finalized-only [`v.media()` happy path](../backend/media-happy-paths.md)).
+Do not place a `data:image/...;base64,...` or `data:video/...` value in
+`v.string()`/`v.json()` merely because it type-checks; that bypasses upload
+bounds, trusted media finalization, delivery policy, GC, and rendition state.
 
 <!-- since: 0.1.18 -->
 
@@ -199,6 +208,11 @@ export const listTodosOnce = defineQuery({
 A JS mutation and a JS live query in the paved inline form — each definition
 carries its `handler` directly, next to `args`, `result`, and the declared
 `reads`/`writes`:
+
+If the function accepts, finalizes, attaches, or delivers a file, use the
+generated [asset intent and finalization flow](../backend/assets.md) alongside
+the mutation. Base64/data-URL payloads are ordinary oversized strings, not a
+second media pipeline.
 
 ```js source=packages/snapback-codegen/inline-result-contracts.test.mjs
   export const createTodo = defineJsMutation({

@@ -11,7 +11,7 @@ targets: [all]
 maturity: shipped
 since: 0.1.21
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:845519883f83aac197189804f749732f7424d782fbe09a29ee24a7f09f34ff7d
+reviewed-authorities-digest: sha256:5dd953c8870f6b846c1f12114d442a7acebea555d20729e331b1009aa1695239
 ---
 
 # Handler runtime profile and generation preflight
@@ -23,6 +23,12 @@ module bounds, syntax, globals, computed access, runtime capabilities, target
 differences, diagnostics, and the profile selected for each operation. The
 artifact is projected from the same versioned tables used by codegen's
 scanners, rather than from a separate prose restriction list.
+
+Authoring a function that stores media? Route to [Assets](./assets.md) before
+choosing handler arguments or stored fields. The explicit function surface is
+where you declare asset intents, perform trusted finalization, and attach typed
+references. A data URL in `v.string()` or `v.json()` is not an asset upload and
+loses the pipeline's size, media, delivery, GC, and rendition guarantees.
 
 ## Inspect the generated profile
 

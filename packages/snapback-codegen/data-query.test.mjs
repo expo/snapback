@@ -173,7 +173,10 @@ export const explicit = data.todos.using('by_owner_status_created')
     () => generated.data.todos.using('by_owner_status_created')
       .where({ status: 'open' }).orderBy('createdAt', 'desc')
       .select(['title', '_id']).take(24),
-    ({ code }) => code === 'SNAPBACK_DATA_QUERY_NOT_CATALOGUED',
+    (error) => error.code === 'SNAPBACK_DATA_QUERY_NOT_CATALOGUED'
+      && /backend source root/u.test(error.message)
+      && /data-queries\.mjs/u.test(error.message)
+      && /regenerate/u.test(error.message),
   );
 });
 
@@ -279,7 +282,33 @@ test('static extraction refuses dynamic shapes, invalid grammar, and first excee
     const result = await generate(fixture({ query: entry.query }));
     assert.equal(result.ok, false, `${entry.code}: ${JSON.stringify(result.diagnostics)}`);
     assert.equal(result.diagnostics[0].code, entry.code, 'the first violated rule owns refusal');
+    if (entry.code === 'SNAPBACK_DATA_QUERY_NOT_CATALOGUED') {
+      assert.match(result.diagnostics[0].message, /backend source root/u);
+      assert.match(result.diagnostics[0].message, /data-queries\.mjs/u);
+      assert.match(result.diagnostics[0].message, /regenerate/u);
+    }
   }
+});
+
+test('exact predicates that consume the complete index order by the _id totalizer', async () => {
+  const schema = `
+import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
+export default defineSchema({
+  handles: defineTable({ handle: v.string(), displayName: v.string() })
+    .index('by_handle', ['handle'], { unique: true })
+    .visibility({ kind: 'public-read' })
+    .data({ listIndex: 'by_handle' }),
+});
+`;
+  const result = await generate(fixture({ schema, query: `
+declare const data: any;
+declare const handle: string;
+data.handles.using('by_handle').where({ handle }).orderBy('_id', 'asc').take(1);
+` }));
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.deepEqual(result.dataQueries[0].core.order, {
+    field: '_id', direction: 'asc', totalizer: '_id',
+  });
 });
 
 test('table-scoped slot grammar collisions refuse resource eligibility', async () => {

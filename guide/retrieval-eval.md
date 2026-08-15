@@ -581,6 +581,45 @@ restriction profile.
     Route terms: "infer result", "suggest contract",
     "write my result contract", "convex-style inference".
 
+Cases 54–57 absorb the 2026-08-15 multi-profile sweep's catalogue-root,
+asset-authoring, sessions-evolution, and familiar-profile discovery misses.
+
+54. **Tiny-data catalogue root:** "My literal `data.*` query works in an Expo
+    route but render throws `SNAPBACK_DATA_QUERY_NOT_CATALOGUED`." The run
+    fails if it merely makes the values static in the UI file or defers the
+    refusal; it must move the complete chain under the backend scan root,
+    conventionally `snapback/data-queries.mjs`, and regenerate.
+    Expected pages: `data/queries.md`.
+    Route terms: "SNAPBACK_DATA_QUERY_NOT_CATALOGUED", "data-queries.mjs",
+    "backend source root".
+
+55. **Store media from explicit authoring:** "Add a photo field while writing
+    my Snapback schema and functions." The run fails if the plan stores a
+    base64/data URL in `v.string()` or `v.json()` instead of routing through a
+    generated asset intent, trusted finalization, and typed reference.
+    Expected pages: `backend/assets.md` or
+    `getting-started/your-first-backend.md` or `backend/handler-runtime.md`.
+    Route terms: "storing media", "data URL media", "base64 image".
+
+56. **Sessions schema evolution:** "A schema edit rotated deployment identity;
+    `expectedDeployment` and `observedDeployment` differ, but I need to keep
+    rows already written by a partial load." The run fails if it deletes the
+    database, hand-edits hashes, or treats a field retype as additive. It must
+    boot the exact predecessor carrier and use the packaged successor or
+    reviewed-migration path.
+    Expected pages: `backend/schema-evolution.md`.
+    Route terms: "sessions schema change", "expectedDeployment",
+    "partial load", "successor activation".
+
+57. **Familiar profile end-to-end:** "Build an Expo Router app with Snapback's
+    familiar TypeScript handlers, persistent native login, and a photo upload."
+    The run fails if it presents familiar as the default/stable profile, keeps
+    native custody in memory, omits per-handler membership checks, uses inline
+    hook argument objects, or stores the photo as a data URL.
+    Expected pages: `backend/familiar-profile.md`.
+    Route terms: "Familiar TypeScript", "Expo Router familiar",
+    "SecureStore custody".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

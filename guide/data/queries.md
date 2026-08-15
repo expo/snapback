@@ -11,7 +11,7 @@ targets: [local]
 maturity: partial
 since: 0.1.21
 reviewed: 2026-08-13
-reviewed-authorities-digest: sha256:8145953a62c742f37c1c220a0a810819644148c632cceb5f4a6a9bceebd0dbc8
+reviewed-authorities-digest: sha256:481583af53961baed0576ac1543d4e7ca5f8915cc9a28e9e84618d61c4e23b10
 ---
 
 # Build a bounded data query
@@ -25,6 +25,37 @@ over a `.data()` resource. Codegen extracts each complete chain into the static
 `dataQueryCatalog`, resolves it to an exact generated list when possible, and
 otherwise emits an ordinary `<resource>.query_<16hex>` function. Runtime values
 fill frozen slots; they never change the plan or its authority policy.
+
+## Put catalogue shapes under the backend root
+
+Generation scans only the backend source root passed to codegen — by
+convention `<app>/snapback/`. It does not scan React components, Expo Router
+routes, or any other application-source sibling. Keep the literal shape in a
+backend-owned catalogue file even when only a screen consumes it:
+
+```text
+<app>/
+  app/                         # Expo Router or other UI; not scanned
+  snapback/
+    schema.mjs
+    functions.mjs
+    data-queries.mjs           # complete literal data.* chains live here
+    generated/data.mjs         # application imports the descriptor from here
+```
+
+The file has no registration wrapper. A complete chain is the declaration;
+exporting it gives application code a stable local name:
+
+```ts source=tests/fixtures/data-query-a1/query.ts
+export const ascending = data.todos
+  .using('by_owner_bucket_created')
+  .orderBy('bucket', 'asc')
+  .take(2);
+```
+
+Name the application file `snapback/data-queries.mjs` (or `.ts`), regenerate,
+then consume the generated `data` binding or descriptor from application code.
+Copying the same literal chain into a screen does not catalogue it.
 
 ## Write one complete static chain
 
@@ -72,6 +103,13 @@ the same-direction `_id` totalizer. Duplicate and null order values are safe.
 Owner policy is composed before the seek, so a fabricated but well-typed
 boundary can select only a suffix of the caller's own authorized scan.
 
+Equality predicates consume index fields from left to right. When they consume
+every remaining field — including an exact predicate over a unique index — the
+next order field is `_id`, so author `.orderBy('_id', 'asc' | 'desc')`. The
+unique predicate may make the result cardinality zero-or-one, but `_id` is
+still the closed grammar's deterministic totalizer. Never add `_id` to the
+schema index declaration; Snapback appends it to the effective order.
+
 Treat `dc1.*` as opaque. Malformed, stale-generation, changed-argument,
 cross-plan, and cross-authority presentations all return the same
 `SNAPBACK_DATA_CURSOR_INVALID` response. A boundary too large to encode within
@@ -108,7 +146,7 @@ For query state, `"skip"`, pagination, `read`, `watch`, and `useQuery`, see the
 
 | Code | Next action |
 | --- | --- |
-| `SNAPBACK_DATA_QUERY_NOT_CATALOGUED` | Make the complete shape static and regenerate, or use a named function. |
+| `SNAPBACK_DATA_QUERY_NOT_CATALOGUED` | Move the complete literal chain under the backend scan root, conventionally `snapback/data-queries.mjs`, regenerate, and consume the generated descriptor from app code; or use a named function. |
 | `SNAPBACK_DATA_QUERY_SHAPE_INVALID` | Restore the method order, contiguous index grammar, valid projection, or exact generated plan facts. |
 | `SNAPBACK_DATA_QUERY_BOUND_EXCEEDED` | Reduce filters, `in` values, projection, take, candidate work, descriptor bytes, or result bytes; results are never silently truncated. |
 | `SNAPBACK_DATA_QUERY_RESOLUTION_AMBIGUOUS` | Remove the duplicate generated candidate; resolution never chooses by order. |
@@ -119,3 +157,10 @@ For query state, `"skip"`, pagination, `read`, `watch`, and `useQuery`, see the
 Relationship predicates, retention, transactions, and dynamic shape compilers
 remain outside DataQueryV1. Use existing named functions/composition rather
 than trying to smuggle those powers into a catalogue descriptor.
+
+The generated builder raises `SNAPBACK_DATA_QUERY_NOT_CATALOGUED`
+synchronously when `.take(...)` completes an unknown shape. That is deliberate:
+without a catalogue witness there is no valid generated function reference to
+issue. Deferring the refusal to `db.read`, `db.watch`, or a React render would
+require returning a descriptor already known to be invalid and would make the
+repair farther from the authored chain.
