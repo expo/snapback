@@ -61,7 +61,9 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // data.resources-v1 capability row.
 // Bumped 56832 -> 57856 on 2026-08-14 for LLP 0254 Phase 4's two bounded
 // public-doorway/lifecycle rows; future growth remains tied to named work.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 57856;
+// Bumped 57856 -> 58368 on 2026-08-15 for the backend.familiar-profile-v1
+// GAP row (issues/20260815-guide-gap-familiar-authoring-profile-page.md).
+const CAPABILITIES_SIZE_BUDGET_BYTES = 58368;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.
