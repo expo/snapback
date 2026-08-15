@@ -1962,6 +1962,50 @@ export const updateTodo = defineJsMutation({
   });
 }
 
+// LLP 0231 D7: trusted handler reads select elevated authority explicitly,
+// while the finite nested surface admits no elevated write spelling.
+{
+  await validCase({
+    functions: `
+import { defineJsQuery, results, v } from '${defineUrl}';
+export const inspectTodos = defineJsQuery({
+  args: { id: v.id('todos') },
+  reads: ['todos'],
+  result: results.documents('todos'),
+  handler: async (ctx, args) => {
+    await ctx.db.elevated.get('todos', args.id);
+    return await ctx.db.elevated.query('todos').take(2).collect();
+  },
+});
+`,
+  });
+
+  const diagnostics = await invalidCase({
+    functions: `
+import { defineJsMutation, results, v } from '${defineUrl}';
+export const unsafeWrite = defineJsMutation({
+  args: { id: v.id('todos'), title: v.string() },
+  reads: ['todos'],
+  writes: ['todos'],
+  result: results.value(v.null()),
+  handler: async (ctx, args) => {
+    await ctx.db.elevated.patch('todos', args.id, { title: args.title });
+    return null;
+  },
+});
+`,
+  });
+  assert(
+    diagnostics.some((diagnostic) => (
+      diagnostic.code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN'
+      && /patch is not a ctx\.db\.elevated member.*writes are never available/.test(
+        `${diagnostic.message ?? ''} ${JSON.stringify(diagnostic.details ?? {})}`,
+      )
+    )),
+    `expected an elevated-write refusal, got ${JSON.stringify(diagnostics)}`,
+  );
+}
+
 // The supported range/keyset chain still generates.
 {
   await validCase({

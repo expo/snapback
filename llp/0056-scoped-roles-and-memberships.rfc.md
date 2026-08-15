@@ -5,7 +5,9 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-01 (the receipted trusted-import lane — see the
+**Revised:** 2026-08-15 (bounded atomic initial rosters on generated resource
+bootstrap; transition-checked, consent-gated, and still one host command).
+2026-08-01 (the receipted trusted-import lane — see the
 dated amendment: fixture seats through the `Seed` writer class in the
 LLP 0109 versioned seed, reset retiring runtime seats under this
 document's event-3/declared-restore taxonomy; commissioned by LLP 0100
@@ -525,7 +527,10 @@ no precedence rule — only class assignment needed one, and it is total.
 The generated methods are therefore thin and unforgeable:
 
 ```ts
-const eventId = await eventMembers.bootstrap({ title: "Launch" }) // resource + host seat
+const eventId = await eventMembers.bootstrap(
+  { title: "Launch" },
+  [{ userId: guestId, role: "guest" }],
+) // resource + host seat + transition-checked initial roster
 await eventMembers.insert({ eventId, userId, role: "invited" })  // policy decides
 await eventMembers.setSelfRole(eventId, "guest")                // accept own invite
 await eventMembers.removeSelf(eventId)                           // leave / decline
@@ -754,6 +759,20 @@ host mints the bootstrap capability **only** when *this* mutation inserted
 *that* resource row (absent→inserted in this transaction); it seats the
 **server-derived effective principal** in the declared `bootstrapRole`; and it
 is **single-use**.
+
+The same generated command may carry a bounded initial roster:
+`bootstrap(resourceValues, initialMembers?)`, with at most 64 additional
+members. The creator seat is still host-derived and mandatory. Each additional
+member omits the resource axis (the host injects the fresh id), names a unique
+principal distinct from the creator, uses the declared role vocabulary, and
+must match an ordinary declared `insert` transition as an `other` target with
+the creator's `bootstrapRole` as the caller class. The host evaluates every row
+against the same eligibility, field-coverage, vocabulary, and provenance rules
+as an ordinary generated insert, then commits the resource and entire roster as
+one storage plan. Any invalid or unauthorized seat refuses the whole command
+and writes nothing. This is not sequential authority composition: every added
+seat is authorized from the creator's bootstrap role, never from another seat
+in the same list.
 
 An earlier draft defended bootstrap-revival by asserting that **resource ids are
 never reused** — an invariant no document in this corpus owns and the storage
@@ -1359,17 +1378,20 @@ membership table to declare `provenance: "full"`** — so every seat, downgrade,
 and kick the delegate performs stays attributable after the fact. That
 composition is the answer to the question both documents were carrying.
 
-**Bootstrap-only writes do not trigger the marker**, and the reason is
-structural rather than a convenience carve-out: the bootstrap capability seats
-**only the server-derived effective principal**, **only** under a
+**Creator-only bootstrap writes do not trigger the marker**, and the reason is
+structural rather than a convenience carve-out: without an initial roster the
+bootstrap capability seats **only the server-derived effective principal**, **only** under a
 same-transaction creation witness, **only** in the declaration's
 `bootstrapRole`, and only once (§Writes). It cannot name a principal argument,
 so the self-seating escalation the marker exists to gate is unspellable through
 it — a delegated agent creating an event on the user's behalf seats *the user*,
 never itself. Without this carve-out every "create an event / document / game"
 mutation would become non-wildcard-grantable, which is consent fatigue for the
-most common delegated operation and buys no safety. A function that performs a
-bootstrap write **and** any other membership write is marked, as usual.
+most common delegated operation and buys no safety. Supplying any initial
+member names another principal and therefore makes the function
+`authorityCreating: true`; a generated wrapper cannot clear that marker. A
+function that performs a bootstrap write **and** any other membership write is
+marked, as usual.
 
 **`provenance` has two levels, and `authorityCreating` requires the stronger
 one.** Creation-only attribution was insufficient: a delegated agent's
@@ -1473,9 +1495,12 @@ planning converts it to an authorized plan kept in a lane distinct from raw
 `BufferedWrite`. Bootstrap/sweep/privileged producers retain their existing
 dedicated host entry points, and their broader generated wiring remains scoped
 to the follow-ons above. This first bridge permits one generated membership
-write per mutation: until sequential read-your-membership-writes planning is
-implemented, a second command is refused typed rather than allowing two plans
-authorized against the same pre-state to compose into an undeclared transition.
+command per mutation. The 2026-08-15 amendment lets that one bootstrap command
+contain a bounded initial roster because every additional seat is authorized
+independently from the creator's declared bootstrap role and planned atomically.
+Until sequential read-your-membership-writes planning is implemented, a second
+command is still refused typed rather than allowing two plans authorized
+against the same pre-state to compose into an undeclared transition.
 5. **Blast-radius instrumentation:** the per-declaration counters, their
    reporting surface, and whether a numeric bar gates blessing memberships for
    the reference apps before narrowing lands.
@@ -1638,6 +1663,15 @@ semi-join amendment** and are not v1 acceptance.
   caller-supplied principal or role is refused); it is single-use; and
   concurrent bootstrap attempts by different principals on one creation yield
   exactly one seat.
+- [base] **Atomic initial roster:** `bootstrap(resourceValues, initialMembers)`
+  creates the resource, creator seat, and up to 64 additional seats in one
+  commit; every additional seat must match an `insert` transition from the
+  bootstrap role and pass vocabulary, uniqueness, eligibility, field-coverage,
+  and provenance checks. An unauthorized role/target, duplicate principal,
+  creator duplicate, missing transition, or over-limit roster refuses the
+  entire command with zero writes. Supplying any additional member requires an
+  `authorityCreating` wrapper; creator-only bootstrap retains the structural
+  non-authority-creating carve-out.
 - [base] Decomposed permissions ops: the membership read is captured as ordinary
   snapshot-bound dependencies on **both** outcomes (asserted against the real
   commit-validation path, never a `Permission`-kind capture); **no
@@ -1875,6 +1909,19 @@ Witnesses live with LLP 0109's §18 amendment (src/storage.rs
 (`guide/backend/versioned-seeds.md`) documents the lane and its
 boundary: product bootstrap remains `bootstrap()` under a real
 principal.
+
+## Dated amendment: bounded atomic bootstrap rosters (2026-08-15)
+
+Resource-scoped declarations keep one generated membership command per
+mutation, but `bootstrap(resourceValues, initialMembers?)` may now create up to
+64 additional, transition-checked seats in the same atomic resource-creation
+plan. The creator seat remains server-derived. Every additional member is
+authorized independently as an `insert` by the creator's bootstrap role, and
+any failure rolls back the resource and roster together. A non-empty initial
+roster is authority-creating and requires the existing consent/provenance
+profile; creator-only bootstrap retains its structural carve-out. This closes
+group creation without admitting sequential membership commands or a generic
+batch writer.
 
 ## Status
 

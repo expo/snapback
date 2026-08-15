@@ -5,7 +5,7 @@
 **Systems:** Auth, Security/authorization, Storage, Live queries, Code generation, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-10
-**Revised:** 2026-08-12
+**Revised:** 2026-08-15 (D7 explicit handler-read authority; membership self-resource visibility)
 **Related:** LLP 0011, LLP 0035, LLP 0043, LLP 0046, LLP 0053, LLP 0056, LLP 0070, LLP 0073, LLP 0080, LLP 0085, LLP 0170, LLP 0172, LLP 0173, LLP 0187, LLP 0230, LLP 0234, LLP 0235
 
 ## Summary
@@ -207,12 +207,14 @@ non-conjunctive is by definition an **override**, the explicitly marked escape
 for cross-cutting reads (admin views, moderation, aggregates, and the
 no-principal paths below).
 
-**The policy composes at the data layer, for every access path.** `ctx.db` and
-the declarative plan compiler apply the table policy to all reads — declarative
-plans, JS handlers, mutations, and actions alike. There is no handler-level
-bypass: a JS handler computes over data it was already entitled to see. The
-*only* way to read outside the table policy is an override, and this revision
-makes overrides **fail closed until governed**: the declaration shape is
+**The policy composes at the data layer, for every caller-scoped access path.**
+Ordinary `ctx.db` and the declarative plan compiler apply the table policy to
+all reads. A trusted named JS query or mutation may instead select the explicit
+call-local `ctx.db.elevated` read authority specified by D7; it is not silently
+inherited by the handler and is not available to actions or direct/generated
+plans. The only invocation-wide alternate table policy remains an override,
+and this revision makes overrides **fail closed until governed**: the
+declaration shape is
 specified here — schema-level (never inline in a query), naming scope and
 justification, projected as its own section of D5's surface, each carrying an
 acceptance test demonstrating intended breadth — but *no override is
@@ -278,9 +280,11 @@ enforcement must be plan-class-specific — but with only two policy classes,
 both enforced at the data layer:
 
 - **Class R — row scoping.** Visibility is a row predicate composed into the
-  plan's filters, or applied to `ctx.db` reads inside JS handlers, mutations,
-  and actions. Card-game's hidden hands. The composition machinery — and the
-  declaration vocabulary, via the shipped visibility union — exists.
+  plan's filters or applied to ordinary `ctx.db` reads inside JS query and
+  mutation handlers. Card-game's hidden hands. D7 defines the explicit trusted
+  handler-read authority that may bypass this class at one call site. The
+  composition machinery — and the declaration vocabulary, via the shipped
+  visibility union — exists.
 - **Class M — field masking.** Visibility may additionally include per-field
   masking rules: a field is disclosed only when a declared condition over the
   row and declared related rows holds — pointing-room's `revealed || owner`
@@ -293,9 +297,10 @@ proposed "class J": JS handlers declaring `visibility: handler(...)` and
 enforcing their own boundary, checked only by tests. That contradicted D1 — a
 self-declared waiver of an unbypassable policy is not unbypassable, and a
 finite acceptance test is evidence, not enforcement. It is withdrawn. JS
-handlers read policy-composed, mask-applied data through `ctx.db` like every
-other consumer; what they do *with* visible data is the egress problem (D6),
-not a visibility class.
+handlers read policy-composed, mask-applied data through ordinary `ctx.db` like
+every other consumer. D7's elevated read is a host-recognized call-site
+authority for trusted authorization logic, not a new policy class; what a
+handler does *with* data is still the egress problem (D6).
 
 **The class-M safety envelope, pinned now because masking that only nulls the
 final projection is not a boundary:**
@@ -405,6 +410,53 @@ old-row update/delete checks, post-update checks, and what a function may
 exactly this egress question, since a handler computing over visible data can
 still send it somewhere broader. What the sibling may *not* do is introduce a
 second policy system.
+
+### D7 — handler reads are scoped unless the call site is explicitly elevated
+
+Named JavaScript queries and mutations are trusted server-authoritative code,
+but their ordinary reads remain caller-scoped. The default `ctx.db` surface
+applies Class R visibility so an accidentally omitted authorization check fails
+closed. When a handler must inspect rows in order to perform its own
+authorization logic, it uses **`ctx.db.elevated` at that exact read call**.
+Elevated reads bypass only Class R table visibility. They remain bounded,
+snapshot-captured, OCC-validated, media-deprojected host reads, and they expose
+the same point, batch, and bounded query-builder shapes as ordinary reads.
+
+This explicit escalation resolves the authority cycle that owner visibility
+created for quoted-message and joined-conversation lookups: a handler can first
+prove the caller's membership through the host-owned `ctx.permissions` surface,
+then inspect the protected row without making its backing table public. The
+call site visibly says which authority applies; reviewer search does not have
+to infer it from a function declaration or ambient execution mode.
+
+The threat model has two failures to prevent. First, an ordinary handler that
+forgets its membership/owner check must not gain broad reads merely because it
+runs on the server. Second, a correct handler must not be forced to widen
+storage visibility to `public-read` just to obtain facts needed by its own
+authorization decision. Scoped-by-default plus explicit call-local elevation
+prevents both. An elevated read is application authority: callers cannot select
+it, forge it in arguments, or receive it in an action. Generated/direct plans
+cannot select it either, and an authored query plan cannot encode it.
+
+Elevation deliberately does **not** bypass field masking, write checks,
+membership writer rules, result/egress validation, asset authorization, query
+bounds, or capture/OCC. It is refused in actions, whose remote-I/O capability
+would make broad database reads an unsafe exfiltration primitive. It also does
+not expose the private membership roster: authorization questions still use
+the declaration-bound, host-owned `ctx.permissions` methods. Invocation-wide
+scheduled/no-principal authority remains LLP 0234's governed override problem;
+`ctx.db.elevated` is only the call-local authority of trusted named handler
+code already executing for one request.
+
+Membership visibility gains one bounded declarative case alongside this
+authority decision: the membership declaration may gate its resource table by
+declaring `resourceField: '_id'`. For a child table, the resource field must
+remain a required id of the declaration's resource table. Storage lowers both
+shapes through the same membership predicate and
+pending roles remain excluded. This supports a private membership table whose
+rows are visible only to members of their resource without a public roster.
+It does not add arbitrary joins or multi-hop predicates; those remain explicit
+handler authorization checks followed by elevated reads.
 
 ### Why this and not an entity framework
 
@@ -594,11 +646,13 @@ encryption dismissal.
    refused. The exact schema predicate is plan data, storage evaluates grouped
    OR before ANDed query refinements, membership leaves contribute live
    dependencies and force conservative replacement, and every restricted
-   policy is RQS-ineligible. This resolves the Clique Following-feed shape:
+   policy is RQS-ineligible. The same predicates now apply to ordinary
+   `ctx.db`; a trusted named handler can bypass Class R only through the
+   explicit D7 `ctx.db.elevated` call site. This resolves the Clique Following-feed shape:
    a dedicated Following membership projection plus the owner arm includes
    self-authored posts without a self-follow edge. The shipped scope is only
-   generated direct query/live-query plans. `ctx.db`, search, relational,
-   class-M masking, writes, and egress remain open; in particular the original
+   generated direct query/live-query plans and ordinary handler reads. Search,
+   relational, class-M masking, writes, and egress remain open; in particular the original
    question about what a class-M condition may reference is not answered by
    this class-R connective.
 2. **Unify the vocabularies.** The proposed table-level grammar and the
@@ -659,6 +713,11 @@ encryption dismissal.
   `fieldBoundary:` declaration on one surface.
 - Acceptance can switch identity (`asUser`) without bespoke token plumbing, per
   diary 0031:565.
+- An owner-hidden row stays absent through ordinary `ctx.db` in a named
+  handler, while the same handler can read it only through the visibly elevated
+  call site; the elevated surface is absent/refused in actions and direct plans.
+- Resource-table `_id` membership visibility admits a member and hides the same row
+  from a non-member, including the negative stranger case.
 
 ## Status
 
@@ -671,6 +730,10 @@ figures are reproducible at `5373238eb`; they were corrected three times by
 review (raw counts, taxonomy, then the no-scoping roster), so treat them as
 re-derived per round rather than settled — re-derive before citing them outside
 this document. Diary citations are quoted exactly.
+
+The 2026-08-15 amendment implements D7 and membership self-resource
+visibility. Its unit witnesses assert both newly admitted reads and the
+negative default-scope, stranger, and action cases.
 
 ## Revision history
 
@@ -730,3 +793,9 @@ this document. Diary citations are quoted exactly.
 - 2026-08-12 — status reconciled with the completed ship run: recorded landing
   `908f52350` and the scoped shipped `auth.table-visibility` capability claim
   and acceptance witness.
+- 2026-08-15 — added D7: ordinary handler reads stay policy-composed, while
+  trusted named queries and mutations may select explicit call-local
+  `ctx.db.elevated` Class-R read authority. Actions, direct/generated plans,
+  masking, writes, egress, assets, bounds, and OCC remain unbypassed. Extended
+  resource-table membership visibility with the bounded `_id` case and pinned
+  negative default-scope, stranger, and action tests.

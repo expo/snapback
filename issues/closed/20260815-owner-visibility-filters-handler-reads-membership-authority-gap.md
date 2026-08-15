@@ -53,3 +53,36 @@ declaratively (the LLP 0231 `anyOf` work is the natural base), and allow
 atomic multi-membership creation inside one mutation. Until then, the guide
 should present the repeated-handler-check pattern as the sanctioned recipe,
 because it is where otherwise-correct realtime code goes subtly unsafe.
+
+## Resolution
+
+Resolved 2026-08-15 in Lane G.
+
+Handler reads are caller-scoped by default. Named JavaScript queries and
+mutations now expose an explicit `ctx.db.elevated` read authority for trusted
+authorization logic; it bypasses only Class-R row visibility while preserving
+bounds, snapshot capture/OCC, and media deprojection. Actions and
+generated/direct plans cannot use it. LLP 0231 D7 records the decision, threat
+model, and deliberate refusals; LLP 0234 distinguishes this call-local authority
+from governed invocation-wide overrides. Runtime and harness tests prove the
+new read succeeds while ordinary cross-owner reads, stranger membership reads,
+and action access remain refused or hidden.
+
+Membership visibility can now use `resourceField: '_id'` on the declaration's
+resource table, while child tables retain their required resource-id field.
+This lets a membership declaration protect the resource row itself without a
+public-read workaround. Authoring and runtime tests cover the member-positive
+and stranger-negative cases.
+
+Generated resource bootstrap now accepts an optional bounded initial roster:
+`bootstrap(resourceValues, initialMembers?)`. Up to 64 additional seats are
+authorized independently through the declaration's ordinary `insert`
+transition from the creator's bootstrap role, then the resource, creator seat,
+and roster commit atomically. A non-empty roster requires the existing
+authority-creating consent gate. The negative transition test proves an
+unauthorized initial role writes neither resource nor memberships.
+
+The auth/backend guide pages document the sanctioned permission-check →
+elevated-read → resource-validation recipe and require its repetition plus a
+negative identity test for remaining multi-hop relationships that the grammar
+cannot express.

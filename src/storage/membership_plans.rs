@@ -74,6 +74,7 @@ impl LocalDatabase {
                     BufferedMembershipOp::Bootstrap {
                         resource_id,
                         values,
+                        initial_members,
                     } => {
                         let (_, membership) = resolve_membership_decl(&self.schema, &command.table)?;
                         let resource_table = membership.resource_table.as_deref().ok_or_else(|| {
@@ -88,6 +89,7 @@ impl LocalDatabase {
                             resource_id,
                             values,
                             &command.table,
+                            initial_members,
                         )?
                     }
                     BufferedMembershipOp::Insert(values) => {
@@ -699,11 +701,13 @@ impl LocalDatabase {
     /// the resource id is host-minted and fresh, so a mutation that did not
     /// create the resource can never obtain it (an existing/emptied/imported
     /// resource has no fresh row to seat against). Single-use by construction:
-    /// one resource insert, one bootstrap seat.
+    /// one resource insert, one creator seat, and at most one bounded initial
+    /// roster authorized as inserts by the creator's bootstrap role.
     ///
     /// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
-    ///   bootstrap is bound to CREATION, not emptiness; it seats only the
-    ///   server-derived effective principal in `bootstrapRole`.
+    ///   bootstrap is bound to CREATION, not emptiness; the creator seat is
+    ///   host-derived and every additional initial seat must match an ordinary
+    ///   `insert` transition from the creator's `bootstrapRole`.
     pub(super) fn plan_membership_bootstrap(
         &self,
         writer: &MembershipWriter,
@@ -717,6 +721,7 @@ impl LocalDatabase {
             crate::ids::mint_document(resource_table),
             resource_values,
             membership_table,
+            Vec::new(),
         )
     }
 
@@ -731,6 +736,7 @@ impl LocalDatabase {
         resource_id: String,
         resource_values: Map<String, Value>,
         membership_table: &str,
+        initial_members: Vec<Map<String, Value>>,
     ) -> SnapbackResult<MembershipPlan> {
         with_pinned_read_snapshot(&self.conn, |_conn| {
             let schema = self.schema.clone();
@@ -772,25 +778,82 @@ impl LocalDatabase {
                 membership.principal.clone(),
                 Value::String(effective.to_owned()),
             );
-            member_values.insert(resource_field, Value::String(resource_id.clone()));
+            member_values.insert(resource_field.clone(), Value::String(resource_id.clone()));
             member_values.insert(
                 membership.role.clone(),
                 Value::String(bootstrap_role.to_owned()),
             );
 
+            if initial_members.len() > MEMBERSHIP_BOOTSTRAP_MAX_INITIAL_MEMBERS {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_BOOTSTRAP_INITIAL_MEMBERS_INVALID",
+                    format!(
+                        "bootstrap accepts at most {MEMBERSHIP_BOOTSTRAP_MAX_INITIAL_MEMBERS} initial members"
+                    ),
+                ));
+            }
+            let mut principals = BTreeSet::from([effective.to_owned()]);
+            let mut initial_writes = Vec::with_capacity(initial_members.len());
+            for mut values in initial_members {
+                if values.contains_key(&resource_field) {
+                    return Err(membership_refusal(
+                        "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_UNEXPECTED",
+                        format!(
+                            "bootstrap initial members omit host-bound resource field {resource_field:?}"
+                        ),
+                    ));
+                }
+                let principal = extract_axis(&values, &membership.principal, "principal")?;
+                let role = extract_axis(&values, &membership.role, "role")?;
+                require_in_vocabulary(membership, &role)?;
+                if !principals.insert(principal.clone()) {
+                    return Err(membership_refusal(
+                        "SNAPBACK_MEMBERSHIP_BOOTSTRAP_DUPLICATE_PRINCIPAL",
+                        "bootstrap initial roster repeats the creator or another principal",
+                    )
+                    .with_detail("principal", principal));
+                }
+                let transition = membership
+                    .transitions
+                    .iter()
+                    .find(|transition| {
+                        transition.op == MembershipOp::Insert
+                            && transition.target == MembershipTarget::Other
+                            && transition.by.iter().any(|by| by == bootstrap_role)
+                            && matches_role_lists(transition, None, Some(&role))
+                    })
+                    .ok_or_else(|| {
+                        transition_denied(
+                            MembershipOp::Insert,
+                            bootstrap_role,
+                            MembershipTarget::Other,
+                        )
+                    })?;
+                enforce_insert_fields(membership, transition, &values)?;
+                self.require_eligible_if_protected(membership, &role, &principal)?;
+                values.insert(resource_field.clone(), Value::String(resource_id.clone()));
+                initial_writes.push(BufferedWrite::Insert {
+                    table: member_table_manifest.name.clone(),
+                    id: crate::ids::mint_document(&member_table_manifest.name),
+                    values,
+                });
+            }
+
+            let mut writes = vec![
+                BufferedWrite::Insert {
+                    table: resource_table.to_owned(),
+                    id: resource_id.clone(),
+                    values: resource_values,
+                },
+                BufferedWrite::Insert {
+                    table: member_table_manifest.name.clone(),
+                    id: crate::ids::mint_document(&member_table_manifest.name),
+                    values: member_values,
+                },
+            ];
+            writes.extend(initial_writes);
             Ok(MembershipPlan {
-                writes: vec![
-                    BufferedWrite::Insert {
-                        table: resource_table.to_owned(),
-                        id: resource_id.clone(),
-                        values: resource_values,
-                    },
-                    BufferedWrite::Insert {
-                        table: member_table_manifest.name.clone(),
-                        id: crate::ids::mint_document(&member_table_manifest.name),
-                        values: member_values,
-                    },
-                ],
+                writes,
                 read_dependencies: Vec::new(),
                 result: Value::String(resource_id),
                 skipped_protected: Vec::new(),

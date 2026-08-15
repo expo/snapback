@@ -5,7 +5,7 @@
 **Systems:** Auth, Security/authorization, Background work, Code generation, Generated artifacts, Testing, LLP governance
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (round-2 review response; see Revision history)
+**Revised:** 2026-08-15 (distinguish LLP 0231 D7 call-local handler reads from governed invocation overrides)
 **Related:** LLP 0000, LLP 0011, LLP 0053, LLP 0056, LLP 0070, LLP 0170, LLP 0172, LLP 0173, LLP 0189, LLP 0225, LLP 0230, LLP 0231
 
 ## Summary
@@ -163,6 +163,19 @@ LLP 0231's definition remains binding. An override is:
 - justified in prose;
 - projected in LLP 0173's authorization-review surface; and
 - backed by an acceptance test demonstrating its intended breadth.
+
+LLP 0231 D7's `ctx.db.elevated` is deliberately not this object. It is a
+call-local Class-R read authority available only inside trusted named query and
+mutation code, visibly selected at the read call after application-owned
+authorization logic. It cannot be activated by an action, direct/generated
+plan, schedule, function declaration, schema rule, or caller argument; it
+cannot widen writes, masking, egress, assets, bounds, or capture/OCC. It carries
+no alternate row-scope program and grants no invocation-wide authority.
+Scheduled/no-principal work and any reusable alternate policy remain governed
+overrides under this RFC. Treating D7 as a schema override would force every
+ordinary server-side authorization check through remote approval custody;
+treating governed overrides as D7 would erase their lifecycle and approval
+controls. The two authorities therefore remain distinct.
 
 This RFC **extends** that pinned shape. Every override additionally declares:
 
@@ -1065,7 +1078,9 @@ An implementation satisfies this RFC only when executable evidence proves all
 of the following:
 
 1. An override declared inline in a query, handler, or `ctx.db` call is refused;
-   only the schema-level carrier is accepted.
+   only the schema-level carrier is accepted. LLP 0231 D7's explicit
+   `ctx.db.elevated` trusted-handler read is not an override and cannot carry an
+   alternate scope or activate outside a named query/mutation call site.
 2. A schema override without a matching approval record fails generation with
    `SNAPBACK_TABLE_VISIBILITY_OVERRIDE_UNAPPROVED` and writes no outputs. The
    test runs in an exported tree with no `.git` directory and gets the same
@@ -1195,6 +1210,10 @@ of the following:
   codes under `SNAPBACK_TABLE_VISIBILITY_*`, takes the full final-30-day warning
   window, clarifies alternate conjunctions, adds LLP 0000 to `Related`, and
   cites LLP 0189 for content-bound review validity.
+- 2026-08-15 — distinguished LLP 0231 D7 call-local elevated handler reads
+  from this RFC's schema-declared, invocation-bound alternate policies. D7 is
+  scoped to trusted named query/mutation read calls and cannot serve scheduled,
+  action, write, masking, egress, or reusable override authority.
 
 ## Status
 

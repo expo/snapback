@@ -105,6 +105,9 @@ const QUERY_BUILDER_VERBS = new Set(INLINE_HANDLER_RULES.queryBuilderVerbs);
 // familiar-API typo such as Convex's `update` before it becomes an opaque
 // runtime "undefined is not a function" failure.
 const CTX_DB_MEMBERS = new Set(INLINE_HANDLER_RULES.ctxDbMembers);
+// @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated
+// — make the call-site authority visible while rejecting nested write aliases.
+const ELEVATED_DB_MEMBERS = new Set(INLINE_HANDLER_RULES.elevatedDbMembers);
 
 function staticString(node, checker = null, boundary = null, seen = new Set()) {
   if (!node) return null;
@@ -185,7 +188,13 @@ function queryChainProblem(node) {
         && receiver.name.text === 'db'
         && ts.isIdentifier(receiver.expression)
         && receiver.expression.text === 'ctx';
-      if (rootedAtCtxDb) {
+      const rootedAtElevatedCtxDb = ts.isPropertyAccessExpression(receiver)
+        && receiver.name.text === 'elevated'
+        && ts.isPropertyAccessExpression(receiver.expression)
+        && receiver.expression.name.text === 'db'
+        && ts.isIdentifier(receiver.expression.expression)
+        && receiver.expression.expression.text === 'ctx';
+      if (rootedAtCtxDb || rootedAtElevatedCtxDb) {
         return `${verb} is not a query-builder verb in inline_handler_v1 `
           + `(use eq, in, lt, lte, gt, gte, order, take, collect, or first)`;
       }
@@ -206,11 +215,22 @@ function ctxDbMemberProblem(node, checker, boundary) {
     && receiver.name.text === 'db'
     && ts.isIdentifier(receiver.expression)
     && receiver.expression.text === 'ctx';
-  if (!rootedAtCtxDb) return null;
+  const rootedAtElevatedCtxDb = ts.isPropertyAccessExpression(receiver)
+    && receiver.name.text === 'elevated'
+    && ts.isPropertyAccessExpression(receiver.expression)
+    && receiver.expression.name.text === 'db'
+    && ts.isIdentifier(receiver.expression.expression)
+    && receiver.expression.expression.text === 'ctx';
+  if (!rootedAtCtxDb && !rootedAtElevatedCtxDb) return null;
   const member = staticMemberName(node, checker, boundary);
-  if (member === null || CTX_DB_MEMBERS.has(member)) return null;
+  const allowed = rootedAtElevatedCtxDb ? ELEVATED_DB_MEMBERS : CTX_DB_MEMBERS;
+  if (member === null || allowed.has(member)) return null;
+  if (rootedAtElevatedCtxDb) {
+    return `${member} is not a ctx.db.elevated member in inline_handler_v1 `
+      + '(use query, get, getMany, or uniqueMany; elevated writes are never available)';
+  }
   return `${member} is not a ctx.db member in inline_handler_v1 `
-    + '(use query, get, getMany, uniqueMany, insert, patch, or delete; use patch for partial updates)';
+    + '(use query, get, getMany, uniqueMany, elevated, insert, patch, or delete; use patch for partial updates)';
 }
 
 function reflectionProblem(node, checker, boundary) {

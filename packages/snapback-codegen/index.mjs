@@ -9571,9 +9571,11 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
   // @ref LLP 0055#grants — static authority-creation is best-effort, while the
   // runtime write gate remains authoritative. Declared permission-backing
   // writes derive the marker by default; an explicit false supports a
-  // bootstrap-only wrapper, whose dynamic host gate can perform only the
-  // structurally non-authority-creating bootstrap operation. If such a
-  // wrapper reaches any ordinary membership write, the host still refuses it.
+  // creator-only bootstrap wrapper, whose dynamic host gate can perform only
+  // the structurally non-authority-creating one-seat bootstrap operation. An
+  // initial roster is authority-creating and the host requires consent even
+  // though it shares that bootstrap command; ordinary membership writes are
+  // likewise still refused here.
   const authorityCreating = def.authorityCreating === true
     || (def.authorityCreating !== false && [...declaredWrites].some((table) => (
       tables[table]?.permissionBacking === true || tables[table]?.membership !== undefined
@@ -14233,8 +14235,17 @@ function renderApiTypes(
         const bootstrapFields = Object.entries(resourceDefinition.fields ?? {}).map(([fieldName, validator]) => (
           `${fieldName}${validator.optional ? '?' : ''}: ${storageWriteValueType(validator)}`
         ));
+        const bootstrapMemberFields = Object.entries(table.fields ?? {})
+          .filter(([fieldName]) => fieldName !== membership.resource)
+          .map(([fieldName, validator]) => {
+            const fieldType = fieldName === membership.role
+              ? `${typeName}Role`
+              : storageWriteValueType(validator);
+            return `${fieldName}${validator.optional ? '?' : ''}: ${fieldType}`;
+          });
         membershipAliases.push(`export type ${typeName}Bootstrap = { ${bootstrapFields.join('; ')} };`);
-        bootstrapMethod = `bootstrap(values: ${typeName}Bootstrap): Promise<Id<'${resourceTable}'>>; `;
+        membershipAliases.push(`export type ${typeName}BootstrapMember = { ${bootstrapMemberFields.join('; ')} };`);
+        bootstrapMethod = `bootstrap(values: ${typeName}Bootstrap, initialMembers?: readonly ${typeName}BootstrapMember[]): Promise<Id<'${resourceTable}'>>; `;
       }
     }
     // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —

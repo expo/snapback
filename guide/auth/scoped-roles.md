@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:e424cd8ea06dca933a7cd807d187882d5c2998acf80d205abfe413ffe08c2d31
+reviewed-authorities-digest: sha256:1101d394cafb5c72553238c08f58c2fe2d09ce71bdbd04cb168cb3afce41bfe6
 ---
 
 # Scoped roles and memberships
@@ -345,19 +345,43 @@ boundary. Mark any function that can create durable authority with
 and requires full membership provenance.
 
 A resource declaration with `bootstrapRole` also gets
-`ctx.membership.<declaration>.bootstrap(resourceValues)`. It returns the fresh,
-branded resource id and atomically inserts both the resource and a membership
-that seats the server-derived effective principal in the bootstrap role. A
+`ctx.membership.<declaration>.bootstrap(resourceValues, initialMembers?)`. It
+returns the fresh, branded resource id and atomically inserts the resource and a
+membership that seats the server-derived effective principal in the bootstrap
+role. The optional list creates up to 64 additional seats in that same commit.
+Omit the resource field from each list item; the host injects the fresh id. A
 `lastHolder` declaration relies on this path: creating the protected resource
 without its initial eligible holder is refused.
 
-A JavaScript mutation dedicated to that one bootstrap operation may set
+```js fragment reason="atomic resource and initial membership roster creation"
+const conversationId = await ctx.membership.conversationMembers.bootstrap(
+  { title: args.title },
+  args.invitees.map((userId) => ({ userId, role: 'member' })),
+);
+```
+
+The creator seat is not caller-selectable. Every additional principal must be
+unique, differ from the creator, use a declared role, and match an ordinary
+`insert` transition with the creator's bootstrap role as caller and the new
+seat as `other`. The host checks every row before committing. One unauthorized
+role, duplicate principal, ineligible protected holder, uncovered field, or
+65th initial member refuses the entire resource and roster; nothing commits.
+Seats in the list never authorize later seats in the same list.
+Malformed or over-limit lists report
+`SNAPBACK_MEMBERSHIP_BOOTSTRAP_INITIAL_MEMBERS_INVALID`; a repeated creator or
+member reports `SNAPBACK_MEMBERSHIP_BOOTSTRAP_DUPLICATE_PRINCIPAL`; supplying
+the host-bound resource field reports
+`SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_UNEXPECTED`. Transition and vocabulary
+failures retain their ordinary membership refusal codes.
+
+A JavaScript mutation dedicated to creator-only bootstrap may set
 `authorityCreating: false` even though its declared writes include the resource
-and membership tables. Bootstrap cannot name a different principal, so a
-delegated agent seats its effective user rather than itself. The runtime still
-rejects every non-bootstrap membership operation from such an unconsented
-wrapper; a mutation that can perform bootstrap *and* ordinary membership
-changes must use `authorityCreating: true`.
+and membership tables. Without an initial roster bootstrap cannot name a
+different principal, so a delegated agent seats its effective user rather than
+itself. Supplying any initial member names another principal and requires
+`authorityCreating: true`; generation derives that marker and an author cannot
+clear it. The runtime still rejects every ordinary membership operation from an
+unconsented wrapper.
 
 The generated TypeScript surface brands principals and resource ids, emits
 closed role unions and insert/patch values, exposes `GeneratedPermissions` to
@@ -366,18 +390,19 @@ queries and mutations, and exposes `GeneratedMembership` only to mutations.
 ### One generated membership command per mutation
 
 V1 admits exactly one generated membership command in a mutation. A single
-`bootstrap()` counts as that command even though the host atomically creates
-both the resource and its initial membership row. Calling another
+`bootstrap()` counts as that command even when the host atomically creates the
+resource, creator seat, and a bounded transition-checked initial roster.
+Calling another
 `bootstrap()`, `insert()`, `setRole()`, self-addressed transition, or other
 generated membership method in the same handler fails the whole mutation with
 `SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED`; none of its buffered writes commit.
 
-Ordinary `ctx.db` writes may accompany that one command. For a setup flow that
-creates several membership-backed resources or seats several principals, use
-separately authorized mutations and keep application-visible setup state or
-stable business keys so each step is idempotent. Each mutation remains atomic;
-the multi-call workflow is not one transaction. Do not catch the batch refusal
-and pretend the earlier commands committed.
+Ordinary `ctx.db` writes may accompany that one command. Use the optional
+initial roster when creating one group and all initial seats must be atomic. A
+setup flow that creates several membership-backed resources still uses
+separately authorized mutations with application-visible setup state or stable
+business keys for idempotence. Do not catch the batch refusal and pretend an
+earlier command committed.
 
 ## Remove another principal with `removePrincipal` (explicit opt-in)
 

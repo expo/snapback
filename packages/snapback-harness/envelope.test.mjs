@@ -277,6 +277,55 @@ test('bounded batch reads bypass empty host calls and use one transition per non
   }]);
 });
 
+test('elevated handler reads use an explicit host-op family and stay unavailable to actions', async () => {
+  const context = vm.createContext({});
+  vm.runInContext('globalThis.__hostCall = function() { throw new Error("ambient transport must not run"); };', context);
+  vm.runInContext(bootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(`
+    globalThis.__snapbackHandlers = {
+      probe: async function(ctx) {
+        return {
+          point: await ctx.db.elevated.get('items', 'hidden'),
+          rows: await ctx.db.elevated.query('items').take(2).collect(),
+          batch: await ctx.db.elevated.getMany('items', ['hidden']),
+          unique: await ctx.db.elevated.uniqueMany('items', 'bySlug', [{ slug: 'hidden' }]),
+        };
+      }
+    };
+  `, context);
+  const calls = [];
+  const decoded = parseHandlerEnvelope(await context.__snapbackSettle(
+    'probe', '{}', '{}', 'query', null, null, '20', (rawOp, argsJson) => {
+      calls.push({ rawOp, args: JSON.parse(argsJson) });
+      if (rawOp.endsWith('|db.elevated.query')) return { rows: [{ _id: 'hidden' }] };
+      if (rawOp.endsWith('|db.elevated.getMany')) return [{ _id: 'hidden' }];
+      if (rawOp.endsWith('|db.elevated.uniqueMany')) return [{ _id: 'hidden' }];
+      if (rawOp.endsWith('|db.elevated.get')) return { _id: 'hidden' };
+      return null;
+    },
+  ));
+  assert.equal(decoded.ok, true);
+  assert.equal(decoded.value.point._id, 'hidden');
+  assert.equal(decoded.value.rows[0]._id, 'hidden');
+  assert.equal(decoded.value.batch[0]._id, 'hidden');
+  assert.equal(decoded.value.unique[0]._id, 'hidden');
+  assert.deepEqual(
+    calls.slice(0, 4).map(({ rawOp }) => rawOp),
+    [
+      '20|db.elevated.get',
+      '20|db.elevated.query',
+      '20|db.elevated.getMany',
+      '20|db.elevated.uniqueMany',
+    ],
+  );
+
+  const action = parseHandlerEnvelope(await context.__snapbackSettle(
+    'probe', '{}', '{}', 'action', null, null, '21', () => null,
+  ));
+  assert.equal(action.ok, false);
+  assert.equal(action.code, 'SNAPBACK_HANDLER_WRITE_IN_QUERY');
+});
+
 test('bounded batch reads reject non-arrays before a host transition', async () => {
   const context = vm.createContext({});
   vm.runInContext('globalThis.__hostCall = function() { throw new Error("ambient transport must not run"); };', context);

@@ -1228,6 +1228,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         //   bootstrap/teardown shape mismatches. (The privileged-writer guard
         //   is an internal misuse surfaced as a bad request.)
         | "SNAPBACK_MEMBERSHIP_NULL_AXIS"
+        | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_INITIAL_MEMBERS_INVALID"
+        | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_DUPLICATE_PRINCIPAL"
+        | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_UNEXPECTED"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_UNEXPECTED"
         | "SNAPBACK_MEMBERSHIP_TARGET_MISSING"

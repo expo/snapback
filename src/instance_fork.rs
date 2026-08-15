@@ -2299,6 +2299,10 @@ impl EgressFamily {
             "jobs.enqueue" => Some(Self::JobsEnqueue),
             "db.query"
             | "db.get"
+            | "db.elevated.query"
+            | "db.elevated.get"
+            | "db.elevated.getMany"
+            | "db.elevated.uniqueMany"
             | "db.insert"
             | "db.patch"
             | "db.delete"

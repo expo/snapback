@@ -4,13 +4,13 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0245-infer-show-freeze-declarations.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-harness/ctx-bootstrap.js, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-harness/ctx-bootstrap.js, src/runtime.rs, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:f4949c42aecb1f52adce18aaf2336512ddd971a5e028f12d7f5cc6de91a06dff
+reviewed-authorities-digest: sha256:41c3a00bd35a8f3531746ad25e722709a8d269bf91fa2172c00b34dddfb3915c
 ---
 
 # Queries
@@ -281,6 +281,15 @@ Put authorization predicates in the query, not in client arguments or UI
 filters. `authUserId()` in declarative plans and `ctx.auth.userId` in JS
 handlers are server-derived. For sessions-mode details, see
 [sessions and principals](../auth/sessions-and-principals.md).
+
+Ordinary handler `ctx.db` reads also apply the table's owner or membership
+visibility. Trusted named queries and mutations can select
+`ctx.db.elevated.{get,getMany,uniqueMany,query}` for the exact reads needed by
+their own authorization logic, but only after a host-owned permission check and
+with resource relationships validated. Elevated reads remain bounded and
+snapshot-captured; actions and generated/direct plans cannot select them. See
+[authorize first, then elevate the exact handler read](../auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read)
+for the sanctioned pattern and required negative test.
 
 JS handlers also get the LLP 0055 authority verb **`ctx.isDirectHuman()`**:
 `true` exactly when the server-resolved principal is a human acting directly

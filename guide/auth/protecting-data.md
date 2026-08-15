@@ -4,13 +4,13 @@ id: auth.protecting-data
 order: 4
 audience: agent-first
 capabilities: [auth.table-visibility, auth.invalidation-barrier, auth.authorized-leases]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/manifest.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/manifest.rs, src/runtime.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
 examples: [demos/card-game, demos/card-game/snapback/schema.mjs, demos/pointing-room, demos/pointing-room/snapback/functions.mjs, demos/pointing-room/tests/acceptance/disclosure-invariant.mjs, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-11
-reviewed-authorities-digest: sha256:9961e003c68db5a33d0f9ebf1b99c9154a293156925e7fd644a41c420dbd633e
+reviewed-authorities-digest: sha256:6f285172fd891ad1129baff8ae24a825bb3e36c8d5668cb02bfdcae34874edeb
 ---
 
 # Protecting live and retained data
@@ -42,9 +42,11 @@ Card-game declares the hidden-hand boundary on the table itself:
 ```
 
 The owner field must exist. A membership declaration must resolve to a
-`.membership(...)` declaration, its `resourceField` must exist on the governed
-table as a required `v.id(...)` of that membership's resource table, and every
-named role must be in that declaration's non-pending role vocabulary.
+`.membership(...)` declaration. On a child governed table,
+`resourceField` must exist as a required `v.id(...)` of that membership's
+resource table. On that resource table itself, use `resourceField: '_id'` so
+the row's system id is the membership resource. Every named role must be in
+that declaration's non-pending role vocabulary.
 Public-read is a policy decision, not a development fallback.
 
 Use `anyOf` for the common “owner or relationship” row boundary:
@@ -94,10 +96,71 @@ manifest and `artifacts.json` summary project declared and implicit tables for
 review.
 
 `.visibility(...)` and `.assetSharing(...)` are independent declarations.
-Declaring one does not declare, infer, or conflict with the other. This slice
-composes table policy only into generated direct query/live-query plans. It
-does not claim composition for `ctx.db`, search, relational queries, class-M
-field masking, writes, or egress; those boundaries remain separate work.
+Declaring one does not declare, infer, or conflict with the other. Table policy
+composes into generated direct query/live-query plans and ordinary handler
+`ctx.db` reads. Search, relational queries, class-M field masking, writes, and
+egress remain separate boundaries.
+
+### Authorize first, then elevate the exact handler read
+
+Named JavaScript queries and mutations are trusted server code, but ordinary
+`ctx.db` is intentionally caller-scoped. If a handler forgets an authorization
+check, owner or membership visibility still hides the row. When the handler
+must inspect protected rows on behalf of its own authorization logic, first use
+the host-owned permission declaration, then select `ctx.db.elevated` at the
+read that requires trusted authority:
+
+```js fragment reason="permission check before explicit elevated handler reads"
+export const getMessageWithQuote = defineJsQuery({
+  args: { conversationId: v.id('conversations'), messageId: v.id('messages') },
+  reads: ['conversationMembers', 'messages'],
+  async handler(ctx, args) {
+    await ctx.permissions.conversationMembers.requireRole(
+      args.conversationId,
+      'member',
+      'admin',
+    );
+
+    const message = await ctx.db.elevated.get('messages', args.messageId);
+    if (!message || message.conversationId !== args.conversationId) return null;
+
+    const quoted = message.quotedMessageId
+      ? await ctx.db.elevated.get('messages', message.quotedMessageId)
+      : null;
+    return { message, quoted };
+  },
+});
+```
+
+Both checks are load-bearing. `requireRole` derives the effective principal on
+the host and returns no roster data. The post-read resource comparison prevents
+an authorized conversation id plus an unrelated message id from becoming an
+object-reference bypass. Caller arguments never select elevated authority.
+
+Elevated reads bypass only table row visibility. They keep the same bounds,
+snapshot captures, OCC validation, and media deprojection as `ctx.db`; they do
+not bypass field masking, write policy, membership writer rules, asset access,
+or result/egress checks. The surface is available only to named queries and
+mutations. Actions and generated/direct query plans cannot use it.
+
+Use declarative membership visibility whenever the governed row directly names
+the membership resource, including the resource table's `_id` self-resource
+case. Multi-hop authorization is still deliberately undeclarable: for example,
+a receipt that names a message while membership is keyed by the message's
+conversation cannot express that join in the visibility grammar. Either
+denormalize the conversation id onto the receipt and maintain that invariant,
+or repeat the sanctioned handler pattern in **every** named function:
+
+1. Resolve and validate the resource relationship with a bounded elevated read.
+2. Call the declaration-bound `ctx.permissions` check for that resource.
+3. Perform only the remaining bounded elevated reads, validating every supplied
+   id belongs to the authorized resource.
+4. Add a negative identity test proving a non-member or cross-resource id is
+   refused or hidden.
+
+Do not centralize only the happy path while leaving one live query, receipt
+mutation, or quote lookup unchecked. This repetition is intentional because it
+is where otherwise-correct realtime code goes subtly unsafe.
 
 ## Declare field masking that still lives in a JS handler
 

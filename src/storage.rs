@@ -12152,6 +12152,10 @@ pub struct MembershipPlan {
     skipped_protected: Vec<String>,
 }
 
+/// A fresh resource may establish one bounded initial roster in its creation
+/// commit. The creator's bootstrap seat is additional to this list.
+pub(crate) const MEMBERSHIP_BOOTSTRAP_MAX_INITIAL_MEMBERS: usize = 64;
+
 /// A membership effect whose writer was derived from the closed invocation
 /// authority by the Rust host. Application code can request a declaration-bound
 /// operation, but it cannot construct or alter this carrier.
@@ -12186,6 +12190,7 @@ enum BufferedMembershipOp {
     Bootstrap {
         resource_id: String,
         values: Map<String, Value>,
+        initial_members: Vec<Map<String, Value>>,
     },
     Insert(Map<String, Value>),
     SetRole {
@@ -12222,6 +12227,7 @@ impl BufferedMembershipCommand {
         table: String,
         resource_id: String,
         values: Map<String, Value>,
+        initial_members: Vec<Map<String, Value>>,
     ) -> Self {
         Self {
             writer,
@@ -12229,6 +12235,7 @@ impl BufferedMembershipCommand {
             op: BufferedMembershipOp::Bootstrap {
                 resource_id,
                 values,
+                initial_members,
             },
         }
     }

@@ -52,9 +52,18 @@ export const INLINE_HANDLER_RULES = Object.freeze({
     'getMany',
     'uniqueMany',
     'query',
+    'elevated',
     'insert',
     'patch',
     'delete',
+  ]),
+  // @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated
+  // — escalation is a finite nested read surface, never an alternate writer.
+  elevatedDbMembers: Object.freeze([
+    'get',
+    'getMany',
+    'uniqueMany',
+    'query',
   ]),
   syntax: Object.freeze({
     admitted: Object.freeze([

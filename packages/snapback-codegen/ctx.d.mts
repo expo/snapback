@@ -125,7 +125,31 @@ export interface QueryBuilder<
   first(): Promise<HandlerRow<Schema, Table> | null>;
 }
 
-/** Read-only database authority available to query handlers. */
+/** Read-only database operations under one handler authority mode. */
+export interface ReadDatabaseAuthority<Schema extends AnyHandlerSchema> {
+  get<Table extends ReadableTable<Schema>>(
+    table: Table,
+    id: HandlerRowId<Schema, Table>,
+  ): Promise<HandlerRow<Schema, Table> | null>;
+  getMany<Table extends ReadableTable<Schema>>(
+    table: Table,
+    ids: ReadonlyArray<HandlerRowId<Schema, Table>>,
+  ): Promise<Array<HandlerRow<Schema, Table> | null>>;
+  uniqueMany<
+    Table extends ReadableTable<Schema>,
+    Index extends keyof UniqueIndexKeysOf<Schema>[Table] & string,
+  >(
+    table: Table,
+    index: Index,
+    keys: ReadonlyArray<UniqueIndexKeysOf<Schema>[Table][Index]>,
+  ): Promise<Array<HandlerRow<Schema, Table> | null>>;
+  query<Table extends ReadableTable<Schema>>(table: Table): QueryBuilder<Schema, Table>;
+}
+
+/**
+ * Read-only database authority available to query handlers. Ordinary methods
+ * enforce table visibility; `elevated` is the explicit trusted-handler bypass.
+ */
 export interface QueryDatabase<Schema extends AnyHandlerSchema> {
   get<Table extends ReadableTable<Schema>>(
     table: Table,
@@ -144,6 +168,7 @@ export interface QueryDatabase<Schema extends AnyHandlerSchema> {
     keys: ReadonlyArray<UniqueIndexKeysOf<Schema>[Table][Index]>,
   ): Promise<Array<HandlerRow<Schema, Table> | null>>;
   query<Table extends ReadableTable<Schema>>(table: Table): QueryBuilder<Schema, Table>;
+  readonly elevated: ReadDatabaseAuthority<Schema>;
 }
 
 /** Read-write database authority available only to mutation handlers. */

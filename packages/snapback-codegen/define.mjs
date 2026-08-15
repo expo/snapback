@@ -1972,9 +1972,10 @@ export function defineSchema(tables, options = {}) {
           'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN',
         );
       } else if (leaf.kind === 'membership') {
-        const resource = table.fields[leaf.resourceField];
+        const selfResource = leaf.resourceField === '_id';
+        const resource = selfResource ? null : table.fields[leaf.resourceField];
         assert(
-          resource !== undefined,
+          selfResource || resource !== undefined,
           `table ${name} visibility membership resource field ${leaf.resourceField} does not exist`,
           'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN',
         );
@@ -1993,9 +1994,9 @@ export function defineSchema(tables, options = {}) {
           ? membershipTable.fields[membershipDeclaration.resource]
           : undefined;
         const expectedResourceTable = membershipResource?.fieldType?.Id?.table;
-        const actualResourceTable = resource?.fieldType?.Id?.table;
+        const actualResourceTable = selfResource ? name : resource?.fieldType?.Id?.table;
         assert(
-          resource?.optional === false
+          (selfResource || resource?.optional === false)
             && typeof expectedResourceTable === 'string'
             && actualResourceTable === expectedResourceTable,
           `table ${name} visibility membership resource field ${leaf.resourceField} must be a required Id<${expectedResourceTable ?? 'resourceTable'}>`,

@@ -162,9 +162,9 @@ try {
   assert.match(firstTypes, /GeneratedMutationSettlement = MutationSettlement/u);
   assert.match(firstTypes, /GeneratedMutationContext<Auth[^\n]+MutationContext<GeneratedHandlerSchema/u);
   assert.match(firstTypes, /JobsContext, SequenceContext, MutationIdentityContext/u);
-  assert.match(firstTypes, /listCustomers: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;/u);
-  assert.match(firstTypes, /listCustomers: FunctionReference<[^\n]+GeneratedDataModel\["customers"\]/u);
-  assert.match(firstTypes, /customerEnvelopes: FunctionReference<[^\n]+"createdAt": number/u);
+  assert.match(firstTypes, /"listCustomers": GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;/u);
+  assert.match(firstTypes, /"listCustomers": FunctionReference<[^\n]+GeneratedDataModel\["customers"\]/u);
+  assert.match(firstTypes, /"customerEnvelopes": FunctionReference<[^\n]+"createdAt": number/u);
 
   // A context-reader helper and its handler both consume the one generated
   // schema/contract artifact. The query context must not acquire write power.
@@ -180,6 +180,11 @@ try {
     /** @type {import('./generated/api.js').GeneratedHandler<'listCustomers'>} */
     export const handler = async (ctx, args) => {
       const rows = await customerRows(ctx.db, args.orgId);
+      await ctx.db.elevated.get(
+        'customers',
+        /** @type {import('./generated/api.js').Id<'customers'>} */ ('customer_1'),
+      );
+      await ctx.db.elevated.query('customers').take(1).collect();
       // @ts-expect-error query contexts are read-only
       await ctx.db.insert('customers', { orgId: args.orgId, name: 'x', region: 'y', createdAt: 1 });
       return rows;
@@ -212,6 +217,10 @@ try {
       });
       await ctx.membership.orgMembers.patchSelf(args.orgId, { note: null });
       await ctx.membership.orgMembers.bootstrap({ name: 'New org', tagline: null });
+      await ctx.membership.orgMembers.bootstrap(
+        { name: 'New group', tagline: null },
+        [{ userId: ctx.auth.userId, role: 'member', note: null }],
+      );
       // @ts-expect-error membership rows are private to ctx.membership
       await ctx.db.query('orgMembers').collect();
       // @ts-expect-error membership rows are private to ctx.membership
@@ -257,7 +266,7 @@ try {
   );
   assert.match(
     readFileSync(join(root, 'generated', 'api.d.ts'), 'utf8'),
-    /customerEnvelopes: FunctionReference<[^\n]+"priority": number/u,
+    /"customerEnvelopes": FunctionReference<[^\n]+"priority": number/u,
     'schema evolution regenerates the referenced handler result type',
   );
 

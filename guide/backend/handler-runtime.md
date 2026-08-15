@@ -11,7 +11,7 @@ targets: [all]
 maturity: shipped
 since: 0.1.21
 reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:5dd953c8870f6b846c1f12114d442a7acebea555d20729e331b1009aa1695239
+reviewed-authorities-digest: sha256:aff61baf3e3353b1c761122c42a417f5a364327294a9d298662888eef320f7e5
 ---
 
 # Handler runtime profile and generation preflight
@@ -127,6 +127,11 @@ its builder declaration. It may call reachable, named, top-level function
 declarations from the same file. Codegen scans the handler and the complete
 reachable helper set with the same positive globals allowlist, syntax rules,
 reflection rules, `ctx.db` member list, and query-builder verbs.
+
+The nested `ctx.db.elevated` allowlist is exact: `get`, `getMany`,
+`uniqueMany`, and `query`. An elevated write or unknown member refuses during
+generation. See the [handler-read authorization recipe](../auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read)
+before using that trusted query/mutation-only surface.
 
 Same-file helper cycles remain forbidden in this legacy profile and produce
 `SNAPBACK_INLINE_HELPER_CYCLE`. This describes current enforcement; it does

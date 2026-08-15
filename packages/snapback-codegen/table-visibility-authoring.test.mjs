@@ -111,7 +111,12 @@ export default defineSchema({
   privateNotes: defineTable({ ownerId: v.principal(), body: v.string() })
     .visibility(owner('ownerId')),
   rooms: defineTable({ title: v.string() })
-    .visibility({ kind: 'public-read' }),
+    .visibility({
+      kind: 'membership',
+      declaration: roomMembers,
+      resourceField: '_id',
+      roles: ['member'],
+    }),
   roomMembers,
   messages: defineTable({ roomId: v.id('rooms'), body: v.string() })
     .visibility({
@@ -161,6 +166,12 @@ export const privateNotes = defineLiveQuery({
     resourceField: 'roomId',
     roles: ['member'],
   });
+  assert.deepEqual(tables.rooms.visibility, {
+    kind: 'membership',
+    declaration: 'roomMembers',
+    resourceField: '_id',
+    roles: ['member'],
+  }, 'a resource table can use its own system id as the membership resource');
   assert.deepEqual(tables.followingFeedEntries.visibility, {
     kind: 'any-of',
     arms: [
@@ -204,16 +215,16 @@ export const privateNotes = defineLiveQuery({
       { table: 'messages', kind: 'membership' },
       { table: 'privateNotes', kind: 'owner' },
       { table: 'roomMembers', kind: 'public-read' },
-      { table: 'rooms', kind: 'public-read' },
+      { table: 'rooms', kind: 'membership' },
     ],
     implicit: [],
     counts: {
       total: 6,
       declared: 6,
       implicit: 0,
-      publicRead: 3,
+      publicRead: 2,
       owner: 1,
-      membership: 1,
+      membership: 2,
       anyOf: 1,
     },
   });

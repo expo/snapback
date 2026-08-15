@@ -5,7 +5,9 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-08-03 (`single_table_v1@1` boundary: its exact
+**Revised:** 2026-08-15 (`ctx.db.elevated` read host ops remain
+`DatabaseCaptured`; authority selection changes visibility composition, not
+snapshot/input closure). 2026-08-03 (`single_table_v1@1` boundary: its exact
 authority-independent retention class is not an `AuthorizedLease` consumer
 and sets no anonymous-lease precedent; proof/witness/fence/barrier/destructive
 rules remain mandatory.) 2026-08-03 (terminology pin: the cited "cold-process retained
@@ -533,6 +535,14 @@ same machine-enforced profile on **dev, test, demo, and prod**:
    statically visible call; the host gate rejects a dynamically reached call.
    Both gates run on initial execution and every rerun, so a data-dependent
    branch cannot hide the call at load or first execution.
+
+   LLP 0231 D7's `ctx.db.elevated.{get,getMany,uniqueMany,query}` operations
+   are `DatabaseCaptured`, exactly like their caller-scoped counterparts.
+   Elevation changes which Class-R table predicate storage composes; it does
+   not change the returned fact's snapshot binding, complete read capture,
+   empty-result capture, or matcher/OCC dependency. The protected-query
+   allowlist names these operations explicitly; no prefix or unknown future
+   host operation is admitted by resemblance.
 5. **Ambient engine inputs are absent or denied.** `Date.now()` and zero-argument
    `new Date()` retain their shipped codegen/runtime denial. The protected realm
    additionally exposes no mutable clock, randomness/id source, timer,
@@ -2180,6 +2190,10 @@ LLP 0086 governing constraint 2.
 
 ## Changelog
 
+- **2026-08-15 (explicit handler-read authority; still Accepted).** Classified
+  LLP 0231 D7's elevated point, batch, and bounded query host operations as
+  `DatabaseCaptured`. They bypass only Class-R row visibility and retain the
+  same snapshot/capture/input-closure obligations as ordinary reads.
 - **2026-08-03 ("cold process" terminology pin; still Accepted).** The
   corpus used "cold process" for two proof classes
   (`issues/closed/20260801-cold-process-claim-vocabulary-collision.md`). The

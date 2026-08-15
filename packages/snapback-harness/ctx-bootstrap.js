@@ -614,7 +614,8 @@
       }
       return adoptMedia(value);
     }
-    function makeBuilder(table) {
+    function makeBuilder(table, hostOp) {
+      hostOp = hostOp || "db.query";
       var plan = { table: table, filters: [], order: [], limit: QUERY_MAX_LIMIT, indexed_by: null };
       // @ref LLP 0004#ctxdb-contract — reaching the portable cap without an
       // explicit take cannot silently claim the predicate was complete.
@@ -682,7 +683,7 @@
         // async RPC on the V8 leg (LLP 0014 one-way door 3). collect()/first()
         // unwrap either shape from one source, so handlers `await` both.
         collect: function() {
-          var output = adoptHostResult(host("db.query", { plan: plan }));
+          var output = adoptHostResult(host(hostOp, { plan: plan }));
           function collectRows(resolved) {
             if (!explicitLimit && resolved.rows.length === QUERY_MAX_LIMIT) {
               throw snapbackError(
@@ -705,7 +706,7 @@
             limit: 1,
             indexed_by: plan.indexed_by
           };
-          var output = adoptHostResult(host("db.query", { plan: firstPlan }));
+          var output = adoptHostResult(host(hostOp, { plan: firstPlan }));
           function pick(resolved) {
             return resolved.rows.length ? resolved.rows[0] : null;
           }
@@ -794,14 +795,21 @@
       if (items.length === 0) return [];
       var args = { table: table };
       if (index !== null) args.index = index;
-      args[op === "db.getMany" ? "ids" : "keys"] = items;
+      args[op.endsWith(".getMany") ? "ids" : "keys"] = items;
       return adoptHostResult(host(op, args));
     }
+    var elevatedDb = {
+      get: function(table, id) { return adoptHostResult(host("db.elevated.get", { table: table, id: id })); },
+      getMany: function(table, ids) { return batchRead("db.elevated.getMany", table, null, ids); },
+      uniqueMany: function(table, index, keys) { return batchRead("db.elevated.uniqueMany", table, index, keys); },
+      query: function(table) { return makeBuilder(table, "db.elevated.query"); }
+    };
     var db = {
       get: function(table, id) { return adoptHostResult(host("db.get", { table: table, id: id })); },
       getMany: function(table, ids) { return batchRead("db.getMany", table, null, ids); },
       uniqueMany: function(table, index, keys) { return batchRead("db.uniqueMany", table, index, keys); },
       query: makeBuilder,
+      elevated: elevatedDb,
       insert: function(table, values) { return host("db.insert", { table: table, values: values }); },
       patch: function(table, id, values) { return host("db.patch", { table: table, id: id, values: values }); },
       delete: function(table, id) { return host("db.delete", { table: table, id: id }); }
@@ -864,6 +872,10 @@
       db.getMany = readonlyDenied("getMany");
       db.uniqueMany = readonlyDenied("uniqueMany");
       db.query = readonlyDenied("query");
+      elevatedDb.get = readonlyDenied("elevated.get");
+      elevatedDb.getMany = readonlyDenied("elevated.getMany");
+      elevatedDb.uniqueMany = readonlyDenied("elevated.uniqueMany");
+      elevatedDb.query = readonlyDenied("elevated.query");
     }
     // Declared application refusals (LLP 0108 §Declared application refusals).
     // The thrown code is *claimed*, never trusted: the host admits `appCode`
@@ -1252,11 +1264,12 @@
               get: function(_target, declaration) {
                 if (typeof declaration !== "string") { return undefined; }
                 return {
-                  bootstrap: function(values) {
+                  bootstrap: function(values, initialMembers) {
                     return host("membership.write", {
                       declaration: declaration,
                       operation: "bootstrap",
-                      values: values || {}
+                      values: values || {},
+                      initialMembers: initialMembers === undefined ? [] : initialMembers
                     });
                   },
                   insert: function(values) {

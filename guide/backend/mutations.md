@@ -4,13 +4,13 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics, backend.record-history, backend.mutation-settlement-identity]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, src/server.rs, src/runtime.rs, src/result_contract.rs, src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:01fa5dbe529af771cf3fe1bd7bf41650488399086db55b61f7505c6f8910cd1d
+reviewed-authorities-digest: sha256:4b3ef32c2da060b2d5e58e6ade1299acf10313c48876e5ebad94da343c106150
 ---
 
 # Mutations
@@ -210,6 +210,13 @@ Do not omit the bound merely because the query uses an index: index selection
 limits *which* rows qualify, while `take` limits how many qualifying rows the
 handler can materialize. Chain compound-index equalities in declared index
 field order.
+
+These reads are caller-scoped by table visibility. A named mutation that has
+already established authority with `ctx.permissions` may use the explicit
+`ctx.db.elevated` read variants for protected facts needed by its invariant;
+elevation never applies to `insert`, `patch`, or `delete`. Follow the
+[authorization recipe](../auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read),
+including its cross-resource and non-member negative cases.
 
 `delete(table, id)` buffers deletion of one row in the mutation's atomic write
 set. A common toggle shape reads the indexed row first, then deletes by its

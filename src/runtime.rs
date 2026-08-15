@@ -2413,7 +2413,7 @@ impl<'a> IbexHostContext<'a> {
                 "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
                 "auth",
                 format!(
-                    "ctx.db.query over {} supplied table visibility that differs from the installed schema policy",
+                    "ordinary ctx.db.query over {} is caller-scoped and cannot replace the installed table policy; trusted named handlers use ctx.db.elevated.query for an explicit policy bypass",
                     plan.table
                 ),
             )
@@ -2621,6 +2621,37 @@ impl<'a> IbexHostContext<'a> {
         Ok((stored, visibility, storage_visible))
     }
 
+    /// Read a point under explicit trusted-handler authority. This bypasses
+    /// only the table's row-visibility policy; the row still enters the same
+    /// captured-read/OCC and media-projection paths as an ordinary ctx.db read.
+    ///
+    /// @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated
+    fn read_elevated_point(
+        &mut self,
+        table: &str,
+        id: &str,
+    ) -> SnapbackResult<(Option<Value>, Option<TableVisibilityV1>, bool)> {
+        let mut stored = self.db().get(table, id)?;
+        self.capture_point_read(table, id, stored.as_ref())?;
+        if let Some(document) = stored.as_mut() {
+            self.deproject_media_document(table, document)?;
+        }
+        Ok((stored, None, true))
+    }
+
+    fn read_point_with_authority(
+        &mut self,
+        table: &str,
+        id: &str,
+        elevated: bool,
+    ) -> SnapbackResult<(Option<Value>, Option<TableVisibilityV1>, bool)> {
+        if elevated {
+            self.read_elevated_point(table, id)
+        } else {
+            self.read_table_visibility_point(table, id)
+        }
+    }
+
     fn effective_point_is_visible_on(
         db: &DbRead<'_>,
         input: &HandlerInput,
@@ -2807,10 +2838,17 @@ impl<'a> IbexHostContext<'a> {
         Ok(output)
     }
 
-    fn get_many_batch(&mut self, table: &str, ids: &[String]) -> SnapbackResult<Value> {
+    fn get_many_batch(
+        &mut self,
+        table: &str,
+        ids: &[String],
+        elevated: bool,
+    ) -> SnapbackResult<Value> {
         let distinct = ids.iter().cloned().collect::<BTreeSet<_>>();
         let distinct_ids = distinct.iter().cloned().collect::<Vec<_>>();
-        let visibility = self.restricted_table_visibility(table);
+        let visibility = (!elevated)
+            .then(|| self.restricted_table_visibility(table))
+            .flatten();
         let (resolved, captures) = self.db().with_pinned_read_view(|db| {
             let stored_rows = db.get_many(table, &distinct_ids)?;
             let mut resolved = BTreeMap::new();
@@ -2879,8 +2917,11 @@ impl<'a> IbexHostContext<'a> {
         table: &str,
         index: &str,
         keys: &[Map<String, Value>],
+        elevated: bool,
     ) -> SnapbackResult<Value> {
-        let visibility = self.restricted_table_visibility(table);
+        let visibility = (!elevated)
+            .then(|| self.restricted_table_visibility(table))
+            .flatten();
         // @ref LLP 0003#execution-and-write-semantics — a batch lookup in a
         // mutation observes the same buffered-write overlay as one query.
         // @ref LLP 0248#d4-dependency-and-cost-evidence-remain-conservative —
@@ -3086,6 +3127,10 @@ impl<'a> IbexHostContext<'a> {
                 | "db.get"
                 | "db.getMany"
                 | "db.uniqueMany"
+                | "db.elevated.query"
+                | "db.elevated.get"
+                | "db.elevated.getMany"
+                | "db.elevated.uniqueMany"
                 | "media.handoff"
                 | "runtime.log"
                 | "permissions.requireRole" => {}
@@ -3139,9 +3184,10 @@ impl<'a> IbexHostContext<'a> {
                 self.media_handoff = Some(handoff.occurrences);
                 Ok(Value::Null)
             }
-            "db.query" => {
+            "db.query" | "db.elevated.query" => {
+                let elevated = op == "db.elevated.query";
                 if self.mode == IbexInvocationMode::Action {
-                    return Err(action_db_denied("query"));
+                    return Err(action_db_denied(if elevated { "elevated.query" } else { "query" }));
                 }
                 let mut plan = serde_json::from_value::<QueryPlan>(
                     args.get("plan").cloned().unwrap_or(Value::Null),
@@ -3160,7 +3206,18 @@ impl<'a> IbexHostContext<'a> {
                 // dependence on rows the caller was never entitled to see.
                 //
                 // @ref LLP 0231#d1--the-table-is-the-policy-locus-queries-refine
-                self.compose_declared_table_visibility(&mut plan)?;
+                if elevated {
+                    if plan.table_visibility.is_some() {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
+                            "auth",
+                            "ctx.db.elevated.query does not accept caller-authored table visibility",
+                        )
+                        .with_details(json!({ "table": plan.table })));
+                    }
+                } else {
+                    self.compose_declared_table_visibility(&mut plan)?;
+                }
                 // @ref LLP 0032#phase-2--execution-semantics-honesty — E2: layer
                 // this invocation's buffered writes over the storage result so
                 // the handler reads its own writes (read-your-writes).
@@ -3202,7 +3259,7 @@ impl<'a> IbexHostContext<'a> {
                     let mut touched_storage = BTreeMap::new();
                     for id in touched {
                         let (stored, _, storage_visible) =
-                            self.read_table_visibility_point(&plan.table, &id)?;
+                            self.read_point_with_authority(&plan.table, &id, elevated)?;
                         touched_storage.insert(id, (stored, storage_visible));
                     }
                     QueryOutput {
@@ -3231,14 +3288,15 @@ impl<'a> IbexHostContext<'a> {
                     .with_details(json!({ "error": error.to_string() }))
                 })
             }
-            "db.get" => {
+            "db.get" | "db.elevated.get" => {
+                let elevated = op == "db.elevated.get";
                 if self.mode == IbexInvocationMode::Action {
-                    return Err(action_db_denied("get"));
+                    return Err(action_db_denied(if elevated { "elevated.get" } else { "get" }));
                 }
                 let table = required_string(&args, "table")?;
                 let id = required_string(&args, "id")?;
                 let (stored, visibility, storage_visible) =
-                    self.read_table_visibility_point(&table, &id)?;
+                    self.read_point_with_authority(&table, &id, elevated)?;
                 let existed_in_storage = stored.is_some();
                 // E2: read-your-writes — fold buffered writes over the stored
                 // row, then re-check the effective row. A previously hidden
@@ -3268,9 +3326,10 @@ impl<'a> IbexHostContext<'a> {
             // — validate the complete descriptor and both request ceilings
             // before the single snapshot-bound storage transition; serialize
             // and enforce the response ceiling before returning any array.
-            "db.getMany" => {
+            "db.getMany" | "db.elevated.getMany" => {
+                let elevated = op == "db.elevated.getMany";
                 if self.mode == IbexInvocationMode::Action {
-                    return Err(action_db_denied("getMany"));
+                    return Err(action_db_denied(if elevated { "elevated.getMany" } else { "getMany" }));
                 }
                 reject_batch_descriptor_extras(&args, &["table", "ids"])?;
                 let table = required_batch_string(&args, "table")?;
@@ -3279,12 +3338,13 @@ impl<'a> IbexHostContext<'a> {
                 if ids.is_empty() {
                     return Ok(Value::Array(Vec::new()));
                 }
-                self.get_many_batch(&table, &ids)
+                self.get_many_batch(&table, &ids, elevated)
             }
             // @ref LLP 0248#d3-one-host-operation-one-authoritative-snapshot
-            "db.uniqueMany" => {
+            "db.uniqueMany" | "db.elevated.uniqueMany" => {
+                let elevated = op == "db.elevated.uniqueMany";
                 if self.mode == IbexInvocationMode::Action {
-                    return Err(action_db_denied("uniqueMany"));
+                    return Err(action_db_denied(if elevated { "elevated.uniqueMany" } else { "uniqueMany" }));
                 }
                 reject_batch_descriptor_extras(&args, &["table", "index", "keys"])?;
                 let table = required_batch_string(&args, "table")?;
@@ -3294,7 +3354,7 @@ impl<'a> IbexHostContext<'a> {
                 if keys.is_empty() {
                     return Ok(Value::Array(Vec::new()));
                 }
-                self.unique_many_batch(&table, &index, &keys)
+                self.unique_many_batch(&table, &index, &keys, elevated)
             }
             "db.insert" => {
                 self.ensure_writable("insert")?;
@@ -3840,11 +3900,52 @@ impl<'a> IbexHostContext<'a> {
                     return Err(SnapbackError::error(
                         "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED",
                         "runtime",
-                        "v1 permits one generated membership write per mutation",
+                        "v1 permits one generated membership command per mutation; use bootstrap(resourceValues, initialMembers) for an atomic initial roster",
                     ));
                 }
                 let declaration = required_string(&args, "declaration")?;
                 let operation = required_string(&args, "operation")?;
+                let initial_members = if operation == "bootstrap" {
+                    match args.get("initialMembers") {
+                        None => Vec::new(),
+                        Some(Value::Array(values))
+                            if values.len()
+                                <= crate::storage::MEMBERSHIP_BOOTSTRAP_MAX_INITIAL_MEMBERS =>
+                        {
+                            values
+                                .iter()
+                                .map(|value| {
+                                    value.as_object().cloned().ok_or_else(|| {
+                                        SnapbackError::error(
+                                            "SNAPBACK_MEMBERSHIP_BOOTSTRAP_INITIAL_MEMBERS_INVALID",
+                                            "runtime",
+                                            "bootstrap initialMembers must contain only objects",
+                                        )
+                                    })
+                                })
+                                .collect::<SnapbackResult<Vec<_>>>()?
+                        }
+                        Some(Value::Array(_)) => {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_MEMBERSHIP_BOOTSTRAP_INITIAL_MEMBERS_INVALID",
+                                "runtime",
+                                format!(
+                                    "bootstrap accepts at most {} initial members",
+                                    crate::storage::MEMBERSHIP_BOOTSTRAP_MAX_INITIAL_MEMBERS
+                                ),
+                            ));
+                        }
+                        Some(_) => {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_MEMBERSHIP_BOOTSTRAP_INITIAL_MEMBERS_INVALID",
+                                "runtime",
+                                "bootstrap initialMembers must be an array",
+                            ));
+                        }
+                    }
+                } else {
+                    Vec::new()
+                };
                 let table_manifest = crate::membership_rules::find_declaration(
                     self.db().schema(),
                     &declaration,
@@ -3859,13 +3960,13 @@ impl<'a> IbexHostContext<'a> {
                         ),
                     )
                 })?;
-                // Bootstrap is structurally non-authority-creating: it seats
-                // only the host-derived effective principal, in the declared
-                // bootstrap role, against the fresh resource id minted below.
-                // Every other membership operation still requires the exact
-                // delegated-agent consent gate.
+                // Creator-only bootstrap is structurally non-authority-
+                // creating: it seats only the host-derived effective principal
+                // in the declared bootstrap role. An initial roster names other
+                // principals and therefore requires the same exact delegated-
+                // agent consent gate as every ordinary membership operation.
                 // @ref LLP 0056#agents
-                if operation != "bootstrap" {
+                if operation != "bootstrap" || !initial_members.is_empty() {
                     self.ensure_membership_authority_creating(table_manifest)?;
                 }
                 let table = table_manifest.name.clone();
@@ -3879,6 +3980,7 @@ impl<'a> IbexHostContext<'a> {
                                 table,
                                 resource_id.clone(),
                                 required_object(&args, "values")?,
+                                initial_members,
                             ),
                             Value::String(resource_id),
                         )
@@ -4806,8 +4908,8 @@ fn batch_read_cost_facts(
     buffered_touch_count: usize,
 ) -> Option<BatchReadCostFactsV1> {
     let items = match op {
-        "db.getMany" => args.get("ids")?.as_array()?,
-        "db.uniqueMany" => args.get("keys")?.as_array()?,
+        "db.getMany" | "db.elevated.getMany" => args.get("ids")?.as_array()?,
+        "db.uniqueMany" | "db.elevated.uniqueMany" => args.get("keys")?.as_array()?,
         _ => return None,
     };
     let canonical_input_bytes = crate::rqs_contract::jcs(args).ok()?.len();
@@ -4816,7 +4918,7 @@ fn batch_read_cost_facts(
         .filter_map(|item| crate::rqs_contract::jcs(item).ok())
         .collect::<BTreeSet<_>>()
         .len();
-    let index_components = if op == "db.uniqueMany" {
+    let index_components = if op.ends_with(".uniqueMany") {
         items
             .iter()
             .find_map(Value::as_object)
@@ -4832,7 +4934,7 @@ fn batch_read_cost_facts(
     // statement, then may recheck each touched candidate against each
     // distinct key. Charge the full profile-bound policy maximum without
     // consulting whether any stored candidate exists or is visible.
-    let overlay_point_read_count = if op == "db.uniqueMany" {
+    let overlay_point_read_count = if op.ends_with(".uniqueMany") {
         buffered_touch_count
     } else {
         0
@@ -4890,7 +4992,7 @@ pub(crate) fn dispatch_host_call(
     } else {
         None
     };
-    let buffered_touch_count = if tracing && op == "db.uniqueMany" {
+    let buffered_touch_count = if tracing && op.ends_with(".uniqueMany") {
         args.get("table")
             .and_then(Value::as_str)
             .map_or(0, |table| ctx.buffered_touched_ids_for(table).len())
@@ -7249,6 +7351,13 @@ mod action_db_boundary_tests {
             // Deliberately malformed: capability denial precedes plan parsing,
             // so an action cannot use the read operation as a parser oracle.
             ("db.query", json!({})),
+            (
+                "db.elevated.get",
+                json!({ "table": "items", "id": "secret" }),
+            ),
+            ("db.elevated.query", json!({})),
+            ("db.elevated.getMany", json!({})),
+            ("db.elevated.uniqueMany", json!({})),
         ] {
             let error = context
                 .handle_host_call(op, args)
@@ -7998,7 +8107,11 @@ mod table_visibility_runtime_tests {
                 table(
                     "resources",
                     vec![field("title", FieldType::String)],
-                    Some(TableVisibilityV1::PublicRead),
+                    Some(TableVisibilityV1::Membership {
+                        declaration: "resourceMembers".to_owned(),
+                        resource_field: "_id".to_owned(),
+                        roles: Some(vec!["reader".to_owned()]),
+                    }),
                 ),
                 resource_members,
                 table(
@@ -8236,6 +8349,38 @@ globalThis.__snapbackHandlers = {
             run_ibex_handler_with_context(&module(SOURCE, "list"), &mut anonymous, None)
                 .expect("anonymous query fails closed");
         assert_eq!(anonymous_rows, json!([]));
+
+        const ELEVATED_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async list(ctx) {
+    return await ctx.db.elevated.query('owner_docs').collect();
+  }
+};
+"#;
+        let mut elevated = context(&db, Some("alice"), false);
+        let elevated_rows = run_ibex_handler_with_context(
+            &module(ELEVATED_SOURCE, "list"),
+            &mut elevated,
+            None,
+        )
+        .expect("explicit elevated query runs")
+        .as_array()
+        .expect("elevated query returns rows")
+        .clone();
+        assert_eq!(elevated_rows.len(), 2);
+        let elevated_capture = elevated
+            .reads
+            .iter()
+            .find(|dependency| {
+                dependency.kind == CapturedReadKind::Query
+                    && dependency.table.as_deref() == Some("owner_docs")
+            })
+            .expect("elevated ctx.db query capture");
+        assert_eq!(
+            elevated_capture.predicate.as_ref().unwrap()["tableVisibility"],
+            Value::Null,
+            "elevated reads bypass row policy but retain captured-read/OCC evidence",
+        );
     }
 
     #[test]
@@ -8246,8 +8391,11 @@ globalThis.__snapbackHandlers = {
     return {
       ownerAllowed: await ctx.db.get('owner_docs', 'owner-alice'),
       ownerHidden: await ctx.db.get('owner_docs', 'owner-bob'),
+      ownerElevated: await ctx.db.elevated.get('owner_docs', 'owner-bob'),
       memberAllowed: await ctx.db.get('membership_docs', 'membership-visible'),
       memberHidden: await ctx.db.get('membership_docs', 'membership-hidden'),
+      selfResourceAllowed: await ctx.db.get('resources', 'resource-visible'),
+      selfResourceHidden: await ctx.db.get('resources', 'resource-hidden'),
       anyMembershipOnly: await ctx.db.get('any_docs', 'any-membership-only'),
       anyHidden: await ctx.db.get('any_docs', 'any-hidden'),
       integerOwner: await ctx.db.get('integer_owner_docs', 'integer-owner'),
@@ -8262,8 +8410,11 @@ globalThis.__snapbackHandlers = {
             .expect("point visibility handler runs");
         assert_eq!(result["ownerAllowed"]["_id"], "owner-alice");
         assert_eq!(result["ownerHidden"], Value::Null);
+        assert_eq!(result["ownerElevated"]["_id"], "owner-bob");
         assert_eq!(result["memberAllowed"]["_id"], "membership-visible");
         assert_eq!(result["memberHidden"], Value::Null);
+        assert_eq!(result["selfResourceAllowed"]["_id"], "resource-visible");
+        assert_eq!(result["selfResourceHidden"], Value::Null);
         assert_eq!(result["anyMembershipOnly"]["_id"], "any-membership-only");
         assert_eq!(result["anyHidden"], Value::Null);
         assert_eq!(result["integerOwner"], Value::Null);
@@ -8303,6 +8454,36 @@ globalThis.__snapbackHandlers = {
         assert_eq!(result["anyOf"][0], Value::Null);
         assert_eq!(result["anyOf"][1]["_id"], "any-membership-only");
         assert_eq!(result["nonText"], json!([null, null]));
+
+        const ELEVATED_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    return await ctx.db.elevated.getMany(
+      'owner_docs',
+      ['owner-bob', 'owner-alice', 'missing'],
+    );
+  }
+};
+"#;
+        let mut elevated_alice = context(&db, Some("alice"), false);
+        let elevated = run_ibex_handler_with_context(
+            &module(ELEVATED_SOURCE, "inspect"),
+            &mut elevated_alice,
+            None,
+        )
+        .expect("explicit elevated batch read runs");
+        assert_eq!(elevated[0]["_id"], "owner-bob");
+        assert_eq!(elevated[1]["_id"], "owner-alice");
+        assert_eq!(elevated[2], Value::Null);
+        assert!(elevated_alice.reads.iter().any(|dependency| {
+            dependency.table.as_deref() == Some("owner_docs")
+                && dependency.id.as_deref() == Some("owner-bob")
+                && dependency.kind == CapturedReadKind::Row
+        }));
+        assert!(elevated_alice.reads.iter().all(|dependency| {
+            dependency.table.as_deref() != Some("owner_docs")
+                || dependency.kind != CapturedReadKind::Query
+        }), "elevated batch points capture exact rows without a visibility predicate");
 
         let owner_captures = alice
             .reads
@@ -9246,7 +9427,14 @@ mod membership_bridge_tests {
                         expiry: None,
                         incidental: None,
                         provenance: Some(MembershipProvenance::Full),
-                        transitions: Vec::new(),
+                        transitions: vec![MembershipTransition {
+                            op: MembershipOp::Insert,
+                            by: vec!["host".to_owned()],
+                            target: MembershipTarget::Other,
+                            from: None,
+                            to: Some(vec!["guest".to_owned()]),
+                            fields: None,
+                        }],
                         scope: MembershipScope::Resource,
                         resource_table: Some("events".to_owned()),
                         principal_addressed_writes: None,
@@ -10127,10 +10315,35 @@ globalThis.__snapbackHandlers = {
         const SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
   async bootstrap(ctx) {
-    return await ctx.membership.event_members.bootstrap({ title: 'Launch' });
+    return await ctx.membership.event_members.bootstrap(
+      { title: 'Launch' },
+      [
+        { userId: 'bob', role: 'guest' },
+        { userId: 'carol', role: 'guest' },
+      ],
+    );
   }
 };
 "#;
+        let malformed_db = ready_db();
+        let mut malformed = context(&malformed_db);
+        let malformed_error = malformed
+            .handle_host_call(
+                "membership.write",
+                json!({
+                    "declaration": "event_members",
+                    "operation": "bootstrap",
+                    "values": { "title": "Malformed launch" },
+                    "initialMembers": null
+                }),
+            )
+            .expect_err("an explicit null initial roster is not optional-list omission");
+        assert_eq!(
+            malformed_error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_BOOTSTRAP_INITIAL_MEMBERS_INVALID"
+        );
+        assert!(malformed.membership_commands.is_empty());
+
         let mut db = ready_db();
         let mut ctx = context(&db);
         let result = run_ibex_handler_with_context(
@@ -10187,10 +10400,46 @@ globalThis.__snapbackHandlers = {
             .query_reads_read()
             .scan_table("event_members", 10, 0)
             .expect("membership scan");
-        assert_eq!(members.total, 1);
-        assert_eq!(members.rows[0]["eventId"], event_id);
-        assert_eq!(members.rows[0]["userId"], "alice");
-        assert_eq!(members.rows[0]["role"], "host");
+        assert_eq!(members.total, 3);
+        assert!(members.rows.iter().all(|row| row["eventId"] == event_id));
+        assert_eq!(
+            members
+                .rows
+                .iter()
+                .map(|row| (row["userId"].as_str().unwrap(), row["role"].as_str().unwrap()))
+                .collect::<BTreeMap<_, _>>(),
+            BTreeMap::from([("alice", "host"), ("bob", "guest"), ("carol", "guest")]),
+        );
+
+        let mut denied_db = ready_db();
+        let mut denied = context(&denied_db);
+        denied
+            .handle_host_call(
+                "membership.write",
+                json!({
+                    "declaration": "event_members",
+                    "operation": "bootstrap",
+                    "values": { "title": "Unsafe launch" },
+                    "initialMembers": [{ "userId": "bob", "role": "host" }]
+                }),
+            )
+            .expect("bootstrap command buffers before planner authorization");
+        let commands = std::mem::take(&mut denied.membership_commands);
+        drop(denied);
+        let error = denied_db
+            .membership_plans()
+            .authorize_membership_commands(commands)
+            .expect_err("bootstrap cannot grant a role the transition matrix does not admit");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
+        assert_eq!(
+            denied_db
+                .query_reads_read()
+                .scan_table("events", 10, 0)
+                .expect("denied bootstrap resource scan")
+                .total,
+            0,
+            "a denied initial roster leaves no resource or membership rows",
+        );
 
         let service_db = ready_db();
         let mut service = service_context(&service_db, false);
