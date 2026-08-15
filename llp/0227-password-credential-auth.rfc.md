@@ -24,6 +24,9 @@ history)
 the implemented-core / exposed-surface / published-closure split, the six
 author rulings of 2026-08-11, and the verification-cost correction to
 §Migration)
+**Revised:** 2026-08-15 (k — password `minimumLength` declaration: bounded
+8–128 bytes, 12-byte default, first-boot startup-carrier enforcement, and
+actionable policy refusals)
 **Related:** LLP 0057 (auth catalog and provider protocol — the substrate this
 extends), LLP 0151 (first-party identity integrations — tier-1
 username+password sketch and the identities-vs-credentials rule), LLP 0039
@@ -430,6 +433,19 @@ operator action. Signup and signin rate metering is entirely LLP 0215's: the nam
 password budgets (per-address and global axes) are declared there, and
 neither 0057's challenge-row substrate (which password signin does not
 create) nor this RFC's attempt ledger carries any budget counter.
+
+### Password policy declaration
+
+The app may declare `minimumLength` on its `defineAuth` password mechanism.
+The value is one app-wide safe integer from 8 through 128; multiple password
+mechanisms must resolve to the same value. Omission preserves the 12-byte
+default. The maximum accepted decoded UTF-8 length remains 1 024 bytes and the
+common-password screen remains mandatory. Generated schema artifacts carry
+the explicit value, and provider construction consumes the selected startup
+artifact on first boot rather than the dormant schema. Changing this boot-time
+policy requires a backend restart. `SNAPBACK_AUTH_PASSWORD_POLICY` names the
+active minimum, maximum, declaration path, and default without echoing the
+secret.
 
 **Every threshold is a declared profile parameter, not a fixed constant.** The
 pilot's Supabase lane lost ≈2.6 h of an envelope run to GoTrue's

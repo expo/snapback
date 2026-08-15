@@ -4,13 +4,13 @@ id: auth.passwords
 order: 2
 audience: agent-first
 capabilities: [auth.passwords, auth.sessions, auth.browser-session-custody]
-authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/provider.rs, src/auth/wire.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-admin-client/index.mjs]
+authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/provider.rs, src/auth/runtime.rs, src/auth/wire.rs, src/contract_types.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-admin-client/index.mjs]
 examples: [demos/browser-auth]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:0477674dd0a92c186bbce0411539ece02daa28726bdf5d021aa039e6510130c2
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:cf569adda105e03872fcb6ce2505e71244ea5657d6b5aa5a6a3095371f3ef60a
 ---
 
 # Email and password
@@ -59,6 +59,30 @@ catalog v4 at the first sessions activation and is immutable afterward;
 codegen/startup refuses a later contradictory declaration with
 `SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE` instead of reinterpreting
 existing identities.
+
+The default password minimum is 12 decoded UTF-8 bytes. To choose a different
+app-wide minimum, set `minimumLength` on the password mechanism:
+
+```js fragment reason="policy-only excerpt from the defineAuth password mechanism shown above"
+password: {
+  kind: 'password',
+  identifier: 'email',
+  provider: 'builtIn',
+  recovery: 'recoveryCodes',
+  minimumLength: 8,
+}
+```
+
+The declaration is a safe integer from 8 through 128; every password
+mechanism in one program must resolve to the same value or codegen refuses
+`SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_CONFLICT`. The maximum remains 1,024
+UTF-8 bytes, and common-password screening still applies. Omit the field to
+keep 12. This is a startup policy, so restart the backend after changing it. An
+invalid declaration refuses codegen/startup with
+`SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_INVALID`; an entered password that
+misses the active policy refuses with `SNAPBACK_AUTH_PASSWORD_POLICY`, whose
+redacted details name the active minimum, maximum, default, and `defineAuth
+mechanisms.<name>.minimumLength` configuration path.
 
 ## Sign up, then sign in
 
@@ -209,7 +233,7 @@ constant**, so acceptance suites and benchmark envelopes can raise them:
 | Consecutive failures before lock | 10 |
 | Lock duration | 15 minutes |
 | Failure window (sub-threshold decay) | 15 minutes |
-| Password length | 12–1024 bytes |
+| Password length | 12–1024 UTF-8 bytes by default; declare `minimumLength` from 8–128 |
 | Argon2id | m=19456 KiB, t=2, p=1 |
 
 An operator can clear a lock early with the AdminWrite unlock verb; otherwise

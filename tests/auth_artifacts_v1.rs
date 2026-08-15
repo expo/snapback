@@ -157,6 +157,7 @@ fn agent_registration_policy_is_sessions_only_closed_and_defaults_disabled() {
                 mode_explicit: true,
             }),
             password_identifier_mode: None,
+            password_minimum_length: None,
         }),
         ..SchemaManifest::default()
     };
@@ -184,6 +185,7 @@ fn sessions_schema() -> SchemaManifest {
             mode: AuthMode::Sessions,
             agents: None,
             password_identifier_mode: None,
+            password_minimum_length: None,
         }),
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         ..SchemaManifest::default()
@@ -399,6 +401,7 @@ fn schema_version_and_auth_mode_form_a_closed_pair() {
         mode: AuthMode::Sessions,
         agents: None,
         password_identifier_mode: None,
+        password_minimum_length: None,
     });
     assert_eq!(
         v1_dev.validate_artifact().unwrap_err().diagnostic.code,

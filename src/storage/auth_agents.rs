@@ -1413,6 +1413,7 @@ mod tests {
             mode: AuthMode::Sessions,
             agents: None,
             password_identifier_mode: None,
+            password_minimum_length: None,
         });
         create_agent(&mut db, "agent-a", None);
         seat(&db, "agent-a", "event-1", "host");

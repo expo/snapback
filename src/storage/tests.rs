@@ -11016,6 +11016,7 @@ mod guarded_commit_tests {
                 mode: crate::manifest::AuthMode::Sessions,
                 agents: None,
                 password_identifier_mode: None,
+                password_minimum_length: None,
             }),
             tables: vec![table],
             ephemeral_collections: vec![collection],
@@ -14541,6 +14542,7 @@ mod membership_write_tests {
             mode: AuthMode::Sessions,
             agents: None,
             password_identifier_mode: None,
+            password_minimum_length: None,
         });
         seed_agent(&mut db, "agent-a");
         seed_agent(&mut db, "agent-b");

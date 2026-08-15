@@ -158,7 +158,7 @@ assert.throws(
 import { defineAuth, defineSchema, defineTable, v } from '${defineUrl}';
 const authProgram = defineAuth({
   version: 1,
-  mechanisms: { password: { kind: 'password', identifier: 'email', provider: 'builtIn', recovery: 'recoveryCodes' } },
+  mechanisms: { password: { kind: 'password', identifier: 'email', provider: 'builtIn', recovery: 'recoveryCodes', minimumLength: 8 } },
   assuranceRequirements: {},
   guestPolicy: { enabled: false },
   secretReferences: {},
@@ -170,7 +170,55 @@ export default defineSchema({ ${tables} }, { auth: { mode: 'sessions' }, authPro
   assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
   const manifest = readJson(join(dir, 'generated', 'schema.manifest.json'));
   assert.equal(manifest.auth.passwordIdentifierMode, 'email-v1');
+  assert.equal(manifest.auth.passwordMinimumLength, 8);
 }
+
+for (const minimumLength of [7, 129, 8.5]) {
+  assert.throws(
+    () => defineAuth({
+      version: 1,
+      mechanisms: {
+        password: {
+          kind: 'password',
+          identifier: 'email',
+          provider: 'builtIn',
+          recovery: 'recoveryCodes',
+          minimumLength,
+        },
+      },
+      assuranceRequirements: {},
+      guestPolicy: { enabled: false },
+      secretReferences: {},
+    }),
+    (error) => error?.code === 'SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_INVALID',
+  );
+}
+
+assert.throws(
+  () => defineAuth({
+    version: 1,
+    mechanisms: {
+      primary: {
+        kind: 'password',
+        identifier: 'email',
+        provider: 'builtIn',
+        recovery: 'recoveryCodes',
+        minimumLength: 8,
+      },
+      secondary: {
+        kind: 'password',
+        identifier: 'email',
+        provider: 'builtIn',
+        recovery: 'recoveryCodes',
+        minimumLength: 12,
+      },
+    },
+    assuranceRequirements: {},
+    guestPolicy: { enabled: false },
+    secretReferences: {},
+  }),
+  (error) => error?.code === 'SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_CONFLICT',
+);
 
 {
   const oldOrForeignTarget = {

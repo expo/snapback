@@ -70,6 +70,7 @@ fn sessions_provision_body() -> Value {
             mode: AuthMode::Sessions,
             agents: None,
             password_identifier_mode: None,
+            password_minimum_length: None,
         }),
         required_capabilities: vec!["auth.sessions.v1".to_owned()],
         schema_hash: Some(schema_hash),

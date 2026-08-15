@@ -549,6 +549,7 @@ mod tests {
                     mode: active.auth_mode,
                     agents: None,
                     password_identifier_mode: None,
+                    password_minimum_length: None,
                 }),
                 schema_hash: Some(active.schema_hash.clone()),
                 inputs_hash: Some(active.inputs_hash.clone()),

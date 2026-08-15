@@ -75,6 +75,7 @@ const PASSWORD_HASH_POLICY_V1: PasswordHashPolicy = PasswordHashPolicy {
 ///   lockout, ledger custody, and KDF occupancy are declared profile terms.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct PasswordSecurityProfile {
+    pub(crate) minimum_password_length: usize,
     pub(crate) failure_threshold: u64,
     pub(crate) failure_window_ms: u64,
     pub(crate) lock_duration_ms: u64,
@@ -88,6 +89,8 @@ impl PasswordSecurityProfile {
         use crate::contract_types::AuthProviderProfile;
         match profile {
             AuthProviderProfile::Dev | AuthProviderProfile::Test => Self {
+                minimum_password_length: crate::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_DEFAULT
+                    as usize,
                 failure_threshold: 10,
                 failure_window_ms: 15 * 60 * 1_000,
                 lock_duration_ms: 15 * 60 * 1_000,
@@ -99,6 +102,8 @@ impl PasswordSecurityProfile {
                 verification_floor_ms: 1_250,
             },
             AuthProviderProfile::Demo => Self {
+                minimum_password_length: crate::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_DEFAULT
+                    as usize,
                 failure_threshold: 10,
                 failure_window_ms: 15 * 60 * 1_000,
                 lock_duration_ms: 15 * 60 * 1_000,
@@ -107,6 +112,8 @@ impl PasswordSecurityProfile {
                 verification_floor_ms: 350,
             },
             AuthProviderProfile::Prod => Self {
+                minimum_password_length: crate::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_DEFAULT
+                    as usize,
                 failure_threshold: 10,
                 failure_window_ms: 15 * 60 * 1_000,
                 lock_duration_ms: 15 * 60 * 1_000,
@@ -115,6 +122,20 @@ impl PasswordSecurityProfile {
                 verification_floor_ms: 500,
             },
         }
+    }
+
+    pub(crate) fn with_minimum_password_length(mut self, minimum: u16) -> SnapbackResult<Self> {
+        if !(crate::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_FLOOR
+            ..=crate::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_CEILING)
+            .contains(&minimum)
+        {
+            return Err(auth_error(
+                "SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_INVALID",
+                "password minimumLength must be from 8 through 128",
+            ));
+        }
+        self.minimum_password_length = usize::from(minimum);
+        Ok(self)
     }
 }
 
@@ -704,17 +725,39 @@ pub(crate) fn hash_password_on_blocking_pool(
     secret: &PasswordSecret,
     random: &dyn RandomSource,
 ) -> SnapbackResult<PreparedPasswordHash> {
+    hash_password_on_blocking_pool_with_profile(
+        secret,
+        random,
+        PasswordSecurityProfile::for_provider(crate::contract_types::AuthProviderProfile::Prod),
+    )
+}
+
+pub(crate) fn hash_password_on_blocking_pool_with_profile(
+    secret: &PasswordSecret,
+    random: &dyn RandomSource,
+    profile: PasswordSecurityProfile,
+) -> SnapbackResult<PreparedPasswordHash> {
     let password = secret.expose_secret();
-    if password.len() < 12
+    if password.len() < profile.minimum_password_length
         || password.len() > 1_024
         || COMMON_PASSWORDS
             .iter()
             .any(|candidate| candidate == &password)
     {
-        return Err(auth_error(
+        return Err(SnapbackError::error(
             "SNAPBACK_AUTH_PASSWORD_POLICY",
-            "password does not satisfy the active policy",
-        ));
+            "auth",
+            format!(
+                "password must be {}–1024 UTF-8 bytes and pass common-password screening; configure the minimum with defineAuth mechanisms.<name>.minimumLength (default 12)",
+                profile.minimum_password_length,
+            ),
+        )
+        .with_details(serde_json::json!({
+            "minimumLength": profile.minimum_password_length,
+            "maximumLength": 1_024,
+            "configuration": "defineAuth mechanisms.<name>.minimumLength",
+            "defaultMinimumLength": crate::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_DEFAULT,
+        })));
     }
     let mut salt = [0_u8; PASSWORD_HASH_POLICY_V1.salt_bytes];
     random.fill(&mut salt).map_err(|_| {
@@ -3393,6 +3436,43 @@ mod tests {
     }
     fn password(value: &str) -> PasswordSecret {
         PasswordSecret::new(value.into())
+    }
+
+    #[test]
+    fn declared_password_minimum_changes_admission_and_refusal_details() {
+        let random = CounterRandom::new();
+        let default =
+            PasswordSecurityProfile::for_provider(crate::contract_types::AuthProviderProfile::Test);
+        let default_error =
+            hash_password_on_blocking_pool_with_profile(&password("eight888"), &random, default)
+                .unwrap_err();
+        assert_eq!(
+            default_error.diagnostic.code,
+            "SNAPBACK_AUTH_PASSWORD_POLICY"
+        );
+        assert_eq!(default_error.diagnostic.details["minimumLength"], 12);
+        assert!(
+            default_error
+                .diagnostic
+                .message
+                .contains("mechanisms.<name>.minimumLength")
+        );
+
+        let configured = default.with_minimum_password_length(8).unwrap();
+        hash_password_on_blocking_pool_with_profile(&password("eight888"), &random, configured)
+            .expect("the declared eight-byte minimum admits an eight-byte password");
+        let short =
+            hash_password_on_blocking_pool_with_profile(&password("seven77"), &random, configured)
+                .unwrap_err();
+        assert_eq!(short.diagnostic.details["minimumLength"], 8);
+        assert_eq!(
+            default
+                .with_minimum_password_length(7)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_INVALID",
+        );
     }
 
     /// @ref LLP 0227#migration-and-import-of-existing-hashes — cost parameters

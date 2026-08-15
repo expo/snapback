@@ -2668,6 +2668,7 @@ mod tests {
                 mode: crate::manifest::AuthMode::Sessions,
                 agents: None,
                 password_identifier_mode: None,
+                password_minimum_length: None,
             }),
             required_capabilities: vec![
                 crate::manifest::TargetCapabilityId::AuthSessionsV1.to_string(),

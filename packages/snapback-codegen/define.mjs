@@ -1815,7 +1815,9 @@ export function defineAuth(program) {
     if (mechanism.kind === 'guest') {
       exactObject(mechanism, `defineAuth mechanisms.${name}`, new Set(['kind']));
     } else if (mechanism.kind === 'password') {
-      exactObject(mechanism, `defineAuth mechanisms.${name}`, new Set(['kind', 'identifier', 'provider', 'recovery']));
+      exactObject(mechanism, `defineAuth mechanisms.${name}`, new Set([
+        'kind', 'identifier', 'provider', 'recovery', 'minimumLength',
+      ]));
       assert(
         mechanism.identifier === 'username' || mechanism.identifier === 'email',
         `defineAuth mechanisms.${name}.identifier must be username or email`,
@@ -1823,6 +1825,14 @@ export function defineAuth(program) {
       );
       assert(typeof mechanism.provider === 'string' && mechanism.provider.length > 0, `defineAuth mechanisms.${name}.provider is required`);
       assert(typeof mechanism.recovery === 'string' && mechanism.recovery.length > 0, `defineAuth mechanisms.${name}.recovery is required`);
+      assert(
+        mechanism.minimumLength === undefined
+          || (Number.isSafeInteger(mechanism.minimumLength)
+            && mechanism.minimumLength >= 8
+            && mechanism.minimumLength <= 128),
+        `defineAuth mechanisms.${name}.minimumLength must be a safe integer from 8 through 128`,
+        'SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_INVALID',
+      );
     } else if (mechanism.kind === 'email-code') {
       exactObject(mechanism, `defineAuth mechanisms.${name}`, new Set(['kind', 'identityKind', 'provider', 'canonicalization', 'delivery']));
       assert(mechanism.identityKind === 'email', `defineAuth mechanisms.${name}.identityKind must be email`);
@@ -1846,6 +1856,16 @@ export function defineAuth(program) {
     passwordIdentifiers.size <= 1,
     'defineAuth password mechanisms must use one identifier mode',
     'SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_CONFLICT',
+  );
+  const passwordMinimumLengths = new Set(
+    Object.values(mechanisms)
+      .filter((mechanism) => mechanism.kind === 'password')
+      .map((mechanism) => mechanism.minimumLength ?? 12),
+  );
+  assert(
+    passwordMinimumLengths.size <= 1,
+    'defineAuth password mechanisms must use one minimumLength policy',
+    'SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_CONFLICT',
   );
 
   const assuranceRequirements = {};
@@ -2054,6 +2074,9 @@ export function defineSchema(tables, options = {}) {
         passwordIdentifierMode: passwordMechanism.identifier === 'email'
           ? 'email-v1'
           : 'username-v1',
+        ...(passwordMechanism.minimumLength === undefined
+          ? {}
+          : { passwordMinimumLength: passwordMechanism.minimumLength }),
       };
     }
     const cleanup = authProgram.guestPolicy.reaping?.cleanup;

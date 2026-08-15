@@ -1270,11 +1270,41 @@ impl AuthProvider {
         )
     }
 
+    pub(crate) fn new_with_password_minimum(
+        profile: AuthProviderProfile,
+        keyring: Arc<AuthKeyringStore>,
+        minimum_password_length: u16,
+    ) -> ProviderResult<Self> {
+        Self::new_with_dependencies_and_password_minimum(
+            profile,
+            keyring,
+            Arc::new(OsRandom),
+            Arc::new(SystemAuthClock),
+            minimum_password_length,
+        )
+    }
+
     pub fn new_with_dependencies(
         profile: AuthProviderProfile,
         keyring: Arc<AuthKeyringStore>,
         random: Arc<dyn RandomSource>,
         clock: Arc<dyn AuthClock>,
+    ) -> ProviderResult<Self> {
+        Self::new_with_dependencies_and_password_minimum(
+            profile,
+            keyring,
+            random,
+            clock,
+            crate::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_DEFAULT,
+        )
+    }
+
+    fn new_with_dependencies_and_password_minimum(
+        profile: AuthProviderProfile,
+        keyring: Arc<AuthKeyringStore>,
+        random: Arc<dyn RandomSource>,
+        clock: Arc<dyn AuthClock>,
+        minimum_password_length: u16,
     ) -> ProviderResult<Self> {
         let dummy_key =
             AuthKeyMaterial::generate(random.as_ref()).map_err(|_| provider_unavailable())?;
@@ -1296,7 +1326,8 @@ impl AuthProvider {
             budgets.mailbox().limit as usize,
         );
         let password_security =
-            crate::storage::auth_identity::PasswordSecurityProfile::for_provider(profile);
+            crate::storage::auth_identity::PasswordSecurityProfile::for_provider(profile)
+                .with_minimum_password_length(minimum_password_length)?;
         Ok(Self {
             profile,
             budgets,
@@ -1347,9 +1378,14 @@ impl AuthProvider {
             .try_acquire_owned()
             .map_err(|_| password_kdf_throttled())?;
         let random = Arc::clone(&self.random);
+        let password_security = self.password_security;
         tokio::task::spawn_blocking(move || {
             let _permit = permit;
-            crate::storage::auth_identity::hash_password_on_blocking_pool(&secret, random.as_ref())
+            crate::storage::auth_identity::hash_password_on_blocking_pool_with_profile(
+                &secret,
+                random.as_ref(),
+                password_security,
+            )
         })
         .await
         .map_err(|_| provider_unavailable().into_snapback_error())?

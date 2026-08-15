@@ -214,18 +214,45 @@ impl AuthRuntime {
     /// Assemble one provider and inspect the catalog without mutating either
     /// catalog or keyring. A marked catalog validates only the existing ring;
     /// an uninitialized catalog does not even perform that read.
+    #[allow(dead_code)] // Default-policy convenience retained for focused runtime tests.
     pub(crate) fn inspect(
         snapback: &mut LocalSnapback,
         database_path: Option<&Path>,
         profile: AuthProviderProfile,
+    ) -> SnapbackResult<Self> {
+        let password_minimum_length = snapback
+            .served_schema_manifest()
+            .effective_auth_password_minimum_length();
+        Self::inspect_with_password_minimum(
+            snapback,
+            database_path,
+            profile,
+            password_minimum_length,
+        )
+    }
+
+    /// Assemble the provider against the declaration selected for this boot.
+    /// Startup carrier resolution happens before auth-mode composition, while
+    /// its validation/commit still happens at the ordinary pre-bind barrier.
+    // @ref LLP 0227#password-policy-declaration — password admission uses the
+    // exact startup declaration, including on the first boot of a new app.
+    pub(crate) fn inspect_with_password_minimum(
+        snapback: &mut LocalSnapback,
+        database_path: Option<&Path>,
+        profile: AuthProviderProfile,
+        password_minimum_length: u16,
     ) -> SnapbackResult<Self> {
         let keyring = Arc::new(match database_path {
             Some(path) => AuthKeyringStore::file_for_database(path),
             None => AuthKeyringStore::in_memory(),
         });
         let provider = Arc::new(
-            AuthProvider::new(profile, keyring.clone())
-                .map_err(ProviderError::into_snapback_error)?,
+            AuthProvider::new_with_password_minimum(
+                profile,
+                keyring.clone(),
+                password_minimum_length,
+            )
+            .map_err(ProviderError::into_snapback_error)?,
         );
         let catalog = match snapback.auth_database_mut().inspect_auth_catalog() {
             Ok(catalog) => catalog,
@@ -862,6 +889,26 @@ mod tests {
         assert!(!keyring_path.exists());
         assert_eq!(runtime.run_startup_gc(&mut snapback).await.unwrap(), None);
         assert!(!keyring_path.exists());
+    }
+
+    #[test]
+    fn first_boot_provider_uses_the_selected_startup_password_minimum() {
+        let mut snapback = LocalSnapback::memory().unwrap();
+        let runtime = AuthRuntime::inspect_with_password_minimum(
+            &mut snapback,
+            None,
+            AuthProviderProfile::Test,
+            8,
+        )
+        .unwrap();
+
+        assert_eq!(
+            runtime
+                .provider()
+                .password_security_profile()
+                .minimum_password_length,
+            8,
+        );
     }
 
     #[tokio::test]

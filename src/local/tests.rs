@@ -2068,6 +2068,7 @@ fn auth_artifact_pair(mode: AuthMode, marker: char) -> (SchemaManifest, Function
                     mode: AuthMode::Sessions,
                     agents: None,
                     password_identifier_mode: None,
+                    password_minimum_length: None,
                 }),
                 format!(
                     "{}{}",
@@ -25696,6 +25697,7 @@ fn retainable_sessions_snapback() -> LocalSnapback {
             mode: AuthMode::Sessions,
             agents: None,
             password_identifier_mode: None,
+            password_minimum_length: None,
         }),
         schema_hash: Some(deployment.schema_hash.clone()),
         inputs_hash: Some(deployment.inputs_hash.clone()),

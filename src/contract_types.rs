@@ -703,6 +703,10 @@ pub enum AuthPasswordIdentifierMode {
     EmailV1,
 }
 
+pub const AUTH_PASSWORD_MINIMUM_LENGTH_DEFAULT: u16 = 12;
+pub const AUTH_PASSWORD_MINIMUM_LENGTH_FLOOR: u16 = 8;
+pub const AUTH_PASSWORD_MINIMUM_LENGTH_CEILING: u16 = 128;
+
 /// Closed schema-manifest auth declaration. Unknown members are rejected so a
 /// future authority-changing field cannot be silently ignored by this parser.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -717,6 +721,12 @@ pub struct AuthManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub password_identifier_mode: Option<AuthPasswordIdentifierMode>,
+    #[serde(
+        default,
+        rename = "passwordMinimumLength",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub password_minimum_length: Option<u16>,
 }
 
 /// App-owned declaration of the outward-facing function surface. Absence (or

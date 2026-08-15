@@ -575,6 +575,12 @@ impl SchemaManifest {
             .unwrap_or_default()
     }
 
+    pub fn effective_auth_password_minimum_length(&self) -> u16 {
+        self.auth
+            .and_then(|auth| auth.password_minimum_length)
+            .unwrap_or(crate::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_DEFAULT)
+    }
+
     pub fn uses_exposed_only_disclosure(&self) -> bool {
         self.api
             .as_ref()
@@ -15611,6 +15617,7 @@ mod membership_manifest_grammar_tests {
                     InvitedBy::Users,
                 )),
                 password_identifier_mode: None,
+                password_minimum_length: None,
             }),
             api: Some(ApiManifest {
                 enabled: true,

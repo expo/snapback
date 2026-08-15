@@ -9,6 +9,9 @@ Security, Delivery, Testing
 **Revised:** 2026-08-09 (v0.1 — initial commissioned Draft)
 **Revised:** 2026-08-10 (v0.2 — LLP 0227 reconciliation amendment,
 commissioned by the author; see §20)
+**Revised:** 2026-08-15 (v0.3 — the 12-byte password minimum remains the
+default; `defineAuth` may declare one app-wide 8–128-byte minimum, enforced at
+first-boot provider construction and named in policy refusals)
 **Related:** LLP 0212, LLP 0011, LLP 0151, LLP 0057, LLP 0055, LLP 0036,
 LLP 0045, LLP 0053, LLP 0058, LLP 0215, LLP 0227
 
@@ -3202,9 +3205,13 @@ them.
    cannot silently move the policy. The stored PHC string describes an
    individual hash and is never the policy authority.
 2. ~~What exact minimum password length and maximum accepted UTF-8 byte length
-   ship in version 1?~~ **RULED 2026-08-11:** minimum 12 bytes, maximum 1 024
-   bytes. Deliberately stricter than LLP 0227's proposed 8, keeping the value
-   the landed floor already enforced.
+   ship in version 1?~~ **RULED 2026-08-11; amended 2026-08-15:** the default
+   minimum remains 12 bytes and the maximum remains 1 024 bytes. An app may
+   explicitly declare one shared password-mechanism `minimumLength` from 8
+   through 128; omitted declarations retain 12. Length is decoded UTF-8 bytes,
+   not characters. Conflicting password-mechanism declarations and values
+   outside the bound refuse during codegen/startup; the policy refusal names
+   the active minimum and declaration path.
 3. ~~How many recovery codes are issued per set, and how many random bits and
    display characters does each code carry?~~ **RULED 2026-08-11:** 8 codes per
    set, 160 bits each, rendered `sbrv1_` + base64url.

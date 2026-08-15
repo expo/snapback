@@ -1432,6 +1432,7 @@ fn sessions_startup_carrier_with_functions(
             mode: AuthMode::Sessions,
             agents: None,
             password_identifier_mode: None,
+            password_minimum_length: None,
         }),
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         schema_hash: Some(digest(SCHEMA_V1_PREFIX, 'a')),

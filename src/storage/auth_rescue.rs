@@ -1132,6 +1132,7 @@ mod tests {
                 mode: AuthMode::Sessions,
                 agents: None,
                 password_identifier_mode: None,
+                password_minimum_length: None,
             }),
             schema_hash: Some(schema_hash),
             inputs_hash: Some(inputs_hash),

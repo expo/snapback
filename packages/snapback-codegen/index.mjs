@@ -1395,8 +1395,8 @@ function validateSchemaAuthDefinition(schemaDef, err) {
     return 'dev';
   }
   const keys = Object.keys(auth);
-  if (!Object.hasOwn(auth, 'mode') || keys.some((key) => !['mode', 'agents', 'passwordIdentifierMode'].includes(key)) || !AUTH_MODES.has(auth.mode)) {
-    err('SCHEMA_AUTH_MODE_INVALID', 'auth', 'schema auth accepts mode: dev | sessions, optional agents, and generated passwordIdentifierMode', { authMode: auth.mode });
+  if (!Object.hasOwn(auth, 'mode') || keys.some((key) => !['mode', 'agents', 'passwordIdentifierMode', 'passwordMinimumLength'].includes(key)) || !AUTH_MODES.has(auth.mode)) {
+    err('SCHEMA_AUTH_MODE_INVALID', 'auth', 'schema auth accepts mode: dev | sessions, optional agents, and generated password policy fields', { authMode: auth.mode });
   }
   if (auth.passwordIdentifierMode !== undefined
     && (auth.mode !== 'sessions' || !AUTH_PASSWORD_IDENTIFIER_MODES.has(auth.passwordIdentifierMode))) {
@@ -1405,6 +1405,22 @@ function validateSchemaAuthDefinition(schemaDef, err) {
       'auth',
       'auth passwordIdentifierMode must be username-v1 or email-v1 in sessions mode',
       { passwordIdentifierMode: auth.passwordIdentifierMode },
+    );
+  }
+  if (
+    auth.passwordMinimumLength !== undefined
+    && (
+      auth.mode !== 'sessions'
+      || !Number.isSafeInteger(auth.passwordMinimumLength)
+      || auth.passwordMinimumLength < 8
+      || auth.passwordMinimumLength > 128
+    )
+  ) {
+    err(
+      'SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_INVALID',
+      'auth',
+      'auth passwordMinimumLength must be a safe integer from 8 through 128 in sessions mode',
+      { passwordMinimumLength: auth.passwordMinimumLength },
     );
   }
   if (auth.agents !== undefined) {

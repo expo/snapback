@@ -55,6 +55,25 @@ pub(crate) fn read_auth_startup_artifacts(
     })
 }
 
+fn resolve_auth_startup_artifacts(
+    args: &Args,
+    embedded_startup_artifacts: Option<&crate::auth::mode::StartupArtifacts>,
+) -> crate::diagnostic::SnapbackResult<Option<crate::auth::mode::StartupArtifacts>> {
+    match (
+        args.startup_artifacts.as_deref(),
+        embedded_startup_artifacts,
+    ) {
+        (Some(_), Some(_)) => Err(crate::diagnostic::SnapbackError::error(
+            "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
+            "auth-mode",
+            "startup cannot combine path-backed and embedded artifact carriers",
+        )),
+        (Some(path), None) => read_auth_startup_artifacts(path).map(Some),
+        (None, Some(carrier)) => Ok(Some(carrier.clone())),
+        (None, None) => Ok(None),
+    }
+}
+
 fn auth_startup_required(message: &'static str) -> crate::diagnostic::SnapbackError {
     crate::diagnostic::SnapbackError::error(
         "SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED",
@@ -291,12 +310,13 @@ async fn compose_auth_mode_startup(
     auth_runtime: &mut crate::auth::runtime::AuthRuntime,
     readiness: &crate::auth::mode::AuthProgramReadiness,
 ) -> crate::diagnostic::SnapbackResult<crate::auth::mode::AuthModeStateRecord> {
-    compose_auth_mode_startup_with_embedded(args, None, snapback, auth_runtime, readiness).await
+    let carrier = resolve_auth_startup_artifacts(args, None);
+    compose_auth_mode_startup_with_embedded(args, carrier, snapback, auth_runtime, readiness).await
 }
 
 async fn compose_auth_mode_startup_with_embedded(
     args: &Args,
-    embedded_startup_artifacts: Option<&crate::auth::mode::StartupArtifacts>,
+    carrier_result: crate::diagnostic::SnapbackResult<Option<crate::auth::mode::StartupArtifacts>>,
     snapback: &mut LocalSnapback,
     auth_runtime: &mut crate::auth::runtime::AuthRuntime,
     readiness: &crate::auth::mode::AuthProgramReadiness,
@@ -320,19 +340,6 @@ async fn compose_auth_mode_startup_with_embedded(
         snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
     }
 
-    let carrier_result = match (
-        args.startup_artifacts.as_deref(),
-        embedded_startup_artifacts,
-    ) {
-        (Some(_), Some(_)) => Err(crate::diagnostic::SnapbackError::error(
-            "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH",
-            "auth-mode",
-            "startup cannot combine path-backed and embedded artifact carriers",
-        )),
-        (Some(path), None) => read_auth_startup_artifacts(path).map(Some),
-        (None, Some(carrier)) => Ok(Some(carrier.clone())),
-        (None, None) => Ok(None),
-    };
     let carrier = match carrier_result {
         Ok(carrier) => carrier,
         Err(error)
@@ -8362,10 +8369,26 @@ async fn run_composed(
             }
         }
     }
-    let mut auth_runtime = crate::auth::runtime::AuthRuntime::inspect(
+    // Resolve the one carrier once. Its ordinary auth-mode barrier below still
+    // owns validation and commit, while provider construction must already use
+    // the policy selected for this first boot rather than the dormant schema.
+    let auth_startup_artifacts =
+        resolve_auth_startup_artifacts(&args, embedded_startup_artifacts.as_ref());
+    let startup_password_minimum_length = auth_startup_artifacts
+        .as_ref()
+        .ok()
+        .and_then(|carrier| carrier.as_ref())
+        .map(|carrier| carrier.schema.effective_auth_password_minimum_length())
+        .unwrap_or_else(|| {
+            snapback
+                .served_schema_manifest()
+                .effective_auth_password_minimum_length()
+        });
+    let mut auth_runtime = crate::auth::runtime::AuthRuntime::inspect_with_password_minimum(
         &mut snapback,
         database_path.as_deref(),
         crate::auth::runtime::provider_profile(startup_profile),
+        startup_password_minimum_length,
     )?;
     let auth_startup_diagnostics = auth_runtime.startup_diagnostics();
     snapback.record_startup_diagnostics(&auth_startup_diagnostics);
@@ -8565,7 +8588,7 @@ async fn run_composed(
     );
     let auth_mode_state = match compose_auth_mode_startup_with_embedded(
         &args,
-        embedded_startup_artifacts.as_ref(),
+        auth_startup_artifacts,
         &mut snapback,
         &mut auth_runtime,
         &auth_program_readiness,

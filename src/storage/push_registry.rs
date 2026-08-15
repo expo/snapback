@@ -28,6 +28,7 @@ impl LocalDatabase {
             mode: crate::manifest::AuthMode::Sessions,
             agents: None,
             password_identifier_mode: None,
+            password_minimum_length: None,
         });
         self.schema.push_seam = Some(declaration);
         Ok(())
