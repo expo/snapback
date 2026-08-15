@@ -9023,17 +9023,31 @@ fn reject_field_retypes(current: &SchemaManifest, next: &SchemaManifest) -> Snap
                     | (FieldType::Enum { .. }, FieldType::String)
             );
             if current_field.field_type != field.field_type && !enum_transition {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_SCHEMA_FIELD_RETYPED",
-                    "schema",
-                    reviewed_migration_next_step(format!(
+                let json_to_structured = matches!(
+                    (&current_field.field_type, &field.field_type),
+                    (FieldType::Json, FieldType::Structured { .. })
+                );
+                let reason = if json_to_structured {
+                    format!(
+                        "field {}.{} cannot activate directly from Json to Structured; \
+                         every stored value must validate and be rewritten canonically in a \
+                         reviewed successor generation — declare ConvertJsonToStructured",
+                        table.name, field.name
+                    )
+                } else {
+                    format!(
                         "field {}.{} cannot change type from {} to {}; \
                          retyping stored data is not supported — add a new field instead",
                         table.name,
                         field.name,
                         field_type_name(&current_field.field_type),
                         field_type_name(&field.field_type)
-                    )),
+                    )
+                };
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SCHEMA_FIELD_RETYPED",
+                    "schema",
+                    reviewed_migration_next_step(reason),
                 )
                 .with_detail("table", table.name.clone())
                 .with_detail("field", field.name.clone())

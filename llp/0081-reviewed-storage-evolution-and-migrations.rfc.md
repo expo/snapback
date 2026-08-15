@@ -5,6 +5,11 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
+**Revised:** 2026-08-15 (same-name JSON→structured conversion amendment:
+the closed `ConvertJsonToStructured` intent expands to a shadow successor
+generation, identity-copies every successor field, validates and canonicalizes
+the structured destination, proves row count/content digest, and publishes or
+refuses atomically; preview derives shadow strategy from the step graph).
 **Revised:** 2026-08-10 (mutation-wire artifact identity amendment: the
 successor-only floor now gates read-set-free writes by their codegen-time
 schema generation after finite-carrier version negotiation; see the dated
@@ -345,6 +350,18 @@ V1 admits only closed steps whose portable semantics Snapback owns:
 - `RebuildMaintainedProjection` under LLP 0080; and
 - `RetireField`, `RetireTable`, or `RetireGeneration` as logical retirement,
   with physical cleanup separately fenced after the rollback window.
+
+The intent vocabulary includes one named same-field conversion:
+`ConvertJsonToStructured { table, field, generation }`. It is not an in-place
+retype. The planner requires a `Structured` successor field, stages the named
+positive generation, derives an identity expression for every successor
+field, copies from the active predecessor, and marks the copy for full row
+count and content-digest verification. The ordinary structured writer validates
+and rewrites the formerly-JSON value as `canonical-json-text.v1`; one invalid
+row fails the reviewed migration without publishing the successor. Because the
+step graph contains generation staging/copy, preview seals
+`shadow-generation` as the execution strategy rather than relying on a caller
+default.
 
 **Local v1 destination-lifecycle correction (2026-08-05):** “new” is a
 closed proof, not manifest shorthand. `AddField` must name a field absent from

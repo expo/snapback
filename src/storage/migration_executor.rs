@@ -5727,6 +5727,153 @@ mod tests {
         }
     }
 
+    #[test]
+    fn json_to_structured_intent_rewrites_and_publishes_staged_generation() {
+        let contract = StoredStructuredContractV1 {
+            version: crate::manifest::STORED_STRUCTURED_CONTRACT_VERSION_V1,
+            descriptor: ResultValueContract::Object {
+                fields: vec![
+                    ResultObjectFieldContract {
+                        name: "label".to_owned(),
+                        required: true,
+                        value: ResultValueContract::String { max_bytes: 64 },
+                    },
+                    ResultObjectFieldContract {
+                        name: "n".to_owned(),
+                        required: true,
+                        value: ResultValueContract::FiniteReal {
+                            min: -100.0,
+                            max: 100.0,
+                        },
+                    },
+                ],
+                allow_extra: false,
+            },
+            encoding: crate::manifest::STORED_STRUCTURED_ENCODING_V1.to_owned(),
+        };
+        let contract_hash = crate::manifest::stored_structured_contract_hash(&contract).unwrap();
+        let table_with = |field_type| TableManifest {
+            name: "migrationRows".to_owned(),
+            fields: vec![FieldManifest {
+                name: "payload".to_owned(),
+                field_type,
+                optional: false,
+            }],
+            indexes: Vec::new(),
+            syncable: false,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: None,
+            history: None,
+        };
+        let predecessor = SchemaManifest {
+            tables: vec![table_with(FieldType::Json)],
+            ..SchemaManifest::default()
+        };
+        let successor = SchemaManifest {
+            tables: vec![table_with(FieldType::Structured {
+                contract,
+                contract_hash,
+            })],
+            ..SchemaManifest::default()
+        };
+        let mut db = LocalDatabase::memory().expect("memory db");
+        db.apply_schema(predecessor.clone())
+            .expect("JSON predecessor schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "migrationRows".to_owned(),
+                vec![
+                    json!({
+                        "_id": "json-row",
+                        "payload": { "n": 8.0, "label": "copied" },
+                    })
+                    .as_object()
+                    .cloned()
+                    .unwrap(),
+                ],
+            )]),
+        })
+        .expect("JSON predecessor row");
+
+        let steps = derive_plan_steps(
+            &successor,
+            &[MigrationIntent::ConvertJsonToStructured {
+                table: "migrationRows".to_owned(),
+                field: "payload".to_owned(),
+                generation: 2,
+            }],
+        )
+        .expect("derive JSON conversion steps");
+        let body = MigrationPlanBody {
+            schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
+            app: "test-app".to_owned(),
+            instance: "memory".to_owned(),
+            target_profile_id: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            predecessor_schema_hash: schema_identity(&predecessor).expect("predecessor id"),
+            successor_schema_hash: schema_identity(&successor).expect("successor id"),
+            predecessor_generation: db.current_version().expect("predecessor generation"),
+            execution_strategy: crate::migration::execution_strategy_for_steps(&steps),
+            steps,
+            proof: MigrationProof {
+                method: MigrationProofMethod::Full,
+                bound: None,
+            },
+            ceilings: default_ceilings(),
+            compatibility_posture: CompatibilityPosture::SuccessorOnly,
+            retained_work_posture: RetainedWorkPosture::Empty,
+            backup: MigrationBackupRequirement {
+                required: false,
+                checkpoint_label: None,
+                rehearsal_required: false,
+            },
+            expected_output: MigrationExpectedOutput {
+                schema_hash: schema_identity(&successor).expect("successor id"),
+                projection_generations: BTreeMap::new(),
+            },
+            constants: MigrationConstants {
+                publication_timestamp_ms: PUBLICATION_TS,
+                rollback_timestamp_ms: None,
+                values: BTreeMap::new(),
+            },
+            boundaries: Default::default(),
+        };
+        let plan = MigrationPlanArtifactV1::seal(body).expect("seal conversion plan");
+        let approval = approval_for(&plan, now_millis());
+        let (_, resolved) = audience();
+        let receipt = db
+            .migrate_apply(MigrationApplyRequest {
+                artifact: &plan,
+                approval: &approval,
+                successor_schema: &successor,
+                audience: &resolved,
+                now_ms: now_millis(),
+                rehearsal: None,
+            })
+            .expect("apply JSON-to-structured conversion");
+        assert_eq!(receipt.state.kind(), "released");
+        assert_eq!(db.schema(), &successor);
+        assert_eq!(
+            db.get("migrationRows", "json-row").unwrap().unwrap()["payload"],
+            json!({ "label": "copied", "n": 8 }),
+        );
+        let raw: String = db
+            .conn
+            .query_row(
+                "SELECT payload FROM migrationRows WHERE _id='json-row'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(raw, r#"{"label":"copied","n":8}"#);
+    }
+
     fn audience() -> (MigrationAudienceV1, ResolvedLocalAudience) {
         let approved = MigrationAudienceV1 {
             project_id: None,

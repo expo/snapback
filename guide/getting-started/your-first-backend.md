@@ -149,7 +149,10 @@ Project a scalar into an ordinary field when it must be queried.
 local target. Schemas using this grammar carry that explicit capability
 requirement, so older runtimes refuse coherently at capability settlement
 instead of degrading the value to `v.json()`. `v.json()` remains the unchanged
-untyped escape hatch.
+untyped escape hatch. To strengthen an already-installed `v.json()` field into
+this grammar without changing its name, use the reviewed
+[`ConvertJsonToStructured` migration](../backend/migrations.md#evolve-vjson-into-a-structured-field);
+direct retyping correctly refuses.
 The remaining [`backend.structured-stored-fields` GAP](../capabilities.md) is
 queryable structure—interior predicates, containment, and portable declared
 projections—owned by

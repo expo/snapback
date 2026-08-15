@@ -216,6 +216,7 @@ pub(crate) fn migrate_command(command: MigrateCommand, json_only: bool) -> anyho
                     None => crate::migration::derive_intents(&predecessor, &successor)?,
                 };
                 let steps = crate::migration::derive_plan_steps(&successor, &intents)?;
+                let execution_strategy = crate::migration::execution_strategy_for_steps(&steps);
                 // @ref LLP 0160#2-the-ideal-experience-moment-by-moment —
                 // Moment 3's estimate line is sourced only from the separately
                 // digested, snapshot-pinned observation; it adds no plan
@@ -236,8 +237,7 @@ pub(crate) fn migrate_command(command: MigrateCommand, json_only: bool) -> anyho
                     )?,
                     predecessor_generation: head,
                     steps,
-                    execution_strategy:
-                        crate::migration::MigrationExecutionStrategy::SingleTransaction,
+                    execution_strategy,
                     proof: crate::migration::MigrationProof {
                         method: crate::migration::MigrationProofMethod::Full,
                         bound: None,

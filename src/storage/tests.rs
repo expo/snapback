@@ -1095,6 +1095,35 @@ mod stored_structured_value_tests {
     }
 
     #[test]
+    fn direct_json_to_structured_activation_routes_to_the_named_reviewed_intent() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema(vec![FieldManifest {
+            name: "payload".to_owned(),
+            field_type: FieldType::Json,
+            optional: false,
+        }]))
+        .expect("JSON predecessor schema");
+        let error = db
+            .apply_schema(schema(vec![field("payload", numeric_payload())]))
+            .expect_err("same-name JSON conversion requires reviewed staging");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("declare ConvertJsonToStructured"),
+            "{}",
+            error.diagnostic.message,
+        );
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains("snapback migrate preview --help")
+        );
+    }
+
+    #[test]
     fn carrier_hash_and_all_four_bounds_fail_closed() {
         let mut hash_mismatch = field("payload", numeric_payload());
         let FieldType::Structured { contract_hash, .. } = &mut hash_mismatch.field_type else {

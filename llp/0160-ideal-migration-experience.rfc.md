@@ -7,7 +7,12 @@
 **Date:** 2026-08-03
 **Revised:** 2026-08-15 (G6 closed by `2e0e5e03a`: the Guide now joins the
 reviewed migration command loop to a sessions deployment-identity narrative,
-capability rows, generated diagnostic links, and retrieval evidence); 2026-08-03 (Accepted by the author after the five-round
+capability rows, generated diagnostic links, and retrieval evidence)
+**Revised:** 2026-08-15 (Moment 2/2b concrete route: a direct installed
+`Json`→`Structured` refusal names the closed `ConvertJsonToStructured` intent;
+preview expands it through LLP 0081's reviewed shadow-generation program.
+The general candidate-intent file scaffold in G3' remains open.)
+**Revised:** 2026-08-03 (Accepted by the author after the five-round
 dual-family super-refine loop closed on the asymmetric stopping rule —
 Fable READY rounds 3–5 recommending accept-track, Codex NOT READY×5
 with monotonically narrowing new-surface findings, all absorbed
@@ -219,6 +224,14 @@ proposed timestamp is admission-checked against 0081 §4's
 row-timestamp monotonicity rule, so a scaffold that ages past new
 writes refuses at admission and that refusal renders per G14. Intent
 declaration stays; intent *authoring from scratch* goes.
+
+The shipped named case is JSON→structured evolution. A direct schema
+activation refuses with `SNAPBACK_SCHEMA_FIELD_RETYPED`, explains that every
+stored value must validate and be canonically rewritten, names
+`ConvertJsonToStructured`, and routes to `snapback migrate preview --help`.
+The intent preserves the field name by staging and publishing a whole successor
+table generation; it does not weaken the conservative applier. G3′ still owns
+generation of a candidate intents file for ambiguous cases generally.
 
 **Moment 3 — preview renders consequences on the plan's face.**
 `snapback migrate preview` keeps emitting the sealed
@@ -483,7 +496,7 @@ provider). The experience work is leverage on rigor already paid for.
 | # | Class | Gap | Moment | Size |
 |---|-------|-----|--------|------|
 | ~~G1~~ | ~~R~~ | ~~No human rendering of plan/receipt; all migrate verbs emit the JSON envelope only, and approve writes its artifact before emitting (the render-first gate and non-interactive digest acknowledgement are in scope). Ships with the committed traceability table and a golden fixture set — review-face (revealed) and narration-face (redacted) variants, estimate-absent, narrow-terminal — plus a deterministic presentation contract (ordering, width, color, exit codes).~~ **Closed by `e933babc`: every migrate verb now emits deterministic human presentation on stderr by default, with terminal-review and redacted narration faces, committed golden fixtures and traceability contract, `--json` silence, and render-first exact-digest approval authorization.** | ~~3, 4, 7~~ | ~~M~~ |
-| ~~G2~~ | ~~R~~ | ~~The applier's non-additive refusal family mostly names no migration-workflow next step; the message-text fix is an S-sized slice needing zero rendering infrastructure, enumerated across the family.~~ **Closed by `eff005a7`: every field-retype and required-field/backfill refusal, including physical-schema backstops, names `snapback migrate preview --help` as the reviewed-workflow next step.** | ~~2~~ | ~~S–M~~ |
+| ~~G2~~ | ~~R~~ | ~~The applier's non-additive refusal family mostly names no migration-workflow next step; the message-text fix is an S-sized slice needing zero rendering infrastructure, enumerated across the family.~~ **Closed by `eff005a7`: every field-retype and required-field/backfill refusal, including physical-schema backstops, names `snapback migrate preview --help` as the reviewed-workflow next step. The 2026-08-15 JSON→structured route additionally names its exact `ConvertJsonToStructured` intent.** | ~~2~~ | ~~S–M~~ |
 | G3′ | R | No scaffold for the ambiguous intent classes or the publication timestamp (whose monotonicity admission-check the scaffold must anticipate); unambiguous intents already derive | 2b | M |
 | G4′a | R | First-party presentation/copy over shipped `migrationBoundary()` state | 8 | S–M |
 | G4′b | D-audit (OQ6 ruled 2026-08-03: tombstone-and-re-entry blessed; dated 0081 amendment landed) | Cross-artifact settlement: audit the shipped tombstone-and-re-entry path against the amended 0081 text; plus non-JS carriers (protocol half restated in LLP 0093 per the OQ3 blessing) | 8 | S–M audit |

@@ -5,6 +5,9 @@
 **Systems:** Schema, Application data API, Storage, Code generation, Client SDK
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-09
+**Revised:** 2026-08-15 (migration completion: case 2's same-name staged
+route is now the LLP 0081 `ConvertJsonToStructured` intent, with successor
+validation/canonical rewrite and row-count/content-digest proof).
 **Revised:** 2026-08-15 (principal-snapshot amendment: `v.principal()` is
 admitted as a validated nominal leaf inside opaque structured values. Its
 interior occurrence is storage and egress data only; it confers no visibility,
@@ -387,15 +390,20 @@ honestly:
    parse, validate against the declared shape, and (because today's Json
    bytes are non-canonical serde output) be rewritten to canonical bytes.
    **Every such conversion, at any table size, takes LLP 0081's reviewed
-   add/copy/validate/publish/retire route** — the round-1 reviews
+   add/copy/validate/publish/retire route** — implemented as LLP 0081's
+   `ConvertJsonToStructured { table, field, generation }` intent. The round-1 reviews
    converged on this: the conservative applier rejects row-rewriting type
    changes by rule (LLP 0007), table size does not waive that authority,
    and an activation-time scan cannot rewrite bytes anyway; no fast path
    exists. The destination is a staged successor field/generation in
-   0081's own shape (which already treats representation conversion as
+   0081's own shape (which treats representation conversion as
    proof-bearing and hashes logical rows independently of physical
-   encoding); same-name conversion is expressed as successor-generation
-   publish-then-retire, never in-place mutation.
+   encoding). Preview selects shadow-generation from the staged/copy step
+   graph; the copy validates and canonically rewrites every formerly-JSON
+   value against the successor structured contract and carries row-count plus
+   content-digest verification. Same-name conversion is successor-generation
+   publish-then-retire, never in-place mutation; one invalid row refuses before
+   publication.
 3. **`canonical-json-text.v1` → a future encoding** (projections, jsonb,
    child rows) — logically mechanical (parse/re-emit; canonical bytes are
    already the complete document), **operationally O(N)** with the same

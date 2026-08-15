@@ -103,6 +103,10 @@ must be declared. The closed intent vocabulary:
   representation).
 - `ConvertField { table, from, to, fieldType, expr }` — a rename with a
   conversion expression (type change).
+- `ConvertJsonToStructured { table, field, generation }` — preserve the field
+  name by staging a full successor table generation; each formerly-JSON value
+  must validate and is rewritten as canonical structured storage before the
+  successor can publish.
 - `CopyTableToGeneration { table, generation, fields, sourceTable }` —
   stage a successor generation and copy into it.
 - `RebuildProjection { projectionId }`.
@@ -121,6 +125,33 @@ must be declared. The closed intent vocabulary:
   }
 ]
 ```
+
+### Evolve `v.json()` into a structured field
+
+Changing an installed `v.json()` field directly to `v.object(...)` or
+`v.array(...)` refuses with `SNAPBACK_SCHEMA_FIELD_RETYPED`; the server cannot
+claim existing bytes satisfy the stronger contract. Declare the reviewed
+intent instead:
+
+```json fragment reason="illustrative intent; table and generation are application-specific"
+[
+  {
+    "ConvertJsonToStructured": {
+      "table": "messages",
+      "field": "recipientSnapshot",
+      "generation": 2
+    }
+  }
+]
+```
+
+Preview expands this to `StageTableGeneration` plus an identity `CopyTable`
+covering every successor field and seals the `shadow-generation` strategy. The
+copy runs the structured validator/canonicalizer, then proves row count and a
+full content digest. If even one legacy JSON value is outside the new shape,
+apply refuses and the predecessor generation remains authoritative. Repair the
+data under its old schema, preview again, and approve the new digests; do not
+hand-edit the database or weaken the destination to make apply pass.
 
 ## Rehearse against a restore-derived instance
 

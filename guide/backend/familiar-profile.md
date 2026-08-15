@@ -78,7 +78,11 @@ export default defineSchema({
 That shared vocabulary includes typed opaque arrays and objects. A nested
 `v.principal()` may record a historical recipient snapshot, including inside
 `v.array(...)`; it does not grant current authority. Membership, visibility,
-and grants must still use their first-class declarations.
+and grants must still use their first-class declarations. If an installed
+Familiar schema used `v.json()` for data that is now structured, keep the field
+name and use the reviewed
+[`ConvertJsonToStructured` migration](./migrations.md#evolve-vjson-into-a-structured-field);
+direct retyping refuses.
 
 Each function declares its authority and data reach next to the handler. A
 module `todos.ts` with export `list` becomes canonical name `todos.list` and

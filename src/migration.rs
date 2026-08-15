@@ -337,6 +337,23 @@ pub enum MigrationExecutionStrategy {
     ShadowGeneration,
 }
 
+/// Strategy is a property of the sealed step graph, never a CLI default.
+/// Any staged-generation operation must remain off the in-place executor.
+pub fn execution_strategy_for_steps(steps: &[MigrationStepRecord]) -> MigrationExecutionStrategy {
+    if steps.iter().any(|record| {
+        matches!(
+            &record.step,
+            MigrationStep::StageTableGeneration { .. }
+                | MigrationStep::CopyTable { .. }
+                | MigrationStep::RetireGeneration { .. }
+        )
+    }) {
+        MigrationExecutionStrategy::ShadowGeneration
+    } else {
+        MigrationExecutionStrategy::SingleTransaction
+    }
+}
+
 /// Proof method (LLP 0081 §5): `full` is the only method admissible for a
 /// successful v1 production migration; `sampled-audit` is a separately named
 /// lower-assurance class for rehearsal/audit runs and says so on its face.
@@ -624,6 +641,15 @@ pub enum MigrationIntent {
         field_type: FieldType,
         expr: ValueExpr,
     },
+    /// Revalidate and canonically rewrite one same-name Json field while a
+    /// complete successor table generation is staged. The planner derives
+    /// the identity copy map from the reviewed successor schema so callers do
+    /// not hand-author every unaffected field.
+    ConvertJsonToStructured {
+        table: String,
+        field: String,
+        generation: u64,
+    },
     /// Stage a successor generation and copy the table into it.
     CopyTableToGeneration {
         table: String,
@@ -659,6 +685,7 @@ impl MigrationIntent {
             | Self::TightenRequired { table, .. }
             | Self::RenameField { table, .. }
             | Self::ConvertField { table, .. }
+            | Self::ConvertJsonToStructured { table, .. }
             | Self::CopyTableToGeneration { table, .. }
             | Self::RetireField { table, .. }
             | Self::RetireTable { table }
@@ -812,6 +839,23 @@ impl MigrationIntent {
                 MigrationStep::RetireField {
                     table: table.clone(),
                     field: from.clone(),
+                },
+            ],
+            Self::ConvertJsonToStructured {
+                table, generation, ..
+            } => vec![
+                MigrationStep::StageTableGeneration {
+                    table: table.clone(),
+                    generation: *generation,
+                },
+                // `derive_plan_steps` replaces this empty map with one exact
+                // identity expression per successor field after validating
+                // that the named destination is Structured.
+                MigrationStep::CopyTable {
+                    source_table: table.clone(),
+                    table: table.clone(),
+                    generation: *generation,
+                    fields: BTreeMap::new(),
                 },
             ],
             Self::CopyTableToGeneration {
@@ -971,6 +1015,16 @@ pub fn derive_intents(
                 }
                 Some(existing) => {
                     if existing.field_type != field.field_type {
+                        if matches!(
+                            (&existing.field_type, &field.field_type),
+                            (FieldType::Json, FieldType::Structured { .. })
+                        ) {
+                            return Err(refuse(format!(
+                                "field {}.{} changes from Json to Structured; declare \
+                                 ConvertJsonToStructured with the reviewed successor generation",
+                                table.name, field.name
+                            )));
+                        }
                         return Err(refuse(format!(
                             "field {}.{} changes type; declare ConvertField with a total \
                              conversion expression",
@@ -1105,9 +1159,70 @@ pub fn derive_plan_steps(
     let mut records = Vec::new();
     let mut ordinal = 0_usize;
     for (_, _, intent) in ordered {
-        for step in intent.chain() {
+        let mut chain = intent.chain();
+        if let MigrationIntent::ConvertJsonToStructured {
+            table,
+            field,
+            generation,
+        } = intent
+        {
+            if *generation == 0 {
+                return Err(plan_invalid(
+                    "ConvertJsonToStructured generation must be positive",
+                ));
+            }
+            let successor_table = successor_schema.table(table).ok_or_else(|| {
+                plan_invalid(format!(
+                    "ConvertJsonToStructured table {table} is absent from the successor schema"
+                ))
+            })?;
+            let successor_field = successor_table.field(field).ok_or_else(|| {
+                plan_invalid(format!(
+                    "ConvertJsonToStructured field {table}.{field} is absent from the successor schema"
+                ))
+            })?;
+            if !matches!(&successor_field.field_type, FieldType::Structured { .. }) {
+                return Err(plan_invalid(format!(
+                    "ConvertJsonToStructured destination {table}.{field} must be Structured"
+                )));
+            }
+            let identity_fields = successor_table
+                .fields
+                .iter()
+                .map(|successor_field| {
+                    (
+                        successor_field.name.clone(),
+                        ValueExpr::Field {
+                            base: Box::new(ValueExpr::Binding("row".to_owned())),
+                            key: successor_field.name.clone(),
+                        },
+                    )
+                })
+                .collect::<BTreeMap<_, _>>();
+            let Some(MigrationStep::CopyTable { fields, .. }) = chain.get_mut(1) else {
+                return Err(plan_invalid(
+                    "ConvertJsonToStructured did not expand to its pinned stage/copy chain",
+                ));
+            };
+            *fields = identity_fields;
+        }
+        for step in chain {
             ordinal += 1;
-            records.push(default_step_record(ordinal, step));
+            let mut record = default_step_record(ordinal, step);
+            if let MigrationIntent::ConvertJsonToStructured { table, .. } = intent
+                && matches!(record.step, MigrationStep::CopyTable { .. })
+            {
+                record.verification = vec![
+                    MigrationVerification::RowCountMatchesSource {
+                        source_table: table.clone(),
+                        table: table.clone(),
+                    },
+                    MigrationVerification::ContentDigest {
+                        table: table.clone(),
+                    },
+                ];
+            }
+            records.push(record);
         }
     }
     Ok(records)
@@ -2231,6 +2346,78 @@ mod tests {
                 ..Default::default()
             },
             "ConvertField",
+        );
+        let predecessor_json = crate::manifest::SchemaManifest {
+            tables: vec![table(
+                "notes",
+                vec![crate::manifest::FieldManifest {
+                    name: "body".to_owned(),
+                    field_type: crate::manifest::FieldType::Json,
+                    optional: false,
+                }],
+                Vec::new(),
+            )],
+            ..Default::default()
+        };
+        let descriptor = crate::manifest::ResultValueContract::Object {
+            fields: vec![crate::manifest::ResultObjectFieldContract {
+                name: "text".to_owned(),
+                required: true,
+                value: crate::manifest::ResultValueContract::String { max_bytes: 64 },
+            }],
+            allow_extra: false,
+        };
+        let contract = crate::manifest::StoredStructuredContractV1 {
+            version: crate::manifest::STORED_STRUCTURED_CONTRACT_VERSION_V1,
+            descriptor,
+            encoding: crate::manifest::STORED_STRUCTURED_ENCODING_V1.to_owned(),
+        };
+        let contract_hash = crate::manifest::stored_structured_contract_hash(&contract).unwrap();
+        let successor_structured = crate::manifest::SchemaManifest {
+            tables: vec![table(
+                "notes",
+                vec![crate::manifest::FieldManifest {
+                    name: "body".to_owned(),
+                    field_type: crate::manifest::FieldType::Structured {
+                        contract,
+                        contract_hash,
+                    },
+                    optional: false,
+                }],
+                Vec::new(),
+            )],
+            ..Default::default()
+        };
+        refusal(
+            &predecessor_json,
+            &successor_structured,
+            "ConvertJsonToStructured",
+        );
+
+        let steps = derive_plan_steps(
+            &successor_structured,
+            &[MigrationIntent::ConvertJsonToStructured {
+                table: "notes".to_owned(),
+                field: "body".to_owned(),
+                generation: 2,
+            }],
+        )
+        .expect("JSON-to-structured conversion expands to a successor generation");
+        assert!(matches!(
+            steps[0].step,
+            MigrationStep::StageTableGeneration { generation: 2, .. }
+        ));
+        let MigrationStep::CopyTable { ref fields, .. } = steps[1].step else {
+            panic!("second conversion step must copy the successor table")
+        };
+        assert_eq!(
+            fields.keys().map(String::as_str).collect::<Vec<_>>(),
+            vec!["body"]
+        );
+        assert_eq!(steps[1].verification.len(), 2);
+        assert_eq!(
+            execution_strategy_for_steps(&steps),
+            MigrationExecutionStrategy::ShadowGeneration,
         );
         // Loosening required→optional is outside the vocabulary.
         refusal(
