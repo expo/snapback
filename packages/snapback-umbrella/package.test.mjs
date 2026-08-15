@@ -16,6 +16,7 @@ import * as values from './values.mjs';
 test('the experimental umbrella is identity-preserving re-exports only', () => {
   assert.equal(server.defineSchema, define.defineSchema);
   assert.equal(server.defineTable, define.defineTable);
+  assert.equal(server.defineAssetUpload, define.defineAssetUpload);
   assert.equal(server.query, familiarCodegen.query);
   assert.equal(server.mutation, familiarCodegen.mutation);
   assert.equal(server.action, familiarCodegen.action);

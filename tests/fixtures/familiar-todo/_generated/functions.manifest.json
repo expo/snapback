@@ -1,0 +1,301 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "inline_handler_v1",
+    "result_contract_v1"
+  ],
+  "appId": "fixtures",
+  "artifactKind": "functionManifest",
+  "authoredSourceHash": "sha256:769722db96657627cf0379a2b6db25aca1dbe5993287654251292ccd42d976b3",
+  "authoringProfile": "snapback-familiar-ts-v1",
+  "bundleHash": "sha256:54296a38002aa6bd",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:183eacdd291aace7e537f40eba314ec53ab2435baedec326d97336385a2cee0c",
+      "authRequirement": "public",
+      "bundleEntrypoint": "todos.create",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
+      "exportedName": "todos.create",
+      "handlerForm": "inline",
+      "id": "fixtures:todos.create",
+      "implementationHash": "sha256:0e097ae7f97faaaba3392e64ca44b3a39468db48280225629fda05c515d28fce",
+      "kind": "Mutation",
+      "name": "todos.create",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "id",
+          "table": "todos"
+        }
+      },
+      "resultContractHash": "sha256:4198ab5a4d6e37df5f7fee5e067c55d9faa99e0cbf53341f0e4384c5ed63a8f2",
+      "runtime": {
+        "IbexModule": {
+          "export": "todos.create",
+          "source": "function __snapbackFamiliarFail(code, message) { const error = new Error(message); error.code = code; throw error; }\nconst __snapbackFamiliarReferences = new WeakSet();\nfunction __snapbackFamiliarReference(name, apiDigest) { const reference = Object.freeze({ __snapbackFamiliarApiReference: Object.freeze({ name, apiDigest }) }); __snapbackFamiliarReferences.add(reference); return reference; }\nconst __snapbackFamiliarHandler = (async (ctx, args) => ctx.db.insert(\"todos\", {\n        title: args.title,\n        completed: false,\n    }));\nfunction __snapbackFamiliarWrapBuilder(builder) {\n  const wrapped = Object.create(null);\n  const chain = (method, args) => __snapbackFamiliarWrapBuilder(builder[method](...args));\n  wrapped.withIndex = (index, callback) => {\n    if (callback === undefined) return __snapbackFamiliarWrapBuilder(builder.withIndex(index));\n    if (typeof callback !== \"function\") __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex callback must be a chained canonical range predicate\");\n    const calls = [];\n    let active = true;\n    let tail;\n    const makeRecorder = () => {\n      const recorder = Object.create(null);\n      for (const method of [\"eq\", \"in\", \"lt\", \"lte\", \"gt\", \"gte\"]) recorder[method] = (...args) => {\n        if (!active) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex recorder escaped its callback\");\n        if (recorder !== tail) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex predicates must form one chain\");\n        calls.push([method, args]);\n        tail = makeRecorder();\n        return tail;\n      };\n      return Object.freeze(recorder);\n    };\n    const recorder = makeRecorder();\n    tail = recorder;\n    let result;\n    try { result = callback(recorder); } catch (error) { if (error && error.code === \"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\") throw error; __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex callback used an unsupported recorder operation\"); }\n    active = false;\n    if (result !== tail) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex callback must return its complete chained recorder\");\n    let lowered = builder.withIndex(index);\n    for (const [method, args] of calls) lowered = lowered[method](...args);\n    return __snapbackFamiliarWrapBuilder(lowered);\n  };\n  for (const method of [\"eq\", \"in\", \"lt\", \"lte\", \"gt\", \"gte\", \"order\", \"take\"]) wrapped[method] = (...args) => chain(method, args);\n  wrapped.collect = (...args) => builder.collect(...args);\n  wrapped.first = (...args) => builder.first(...args);\n  return Object.freeze(wrapped);\n}\nfunction __snapbackFamiliarDataContext(ctx) {\n  const db = Object.freeze({ ...ctx.db, query: (table) => __snapbackFamiliarWrapBuilder(ctx.db.query(table)) });\n  return Object.freeze({ ...ctx, db });\n}\nfunction __snapbackFamiliarActionContext(ctx) {\n  const runMutation = (reference, args) => {\n    const outerKeys = reference && typeof reference === \"object\" ? Object.keys(reference) : [];\n    const marker = outerKeys.length === 1 && outerKeys[0] === \"__snapbackFamiliarApiReference\" ? reference.__snapbackFamiliarApiReference : null;\n    const markerKeys = marker && typeof marker === \"object\" ? Object.keys(marker).sort() : [];\n    if (!__snapbackFamiliarReferences.has(reference) || !Object.isFrozen(reference) || !Object.isFrozen(marker) || markerKeys.join(\",\") !== \"apiDigest,name\" || marker.apiDigest !== \"sha256:c5f29fbec4ba3f149a3d0e44e117384e29c67b464af3aabf91986920accc2144\" || typeof marker.name !== \"string\" || !/^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?$/u.test(marker.name)) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED\", \"runMutation requires a generated api.module.operation reference from this application generation\");\n    return ctx.runMutation(marker.name, args);\n  };\n  const runQuery = () => __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_RUNQUERY_UNSUPPORTED\", \"familiar v1 actions do not expose runQuery; route through an explicit profile action when required\");\n  const hostEffect = () => __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_HOST_EFFECT_UNSUPPORTED\", \"familiar v1 actions do not expose fetch or fetchStream; use the explicit profile\");\n  return Object.freeze({\n    auth: ctx.auth,\n    runtime: ctx.runtime,\n    secrets: ctx.secrets,\n    refuse: ctx.refuse,\n    isDirectHuman: ctx.isDirectHuman,\n    runMutation,\n    runQuery,\n    fetch: hostEffect,\n    [\"fetch\" + \"Stream\"]: hostEffect,\n  });\n}\nglobalThis.__snapbackHandlers = { \"todos.create\": (ctx, args) => __snapbackFamiliarHandler(__snapbackFamiliarDataContext(ctx), args) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "todos.ts",
+        "line": 22
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:183eacdd291aace7e537f40eba314ec53ab2435baedec326d97336385a2cee0c",
+      "authRequirement": "public",
+      "bundleEntrypoint": "todos.createFromAction",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "todos.createFromAction",
+      "handlerForm": "inline",
+      "id": "fixtures:todos.createFromAction",
+      "implementationHash": "sha256:3a30cd2ff249c0ab21a25a79f8b3f1960c8fed752a25c4ee16534dbcd7fce2b1",
+      "kind": "Action",
+      "name": "todos.createFromAction",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "cron_action_run_mutation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "id",
+          "table": "todos"
+        }
+      },
+      "resultContractHash": "sha256:4198ab5a4d6e37df5f7fee5e067c55d9faa99e0cbf53341f0e4384c5ed63a8f2",
+      "runtime": {
+        "IbexModule": {
+          "export": "todos.createFromAction",
+          "source": "function __snapbackFamiliarFail(code, message) { const error = new Error(message); error.code = code; throw error; }\nconst __snapbackFamiliarReferences = new WeakSet();\nfunction __snapbackFamiliarReference(name, apiDigest) { const reference = Object.freeze({ __snapbackFamiliarApiReference: Object.freeze({ name, apiDigest }) }); __snapbackFamiliarReferences.add(reference); return reference; }\nconst __snapbackFamiliarHandler = (async (ctx, args) => ctx.runMutation(createMutationReference(), args));\nfunction __snapbackFamiliarWrapBuilder(builder) {\n  const wrapped = Object.create(null);\n  const chain = (method, args) => __snapbackFamiliarWrapBuilder(builder[method](...args));\n  wrapped.withIndex = (index, callback) => {\n    if (callback === undefined) return __snapbackFamiliarWrapBuilder(builder.withIndex(index));\n    if (typeof callback !== \"function\") __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex callback must be a chained canonical range predicate\");\n    const calls = [];\n    let active = true;\n    let tail;\n    const makeRecorder = () => {\n      const recorder = Object.create(null);\n      for (const method of [\"eq\", \"in\", \"lt\", \"lte\", \"gt\", \"gte\"]) recorder[method] = (...args) => {\n        if (!active) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex recorder escaped its callback\");\n        if (recorder !== tail) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex predicates must form one chain\");\n        calls.push([method, args]);\n        tail = makeRecorder();\n        return tail;\n      };\n      return Object.freeze(recorder);\n    };\n    const recorder = makeRecorder();\n    tail = recorder;\n    let result;\n    try { result = callback(recorder); } catch (error) { if (error && error.code === \"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\") throw error; __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex callback used an unsupported recorder operation\"); }\n    active = false;\n    if (result !== tail) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex callback must return its complete chained recorder\");\n    let lowered = builder.withIndex(index);\n    for (const [method, args] of calls) lowered = lowered[method](...args);\n    return __snapbackFamiliarWrapBuilder(lowered);\n  };\n  for (const method of [\"eq\", \"in\", \"lt\", \"lte\", \"gt\", \"gte\", \"order\", \"take\"]) wrapped[method] = (...args) => chain(method, args);\n  wrapped.collect = (...args) => builder.collect(...args);\n  wrapped.first = (...args) => builder.first(...args);\n  return Object.freeze(wrapped);\n}\nfunction __snapbackFamiliarDataContext(ctx) {\n  const db = Object.freeze({ ...ctx.db, query: (table) => __snapbackFamiliarWrapBuilder(ctx.db.query(table)) });\n  return Object.freeze({ ...ctx, db });\n}\nfunction __snapbackFamiliarActionContext(ctx) {\n  const runMutation = (reference, args) => {\n    const outerKeys = reference && typeof reference === \"object\" ? Object.keys(reference) : [];\n    const marker = outerKeys.length === 1 && outerKeys[0] === \"__snapbackFamiliarApiReference\" ? reference.__snapbackFamiliarApiReference : null;\n    const markerKeys = marker && typeof marker === \"object\" ? Object.keys(marker).sort() : [];\n    if (!__snapbackFamiliarReferences.has(reference) || !Object.isFrozen(reference) || !Object.isFrozen(marker) || markerKeys.join(\",\") !== \"apiDigest,name\" || marker.apiDigest !== \"sha256:c5f29fbec4ba3f149a3d0e44e117384e29c67b464af3aabf91986920accc2144\" || typeof marker.name !== \"string\" || !/^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?$/u.test(marker.name)) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED\", \"runMutation requires a generated api.module.operation reference from this application generation\");\n    return ctx.runMutation(marker.name, args);\n  };\n  const runQuery = () => __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_RUNQUERY_UNSUPPORTED\", \"familiar v1 actions do not expose runQuery; route through an explicit profile action when required\");\n  const hostEffect = () => __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_HOST_EFFECT_UNSUPPORTED\", \"familiar v1 actions do not expose fetch or fetchStream; use the explicit profile\");\n  return Object.freeze({\n    auth: ctx.auth,\n    runtime: ctx.runtime,\n    secrets: ctx.secrets,\n    refuse: ctx.refuse,\n    isDirectHuman: ctx.isDirectHuman,\n    runMutation,\n    runQuery,\n    fetch: hostEffect,\n    [\"fetch\" + \"Stream\"]: hostEffect,\n  });\n}\nglobalThis.__snapbackHandlers = { \"todos.createFromAction\": (ctx, args) => __snapbackFamiliarHandler(__snapbackFamiliarActionContext(ctx), args) };\nfunction createMutationReference() {\n    return __snapbackFamiliarReference(\"todos.create\", \"sha256:c5f29fbec4ba3f149a3d0e44e117384e29c67b464af3aabf91986920accc2144\");\n}\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "todos.ts",
+        "line": 31
+      },
+      "syncabilityClass": "action",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "completed",
+            "required": true,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:16906e673414756f10b7f0e9fdfb9100b4524f5d5aa19ae0d829d1a8c1516529",
+      "authRequirement": "public",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "todos.list",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "todos.list",
+      "handlerForm": "inline",
+      "id": "fixtures:todos.list",
+      "implementationHash": "sha256:0c1020a0008c07fd6e85f2f6aa022f5c5c24cab180fd502379322e8404b0b45f",
+      "kind": "LiveQuery",
+      "name": "todos.list",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "todos"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "todos"
+      },
+      "resultContractHash": "sha256:6cb72d727377ef0be17862a3349c42b1824f0dbea54154e4ca0bc1a41e4d47fa",
+      "runtime": {
+        "IbexModule": {
+          "export": "todos.list",
+          "source": "function __snapbackFamiliarFail(code, message) { const error = new Error(message); error.code = code; throw error; }\nconst __snapbackFamiliarReferences = new WeakSet();\nfunction __snapbackFamiliarReference(name, apiDigest) { const reference = Object.freeze({ __snapbackFamiliarApiReference: Object.freeze({ name, apiDigest }) }); __snapbackFamiliarReferences.add(reference); return reference; }\nconst __snapbackFamiliarHandler = (async (ctx, args) => ctx.db\n        .query(\"todos\")\n        .withIndex(\"by_completed\", (q) => q.eq(\"completed\", args.completed))\n        .collect());\nfunction __snapbackFamiliarWrapBuilder(builder) {\n  const wrapped = Object.create(null);\n  const chain = (method, args) => __snapbackFamiliarWrapBuilder(builder[method](...args));\n  wrapped.withIndex = (index, callback) => {\n    if (callback === undefined) return __snapbackFamiliarWrapBuilder(builder.withIndex(index));\n    if (typeof callback !== \"function\") __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex callback must be a chained canonical range predicate\");\n    const calls = [];\n    let active = true;\n    let tail;\n    const makeRecorder = () => {\n      const recorder = Object.create(null);\n      for (const method of [\"eq\", \"in\", \"lt\", \"lte\", \"gt\", \"gte\"]) recorder[method] = (...args) => {\n        if (!active) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex recorder escaped its callback\");\n        if (recorder !== tail) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex predicates must form one chain\");\n        calls.push([method, args]);\n        tail = makeRecorder();\n        return tail;\n      };\n      return Object.freeze(recorder);\n    };\n    const recorder = makeRecorder();\n    tail = recorder;\n    let result;\n    try { result = callback(recorder); } catch (error) { if (error && error.code === \"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\") throw error; __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex callback used an unsupported recorder operation\"); }\n    active = false;\n    if (result !== tail) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_WITH_INDEX_UNSUPPORTED\", \"withIndex callback must return its complete chained recorder\");\n    let lowered = builder.withIndex(index);\n    for (const [method, args] of calls) lowered = lowered[method](...args);\n    return __snapbackFamiliarWrapBuilder(lowered);\n  };\n  for (const method of [\"eq\", \"in\", \"lt\", \"lte\", \"gt\", \"gte\", \"order\", \"take\"]) wrapped[method] = (...args) => chain(method, args);\n  wrapped.collect = (...args) => builder.collect(...args);\n  wrapped.first = (...args) => builder.first(...args);\n  return Object.freeze(wrapped);\n}\nfunction __snapbackFamiliarDataContext(ctx) {\n  const db = Object.freeze({ ...ctx.db, query: (table) => __snapbackFamiliarWrapBuilder(ctx.db.query(table)) });\n  return Object.freeze({ ...ctx, db });\n}\nfunction __snapbackFamiliarActionContext(ctx) {\n  const runMutation = (reference, args) => {\n    const outerKeys = reference && typeof reference === \"object\" ? Object.keys(reference) : [];\n    const marker = outerKeys.length === 1 && outerKeys[0] === \"__snapbackFamiliarApiReference\" ? reference.__snapbackFamiliarApiReference : null;\n    const markerKeys = marker && typeof marker === \"object\" ? Object.keys(marker).sort() : [];\n    if (!__snapbackFamiliarReferences.has(reference) || !Object.isFrozen(reference) || !Object.isFrozen(marker) || markerKeys.join(\",\") !== \"apiDigest,name\" || marker.apiDigest !== \"sha256:c5f29fbec4ba3f149a3d0e44e117384e29c67b464af3aabf91986920accc2144\" || typeof marker.name !== \"string\" || !/^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?$/u.test(marker.name)) __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_RUNMUTATION_REF_REQUIRED\", \"runMutation requires a generated api.module.operation reference from this application generation\");\n    return ctx.runMutation(marker.name, args);\n  };\n  const runQuery = () => __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_RUNQUERY_UNSUPPORTED\", \"familiar v1 actions do not expose runQuery; route through an explicit profile action when required\");\n  const hostEffect = () => __snapbackFamiliarFail(\"SNAPBACK_FAMILIAR_HOST_EFFECT_UNSUPPORTED\", \"familiar v1 actions do not expose fetch or fetchStream; use the explicit profile\");\n  return Object.freeze({\n    auth: ctx.auth,\n    runtime: ctx.runtime,\n    secrets: ctx.secrets,\n    refuse: ctx.refuse,\n    isDirectHuman: ctx.isDirectHuman,\n    runMutation,\n    runQuery,\n    fetch: hostEffect,\n    [\"fetch\" + \"Stream\"]: hostEffect,\n  });\n}\nglobalThis.__snapbackHandlers = { \"todos.list\": (ctx, args) => __snapbackFamiliarHandler(__snapbackFamiliarDataContext(ctx), args) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "todos.ts",
+        "line": 11
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "4a8139eb6f517cce2ef97255c85d9f66a86c7495c0582f39d4b65d3aa6e0185e",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

@@ -33,3 +33,20 @@ exactly where a social app hits this first.
 Give Familiar a way to declare or name non-derived asset intents (video
 first), or extend the derived intent beyond image. Add a familiar-profile
 asset acceptance test that uploads and reads back an MP4.
+
+## Resolution
+
+Resolved 2026-08-15. Familiar top-level modules now admit and re-export the
+canonical `defineAssetUpload` constructor. A module/export pair such as
+`media.ts` / `videoUpload` lowers under the shared operation-name grammar to
+canonical intent `media.videoUpload`, and the generated namespace exposes the
+same nominal reference at `api.media.videoUpload`. The canonical asset policy
+and runtime are unchanged; this removes the naming cliff instead of adding a
+second video path.
+
+`packages/snapback-codegen/familiar-phase-b.test.mjs` proves codegen retains
+the MP4 policy and emits the two-segment runtime/type namespace.
+`tests/acceptance/familiar-video-asset-v1.mjs` proves a Sessions-authenticated
+Familiar application uploads 280 real ISO-BMFF bytes through the official
+asset client, reaches `ready` with end-to-end integrity, and reads back the
+identical `video/mp4` bytes through authorized delivery.

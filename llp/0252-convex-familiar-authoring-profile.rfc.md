@@ -11,6 +11,10 @@ Packaging, Documentation, Testing
 Familiar and explicit generated artifacts under `snapback/generated/`; the
 Convex `_generated` spelling is deliberately not retained because a second
 path conflicts with the packaged dev watcher and artifact admission.)
+**Revised:** 2026-08-15 (asset-surface amendment: canonical non-derived upload
+intents, including video, are nameable from Familiar through the same
+two-segment module/export namespace as operations; the shared runtime and
+asset-policy owners remain unchanged).
 **Revised:** 2026-08-13 (accepted: author build directive of 2026-08-13 ratified the r5 pins (runMutation-only action seam, closed skip set, callback-withIndex no-drop lowering) and accepted the RFC; the v1 API is specified by LLP 0253 and implementation proceeds under it. r5: post-loop Grok-review repairs — familiar
 action seam pinned to `ctx.runMutation` only (no invented `runQuery` host
 op), skip second argument closed as `Args | "skip" | typeof skip` over the
@@ -594,6 +598,17 @@ analogy:
 - explicit authority/membership profiles;
 - reviewed migrations and semantic generation receipts; and
 - `snapback verify` for claim/evidence registration.
+
+The extension rule is total over canonical authoring reach: everything
+reachable in the explicit profile must either be nameable from Familiar or
+have a sanctioned escape defined here and surfaced by its refusal. Familiar
+does not get a weaker media ceiling merely because the image-only derived
+intent is convenient. A top-level Familiar module may therefore export the
+canonical `defineAssetUpload(...)` value; its `<module>.<export>` name and
+policy lower unchanged into `assetUploadIntents`. This admits video and other
+non-derived policies without a second asset model. Capabilities that still
+route to the explicit profile must keep that route explicit in D6 and the
+guide rather than forcing authors to encode bytes in document fields.
 
 The guide and generated JSDoc teach one progression:
 

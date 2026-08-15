@@ -204,6 +204,53 @@ test('familiar constructors enforce the closed matrix, auth, delivery, and sugge
   }).__kind, 'Action');
 });
 
+test('familiar explicit video intents occupy the same two-segment api namespace', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-familiar-video-'));
+  temporaryRoots.push(root);
+  cpSync(join(familiarFixture, 'codegen.policy.json'), join(root, 'codegen.policy.json'));
+  writeFileSync(join(root, 'schema.ts'), `
+import { defineSchema, defineTable, v } from './generated/server';
+export default defineSchema({
+  videos: defineTable({
+    ownerId: v.principal(),
+    clip: v.assetRef({ upload: 'media.videoUpload' }),
+  }).assetSharing({ kind: 'owner', field: 'ownerId' }),
+});
+`);
+  writeFileSync(join(root, 'media.ts'), `
+import { defineAssetUpload } from './generated/server';
+export const videoUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  reads: [],
+  accept: { mediaTypes: ['video/mp4'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'via-references' },
+  video: { location: 'retain' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`);
+  const generated = await generate(root);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const intent = generated.functionManifest.assetUploadIntents.find(
+    ({ name }) => name === 'media.videoUpload',
+  );
+  assert.ok(intent, JSON.stringify(generated.functionManifest.assetUploadIntents));
+  assert.deepEqual(intent.accept.mediaTypes, ['video/mp4']);
+  assert.deepEqual(intent.video, { location: 'retain' });
+  const generatedApi = await import(
+    `${pathToFileURL(join(root, 'generated', 'api.mjs')).href}?video=${Date.now()}`,
+  );
+  assert.strictEqual(
+    generatedApi.api.media.videoUpload,
+    generatedApi.app.api.assets['media.videoUpload'],
+  );
+  assert.match(
+    readFileSync(join(root, 'generated', 'api.d.ts'), 'utf8'),
+    /readonly "media": Readonly<\{ "videoUpload": GeneratedApi\["media\.videoUpload"\] \}>/u,
+  );
+});
+
 test('dual-profile todo fixtures normalize equally and emit lawful dotted surfaces', async () => {
   const familiar = await generate(familiarFixture);
   const explicit = await generate(explicitFixture);

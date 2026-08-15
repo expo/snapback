@@ -6,6 +6,7 @@
 import {
   allow,
   defineAction,
+  defineAssetUpload,
   defineJsLiveQuery,
   defineJsMutation,
   defineJsQuery,
@@ -16,7 +17,7 @@ import {
 } from './define.mjs';
 import { FAMILIAR_DISPOSITIONS } from './familiar-dispositions.mjs';
 
-export { allow, defineSchema, v };
+export { allow, defineAssetUpload, defineSchema, v };
 
 const AUTH = new Set(['public', 'optional-user', 'authenticated']);
 const QUERY_KEYS = new Set([

@@ -55,6 +55,7 @@ import {
   resolveHandlerSourceCapability,
 } from './file-read-capability.mjs';
 import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '@expo/snapback-contract/capabilities';
+import { isOperationName } from '@expo/snapback-contract/operation-name';
 import {
   OPERATION_NAME_PATTERN,
   isOperationName,
@@ -5745,7 +5746,11 @@ async function generateInProcessLocked({
     const seenIntents = new Set();
     for (const { exportName, def } of assetUploadDefs) {
       const derivedDefault = typeof def.__derivedDefaultSource === 'string';
-      if (!derivedDefault && (!IDENT.test(exportName) || RESERVED_WORDS.has(exportName))) {
+      const validAuthoredName = authoringProfile === FAMILIAR_AUTHORING_PROFILE
+        ? isOperationName(exportName)
+          && exportName.split('.').every((segment) => !RESERVED_WORDS.has(segment))
+        : IDENT.test(exportName) && !RESERVED_WORDS.has(exportName);
+      if (!derivedDefault && !validAuthoredName) {
         err('SCHEMA_INVALID_IDENTIFIER', 'asset', `invalid asset upload intent identifier ${exportName}`, { intent: exportName });
         continue;
       }
@@ -6796,7 +6801,10 @@ async function generateInProcessLocked({
     generatedReferences.defaultAssetNames,
     appBindingIdentity,
   );
-  const familiarOperationNames = functionManifest.functions.map(({ name }) => name);
+  const familiarOperationNames = [
+    ...functionManifest.functions.map(({ name }) => name),
+    ...assetUploadIntents.map(({ name }) => name).filter(isOperationName),
+  ];
   const apiFlatModule = null;
   const apiModule = authoringProfile === FAMILIAR_AUTHORING_PROFILE
     ? renderFamiliarApiNamespaceModule(
@@ -14430,7 +14438,10 @@ function renderApiTypes(
   lines.push('export declare const defaults: GeneratedAssetUploadDefaults;');
   if (authoringProfile === FAMILIAR_AUTHORING_PROFILE) {
     lines.push('export interface FamiliarGeneratedApi {');
-    const tree = familiarNamespaceTree(functions.map(({ name }) => name));
+    const tree = familiarNamespaceTree([
+      ...functions.map(({ name }) => name),
+      ...assetUploadIntents.map(({ name }) => name).filter(isOperationName),
+    ]);
     for (const [moduleName, exportNames] of Object.entries(tree)
       .sort(([left], [right]) => compareCodeUnits(left, right))) {
       const members = [...exportNames]
@@ -14982,7 +14993,7 @@ function readDemoAppMetadata(backendDir, diagnostics) {
   };
 }
 
-const FAMILIAR_CONSTRUCTORS = new Set(['query', 'mutation', 'action']);
+const FAMILIAR_CONSTRUCTORS = new Set(['query', 'mutation', 'action', 'defineAssetUpload']);
 const FAMILIAR_ENTRYPOINTS = new Set([
   '@expo/snapback/server',
   '@expo/snapback-codegen/familiar',
@@ -15282,7 +15293,7 @@ function renderFamiliarServerModule() {
   // @ref LLP 0253#s32-generated-local-modules — this bootstrap cannot depend
   // on Phase C's umbrella package; every runtime value comes from the Phase B
   // adapter that codegen already owns.
-  return `${HEADER}\nexport { defineSchema, defineTable, query, mutation, action, allow, v } from '@expo/snapback-codegen/familiar';\n`;
+  return `${HEADER}\nexport { defineSchema, defineTable, defineAssetUpload, query, mutation, action, allow, v } from '@expo/snapback-codegen/familiar';\n`;
 }
 
 function renderFamiliarServerTypes() {
@@ -15290,7 +15301,7 @@ function renderFamiliarServerTypes() {
 import { v as familiarV } from '@expo/snapback-codegen/familiar';
 import type { InferObjectValidatorFields, InferValidator, Validator } from '@expo/snapback-codegen/define';
 import type { FunctionArgs, FunctionReference, FunctionResult, GeneratedActionContext, GeneratedDataModel, GeneratedHandlerSchema, GeneratedIndexNames, GeneratedMutationContext, GeneratedQueryContext, GeneratedReadableTableName, Id, QueryBuilder } from './api';
-export { allow, defineSchema, defineTable } from '@expo/snapback-codegen/familiar';
+export { allow, defineAssetUpload, defineSchema, defineTable } from '@expo/snapback-codegen/familiar';
 export declare const v: Omit<typeof familiarV, 'doc' | 'id'> & {
   doc<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<GeneratedDataModel[Table], { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false>;
   id<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<Id<Table>, { readonly Id: { readonly table: Table } }, false>;

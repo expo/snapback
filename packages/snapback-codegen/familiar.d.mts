@@ -1,5 +1,6 @@
 export {
   allow,
+  defineAssetUpload,
   defineSchema,
   v,
 } from './define.js';

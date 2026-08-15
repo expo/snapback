@@ -4,8 +4,8 @@ id: backend.familiar-profile
 order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs]
-examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-cli/templates/expo-chat]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, llp/0044-asset-storage-pipeline.rfc.md]
+examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
@@ -24,7 +24,7 @@ reviewed-authorities-digest: sha256:41d7537b6a9e31b2e9a13ad212340b5821594d6cacaa
 Use this profile when top-level TypeScript modules and
 `query`/`mutation`/`action` constructors materially improve authoring. Use the
 default explicit profile for the broadest Snapback vocabulary, especially
-declarative plans, routes, cron, custom asset intents, search/vector, and
+declarative plans, routes, cron, search/vector, and
 effectful actions. One backend selects one profile; mixing explicit
 `schema.mjs`/`functions.mjs` with familiar `schema.ts`/function modules is a
 typed refusal.
@@ -117,6 +117,35 @@ single value such as `returns: v.union([v.doc("todos"), v.null()])` or a closed
 or `null`, not a one-row array. Familiar actions can read auth/runtime/secrets,
 refuse, and call a generated mutation reference; they do not expose `ctx.db`,
 fetch, assets, jobs, realtime, or streaming.
+
+## Declare non-derived asset intents
+
+A bare `v.assetRef()` still derives the small private JPEG/PNG default. When
+the application needs another media type or policy, export the canonical
+`defineAssetUpload` constructor from a top-level Familiar module. The module
+and export become the same two-segment generated namespace as functions:
+
+```ts source=tests/acceptance/fixtures/familiar-video-asset/media.ts
+import { defineAssetUpload } from './generated/server';
+
+export const videoUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['video/mp4'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  video: { location: 'retain' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+This declaration produces canonical intent `media.videoUpload` and generated
+reference `api.media.videoUpload`. Use that nominal reference with the normal
+asset client; the upload, trusted byte detection, video finalization, custody,
+typed attachment, and authorized readback paths are identical to the explicit
+profile. The [asset guide](./assets.md) owns the complete policy and client
+flow. Do not encode media bytes in JSON or split data URLs across document
+fields when the derived image default is too narrow.
 
 ## Put authorization before business logic
 
@@ -303,9 +332,9 @@ reference exercises:
    the bounded default upload intent. Upload through the generated asset
    reference and `assets.upload(...)`, wait for its ready asset id, then attach
    the typed id in a mutation. Use the complete [asset guide](./assets.md), not
-   a base64 data URL. Custom `defineAssetUpload` declarations are not in the
-   familiar function-module grammar in 0.1.21; choose the explicit profile if
-   the default intent is insufficient.
+   a base64 data URL. If the default is insufficient, declare
+   `defineAssetUpload` in a top-level module and upload through its
+   `api.module.export` reference.
 5. After every source change run `snapback generate snapback`; review and
    commit the refreshed `snapback/generated/artifacts.json` plus only the
    projections selected by policy. `_generated/` is retired: do not create it,
@@ -327,8 +356,8 @@ linked pages.
 ## Know when to leave the profile
 
 Move the backend to the explicit profile when it needs a surface the familiar
-grammar refuses: declarative plans, routes, cron, search/vector, custom asset
-intents, membership declarations not expressible in the shared schema
+grammar refuses: declarative plans, routes, cron, search/vector, membership
+declarations not expressible in the shared schema
 vocabulary, or action fetch/stream/host effects. Treat the diagnostic's route
 as the boundary; do not import explicit builders into a familiar function
 module or hide them behind a helper.

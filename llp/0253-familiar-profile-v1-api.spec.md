@@ -16,6 +16,11 @@ parse gate into cross-package contract tests. r5, scalar-query amendment:
 LLP 0108 now admits the canonical single-value query carrier, so every exact
 Familiar `v.*` query result outside the existing row-shaped translations
 lowers to `results.value`; Familiar `useQuery` projects the authored value.)
+**Revised:** 2026-08-15 (explicit-asset amendment: `defineAssetUpload` is a
+Familiar top-level constructor; `<module>.<export>` names use the shared
+operation grammar and project into both canonical asset intents and the
+Familiar generated API namespace. A real MP4 upload/readback acceptance binds
+the claim).
 **Revised:** 2026-08-13 (r3: dual delta-review repairs — the S4.3 query
 lowering is a true partition (bounded record arrays pinned to
 `{minItems: 0, maxItems}` as exact translation; record-union and 1-tuple
@@ -266,7 +271,7 @@ A new, thin, deletable package `@expo/snapback` (npm), marked
 
 | Entry | Re-exports |
 | --- | --- |
-| `@expo/snapback/server` | `defineSchema`, `defineTable` from the canonical define module; the familiar `query`, `mutation`, `action` constructors (S4) from `@expo/snapback-codegen/familiar` |
+| `@expo/snapback/server` | `defineSchema`, `defineTable`, and `defineAssetUpload` from the canonical define module; the familiar `query`, `mutation`, `action` constructors (S4) from `@expo/snapback-codegen/familiar` |
 | `@expo/snapback/values` | `v` (the existing canonical validator grammar, unchanged) |
 | `@expo/snapback/react` | the familiar React entrypoint `@expo/snapback-react/familiar` (S6) |
 
@@ -461,6 +466,26 @@ live-by-default, familiar `defineTable` tables default to sync-enabled
 (the versioned profile default; Appendix A row `.sync()`), so the ordinary
 familiar table is live-capable without ceremony. Generated JSDoc for a
 `"read"` query routes to the shipped one-shot verb `client.query` (S6.5).
+
+### Explicit asset intents — 2026-08-15
+
+`defineAssetUpload(spec)` is admitted as a top-level Familiar authored-value
+constructor and re-exported by the umbrella and generated server entrypoints.
+A module `media.ts` exporting `videoUpload` lowers to the canonical asset
+intent name `media.videoUpload`. The name uses the same shared
+`IDENT.IDENT` operation-name grammar as Familiar functions, and generated
+`api.media.videoUpload` is the identical nominal reference stored at
+`app.api.assets["media.videoUpload"]`.
+
+The `defineAssetUpload` policy object is canonical and unchanged: media types,
+byte bounds, auth, authorization, delivery, reference access, image/video
+location policy, variants, callbacks, and receipts retain their existing
+owners and refusals. In particular, a Familiar video intent declares
+`accept.mediaTypes: ["video/mp4"]` and `video.location`; it does not overload
+the derived image-only `v.assetRef()` default. This is an authoring projection,
+not a second asset runtime. A profile may not make an explicit-profile asset
+capability unreachable without specifying a sanctioned escape and a stable
+diagnostic route.
 
 ## S5. Normalized projection and generated references
 
@@ -854,12 +879,14 @@ S4). `defineSearchQuery`, `defineVectorQuery`, `defineLiveSearchQuery`,
 `defineBoundedChildrenQuery`, `defineSnapshotBatchQuery`,
 `defineRelationalQuery`, `defineJobStatusQuery`, `definePushLedgerQuery`,
 `defineWriteWithActivity`, `defineCron`, `defineRoutes`, `defineCommand`,
-`defineSurface`, `defineMaintainedProjection`, `defineAssetUpload`,
+`defineSurface`, `defineMaintainedProjection`,
 `defineConfig`, `defineEphemeral`/`ephemeral`, `definePushSeam`,
 `defineAuth` — disposition 4 in the familiar *function-module* grammar
 (stable refusals routing to the explicit profile or the D5 extension
-vocabulary); `defineSchema`/`defineTable`/`v`/`allow` are disposition 1
-(shared, verbatim).
+vocabulary). `defineAssetUpload` is disposition 1 as a top-level Familiar
+module export under the explicit-asset amendment above;
+`defineSchema`/`defineTable`/`v`/`allow` are disposition 1 (shared,
+verbatim).
 
 **Table-builder methods:** `.index()` — 1 (the S4.5 target). `.sync()` —
 2 (profile default **on**, per S4.6 live-by-default; an authored

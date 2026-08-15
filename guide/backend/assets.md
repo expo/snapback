@@ -4,13 +4,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets, clients.asset-signed-delivery, clients.asset-upload]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, src/server/asset_routes.rs, packages/snapback-client/assets.mjs, packages/snapback-codegen/define.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
-examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control, packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0180-asset-bearing-client-commands.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, src/server/asset_routes.rs, packages/snapback-client/assets.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md, demos/zerobugs/control/snapback/functions.mjs, demos/zerobugs/control/composition/server.mts]
+examples: [demos/party-wall, demos/file-drop, demos/tandem-expo-bakeoff, demos/expo-golden-path-fixture, demos/zerobugs/control, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs, packages/snapback-client/assets.test.mjs, packages/snapback-react/assets.test.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:6287bc6c8979d956731270da9347db15ad885830243a974db93e9309d29e38bf
+reviewed-authorities-digest: sha256:ac2cd7a89de0a56f4add93da19c9e943c1fd38470c9d223c21fa404259320788
 ---
 
 # Assets
@@ -93,6 +93,29 @@ export const avatarUpload = defineAssetUpload({
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 ```
+
+In the Familiar TypeScript profile, import the same constructor from
+`./generated/server` and export it from a top-level module. For example,
+`media.ts` exporting `videoUpload` becomes canonical intent
+`media.videoUpload` and generated reference `api.media.videoUpload`:
+
+```ts source=tests/acceptance/fixtures/familiar-video-asset/media.ts
+import { defineAssetUpload } from './generated/server';
+
+export const videoUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['video/mp4'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  video: { location: 'retain' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+That is only a naming projection. It uses this same intent policy, asset
+client, finalizer, typed reference, and delivery path; it does not derive video
+through the image-only bare-field default.
 
 Reference assets from tables with `v.assetRef`. A restricted field
 (`{ upload: 'avatarUpload' }`) admits only that intent's assets and is
