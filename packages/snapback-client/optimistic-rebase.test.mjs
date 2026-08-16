@@ -322,7 +322,7 @@ test('mutate mints one settlement/layer identity and persists replayable IR', as
     optimisticOperation: operation,
   });
 
-  assert.equal(queued.queued, true);
+  assert.equal(queued.status, 'queued');
   assert.match(queued.clientMutationId, /^mut_[0-9a-hjkmnp-tv-z]{26}$/u);
   const [record] = await store.outboxRecords();
   assert.equal(record.id, queued.clientMutationId);

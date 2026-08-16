@@ -757,7 +757,6 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       });
       return {
         status: 'queued',
-        queued: true,
         clientMutationId: 'queued-record-1',
         sequence: 1,
         presentation: 'withheld',
@@ -771,7 +770,6 @@ function createOfflineFakeClient({ outbox = null } = {}) {
     const queued = await invokeSnapbackMutation(provider, record, { value: 'offline' });
     assert.deepEqual(queued, {
       status: 'queued',
-      queued: true,
       clientMutationId: 'queued-record-1',
       sequence: 1,
       presentation: 'withheld',

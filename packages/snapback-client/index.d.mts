@@ -395,8 +395,6 @@ export type MutationDispatchOutcome<Result> =
     readonly clientMutationId: string;
     readonly sequence: number;
     readonly presentation: 'installed' | 'withheld' | 'unavailable';
-    /** @deprecated LLP 0218 P6 removes this alias. */
-    readonly queued?: true;
     readonly operationCoverageDisposition?: string;
     readonly operationHash?: string;
   };
@@ -1066,8 +1064,9 @@ export interface SnapbackClientOptions {
    * A generated local-executable mutation composes with the durable outbox when
    * available and otherwise degrades to server-delegated online dispatch (LLP
    * 0155 local-read admission); explicit `queue: true` still requires the outbox.
-   * A queued delivery resolves `{ queued: true, clientMutationId, sequence }`
-   * instead of a settlement; it settles by ordered replay after reconnect.
+   * A queued delivery resolves
+   * `{ status: 'queued', clientMutationId, sequence, presentation }` instead of
+   * a settlement; it settles by ordered replay after reconnect.
    */
   readonly offlineQueue?: 'auto' | boolean;
   /** LLP 0218 P4 relinquishment-event seam. When omitted, events land on

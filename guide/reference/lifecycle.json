@@ -1,5 +1,114 @@
 {
   "$schema": "./lifecycle.schema.json",
   "schemaVersion": "snapback-symbol-lifecycle.v1",
-  "symbols": []
+  "symbols": [
+    {
+      "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError.clientMutationId",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError.code",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError.constructor",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError.diagnostic",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError.mutation",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError.name",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError.queued",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError.sequence",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react#SnapbackQueuedMutationError",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react#SnapbackQueuedMutationError.clientMutationId",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react#SnapbackQueuedMutationError.code",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react#SnapbackQueuedMutationError.constructor",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react#SnapbackQueuedMutationError.diagnostic",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react#SnapbackQueuedMutationError.mutation",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react#SnapbackQueuedMutationError.name",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react#SnapbackQueuedMutationError.queued",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react#SnapbackQueuedMutationError.sequence",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/core#SnapbackQueuedMutationError",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.clientMutationId",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.code",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.constructor",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.diagnostic",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.mutation",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.name",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.queued",
+      "removedIn": "0.1.23"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.sequence",
+      "removedIn": "0.1.23"
+    }
+  ]
 }

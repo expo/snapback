@@ -30,7 +30,6 @@ export {
 // @ref LLP 0145#option-2--static-capability-modules-around-a-shared-kernel —
 // the root stays Full while the narrow entry makes capability selection static.
 export {
-  SnapbackQueuedMutationError,
   invokeSnapbackMutation,
   observeSnapbackDiagnostics,
   observeSnapbackOptimisticCreate,

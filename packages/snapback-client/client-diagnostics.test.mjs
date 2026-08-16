@@ -429,7 +429,7 @@ test('SnapbackClient bridges queued outbox diagnostics into its owned v2 channel
     const queued = await client.mutate('createThing', {
       args: { title: 'RAW_CLIENT_MUTATION_ARGUMENT' },
     });
-    assert.equal(queued.queued, true);
+    assert.equal(queued.status, 'queued');
     assert.equal(client.outboxDiagnostics.at(-1).code, 'SNAPBACK_OFFLINE_MUTATION_QUEUED');
 
     const bridged = channel.snapshot().events.find(
@@ -524,7 +524,7 @@ test('positive dev gating enables the default reporter and production absence st
     const queued = await devClient.mutate('createThing', {
       args: { title: 'RAW_DEV_REPORTER_ARGUMENT' },
     });
-    assert.equal(queued.queued, true);
+    assert.equal(queued.status, 'queued');
     assert.equal(devOutput.warn.length, 1);
     assert.match(devOutput.warn[0], /QUEUED — ACTION REQUIRED/u);
     assert.match(devOutput.warn[0], /SNAPBACK_OFFLINE_MUTATION_QUEUED/u);
@@ -561,7 +561,7 @@ test('positive dev gating enables the default reporter and production absence st
     const productionQueued = await productionClient.mutate('createThing', {
       args: { title: 'still structured' },
     });
-    assert.equal(productionQueued.queued, true);
+    assert.equal(productionQueued.status, 'queued');
     assert.equal(productionOutput.warn.length, 0, 'no positive marker means no console default');
     assert.equal(productionOutput.error.length, 0);
     assert.ok(productionClient.diagnosticsChannel().snapshot().events.some(

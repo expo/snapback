@@ -6,7 +6,6 @@
 // construct the same provider/store owner; this entry only narrows capability
 // reachability.
 export {
-  SnapbackQueuedMutationError,
   createSnapbackReactCoreProvider as createSnapbackReactProvider,
   invokeSnapbackMutation,
   observeSnapbackOptimisticCreate,

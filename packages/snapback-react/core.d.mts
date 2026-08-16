@@ -8,7 +8,6 @@ import type {
 } from './index.mjs';
 
 export {
-  SnapbackQueuedMutationError,
   invokeSnapbackMutation,
   observeSnapbackDiagnostics,
   observeSnapbackOptimisticCreate,

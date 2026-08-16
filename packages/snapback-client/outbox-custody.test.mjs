@@ -280,7 +280,7 @@ const transitionTo = async (fixture, coordinator, current, reason = 'test_succes
 const queueOffline = async (fixture, client, name, options = {}) => {
   fixture.offlineMutations = true;
   const queued = await client.mutate(name, options);
-  assert.equal(queued.queued, true);
+  assert.equal(queued.status, 'queued');
   return queued;
 };
 

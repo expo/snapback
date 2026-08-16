@@ -102,7 +102,7 @@ try {
   globalThis.fetch = async () => { throw new TypeError('offline'); };
   const queued = await queuedClient.mutate('queuedMutation', { args: { value: 1 } });
   assert.equal(queued.status, 'queued', 'queued dispatch remains a resolved union');
-  assert.equal(queued.queued, true);
+  assert.ok(!('queued' in queued), 'queued dispatch omits the retired boolean alias');
   await queuedClient.closeAuth();
 
   const incapableStore = createMemoryRqsResumeStore();

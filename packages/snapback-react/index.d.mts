@@ -81,40 +81,11 @@ export {
   isSnapbackDiagnosticError,
 } from '@expo/snapback-client';
 
-/** @deprecated Queued React mutations now resolve `SnapbackMutationDispatchOutcome`.
- * LLP 0218 P6 removes this throw-site-free compatibility export. */
-export class SnapbackQueuedMutationError extends Error {
-  constructor(
-    mutation: string,
-    outcome: Readonly<{
-      clientMutationId: string;
-      sequence: number;
-    }>,
-  );
-  readonly name: 'SnapbackQueuedMutationError';
-  readonly code: 'SNAPBACK_REACT_MUTATION_QUEUED';
-  readonly queued: true;
-  readonly mutation: string;
-  readonly clientMutationId: string;
-  readonly sequence: number;
-  readonly diagnostic: SnapbackDiagnostic & Readonly<{
-    code: 'SNAPBACK_REACT_MUTATION_QUEUED';
-    details: Readonly<{
-      mutation: string;
-      queued: true;
-      clientMutationId: string;
-      sequence: number;
-    }>;
-  }>;
-}
-
 export type SnapbackMutationQueuedOutcome = Readonly<{
   status: 'queued';
   clientMutationId: string;
   sequence: number;
   presentation: 'installed' | 'withheld' | 'unavailable';
-  /** @deprecated LLP 0218 P6 removes this alias. */
-  queued: true;
   /** Payload-safe local presentation diagnostic, present for unavailable. */
   diagnosticCode?: string;
   operationCoverageDisposition?: string;

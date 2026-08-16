@@ -1,10 +1,14 @@
 # LLP 0218: Outbox settlement contract and queued-write visibility
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Client integration, Sync, React arm
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-15 (P6 implemented — deprecation closure executed after
+the window elapsed; Status → Implemented. The ratified 2026-08-13 LLP 0255
+S3.2 amendment remains normatively owned by LLP 0255 and lands with the LLP
+0254 phase that consumes it, per its own amendment record.)
 **Revised:** 2026-08-10 (P3 implemented: React union, durable optimistic
 disposition lifecycle, provider drain, outbox projection, caller sweep, and
 browser witness source)
@@ -453,12 +457,39 @@ program's carve-out, for the LLP 0219 program to attach. P6 deprecation
 closure is window-gated: it runs after the deprecation window of the
 release carrying the union, tracked as
 `issues/20260810-llp-0218-p6-deprecation-closure.md` (filed at the P5
-landing).
+landing). P6 deprecation closure: implemented (2026-08-15) — the union first
+shipped in 0.1.19 (2026-08-11; 0.1.17/0.1.18 predate it, verified against the
+published tarballs) and the default one-release window elapsed at 0.1.20, with
+0.1.22 current at closure time. Closure audit: repo-wide grep found no live
+in-repo reader of the `queued: true` alias or importer of
+`SnapbackQueuedMutationError` outside the removal sites themselves; the only
+remaining textual mentions are frozen historical evidence
+(`demos/improvement-sweep` arms pinned to pre-union published versions, the
+client-bundle-metrology rollover records) and Contract's separately owned
+durable-queue result, all left untouched. No known external consumers exist
+(LLP 0041 publication posture). Removals: both headless queued-return alias
+stamps and the `MutationDispatchOutcome` alias member; the React
+`queuedMutationOutcome` stamp; the three React skew-compat
+`output?.queued === true` disjuncts and Contract's `mutation-output.mjs` twin;
+the throw-site-free `SnapbackQueuedMutationError` class, its React
+`index`/`core` re-exports and `.d.mts` twins (Expo re-exports follow). One
+client regression assertion now pins that a queued outcome carries no
+`queued` own-property. 27 authored `removedIn: 0.1.23` symbol-lifecycle facts
+cover the class identities across the three export paths
+(`guide/reference/lifecycle.json`). Guide pages (headless, offline) now
+describe only the union. Proof at closure: client 482 pass / 5 fail (the 5
+verified byte-identical at the base SHA — inherited, unrelated), react 40/0,
+contract 58/0, check-guide 18/18 green, check-inventories PASS, ref-check 0
+errors; client-bundle-metrology `--check` red is inherited at base (the open
+subpath-publication pickup), verified under the pinned node toolchain.
 
 ## Open questions
 
-- Deprecation window for the `queued:true` alias and the compatibility
-  rejection mode (one release is the default; the P6 audit may extend it).
+- ~~Deprecation window for the `queued:true` alias and the compatibility
+  rejection mode (one release is the default; the P6 audit may extend it).~~
+  Resolved 2026-08-15: the default held. The P6 closure audit found no
+  absorbed caller left on the alias, so the window was not extended; closure
+  ran three releases after it elapsed.
 - Whether `clients.outbox-drain` stays a distinct capability row or folds
   into `clients.react` once shipped.
 - Drain backoff parameters (bounds, jitter) — implementation-owned unless

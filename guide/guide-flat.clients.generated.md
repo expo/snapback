@@ -839,7 +839,7 @@ The queued branch appears only when the foreground attempt is relinquished and
 the durable record remains replayable; it carries `status: 'queued'`, the
 durable id and sequence, and `presentation: 'withheld'` because the headless
 arm attempted no optimistic install. It is pending settlement, not success and
-not an error. The temporary `queued: true` compatibility alias is deprecated.
+not an error.
 
 Observe the durable identity separately with
 `mutationStatus(clientMutationId)` or

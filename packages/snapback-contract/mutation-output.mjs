@@ -3,7 +3,7 @@
 // fail-loud (`queue:false`), and the additive headless discriminant is removed
 // before the pre-existing mutation output enters Contract storage or callers.
 export function normalizeContractMutationOutput(output) {
-  if (output?.status === 'queued' || output?.queued === true) {
+  if (output?.status === 'queued') {
     const error = new Error(
       'SNAPBACK_CONTRACT_INNER_MUTATION_QUEUED: queue:false transport returned queued',
     );

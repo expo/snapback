@@ -8064,7 +8064,6 @@ export class SnapbackClient {
       //   relinquishment, not durable insertion, is the queued dispatch cut.
       return {
         status: 'queued',
-        queued: true,
         clientMutationId: stored.id,
         sequence: stored.sequence,
         presentation: 'withheld',
@@ -9701,7 +9700,6 @@ export class SnapbackClient {
                 //   uncovered range relinquishes foreground dispatch as queued.
                 return {
                   status: 'queued',
-                  queued: true,
                   clientMutationId: stored.id,
                   sequence: stored.sequence,
                   presentation: 'withheld',

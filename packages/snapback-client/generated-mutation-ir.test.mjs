@@ -153,7 +153,7 @@ test('generated mutate owns IR preparation, paints before settlement, and replay
   const queued = await pendingClient.mutate(reference, {
     args: { title: 'Survives kill', position: 9 },
   });
-  assert.equal(queued.queued, true);
+  assert.equal(queued.status, 'queued');
   assert.equal(pendingView.getSnapshot().visibleRows.cards.length, 1);
   pendingView.close();
   await pendingStore.close();

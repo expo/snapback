@@ -487,9 +487,10 @@ try {
     globalThis.__DEV__ = true;
     process.env.NODE_ENV = 'development';
     const queuedOutcome = Object.freeze({
-      queued: true,
+      status: 'queued',
       clientMutationId: 'queued-dev-diagnostic-1',
       sequence: 7,
+      presentation: 'withheld',
     });
     const harness = await createHarness({ queuedOutcome });
     const originalSetTimeout = globalThis.setTimeout;

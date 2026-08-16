@@ -173,7 +173,7 @@ function fakeClient() {
           queue(sequence = dispatches) {
             publishDisposition(clientMutationId, { status: 'pending', blockedReason: null });
             yes({
-              status: 'queued', queued: true, presentation: 'withheld',
+              status: 'queued', presentation: 'withheld',
               clientMutationId, sequence,
             });
           },
@@ -350,13 +350,11 @@ assert.equal(client.inspection().dispatches, 5, 'invalid projection refuses befo
 const queuedSettlement = invokeSnapbackMutation(provider, increment, { amount: 1 });
 client.inspection().attempts[5].resolveOutput({
   status: 'queued',
-  queued: true,
   clientMutationId: 'queued-increment-1',
   sequence: 7,
 });
 assert.deepEqual(await queuedSettlement, {
   status: 'queued',
-  queued: true,
   clientMutationId: 'queued-increment-1',
   sequence: 7,
   presentation: 'withheld',
@@ -491,7 +489,6 @@ async function queuedDispatchResolvesGenericRollbackCannotErasePendingLayer() {
   harness.attempt.queue(41);
   assert.deepEqual(await guarded, {
     status: 'queued',
-    queued: true,
     presentation: 'installed',
     clientMutationId: harness.attempt.clientMutationId,
     sequence: 41,

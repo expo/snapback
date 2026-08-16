@@ -243,7 +243,7 @@ function fakeClient(initialRows) {
         },
         queue() {
           resolvePromise({
-            status: 'queued', queued: true, presentation: 'installed',
+            status: 'queued', presentation: 'installed',
             clientMutationId, sequence,
           });
         },
@@ -377,7 +377,6 @@ await flush();
 client.inspection().attempts[4].queue();
 assert.deepEqual(await queued, {
   status: 'queued',
-  queued: true,
   presentation: 'installed',
   clientMutationId: 'mut_5',
   sequence: 5,

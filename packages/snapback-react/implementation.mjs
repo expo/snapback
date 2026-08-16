@@ -309,29 +309,6 @@ function recordCommittedHookDescriptor(
   });
 }
 
-/**
- * @deprecated Queued React mutations resolve a discriminated union. LLP 0218
- * P6 removes this throw-site-free compatibility export.
- */
-export class SnapbackQueuedMutationError extends Error {
-  constructor(mutation, outcome) {
-    const message = `mutation "${mutation}" was durably queued; settlement is still pending`;
-    super(`SNAPBACK_REACT_MUTATION_QUEUED: ${message}`);
-    this.name = 'SnapbackQueuedMutationError';
-    this.code = 'SNAPBACK_REACT_MUTATION_QUEUED';
-    this.queued = true;
-    this.mutation = mutation;
-    this.clientMutationId = outcome.clientMutationId;
-    this.sequence = outcome.sequence;
-    this.diagnostic = diagnostic(this.code, message, {
-      mutation,
-      queued: true,
-      clientMutationId: outcome.clientMutationId,
-      sequence: outcome.sequence,
-    });
-  }
-}
-
 function serializeError(error) {
   return error?.diagnostic ?? diagnostic(
     error?.code ?? 'SNAPBACK_REACT_QUERY_FAILED',
@@ -1590,7 +1567,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       message: `Offline queue compatibility rule: mutation "${mutationReference.name}" is durably queued, so settlement remains pending. Keep pending UI visible and replay via useSnapbackOutbox().drainNow(); roll back only for a declared server refusal. See guide/sync/offline-and-retention.md#replay-and-settle-without-guessing.`,
       details: {
         mutation: mutationReference.name,
-        queued: true,
         clientMutationId: outcome.clientMutationId,
         sequence: outcome.sequence,
         status: 'queued',
@@ -1633,7 +1609,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     const queued = Object.freeze({
       ...outcome,
       status: 'queued',
-      queued: true,
       presentation,
       ...(diagnosticCode === null ? {} : { diagnosticCode }),
     });
@@ -1799,7 +1774,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         queue,
         ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
       });
-      if (output?.status === 'queued' || output?.queued === true) {
+      if (output?.status === 'queued') {
         if (queue === false) {
           throw diagnosticError(
             'SNAPBACK_REACT_QUEUE_FALSE_VIOLATED',
@@ -1947,7 +1922,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       effectCommitted = true;
       committedMutationId = output?.clientMutationId ?? id;
       layer.clientMutationId = committedMutationId;
-      if (output?.status === 'queued' || output?.queued === true) {
+      if (output?.status === 'queued') {
         let presentation = 'installed';
         let diagnosticCode = null;
         try {
@@ -3384,7 +3359,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         'optimistic create completed under stale authority',
       );
     }
-    if (output?.status === 'queued' || output?.queued === true) {
+    if (output?.status === 'queued') {
       // @ref LLP 0218#42-the-optimistic-contract-exact — durable acceptance
       // cannot become a rejected intent because local presentation refresh
       // failed after enqueue.

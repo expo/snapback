@@ -894,7 +894,6 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
   assert.equal(queued.status, 'queued');
-  assert.equal(queued.queued, true);
   assert.equal(queued.presentation, 'withheld');
   assert.match(queued.clientMutationId, /^mut_[0-9a-hjkmnp-tv-z]{26}$/u);
   assert.equal(queued.sequence, 1);
@@ -1312,7 +1311,7 @@ test('server epoch-capacity refusal keeps uncovered intent queued for fresh auth
     args: { title: 'wait-for-fresh-epoch' },
     userId: 'user-a',
   });
-  assert.equal(queued.queued, true);
+  assert.equal(queued.status, 'queued');
   assert.equal(queued.operationCoverageDisposition, 'uncovered-range-exhausted');
   assert.deepEqual(devDiagnosticsEvents, [{
     code: 'SNAPBACK_OFFLINE_MUTATION_QUEUED',
@@ -1399,7 +1398,7 @@ test('fresh same-principal authority atomically covers capacity-stranded intent'
     args: { title: 'same principal, fresh authority' },
     authorityDescriptor: descriptorA,
   });
-  assert.equal(queued.queued, true);
+  assert.equal(queued.status, 'queued');
   let [retained] = await store.outboxRecords();
   assert.equal(retained.operationIssuance, null);
   assert.equal(retained.operationAuthorityPrincipalId, TEST_SESSION_USER_ID);
@@ -2501,7 +2500,8 @@ test('replay drop-and-mark-failed on server refusal, pending kept on connectivit
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const a = await client.mutate('createThing', { args: { n: 1 } });
   const b = await client.mutate('createThing', { args: { n: 2 } });
-  assert.equal(a.queued && b.queued, true);
+  assert.equal(a.status, 'queued');
+  assert.equal(b.status, 'queued');
 
   // First replay attempt: still offline -> stops with both records pending.
   const offline = await client.replayQueuedMutations();
@@ -2563,7 +2563,7 @@ test('mutate queues when the carrier fetch rejects a plain Error (Expo shape)', 
     );
   };
   const queued = await client.mutate('createThing', { args: { title: 'expo-offline' } });
-  assert.equal(queued.queued, true, 'Expo-shaped transport rejection engages the queue');
+  assert.equal(queued.status, 'queued', 'Expo-shaped transport rejection engages the queue');
   assert.match(queued.clientMutationId, /^mut_[0-9a-hjkmnp-tv-z]{26}$/u);
   assert.equal(queued.sequence, 1);
   assert.equal((await store.outboxPending()).length, 1);

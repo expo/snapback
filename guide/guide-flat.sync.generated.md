@@ -283,16 +283,14 @@ proof of the same contracts. The headless witness proves:
 <!-- since: 0.1.16 -->
 
 The headless client resolves a durably enqueued dispatch with
-`{ queued: true, clientMutationId, sequence }`. The React facade resolves that
-same accepted intent as
-`{ status: 'queued', clientMutationId, sequence, presentation }`; the other
-union branch is `{ status: 'settled', result }`. Queued is pending settlement,
-not a server refusal, and has no `appCode`. An installed optimistic layer
-survives enqueue and follows the durable disposition through the
-provider-owned status channel. A `withheld` or `unavailable` presentation is
-explicitly not installed, so keep any application-owned pending presentation
-visible. Roll it back only for a server refusal whose diagnostic carries a
-declared `appCode`:
+`{ status: 'queued', clientMutationId, sequence, presentation }`. The React
+facade uses the same queued branch; its other union branch is
+`{ status: 'settled', result }`. Queued is pending settlement, not a server
+refusal, and has no `appCode`. An installed optimistic layer survives enqueue
+and follows the durable disposition through the provider-owned status channel.
+A `withheld` or `unavailable` presentation is explicitly not installed, so
+keep any application-owned pending presentation visible. Roll it back only for
+a server refusal whose diagnostic carries a declared `appCode`:
 
 ```ts fragment reason="pending presentation and refusal copy are application-specific"
 try {
@@ -376,7 +374,6 @@ registrations.
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
   assert.equal(queued.status, 'queued');
-  assert.equal(queued.queued, true);
   assert.equal(queued.presentation, 'withheld');
 ```
 
