@@ -1,9 +1,9 @@
 {
   "format": 2,
   "app": "notes",
-  "schemaHash": "sha256:f2ef26e3ea0cab12a02c5fd467e5a43388af931ccaa5ad5837e01dd94b2602a2",
-  "bundleHash": "sha256:c9d239f3d6ace08bf84fe790abfeb81f7ca7a58555013b0cb2ca187e611c67b5",
-  "inputsHash": "sha256:4001976530a572980917baaeebf97e2c46a0012c4c76749bd17c3688ca159887",
+  "schemaHash": "sha256:ec9ed61df104ca2f4fa7daa6b528fbf4c4c71346a9a7b0d7bcd96dedb2ed936a",
+  "bundleHash": "sha256:ff181255453d2a1f8085ffd421278dae154efce01273428d9409f1fdbdec2dce",
+  "inputsHash": "sha256:dc37ff2e20a159c6f84563e16e51fe318c7310bc53278ee187b4dbbf05544194",
   "inputs": [
     "cloudflare/app/notes.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
@@ -14,7 +14,9 @@
     "cloudflare/src/host-ops.js",
     "cloudflare/src/limits.js",
     "cloudflare/src/network-profile.js",
+    "cloudflare/src/outbound-destination.js",
     "cloudflare/src/platform-errors.js",
+    "cloudflare/src/rate-windows.js",
     "cloudflare/src/rqs-host.mjs",
     "cloudflare/src/subscription-selection.js",
     "cloudflare/src/target-admission.js",

@@ -1,9 +1,9 @@
 {
   "format": 2,
   "app": "all-aboard",
-  "schemaHash": "sha256:8acdb5abb55ff9c94ff1056eb83b9900f7c873cd6c828491205561e57951a84c",
-  "bundleHash": "sha256:bcfe40ca581fbd1c0d9223228e0100294e5ac1df257a9ff690821731aa2520e3",
-  "inputsHash": "sha256:2d723347a18df4165c551fce4b27e0bf4570fc9677ef48fbf6c53ee16cea372e",
+  "schemaHash": "sha256:ef41c5c9e7de15abae80fbc4e2baa841b5e60e8133cfa2a779182e975c258d18",
+  "bundleHash": "sha256:1587d927481bc1a813646c27233b059cf0aa17f3fd050a48c71bd0103b8e8623",
+  "inputsHash": "sha256:e5eea2007dcae686997e5812e9801224ae2396ef141fe2c88243efc12fbfe2c5",
   "inputs": [
     "cloudflare/app/all-aboard.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json",
@@ -14,7 +14,9 @@
     "cloudflare/src/host-ops.js",
     "cloudflare/src/limits.js",
     "cloudflare/src/network-profile.js",
+    "cloudflare/src/outbound-destination.js",
     "cloudflare/src/platform-errors.js",
+    "cloudflare/src/rate-windows.js",
     "cloudflare/src/rqs-host.mjs",
     "cloudflare/src/subscription-selection.js",
     "cloudflare/src/target-admission.js",
