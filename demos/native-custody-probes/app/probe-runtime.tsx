@@ -121,7 +121,7 @@ async function custodyFacts() {
   const record = await readRecord();
   return Object.freeze({
     ...publicCustodyFacts(record),
-    platformGrade: nativeCustodyStorage.platformGrade(),
+    platformGrade: await nativeCustodyStorage.platformGrade(),
   });
 }
 

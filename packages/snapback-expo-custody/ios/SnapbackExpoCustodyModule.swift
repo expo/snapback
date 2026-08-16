@@ -34,8 +34,10 @@ public final class SnapbackExpoCustodyModule: Module {
         "status": "ok",
         "os": "ios",
         "grade": "single-runtime",
+        "carrier": "ios-keychain",
         "mechanism": "keychain-serial-cas",
-        "moduleVersion": moduleVersion
+        "moduleVersion": moduleVersion,
+        "storageFormatVersion": envelopeFormatVersion
       ]
     }
 
@@ -103,7 +105,11 @@ public final class SnapbackExpoCustodyModule: Module {
 
   private func readStoredRecord(appId: String, storageKey: String) -> StoredRecord {
     var query = keychainQuery(appId: appId, storageKey: storageKey)
-    query[kSecMatchLimit as String] = kSecMatchLimitOne
+    // Search across both synchronizable domains. Filtering on false would make
+    // a leftover iCloud-synchronizable item look absent, allowing a second
+    // item under the same service/account identity.
+    query[kSecAttrSynchronizable as String] = kSecAttrSynchronizableAny
+    query[kSecMatchLimit as String] = kSecMatchLimitAll
     query[kSecReturnData as String] = true
     query[kSecReturnAttributes as String] = true
 
@@ -113,8 +119,23 @@ public final class SnapbackExpoCustodyModule: Module {
     case errSecItemNotFound:
       return .absent
     case errSecSuccess:
+      let matches: [[String: Any]]
+      if let collection = item as? [[String: Any]] {
+        matches = collection
+      } else if let single = item as? [String: Any] {
+        matches = [single]
+      } else {
+        return .corrupt(reason: "Keychain custody lookup returned invalid attributes")
+      }
+      guard matches.count == 1, let attributes = matches.first else {
+        return .corrupt(reason: "Keychain custody has duplicate service/account items")
+      }
+      if let synchronizable = attributes[kSecAttrSynchronizable as String] {
+        guard let value = synchronizable as? NSNumber, value.boolValue == false else {
+          return .corrupt(reason: "Keychain custody is unexpectedly synchronizable")
+        }
+      }
       guard
-        let attributes = item as? [String: Any],
         let data = attributes[kSecValueData as String] as? Data,
         let accessibility = attributes[kSecAttrAccessible as String],
         CFEqual(accessibility as CFTypeRef, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
@@ -189,6 +210,9 @@ public final class SnapbackExpoCustodyModule: Module {
   ) -> [String: Any] {
     let current = readStoredRecord(appId: appId, storageKey: storageKey)
     let actualRevision: Int?
+    // @ref LLP 0059#unrecognized-authority-recovery — malformed custody is
+    // never an anonymous/fresh recovery arm; only validated settled or
+    // clearing records can enter coordinator recovery.
     switch current {
     case .absent:
       actualRevision = nil
@@ -218,7 +242,11 @@ public final class SnapbackExpoCustodyModule: Module {
       add[kSecAttrSynchronizable as String] = false
       writeStatus = SecItemAdd(add as CFDictionary, nil)
     } else {
-      let update = [kSecValueData as String: envelope]
+      let update: [String: Any] = [
+        kSecValueData as String: envelope,
+        kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        kSecAttrSynchronizable as String: false
+      ]
       writeStatus = SecItemUpdate(
         keychainQuery(appId: appId, storageKey: storageKey) as CFDictionary,
         update as CFDictionary

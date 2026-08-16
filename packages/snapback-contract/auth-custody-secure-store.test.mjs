@@ -206,6 +206,24 @@ test('corrupted SecureStore JSON is a typed validation refusal', async () => {
   );
 });
 
+test('structural corruption requires explicit carrier reset before fresh custody', async () => {
+  const { module: SecureStore, bytes } = secureStoreHarness();
+  const key = `snapback.auth-custody.${authAppIdHash(APP)}`;
+  bytes.set(key, '{not-json');
+  const storage = createSecureStoreAuthCustodyStorage(SecureStore);
+  await expectCode(
+    'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+    () => storage.withOwnership(APP, (owner) => owner.replace(null, settled())),
+  );
+  assert.equal(bytes.get(key), '{not-json', 'ordinary replacement does not adopt corruption');
+
+  await SecureStore.deleteItemAsync(key);
+  assert.deepEqual(
+    await storage.withOwnership(APP, (owner) => owner.replace(null, settled())),
+    settled(),
+  );
+});
+
 test('sender-constrained custody refuses instead of stripping key material', async () => {
   const { module: SecureStore } = secureStoreHarness();
   const storage = createSecureStoreAuthCustodyStorage(SecureStore);

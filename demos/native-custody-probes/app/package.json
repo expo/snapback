@@ -13,6 +13,7 @@
     "@expo/snapback-client": "file:../../../packages/snapback-client",
     "@expo/snapback-contract": "file:../../../packages/snapback-contract",
     "@expo/snapback-expo": "file:../../../packages/snapback-expo",
+    "@expo/snapback-expo-custody": "file:../../../packages/snapback-expo-custody",
     "@expo/snapback-react": "file:../../../packages/snapback-react",
     "expo": "~57.0.7",
     "react": "^19.2.3",
@@ -29,6 +30,7 @@
     "@expo/snapback-client": "file:../../../packages/snapback-client",
     "@expo/snapback-contract": "file:../../../packages/snapback-contract",
     "@expo/snapback-expo": "file:../../../packages/snapback-expo",
+    "@expo/snapback-expo-custody": "file:../../../packages/snapback-expo-custody",
     "@expo/snapback-react": "file:../../../packages/snapback-react"
   }
 }

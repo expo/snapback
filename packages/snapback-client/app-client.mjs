@@ -297,6 +297,7 @@ function validateStoragePartition(value) {
 function normalizePlatform(platform) {
   const normalized = typeof platform === 'string' ? { kind: platform } : platform;
   const allowedKeys = new Set([
+    'authCustodyStorage',
     'cryptoObject',
     'databaseName',
     'indexedDB',
@@ -314,7 +315,17 @@ function normalizePlatform(platform) {
       {},
     );
   }
-  if (!['browser', 'expo-web', 'memory'].includes(normalized.kind)) {
+  const injectedNativeCustody = normalized.kind === 'expo-native'
+    && normalized.authCustodyStorage !== null
+    && (typeof normalized.authCustodyStorage === 'object'
+      || typeof normalized.authCustodyStorage === 'function')
+    && normalized.authCustodyStorage.ownerKeyCapability === 'owner-key-v1'
+    && typeof normalized.authCustodyStorage.withOwnership === 'function';
+  if (
+    (!['browser', 'expo-web', 'memory'].includes(normalized.kind) && !injectedNativeCustody)
+    || (normalized.kind !== 'expo-native'
+      && Object.hasOwn(normalized, 'authCustodyStorage'))
+  ) {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
       `No Phase 1 custody adapter is available for platform ${JSON.stringify(normalized.kind)}.`,
@@ -367,7 +378,12 @@ function preflight(input) {
   );
   if (policy.custody === 'durable-required') {
     const indexedDB = platform.indexedDB ?? globalThis.indexedDB;
-    if (!['browser', 'expo-web'].includes(platform.kind) || !indexedDB?.open) {
+    const injectedNativeCustody = platform.kind === 'expo-native'
+      && platform.authCustodyStorage?.ownerKeyCapability === 'owner-key-v1';
+    if (
+      !injectedNativeCustody
+      && (!['browser', 'expo-web'].includes(platform.kind) || !indexedDB?.open)
+    ) {
       throw refusal(
         'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE',
         'The generated policy requires durable custody, but this platform has no qualifying adapter.',
@@ -445,6 +461,19 @@ async function resolveCustody(preflighted) {
         storagePartitionIdentityHash,
         formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
         recoveryAvailable: false,
+      }),
+    });
+  }
+  if (platform.kind === 'expo-native') {
+    // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — explicit advanced injection only; ordinary native admission stays refused pending per-OS Phase 2 evidence.
+    return Object.freeze({
+      storage: platform.authCustodyStorage,
+      facts: Object.freeze({
+        carrier: 'expo-native-injected',
+        grade: 'durable',
+        storagePartitionIdentityHash,
+        formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+        recoveryAvailable: true,
       }),
     });
   }

@@ -1,7 +1,8 @@
 {
   "platforms": ["apple", "android"],
   "apple": {
-    "modules": ["SnapbackExpoCustodyModule"]
+    "modules": ["SnapbackExpoCustodyModule"],
+    "podspecPath": "ios/SnapbackExpoCustody.podspec"
   },
   "android": {
     "modules": ["expo.modules.snapbackcustody.SnapbackExpoCustodyModule"]

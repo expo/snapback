@@ -8,6 +8,7 @@
         "@expo/snapback-client": "file:../../../packages/snapback-client",
         "@expo/snapback-contract": "file:../../../packages/snapback-contract",
         "@expo/snapback-expo": "file:../../../packages/snapback-expo",
+        "@expo/snapback-expo-custody": "file:../../../packages/snapback-expo-custody",
         "@expo/snapback-react": "file:../../../packages/snapback-react",
         "expo": "~57.0.7",
         "react": "^19.2.3",
@@ -23,6 +24,7 @@
     "@expo/snapback-client": "file:../../../packages/snapback-client",
     "@expo/snapback-contract": "file:../../../packages/snapback-contract",
     "@expo/snapback-expo": "file:../../../packages/snapback-expo",
+    "@expo/snapback-expo-custody": "file:../../../packages/snapback-expo-custody",
     "@expo/snapback-react": "file:../../../packages/snapback-react",
   },
   "packages": {
@@ -217,6 +219,8 @@
     "@expo/snapback-contract": ["@expo/snapback-contract@file:../../../packages/snapback-contract", {}],
 
     "@expo/snapback-expo": ["@expo/snapback-expo@file:../../../packages/snapback-expo", { "dependencies": { "@expo/snapback-client": "workspace:*", "@expo/snapback-react": "workspace:*" }, "peerDependencies": { "expo": ">=57.0.0 <58.0.0", "expo-file-system": ">=57.0.0 <58.0.0", "react": ">=19.0.0 <20.0.0", "react-dom": ">=19.0.0 <20.0.0", "react-native": ">=0.86.0 <0.87.0", "react-native-web": ">=0.21.0 <0.22.0" }, "optionalPeers": ["expo", "react-dom", "react-native", "react-native-web"] }],
+
+    "@expo/snapback-expo-custody": ["@expo/snapback-expo-custody@file:../../../packages/snapback-expo-custody", { "dependencies": { "@expo/snapback-contract": "workspace:*" }, "peerDependencies": { "expo": ">=57.0.0 <58.0.0", "react-native": ">=0.86.0 <0.87.0" }, "optionalPeers": ["expo", "react-native"] }],
 
     "@expo/snapback-react": ["@expo/snapback-react@file:../../../packages/snapback-react", { "peerDependencies": { "@expo/snapback-client": ">=0.1.0 <0.2.0", "react": ">=18.0.0 <20.0.0" } }],
 
@@ -881,6 +885,8 @@
     "@expo/snapback-expo/@expo/snapback-client": ["@expo/snapback-client@file:../../../packages/snapback-client", { "dependencies": { "@expo/snapback-contract": "0.1.0" } }],
 
     "@expo/snapback-expo/@expo/snapback-react": ["@expo/snapback-react@file:../../../packages/snapback-react", { "peerDependencies": { "@expo/snapback-client": ">=0.1.0 <0.2.0", "react": ">=18.0.0 <20.0.0" } }],
+
+    "@expo/snapback-expo-custody/@expo/snapback-contract": ["@expo/snapback-contract@file:../../../packages/snapback-contract", {}],
 
     "@expo/snapback-react/@expo/snapback-client": ["@expo/snapback-client@file:../../../packages/snapback-client", { "dependencies": { "@expo/snapback-contract": "0.1.0" } }],
 

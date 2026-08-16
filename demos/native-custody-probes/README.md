@@ -55,28 +55,20 @@ post-journey uninstall/reinstall does not reset it, which is the behavior P5
 measures. Android disables app backup and device transfer, then measures the
 fresh reinstall result.
 
-## Lane A integration
+## Native custody integration
 
-The custody package was not present when this lane was authored. The current
-shim fails with `SNAPBACK_AUTH_CUSTODY_NATIVE_MODULE_UNAVAILABLE` rather than
-producing counterfeit evidence.
+The witness imports the first-party custody package directly and injects its
+`owner-key-v1` adapter through app-client's explicit advanced
+`{ kind: 'expo-native', authCustodyStorage }` evidence seam. The package is
+also listed in the app's Expo `plugins` array so the Android backup exclusions
+are applied. Ordinary provider resolution remains capability-refused until the
+per-OS Phase 2 evidence flips it.
 
-When `packages/snapback-expo-custody` lands:
-
-1. Add `"@expo/snapback-expo-custody":
-   "file:../../../packages/snapback-expo-custody"` to `app/package.json`.
-2. Replace `app/custody-module.ts` with the one-line re-export documented in
-   that file. `app/custody-module.d.ts` records the API this lane compiled
-   against.
-3. Reconcile `app/native-platform.ts` with app-client's final admitted native
-   kind/adapter key if Lane A chose a spelling other than
-   `{ kind: 'expo-native', authCustodyStorage }`.
-4. Expose the debug-only `testHooks.corruptCiphertext(ownerKey)` method needed
-   for the Android AEAD probe. Raw-file corruption is intentionally absent.
-5. Expose Android's debug-only static hook
-   `expo.modules.snapbackcustody.NativeCustodyProbeHooks.attemptSecondaryProcessIo(Context)`.
-   It must perform real custody I/O and return or throw the stable typed
-   single-runtime refusal. The service runs under `android:process=":probe"`.
+Android debug builds expose `testHooks.corruptCiphertext(ownerKey)` for the
+AEAD probe and the static
+`expo.modules.snapbackcustody.NativeCustodyProbeHooks.attemptSecondaryProcessIo(Context)`
+hook for the `android:process=":probe"` single-runtime refusal. Production
+builds refuse both hooks.
 
 This codegen revision emits the non-secret `authBootstrap` policy but has no
 source declaration for `auth.application-bootstrap.v1`. `app/probe-app.ts`

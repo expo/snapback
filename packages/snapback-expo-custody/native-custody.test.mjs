@@ -52,12 +52,15 @@ const settled = ({
 
 function fakeNativeModule({ os = 'ios' } = {}) {
   const records = new Map();
+  const corruptedCiphertext = new Set();
   const calls = [];
   const module = {
     records,
+    corruptedCiphertext,
     calls,
     readOutcome: null,
     refusal: false,
+    keyAlias: 'valid',
     forceNextCasStale: undefined,
     async platformGrade() {
       calls.push(['platformGrade']);
@@ -68,8 +71,10 @@ function fakeNativeModule({ os = 'ios' } = {}) {
         status: 'ok',
         os,
         grade: 'single-runtime',
+        carrier: os === 'ios' ? 'ios-keychain' : 'android-datastore-keystore',
         mechanism: os === 'ios' ? 'keychain-serial-cas' : 'datastore-keystore-aes-gcm',
         moduleVersion: '0.1.0',
+        storageFormatVersion: 1,
       };
     },
     async read(appId, storageKey) {
@@ -78,6 +83,19 @@ function fakeNativeModule({ os = 'ios' } = {}) {
         return { status: 'single-runtime-refused', platform: os, process: 'test-secondary' };
       }
       if (this.readOutcome) return this.readOutcome;
+      if (this.keyAlias === 'invalidated') {
+        this.keyAlias = 'missing';
+        return {
+          status: 'absent',
+          reason: 'Android Keystore key was permanently invalidated',
+        };
+      }
+      if (this.keyAlias === 'missing') {
+        return { status: 'absent', reason: 'Android Keystore key alias is missing' };
+      }
+      if (corruptedCiphertext.has(storageKey)) {
+        return { status: 'corrupt', reason: 'custody AES-GCM authentication failed' };
+      }
       return { status: 'ok', record: records.get(storageKey) ?? null };
     },
     async compareAndReplace(appId, storageKey, expectedRevision, serializedRecord) {
@@ -96,13 +114,26 @@ function fakeNativeModule({ os = 'ios' } = {}) {
         this.forceNextCasStale = undefined;
         return { status: 'cas-stale', expectedRevision, actualRevision };
       }
-      const current = records.get(storageKey);
+      const current = this.keyAlias === 'missing' ? undefined : records.get(storageKey);
       const actualRevision = current === undefined ? null : JSON.parse(current).revision;
       if (actualRevision !== expectedRevision) {
         return { status: 'cas-stale', expectedRevision, actualRevision };
       }
+      this.keyAlias = 'valid';
+      corruptedCiphertext.delete(storageKey);
       records.set(storageKey, serializedRecord);
       return { status: 'ok', record: records.get(storageKey) };
+    },
+    async corruptCiphertext(appId, storageKey) {
+      calls.push(['corruptCiphertext', appId, storageKey]);
+      if (this.refusal) {
+        return { status: 'single-runtime-refused', platform: os, process: 'test-secondary' };
+      }
+      if (os !== 'android' || !records.has(storageKey)) {
+        return { status: 'storage-error', reason: 'ciphertext corruption target is unavailable' };
+      }
+      corruptedCiphertext.add(storageKey);
+      return { status: 'ok' };
     },
   };
   return module;
@@ -119,8 +150,10 @@ test('platform grade and native CAS happy path expose the selected single-runtim
   assert.deepEqual(await storage.platformGrade(), {
     os: 'ios',
     grade: 'single-runtime',
+    carrier: 'ios-keychain',
     mechanism: 'keychain-serial-cas',
     moduleVersion: '0.1.0',
+    storageFormatVersion: 1,
   });
   const record = settled();
   assert.deepEqual(
@@ -142,12 +175,33 @@ test('native stale revision maps to the canonical typed CAS diagnostic', async (
   const storage = createNativeAuthCustodyStorage({ nativeModule });
   await storage.withOwnership(APP, (owner) => owner.replace(null, settled()));
   nativeModule.forceNextCasStale = 2;
-  await expectCode(
-    'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
-    () => storage.withOwnership(
+  await assert.rejects(
+    storage.withOwnership(
       APP,
       (owner) => owner.replace(1, settled({ revision: 2 })),
     ),
+    (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_CAS_STALE'
+      && error?.diagnostic?.details?.expectedRevision === 1
+      && error?.diagnostic?.details?.actualRevision === 2,
+  );
+});
+
+test('JS stale precheck wins before replacement monotonicity validation', async () => {
+  const nativeModule = fakeNativeModule();
+  const storage = createNativeAuthCustodyStorage({ nativeModule });
+  await storage.withOwnership(APP, (owner) => owner.replace(null, settled()));
+  nativeModule.records.set(
+    [...nativeModule.records.keys()][0],
+    JSON.stringify(settled({ revision: 2 })),
+  );
+  await assert.rejects(
+    storage.withOwnership(
+      APP,
+      (owner) => owner.replace(1, settled({ revision: 9 })),
+    ),
+    (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_CAS_STALE'
+      && error?.diagnostic?.details?.expectedRevision === 1
+      && error?.diagnostic?.details?.actualRevision === 2,
   );
 });
 
@@ -252,6 +306,45 @@ test('JS adapters retain the per-key courtesy queue around native CAS', async ()
   assert.deepEqual(order, ['first:read', 'first:replace', 'second:read']);
 });
 
+test('same-key reentrant ownership refuses promptly instead of joining its own tail', async () => {
+  const nativeModule = fakeNativeModule();
+  const storage = createNativeAuthCustodyStorage({ nativeModule });
+  await storage.withOwnership(APP, async () => {
+    let timer;
+    try {
+      await assert.rejects(
+        Promise.race([
+          storage.withOwnership(APP, () => null),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => {
+              reject(Object.assign(new Error('same-key ownership timed out'), {
+                code: 'TEST_REENTRANT_OWNERSHIP_TIMEOUT',
+              }));
+            }, 100);
+          }),
+        ]),
+        (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED'
+          && error?.diagnostic?.details?.reason === 'same-key-reentrant',
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+});
+
+test('different-key ownership may nest on one adapter instance', async () => {
+  const nativeModule = fakeNativeModule();
+  const storage = createNativeAuthCustodyStorage({ nativeModule });
+  const nested = await storage.withOwnership(
+    { appId: APP, storagePartition: 'outer' },
+    () => storage.withOwnership(
+      { appId: APP, storagePartition: 'inner' },
+      (owner) => owner.read(),
+    ),
+  );
+  assert.equal(nested, null);
+});
+
 test('single-runtime native refusal surfaces the package diagnostic before custody work', async () => {
   const nativeModule = fakeNativeModule({ os: 'android' });
   nativeModule.refusal = true;
@@ -270,17 +363,15 @@ test('single-runtime native refusal surfaces the package diagnostic before custo
   );
 });
 
-test('Android AEAD/key-loss outcome becomes absent while surfacing a typed diagnostic', async () => {
+test('Android permanent key invalidation retires the alias and permits fresh custody', async () => {
   const nativeModule = fakeNativeModule({ os: 'android' });
-  nativeModule.readOutcome = {
-    status: 'absent',
-    reason: 'custody AES-GCM authentication failed',
-  };
   const diagnostics = [];
   const storage = createNativeAuthCustodyStorage({
     nativeModule,
     onDiagnostic(diagnostic) { diagnostics.push(diagnostic); },
   });
+  await storage.withOwnership(APP, (owner) => owner.replace(null, settled()));
+  nativeModule.keyAlias = 'invalidated';
   assert.equal(
     await storage.withOwnership(APP, (owner) => owner.read()),
     null,
@@ -289,6 +380,88 @@ test('Android AEAD/key-loss outcome becomes absent while surfacing a typed diagn
   assert.equal(diagnostics[0].code, 'SNAPBACK_AUTH_CUSTODY_CORRUPT');
   assert.equal(
     diagnostics[0].details.reason,
-    'custody AES-GCM authentication failed',
+    'Android Keystore key was permanently invalidated',
+  );
+  const restarted = settled({
+    authority: { ...anonymous(), authorizationStreamIncarnation: SESSION },
+  });
+  assert.deepEqual(
+    await storage.withOwnership(APP, (owner) => owner.replace(null, restarted)),
+    restarted,
+  );
+});
+
+test('recoverable absence without onDiagnostic uses the console warning path', async () => {
+  const nativeModule = fakeNativeModule({ os: 'android' });
+  nativeModule.readOutcome = {
+    status: 'absent',
+    reason: 'Android Keystore key alias is missing',
+  };
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...args) => warnings.push(args);
+  try {
+    const storage = createNativeAuthCustodyStorage({ nativeModule });
+    assert.equal(await storage.withOwnership(APP, (owner) => owner.read()), null);
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0][0], /^SNAPBACK_AUTH_CUSTODY_CORRUPT:/u);
+  assert.equal(warnings[0][1].reason, 'Android Keystore key alias is missing');
+});
+
+test('structural corruption is never adopted or overwritten without explicit store replacement', async () => {
+  const nativeModule = fakeNativeModule({ os: 'android' });
+  const storage = createNativeAuthCustodyStorage({ nativeModule });
+  nativeModule.readOutcome = { status: 'corrupt', reason: 'custody envelope checksum mismatch' };
+  await expectCode(
+    'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+    () => storage.withOwnership(APP, (owner) => owner.read()),
+  );
+  await expectCode(
+    'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+    () => storage.withOwnership(APP, (owner) => owner.replace(null, settled())),
+  );
+  assert.equal(
+    nativeModule.calls.some((call) => call[0] === 'compareAndReplace'),
+    false,
+  );
+
+  nativeModule.readOutcome = null;
+  nativeModule.records.clear();
+  assert.deepEqual(
+    await storage.withOwnership(APP, (owner) => owner.replace(null, settled())),
+    settled(),
+    'explicit replacement of the storage carrier restores the fresh-store path',
+  );
+});
+
+test('Android ciphertext corruption hook is development-only and yields typed corruption', async () => {
+  const nativeModule = fakeNativeModule({ os: 'android' });
+  const storage = createNativeAuthCustodyStorage({ nativeModule });
+  await storage.withOwnership(APP, (owner) => owner.replace(null, settled()));
+  await expectCode(
+    'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
+    () => storage.testHooks.corruptCiphertext({
+      appId: APP,
+      storagePartition: 'default',
+    }),
+  );
+
+  const priorDev = globalThis.__DEV__;
+  globalThis.__DEV__ = true;
+  try {
+    await storage.testHooks.corruptCiphertext({
+      appId: APP,
+      storagePartition: 'default',
+    });
+  } finally {
+    if (priorDev === undefined) delete globalThis.__DEV__;
+    else globalThis.__DEV__ = priorDev;
+  }
+  await expectCode(
+    'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+    () => storage.withOwnership(APP, (owner) => owner.read()),
   );
 });
