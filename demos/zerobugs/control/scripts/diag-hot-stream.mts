@@ -86,6 +86,7 @@ type Actor = (typeof ACTORS)[number];
 type ObserverName = string;
 type ArrivalMode = 'fixed' | 'settle-gated' | 'sustained';
 type ObserverPartition = 'mixed' | 'same';
+type ObserverSession = 'shared' | 'distinct';
 type AnyRecord = Record<string, unknown>;
 type AnyClient = SnapbackClient & Record<string, unknown>;
 
@@ -151,6 +152,7 @@ interface Options {
   sustainSeconds: number;
   observerCount: 0 | 1 | 6;
   observerPartition: ObserverPartition;
+  observerSession: ObserverSession;
   coalescing: 'on' | 'off';
   cycleOffset: number;
   authorityTransitions: number;
@@ -393,6 +395,7 @@ function usage(): string {
     `  --sustain-seconds N     sustained stream duration (default ${DEFAULT_SUSTAIN_SECONDS})`,
     '  --observer-count N      0, 1, or 6 persistent observers (default 6)',
     '  --observer-partition M  mixed or same authority partition (default mixed)',
+    '  --observer-session M    shared or distinct observer sessions (default distinct)',
     '  --coalescing MODE       on or off; records the server arm (default on)',
     '  --authority-transitions N  alternating probe writes during the burst (default 0)',
   ].join('\n');
@@ -435,6 +438,7 @@ function parseArgs(argv: string[]): Options | null {
   let sustainSeconds = DEFAULT_SUSTAIN_SECONDS;
   let observerCount: 0 | 1 | 6 = 6;
   let observerPartition: ObserverPartition = 'mixed';
+  let observerSession: ObserverSession = 'distinct';
   let coalescing: 'on' | 'off' = 'on';
   let authorityTransitions = 0;
   for (let index = 0; index < argv.length; index += 1) {
@@ -500,6 +504,16 @@ function parseArgs(argv: string[]): Options | null {
         throw new Error('--observer-partition must be mixed or same');
       }
       observerPartition = value;
+    } else if (
+      argument === '--observer-session'
+      || argument.startsWith('--observer-session=')
+    ) {
+      let value;
+      [value, index] = optionValue(argv, index, '--observer-session');
+      if (value !== 'shared' && value !== 'distinct') {
+        throw new Error('--observer-session must be shared or distinct');
+      }
+      observerSession = value;
     } else if (argument === '--coalescing' || argument.startsWith('--coalescing=')) {
       let value;
       [value, index] = optionValue(argv, index, '--coalescing');
@@ -543,6 +557,12 @@ function parseArgs(argv: string[]): Options | null {
       );
     }
   }
+  if (observerSession === 'shared' && observerPartition !== 'same') {
+    throw new Error(
+      '--observer-session shared requires --observer-partition same; '
+      + 'mixed observers span distinct actors and have no shared-session semantics',
+    );
+  }
   return {
     readyFile: resolve(readyFile),
     overlayPath: resolve(overlayPath),
@@ -555,6 +575,7 @@ function parseArgs(argv: string[]): Options | null {
     sustainSeconds,
     observerCount,
     observerPartition,
+    observerSession,
     coalescing,
     authorityTransitions,
   };
@@ -901,22 +922,25 @@ async function buildObserverSources(
   ) as AnyRecord;
   // Reuse the canonical crew-admin mint email: dev-session principals are
   // deterministic per email, and the crew-admin source user is already bound
-  // to that principal in the baseline — six sessions under one principal IS
-  // the same-authority-partition axis. A fresh email would mint a fresh
-  // principal and acceptanceBindActor refuses a second binding for the same
-  // source user.
+  // to that principal in the baseline. Distinct mode retains the original
+  // one-mint-per-observer behavior; shared mode models one user's session
+  // across multiple tabs. A fresh email would mint a fresh principal and
+  // acceptanceBindActor refuses a second binding for the same source user.
   const email = 'zerobugs-diag-hot-stream-crew-admin@acceptance.invalid';
+  const sharedMinted = options.observerSession === 'shared'
+    ? await mintDevSession(options.readyFile, email)
+    : null;
   try {
     for (let index = 0; index < options.observerCount; index += 1) {
       const label = `same-crew-admin-${index + 1}`;
-      const minted = await mintDevSession(options.readyFile, email);
+      const minted = sharedMinted ?? await mintDevSession(options.readyFile, email);
       const client = createExternalSessionClient(minted.baseUrl, {
         bearerToken: minted.token,
         clientStoreId: `zerobugs-diag-hot-stream-${label}`,
         rqsStore: null,
       }) as AnyClient;
       // Register immediately so a later bind/self-check failure still closes
-      // every distinct observer session in this partial construction.
+      // every observer client in this partial construction.
       sources.push({label, authorityActor: 'crew-admin', client});
       let mode: 'bound' | 'adopted' = 'bound';
       let bindRefusal: AnyRecord | null = null;
@@ -939,6 +963,7 @@ async function buildObserverSources(
       logger.record('observer_authority_binding', {
         observer: label,
         authorityActor: 'crew-admin',
+        observerSession: options.observerSession,
         mode,
         correct,
         principal: minted.principal,
@@ -1973,6 +1998,7 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       sustainedSeconds: options.sustainSeconds,
       observerCount: options.observerCount,
       observerPartition: options.observerPartition,
+      observerSession: options.observerSession,
       coalescing: options.coalescing,
       coalescingDisabled: options.coalescing === 'off',
       ...(options.authorityTransitions > 0 ? {
@@ -2169,6 +2195,7 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       outcome: abortController.signal.aborted ? 'interrupted' : 'completed',
       interruptedBy,
       cyclesRequested: options.cycles,
+      observerSession: options.observerSession,
       mutationTracker: tracker,
       pendingMutationResponses: tracker.dispatched - tracker.settled,
       pollFailures,

@@ -43,6 +43,7 @@ control_root=${script_dir:h}
 fixture_root=$worktree/demos/zerobugs/fixtures-local
 fixture_variant=${OQ4_FIXTURE:-baseline}
 authority_transitions=${OQ4_AUTHORITY_TRANSITIONS:-0}
+observer_session=${OQ4_OBSERVER_SESSION:-distinct}
 if [[ $fixture_variant == baseline ]]; then
   pristine=$fixture_root/oq4-clone
 elif [[ $fixture_variant == authority ]]; then
@@ -53,6 +54,14 @@ else
 fi
 if [[ $authority_transitions != <-> ]]; then
   print -u2 'OQ4_AUTHORITY_TRANSITIONS must be a non-negative integer'
+  exit 64
+fi
+if [[ $observer_session != shared && $observer_session != distinct ]]; then
+  print -u2 'OQ4_OBSERVER_SESSION must be shared or distinct'
+  exit 64
+fi
+if [[ $observer_session == shared && $observer_partition != same ]]; then
+  print -u2 'OQ4_OBSERVER_SESSION=shared requires observer-partition same'
   exit 64
 fi
 runtime_binary=${SNAPBACK_RUNTIME_BINARY:-$worktree/target/debug/snapback}
@@ -151,6 +160,7 @@ if (
     --arrival-mode $arrival_mode \
     --observer-count $observer_count \
     --observer-partition $observer_partition \
+    --observer-session $observer_session \
     --coalescing $coalesce \
     --cycle-offset 10 \
     $cycle_flags \
