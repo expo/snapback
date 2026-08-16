@@ -63,6 +63,7 @@ const commonPackages = [
   'snapback-react',
   'snapback-umbrella',
   'snapback-expo',
+  'snapback-expo-custody',
   'snapback-app-cli',
   'snapback-cli',
   'snapback-vite',

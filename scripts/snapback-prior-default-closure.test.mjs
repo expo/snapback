@@ -138,6 +138,17 @@ test('prior closure brackets an E404 umbrella as an absent package', () => {
   assert.equal(vector['@expo/snapback-cli'], '0.1.20');
 });
 
+test('prior closure brackets an E404 Expo custody package as absent', () => {
+  const vector = observeDefaultTagVector(PROMOTION_PACKAGE_NAMES, (args) => (
+    args[1] === '@expo/snapback-expo-custody'
+      ? null
+      : JSON.stringify({ latest: '0.1.23' })
+  ));
+  assert.deepEqual(Object.keys(vector), [...PROMOTION_PACKAGE_NAMES]);
+  assert.equal(vector['@expo/snapback-expo-custody'], null);
+  assert.equal(vector['@expo/snapback-cli'], '0.1.23');
+});
+
 test('prior closure independently reopens complete retained tarball evidence', () => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-prior-closure-test-'));
   try {

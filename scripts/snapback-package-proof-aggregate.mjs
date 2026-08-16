@@ -92,6 +92,10 @@ const expectedSourceNames = [
     && ledger.packages?.some((row) => row.sourceName === generation.expo)
     ? [generation.expo]
     : []),
+  ...(generation.expoCustody !== undefined
+    && ledger.packages?.some((row) => row.sourceName === generation.expoCustody)
+    ? [generation.expoCustody]
+    : []),
   generation.appCli,
   generation.cli,
   ...(generation.createSnapbackApp !== undefined

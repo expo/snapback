@@ -45,8 +45,8 @@
     "expiresAt": { "$ref": "#/$defs/timestamp" },
     "packages": {
       "type": "array",
-      "minItems": 12,
-      "maxItems": 12,
+      "minItems": 13,
+      "maxItems": 13,
       "prefixItems": [
         {
           "allOf": [
@@ -176,6 +176,17 @@
               "type": "object",
               "properties": {
                 "name": { "const": "@expo/snapback" }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/package" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "const": "@expo/snapback-expo-custody" }
               }
             }
           ]

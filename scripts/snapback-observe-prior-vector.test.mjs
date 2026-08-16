@@ -112,6 +112,20 @@ test('observer normalizes the umbrella registry E404 to an absent prior', () => 
   validateObservedPriorVector(vector, { packageNames: PROMOTION_PACKAGE_NAMES });
 });
 
+test('observer records never-published Expo custody as an absent prior', () => {
+  const vector = observePriorVector({
+    packageNames: PROMOTION_PACKAGE_NAMES,
+    runNpm(args) {
+      return args[1] === '@expo/snapback-expo-custody'
+        ? null
+        : JSON.stringify({ latest: '0.1.23' });
+    },
+  });
+  assert.equal(vector['@expo/snapback-expo-custody'], null);
+  assert.equal(vector['@expo/snapback-cli'], '0.1.23');
+  validateObservedPriorVector(vector, { packageNames: PROMOTION_PACKAGE_NAMES });
+});
+
 test('an npm failure names the package and leaves no output', () => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-prior-vector-npm-test-'));
   try {

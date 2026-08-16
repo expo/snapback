@@ -6,6 +6,9 @@
 Code generation, React, Client integration, Packaging, Documentation, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-13
+**Revised:** 2026-08-16 (publication-closure clarification: the Experimental
+native custody package is an optional config-plugin add-on, not an umbrella
+dependency or re-export; LLP 0041 owns its thirteen-package publication row)
 **Revised:** 2026-08-15 (removed the LLP 0255 amendment after the author
 selected LLP 0254 D10 Withdraw; Familiar remains an independent profile)
 **Revised:** 2026-08-15 (auth-hooks amendment, LLP 0258 Phase 0: S6.1's
@@ -290,6 +293,15 @@ are satisfied: the umbrella owns no implementation — every symbol lives in
 an existing package under a `familiar`-named module that can be removed
 with the umbrella. Publication inventory cost is one extra package and is
 recorded in the LLP 0252 D7 maintenance ledger.
+
+**2026-08-16 publication-closure clarification.**
+`@expo/snapback-expo-custody` joins LLP 0041's qualified publication inventory
+as a separate Experimental package, but it does not join this umbrella's
+dependency or re-export closure. Native custody is an optional Expo add-on
+whose config plugin must be listed by the application; making it an umbrella
+dependency would violate this section's thin, implementation-free package
+definition and would make native build configuration an implicit effect of a
+familiar-authoring import.
 
 ### S3.2 Generated local modules
 

@@ -2235,6 +2235,10 @@ const hostRuntime = runtimePackages.get(hostPlatform);
 if (!hostRuntime) fail(`cold-install proof has no runtime package for ${hostPlatform}`);
 const hasExpoPackage = generation.expo !== undefined
   && Boolean(ledger.packages?.some((entry) => entry.sourceName === generation.expo));
+const hasExpoCustodyPackage = generation.expoCustody !== undefined
+  && Boolean(ledger.packages?.some(
+    (entry) => entry.sourceName === generation.expoCustody,
+  ));
 const hasUmbrellaPackage = generation.umbrella !== undefined
   && Boolean(ledger.packages?.some(
     (entry) => entry.sourceName === generation.umbrella,
@@ -2256,6 +2260,7 @@ const allExpectedPackages = [
   generation.react,
   ...(hasUmbrellaPackage ? [generation.umbrella] : []),
   ...(hasExpoPackage ? [generation.expo] : []),
+  ...(hasExpoCustodyPackage ? [generation.expoCustody] : []),
   generation.appCli,
   generation.cli,
   ...(hasCreateSnapbackAppPackage ? [generation.createSnapbackApp] : []),
@@ -2304,6 +2309,7 @@ const expectedPackages = [
   generation.react,
   ...(hasUmbrellaPackage ? [generation.umbrella] : []),
   ...(hasExpoPackage ? [generation.expo] : []),
+  ...(hasExpoCustodyPackage ? [generation.expoCustody] : []),
   generation.appCli,
   generation.cli,
   ...(hasCreateSnapbackAppPackage ? [generation.createSnapbackApp] : []),

@@ -7,6 +7,9 @@ clients, Custody, Password auth, Code generation, Packaging, Diagnostics,
 Guide, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-15
+**Revised:** 2026-08-16 (publication posture: the first-party native custody
+package enters the 0.1.24 qualified closure as Experimental without changing
+either OS capability claim; see the implementation record)
 **Revised:** 2026-08-15 (r5: post-convergence delta-review alignment; see
 Revision history)
 **Related:** LLP 0039, LLP 0043, LLP 0053, LLP 0057, LLP 0058, LLP 0059,
@@ -1016,6 +1019,13 @@ custody/barrier semantics.
 - `0477fda40` independently threaded the full owner key through
   `AuthCoordinator` and custody adapters without adding a custody-record
   field; `75da1f28a` independently shipped the SecureStore adapter.
+- Author ruling 2026-08-16: `@expo/snapback-expo-custody` joins the 0.1.24
+  qualified publication closure as an Experimental, identity-preset-only
+  package. This is package-byte availability, not an iOS or Android durable
+  custody claim: adapters report their own grade, v1 declares only
+  `single-runtime`, the config plugin must be listed in the application's Expo
+  `plugins` array, and both per-OS flips remain gated by
+  `issues/20260815-llp-0258-phase-2-native-custody-evidence.md`.
 - Remaining closure is tracked by
   `issues/20260815-llp-0258-phase-2-native-custody-evidence.md`,
   `issues/20260815-llp-0258-phase-3-remainders.md`,

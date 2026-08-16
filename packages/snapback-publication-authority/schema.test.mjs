@@ -94,6 +94,7 @@ test('closed JSON Schemas and runtime validators share every endpoint key set', 
     const terminalName = new RegExp(packageSchema.properties.name.pattern, 'u');
     assert.equal(terminalName.test('@expo/snapback'), true);
     assert.equal(terminalName.test('@expo/snapback-client'), true);
+    assert.equal(terminalName.test('@expo/snapback-expo-custody'), true);
     assert.equal(terminalName.test('create-snapback-app'), true);
     assert.equal(terminalName.test('@expo/snapback/extra'), false);
     assert.equal(terminalName.test('@expo/snapbackish'), false);

@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/expo/snapback/issues"
   },
-  "keywords": ["snapback", "auth", "custody", "expo", "react-native"],
+  "keywords": ["snapback", "auth", "custody", "experimental", "expo", "react-native"],
   "main": "index.mjs",
   "types": "index.d.mts",
   "files": [
@@ -64,6 +64,9 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "snapback": {
+    "maturity": "Experimental"
   },
   "scripts": {
     "test": "node --test config-plugin.test.mjs && node --test native-custody.test.mjs"

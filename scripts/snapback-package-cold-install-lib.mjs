@@ -1531,6 +1531,7 @@ export function ledgerNameGeneration(scopePreset) {
     react: sourceNames.react,
     umbrella: sourceNames.snapback,
     expo: sourceNames.expo,
+    expoCustody: sourceNames['expo-custody'],
     vite: sourceNames.vite,
     appCli: sourceNames['app-cli'],
     createSnapbackApp: sourceNames['create-snapback-app'],

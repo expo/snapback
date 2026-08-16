@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (0.1.24 custody publication posture):** 2026-08-16 (author ruling:
+the Experimental `@expo/snapback-expo-custody` identity joins the next
+qualified closure as its thirteenth package without a legacy alias or native
+durability claim; see §0.1.24.)
+
 **Revised (0.1.23 fast-path publication):** 2026-08-16 (the twelve-package
 closure from clean revision `cc79d498537b` passed Darwin arm64 and Linux x64
 store qualification, byte verification, and the published install/boot smoke;
@@ -1461,6 +1466,26 @@ handler admission and generated authority-profile reads, including the
 fail-closed refusal for result contracts that cannot represent blank denial.
 The closure record advances both `newestPublished` and `newestQualified` to
 0.1.23.
+
+### 0.1.24 (2026-08-16) — thirteen-package custody candidate posture
+
+Author ruling (Charlie Cheever, 2026-08-16): the next qualified publication
+closure contains thirteen packages. `@expo/snapback-expo-custody` is appended
+as a terminal identity-preset package with no `LEGACY_PACKAGE_INVENTORY` alias.
+It is explicitly **Experimental**: publication qualifies the package bytes and
+their matched internal dependency, not native durable custody on either OS.
+The package's iOS and Android adapters report their own grades, and
+`single-runtime` is the only grade either adapter declares in v1. The separate
+per-OS claims remain withheld behind
+`issues/20260815-llp-0258-phase-2-native-custody-evidence.md`; this amendment
+does not change any capability row.
+
+The config plugin remains mandatory application configuration: an app that
+uses the package lists `@expo/snapback-expo-custody` in its Expo `plugins`
+array. The package is an optional native add-on and is not a dependency or
+re-export of the thin `@expo/snapback` umbrella (LLP 0253 S3.1). The existing
+twelve-name v4 publication records remain valid as an exact historical prefix;
+new authority issues bind the complete thirteen-name vector.
 
 ### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
 

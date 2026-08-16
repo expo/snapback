@@ -63,6 +63,7 @@ function fixture() {
       name,
       expectedPriorVersion: name === '@expo/snapback'
         || name === '@expo/snapback-expo'
+        || name === '@expo/snapback-expo-custody'
         || name === 'create-snapback-app'
         ? null
         : '0.1.0',
@@ -550,7 +551,7 @@ test('request builder closes candidate-ledger and observed-prior-vector inventor
   );
 });
 
-test('historical eleven-name v4 records validate; new issues must bind the full closure', () => {
+test('historical eleven- and twelve-name v4 records validate; new issues bind the full closure', () => {
   const { authority, request } = fixture();
   // Epochs recorded before the @expo/snapback umbrella joined bind the
   // eleven-name prefix of the current vector. Boot-time state validation
@@ -561,6 +562,14 @@ test('historical eleven-name v4 records validate; new issues must bind the full 
     packages: request.packages.slice(0, 11),
   };
   validatePublicationLeaseIssueRequest(historical, {
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+  });
+  const historicalWithUmbrella = {
+    ...request,
+    packages: request.packages.slice(0, 12),
+  };
+  validatePublicationLeaseIssueRequest(historicalWithUmbrella, {
     authorityInstallationId: AUTHORITY_INSTALLATION_ID,
     authorityOrigin: AUTHORITY_ORIGIN,
   });
@@ -578,6 +587,10 @@ test('historical eleven-name v4 records validate; new issues must bind the full 
   // The standing authority never issues a prefix-width lease.
   assert.throws(
     () => authority.issue(historical),
+    /full-closure/u,
+  );
+  assert.throws(
+    () => authority.issue(historicalWithUmbrella),
     /full-closure/u,
   );
 });

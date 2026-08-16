@@ -70,6 +70,10 @@ export const PACKAGE_INVENTORY = Object.freeze([
   // package to the qualified public closure and no historical lineage alias.
   ['@expo/snapback', '@expo/snapback'],
   ['@expo/snapback-expo', '@expo/snapback-expo'],
+  // @ref LLP 0258#phase-2--exponative-durable-custody — this identity-only
+  // package enters the 0.1.24 closure as Experimental. Publication does not
+  // promote either OS custody claim; those remain gated by the Phase 2 ticket.
+  ['@expo/snapback-expo-custody', '@expo/snapback-expo-custody'],
   ['@expo/snapback-app-cli', '@expo/snapback-app-cli'],
   ['@expo/snapback-cli', '@expo/snapback-cli'],
   ['@expo/snapback-vite', '@expo/snapback-vite'],

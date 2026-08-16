@@ -143,6 +143,16 @@ test('latest proof plan permits an absent-prior umbrella while retaining the pri
   assert.equal(plan.authorizedLeaseSha256, leaseSha256(lease));
 });
 
+test('latest proof plan permits absent-prior Expo custody while retaining the prior CLI root', () => {
+  const lease = leaseFixture();
+  lease.packages.find(
+    (row) => row.name === '@expo/snapback-expo-custody',
+  ).expectedPriorVersion = null;
+  const plan = buildLatestProofPlan(inputs({ lease }));
+  assert.equal(plan.expectedPriorRootVersion, '0.1.6');
+  assert.equal(plan.authorizedLeaseSha256, leaseSha256(lease));
+});
+
 test('default latest proof plan closes its modeled 900-second lease budget', () => {
   const plan = buildLatestProofPlan(inputs());
   assert.equal(plan.dispatchTimeoutMs, 400_000);

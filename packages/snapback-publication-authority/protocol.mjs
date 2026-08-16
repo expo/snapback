@@ -50,15 +50,18 @@ export const PROMOTION_PACKAGE_NAMES = Object.freeze([
   // @ref LLP 0253#s31-the-umbrella-package — append the exact-name
   // Experimental umbrella without reordering the established v4 vector.
   '@expo/snapback',
+  // @ref LLP 0258#phase-2--exponative-durable-custody — append the
+  // Experimental native-custody package without rewriting 11/12-name history.
+  '@expo/snapback-expo-custody',
 ]);
 export const PACKAGE_COUNT = PROMOTION_PACKAGE_NAMES.length;
-// v4 terminal-family leases exist at two recorded widths: the eleven-name
-// pre-umbrella closure (epochs through 0.1.20) and the twelve-name closure
-// that appends @expo/snapback. Because the umbrella was appended — never
-// inserted — every admitted width is an exact ordered prefix of the current
-// vector, so historical records keep validating at their recorded width.
-// New issues are held to the full current width by the standing authority.
-export const TERMINAL_LEASE_WIDTHS = Object.freeze([11, PACKAGE_COUNT]);
+// v4 terminal-family leases exist at three recorded widths: the eleven-name
+// pre-umbrella closure (epochs through 0.1.20), the twelve-name closure that
+// appends @expo/snapback (0.1.21 through 0.1.23), and the current thirteen-name
+// closure that appends @expo/snapback-expo-custody. Every admitted historical
+// width is therefore an exact ordered prefix; new issues are held to the full
+// current width by the standing authority.
+export const TERMINAL_LEASE_WIDTHS = Object.freeze([11, 12, PACKAGE_COUNT]);
 export const LEGACY_PROMOTION_PACKAGE_NAMES = Object.freeze([
   '@ccheever/snapback-runtime-darwin-arm64',
   '@ccheever/snapback-runtime-linux-x64',

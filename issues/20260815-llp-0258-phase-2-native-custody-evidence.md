@@ -85,3 +85,7 @@ any files were written (no competing partial work exists) and retains only
 `issues/20260816-llp-0258-phase-1-4-real-browser-proofs.md`. Per the fleet
 convention all of this yields to landed code.
 
+**Publication posture (author ruling, 2026-08-16):** the Experimental
+`@expo/snapback-expo-custody` package joins the qualified 0.1.24 publication
+closure; this does not close this ticket or establish either per-OS durable
+custody claim.

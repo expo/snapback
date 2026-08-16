@@ -1641,8 +1641,9 @@ test('create-snapback-app remains the terminal packing row with a closed CLI dep
     'create-snapback-app',
     'create-snapback-app',
   ]);
-  assert.equal(PROMOTION_PACKAGE_NAMES.at(-2), 'create-snapback-app');
-  assert.equal(PROMOTION_PACKAGE_NAMES.at(-1), '@expo/snapback');
+  assert.equal(PROMOTION_PACKAGE_NAMES.at(-3), 'create-snapback-app');
+  assert.equal(PROMOTION_PACKAGE_NAMES.at(-2), '@expo/snapback');
+  assert.equal(PROMOTION_PACKAGE_NAMES.at(-1), '@expo/snapback-expo-custody');
   const sourceNames = sourceNamesForScopePreset('identity');
   assert.equal(sourceNames['create-snapback-app'], 'create-snapback-app');
   assert.equal(Object.values(sourceNames).filter(
@@ -1661,6 +1662,8 @@ test('umbrella publication metadata closes and stamps every internal dependency'
   ));
   assert.equal(manifest.private, undefined);
   assert.equal(manifest.publishConfig.access, 'public');
+  assert.equal(manifest.dependencies?.['@expo/snapback-expo-custody'], undefined);
+  assert.equal(manifest.peerDependencies?.['@expo/snapback-expo-custody'], undefined);
   const stamped = structuredClone(manifest);
   stamped.version = '0.1.21';
   for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
@@ -1685,6 +1688,49 @@ test('umbrella publication metadata closes and stamps every internal dependency'
   assert.equal(ledgerNameGeneration('ccheever').umbrella, undefined);
 });
 
+test('Expo custody publication metadata is Experimental and package-complete', () => {
+  const manifest = JSON.parse(readFileSync(
+    new URL('../packages/snapback-expo-custody/package.json', import.meta.url),
+    'utf8',
+  ));
+  assert.equal(manifest.private, undefined);
+  assert.equal(manifest.publishConfig.access, 'public');
+  assert.equal(manifest.snapback.maturity, 'Experimental');
+  const stamped = structuredClone(manifest);
+  stamped.version = '0.1.24';
+  for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
+    for (const dependency of Object.keys(stamped[section] ?? {})) {
+      if (PACKAGE_INVENTORY.some(([sourceName]) => sourceName === dependency)) {
+        stamped[section][dependency] = stamped.version;
+      }
+    }
+  }
+  assert.equal(validateInternalDependencyClosure(stamped, stamped.version), undefined);
+  assert.deepEqual(
+    new Set(Object.keys(manifest.exports)),
+    new Set(['.', './app.plugin', './config-plugin', './package.json']),
+  );
+  const files = new Set(manifest.files);
+  for (const required of [
+    'README.md',
+    'index.d.mts',
+    'index.mjs',
+    'app.plugin.js',
+    'config-plugin.cjs',
+    'config-plugin.d.mts',
+    'expo-module.config.json',
+    'ios',
+    'android',
+  ]) {
+    assert.equal(files.has(required), true, required);
+  }
+  assert.equal(
+    ledgerNameGeneration('identity').expoCustody,
+    '@expo/snapback-expo-custody',
+  );
+  assert.equal(ledgerNameGeneration('ccheever').expoCustody, undefined);
+});
+
 test('promotion inventory is the full public package inventory from one authority', () => {
   assert.strictEqual(PROMOTION_PACKAGE_NAMES, AUTHORITY_PROMOTION_PACKAGE_NAMES);
   assert.deepEqual(PROMOTION_PACKAGE_NAMES, [
@@ -1700,6 +1746,7 @@ test('promotion inventory is the full public package inventory from one authorit
     '@expo/snapback-cli',
     'create-snapback-app',
     '@expo/snapback',
+    '@expo/snapback-expo-custody',
   ]);
   assert.equal(PROMOTION_PACKAGE_NAMES.length, PACKAGE_INVENTORY.length);
   assert.deepEqual(
@@ -1710,6 +1757,7 @@ test('promotion inventory is the full public package inventory from one authorit
   assert.equal(PACKAGE_NAME_LINEAGE['@expo/snapback-expo'], undefined);
   assert.equal(PACKAGE_NAME_LINEAGE['create-snapback-app'], undefined);
   assert.equal(PACKAGE_NAME_LINEAGE['@expo/snapback'], undefined);
+  assert.equal(PACKAGE_NAME_LINEAGE['@expo/snapback-expo-custody'], undefined);
 });
 
 test('public-install ledger validation requires the complete immutable closure', () => {
