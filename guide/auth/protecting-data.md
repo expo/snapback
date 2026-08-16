@@ -122,9 +122,14 @@ review.
 
 `.visibility(...)` and `.assetSharing(...)` are independent declarations.
 Declaring one does not declare, infer, or conflict with the other. Table policy
-composes into generated direct query/live-query plans and ordinary handler
-`ctx.db` reads. Search, relational queries, class-M field masking, writes, and
-egress remain separate boundaries.
+composes into generated direct query/live-query plans, relational root and
+joined sources, bounded parent and child sources, every snapshot-batch node,
+and ordinary handler `ctx.db` reads. Surface-local relational/bounded
+visibility remains an additional conjunct: a row must pass both. Search has
+its own separately composed visibility declaration. Class-M field masking,
+writes, and egress remain separate boundaries. If a future read-surface class
+cannot carry the table policy, codegen refuses it with
+`SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE`.
 
 ### Authorize first, then elevate the exact handler read
 

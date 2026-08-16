@@ -170,6 +170,38 @@ pub(crate) fn live_subscription_match_outcome(
     if changes.is_empty() {
         return LiveMatchOutcome::ConservativeFallback;
     }
+    // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+    // — policy dependencies are broader than the row dependencies these
+    // carriers currently capture. Put the conservative posture ahead of the
+    // generic dependency disjointness gate so a future captured Query cannot
+    // accidentally suppress an authorization-driven replacement.
+    let composed_multi_table_visibility = match &definition.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+            plan.root_table_visibility.is_some() || plan.joined_table_visibility.is_some()
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
+            plan.parent_table_visibility.is_some() || plan.child_table_visibility.is_some()
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
+            plan.nodes.iter().any(|node| {
+                node.parent_table_visibility.is_some() || node.child_table_visibility.is_some()
+            })
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+            plan.nodes.iter().any(|node| match node {
+                crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                    node.parent_table_visibility.is_some() || node.child_table_visibility.is_some()
+                }
+                crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                    node.root_table_visibility.is_some() || node.joined_table_visibility.is_some()
+                }
+            })
+        }
+        _ => false,
+    };
+    if composed_multi_table_visibility {
+        return LiveMatchOutcome::ConservativeFallback;
+    }
     if let Some(matched) =
         live_subscription_may_be_affected_by_dependencies(input, read_dependencies, changes)
     {
@@ -212,15 +244,30 @@ pub(crate) fn live_subscription_match_outcome(
         //   deliberately table-granular: a commit touching either declared
         //   source causes an authoritative resnapshot; no proved-disjoint
         //   skip path is claimed for relational plans.
-        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => bool_outcome(
-            changes
-                .iter()
-                .any(|change| change.table == plan.root || change.table == plan.joined),
-        ),
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+            // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+            // — policy-backed membership and ownership inputs can change a
+            // relational result without a row change on either data table.
+            // Until every policy dependency has a precise captured matcher,
+            // replace conservatively on every commit.
+            if plan.root_table_visibility.is_some() || plan.joined_table_visibility.is_some() {
+                LiveMatchOutcome::ConservativeFallback
+            } else {
+                bool_outcome(
+                    changes
+                        .iter()
+                        .any(|change| change.table == plan.root || change.table == plan.joined),
+                )
+            }
+        }
         FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
-            bool_outcome(changes.iter().any(|change| {
-                change.table == plan.parent_table || change.table == plan.child_table
-            }))
+            if plan.parent_table_visibility.is_some() || plan.child_table_visibility.is_some() {
+                LiveMatchOutcome::ConservativeFallback
+            } else {
+                bool_outcome(changes.iter().any(|change| {
+                    change.table == plan.parent_table || change.table == plan.child_table
+                }))
+            }
         }
         // Unreachable while the static snapshot-batch carrier remains
         // support-false and whole-manifest admission refuses. Keep the
@@ -233,16 +280,28 @@ pub(crate) fn live_subscription_match_outcome(
         // union of both owner dependency sets. A relevant change resnapshots
         // the complete tuple; an unrelated table does not wake it.
         FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
-            bool_outcome(changes.iter().any(|change| {
-                plan.nodes.iter().any(|node| match node {
-                    crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
-                        change.table == node.parent_table || change.table == node.child_table
-                    }
-                    crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
-                        change.table == node.root || change.table == node.joined
-                    }
-                })
-            }))
+            let has_composed_visibility = plan.nodes.iter().any(|node| match node {
+                crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                    node.parent_table_visibility.is_some() || node.child_table_visibility.is_some()
+                }
+                crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                    node.root_table_visibility.is_some() || node.joined_table_visibility.is_some()
+                }
+            });
+            if has_composed_visibility {
+                LiveMatchOutcome::ConservativeFallback
+            } else {
+                bool_outcome(changes.iter().any(|change| {
+                    plan.nodes.iter().any(|node| match node {
+                        crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                            change.table == node.parent_table || change.table == node.child_table
+                        }
+                        crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                            change.table == node.root || change.table == node.joined
+                        }
+                    })
+                }))
+            }
         }
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
             bool_outcome(changes.iter().any(|change| change.table == plan.table))
@@ -958,7 +1017,14 @@ pub(crate) fn compute_live_delta(
 #[cfg(test)]
 mod dependency_gate_tests {
     use super::*;
-    use crate::manifest::{AuthInput, FunctionDefinition, FunctionKind, IbexModule};
+    use crate::contract_types::{
+        BoundedParentVisibility, BoundedProjectionField, JoinEquality, JoinKind,
+    };
+    use crate::manifest::{
+        AuthInput, BoundedChildrenQueryPlan, FunctionDefinition, FunctionKind, IbexModule,
+        RelationalQueryPlan, SnapshotBatchNodeV2, SnapshotBatchPlanV1, SnapshotBatchPlanV2,
+        TableVisibilityV1,
+    };
 
     fn input() -> HandlerInput {
         HandlerInput {
@@ -1063,6 +1129,93 @@ mod dependency_gate_tests {
                 ..AuthInput::default()
             },
             ..input()
+        }
+    }
+
+    #[test]
+    fn composed_multi_table_visibility_uses_conservative_authorization_invalidation() {
+        let restricted = Some(TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        });
+        let relational = RelationalQueryPlan {
+            root: "documents".to_owned(),
+            root_alias: "document".to_owned(),
+            joined: "profiles".to_owned(),
+            joined_alias: "profile".to_owned(),
+            join_kind: JoinKind::Left,
+            join_on: vec![JoinEquality {
+                root_field: "profileId".to_owned(),
+                joined_field: "_id".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: Vec::new(),
+            root_table_visibility: restricted.clone(),
+            joined_visibility: Vec::new(),
+            joined_table_visibility: None,
+            projection: Vec::new(),
+            order: Vec::new(),
+            take: 10,
+            root_index: "by_id".to_owned(),
+            joined_index: "by_id".to_owned(),
+        };
+        let bounded = BoundedChildrenQueryPlan {
+            profile: "bounded-children.v1".to_owned(),
+            required_capability: "bounded_children_v1".to_owned(),
+            parent_table: "boards".to_owned(),
+            parent_id_arg: "boardId".to_owned(),
+            parent_visibility: BoundedParentVisibility::PublicRead,
+            parent_table_visibility: None,
+            parent_projection: vec![BoundedProjectionField {
+                name: "id".to_owned(),
+                field: "_id".to_owned(),
+            }],
+            child_table: "cards".to_owned(),
+            child_table_visibility: restricted,
+            child_foreign_key: "boardId".to_owned(),
+            child_relation_incarnation: "boardIncarnation".to_owned(),
+            child_index: "by_board".to_owned(),
+            order: Vec::new(),
+            take: 10,
+            child_projection: Vec::new(),
+            parent_deletion: "hide-orphans.v1".to_owned(),
+        };
+        let unrelated = [update("unrelated", "row-1", json!({ "_id": "row-1" }), &[])];
+        let disjoint_dependencies = [completed_todos_query_dependency()];
+        let cases = [
+            HandlerPlan::RelationalQuery(relational.clone()),
+            HandlerPlan::BoundedChildrenQuery(bounded.clone()),
+            HandlerPlan::SnapshotBatch(SnapshotBatchPlanV1 {
+                profile: "snapshot-batch.v1".to_owned(),
+                nodes: vec![bounded.clone()],
+                normalized_composite_plan: Value::Null,
+                plan_hash: "fixture".to_owned(),
+            }),
+            HandlerPlan::SnapshotBatchV2(SnapshotBatchPlanV2 {
+                profile: "snapshot-batch.v2".to_owned(),
+                nodes: vec![
+                    SnapshotBatchNodeV2::RelationalQuery(relational),
+                    SnapshotBatchNodeV2::BoundedChildren(bounded),
+                ],
+                normalized_composite_plan: Value::Null,
+                plan_hash: "fixture".to_owned(),
+            }),
+        ];
+        for plan in cases {
+            let definition = FunctionDefinition::new(
+                "composed",
+                FunctionKind::LiveQuery,
+                FunctionRuntime::HostPlan(plan),
+            );
+            assert_eq!(
+                live_subscription_match_outcome(
+                    &definition,
+                    &owner_input(),
+                    &disjoint_dependencies,
+                    &unrelated,
+                ),
+                LiveMatchOutcome::ConservativeFallback,
+                "policy-composed multi-table surfaces must resnapshot before dependency disjointness",
+            );
         }
     }
 

@@ -421,9 +421,14 @@ owner field with `authUserId()`, which the server resolves from the session:
 
 That predicate is the security boundary. For JS live queries,
 `authScopeField` additionally declares which result field represents the
-principal so the live matcher can reason about disjoint subscriptions; it does
-not inject an ownership filter. Two signed-in users see disjoint results over
-the same query:
+principal so invalidation and retained-result bookkeeping can reason about
+disjoint subscriptions. It is a declaration, never an authorization
+mechanism, and it does not inject an ownership filter. The paired
+`eq(field, authUserId())` filter is the gate. Codegen warns with
+`SNAPBACK_AUTH_SCOPE_FIELD_WITHOUT_CALLER_PREDICATE` when a declarative plan
+does not carry that pairing (and for handler-backed declarations whose gate is
+opaque to plan analysis). Two signed-in users see disjoint results over the
+same query:
 
 ```js source=demos/card-game/tests/acceptance/authority-scope.mjs
   const [adaResult, graceResult] = await Promise.all([
@@ -1437,9 +1442,14 @@ review.
 
 `.visibility(...)` and `.assetSharing(...)` are independent declarations.
 Declaring one does not declare, infer, or conflict with the other. Table policy
-composes into generated direct query/live-query plans and ordinary handler
-`ctx.db` reads. Search, relational queries, class-M field masking, writes, and
-egress remain separate boundaries.
+composes into generated direct query/live-query plans, relational root and
+joined sources, bounded parent and child sources, every snapshot-batch node,
+and ordinary handler `ctx.db` reads. Surface-local relational/bounded
+visibility remains an additional conjunct: a row must pass both. Search has
+its own separately composed visibility declaration. Class-M field masking,
+writes, and egress remain separate boundaries. If a future read-surface class
+cannot carry the table policy, codegen refuses it with
+`SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE`.
 
 ### Authorize first, then elevate the exact handler read
 

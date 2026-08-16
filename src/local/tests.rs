@@ -12857,7 +12857,9 @@ fn relational_query_validates_and_invokes_end_to_end() {
         }],
         root_filters: Vec::new(),
         root_visibility: vec![owner_filter("ownerId")],
+        root_table_visibility: None,
         joined_visibility: vec![owner_filter("ownerId")],
+        joined_table_visibility: None,
         projection: vec![
             ProjectionLeaf {
                 name: "title".to_owned(),
@@ -13106,7 +13108,9 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
         }],
         root_filters: Vec::new(),
         root_visibility: vec![owner_filter("ownerId")],
+        root_table_visibility: None,
         joined_visibility: Vec::new(),
+        joined_table_visibility: None,
         projection: vec![ProjectionLeaf {
             name: "title".to_owned(),
             source: ProjectionSource::RootField("title".to_owned()),
@@ -13400,7 +13404,9 @@ fn relational_lanes_share_bytes_and_cursors() {
         }],
         root_filters: Vec::new(),
         root_visibility: vec![owner_filter("ownerId")],
+        root_table_visibility: None,
         joined_visibility: Vec::new(),
+        joined_table_visibility: None,
         projection: vec![ProjectionLeaf {
             name: "title".to_owned(),
             source: ProjectionSource::RootField("title".to_owned()),
@@ -13577,7 +13583,9 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
             op: FilterOp::Eq,
             value: ValueExpr::AuthUserId,
         }],
+        root_table_visibility: None,
         joined_visibility: Vec::new(),
+        joined_table_visibility: None,
         projection: vec![ProjectionLeaf {
             name: "title".to_owned(),
             source: ProjectionSource::RootField("title".to_owned()),
@@ -13995,8 +14003,10 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
         parent_visibility: BoundedParentVisibility::Owner {
             field: "owner".to_owned(),
         },
+        parent_table_visibility: None,
         parent_projection: vec![select("_id"), select("title")],
         child_table: "children".to_owned(),
+        child_table_visibility: None,
         child_foreign_key: "parentId".to_owned(),
         child_relation_incarnation: "parentIncarnation".to_owned(),
         child_index: "by_parent_boundary".to_owned(),
@@ -16640,6 +16650,122 @@ fn bounded_input(parent: &str, cursor: Option<&str>) -> HandlerInput {
             ..AuthInput::default()
         },
         ..HandlerInput::default()
+    }
+}
+
+// @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model — the
+// standalone bounded carrier and every snapshot-batch node carry the exact
+// child-table policy; the runtime intersects it with through-parent scope.
+#[test]
+fn bounded_children_and_snapshot_batch_compose_declared_child_visibility() {
+    let (mut schema, mut functions, _) = snapshot_batch_publication_fixture(2, 16);
+    let policy = crate::manifest::TableVisibilityV1::Owner {
+        field: "label".to_owned(),
+    };
+    schema
+        .tables
+        .iter_mut()
+        .find(|table| table.name == "children")
+        .expect("children table")
+        .visibility = Some(policy.clone());
+
+    for function in &mut functions.functions {
+        match &mut function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
+                plan.child_table_visibility = Some(policy.clone());
+                function.authorization_dependence =
+                    vec![crate::manifest::AuthorizationInputDimension::UserId];
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
+                for node in &mut plan.nodes {
+                    node.child_table_visibility = Some(policy.clone());
+                }
+                function.authorization_dependence =
+                    vec![crate::manifest::AuthorizationInputDimension::UserId];
+            }
+            _ => {}
+        }
+    }
+    let batch_index = functions
+        .functions
+        .iter()
+        .position(|function| function.name == "boardView")
+        .expect("snapshot function");
+    let identity = {
+        let function = &functions.functions[batch_index];
+        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) = &function.runtime else {
+            unreachable!("snapshot function plan")
+        };
+        crate::manifest::snapshot_batch_identity_v1(function, plan)
+            .expect("rebuild policy-composed identity")
+    };
+    let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) =
+        &mut functions.functions[batch_index].runtime
+    else {
+        unreachable!("snapshot function plan")
+    };
+    plan.normalized_composite_plan = identity.normalized_composite_plan;
+    plan.plan_hash = identity.plan_hash;
+
+    let mut snapback = LocalSnapback::memory().expect("policy-composed bounded store");
+    snapback
+        .apply_schema(schema)
+        .expect("apply composed schema");
+    let diagnostics = snapback.load_functions(functions);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "policy-composed functions activate: {diagnostics:?}",
+    );
+    seed_bounded_publication_fixture(&mut snapback, "foreign-secret");
+    for (id, position, label) in [
+        ("visible-policy-child", 91, "user-a"),
+        ("hidden-policy-child", 92, "user-b"),
+    ] {
+        snapback
+            .invoke_mutation(
+                "addChild",
+                HandlerInput {
+                    args: json!({
+                        "parentId": "parent-a",
+                        "position": position,
+                        "label": label,
+                        "active": false,
+                        "externalKey": id,
+                    }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("seed policy child through relation-aware mutation");
+    }
+
+    let bounded = snapback
+        .invoke_query("parentChildren", bounded_input("parent-a", None))
+        .expect("bounded composed read");
+    let bounded_labels = bounded.rows[0]["children"]
+        .as_array()
+        .expect("bounded children")
+        .iter()
+        .map(|row| row["label"].as_str().expect("child label"))
+        .collect::<Vec<_>>();
+    assert_eq!(bounded_labels, vec!["user-a"]);
+
+    let snapshot = snapback
+        .invoke_query("boardView", bounded_input("parent-a", None))
+        .expect("snapshot composed read");
+    let nodes = snapshot.rows[0]["nodes"]
+        .as_array()
+        .expect("snapshot nodes");
+    assert_eq!(nodes.len(), 2);
+    for node in nodes {
+        let labels = node["children"]
+            .as_array()
+            .expect("node children")
+            .iter()
+            .map(|row| row["label"].as_str().expect("child label"))
+            .collect::<Vec<_>>();
+        assert_eq!(labels, vec!["user-a"]);
     }
 }
 
@@ -25824,7 +25950,9 @@ fn retainable_sessions_snapback() -> LocalSnapback {
                 op: FilterOp::Eq,
                 value: ValueExpr::AuthUserId,
             }],
+            root_table_visibility: None,
             joined_visibility: Vec::new(),
+            joined_table_visibility: None,
             projection: vec![crate::manifest::ProjectionLeaf {
                 name: "title".to_owned(),
                 source: crate::manifest::ProjectionSource::RootField("title".to_owned()),

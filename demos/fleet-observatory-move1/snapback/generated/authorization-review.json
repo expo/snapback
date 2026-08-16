@@ -574,7 +574,7 @@
       "readSetSummary": {
         "authScopeField": null,
         "mode": "singleTable",
-        "primaryTable": "fleetViews",
+        "primaryTable": "fleetRollups",
         "tables": [
           "fleetRollups",
           "fleetViews"

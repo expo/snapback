@@ -5513,7 +5513,9 @@ mod guarded_commit_tests {
             }],
             root_filters: Vec::new(),
             root_visibility: vec![owner_visibility("ownerId")],
+            root_table_visibility: None,
             joined_visibility: vec![owner_visibility("ownerId")],
+            joined_table_visibility: None,
             projection: vec![
                 ProjectionLeaf {
                     name: "title".to_owned(),
@@ -5540,9 +5542,13 @@ mod guarded_commit_tests {
     }
 
     fn relational_database() -> LocalDatabase {
+        relational_database_for_schema(relational_schema())
+    }
+
+    fn relational_database_for_schema(schema: crate::manifest::SchemaManifest) -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.schema_seed()
-            .apply_schema(relational_schema())
+            .apply_schema(schema)
             .expect("apply relational schema");
         let row = |id: &str, fields: Value| {
             let mut object = fields.as_object().cloned().expect("row object");
@@ -5747,6 +5753,76 @@ mod guarded_commit_tests {
             .query_relational(&too_big, &input, None)
             .expect_err("take over 1024");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
+    }
+
+    // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+    // — declared policy is an independent conjunct on both sources. Hidden
+    // joined rows retain LLP 0080's absent semantics: inner excludes the
+    // root result and left projects null joined leaves.
+    #[test]
+    fn relational_declared_table_visibility_composes_and_hides_joined_rows_as_absent() {
+        use crate::manifest::{JoinKind, TableVisibilityV1};
+
+        let policy = TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        };
+        let mut schema = relational_schema();
+        schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "books")
+            .expect("books")
+            .visibility = Some(policy.clone());
+        schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "authors")
+            .expect("authors")
+            .visibility = Some(policy.clone());
+        let db = relational_database_for_schema(schema);
+        let input = relational_input("user-a");
+        let composed = |kind| {
+            let mut plan = relational_plan(kind, 10);
+            plan.root_visibility.clear();
+            plan.joined_visibility.clear();
+            plan.root_table_visibility = Some(policy.clone());
+            plan.joined_table_visibility = Some(policy.clone());
+            plan
+        };
+
+        let (inner, _) = db
+            .query_reads_read()
+            .query_relational(&composed(JoinKind::Inner), &input, None)
+            .expect("composed inner join");
+        assert_eq!(
+            inner.rows,
+            vec![json!({
+                "authorName": "Ada",
+                "shelf": "fiction",
+                "title": "alpha",
+            })],
+            "the caller cannot observe another owner's root or joined row",
+        );
+
+        let (left, _) = db
+            .query_reads_read()
+            .query_relational(&composed(JoinKind::Left), &input, None)
+            .expect("composed left join");
+        assert_eq!(left.rows.len(), 3);
+        assert_eq!(left.rows[0]["authorName"], json!("Ada"));
+        assert!(left.rows[1]["authorName"].is_null());
+        assert!(left.rows[2]["authorName"].is_null());
+
+        let mut forged = composed(JoinKind::Inner);
+        forged.joined_table_visibility = None;
+        let error = db
+            .query_reads_read()
+            .query_relational(&forged, &input, None)
+            .expect_err("an omitted joined policy must fail closed");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH"
+        );
     }
 
     // @ref LLP 0080#2-portable-evaluation-semantics — continuation follows

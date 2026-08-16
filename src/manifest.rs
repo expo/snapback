@@ -5190,6 +5190,9 @@ fn relational_authorization_dimensions(
     {
         collect(&filter.value, &mut dimensions);
     }
+    if plan.root_table_visibility.is_some() || plan.joined_table_visibility.is_some() {
+        dimensions.insert(AuthorizationInputDimension::UserId);
+    }
     dimensions
 }
 
@@ -8271,10 +8274,32 @@ pub struct RelationalQueryPlan {
     /// an explicitly declared `public-read` root.
     #[serde(default, rename = "rootVisibility", alias = "root_visibility")]
     pub root_visibility: Vec<FilterExpr>,
+    /// The exact restricted table policy derived from the installed schema.
+    /// Public-read is normalized to absence, matching `QueryPlan`.
+    ///
+    /// @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+    #[serde(
+        default,
+        rename = "rootTableVisibility",
+        alias = "root_table_visibility",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub root_table_visibility: Option<TableVisibilityV1>,
     /// The joined-source visibility predicate, executed per joined row
     /// before projection: an invisible joined row behaves as absent.
     #[serde(default, rename = "joinedVisibility", alias = "joined_visibility")]
     pub joined_visibility: Vec<FilterExpr>,
+    /// The exact restricted joined-table policy. Storage composes it with
+    /// `joined_visibility`, so a row must satisfy both predicates.
+    ///
+    /// @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+    #[serde(
+        default,
+        rename = "joinedTableVisibility",
+        alias = "joined_table_visibility",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub joined_table_visibility: Option<TableVisibilityV1>,
     /// Explicit projection whose leaves are literals or qualified source
     /// fields; declaration order is the result field order.
     pub projection: Vec<ProjectionLeaf>,
@@ -8312,10 +8337,30 @@ pub struct BoundedChildrenQueryPlan {
     pub parent_id_arg: String,
     #[serde(rename = "parentVisibility", alias = "parent_visibility")]
     pub parent_visibility: BoundedParentVisibility,
+    /// Exact restricted schema policy for the parent point read.
+    ///
+    /// @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+    #[serde(
+        default,
+        rename = "parentTableVisibility",
+        alias = "parent_table_visibility",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub parent_table_visibility: Option<TableVisibilityV1>,
     #[serde(rename = "parentProjection", alias = "parent_projection")]
     pub parent_projection: Vec<BoundedProjectionField>,
     #[serde(rename = "childTable", alias = "child_table")]
     pub child_table: String,
+    /// Exact restricted schema policy for the child range.
+    ///
+    /// @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+    #[serde(
+        default,
+        rename = "childTableVisibility",
+        alias = "child_table_visibility",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub child_table_visibility: Option<TableVisibilityV1>,
     #[serde(rename = "childForeignKey", alias = "child_foreign_key")]
     pub child_foreign_key: String,
     #[serde(
@@ -16208,11 +16253,13 @@ mod membership_manifest_grammar_tests {
             parent_table: "boards".to_owned(),
             parent_id_arg: parent_id_arg.to_owned(),
             parent_visibility: visibility,
+            parent_table_visibility: None,
             parent_projection: vec![BoundedProjectionField {
                 name: "id".to_owned(),
                 field: "_id".to_owned(),
             }],
             child_table: "cards".to_owned(),
+            child_table_visibility: None,
             child_foreign_key: "boardId".to_owned(),
             child_relation_incarnation: "boardIncarnation".to_owned(),
             child_index: "by_board_position".to_owned(),
@@ -16375,7 +16422,9 @@ mod membership_manifest_grammar_tests {
             }],
             root_filters: Vec::new(),
             root_visibility: Vec::new(),
+            root_table_visibility: None,
             joined_visibility: Vec::new(),
+            joined_table_visibility: None,
             projection: vec![ProjectionLeaf {
                 name: "title".to_owned(),
                 source: ProjectionSource::RootField("title".to_owned()),

@@ -271,7 +271,7 @@ export const matchingIndex = defineLiveQuery({
     'an owner-leading selected index stays silent',
   );
 
-  const uncomposed = await generate(fixture(`
+  const composedSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export const parents = defineTable({
   ownerId: v.principal(),
@@ -294,7 +294,8 @@ export const children = defineTable({
   .index('by_parent_position', ['parentId', 'parentIncarnation', 'position'])
   .visibility({ kind: 'public-read' });
 export default defineSchema({ parents, profiles, children });
-`, `
+`;
+  const composedFunctions = `
 import {
   asc, defineBoundedChildrenQuery, defineRelationalQuery, defineSnapshotBatchQuery, owner,
   throughParent,
@@ -339,28 +340,81 @@ export const parentChildren = defineBoundedChildrenQuery({
 export const snapshotMixed = defineSnapshotBatchQuery({
   nodes: [parentChildren, parentProfiles],
 });
-`));
-  assert.equal(uncomposed.ok, true, JSON.stringify(uncomposed.diagnostics));
-  const uncomposedWarnings = uncomposed.diagnostics.filter(
+`;
+  const composed = await generate(fixture(composedSchema, composedFunctions));
+  assert.equal(composed.ok, true, JSON.stringify(composed.diagnostics));
+  const uncomposedBackstops = composed.diagnostics.filter(
     ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE',
   );
-  assert.deepEqual(
-    uncomposedWarnings.map(({ function: functionName, details }) => [functionName, details.surface]),
-    [
-      ['parentChildren', 'boundedChildrenPlan.parent'],
-      ['parentProfiles', 'relationalPlan.root'],
-      ['snapshotMixed', 'snapshotBatchPlan.nodes[0].boundedChildren.parent'],
-      ['snapshotMixed', 'snapshotBatchPlan.nodes[1].relational.root'],
-    ],
+  assert.deepEqual(uncomposedBackstops, [], 'every shipped multi-table class composes');
+  const composedManifest = JSON.parse(
+    readFileSync(join(composed.outDir, 'functions.manifest.json'), 'utf8'),
   );
-  assert(uncomposedWarnings.every((warning) => (
-    warning.table === 'parents'
-    && warning.details.declaredPolicy.kind === 'owner'
-    && warning.details.remediations.every((remediation) => (
-      remediation.machineApplicable === false
-      && remediation.requiresApproval === true
-    ))
-  )));
+  const composedByName = new Map(
+    composedManifest.functions.map((fn) => [fn.name, fn]),
+  );
+  const ownerPolicy = { kind: 'owner', field: 'ownerId' };
+  assert.deepEqual(
+    composedByName.get('parentProfiles').runtime.HostPlan.RelationalQuery.rootTableVisibility,
+    ownerPolicy,
+  );
+  assert.equal(
+    composedByName.get('parentProfiles').runtime.HostPlan.RelationalQuery.joinedTableVisibility,
+    undefined,
+  );
+  assert.deepEqual(
+    composedByName.get('parentChildren').runtime.HostPlan.BoundedChildrenQuery.parentTableVisibility,
+    ownerPolicy,
+  );
+  assert.equal(
+    composedByName.get('parentChildren').runtime.HostPlan.BoundedChildrenQuery.childTableVisibility,
+    undefined,
+  );
+  const snapshotNodes = composedByName.get('snapshotMixed').runtime.HostPlan.SnapshotBatchV2.nodes;
+  assert.deepEqual(snapshotNodes[0].plan.parentTableVisibility, ownerPolicy);
+  assert.deepEqual(snapshotNodes[1].plan.rootTableVisibility, ownerPolicy);
+  for (const functionName of ['parentProfiles', 'parentChildren', 'snapshotMixed']) {
+    const fn = composedByName.get(functionName);
+    assert.deepEqual(fn.authorizationDependence, ['userId']);
+    assert(fn.effectCeiling.authorizationInputs.includes('authUserId'));
+  }
+
+  const futureSurface = await generate(fixture(composedSchema, `${composedFunctions}
+snapshotMixed.snapshotBatchPlan.nodes[0].classId = 'future_read_v1';
+`));
+  assert.equal(futureSurface.ok, false, JSON.stringify(futureSurface.diagnostics));
+  const futureRefusal = futureSurface.diagnostics.find(
+    ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE',
+  );
+  assert.ok(futureRefusal, JSON.stringify(futureSurface.diagnostics));
+  assert.equal(futureRefusal.severity, 'error');
+  assert.equal(futureRefusal.table, 'parents');
+  assert.match(futureRefusal.message, /cannot generate.*future_read_v1/u);
+
+  const authScope = await generate(fixture(`
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  notes: defineTable({ ownerId: v.principal(), body: v.string() })
+    .visibility({ kind: 'public-read' }),
+});
+`, `
+import { authUserId, defineLiveQuery, eq } from '${defineUrl}';
+export const missingGate = defineLiveQuery({
+  table: 'notes', authScopeField: 'ownerId', auth: 'optional-user',
+});
+export const pairedGate = defineLiveQuery({
+  table: 'notes', authScopeField: 'ownerId', auth: 'optional-user',
+  filter: [eq('ownerId', authUserId())],
+});
+`));
+  assert.equal(authScope.ok, true, JSON.stringify(authScope.diagnostics));
+  const authScopeWarnings = authScope.diagnostics.filter(
+    ({ code }) => code === 'SNAPBACK_AUTH_SCOPE_FIELD_WITHOUT_CALLER_PREDICATE',
+  );
+  assert.equal(authScopeWarnings.length, 1, JSON.stringify(authScopeWarnings));
+  assert.equal(authScopeWarnings[0].function, 'missingGate');
+  assert.equal(authScopeWarnings[0].severity, 'warning');
+  assert.match(authScopeWarnings[0].message, /never|does not authorize/u);
 
   const omitted = await generate(fixture(`
 import { defineSchema, defineTable, v } from '${defineUrl}';
@@ -481,4 +535,4 @@ export default defineSchema({
   for (const root of roots) rmSync(root, { recursive: true, force: true });
 }
 
-console.log('table visibility authoring: valid union, strict refusals, warn phase, and summary verified');
+console.log('table visibility authoring: composition, strict refusals, scope warning, and summary verified');

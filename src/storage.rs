@@ -5463,6 +5463,40 @@ pub(crate) struct RelationalExecutionObservation {
     pub(crate) joined_lookups: usize,
 }
 
+/// Re-derive one source's restricted policy from the installed schema and
+/// refuse any plan-carried disagreement before issuing SQL.
+///
+/// @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+fn compose_declared_table_visibility(
+    schema: &SchemaManifest,
+    table_name: &str,
+    carried: &Option<crate::manifest::TableVisibilityV1>,
+    surface: &str,
+) -> SnapbackResult<Option<crate::manifest::TableVisibilityV1>> {
+    let table = schema_table(schema, table_name)?;
+    let expected = table
+        .visibility
+        .as_ref()
+        .filter(|visibility| visibility.is_restricted())
+        .cloned();
+    if carried != &expected {
+        return Err(SnapbackError::error(
+            "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
+            "auth",
+            format!(
+                "{surface} over {table_name} must carry the exact schema-derived restricted table visibility predicate"
+            ),
+        )
+        .with_details(json!({
+            "surface": surface,
+            "table": table_name,
+            "expected": expected,
+            "actual": carried,
+        })));
+    }
+    Ok(expected)
+}
+
 pub(crate) fn query_relational_on_observed(
     db: &DbRead<'_>,
     plan: &crate::manifest::RelationalQueryPlan,
@@ -5476,6 +5510,18 @@ pub(crate) fn query_relational_on_observed(
     use crate::manifest::{FilterExpr, JoinKind, ProjectionSource};
 
     validate_relational_plan_shape(plan)?;
+    let root_table_visibility = compose_declared_table_visibility(
+        db.schema(),
+        &plan.root,
+        &plan.root_table_visibility,
+        "relational root",
+    )?;
+    let joined_table_visibility = compose_declared_table_visibility(
+        db.schema(),
+        &plan.joined,
+        &plan.joined_table_visibility,
+        "relational joined",
+    )?;
 
     // take: 0 returns an empty page and consumes nothing (LLP 0080 §2), but
     // still reports the snapshot version so callers get a coherent cursor.
@@ -5483,7 +5529,10 @@ pub(crate) fn query_relational_on_observed(
         let mut filters = plan.root_visibility.clone();
         filters.extend(plan.root_filters.iter().cloned());
         let root_plan = QueryPlan {
-            table_visibility: None,
+            // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+            // The declared table policy is an additional conjunct beside the
+            // relational surface's own root visibility and filters.
+            table_visibility: root_table_visibility,
             table: plan.root.clone(),
             filters,
             order: plan.order.clone(),
@@ -5570,7 +5619,10 @@ pub(crate) fn query_relational_on_observed(
                 .collect();
             filters.extend(plan.joined_visibility.iter().cloned());
             let lookup = QueryPlan {
-                table_visibility: None,
+                // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+                // Hidden joined rows collapse through the same SQL predicate
+                // as a single-table read, preserving LLP 0080 absent semantics.
+                table_visibility: joined_table_visibility.clone(),
                 table: plan.joined.clone(),
                 filters,
                 order: Vec::new(),

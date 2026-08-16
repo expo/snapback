@@ -699,7 +699,7 @@
       "readSetSummary": {
         "authScopeField": null,
         "mode": "singleTable",
-        "primaryTable": "incidents",
+        "primaryTable": "activity",
         "tables": [
           "activity",
           "incidents"
@@ -759,7 +759,7 @@
       "readSetSummary": {
         "authScopeField": null,
         "mode": "singleTable",
-        "primaryTable": "incidents",
+        "primaryTable": "comments",
         "tables": [
           "comments",
           "incidents"

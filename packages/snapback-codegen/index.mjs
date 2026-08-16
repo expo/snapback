@@ -3850,9 +3850,7 @@ async function generateInProcessLocked({
     }
     if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.plan && !def.js) {
       const tableVisibility = tables[def.plan.table]?.visibility;
-      def.plan.tableVisibility = tableVisibility && tableVisibility.kind !== 'public-read'
-        ? structuredClone(tableVisibility)
-        : undefined;
+      def.plan.tableVisibility = declaredRestrictedTableVisibility(tables, def.plan.table);
 
       // @ref LLP 0065#3-common-pattern-contracts — an owner predicate needs
       // an owner-leading selected index to preserve the declared access path.
@@ -3922,34 +3920,50 @@ async function generateInProcessLocked({
       }
     }
 
-    const uncomposedVisibilityReads = [];
+    // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+    // — every closed multi-table carrier is stamped from the same normalized
+    // schema authority as an ordinary QueryPlan. Surface-local visibility is
+    // retained independently and the runtime intersects both predicates.
     if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.relationalPlan) {
-      uncomposedVisibilityReads.push(
-        { surface: 'relationalPlan.root', table: def.relationalPlan.root },
-        { surface: 'relationalPlan.joined', table: def.relationalPlan.joined },
-      );
+      stampRelationalTableVisibility(def.relationalPlan, tables);
     }
     if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.boundedChildrenPlan) {
-      uncomposedVisibilityReads.push(
-        { surface: 'boundedChildrenPlan.parent', table: def.boundedChildrenPlan.parentTable },
-        { surface: 'boundedChildrenPlan.children', table: def.boundedChildrenPlan.childTable },
-      );
+      stampBoundedChildrenTableVisibility(def.boundedChildrenPlan, tables);
     }
+    if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.snapshotBatchPlan) {
+      const v2 = def.snapshotBatchPlan.profile === 'snapshot-batch.v2';
+      for (const rawNode of def.snapshotBatchPlan.nodes) {
+        const classId = v2 ? rawNode.classId : 'bounded_children_v1';
+        const node = v2 ? rawNode.plan : rawNode;
+        if (classId === 'relational_query_v1') {
+          stampRelationalTableVisibility(node, tables);
+        } else if (classId === 'bounded_children_v1') {
+          stampBoundedChildrenTableVisibility(node, tables);
+        }
+      }
+    }
+
+    const uncomposedVisibilityReads = [];
     if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.snapshotBatchPlan) {
       const v2 = def.snapshotBatchPlan.profile === 'snapshot-batch.v2';
       for (const [index, rawNode] of def.snapshotBatchPlan.nodes.entries()) {
         const classId = v2 ? rawNode.classId : 'bounded_children_v1';
         const node = v2 ? rawNode.plan : rawNode;
-        if (classId === 'relational_query_v1') {
-          uncomposedVisibilityReads.push(
-            { surface: `snapshotBatchPlan.nodes[${index}].relational.root`, table: node.root },
-            { surface: `snapshotBatchPlan.nodes[${index}].relational.joined`, table: node.joined },
-          );
-        } else if (classId === 'bounded_children_v1') {
-          uncomposedVisibilityReads.push(
-            { surface: `snapshotBatchPlan.nodes[${index}].boundedChildren.parent`, table: node.parentTable },
-            { surface: `snapshotBatchPlan.nodes[${index}].boundedChildren.children`, table: node.childTable },
-          );
+        if (classId !== 'relational_query_v1' && classId !== 'bounded_children_v1') {
+          for (const table of [
+            node?.table,
+            node?.root,
+            node?.joined,
+            node?.parentTable,
+            node?.childTable,
+          ]) {
+            if (typeof table === 'string') {
+              uncomposedVisibilityReads.push({
+                surface: `snapshotBatchPlan.nodes[${index}].${String(classId)}`,
+                table,
+              });
+            }
+          }
         }
       }
     }
@@ -3967,14 +3981,14 @@ async function generateInProcessLocked({
         table,
         declaredPolicy: structuredClone(tableVisibility),
       };
-      // @ref LLP 0231#d2--a-table-without-a-policy-fails-generation — the
-      // warn phase names uncomposed read surfaces before the later fail-closed
-      // rollout; this slice does not alter relational/bounded lowering.
+      // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+      // — all shipped classes compose above. An unknown future class that
+      // reaches a restricted table is a codegen refusal, never a warning.
       diagnostics.push({
         code: 'SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE',
-        severity: 'warning',
+        severity: 'error',
         subsystem: 'auth',
-        message: `${name}: ${surface} reads restricted table ${table} with declared policy ${JSON.stringify(tableVisibility)}, but this surface does not yet compose the table policy. Review its surface-specific visibility declaration and identity-switching coverage.`,
+        message: `${name}: cannot generate ${surface} because it reads restricted table ${table} with declared policy ${JSON.stringify(tableVisibility)}, but this read-surface class has no closed table-visibility composition. Add fail-closed composition before using this class.`,
         function: name,
         table,
         ...(authoredSpan
@@ -3991,22 +4005,72 @@ async function generateInProcessLocked({
           surface,
           table,
           declaredPolicy: structuredClone(tableVisibility),
-          analysisLimit: 'table policy is not composed into this plan class; equivalence with the surface-specific declaration was not proved',
+          analysisLimit: 'the read-surface class is unknown to the closed table-visibility composer',
           remediations: [
             {
-              kind: 'reviewUncomposedTableVisibility',
+              kind: 'implementClosedTableVisibilityComposition',
               riskClass: 'policy',
               machineApplicable: false,
               requiresApproval: true,
-              authorityEffect: 'preserves-or-narrows',
+              authorityEffect: 'narrows',
               precondition,
-              description: `Review ${name}'s ${surface} visibility against ${table}'s declared policy and add an identity-switching acceptance test.`,
+              description: `Teach ${surface}'s closed plan carrier, runtime, invalidation matcher, and acceptance tests to compose ${table}'s declared policy.`,
             },
           ],
         },
       });
     }
     validateFunctionAuthDefinition(name, def, err);
+    const authScopeField = def.authScopeField ?? def.js?.authScopeField ?? null;
+    if (authScopeField !== null) {
+      const pairedCallerPredicate = (def.plan?.filters ?? []).some((filter) => (
+        filter.field === authScopeField
+        && filter.op === 'Eq'
+        && filter.value?.kind === 'AuthUserId'
+      ));
+      if (!pairedCallerPredicate) {
+        const authoredSpan = functionDefinitionSourceSpans[name];
+        const handlerBacked = def.js !== undefined;
+        // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+        // — authScopeField is invalidation/retention metadata. Only an
+        // executable caller-identity predicate is authorization evidence.
+        diagnostics.push({
+          code: 'SNAPBACK_AUTH_SCOPE_FIELD_WITHOUT_CALLER_PREDICATE',
+          severity: 'warning',
+          subsystem: 'auth',
+          message: `${name}: authScopeField ${authScopeField} narrows invalidation/retention bookkeeping but does not authorize reads; add a filter equating ${authScopeField} to authUserId()${handlerBacked ? ' (handler-backed queries have no declarative filter for codegen to prove)' : ''}.`,
+          function: name,
+          ...(authoredSpan
+            ? {
+                sourceSpan: {
+                  file: authoredSpan.path,
+                  line: authoredSpan.line,
+                  column: authoredSpan.column,
+                },
+              }
+            : {}),
+          details: {
+            function: name,
+            authScopeField,
+            ...(handlerBacked
+              ? { analysisLimit: 'handler-backed authorization predicates are opaque to declarative plan analysis' }
+              : {}),
+            remediations: [
+              {
+                kind: 'pairAuthScopeFieldWithCallerPredicate',
+                edit: `filter: eq('${authScopeField}', authUserId())`,
+                riskClass: 'policy',
+                machineApplicable: false,
+                requiresApproval: true,
+                authorityEffect: 'narrows',
+                precondition: { function: name, authScopeField },
+                description: `Add an executable ${authScopeField} == authUserId() predicate; do not rely on authScopeField as authorization.`,
+              },
+            ],
+          },
+        });
+      }
+    }
     // @ref LLP 0178#v4--function-auth-omission — omission remains valid only
     // through the sessions compatibility phase, so report it as an advisory
     // rather than an unsuppressible validation error.
@@ -4497,13 +4561,25 @@ async function generateInProcessLocked({
             })),
           }
         : plan;
-      const reads = [...new Set((v2 ? serializedPlan.nodes : plan.nodes).flatMap((node) => {
+      const serializedNodes = v2 ? serializedPlan.nodes : plan.nodes;
+      const visibilityPolicies = serializedNodes.flatMap((node) => {
+        const classId = v2 ? node.classId : 'bounded_children_v1';
+        const nodePlan = v2 ? node.plan : node;
+        return classId === 'relational_query_v1'
+          ? [nodePlan.rootTableVisibility, nodePlan.joinedTableVisibility]
+          : [nodePlan.parentTableVisibility, nodePlan.childTableVisibility];
+      });
+      const policyReads = tableVisibilityMembershipReadTables(
+        visibilityPolicies,
+        membershipDeclarations,
+      );
+      const reads = [...new Set([...serializedNodes.flatMap((node) => {
         const classId = v2 ? node.classId : 'bounded_children_v1';
         const nodePlan = v2 ? node.plan : node;
         return classId === 'relational_query_v1'
           ? [nodePlan.root, nodePlan.joined]
           : [nodePlan.parentTable, nodePlan.childTable];
-      }))].sort();
+      }), ...policyReads])].sort();
       const runtime = v2
         ? { HostPlan: { SnapshotBatchV2: serializedPlan } }
         : { HostPlan: { SnapshotBatch: serializedPlan } };
@@ -4515,7 +4591,10 @@ async function generateInProcessLocked({
         declaredReads: reads,
         declaredWrites: [],
         authScopeField: null,
-        authorizationDependence: def.auth === 'authenticated' ? ['userId'] : [],
+        authorizationDependence: composedVisibilityAuthorizationDependence(
+          def.auth === 'authenticated' ? ['userId'] : [],
+          visibilityPolicies,
+        ),
         syncabilityClass: 'syncable-live',
       });
       contractQueries[name] = {
@@ -4535,22 +4614,31 @@ async function generateInProcessLocked({
       };
     } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.boundedChildrenPlan) {
       const plan = def.boundedChildrenPlan;
+      const visibilityPolicies = [plan.parentTableVisibility, plan.childTableVisibility];
+      const reads = [...new Set([
+        plan.parentTable,
+        plan.childTable,
+        ...tableVisibilityMembershipReadTables(visibilityPolicies, membershipDeclarations),
+      ])].sort();
       functions.push({
         name,
         kind: def.__kind,
         ...authoredFunctionManifestFields(def),
         runtime: { HostPlan: { BoundedChildrenQuery: plan } },
-        declaredReads: [plan.parentTable, plan.childTable],
+        declaredReads: reads,
         declaredWrites: [],
         authScopeField: null,
-        authorizationDependence: plan.parentVisibility === 'publicRead' ? [] : ['userId'],
+        authorizationDependence: composedVisibilityAuthorizationDependence(
+          plan.parentVisibility === 'publicRead' ? [] : ['userId'],
+          visibilityPolicies,
+        ),
         syncabilityClass: 'syncable-live',
       });
       contractQueries[name] = {
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
-        reads: [plan.parentTable, plan.childTable],
+        reads,
         result: {
           kind: 'list',
           row: boundedChildrenRowDescriptor(plan, tables),
@@ -4716,6 +4804,12 @@ async function generateInProcessLocked({
       //   branch serializes the normalized plan and nothing else. Activation
       //   on the server re-proves schema binding and the cardinality claim.
       const plan = def.relationalPlan;
+      const visibilityPolicies = [plan.rootTableVisibility, plan.joinedTableVisibility];
+      const reads = [...new Set([
+        plan.root,
+        plan.joined,
+        ...tableVisibilityMembershipReadTables(visibilityPolicies, membershipDeclarations),
+      ])].sort();
       functions.push({
         name,
         kind: def.__kind,
@@ -4725,9 +4819,13 @@ async function generateInProcessLocked({
             RelationalQuery: serializeRelationalPlan(plan),
           },
         },
-        declaredReads: [plan.root, plan.joined],
+        declaredReads: reads,
         declaredWrites: [],
         authScopeField: null,
+        authorizationDependence: composedVisibilityAuthorizationDependence(
+          def.authorizationDependence ?? [],
+          visibilityPolicies,
+        ),
         syncabilityClass: def.__kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
       });
       contractQueries[name] = {
@@ -4736,7 +4834,7 @@ async function generateInProcessLocked({
         // the callable contract even though authors declare no args in v1.
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
-        reads: [plan.root, plan.joined],
+        reads,
         // The canonical effective-result pass below derives this from the
         // closed plan and overwrites the placeholder before introspection or
         // any generated TypeScript is emitted.
@@ -8013,6 +8111,50 @@ function tableVisibilityOwnerLeaves(visibility) {
   return [];
 }
 
+function declaredRestrictedTableVisibility(tables, tableName) {
+  const visibility = tables[tableName]?.visibility;
+  return visibility && visibility.kind !== 'public-read'
+    ? structuredClone(visibility)
+    : undefined;
+}
+
+function stampRelationalTableVisibility(plan, tables) {
+  const root = declaredRestrictedTableVisibility(tables, plan.root);
+  const joined = declaredRestrictedTableVisibility(tables, plan.joined);
+  if (root === undefined) delete plan.rootTableVisibility;
+  else plan.rootTableVisibility = root;
+  if (joined === undefined) delete plan.joinedTableVisibility;
+  else plan.joinedTableVisibility = joined;
+}
+
+function stampBoundedChildrenTableVisibility(plan, tables) {
+  const parent = declaredRestrictedTableVisibility(tables, plan.parentTable);
+  const child = declaredRestrictedTableVisibility(tables, plan.childTable);
+  if (parent === undefined) delete plan.parentTableVisibility;
+  else plan.parentTableVisibility = parent;
+  if (child === undefined) delete plan.childTableVisibility;
+  else plan.childTableVisibility = child;
+}
+
+function tableVisibilityMembershipReadTables(visibilities, membershipDeclarations) {
+  const reads = [];
+  for (const visibility of visibilities) {
+    for (const leaf of tableVisibilityMembershipLeaves(visibility)) {
+      const found = membershipDeclarations.get(leaf.declaration);
+      if (found && !reads.includes(found.table.name)) reads.push(found.table.name);
+    }
+  }
+  return reads;
+}
+
+function composedVisibilityAuthorizationDependence(existing, visibilities) {
+  const dimensions = new Set(existing ?? []);
+  if (visibilities.some((visibility) => visibility !== undefined)) {
+    dimensions.add('userId');
+  }
+  return [...dimensions].sort();
+}
+
 // @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — retain
 // the optional string-order UTF-8 ceiling in every normalized plan carrier.
 function serializeOrderExpr(order) {
@@ -8189,7 +8331,13 @@ function serializeRelationalPlan(plan) {
     joinOn: plan.joinOn,
     rootFilters: serializeFilters(plan.rootFilters ?? []),
     rootVisibility: serializeFilters(plan.rootVisibility),
+    ...(plan.rootTableVisibility !== undefined
+      ? { rootTableVisibility: structuredClone(plan.rootTableVisibility) }
+      : {}),
     joinedVisibility: serializeFilters(plan.joinedVisibility),
+    ...(plan.joinedTableVisibility !== undefined
+      ? { joinedTableVisibility: structuredClone(plan.joinedTableVisibility) }
+      : {}),
     projection: plan.projection,
     order: plan.order.map(serializeOrderExpr),
     take: plan.take,

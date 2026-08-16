@@ -28730,6 +28730,38 @@ fn validate_table_visibility_schema_references(schema: &SchemaManifest) -> Snapb
     Ok(())
 }
 
+/// Re-derive a plan-carried source policy from the installed schema. Public
+/// read is normalized to `None`, exactly as for a single-table `QueryPlan`.
+///
+/// @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+fn validate_composed_table_visibility(
+    table: &crate::manifest::TableManifest,
+    actual: &Option<crate::manifest::TableVisibilityV1>,
+    surface: &str,
+) -> SnapbackResult<()> {
+    let expected = table
+        .visibility
+        .as_ref()
+        .filter(|visibility| visibility.is_restricted());
+    if actual.as_ref() == expected {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
+        "auth",
+        format!(
+            "{surface} over {} must carry the exact schema-derived restricted table visibility predicate",
+            table.name
+        ),
+    )
+    .with_details(json!({
+        "surface": surface,
+        "table": table.name,
+        "expected": expected,
+        "actual": actual,
+    })))
+}
+
 /// Whole-manifest schema-reference preflight. Invocation-time checks remain as
 /// defense in depth, but a malformed direct artifact must not replace a known
 /// good function/config/cron generation and fail only on its first call.
@@ -28788,25 +28820,7 @@ fn validate_function_schema_references(
     let query = |plan: &QueryPlan| -> SnapbackResult<()> {
         crate::manifest::validate_query_plan_shape(plan)?;
         let table_manifest = table(&plan.table)?;
-        let expected_visibility = table_manifest
-            .visibility
-            .as_ref()
-            .filter(|visibility| visibility.is_restricted());
-        if plan.table_visibility.as_ref() != expected_visibility {
-            return Err(SnapbackError::error(
-                "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
-                "auth",
-                format!(
-                    "query over {} must carry the exact schema-derived restricted table visibility predicate",
-                    plan.table
-                ),
-            )
-            .with_details(json!({
-                "table": plan.table,
-                "expected": expected_visibility,
-                "actual": plan.table_visibility,
-            })));
-        }
+        validate_composed_table_visibility(table_manifest, &plan.table_visibility, "query")?;
         // A membership table is authorization data first and application data
         // second. Until an explicit, closed row-visibility preset is carried by
         // the declaration, generated/direct HostPlan readers (including live
@@ -29165,10 +29179,16 @@ fn validate_function_schema_references(
             //   sequence — the cardinality proof, checked from declarations,
             //   never assumed.
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+                let root_table = table(&plan.root)?;
+                validate_composed_table_visibility(
+                    root_table,
+                    &plan.root_table_visibility,
+                    "relational root",
+                )?;
                 let mut root_filters = plan.root_visibility.clone();
                 root_filters.extend(plan.root_filters.iter().cloned());
                 query(&QueryPlan {
-                    table_visibility: None,
+                    table_visibility: plan.root_table_visibility.clone(),
                     table: plan.root.clone(),
                     filters: root_filters,
                     order: plan.order.clone(),
@@ -29189,8 +29209,14 @@ fn validate_function_schema_references(
                     })
                     .collect();
                 joined_filters.extend(plan.joined_visibility.iter().cloned());
+                let joined_table = table(&plan.joined)?;
+                validate_composed_table_visibility(
+                    joined_table,
+                    &plan.joined_table_visibility,
+                    "relational joined",
+                )?;
                 query(&QueryPlan {
-                    table_visibility: None,
+                    table_visibility: plan.joined_table_visibility.clone(),
                     table: plan.joined.clone(),
                     filters: joined_filters,
                     order: Vec::new(),
@@ -29198,7 +29224,6 @@ fn validate_function_schema_references(
                     membership_filters: Vec::new(),
                     indexed_by: None,
                 })?;
-                let joined_table = table(&plan.joined)?;
                 let key: Vec<&str> = plan
                     .join_on
                     .iter()
@@ -29353,6 +29378,16 @@ fn validate_function_schema_references(
                 };
                 let parent = table(&plan.parent_table)?;
                 let child = table(&plan.child_table)?;
+                validate_composed_table_visibility(
+                    parent,
+                    &plan.parent_table_visibility,
+                    "bounded-children parent",
+                )?;
+                validate_composed_table_visibility(
+                    child,
+                    &plan.child_table_visibility,
+                    "bounded-children child",
+                )?;
                 let projection_outputs = manifest
                     .projections
                     .iter()
@@ -29605,6 +29640,16 @@ fn validate_function_schema_references(
                 for node in &plan.nodes {
                     let parent = table(&node.parent_table)?;
                     let child = table(&node.child_table)?;
+                    validate_composed_table_visibility(
+                        parent,
+                        &node.parent_table_visibility,
+                        "snapshot-batch bounded-children parent",
+                    )?;
+                    validate_composed_table_visibility(
+                        child,
+                        &node.child_table_visibility,
+                        "snapshot-batch bounded-children child",
+                    )?;
                     validate_bounded_children_node_schema_references(
                         node,
                         parent,
@@ -29689,6 +29734,16 @@ fn validate_function_schema_references(
                         crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
                             let parent = table(&node.parent_table)?;
                             let child = table(&node.child_table)?;
+                            validate_composed_table_visibility(
+                                parent,
+                                &node.parent_table_visibility,
+                                "snapshot-batch v2 bounded-children parent",
+                            )?;
+                            validate_composed_table_visibility(
+                                child,
+                                &node.child_table_visibility,
+                                "snapshot-batch v2 bounded-children child",
+                            )?;
                             validate_bounded_children_node_schema_references(
                                 node,
                                 parent,
@@ -29722,10 +29777,22 @@ fn validate_function_schema_references(
                             });
                         }
                         crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                            let root = table(&node.root)?;
+                            let joined = table(&node.joined)?;
+                            validate_composed_table_visibility(
+                                root,
+                                &node.root_table_visibility,
+                                "snapshot-batch v2 relational root",
+                            )?;
+                            validate_composed_table_visibility(
+                                joined,
+                                &node.joined_table_visibility,
+                                "snapshot-batch v2 relational joined",
+                            )?;
                             let mut root_filters = node.root_visibility.clone();
                             root_filters.extend(node.root_filters.iter().cloned());
                             query(&QueryPlan {
-                                table_visibility: None,
+                                table_visibility: node.root_table_visibility.clone(),
                                 table: node.root.clone(),
                                 filters: root_filters,
                                 order: node.order.clone(),
@@ -29747,7 +29814,7 @@ fn validate_function_schema_references(
                                 .collect();
                             joined_filters.extend(node.joined_visibility.iter().cloned());
                             query(&QueryPlan {
-                                table_visibility: None,
+                                table_visibility: node.joined_table_visibility.clone(),
                                 table: node.joined.clone(),
                                 filters: joined_filters,
                                 order: Vec::new(),
@@ -30959,20 +31026,27 @@ fn execute_snapshot_batch_v2(
     let mut group_rows = Vec::with_capacity(groups.len());
     for (group_index, group) in groups.iter().enumerate() {
         let parent_id = &parent_ids[group_index];
-        let parent = db.get(&group.identity.parent_table, parent_id)?;
-        let visible = parent
-            .as_ref()
-            .is_some_and(|parent| match &group.identity.visibility {
-                crate::manifest::BoundedParentVisibility::PublicRead => true,
-                crate::manifest::BoundedParentVisibility::Owner { field } => {
-                    parent.get(field).and_then(Value::as_str) == input.auth.user_id.as_deref()
-                }
-            });
-        let state = if visible {
+        let node_index = *group
+            .node_indices
+            .first()
+            .expect("snapshot-batch v2 parent group has a bounded node");
+        let crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) = &plan.nodes[node_index]
+        else {
+            unreachable!("only bounded nodes participate in parent groups")
+        };
+        let parent = read_composed_bounded_parent(
+            db,
+            input,
+            &group.identity.parent_table,
+            parent_id,
+            &group.identity.visibility,
+            &node.parent_table_visibility,
+            "snapshot-batch v2 bounded-children parent",
+        )?;
+        let state = if let Some(parent) = parent {
             let incarnation = db
                 .active_relation_incarnation(&group.identity.parent_table, parent_id)?
                 .ok_or_else(snapshot_batch_restart_required)?;
-            let parent = parent.expect("visible snapshot-batch v2 parent exists");
             let version = parent
                 .get("_version")
                 .and_then(Value::as_u64)
@@ -31150,7 +31224,12 @@ fn execute_snapshot_batch_v2(
                     continue;
                 }
                 let child_query = QueryPlan {
-                    table_visibility: None,
+                    table_visibility: composed_read_surface_table_visibility(
+                        db,
+                        &node.child_table,
+                        &node.child_table_visibility,
+                        "snapshot-batch v2 bounded-children child",
+                    )?,
                     table: node.child_table.clone(),
                     filters: vec![
                         crate::manifest::FilterExpr {
@@ -31339,6 +31418,90 @@ fn project_bounded_row(row: &Value, fields: &[crate::manifest::BoundedProjection
         );
     }
     Value::Object(projected)
+}
+
+/// Re-derive one bounded surface's restricted table policy at execution and
+/// return the authoritative value used by its storage query.
+///
+/// @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+fn composed_read_surface_table_visibility(
+    db: &DbRead<'_>,
+    table_name: &str,
+    carried: &Option<crate::manifest::TableVisibilityV1>,
+    surface: &str,
+) -> SnapbackResult<Option<crate::manifest::TableVisibilityV1>> {
+    let table = db.schema().table(table_name).ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+            "runtime",
+            format!("{surface} references unknown table {table_name}"),
+        )
+    })?;
+    let expected = table
+        .visibility
+        .as_ref()
+        .filter(|visibility| visibility.is_restricted())
+        .cloned();
+    if carried != &expected {
+        return Err(SnapbackError::error(
+            "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
+            "auth",
+            format!(
+                "{surface} over {table_name} must carry the exact schema-derived restricted table visibility predicate"
+            ),
+        )
+        .with_details(json!({
+            "surface": surface,
+            "table": table_name,
+            "expected": expected,
+            "actual": carried,
+        })));
+    }
+    Ok(expected)
+}
+
+/// Point-read a bounded parent under both its surface-local visibility and
+/// the table's declared Class-R policy. Hidden and missing parents collapse to
+/// the same `None` before cursor processing.
+///
+/// @ref LLP 0110#13-evaluation-and-existence-secrecy
+/// @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
+fn read_composed_bounded_parent(
+    db: &DbRead<'_>,
+    input: &HandlerInput,
+    table_name: &str,
+    parent_id: &str,
+    surface_visibility: &crate::manifest::BoundedParentVisibility,
+    carried_table_visibility: &Option<crate::manifest::TableVisibilityV1>,
+    surface: &str,
+) -> SnapbackResult<Option<Value>> {
+    let mut filters = vec![crate::manifest::FilterExpr {
+        field: "_id".to_owned(),
+        op: crate::manifest::FilterOp::Eq,
+        value: ValueExpr::Literal(Value::String(parent_id.to_owned())),
+    }];
+    if let crate::manifest::BoundedParentVisibility::Owner { field } = surface_visibility {
+        filters.push(crate::manifest::FilterExpr {
+            field: field.clone(),
+            op: crate::manifest::FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        });
+    }
+    let table_visibility =
+        composed_read_surface_table_visibility(db, table_name, carried_table_visibility, surface)?;
+    let output = db.query(
+        &QueryPlan {
+            table: table_name.to_owned(),
+            table_visibility,
+            filters,
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: Some(1),
+            indexed_by: None,
+        },
+        input,
+    )?;
+    Ok(output.rows.into_iter().next())
 }
 
 const DATA_QUERY_MAX_TAKE: usize = 200;
@@ -32521,22 +32684,24 @@ fn execute_query_invocation(
             let mut group_rows = Vec::with_capacity(groups.len());
             for (group_index, group) in groups.iter().enumerate() {
                 let parent_id = &parent_ids[group_index];
-                let parent = db.get(&group.identity.parent_table, parent_id)?;
-                let visible =
-                    parent
-                        .as_ref()
-                        .is_some_and(|parent| match &group.identity.visibility {
-                            crate::manifest::BoundedParentVisibility::PublicRead => true,
-                            crate::manifest::BoundedParentVisibility::Owner { field } => {
-                                parent.get(field).and_then(Value::as_str)
-                                    == input.auth.user_id.as_deref()
-                            }
-                        });
-                let state = if visible {
+                let node_index = *group
+                    .node_indices
+                    .first()
+                    .expect("snapshot-batch parent group has a bounded node");
+                let node = &plan.nodes[node_index];
+                let parent = read_composed_bounded_parent(
+                    &db,
+                    &input,
+                    &group.identity.parent_table,
+                    parent_id,
+                    &group.identity.visibility,
+                    &node.parent_table_visibility,
+                    "snapshot-batch bounded-children parent",
+                )?;
+                let state = if let Some(parent) = parent {
                     let incarnation = db
                         .active_relation_incarnation(&group.identity.parent_table, parent_id)?
                         .ok_or_else(snapshot_batch_restart_required)?;
-                    let parent = parent.expect("visible parent exists");
                     let version = parent
                         .get("_version")
                         .and_then(Value::as_u64)
@@ -32675,7 +32840,12 @@ fn execute_query_invocation(
                     continue;
                 }
                 let child_query = QueryPlan {
-                    table_visibility: None,
+                    table_visibility: composed_read_surface_table_visibility(
+                        &db,
+                        &node.child_table,
+                        &node.child_table_visibility,
+                        "snapshot-batch bounded-children child",
+                    )?,
                     table: node.child_table.clone(),
                     filters: vec![
                         crate::manifest::FilterExpr {
@@ -32813,16 +32983,16 @@ fn execute_query_invocation(
                         "bounded children parent id argument is missing or invalid",
                     )
                 })?;
-            let parent = db.get(&plan.parent_table, parent_id)?;
-            let visible = parent
-                .as_ref()
-                .is_some_and(|parent| match &plan.parent_visibility {
-                    crate::manifest::BoundedParentVisibility::PublicRead => true,
-                    crate::manifest::BoundedParentVisibility::Owner { field } => {
-                        parent.get(field).and_then(Value::as_str) == input.auth.user_id.as_deref()
-                    }
-                });
-            if !visible {
+            let parent = read_composed_bounded_parent(
+                &db,
+                &input,
+                &plan.parent_table,
+                parent_id,
+                &plan.parent_visibility,
+                &plan.parent_table_visibility,
+                "bounded-children parent",
+            )?;
+            if parent.is_none() {
                 return Ok(QueryInvocation {
                     output: QueryOutput {
                         version: db.current_version()?,
@@ -32911,7 +33081,12 @@ fn execute_query_invocation(
                 Some(_) => return Err(bounded_children_cursor_invalid()),
             };
             let child_query = QueryPlan {
-                table_visibility: None,
+                table_visibility: composed_read_surface_table_visibility(
+                    &db,
+                    &plan.child_table,
+                    &plan.child_table_visibility,
+                    "bounded-children child",
+                )?,
                 table: plan.child_table.clone(),
                 filters: vec![
                     crate::manifest::FilterExpr {

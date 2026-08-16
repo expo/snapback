@@ -416,9 +416,14 @@ owner field with `authUserId()`, which the server resolves from the session:
 
 That predicate is the security boundary. For JS live queries,
 `authScopeField` additionally declares which result field represents the
-principal so the live matcher can reason about disjoint subscriptions; it does
-not inject an ownership filter. Two signed-in users see disjoint results over
-the same query:
+principal so invalidation and retained-result bookkeeping can reason about
+disjoint subscriptions. It is a declaration, never an authorization
+mechanism, and it does not inject an ownership filter. The paired
+`eq(field, authUserId())` filter is the gate. Codegen warns with
+`SNAPBACK_AUTH_SCOPE_FIELD_WITHOUT_CALLER_PREDICATE` when a declarative plan
+does not carry that pairing (and for handler-backed declarations whose gate is
+opaque to plan analysis). Two signed-in users see disjoint results over the
+same query:
 
 ```js source=demos/card-game/tests/acceptance/authority-scope.mjs
   const [adaResult, graceResult] = await Promise.all([

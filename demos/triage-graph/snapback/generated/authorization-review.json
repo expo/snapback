@@ -51,7 +51,7 @@
       "readSetSummary": {
         "authScopeField": null,
         "mode": "singleTable",
-        "primaryTable": "triageBoards",
+        "primaryTable": "activeIssues",
         "tables": [
           "activeIssues",
           "triageBoards"
@@ -545,7 +545,7 @@
       "readSetSummary": {
         "authScopeField": null,
         "mode": "singleTable",
-        "primaryTable": "triageBoards",
+        "primaryTable": "transitionSummaries",
         "tables": [
           "transitionSummaries",
           "triageBoards"

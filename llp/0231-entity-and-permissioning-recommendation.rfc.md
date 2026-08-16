@@ -5,7 +5,7 @@
 **Systems:** Auth, Security/authorization, Storage, Live queries, Code generation, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-10
-**Revised:** 2026-08-15 (D7 explicit handler-read authority; membership self-resource visibility)
+**Revised:** 2026-08-15 (D3 all-read-surface composition closure; D7 explicit handler-read authority; membership self-resource visibility)
 **Related:** LLP 0011, LLP 0035, LLP 0043, LLP 0046, LLP 0053, LLP 0056, LLP 0070, LLP 0073, LLP 0080, LLP 0085, LLP 0170, LLP 0172, LLP 0173, LLP 0187, LLP 0230, LLP 0234, LLP 0235
 
 ## Summary
@@ -735,6 +735,13 @@ The 2026-08-15 amendment implements D7 and membership self-resource
 visibility. Its unit witnesses assert both newly admitted reads and the
 negative default-scope, stranger, and action cases.
 
+The 2026-08-15 D3 closure also composes the exact schema-derived table policy
+into relational root/joined sources, bounded parent/child sources, and every
+snapshot-batch node. Surface-local policy remains an additional conjunct;
+hidden joined rows retain LLP 0080 absent semantics. Policy-composed
+multi-table live surfaces take the conservative whole-result replacement path,
+and the uncomposed-surface diagnostic is now a generation refusal.
+
 ## Revision history
 
 - 2026-08-10 — first revision (Draft).
@@ -799,3 +806,11 @@ negative default-scope, stranger, and action cases.
   masking, writes, egress, assets, bounds, and OCC remain unbypassed. Extended
   resource-table membership visibility with the bounded `_id` case and pinned
   negative default-scope, stranger, and action tests.
+- 2026-08-15 — closed D3's remaining shipped read-surface gap: relational
+  root/joined, bounded parent/child, and `snapshot-batch.v1`/`.v2` nodes now
+  carry and execute the exact schema-derived table policy as an intersection
+  with their surface-local visibility. Hidden joined rows remain absent
+  (`inner` excludes, `left` nulls joined leaves); policy-composed multi-table
+  live results conservatively replace on any commit. Flipped
+  `SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE` from advisory to
+  fail-closed codegen refusal for future unsupported classes.

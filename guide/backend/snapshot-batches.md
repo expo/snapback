@@ -148,10 +148,13 @@ admission is unchanged.
 
 Both profiles classify as `retention:"none"`: cursor-free-first-page
 `live_replace` only, table-granular resnapshot over the union of every node's
-declared dependency set, no `live_delta`, and **no retained composite** — a
-batch never renders offline. If a screen needs offline rendering, retain the
-owner-scoped relational query standalone (that class is retainable) and keep
-the composite for the online view
+declared dependency set when all node tables are public-read. Every bounded or
+relational node also carries each source table's declared visibility policy.
+If any node policy is restricted, invalidation conservatively resnapshots on
+any commit until exact policy-dependency matching is available. There is no
+`live_delta` and **no retained composite** — a batch never renders offline. If
+a screen needs offline rendering, retain the owner-scoped relational query
+standalone (that class is retainable) and keep the composite for the online view
 ([offline retention](../sync/offline-and-retention.md)).
 
 ## Result and continuation
@@ -190,7 +193,9 @@ survive composition.
 
 Only the cursor-free first page is live. Subscribe normally to receive
 whole-batch `live_replace` frames when any node table changes — in a mixed
-tuple that includes every relational node's root and joined tables. A
+tuple that includes every relational node's root and joined tables. With any
+restricted node-table policy, any commit may produce the conservative
+replacement described above. A
 subscribe request carrying a cursor refuses before storage access with
 `SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED`.
 

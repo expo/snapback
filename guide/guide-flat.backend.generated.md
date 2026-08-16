@@ -5080,9 +5080,19 @@ The shape is closed and proven at authoring time:
   back short — it is not refilled), and `left` returns the root with null
   joined leaves. Callers cannot distinguish the two cases.
 
+Each source table's `.visibility(...)` policy is also stamped into the plan
+from the generated schema and ANDed with the source-local `visibility.root` or
+`visibility.joined` predicate. Authors do not restate it. Activation and
+execution re-derive the policy from the installed schema and refuse a missing
+or mismatched carrier with `SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH`. A joined
+row hidden by the table policy follows the same absent semantics above.
+
 Live subscriptions deliver whole-result replacement (`live_replace`): a
-commit touching either source re-runs the query. No incremental delta or
-skip proof is claimed, matching LLP 0080's deliberately conservative v1.
+commit touching either source re-runs a policy-free query. When either source
+has a restricted table policy, any commit conservatively resnapshots until a
+precise matcher captures every policy dependency; this permits extra wakes but
+not a missed authorization change. No incremental delta proof is claimed,
+matching LLP 0080 and LLP 0231's deliberately conservative posture.
 A relational plan is never `authorityIndependent` — public plans stay
 authority-partition-scoped — and retention is default-deny with a closed
 vocabulary. `retention: 'none'` is the default. An owner-visible
@@ -5211,6 +5221,8 @@ is the Spec's publication lifecycle and cross-target evidence.
 The reviewed declaration makes the security and work proof explicit:
 
 - the parent visibility is `owner(field)` or `public-read`;
+- the parent and child tables' declared `.visibility(...)` policies are
+  independently stamped and intersected with parent/through-parent scope;
 - the child relationship is a required typed parent id plus a required
   `v.relationIncarnationOf(...)` stamp owned by the framework;
 - the named child index is exactly
@@ -5226,6 +5238,9 @@ The reviewed declaration makes the security and work proof explicit:
   computed row; the top-level query cursor remains absent; and
 - only the cursor-free first page is `live_replace`. Cursor-bearing
   subscribe/resume refuses.
+
+A restricted parent or child table uses conservative whole-result replacement
+on any commit so a policy-relevant change cannot be missed.
 
 Central inserts, buffered handlers, seed, migration, import, and restore all
 stamp the protected relation field from a physically present active parent.
@@ -5404,10 +5419,13 @@ admission is unchanged.
 
 Both profiles classify as `retention:"none"`: cursor-free-first-page
 `live_replace` only, table-granular resnapshot over the union of every node's
-declared dependency set, no `live_delta`, and **no retained composite** — a
-batch never renders offline. If a screen needs offline rendering, retain the
-owner-scoped relational query standalone (that class is retainable) and keep
-the composite for the online view
+declared dependency set when all node tables are public-read. Every bounded or
+relational node also carries each source table's declared visibility policy.
+If any node policy is restricted, invalidation conservatively resnapshots on
+any commit until exact policy-dependency matching is available. There is no
+`live_delta` and **no retained composite** — a batch never renders offline. If
+a screen needs offline rendering, retain the owner-scoped relational query
+standalone (that class is retainable) and keep the composite for the online view
 ([offline retention](../sync/offline-and-retention.md)).
 
 ## Result and continuation
@@ -5446,7 +5464,9 @@ survive composition.
 
 Only the cursor-free first page is live. Subscribe normally to receive
 whole-batch `live_replace` frames when any node table changes — in a mixed
-tuple that includes every relational node's root and joined tables. A
+tuple that includes every relational node's root and joined tables. With any
+restricted node-table policy, any commit may produce the conservative
+replacement described above. A
 subscribe request carrying a cursor refuses before storage access with
 `SNAPBACK_SNAPSHOT_BATCH_LIVE_CURSOR_UNSUPPORTED`.
 
