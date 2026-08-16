@@ -51,4 +51,3 @@ Both halves are now complete:
   and preserves ordinary Familiar actions in generated API types while still
   excluding command-only targets.
 
-Verification output is retained verbatim in `report.md`.
