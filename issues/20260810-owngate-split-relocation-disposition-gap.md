@@ -23,11 +23,13 @@ slice (predecessor `src/server.rs → src/local.rs` retained; recorded as a
 waiver with explanatory provenance in
 `issues/20260809-0199-ownership-ratchet-worklist.md`, deadline 2026-09-15).
 
-Proposed fix (owngate lane's call): a fourth disposition — e.g.
-`split-relocation` — validating that the predecessor fingerprint exists in
-the predecessor baseline's frozen set AND in the current graph, with the same
-predecessorFingerprint provenance as `relocation`; or relax `relocation` to
-accept a retained predecessor when explicitly declared
-(`predecessorRetained: true`). Routing: the ownership-gate lane
-(owngate-20260810) owns the arm; this ticket is the coordination record —
-not self-served per LLP 0225 §5 / the routing-closed claim.
+The original lane proposed a fourth `split-relocation` disposition (or a
+retained-predecessor mode on `relocation`). Three adversarial review rounds
+showed that the attempted evidence and waiver-discharge designs were unsound,
+so that disposition is not shipping. Splits continue to use the existing
+time-bounded-waiver behavior.
+
+Design work continues in
+`issues/20260816-split-relocation-disposition-needs-sound-evidence.md`. This
+gap remains open until that follow-up produces a sound, reviewed design and
+implementation.

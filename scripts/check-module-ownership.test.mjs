@@ -262,7 +262,8 @@ test('expired waivers in committed snapshots remain admitted and report escalati
   const protocol = enforceSnapshotProtocol(current, [predecessor], { today: '2026-08-12' });
 
   assert.deepEqual(protocol.expiredWaivers, [fingerprint]);
-  assert.equal(formatExpiredWaiverEscalation(protocol.expiredWaivers), '; 1 expired waivers (escalate)');
+  assert.equal(formatExpiredWaiverEscalation(protocol.expiredWaivers), '; 1 expired waiver (escalate)');
+  assert.equal(formatExpiredWaiverEscalation([fingerprint, `${fingerprint} again`]), '; 2 expired waivers (escalate)');
 });
 
 test('relocation re-keys a removed frozen edge only with retained attribution', () => {
@@ -307,10 +308,67 @@ test('set protocol blocks introduced reds and requires a pushed-tree ticket for 
   const inheritedFingerprint = edgeFingerprint(redPredecessor.analysis.edges[0]);
   assert.throws(
     () => enforceSnapshotProtocol(sourceSnapshot(), [redPredecessor]),
-    /need an open issues\/ ticket/u,
+    /need open issues\/ tickets/u,
   );
   const inherited = sourceSnapshot({ issues: trackingIssue([inheritedFingerprint]) });
   assert.equal(enforceSnapshotProtocol(inherited, [redPredecessor]).ticket, 'issues/outstanding.md');
+});
+
+function twoEdgeSnapshot({ issues = new Map(), revision = 'abc1234' } = {}) {
+  const sources = new Map([
+    ['src/service.rs', 'use crate::other::Thing;\nuse crate::second::SecondThing;\n'],
+    ['src/other.rs', 'pub struct Thing;\n'],
+    ['src/second.rs', 'pub struct SecondThing;\n'],
+  ]);
+  const manifest = manifestFor({
+    'src/service.rs': 'sync-realtime-engine',
+    'src/other.rs': 'background-services',
+    'src/second.rs': 'background-services',
+  });
+  return snapshotForSources(manifest, sources, { issues, revision });
+}
+
+test('separate tracking tickets may jointly cover inherited outstanding edges', () => {
+  const predecessor = twoEdgeSnapshot();
+  const fingerprints = predecessor.analysis.edges.map(edgeFingerprint);
+  const issues = new Map([
+    ['issues/first.md', `# first wave\n\n**Status:** Open\n\nObserved at \`abc1234\`.\n\n${fingerprints[0]}\n`],
+    ['issues/second.md', `# second wave\n\n**Status:** Open\n\nRe-observed at \`def5678\`.\n\n${fingerprints[1]}\n`],
+  ]);
+  const protocol = enforceSnapshotProtocol(twoEdgeSnapshot({ issues }), [predecessor]);
+
+  assert.deepEqual(protocol.tickets, ['issues/first.md', 'issues/second.md']);
+  assert.equal(protocol.ticket, 'issues/first.md, issues/second.md');
+});
+
+test('tracking tickets require an explicit backticked observed-at revision', () => {
+  const predecessor = sourceSnapshot();
+  const fingerprint = edgeFingerprint(predecessor.analysis.edges[0]);
+  const issues = new Map([[
+    'issues/loose.md',
+    `# loose observation\n\n**Status:** Open\n\nObserved at abc1234.\n\n${fingerprint}\n`,
+  ]]);
+
+  assert.throws(
+    () => enforceSnapshotProtocol(sourceSnapshot({ issues }), [predecessor]),
+    /explicit observed-at revision/u,
+  );
+});
+
+test('tracking tickets accept backticked colon observation-revision forms', () => {
+  const predecessor = sourceSnapshot();
+  const fingerprint = edgeFingerprint(predecessor.analysis.edges[0]);
+  for (const [index, revisionLine] of [
+    'Observed at: `abc1234`.',
+    'Observation revision: `abc1234`.',
+  ].entries()) {
+    const issues = new Map([[
+      `issues/colon-${index}.md`,
+      `# colon observation\n\n**Status:** Open\n\n${revisionLine}\n\n${fingerprint}\n`,
+    ]]);
+    const protocol = enforceSnapshotProtocol(sourceSnapshot({ issues }), [predecessor]);
+    assert.equal(protocol.ticket, `issues/colon-${index}.md`);
+  }
 });
 
 test('legacy unassigned modules are shrink-only across the predecessor comparison', () => {

@@ -734,15 +734,12 @@ function violationReason(edge, manifest, godFiles) {
   return `${edge.fromOwner} may not depend upward/sideways${godFile} on ${edge.toOwner}; allowed: ${suffix}`;
 }
 
-export function findNewViolations(manifest, analysis, baseline) {
+function summarizeBaselineDelta(manifest, analysis, baseline) {
   const validated = validateBaseline(baseline, manifest, analysis.godFiles);
   const newEdges = analysis.edges.filter((edge) => !validated.edgeKeys.has(edgeKey(edge)));
-  const violations = analysis.edges
-    .map((edge) => ({ ...edge, reason: violationReason(edge, manifest, analysis.godFiles) }))
-    .filter((edge) => edge.reason !== null && !validated.frozen.has(edgeFingerprint(edge)));
   const currentKeys = new Set(analysis.edges.map(edgeKey));
   const staleBaselineEdgeCount = [...validated.edgeKeys].filter((key) => !currentKeys.has(key)).length;
-  return { newEdges, staleBaselineEdgeCount, violations };
+  return { newEdges, staleBaselineEdgeCount };
 }
 
 function loadRepositorySources() {
@@ -773,9 +770,10 @@ function loadRevisionSnapshot(revision) {
   const baseline = JSON.parse(read('ownership.baseline.json'));
   const sources = new Map(rustFiles.map((path) => [path, read(path)]));
   const issues = new Map(issuePaths.map((path) => [path, read(path)]));
-  // A predecessor may itself be the red being fixed forward. Preserve that
-  // fact as historical unassigned residue so the pushed tree can remove it;
-  // the current tree is still validated strictly and cannot use this path.
+  // A predecessor may itself be the red being fixed forward. Treat modules
+  // already missing there as historical residue so the pushed tree can remove
+  // them or explicitly park them in unassigned. A module new in the pushed
+  // tree is absent from this patched set and remains blocked by shrink-only.
   const assigned = new Set(Object.values(manifest.modulesByOwner).flat());
   const missing = rustFiles.filter((path) => !assigned.has(path));
   manifest.modulesByOwner.unassigned = [
@@ -843,9 +841,9 @@ function expiredWaiverFingerprints(records, today) {
 }
 
 export function formatExpiredWaiverEscalation(expiredWaivers) {
-  return expiredWaivers.length === 0
-    ? ''
-    : `; ${expiredWaivers.length} expired waivers (escalate)`;
+  if (expiredWaivers.length === 0) return '';
+  const noun = expiredWaivers.length === 1 ? 'waiver' : 'waivers';
+  return `; ${expiredWaivers.length} expired ${noun} (escalate)`;
 }
 
 export function outstandingFingerprints(snapshot) {
@@ -948,16 +946,22 @@ function enforceUnassignedShrinkOnly(current, predecessor) {
   );
 }
 
-function trackingTicketFor(fingerprints, issueSources) {
-  if (fingerprints.length === 0) return null;
+function trackingTicketsFor(fingerprints, issueSources) {
+  if (fingerprints.length === 0) return [];
+  const covered = new Set();
+  const tickets = [];
   for (const [path, source] of issueSources) {
     if (!/^\*\*Status:\*\*\s*Open\s*$/imu.test(source)) continue;
     const normalized = normalizeIssueText(source);
-    if (!fingerprints.every((fingerprint) => normalized.includes(fingerprint))) continue;
-    if (!/observ(?:ed|ation)(?:\s+revision)?(?:\s+at)?[^0-9a-f]+`?[0-9a-f]{7,40}`?/iu.test(normalized)) continue;
-    return path;
+    if (!/\b(?:(?:re-)?observed(?:\s+revision)?\s+at|observation\s+revision(?:\s+at)?)\s*:?\s+`[0-9a-f]{7,40}`/iu.test(normalized)) continue;
+    const newlyCovered = fingerprints.filter((fingerprint) => (
+      !covered.has(fingerprint) && normalized.includes(fingerprint)
+    ));
+    if (newlyCovered.length === 0) continue;
+    tickets.push(path);
+    for (const fingerprint of newlyCovered) covered.add(fingerprint);
   }
-  return null;
+  return covered.size === fingerprints.length ? tickets : null;
 }
 
 export function enforceSnapshotProtocol(
@@ -984,12 +988,18 @@ export function enforceSnapshotProtocol(
     reports.push({ baseline, introduced, predecessor, predecessorOutstanding });
   }
   const inherited = [...currentOutstanding].sort();
-  const ticket = trackingTicketFor(inherited, current.issues);
+  const tickets = trackingTicketsFor(inherited, current.issues);
   assert(
-    inherited.length === 0 || ticket,
-    `inherited forbidden module edges need an open issues/ ticket naming every fingerprint and observation revision:\n- ${inherited.join('\n- ')}`,
+    inherited.length === 0 || tickets,
+    `inherited forbidden module edges need open issues/ tickets jointly naming every fingerprint and an explicit observed-at revision:\n- ${inherited.join('\n- ')}`,
   );
-  return { expiredWaivers, inherited, reports, ticket };
+  return {
+    expiredWaivers,
+    inherited,
+    reports,
+    ticket: tickets?.join(', ') || null,
+    tickets: tickets ?? [],
+  };
 }
 
 function baselineDocument(analysis, manifest, predecessor, issueSources) {
@@ -1091,8 +1101,14 @@ function main() {
     }
 
     const baseline = parseJson(BASELINE_PATH, 'module ownership baseline');
-    const result = findNewViolations(manifest, analysis, baseline);
-    const current = { analysis, baseline, issues, manifest, revision: 'working-tree' };
+    const result = summarizeBaselineDelta(manifest, analysis, baseline);
+    const current = {
+      analysis,
+      baseline,
+      issues,
+      manifest,
+      revision: 'working-tree',
+    };
     const protocol = enforceSnapshotProtocol(current, predecessors);
 
     const assignedCount = [...analysis.assignment.values()].filter((owner) => owner !== 'unassigned').length;

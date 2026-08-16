@@ -55,6 +55,9 @@ the scheduled backstop; ordinary pre-push execution is deferred)
 **Revised:** 2026-08-15 (u — raw-dev stream-transcript activation joins the
 function-generation transaction; the recorded split-cut exception is
 discharged; see Revision history)
+**Revised:** 2026-08-16 (v — §5 enforcement mechanics add joint
+tracking-ticket coverage and operational hardening; the rejected
+owner-reassignment re-key mechanic remains in needs-design)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -476,11 +479,14 @@ The addition is `src/local.rs → src/auth/service_authority_contract.rs`, a
 **downward re-key** of the `src/local.rs → src/auth/service_fence.rs` edge the
 same landing removes (local.rs genuinely matches on the resolution and
 disposition enums). It is recorded as a time-bounded waiver with inversion
-owner `transport-adapters` and deadline 2026-09-15 only because the arm's
-`relocation` disposition asserts the predecessor **owner pair is retained**
-and therefore cannot express a shape moving *down a layer* — the same
-vocabulary gap as the owner-#5 split, tracked in
-`issues/20260810-owngate-split-relocation-disposition-gap.md`. The prose here
+owner `transport-adapters` and deadline 2026-09-15 because the re-key changes
+both target module and target owner, while `relocation` requires the
+predecessor owner pair. The vocabulary gap
+remains open in
+`issues/20260810-owngate-split-relocation-disposition-gap.md`, with the
+sound-evidence design follow-up at
+`issues/20260816-split-relocation-disposition-needs-sound-evidence.md`. The
+prose here
 carries the true disposition; the coupling drains with `local.rs`.
 
 Characterization envelope: pure relocation, so the claim is behavioral
@@ -970,16 +976,17 @@ requires its named worklist record in the same landing.
   §2's growth check is what blocks it. Provenance re-keys for relocation
   and analyzer-upgrade discoveries are baseline entries with attribution
   (§2), never waivers; relocation attribution names the exact removed
-  predecessor fingerprint and retains its owner pair. An inherited-red
-  ticket names **at least** the
-  outstanding fingerprints (a superset containing since-fixed entries
-  still admits). A Boolean pass/fail or last-green
+  predecessor fingerprint and retains its owner pair. One or more inherited-red
+  tickets jointly
+  name **at least** the outstanding fingerprints (a superset containing
+  since-fixed entries still admits). A Boolean pass/fail or last-green
   comparison cannot distinguish inherited from introduced reds and is not
   compliant. (ii) inherited members (`V(P) ∩ V(B)` non-empty) are admitted
-  only while **the pushed revision itself contains** an open ticket naming
-  the exact outstanding fingerprints and their observation revision — if
+  only while **the pushed revision itself contains** open tickets jointly
+  naming the exact outstanding fingerprints, each with an explicit backticked
+  observation revision — if
   the tree being pushed carries untracked reds, the push blocks until the
-  same push commits or refreshes that ticket. The hook never creates
+  same push commits or refreshes those tickets. The hook never creates
   uncommitted state. After the revision-(l) merge-wave reconciliation the
   committed baseline records the complete 1,704-edge graph over 232 modules
   and admits 386 frozen forbidden fingerprints; the rehearsal pair is
@@ -1292,3 +1299,12 @@ so slices can follow product priorities.
   legacy split state is repaired only through the composite commit. An
   injected malformed-catalog witness proves whole-cut rollback and repaired
   retry convergence.
+- **2026-08-16 (v).** Independent inherited-red tickets may jointly cover the
+  outstanding set, and each must carry an explicit backticked observation
+  revision, including the canonical colon forms. The dead baseline-only
+  violation computation and the expired waiver singular-plural defect are
+  removed. No new disposition or waiver semantics are introduced. The
+  attempted exact-endpoint owner-reassignment re-key was removed after review
+  found it could launder a predecessor waiver's deadline and inversion owner;
+  owner re-keys and retained-predecessor edge-key splits remain fail-closed or
+  time-bounded waivers pending the open sound-evidence design follow-up.
