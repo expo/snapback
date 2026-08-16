@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:5488ad0388ab4c0c13f01173a79fd47f249824fc4f16a87584fd78c92f1227a7"
+    "sourceDigest": "sha256:6cdc7ee7a57768a79dff0ee8253a29fadcfbda4af75d95b0bba4da74333ff738"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,7 +10,7 @@
   "counts": {
     "codes": 3381,
     "sourceFiles": 465,
-    "emittingSites": 11559,
+    "emittingSites": 11558,
     "httpClassified": 1031,
     "guideAnchored": 412
   },
@@ -10221,7 +10221,7 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 205,
+          "line": 219,
           "column": 22
         }
       ],
@@ -10411,13 +10411,8 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 642,
-          "column": 22
-        },
-        {
-          "file": "src/storage/asset_reads.rs",
-          "line": 672,
-          "column": 22
+          "line": 27,
+          "column": 10
         }
       ],
       "httpStatus": null,
@@ -10606,32 +10601,32 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 212,
+          "line": 226,
           "column": 22
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 275,
+          "line": 289,
           "column": 22
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 460,
+          "line": 474,
           "column": 26
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 564,
+          "line": 578,
           "column": 22
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 600,
+          "line": 614,
           "column": 22
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 906,
+          "line": 929,
           "column": 22
         }
       ],
@@ -11752,22 +11747,22 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 571,
+          "line": 585,
           "column": 22
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 607,
+          "line": 621,
           "column": 22
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 723,
+          "line": 734,
           "column": 22
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 804,
+          "line": 827,
           "column": 22
         }
       ],
@@ -11995,12 +11990,12 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 685,
+          "line": 696,
           "column": 34
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 693,
+          "line": 704,
           "column": 30
         }
       ],
@@ -12035,7 +12030,7 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 913,
+          "line": 936,
           "column": 22
         }
       ],
@@ -12416,7 +12411,7 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 789,
+          "line": 812,
           "column": 26
         }
       ],
@@ -12441,7 +12436,7 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 796,
+          "line": 819,
           "column": 26
         }
       ],
@@ -12706,7 +12701,7 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 123,
+          "line": 137,
           "column": 18
         }
       ],
@@ -12938,7 +12933,7 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 267,
+          "line": 281,
           "column": 22
         }
       ],
@@ -12958,22 +12953,22 @@
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 79,
+          "line": 93,
           "column": 18
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 102,
+          "line": 116,
           "column": 22
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 112,
+          "line": 126,
           "column": 22
         },
         {
           "file": "src/storage/asset_reads.rs",
-          "line": 708,
+          "line": 719,
           "column": 26
         }
       ],
