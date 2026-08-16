@@ -21,6 +21,9 @@ const FUNCTION_KINDS = new Map([
   ['Mutation', 'mutation'],
   ['Action', 'action'],
 ]);
+const FUNCTION_REFERENCE_KINDS = Object.freeze(Object.fromEntries(
+  [...FUNCTION_KINDS].map(([referenceKind, clientKind]) => [clientKind, referenceKind]),
+));
 
 const diagnosticError = (code, message, details = undefined) => {
   const error = new Error(`${code}: ${message}`);
@@ -180,7 +183,14 @@ const lookupFunction = (artifacts, name) => {
 // engine always sends the identity when the loaded index provides one.
 const functionSelector = (artifacts, fn) => (artifacts.generation === null
   ? fn.name
-  : Object.freeze({ name: fn.name, expectedGeneration: artifacts.generation }));
+  : Object.freeze({
+      artifactKind: 'functionReference',
+      name: fn.name,
+      kind: FUNCTION_REFERENCE_KINDS[fn.kind],
+      expectedGeneration: artifacts.generation,
+      ...(fn.argsContract == null ? {} : { argsContract: fn.argsContract }),
+      argumentSchema: fn.argsSchema,
+    }));
 
 // An offline served surface exists for `--help`/`introspect`/`types` only
 // (LLP 0062 §5): cached identity may describe a deployment that has since

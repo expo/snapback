@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { deriveServiceAuthorityInstanceId } from '@expo/snapback-client';
-import { runPackagedAgentJourney } from './index.mjs';
+import {
+  invokeAppFunction,
+  runPackagedAgentJourney,
+  subscribeAppFunction,
+} from './index.mjs';
 
 // Ticket issues/20260717-app-cli-client-core-package.md: the engine's client
 // façade must have no ambient SNAPBACK_ADMIN_TOKEN pickup. Plant the env var
@@ -140,6 +144,9 @@ try {
     await writeFile(join(directory, 'operations', `${name}.args.schema.json`), JSON.stringify({
       $schema: 'https://json-schema.org/draft/2020-12/schema',
       type: 'object',
+      additionalProperties: false,
+      properties: name === 'createTodo' ? { title: { type: 'string' } } : {},
+      required: name === 'createTodo' ? ['title'] : [],
     }));
   }
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -226,9 +233,63 @@ try {
       `${path} must assert the generated artifact identity`,
     );
   }
+  const selectorCalls = [];
+  const selectorClient = Object.freeze({
+    query: async (ref) => selectorCalls.push(['query', ref]),
+    mutate: async (ref) => selectorCalls.push(['mutation', ref]),
+    action: async (ref) => selectorCalls.push(['action', ref]),
+    subscribeLive: async (ref) => selectorCalls.push(['liveQuery', ref]),
+  });
+  const emptyArgsSchema = Object.freeze({
+    type: 'object',
+    additionalProperties: false,
+    properties: Object.freeze({}),
+  });
+  const selectorArtifacts = Object.freeze({
+    generation: expectedGeneration,
+    functions: Object.freeze([
+      ['readOnce', 'query'],
+      ['watchRows', 'liveQuery'],
+      ['writeOnce', 'mutation'],
+      ['callEffect', 'action'],
+    ].map(([name, kind]) => Object.freeze({ name, kind, argsSchema: emptyArgsSchema }))),
+  });
+  await invokeAppFunction(selectorClient, selectorArtifacts, 'readOnce');
+  await invokeAppFunction(selectorClient, selectorArtifacts, 'writeOnce');
+  await invokeAppFunction(selectorClient, selectorArtifacts, 'callEffect');
+  await subscribeAppFunction(selectorClient, selectorArtifacts, 'watchRows');
+  assert.deepEqual(selectorCalls, [
+    ['query', {
+      artifactKind: 'functionReference', name: 'readOnce', kind: 'Query', expectedGeneration,
+      argumentSchema: emptyArgsSchema,
+    }],
+    ['mutation', {
+      artifactKind: 'functionReference', name: 'writeOnce', kind: 'Mutation', expectedGeneration,
+      argumentSchema: emptyArgsSchema,
+    }],
+    ['action', {
+      artifactKind: 'functionReference', name: 'callEffect', kind: 'Action', expectedGeneration,
+      argumentSchema: emptyArgsSchema,
+    }],
+    ['liveQuery', {
+      artifactKind: 'functionReference', name: 'watchRows', kind: 'LiveQuery', expectedGeneration,
+      argumentSchema: emptyArgsSchema,
+    }],
+  ]);
+  const callsBeforeMismatch = selectorCalls.length;
+  await assert.rejects(
+    () => invokeAppFunction(selectorClient, selectorArtifacts, 'watchRows'),
+    (error) => error?.code === 'SNAPBACK_APP_CLI_CALL_REQUIRES_ORDINARY_FUNCTION',
+  );
+  await assert.rejects(
+    () => subscribeAppFunction(selectorClient, selectorArtifacts, 'readOnce'),
+    (error) => error?.code === 'SNAPBACK_APP_CLI_SUBSCRIBE_REQUIRES_LIVE_QUERY',
+  );
+  assert.equal(selectorCalls.length, callsBeforeMismatch, 'verb mismatches refuse before transport');
   console.log('package.test.mjs: packaged discover/pair/mutate/subscribe/verify journey passes');
   console.log('package.test.mjs: planted SNAPBACK_ADMIN_TOKEN never left the engine');
   console.log('package.test.mjs: every call family asserted the artifact generation');
+  console.log('package.test.mjs: generated selectors preserve all four nominal reference kinds');
 } finally {
   await new Promise((resolve) => server.close(resolve));
   await rm(directory, { recursive: true, force: true });
