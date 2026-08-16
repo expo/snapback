@@ -1,5 +1,8 @@
 # Add first-class password credential auth (Clique pilot F5 #1)
 
+**Status:** CLOSED 2026-08-15 — clean-install proof passed against published
+0.1.22 packages; resolution recorded at the end of this file.
+
 The P2 pilot's Snapback lane (record 2026-08-09-social-messenger-p2-pilot.md)
 scored B2 auth 48/100 — the pilot's floor: Snapback ships email-code
 sessions (auth.sessions) but no password credential mode, so the lane
@@ -89,3 +92,51 @@ Expo-hosted shared email/SMS delivery service, so the prerequisite has a
 ruled path — revisit both features when that delivery path exists or a
 benchmark/demand signal forces them. Until then the honest-boundaries
 paragraph above remains the accurate capability statement.
+
+## Resolution — 2026-08-15: clean-install proof PASSED; ticket closed
+
+A fresh app scaffolded entirely from the npm registry (`@expo/snapback-cli`,
+`-client`, `-codegen`, `-contract`, `-react`, `-runtime-darwin-arm64`, all
+`@0.1.22`; packaged release runtime, launch stamp `272bea745bb0`,
+`gitDirty: false`, selection rung `packaged-runtime`) proved the commission's
+definition of done — no repo binary, no local builds, no `file:` links, no
+admin token or impersonation on any product-path call:
+
+1. **Scaffold/codegen/dev**: `snapback new --template todo-contract`,
+   `defineAuth` password mechanism per `guide/auth/passwords.md`,
+   `snapback generate`, `snapback dev` → `generated-and-loaded`.
+2. **Non-interactive signup**: CLI (`auth password signup`, password on
+   stdin) and `POST /auth/password/signup` both return the LLP 0057 composed
+   credential with recovery codes. Raw HTTP requires
+   `x-snapback-auth-client-protocol: 1` (typed 400 with remediation
+   otherwise).
+3. **Signin issues a real session** via CLI, HTTP, and the published
+   `@expo/snapback-client` (`authPasswordSignup`/`authPasswordSignIn` +
+   `AuthCoordinator` custody, `tokenExposed: false`); the session drove an
+   authenticated mutation and an `authUserId()`-scoped live query.
+4. **Wrong password** refuses `SNAPBACK_AUTH_CREDENTIAL_INVALID` on all
+   three surfaces (HTTP 401 / CLI exit 3 / `SnapbackDiagnosticError`).
+5. **Lockout**: 10 failures → admin attempt projection reports
+   `locked: true`, `failureThreshold: 10`, `lockDurationMs: 900000`; correct
+   password refuses uniformly (lock state deliberately invisible on the wire
+   — the anti-oracle posture, per the guide); `snapback auth password
+   unlock` restored signin without waiting out the window. There is no
+   wire-visible lockout code **by design**.
+6. **Local reset via capture mailbox** (nice-to-have): full journey proven
+   over HTTP and the CLI `auth password reset` verb — request-code →
+   mailbox → step-up (`passwordSet`) → change → anonymous reset → signin
+   with the new password; old password refused.
+
+The `auth.passwords` capability row flips `partial` → `shipped` in this
+landing; the honest nonclaims (blind-accept signup, mail reset, import) are
+unchanged and remain in the row.
+
+Deviation noted: the proof ran under node v25.9.0 (homebrew), not the
+volta-pinned 24.18.0; nothing in the proof depended on node version.
+
+Friction found during the proof, filed separately rather than tracked here:
+`issues/20260815-cli-delegated-verb-help-resolution.md`,
+`issues/20260815-guide-gap-password-wire-protocol-and-mailbox-read.md`,
+`issues/20260815-password-set-step-up-identity-undiscoverable.md`,
+`issues/20260815-password-unlock-admin-token-carrier.md`,
+`issues/20260815-packaged-catalog-build-identity-mismatch.md`.
