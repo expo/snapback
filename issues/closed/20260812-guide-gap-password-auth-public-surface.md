@@ -32,3 +32,17 @@ selector was found.
 
 Diary 0076 records the acceptance exercise. The definition-of-done witness
 currently fails with `SNAPBACK_ACCEPTANCE_EMAIL_IDENTIFIER_MODE_REQUIRED`.
+
+## Resolution
+
+Resolved 2026-08-15, verified against origin/main. `guide/auth/passwords.md`
+landed via b92bcd412 with the `auth.passwords` capability row (honest
+partial/local status). The previously missing public identifier-mode selector
+now exists and is documented: `identifier: 'email'` on the password mechanism
+in `defineAuth` selects email-v1 before activation, with
+`SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE` refusing reinterpretation.
+The minimum-length surface is app-declarable (`minimumLength`, 8–128, default
+12) via 0d091e3af/fa34dbd8a. Witnesses are bound through the page's
+frontmatter authorities (packages/snapback-client/password-auth.test.mjs,
+demos/rbac snippet sources) and `examples: [demos/browser-auth]` rather than
+inline prose links; that satisfies the runnable-witness intent.
