@@ -6,15 +6,18 @@ import { webcrypto } from 'node:crypto';
 import { IDBFactory } from 'fake-indexeddb';
 
 import {
+  AUTH_DEFAULT_STORAGE_PARTITION,
   AuthCoordinator,
   AUTH_CUSTODY_LEASE_MS,
   SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+  authCustodyOwnerKeyHash,
 } from './auth-coordinator.mjs';
 import { createIndexedDbAuthCustodyStorage } from './auth-custody-indexeddb.mjs';
 
 const APP = 'snapback.test/indexeddb-custody';
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const INCARNATION_B = '018f0d90-7b12-7a22-8c33-445566778899';
+const INCARNATION_C = '018f0d90-7b13-7a22-8c33-445566778899';
 
 const anonymousAuthority = (incarnation) => ({
   kind: 'anonymous',
@@ -22,7 +25,7 @@ const anonymousAuthority = (incarnation) => ({
   authorizationStreamIncarnation: incarnation,
 });
 
-const settledAnonymous = () => ({
+const settledAnonymous = (incarnation = INCARNATION) => ({
   formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
   appId: APP,
   authorityEpoch: 0,
@@ -31,7 +34,7 @@ const settledAnonymous = () => ({
   authority: {
     kind: 'anonymous',
     authMode: 'sessions',
-    authorizationStreamIncarnation: INCARNATION,
+    authorizationStreamIncarnation: incarnation,
   },
   pendingAuthority: null,
   bearer: null,
@@ -48,6 +51,20 @@ const deferred = () => {
     reject = rej;
   });
   return { promise, resolve, reject };
+};
+
+const withDeadline = async (promise, label, timeoutMs = 1_000) => {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} did not settle`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 };
 
 const expectCode = async (code, operation) => {
@@ -72,11 +89,29 @@ const readIndexedDbRecord = (indexedDB, databaseName, storeName, key) => new Pro
   };
 });
 
+const writeIndexedDbRecord = (indexedDB, databaseName, storeName, key, value) => new Promise((resolve, reject) => {
+  const open = indexedDB.open(databaseName);
+  open.onerror = () => reject(open.error);
+  open.onsuccess = () => {
+    const database = open.result;
+    const transaction = database.transaction(storeName, 'readwrite');
+    transaction.objectStore(storeName).put(structuredClone(value), key);
+    transaction.onabort = () => reject(transaction.error);
+    transaction.onerror = () => {};
+    transaction.oncomplete = () => {
+      database.close();
+      resolve();
+    };
+  };
+});
+
 class DeterministicLockManager {
   #tails = new Map();
+  names = [];
 
   async request(name, options, operation) {
     assert.deepEqual(options, { mode: 'exclusive' });
+    this.names.push(name);
     const prior = this.#tails.get(name) ?? Promise.resolve();
     const release = deferred();
     const tail = prior.then(() => release.promise);
@@ -89,6 +124,218 @@ class DeterministicLockManager {
       if (this.#tails.get(name) === tail) this.#tails.delete(name);
     }
   }
+}
+
+// A default coordinator restores a raw pre-partition row, while preview and
+// staging persist at their exact independent compound keys.
+{
+  const indexedDB = new IDBFactory();
+  const databaseName = 'snapback-auth-custody-partition-addressing-test';
+  const lockManager = new DeterministicLockManager();
+  const storage = createIndexedDbAuthCustodyStorage({
+    indexedDB,
+    lockManager,
+    cryptoObject: webcrypto,
+    databaseName,
+  });
+  assert.equal(storage.ownerKeyCapability, 'owner-key-v1');
+  const defaultOwnerKey = {
+    appId: APP,
+    storagePartition: AUTH_DEFAULT_STORAGE_PARTITION,
+  };
+  const previewOwnerKey = { appId: APP, storagePartition: 'preview' };
+  const stagingOwnerKey = { appId: APP, storagePartition: 'staging' };
+  const legacy = settledAnonymous();
+  const preview = settledAnonymous(INCARNATION_B);
+  const staging = settledAnonymous(INCARNATION_C);
+  const previewStorageKey = [
+    'snapback-auth-custody-partition-v1',
+    authCustodyOwnerKeyHash(previewOwnerKey),
+  ];
+  const stagingStorageKey = [
+    'snapback-auth-custody-partition-v1',
+    authCustodyOwnerKeyHash(stagingOwnerKey),
+  ];
+
+  await storage.withOwnership(APP, (owner) => owner.read());
+  await writeIndexedDbRecord(indexedDB, databaseName, 'custody', APP, legacy);
+  const defaultCoordinator = new AuthCoordinator({
+    appId: APP,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await defaultCoordinator.synchronize();
+  assert.equal(
+    defaultCoordinator.authority.authorizationStreamIncarnation,
+    INCARNATION,
+    'default-partition synchronize restores the raw legacy app-id row',
+  );
+  await defaultCoordinator.close();
+  await storage.withOwnership(
+    previewOwnerKey,
+    (owner) => owner.replace(null, preview),
+  );
+  await storage.withOwnership(
+    stagingOwnerKey,
+    (owner) => owner.replace(null, staging),
+  );
+  assert.deepEqual(
+    await storage.withOwnership(defaultOwnerKey, (owner) => owner.read()),
+    legacy,
+  );
+  assert.deepEqual(
+    await storage.withOwnership(previewOwnerKey, (owner) => owner.read()),
+    preview,
+  );
+  assert.deepEqual(
+    await storage.withOwnership(stagingOwnerKey, (owner) => owner.read()),
+    staging,
+  );
+  assert.deepEqual(
+    await readIndexedDbRecord(indexedDB, databaseName, 'custody', APP),
+    legacy,
+  );
+  const rawPreview = await readIndexedDbRecord(
+    indexedDB,
+    databaseName,
+    'custody',
+    previewStorageKey,
+  );
+  const rawStaging = await readIndexedDbRecord(
+    indexedDB,
+    databaseName,
+    'custody',
+    stagingStorageKey,
+  );
+  assert.equal(rawPreview.authority.authorizationStreamIncarnation, INCARNATION_B);
+  assert.equal(rawStaging.authority.authorizationStreamIncarnation, INCARNATION_C);
+  assert.notDeepEqual(rawPreview, rawStaging);
+  assert.equal(Object.hasOwn(rawPreview, 'storagePartition'), false);
+  assert.equal(Object.hasOwn(rawStaging, 'storagePartition'), false);
+  assert.equal(lockManager.names.includes(`snapback-auth-custody:${APP}`), true);
+  assert.equal(
+    lockManager.names.includes(
+      `snapback-auth-custody-partition:${authCustodyOwnerKeyHash(previewOwnerKey)}`,
+    ),
+    true,
+  );
+  assert.equal(
+    lockManager.names.includes(
+      `snapback-auth-custody-partition:${authCustodyOwnerKeyHash(stagingOwnerKey)}`,
+    ),
+    true,
+  );
+  await storage.close();
+}
+
+// Web Lock tails serialize one partition without blocking another partition.
+{
+  const lockManager = new DeterministicLockManager();
+  const storage = createIndexedDbAuthCustodyStorage({
+    indexedDB: new IDBFactory(),
+    lockManager,
+    cryptoObject: webcrypto,
+    databaseName: 'snapback-auth-custody-partition-web-lock-tail-test',
+  });
+  const previewOwnerKey = { appId: APP, storagePartition: 'preview' };
+  const stagingOwnerKey = { appId: APP, storagePartition: 'staging' };
+  const previewEntered = deferred();
+  const releasePreview = deferred();
+  const queuedPreviewEntered = deferred();
+  const stagingEntered = deferred();
+  const preview = storage.withOwnership(previewOwnerKey, async () => {
+    previewEntered.resolve();
+    await releasePreview.promise;
+  });
+  await previewEntered.promise;
+  const queuedPreview = storage.withOwnership(previewOwnerKey, async () => {
+    queuedPreviewEntered.resolve();
+  });
+  const staging = storage.withOwnership(stagingOwnerKey, async () => {
+    stagingEntered.resolve();
+  });
+  await withDeadline(stagingEntered.promise, 'independent staging Web Lock');
+  let queuedPreviewStarted = false;
+  queuedPreviewEntered.promise.then(() => { queuedPreviewStarted = true; });
+  await Promise.resolve();
+  assert.equal(queuedPreviewStarted, false, 'same-partition Web Lock remains queued');
+  await staging;
+  releasePreview.resolve();
+  await Promise.all([preview, queuedPreview]);
+  await storage.close();
+}
+
+// Fallback leases use the same compound partition key, so one held preview
+// lease neither serializes nor fences staging's independent ownership tail.
+{
+  const indexedDB = new IDBFactory();
+  const databaseName = 'snapback-auth-custody-partition-fallback-tail-test';
+  const storage = createIndexedDbAuthCustodyStorage({
+    indexedDB,
+    lockManager: null,
+    cryptoObject: webcrypto,
+    databaseName,
+  });
+  const previewOwnerKey = { appId: APP, storagePartition: 'preview' };
+  const stagingOwnerKey = { appId: APP, storagePartition: 'staging' };
+  const previewStorageKey = [
+    'snapback-auth-custody-partition-v1',
+    authCustodyOwnerKeyHash(previewOwnerKey),
+  ];
+  const stagingStorageKey = [
+    'snapback-auth-custody-partition-v1',
+    authCustodyOwnerKeyHash(stagingOwnerKey),
+  ];
+  const previewEntered = deferred();
+  const releasePreview = deferred();
+  const queuedPreviewEntered = deferred();
+  const stagingEntered = deferred();
+  const preview = storage.withOwnership(previewOwnerKey, async () => {
+    previewEntered.resolve();
+    await releasePreview.promise;
+  });
+  await previewEntered.promise;
+  const queuedPreview = storage.withOwnership(previewOwnerKey, async () => {
+    queuedPreviewEntered.resolve();
+  });
+  const staging = storage.withOwnership(stagingOwnerKey, async () => {
+    stagingEntered.resolve();
+  });
+  await withDeadline(stagingEntered.promise, 'independent staging fallback lease');
+  let queuedPreviewStarted = false;
+  queuedPreviewEntered.promise.then(() => { queuedPreviewStarted = true; });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(queuedPreviewStarted, false, 'same-partition fallback lease remains queued');
+  await staging;
+  releasePreview.resolve();
+  await Promise.all([preview, withDeadline(queuedPreview, 'queued preview fallback lease')]);
+  assert.notEqual(
+    await readIndexedDbRecord(indexedDB, databaseName, 'leases', previewStorageKey),
+    null,
+  );
+  assert.notEqual(
+    await readIndexedDbRecord(indexedDB, databaseName, 'leases', stagingStorageKey),
+    null,
+  );
+  await storage.close();
+}
+
+// Partition validation refuses whitespace/control and empty values before I/O.
+{
+  const storage = createIndexedDbAuthCustodyStorage({
+    indexedDB: new IDBFactory(),
+    lockManager: new DeterministicLockManager(),
+    cryptoObject: webcrypto,
+    databaseName: 'snapback-auth-custody-partition-validation-test',
+  });
+  for (const storagePartition of ['', 'two words', 'line\nfeed', 'control\u007f']) {
+    await assert.rejects(
+      storage.withOwnership({ appId: APP, storagePartition }, () => null),
+      TypeError,
+    );
+  }
+  await storage.close();
 }
 
 // Web Locks ownership serializes the entire asynchronous callback, including

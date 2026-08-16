@@ -5,11 +5,14 @@
 //   custody and fallback lease CAS live in the same IndexedDB transaction.
 
 import {
+  AUTH_DEFAULT_STORAGE_PARTITION,
   AUTH_CUSTODY_DATABASE_NAME,
   AUTH_CUSTODY_DATABASE_VERSION,
   AUTH_CUSTODY_LEASE_MS,
   AUTH_CUSTODY_LEASE_RENEW_MS,
+  authCustodyOwnerKeyHash,
   createAuthCustodyError,
+  normalizeAuthCustodyOwnerKey,
   validateAuthCustody,
   validateAuthCustodyReplacement,
   validateAuthCustodySenderKeys,
@@ -18,6 +21,7 @@ import {
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 const OBSERVED_UNCHANGED_MS = AUTH_CUSTODY_LEASE_MS;
 const RETRY_POLL_MS = 50;
+const PARTITIONED_KEY_MARKER = 'snapback-auth-custody-partition-v1';
 
 const clone = (value) => {
   if (value === undefined) return undefined;
@@ -174,6 +178,24 @@ function openCustodyDatabase(indexedDB, name) {
   });
 }
 
+function ownerAddress(input) {
+  const ownerKey = normalizeAuthCustodyOwnerKey(input);
+  if (ownerKey.storagePartition === AUTH_DEFAULT_STORAGE_PARTITION) {
+    // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — adapters address records by the full owner key (appId, storagePartition); the default partition retains the legacy app-id row and lock name.
+    return {
+      appId: ownerKey.appId,
+      storageKey: ownerKey.appId,
+      lockName: `snapback-auth-custody:${ownerKey.appId}`,
+    };
+  }
+  const partitionHash = authCustodyOwnerKeyHash(ownerKey);
+  return {
+    appId: ownerKey.appId,
+    storageKey: [PARTITIONED_KEY_MARKER, partitionHash],
+    lockName: `snapback-auth-custody-partition:${partitionHash}`,
+  };
+}
+
 /**
  * Browser storage for AuthCoordinator. Web Locks is preferred. If unavailable,
  * the `leases` row is acquired and validated in the same transaction domain as
@@ -201,11 +223,11 @@ export function createIndexedDbAuthCustodyStorage({
     return databasePromise;
   };
 
-  const readCustody = async (db, appId, lease = null) => {
+  const readCustody = async (db, address, lease = null) => {
     const stores = lease ? ['custody', 'leases'] : ['custody'];
     const tx = db.transaction(stores, 'readonly');
-    const custodyRequest = tx.objectStore('custody').get(appId);
-    const leaseRequest = lease ? tx.objectStore('leases').get(appId) : null;
+    const custodyRequest = tx.objectStore('custody').get(address.storageKey);
+    const leaseRequest = lease ? tx.objectStore('leases').get(address.storageKey) : null;
     const [record, currentLease] = await Promise.all([
       requestResult(custodyRequest),
       leaseRequest ? requestResult(leaseRequest) : Promise.resolve(null),
@@ -217,17 +239,19 @@ export function createIndexedDbAuthCustodyStorage({
         throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'fallback custody lease was lost');
       }
     }
-    return record === undefined ? null : validateAuthCustodySenderKeys(record, appId);
+    return record === undefined ? null : validateAuthCustodySenderKeys(record, address.appId);
   };
 
-  const replaceCustody = async (db, appId, expectedRevision, next, lease = null) => {
-    const validatedNext = await validateAuthCustodySenderKeys(next, appId);
+  const replaceCustody = async (db, address, expectedRevision, next, lease = null) => {
+    const validatedNext = await validateAuthCustodySenderKeys(next, address.appId);
     const stores = lease ? ['custody', 'leases'] : ['custody'];
     const tx = db.transaction(stores, 'readwrite');
     const custodyStore = tx.objectStore('custody');
     try {
-      const currentRaw = await requestResult(custodyStore.get(appId));
-      const current = currentRaw === undefined ? null : validateAuthCustody(currentRaw, appId);
+      const currentRaw = await requestResult(custodyStore.get(address.storageKey));
+      const current = currentRaw === undefined
+        ? null
+        : validateAuthCustody(currentRaw, address.appId);
       if ((current?.revision ?? null) !== expectedRevision) {
         tx.abort();
         throw storageError(
@@ -237,15 +261,17 @@ export function createIndexedDbAuthCustodyStorage({
         );
       }
       if (lease) {
-        const currentLeaseRaw = await requestResult(tx.objectStore('leases').get(appId));
+        const currentLeaseRaw = await requestResult(
+          tx.objectStore('leases').get(address.storageKey),
+        );
         const currentLease = currentLeaseRaw === undefined ? null : validateLease(currentLeaseRaw);
         if (!sameLeaseHolder(currentLease, lease) || currentLease.expiresAtMs <= wallNow()) {
           tx.abort();
           throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'fallback custody lease was lost');
         }
       }
-      const validated = validateAuthCustodyReplacement(current, validatedNext, appId);
-      custodyStore.put(clone(validated), appId);
+      const validated = validateAuthCustodyReplacement(current, validatedNext, address.appId);
+      custodyStore.put(clone(validated), address.storageKey);
       await transactionDone(tx);
       return validated;
     } catch (error) {
@@ -256,14 +282,14 @@ export function createIndexedDbAuthCustodyStorage({
     }
   };
 
-  const acquireFallbackLease = async (db, appId) => {
+  const acquireFallbackLease = async (db, address) => {
     const holderNonce = nonce128(cryptoObject);
     let observed = null;
     let observedSince = null;
     for (;;) {
       const tx = db.transaction(['leases'], 'readwrite');
       const store = tx.objectStore('leases');
-      const raw = await requestResult(store.get(appId));
+      const raw = await requestResult(store.get(address.storageKey));
       const current = raw === undefined ? null : validateLease(raw);
       const nowWall = wallNow();
       const nowMono = monotonicNow();
@@ -285,7 +311,7 @@ export function createIndexedDbAuthCustodyStorage({
           fencingToken: priorToken + 1,
           expiresAtMs: nowWall + AUTH_CUSTODY_LEASE_MS,
         };
-        store.put(lease, appId);
+        store.put(lease, address.storageKey);
         await transactionDone(tx);
         return lease;
       }
@@ -298,17 +324,17 @@ export function createIndexedDbAuthCustodyStorage({
     }
   };
 
-  const renewFallbackLease = async (db, appId, lease) => {
+  const renewFallbackLease = async (db, address, lease) => {
     const tx = db.transaction(['leases'], 'readwrite');
     const store = tx.objectStore('leases');
-    const raw = await requestResult(store.get(appId));
+    const raw = await requestResult(store.get(address.storageKey));
     const current = raw === undefined ? null : validateLease(raw);
     if (!sameLeaseHolder(current, lease) || current.expiresAtMs <= wallNow()) {
       tx.abort();
       throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'fallback custody lease was lost');
     }
     const next = { ...lease, expiresAtMs: wallNow() + AUTH_CUSTODY_LEASE_MS };
-    store.put(next, appId);
+    store.put(next, address.storageKey);
     await transactionDone(tx);
     return next;
   };
@@ -316,9 +342,9 @@ export function createIndexedDbAuthCustodyStorage({
   // Transactionally reread the lease row and require the exact holder,
   // unexpired. The renewal timer's `lost` flag is only a fast local hint — a
   // paused former holder's timer may not have fired since a takeover.
-  const assertFallbackLeaseHeld = async (db, appId, lease) => {
+  const assertFallbackLeaseHeld = async (db, address, lease) => {
     const tx = db.transaction(['leases'], 'readonly');
-    const raw = await requestResult(tx.objectStore('leases').get(appId));
+    const raw = await requestResult(tx.objectStore('leases').get(address.storageKey));
     await transactionDone(tx);
     const current = raw === undefined ? null : validateLease(raw);
     if (!sameLeaseHolder(current, lease) || current.expiresAtMs <= wallNow()) {
@@ -331,9 +357,9 @@ export function createIndexedDbAuthCustodyStorage({
   // `leases` transaction that revalidated the holder, so a takeover cannot
   // interleave between validation and publication, and a paused former holder
   // fails with lock loss before any stale publication executes.
-  const fencePublication = async (db, appId, lease, publish) => {
+  const fencePublication = async (db, address, lease, publish) => {
     const tx = db.transaction(['leases'], 'readwrite');
-    const raw = await requestResult(tx.objectStore('leases').get(appId));
+    const raw = await requestResult(tx.objectStore('leases').get(address.storageKey));
     const current = raw === undefined ? null : validateLease(raw);
     if (!sameLeaseHolder(current, lease) || current.expiresAtMs <= wallNow()) {
       try { tx.abort(); } catch { /* already completed or aborted */ }
@@ -350,19 +376,19 @@ export function createIndexedDbAuthCustodyStorage({
     return value;
   };
 
-  const releaseFallbackLease = async (db, appId, lease) => {
+  const releaseFallbackLease = async (db, address, lease) => {
     const tx = db.transaction(['leases'], 'readwrite');
     const store = tx.objectStore('leases');
-    const raw = await requestResult(store.get(appId));
+    const raw = await requestResult(store.get(address.storageKey));
     const current = raw === undefined ? null : validateLease(raw);
     if (sameLeaseHolder(current, lease)) {
-      store.put({ ...lease, expiresAtMs: 0 }, appId);
+      store.put({ ...lease, expiresAtMs: 0 }, address.storageKey);
     }
     await transactionDone(tx);
   };
 
-  const withWebLock = async (appId, operation) => lockManager.request(
-    `snapback-auth-custody:${appId}`,
+  const withWebLock = async (address, operation) => lockManager.request(
+    address.lockName,
     { mode: 'exclusive' },
     async () => {
       const db = await database();
@@ -370,11 +396,11 @@ export function createIndexedDbAuthCustodyStorage({
       const owner = {
         read: async () => {
           if (!active) throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'custody ownership was released');
-          return readCustody(db, appId);
+          return readCustody(db, address);
         },
         replace: async (expectedRevision, next) => {
           if (!active) throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'custody ownership was released');
-          return replaceCustody(db, appId, expectedRevision, next);
+          return replaceCustody(db, address, expectedRevision, next);
         },
       };
       try {
@@ -385,16 +411,16 @@ export function createIndexedDbAuthCustodyStorage({
     },
   );
 
-  const withFallbackLease = async (appId, operation) => {
+  const withFallbackLease = async (address, operation) => {
     const db = await database();
-    let lease = await acquireFallbackLease(db, appId);
+    let lease = await acquireFallbackLease(db, address);
     let lost = null;
     let renewing = false;
     const timer = setInterval(async () => {
       if (renewing || lost) return;
       renewing = true;
       try {
-        lease = await renewFallbackLease(db, appId, lease);
+        lease = await renewFallbackLease(db, address, lease);
       } catch (error) {
         lost = error;
       } finally {
@@ -407,19 +433,19 @@ export function createIndexedDbAuthCustodyStorage({
     const owner = {
       read: async () => {
         assertHeld();
-        const record = await readCustody(db, appId, lease);
+        const record = await readCustody(db, address, lease);
         assertHeld();
         return record;
       },
       replace: async (expectedRevision, next) => {
         assertHeld();
-        const record = await replaceCustody(db, appId, expectedRevision, next, lease);
+        const record = await replaceCustody(db, address, expectedRevision, next, lease);
         assertHeld();
         return record;
       },
       fencePublication: async (publish) => {
         assertHeld();
-        const value = await fencePublication(db, appId, lease, publish);
+        const value = await fencePublication(db, address, lease, publish);
         assertHeld();
         return value;
       },
@@ -430,22 +456,23 @@ export function createIndexedDbAuthCustodyStorage({
       // @ref LLP 0059#cross-context-ownership — a paused former holder never
       // successfully returns after a successor takeover: completion requires
       // the durable lease row, not just the renewal timer's local flag.
-      await assertFallbackLeaseHeld(db, appId, lease);
+      await assertFallbackLeaseHeld(db, address, lease);
       return result;
     } finally {
       clearInterval(timer);
-      try { await releaseFallbackLease(db, appId, lease); } catch { /* fenced release is best effort */ }
+      try { await releaseFallbackLease(db, address, lease); } catch { /* fenced release is best effort */ }
     }
   };
 
   return {
-    async withOwnership(appId, operation) {
+    ownerKeyCapability: 'owner-key-v1',
+    async withOwnership(ownerKeyInput, operation) {
       if (closed) throw storageError('SNAPBACK_AUTH_COORDINATOR_CLOSED', 'custody storage is closed');
-      if (typeof appId !== 'string' || appId.length === 0) throw new TypeError('appId must be non-empty');
       if (typeof operation !== 'function') throw new TypeError('ownership operation must be a function');
+      const address = ownerAddress(ownerKeyInput);
       return lockManager?.request
-        ? withWebLock(appId, operation)
-        : withFallbackLease(appId, operation);
+        ? withWebLock(address, operation)
+        : withFallbackLease(address, operation);
     },
     async close() {
       if (closed) return;

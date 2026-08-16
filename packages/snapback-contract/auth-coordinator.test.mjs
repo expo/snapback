@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 
 import {
+  AUTH_DEFAULT_STORAGE_PARTITION,
   AuthCoordinator,
   authAppIdHash,
+  authCustodyOwnerKeyHash,
   canonicalAgentAuthorityKey,
   canonicalAuthorityKey,
   createMemoryAuthCustodyStorage,
@@ -47,6 +49,27 @@ const successor = (authority, bearer = null, refreshAfterMs = null) => ({
   refreshAfterMs,
 });
 
+const settledAnonymousRecord = ({
+  appId = APP,
+  incarnation = INCARNATION,
+} = {}) => ({
+  formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+  appId,
+  authorityEpoch: 0,
+  revision: 1,
+  phase: 'settled',
+  authority: {
+    kind: 'anonymous',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: incarnation,
+  },
+  pendingAuthority: null,
+  bearer: null,
+  pendingBearer: null,
+  refreshAfterMs: null,
+  transitionIntent: null,
+});
+
 const transitionIdForTest = (predecessorRevision, nextEpoch, nextAuthorityKey) => (
   `sha256:${createHash('sha256')
     .update(
@@ -77,6 +100,16 @@ const withDeadline = async (promise, label, timeoutMs = 1_000) => {
   } finally {
     clearTimeout(timer);
   }
+};
+
+const deferredPromise = () => {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 };
 
 class BroadcastHub {
@@ -338,6 +371,338 @@ const hintStorage = {
   assert.equal(Object.getPrototypeOf(state.custody), Object.prototype);
   assert.equal(state.custody.__proto__.appId, '__proto__');
   await protoCoordinator.close();
+}
+
+// Default memory custody remains at the raw legacy app-id key, while two
+// explicit partitions address independent bytes without extending the record.
+{
+  const legacy = settledAnonymousRecord();
+  const state = { custody: { [APP]: structuredClone(legacy) } };
+  const storage = createMemoryAuthCustodyStorage({ state });
+  assert.equal(storage.ownerKeyCapability, 'owner-key-v1');
+  const defaultOwnerKey = {
+    appId: APP,
+    storagePartition: AUTH_DEFAULT_STORAGE_PARTITION,
+  };
+  const previewOwnerKey = { appId: APP, storagePartition: 'preview' };
+  const stagingOwnerKey = { appId: APP, storagePartition: 'staging' };
+  const preview = settledAnonymousRecord({ incarnation: SESSION_A });
+  const staging = settledAnonymousRecord({ incarnation: SESSION_B });
+
+  assert.deepEqual(
+    await storage.withOwnership(defaultOwnerKey, (owner) => owner.read()),
+    legacy,
+    'the structured default owner key reads a raw pre-partition map entry',
+  );
+  await storage.withOwnership(
+    previewOwnerKey,
+    (owner) => owner.replace(null, preview),
+  );
+  await storage.withOwnership(
+    stagingOwnerKey,
+    (owner) => owner.replace(null, staging),
+  );
+  assert.deepEqual(storage.snapshot(APP), legacy);
+  assert.deepEqual(storage.snapshot(previewOwnerKey), preview);
+  assert.deepEqual(storage.snapshot(stagingOwnerKey), staging);
+  assert.deepEqual(
+    Object.keys(state.partitionedCustody).sort(),
+    [authCustodyOwnerKeyHash(previewOwnerKey), authCustodyOwnerKeyHash(stagingOwnerKey)].sort(),
+    'memory bytes are stored under two distinct owner-key hashes',
+  );
+  assert.notDeepEqual(
+    state.partitionedCustody[authCustodyOwnerKeyHash(previewOwnerKey)],
+    state.partitionedCustody[authCustodyOwnerKeyHash(stagingOwnerKey)],
+  );
+  assert.equal(Object.hasOwn(storage.snapshot(previewOwnerKey), 'storagePartition'), false);
+  assert.equal(Object.hasOwn(storage.snapshot(stagingOwnerKey), 'storagePartition'), false);
+}
+
+// Memory ownership tails are keyed by the full owner key: same-partition work
+// queues, while preview and staging may both own their independent records.
+{
+  const storage = createMemoryAuthCustodyStorage();
+  const previewOwnerKey = { appId: APP, storagePartition: 'preview' };
+  const stagingOwnerKey = { appId: APP, storagePartition: 'staging' };
+  const previewEntered = deferredPromise();
+  const releasePreview = deferredPromise();
+  const queuedPreviewEntered = deferredPromise();
+  const stagingEntered = deferredPromise();
+  const releaseStaging = deferredPromise();
+  const preview = storage.withOwnership(previewOwnerKey, async () => {
+    previewEntered.resolve();
+    await releasePreview.promise;
+  });
+  await previewEntered.promise;
+  const queuedPreview = storage.withOwnership(previewOwnerKey, async () => {
+    queuedPreviewEntered.resolve();
+  });
+  const staging = storage.withOwnership(stagingOwnerKey, async () => {
+    stagingEntered.resolve();
+    await releaseStaging.promise;
+  });
+  await withDeadline(stagingEntered.promise, 'independent staging memory ownership');
+  let queuedPreviewStarted = false;
+  queuedPreviewEntered.promise.then(() => { queuedPreviewStarted = true; });
+  await Promise.resolve();
+  assert.equal(queuedPreviewStarted, false, 'same-partition memory work remains queued');
+  releaseStaging.resolve();
+  await staging;
+  releasePreview.resolve();
+  await Promise.all([preview, queuedPreview]);
+}
+
+// Partition validation is shared by coordinators and direct adapter callers.
+for (const storagePartition of ['', 'two words', 'tab\tpartition', 'control\u0000partition', null, 1]) {
+  assert.throws(
+    () => new AuthCoordinator({
+      appId: APP,
+      storagePartition,
+      storage: createMemoryAuthCustodyStorage(),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    }),
+    TypeError,
+  );
+}
+await assert.rejects(
+  createMemoryAuthCustodyStorage().withOwnership(
+    { appId: APP, storagePartition: 'invalid partition' },
+    () => null,
+  ),
+  TypeError,
+);
+
+// Legacy string-only storage remains valid for the default partition, while a
+// non-default owner key refuses at construction before reaching that adapter.
+{
+  const base = createMemoryAuthCustodyStorage();
+  let ownershipCalls = 0;
+  const legacyStorage = {
+    withOwnership(appId, operation) {
+      ownershipCalls += 1;
+      assert.equal(typeof appId, 'string');
+      return base.withOwnership(appId, operation);
+    },
+  };
+  const legacyDefault = new AuthCoordinator({
+    appId: `${APP}/legacy-storage`,
+    storage: legacyStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await legacyDefault.establishAnonymous(anonymous());
+  assert.equal(ownershipCalls > 0, true);
+  const callsBeforeRefusal = ownershipCalls;
+  assert.throws(
+    () => new AuthCoordinator({
+      appId: `${APP}/legacy-storage`,
+      storagePartition: 'preview',
+      storage: legacyStorage,
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    }),
+    (error) => (
+      error?.code === 'SNAPBACK_AUTH_CUSTODY_OWNER_KEY_UNSUPPORTED'
+      && error?.diagnostic?.code === 'SNAPBACK_AUTH_CUSTODY_OWNER_KEY_UNSUPPORTED'
+    ),
+  );
+  assert.equal(ownershipCalls, callsBeforeRefusal, 'refusal occurs before adapter I/O');
+  await legacyDefault.close();
+}
+
+// Wakeup channels and localStorage hints use the partition axis. The default
+// partition retains the exact names consumed by already-shipped contexts.
+{
+  const state = { custody: {} };
+  const wakeups = new BroadcastHub();
+  const partitionHints = new Map();
+  const partitionHintStorage = {
+    setItem(key, value) { partitionHints.set(key, value); },
+  };
+  const defaultCoordinator = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: wakeups.factory,
+    hintStorage: partitionHintStorage,
+  });
+  const previewOwnerKey = { appId: APP, storagePartition: 'preview' };
+  const stagingOwnerKey = { appId: APP, storagePartition: 'staging' };
+  const previewCoordinator = new AuthCoordinator({
+    ...previewOwnerKey,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: wakeups.factory,
+    hintStorage: partitionHintStorage,
+  });
+  const stagingCoordinator = new AuthCoordinator({
+    ...stagingOwnerKey,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: wakeups.factory,
+    hintStorage: partitionHintStorage,
+  });
+  assert.equal(defaultCoordinator.storagePartition, AUTH_DEFAULT_STORAGE_PARTITION);
+  assert.equal(previewCoordinator.storagePartition, 'preview');
+  assert.equal(stagingCoordinator.storagePartition, 'staging');
+  const defaultCapture = await defaultCoordinator.establishAnonymous(anonymous());
+  const previewCapture = await previewCoordinator.establishAnonymous(anonymous());
+  const stagingCapture = await stagingCoordinator.establishAnonymous(anonymous());
+  await previewCoordinator.transition(
+    previewCapture,
+    successor({
+      ...anonymous(),
+      authorizationStreamIncarnation: SESSION_A,
+    }),
+    'partition_isolation',
+  );
+  await stagingCoordinator.transition(
+    stagingCapture,
+    successor({
+      ...anonymous(),
+      authorizationStreamIncarnation: SESSION_B,
+    }),
+    'partition_isolation',
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const legacyNamespace = authAppIdHash(APP);
+  const previewNamespace = `partition:${authCustodyOwnerKeyHash(previewOwnerKey)}`;
+  const stagingNamespace = `partition:${authCustodyOwnerKeyHash(stagingOwnerKey)}`;
+  for (const namespace of [legacyNamespace, previewNamespace, stagingNamespace]) {
+    assert.equal(
+      wakeups.channels.has(`snapback-auth-custody:${namespace}`),
+      true,
+    );
+    assert.equal(
+      partitionHints.has(`snapback:auth-custody-hint:${namespace}`),
+      true,
+    );
+  }
+  assert.deepEqual(
+    new Set(wakeups.messages.map((message) => message.namespace)),
+    new Set([legacyNamespace, previewNamespace, stagingNamespace]),
+    'published wakeups carry their exact channel namespace',
+  );
+  assert.deepEqual(defaultCoordinator.capture(), defaultCapture);
+  assert.equal(
+    defaultCoordinator.authority.authorizationStreamIncarnation,
+    INCARNATION,
+    'a non-default partition wakeup cannot pause or reload the default owner',
+  );
+  assert.equal(
+    previewCoordinator.authority.authorizationStreamIncarnation,
+    SESSION_A,
+  );
+  assert.equal(
+    stagingCoordinator.authority.authorizationStreamIncarnation,
+    SESSION_B,
+  );
+  let stagingBlankCalls = 0;
+  stagingCoordinator.registerParticipant({
+    blank() { stagingBlankCalls += 1; },
+    clearMemory() {},
+  });
+  const stagingChannel = [...wakeups.channels.get(
+    `snapback-auth-custody:${stagingNamespace}`,
+  )][0];
+  stagingChannel.onmessage({ data: {
+    formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+    appIdHash: authAppIdHash(APP),
+    authorityEpoch: 100,
+    revision: 100,
+    phase: 'exhausted',
+  } });
+  assert.equal(
+    stagingBlankCalls,
+    0,
+    'non-default coordinators reject older wakeups with no namespace',
+  );
+  await stagingCoordinator.close();
+  await previewCoordinator.close();
+  await defaultCoordinator.close();
+}
+
+// A hostile factory may fan every named channel into one bus. The owner-key
+// namespace in the closed message prevents an exhausted preview partition from
+// eagerly blanking healthy default-partition state.
+{
+  const channels = new Set();
+  const fanMessages = [];
+  const fanningFactory = (name) => {
+    const channel = {
+      name,
+      onmessage: null,
+      postMessage(message) {
+        fanMessages.push(structuredClone(message));
+        for (const peer of channels) {
+          if (peer !== channel) peer.onmessage?.({ data: structuredClone(message) });
+        }
+      },
+      close() { channels.delete(channel); },
+    };
+    channels.add(channel);
+    return channel;
+  };
+  const state = { custody: {} };
+  const storage = createMemoryAuthCustodyStorage({ state });
+  const previewOwnerKey = { appId: APP, storagePartition: 'preview' };
+  await storage.withOwnership(previewOwnerKey, (owner) => owner.replace(
+    null,
+    settledAnonymousRecord({ incarnation: SESSION_A }),
+  ));
+  const seedPreview = new AuthCoordinator({
+    ...previewOwnerKey,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const seedCapture = await seedPreview.synchronize();
+  await seedPreview.transition(
+    seedCapture,
+    successor(session(), 'partition-exhaustion-bearer', 10_000),
+    'partition_exhaustion_seed',
+  );
+  await seedPreview.close();
+  const previewStorageHash = authCustodyOwnerKeyHash(previewOwnerKey);
+  state.partitionedCustody[previewStorageHash] = {
+    ...state.partitionedCustody[previewStorageHash],
+    authorityEpoch: Number.MAX_SAFE_INTEGER,
+    transitionIntent: null,
+  };
+  const healthyDefault = new AuthCoordinator({
+    appId: APP,
+    storage,
+    broadcastChannelFactory: fanningFactory,
+    hintStorage: null,
+  });
+  const exhaustedPreview = new AuthCoordinator({
+    ...previewOwnerKey,
+    storage,
+    broadcastChannelFactory: fanningFactory,
+    hintStorage: null,
+  });
+  const defaultCapture = await healthyDefault.establishAnonymous(anonymous());
+  const previewCapture = await exhaustedPreview.synchronize();
+  let defaultBlankCalls = 0;
+  healthyDefault.registerParticipant({
+    async quiesce() {},
+    blank() { defaultBlankCalls += 1; },
+    clearMemory() {},
+  });
+  assert.equal(
+    await errorCode(() => exhaustedPreview.compareAndClear(
+      previewCapture,
+      'partitioned_terminal_wakeup',
+    )),
+    'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED',
+  );
+  assert.equal(defaultBlankCalls, 0, 'cross-partition exhausted wakeup is ignored');
+  assert.deepEqual(healthyDefault.capture(), defaultCapture);
+  assert.equal(
+    fanMessages.at(-1)?.namespace,
+    `partition:${authCustodyOwnerKeyHash(previewOwnerKey)}`,
+  );
+  await exhaustedPreview.close();
+  await healthyDefault.close();
 }
 
 // A peer rejects a structurally valid retained intent whose successor differs
@@ -2013,8 +2378,9 @@ for (const message of hub.messages) {
   assert.equal(JSON.stringify(message).includes('bearer'), false);
   assert.equal(JSON.stringify(message).includes(BEARER_SENTINEL), false);
   assert.deepEqual(Object.keys(message).sort(), [
-    'appIdHash', 'authorityEpoch', 'formatVersion', 'phase', 'revision',
+    'appIdHash', 'authorityEpoch', 'formatVersion', 'namespace', 'phase', 'revision',
   ]);
+  assert.equal(message.namespace, authAppIdHash(APP));
 }
 for (const bytes of hintBytes.values()) {
   assert.equal(bytes.includes('bearer'), false);
@@ -2064,8 +2430,9 @@ for (const bytes of hintBytes.values()) {
   await peer.close();
 }
 
-// An exhausted broadcast is only an eager terminal wakeup, not durable state.
-// Forged higher counters cut visibility synchronously but unchanged settled
+// A default-partition coordinator accepts an older wakeup with no namespace.
+// The exhausted broadcast is only an eager terminal wakeup, not durable state:
+// forged higher counters cut visibility synchronously but unchanged settled
 // custody reopens through the normal owned reload and participant resume.
 {
   const forgedHub = new BroadcastHub();

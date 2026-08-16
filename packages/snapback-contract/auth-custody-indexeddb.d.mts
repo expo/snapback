@@ -15,4 +15,7 @@ export function createIndexedDbAuthCustodyStorage(options?: {
   databaseName?: string;
   wallNow?: () => number;
   monotonicNow?: () => number;
-}): SnapbackAuthCustodyStorage & { close(): Promise<void> };
+}): SnapbackAuthCustodyStorage & {
+  readonly ownerKeyCapability: 'owner-key-v1';
+  close(): Promise<void>;
+};

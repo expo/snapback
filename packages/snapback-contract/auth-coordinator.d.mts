@@ -1,5 +1,7 @@
 export const SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION: 2;
 export const SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION: 3;
+/** Stable partition used when no explicit auth-custody partition is supplied. */
+export const AUTH_DEFAULT_STORAGE_PARTITION: 'default';
 export const AUTH_CUSTODY_DATABASE_NAME: 'snapback-auth-custody';
 export const AUTH_CUSTODY_DATABASE_VERSION: 1;
 export const AUTH_CUSTODY_LEASE_MS: number;
@@ -87,6 +89,13 @@ export interface SnapbackAuthorityCapture {
   readonly authorityKey: string;
 }
 
+/** Address of one logical coordinator and custody record. */
+export interface SnapbackAuthCustodyOwnerKey {
+  readonly appId: string;
+  /** Non-empty and free of whitespace and control characters. */
+  readonly storagePartition: string;
+}
+
 export interface SnapbackAuthorityCredentialView extends SnapbackAuthorityCapture {
   readonly authority: SnapbackClientAuthority;
   readonly bearer: string | null;
@@ -104,8 +113,14 @@ export interface SnapbackAuthCustodyOwner {
 }
 
 export interface SnapbackAuthCustodyStorage {
+  /**
+   * Declares that this storage understands structured owner keys and isolates
+   * every `(appId, storagePartition)` address. Legacy storages may omit the
+   * marker and remain usable with the default partition only.
+   */
+  readonly ownerKeyCapability?: 'owner-key-v1';
   withOwnership<T>(
-    appId: string,
+    appIdOrOwnerKey: string | SnapbackAuthCustodyOwnerKey,
     operation: (owner: SnapbackAuthCustodyOwner) => T | Promise<T>,
   ): Promise<T>;
 }
@@ -194,6 +209,16 @@ export function deriveServiceAuthorityInstanceId(input: {
 
 export function authAppIdHash(appId: string): string;
 
+/** Normalize a full owner key, accepting an app id as the legacy default. */
+export function normalizeAuthCustodyOwnerKey(
+  ownerKey: string | SnapbackAuthCustodyOwnerKey,
+): Readonly<SnapbackAuthCustodyOwnerKey>;
+
+/** Stable namespace digest over canonical app id and storage partition. */
+export function authCustodyOwnerKeyHash(
+  ownerKey: string | SnapbackAuthCustodyOwnerKey,
+): string;
+
 export function validateAuthCustody(
   record: unknown,
   expectedAppId?: string | null,
@@ -207,9 +232,14 @@ export function validateAuthCustodySenderKeys(
 
 /** Deterministic transactional custody storage for unit tests and native shims. */
 export function createMemoryAuthCustodyStorage(options?: {
-  state?: { custody?: Record<string, unknown> };
+  state?: {
+    custody?: Record<string, unknown>;
+    partitionedCustody?: Record<string, unknown>;
+  };
 }): SnapbackAuthCustodyStorage & {
+  readonly ownerKeyCapability: 'owner-key-v1';
   snapshot(appId: string): SnapbackAuthCustodyRecord | null;
+  snapshot(ownerKey: SnapbackAuthCustodyOwnerKey): SnapbackAuthCustodyRecord | null;
 };
 
 /**
@@ -219,12 +249,15 @@ export function createMemoryAuthCustodyStorage(options?: {
 export class AuthCoordinator {
   constructor(options: {
     appId: string;
+    /** Defaults to AUTH_DEFAULT_STORAGE_PARTITION. */
+    storagePartition?: string;
     storage: SnapbackAuthCustodyStorage;
     broadcastChannelFactory?: ((name: string) => unknown) | null;
     hintStorage?: unknown;
   });
 
   get appId(): string;
+  get storagePartition(): string;
   get phase(): SnapbackAuthCustodyPhase | 'blank';
   get authority(): SnapbackClientAuthorityView | null;
 

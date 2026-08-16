@@ -26,13 +26,16 @@ export {
 } from './diagnostics.mjs';
 
 export {
+  AUTH_DEFAULT_STORAGE_PARTITION,
   AuthCoordinator,
   authAppIdHash,
+  authCustodyOwnerKeyHash,
   canonicalAgentAuthorityKey,
   canonicalAuthorityKey,
   createMemoryAuthCustodyStorage,
   deriveServiceAuthorityInstanceId,
   normalizeClientAuthority,
+  normalizeAuthCustodyOwnerKey,
   SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
   SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
   validateAuthCustody,

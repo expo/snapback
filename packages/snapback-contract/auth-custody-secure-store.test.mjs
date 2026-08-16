@@ -4,15 +4,18 @@ import test from 'node:test';
 import { createSecureStoreAuthCustodyStorage } from '@expo/snapback-contract/auth-custody-secure-store';
 
 import {
+  AUTH_DEFAULT_STORAGE_PARTITION,
   AuthCoordinator,
   SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
   SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
   authAppIdHash,
-} from './auth-coordinator.mjs';
+  authCustodyOwnerKeyHash,
+} from './index.mjs';
 
 const APP = 'snapback.test/auth-custody-secure-store';
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const SESSION = '018f0d90-7b12-7a22-8c33-445566778899';
+const STAGING_INCARNATION = '018f0d90-7b13-7a22-8c33-445566778899';
 const USER = '018f0d90-7b14-7a22-8c33-445566778899';
 
 const anonymous = () => ({
@@ -66,6 +69,92 @@ const expectCode = (code, operation) => assert.rejects(
   operation,
   (error) => error?.code === code && error?.diagnostic?.code === code,
 );
+
+test('owner-key partitions isolate records while default restores the legacy key', async () => {
+  const { module: SecureStore, bytes } = secureStoreHarness();
+  const storage = createSecureStoreAuthCustodyStorage(SecureStore);
+  assert.equal(storage.ownerKeyCapability, 'owner-key-v1');
+  const legacyKey = `snapback.auth-custody.${authAppIdHash(APP)}`;
+  const legacy = settled();
+  const preview = settled({
+    authority: {
+      ...anonymous(),
+      authorizationStreamIncarnation: SESSION,
+    },
+  });
+  const defaultOwnerKey = {
+    appId: APP,
+    storagePartition: AUTH_DEFAULT_STORAGE_PARTITION,
+  };
+  const previewOwnerKey = { appId: APP, storagePartition: 'preview' };
+  const stagingOwnerKey = { appId: APP, storagePartition: 'staging' };
+  const staging = settled({
+    authority: {
+      ...anonymous(),
+      authorizationStreamIncarnation: STAGING_INCARNATION,
+    },
+  });
+  const previewKey = `snapback.auth-custody.partition.${authCustodyOwnerKeyHash(previewOwnerKey)}`;
+  const stagingKey = `snapback.auth-custody.partition.${authCustodyOwnerKeyHash(stagingOwnerKey)}`;
+  bytes.set(legacyKey, JSON.stringify(legacy));
+
+  const defaultCoordinator = new AuthCoordinator({
+    appId: APP,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await defaultCoordinator.synchronize();
+  assert.equal(
+    defaultCoordinator.authority.authorizationStreamIncarnation,
+    INCARNATION,
+    'default coordinator restores the exact pre-partition SecureStore key',
+  );
+  await defaultCoordinator.close();
+  await storage.withOwnership(
+    previewOwnerKey,
+    (owner) => owner.replace(null, preview),
+  );
+  await storage.withOwnership(
+    stagingOwnerKey,
+    (owner) => owner.replace(null, staging),
+  );
+  assert.deepEqual(
+    await storage.withOwnership(defaultOwnerKey, (owner) => owner.read()),
+    legacy,
+  );
+  assert.deepEqual(
+    await storage.withOwnership(previewOwnerKey, (owner) => owner.read()),
+    preview,
+  );
+  assert.deepEqual(
+    await storage.withOwnership(stagingOwnerKey, (owner) => owner.read()),
+    staging,
+  );
+  assert.deepEqual(
+    [...bytes.keys()].sort(),
+    [legacyKey, previewKey, stagingKey].sort(),
+    'SecureStore uses the exact exported-hash-derived key strings',
+  );
+  const rawPreview = JSON.parse(bytes.get(previewKey));
+  const rawStaging = JSON.parse(bytes.get(stagingKey));
+  assert.equal(rawPreview.authority.authorizationStreamIncarnation, SESSION);
+  assert.equal(rawStaging.authority.authorizationStreamIncarnation, STAGING_INCARNATION);
+  assert.notDeepEqual(rawPreview, rawStaging);
+  assert.equal(Object.hasOwn(rawPreview, 'storagePartition'), false);
+  assert.equal(Object.hasOwn(rawStaging, 'storagePartition'), false);
+});
+
+test('storage partition validation rejects malformed owner keys', async () => {
+  const { module: SecureStore } = secureStoreHarness();
+  const storage = createSecureStoreAuthCustodyStorage(SecureStore);
+  for (const storagePartition of ['', 'two words', 'line\nfeed', 'control\u009f']) {
+    await assert.rejects(
+      storage.withOwnership({ appId: APP, storagePartition }, () => null),
+      TypeError,
+    );
+  }
+});
 
 test('settled SecureStore session restores across coordinator restart', async () => {
   const { module: SecureStore } = secureStoreHarness();

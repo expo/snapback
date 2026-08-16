@@ -4,10 +4,13 @@
 //   custody under an in-process owner; sender-constrained key custody refuses.
 
 import {
+  AUTH_DEFAULT_STORAGE_PARTITION,
   SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
   authAppIdHash,
+  authCustodyOwnerKeyHash,
   createAuthCustodyError,
   createSerialOwner,
+  normalizeAuthCustodyOwnerKey,
   validateAuthCustody,
   validateAuthCustodyReplacement,
 } from './auth-coordinator.mjs';
@@ -28,6 +31,21 @@ function lockFor(SecureStore, key) {
     locks.set(key, lock);
   }
   return lock;
+}
+
+function secureStoreAddress(input) {
+  const ownerKey = normalizeAuthCustodyOwnerKey(input);
+  if (ownerKey.storagePartition === AUTH_DEFAULT_STORAGE_PARTITION) {
+    // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — adapters address records by the full owner key (appId, storagePartition); the default partition retains the shipped SecureStore key.
+    return {
+      appId: ownerKey.appId,
+      key: `${KEY_PREFIX}${authAppIdHash(ownerKey.appId)}`,
+    };
+  }
+  return {
+    appId: ownerKey.appId,
+    key: `${KEY_PREFIX}partition.${authCustodyOwnerKeyHash(ownerKey)}`,
+  };
 }
 
 function assertOrdinaryBearerCustody(record) {
@@ -70,11 +88,12 @@ export function createSecureStoreAuthCustodyStorage(
   }
 
   return {
-    async withOwnership(appId, operation) {
+    ownerKeyCapability: 'owner-key-v1',
+    async withOwnership(ownerKeyInput, operation) {
       if (typeof operation !== 'function') {
         throw new TypeError('ownership operation must be a function');
       }
-      const key = `${KEY_PREFIX}${authAppIdHash(appId)}`;
+      const { appId, key } = secureStoreAddress(ownerKeyInput);
       const lock = lockFor(SecureStore, key);
       const prior = lock.tail;
       let releaseTail;

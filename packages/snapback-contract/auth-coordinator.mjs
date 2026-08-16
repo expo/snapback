@@ -1,13 +1,14 @@
 // Cross-context browser authority custody and the local exposure barrier.
 //
 // @ref LLP 0059#client-custody-and-authcoordinator — bearer custody is one
-//   durable, serialized state machine per canonical app id; app participants
-//   never own independent current-auth state.
+//   durable, serialized state machine per canonical app id and storage
+//   partition; app participants never own independent current-auth state.
 
 import { ID_PREFIXES, encodeBody, isMintedIdentifier } from './ids.mjs';
 
 export const SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION = 2;
 export const SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION = 3;
+export const AUTH_DEFAULT_STORAGE_PARTITION = 'default';
 export const AUTH_CUSTODY_DATABASE_NAME = 'snapback-auth-custody';
 export const AUTH_CUSTODY_DATABASE_VERSION = 1;
 export const AUTH_CUSTODY_LEASE_MS = 5_000;
@@ -24,6 +25,7 @@ const BASE64URL_32 = /^[A-Za-z0-9_-]{43}$/;
 const SENDER_SELF_CHECK = new TextEncoder().encode('snapback.sender-custody-self-check.v1');
 const DEFERRED_COUNTER_TERMINAL = Symbol('snapback.auth.deferred-counter-terminal');
 const BARRIER_PHASE_CLOSURE_RETRY = 'SNAPBACK_AUTH_BARRIER_PHASE_CLOSURE_RETRY';
+const INVALID_STORAGE_PARTITION = /[\s\u0000-\u001f\u007f-\u009f]/u;
 
 const clone = (value) => {
   if (value === undefined) return undefined;
@@ -205,6 +207,36 @@ function canonicalAppId(appId) {
   return appId;
 }
 
+function canonicalStoragePartition(storagePartition) {
+  if (
+    typeof storagePartition !== 'string'
+    || storagePartition.length === 0
+    || INVALID_STORAGE_PARTITION.test(storagePartition)
+  ) {
+    throw new TypeError(
+      'storagePartition must be a non-empty string without whitespace or control characters',
+    );
+  }
+  return storagePartition;
+}
+
+/** Normalize the structured owner key, accepting a legacy app-id default. */
+export function normalizeAuthCustodyOwnerKey(ownerKey) {
+  if (typeof ownerKey === 'string') {
+    return Object.freeze({
+      appId: canonicalAppId(ownerKey),
+      storagePartition: AUTH_DEFAULT_STORAGE_PARTITION,
+    });
+  }
+  if (!ownerKey || typeof ownerKey !== 'object' || Array.isArray(ownerKey)) {
+    throw new TypeError('auth custody owner key must be an app id or owner-key object');
+  }
+  return Object.freeze({
+    appId: canonicalAppId(ownerKey.appId),
+    storagePartition: canonicalStoragePartition(ownerKey.storagePartition),
+  });
+}
+
 export function normalizeClientAuthority(authority) {
   if (!authority || typeof authority !== 'object' || Array.isArray(authority)) {
     throw corrupt('client authority is not an object', { field: 'authority' });
@@ -366,6 +398,15 @@ export function deriveServiceAuthorityInstanceId({
 
 export function authAppIdHash(appId) {
   return sha256Hex(`snapback.auth-app.v1\n${canonicalAppId(appId)}`);
+}
+
+/** Stable namespace digest for a full auth-custody owner key. */
+export function authCustodyOwnerKeyHash(ownerKey) {
+  const normalized = normalizeAuthCustodyOwnerKey(ownerKey);
+  return sha256Hex(`snapback.auth-owner.v1\n${JSON.stringify({
+    appId: normalized.appId,
+    storagePartition: normalized.storagePartition,
+  })}`);
 }
 
 function validateRefreshTime(value, field = 'refreshAfterMs') {
@@ -893,18 +934,42 @@ export function createSerialOwner(readRecord, replaceRecord) {
 
 const memoryLocks = new WeakMap();
 
-function memoryLockFor(state, appId) {
+function memoryLockFor(state, ownerAddress) {
   let locks = memoryLocks.get(state);
   if (!locks) {
     locks = new Map();
     memoryLocks.set(state, locks);
   }
-  let lock = locks.get(appId);
+  let lock = locks.get(ownerAddress);
   if (!lock) {
     lock = { tail: Promise.resolve() };
-    locks.set(appId, lock);
+    locks.set(ownerAddress, lock);
   }
   return lock;
+}
+
+function memoryOwnerAddress(state, input) {
+  const ownerKey = normalizeAuthCustodyOwnerKey(input);
+  if (ownerKey.storagePartition === AUTH_DEFAULT_STORAGE_PARTITION) {
+    // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — adapters address records by the full owner key (appId, storagePartition); the default partition retains the legacy app-id map key.
+    return {
+      ownerKey,
+      records: state.custody,
+      recordKey: ownerKey.appId,
+      lockKey: `default:${ownerKey.appId}`,
+    };
+  }
+  if (!state.partitionedCustody) state.partitionedCustody = {};
+  if (typeof state.partitionedCustody !== 'object' || Array.isArray(state.partitionedCustody)) {
+    throw new TypeError('memory custody partition state must be an object');
+  }
+  const partitionKey = authCustodyOwnerKeyHash(ownerKey);
+  return {
+    ownerKey,
+    records: state.partitionedCustody,
+    recordKey: partitionKey,
+    lockKey: `partition:${partitionKey}`,
+  };
 }
 
 /** Deterministic transactional custody storage for unit tests and native shims. */
@@ -914,18 +979,22 @@ export function createMemoryAuthCustodyStorage({ state = { custody: {} } } = {})
   }
   if (!state.custody) state.custody = {};
   return {
-    async withOwnership(appId, operation) {
-      const canonicalId = canonicalAppId(appId);
-      const lock = memoryLockFor(state, canonicalId);
+    ownerKeyCapability: 'owner-key-v1',
+    async withOwnership(ownerKeyInput, operation) {
+      const address = memoryOwnerAddress(state, ownerKeyInput);
+      const { appId } = address.ownerKey;
+      const lock = memoryLockFor(state, address.lockKey);
       let release;
       const prior = lock.tail;
       lock.tail = new Promise((resolve) => { release = resolve; });
       await prior;
       const owner = createSerialOwner(
-        () => Object.hasOwn(state.custody, canonicalId) ? state.custody[canonicalId] : null,
+        () => Object.hasOwn(address.records, address.recordKey)
+          ? address.records[address.recordKey]
+          : null,
         async (expectedRevision, next) => {
-          const current = Object.hasOwn(state.custody, canonicalId)
-            ? state.custody[canonicalId]
+          const current = Object.hasOwn(address.records, address.recordKey)
+            ? address.records[address.recordKey]
             : null;
           const actualRevision = current?.revision ?? null;
           if (actualRevision !== expectedRevision) {
@@ -935,12 +1004,12 @@ export function createMemoryAuthCustodyStorage({ state = { custody: {} } } = {})
               { expectedRevision, actualRevision },
             );
           }
-          const validated = await validateAuthCustodySenderKeys(next, canonicalId);
+          const validated = await validateAuthCustodySenderKeys(next, appId);
           const previous = current === null
             ? null
-            : await validateAuthCustodySenderKeys(current, canonicalId);
-          const replacement = validateAuthCustodyReplacement(previous, validated, canonicalId);
-          Object.defineProperty(state.custody, canonicalId, {
+            : await validateAuthCustodySenderKeys(current, appId);
+          const replacement = validateAuthCustodyReplacement(previous, validated, appId);
+          Object.defineProperty(address.records, address.recordKey, {
             configurable: true,
             enumerable: true,
             writable: true,
@@ -956,9 +1025,11 @@ export function createMemoryAuthCustodyStorage({ state = { custody: {} } } = {})
         release();
       }
     },
-    snapshot(appId) {
-      const canonicalId = canonicalAppId(appId);
-      return clone(Object.hasOwn(state.custody, canonicalId) ? state.custody[canonicalId] : null);
+    snapshot(ownerKeyInput) {
+      const address = memoryOwnerAddress(state, ownerKeyInput);
+      return clone(Object.hasOwn(address.records, address.recordKey)
+        ? address.records[address.recordKey]
+        : null);
     },
   };
 }
@@ -983,6 +1054,9 @@ function barrierCompletion() {
 export class AuthCoordinator {
   #appId;
   #appIdHash;
+  #storagePartition;
+  #storageOwnerKey;
+  #channelNamespace;
   #storage;
   #record = null;
   #participants = [];
@@ -1002,21 +1076,41 @@ export class AuthCoordinator {
 
   constructor({
     appId,
+    storagePartition = AUTH_DEFAULT_STORAGE_PARTITION,
     storage,
     broadcastChannelFactory = globalThis.BroadcastChannel
       ? (name) => new globalThis.BroadcastChannel(name)
       : null,
     hintStorage = globalThis.localStorage ?? null,
   }) {
-    this.#appId = canonicalAppId(appId);
+    const ownerKey = normalizeAuthCustodyOwnerKey({ appId, storagePartition });
+    this.#appId = ownerKey.appId;
     this.#appIdHash = authAppIdHash(this.#appId);
+    this.#storagePartition = ownerKey.storagePartition;
+    this.#storageOwnerKey = this.#storagePartition === AUTH_DEFAULT_STORAGE_PARTITION
+      ? this.#appId
+      : ownerKey;
+    // @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client — partitioned owners cannot share wakeup namespaces, while the default owner retains the shipped channel and hint names.
+    this.#channelNamespace = this.#storagePartition === AUTH_DEFAULT_STORAGE_PARTITION
+      ? this.#appIdHash
+      : `partition:${authCustodyOwnerKeyHash(ownerKey)}`;
     if (!storage || typeof storage.withOwnership !== 'function') {
       throw new TypeError('AuthCoordinator requires transactional custody storage');
+    }
+    if (
+      this.#storagePartition !== AUTH_DEFAULT_STORAGE_PARTITION
+      && storage.ownerKeyCapability !== 'owner-key-v1'
+    ) {
+      throw createAuthCustodyError(
+        'SNAPBACK_AUTH_CUSTODY_OWNER_KEY_UNSUPPORTED',
+        'non-default storagePartition requires owner-key-v1 custody storage',
+        { storagePartition: this.#storagePartition },
+      );
     }
     this.#storage = storage;
     this.#hintStorage = hintStorage;
     if (broadcastChannelFactory) {
-      this.#broadcast = broadcastChannelFactory(`snapback-auth-custody:${this.#appIdHash}`);
+      this.#broadcast = broadcastChannelFactory(`snapback-auth-custody:${this.#channelNamespace}`);
       if (this.#broadcast) {
         this.#broadcast.onmessage = (event) => this.#receiveWakeup(event?.data);
       }
@@ -1024,6 +1118,8 @@ export class AuthCoordinator {
   }
 
   get appId() { return this.#appId; }
+
+  get storagePartition() { return this.#storagePartition; }
 
   get phase() { return this.#counterExhaustionError ? 'exhausted' : (this.#record?.phase ?? 'blank'); }
 
@@ -1345,7 +1441,7 @@ export class AuthCoordinator {
     let ownershipEntered = false;
     let inspected;
     try {
-      inspected = await this.#storage.withOwnership(this.#appId, async (owner) => {
+      inspected = await this.#storage.withOwnership(this.#storageOwnerKey, async (owner) => {
         ownershipEntered = true;
         // @ref LLP 0059#cross-context-ownership — offline restore ownership is
         // read/validation only. Counter cuts and every participant callback
@@ -1765,7 +1861,10 @@ export class AuthCoordinator {
       throw new TypeError('withSenderRequestSerialization requires a callback');
     }
     const serializationKey = `\u0000snapback.sender-request.v2\u0000${this.#appId}`;
-    return this.#storage.withOwnership(serializationKey, async () => {
+    const serializationOwnerKey = this.#storagePartition === AUTH_DEFAULT_STORAGE_PARTITION
+      ? serializationKey
+      : { appId: serializationKey, storagePartition: this.#storagePartition };
+    return this.#storage.withOwnership(serializationOwnerKey, async () => {
       this.#assertOperationAllowed();
       const prepared = await this.#withOwnership(async (owner) => {
         const record = await this.#readOwned(owner);
@@ -2816,7 +2915,7 @@ export class AuthCoordinator {
     // @ref LLP 0059#cross-context-ownership — an owned callback may report a
     // terminal durable fact, but participant cuts begin only after release.
     try {
-      return await this.#storage.withOwnership(this.#appId, operation);
+      return await this.#storage.withOwnership(this.#storageOwnerKey, operation);
     } catch (error) {
       const terminal = deferredCounterTerminalValue(error);
       if (terminal === null) throw error;
@@ -2985,7 +3084,7 @@ export class AuthCoordinator {
 
   async #confirmOfflineDurableExact(expected, reason, onConfirmed = null) {
     try {
-      const outcome = await this.#storage.withOwnership(this.#appId, async (owner) => {
+      const outcome = await this.#storage.withOwnership(this.#storageOwnerKey, async (owner) => {
         const inspected = await this.#inspectOwnedWithoutCut(owner);
         if (inspected.terminal !== null) {
           return { terminal: inspected.terminal, durable: null, value: undefined };
@@ -3472,6 +3571,7 @@ export class AuthCoordinator {
     const message = {
       formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
       appIdHash: this.#appIdHash,
+      namespace: this.#channelNamespace,
       authorityEpoch: record.authorityEpoch,
       revision: record.revision,
       phase: record.phase,
@@ -3479,7 +3579,7 @@ export class AuthCoordinator {
     try { this.#broadcast?.postMessage(message); } catch { /* wakeup loss is harmless */ }
     try {
       this.#hintStorage?.setItem?.(
-        `snapback:auth-custody-hint:${this.#appIdHash}`,
+        `snapback:auth-custody-hint:${this.#channelNamespace}`,
         JSON.stringify({
           formatVersion: message.formatVersion,
           appId: this.#appId,
@@ -3494,17 +3594,20 @@ export class AuthCoordinator {
   }
 
   #receiveWakeup(message) {
+    const hasNamespace = message !== null
+      && typeof message === 'object'
+      && Object.hasOwn(message, 'namespace');
+    const expectedKeys = hasNamespace
+      ? ['formatVersion', 'appIdHash', 'namespace', 'authorityEpoch', 'revision', 'phase']
+      : ['formatVersion', 'appIdHash', 'authorityEpoch', 'revision', 'phase'];
     if (
       !message
-      || !hasExactKeys(message, [
-        'formatVersion',
-        'appIdHash',
-        'authorityEpoch',
-        'revision',
-        'phase',
-      ])
+      || !hasExactKeys(message, expectedKeys)
       || message.formatVersion !== SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION
       || message.appIdHash !== this.#appIdHash
+      || (hasNamespace
+        ? message.namespace !== this.#channelNamespace
+        : this.#storagePartition !== AUTH_DEFAULT_STORAGE_PARTITION)
       || !Number.isSafeInteger(message.authorityEpoch)
       || message.authorityEpoch < 0
       || !Number.isSafeInteger(message.revision)

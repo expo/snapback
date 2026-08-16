@@ -20,4 +20,6 @@ export interface SnapbackSecureStoreAuthCustodyOptions {
 export function createSecureStoreAuthCustodyStorage(
   SecureStore: SnapbackSecureStoreModule,
   options?: SnapbackSecureStoreAuthCustodyOptions,
-): SnapbackAuthCustodyStorage;
+): SnapbackAuthCustodyStorage & {
+  readonly ownerKeyCapability: 'owner-key-v1';
+};

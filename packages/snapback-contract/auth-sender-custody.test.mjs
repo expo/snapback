@@ -284,6 +284,68 @@ const coordinator = (appId, storage) => new AuthCoordinator({
   assert.equal(queuedEntered, true);
 }
 
+// Sender-request serialization tails include storagePartition: preview and
+// staging can each hold one proof flight without sharing a hidden app-only
+// tail, while each partition still uses its own custody record.
+{
+  const state = { custody: {} };
+  const storage = createMemoryAuthCustodyStorage({ state });
+  const preview = new AuthCoordinator({
+    appId: APP,
+    storagePartition: 'preview',
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const staging = new AuthCoordinator({
+    appId: APP,
+    storagePartition: 'staging',
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const previewAnonymous = await preview.establishAnonymous(anonymous());
+  const stagingAnonymous = await staging.establishAnonymous(anonymous());
+  const previewSession = await preview.transition(previewAnonymous, {
+    authority: session(SESSION_A),
+    bearer: 'sbs_preview_serialized',
+    refreshAfterMs: 10_000,
+    senderConstraint: await senderConstraint(),
+  });
+  const stagingSession = await staging.transition(stagingAnonymous, {
+    authority: session(SESSION_B),
+    bearer: 'sbs_staging_serialized',
+    refreshAfterMs: 10_000,
+    senderConstraint: await senderConstraint(NONCE_2),
+  });
+  let inFlight = 0;
+  let maximumInFlight = 0;
+  const entered = [];
+  const release = [];
+  const flight = (partition) => async () => {
+    inFlight += 1;
+    maximumInFlight = Math.max(maximumInFlight, inFlight);
+    entered.push(partition);
+    await new Promise((resolve) => { release.push(resolve); });
+    inFlight -= 1;
+  };
+  const previewFlight = preview.withSenderRequestSerialization(
+    previewSession,
+    flight('preview'),
+  );
+  const stagingFlight = staging.withSenderRequestSerialization(
+    stagingSession,
+    flight('staging'),
+  );
+  while (entered.length < 2) await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(new Set(entered), new Set(['preview', 'staging']));
+  assert.equal(maximumInFlight, 2, 'partitioned sender-request tails are independent');
+  for (const resolve of release) resolve();
+  await Promise.all([previewFlight, stagingFlight]);
+  await preview.close();
+  await staging.close();
+}
+
 // IndexedDB clones the non-extractable CryptoKey inside the same custody row.
 {
   const appId = `${APP}/indexeddb`;
