@@ -1,0 +1,14 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@probe/generated-app": ["../snapback/generated/app.mjs"],
+      "@probe/generated-api": ["../snapback/generated/api.mjs"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", "index.js"]
+}

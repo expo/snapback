@@ -1,0 +1,34 @@
+{
+  "name": "native-custody-probes",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "generate": "node ../../../packages/snapback-codegen/index.mjs ../snapback",
+    "start": "expo start --dev-client",
+    "prebuild": "expo prebuild --no-install",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/snapback-client": "file:../../../packages/snapback-client",
+    "@expo/snapback-contract": "file:../../../packages/snapback-contract",
+    "@expo/snapback-expo": "file:../../../packages/snapback-expo",
+    "@expo/snapback-react": "file:../../../packages/snapback-react",
+    "expo": "~57.0.7",
+    "react": "^19.2.3",
+    "react-native": "0.86.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "typescript": "^5.9.3"
+  },
+  "patchedDependencies": {
+    "expo-modules-jsi@57.0.3": "patches/expo-modules-jsi@57.0.3.patch"
+  },
+  "overrides": {
+    "@expo/snapback-client": "file:../../../packages/snapback-client",
+    "@expo/snapback-contract": "file:../../../packages/snapback-contract",
+    "@expo/snapback-expo": "file:../../../packages/snapback-expo",
+    "@expo/snapback-react": "file:../../../packages/snapback-react"
+  }
+}
