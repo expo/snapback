@@ -791,6 +791,7 @@
         "packages/snapback-react/README.md",
         "packages/snapback-runtime-darwin-arm64/README.md",
         "packages/snapback-runtime-linux-x64/README.md",
+        "packages/snapback-umbrella/README.md",
         "packages/snapback-vite/README.md"
       ]
     },
