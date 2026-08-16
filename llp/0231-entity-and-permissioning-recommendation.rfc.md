@@ -421,6 +421,8 @@ exactly this egress question, since a handler computing over visible data can
 still send it somewhere broader. What the sibling may *not* do is introduce a
 second policy system.
 
+**Dated note (2026-08-15):** the write-policy sibling reserved here is [LLP 0264](./0264-table-write-policy.spec.md), a Draft owner-policy Spec with no current-enforcement claim.
+
 ### D7 — handler reads are scoped unless the call site is explicitly elevated
 
 Named JavaScript queries and mutations are trusted server-authoritative code,
