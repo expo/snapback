@@ -330,6 +330,12 @@ const conversationBinding = Object.freeze({
 const surfaceBoot = createSnapbackExpoBoot({
   app: conversationApp,
   now: () => Date.parse('2026-08-05T20:30:00.000Z'),
+  createApplicationClient: async () => Object.freeze({
+    client: conversationClient,
+    bootstrapState: () => Object.freeze({ status: 'ready' }),
+    subscribeBootstrap: () => () => {},
+    async dispose() {},
+  }),
   environment: Object.freeze({
     format: 'snapback.expo-environment.v1',
     appState: appStateHarness(),

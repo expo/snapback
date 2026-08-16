@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { webcrypto } from 'node:crypto';
 import {
   existsSync,
   mkdtempSync,
@@ -12,7 +13,11 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { createSnapbackAppClient } from '@expo/snapback-client';
+import {
+  createExternalSessionClient,
+  createSnapbackAppClient,
+} from '@expo/snapback-client';
+import { IDBFactory } from 'fake-indexeddb';
 import { runExpoDev } from '@expo/snapback-cli/expo-dev';
 import {
   createSnapbackExpoBoot,
@@ -33,10 +38,12 @@ import artifacts from './snapback/generated/artifacts.json' with { type: 'json' 
 const EXPECTED_CHECKS = Object.freeze([
   'zero-config-supervised-connect',
   'managed-lifecycle',
-  'anonymous-ready',
+  'web-anonymous-ready',
   'password-signup-recovery',
-  'password-signout',
-  'password-signin',
+  'reload-restores-principal',
+  'authenticated-entry-refusal',
+  'sign-out',
+  'native-refusal',
   'artifact-identity',
   'membership-and-conversation-shape',
   'test-persona-membership-switch',
@@ -110,6 +117,41 @@ const startManagedChild = () => {
   child.on('error', (error) => { childSpawnError = error; });
 };
 
+const mintOrdinarySession = async (adminToken) => {
+  const mint = spawn(executable, [
+    'session', 'mint',
+    '--email', 'acceptance@expo-chat.test',
+    '--ready-file', readyFile,
+  ], {
+    cwd: root,
+    env: { ...process.env, SNAPBACK_ADMIN_TOKEN: adminToken },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let mintStdout = '';
+  mint.stdout.on('data', (chunk) => { mintStdout = appendBounded(mintStdout, chunk); });
+  const exit = await new Promise((resolveExit, reject) => {
+    mint.once('error', reject);
+    mint.once('close', (code, signal) => resolveExit({ code, signal }));
+  });
+  if (exit.code !== 0) {
+    throw new Error(`ordinary session mint failed (${exit.code ?? exit.signal})`);
+  }
+  let envelope;
+  try {
+    envelope = JSON.parse(mintStdout);
+  } catch {
+    throw new Error('ordinary session mint did not return one hostOpsResult JSON document');
+  }
+  if (envelope?.ok !== true
+    || envelope?.operation !== 'auth.mintSession'
+    || envelope?.data?.tokenType !== 'Bearer'
+    || typeof envelope?.data?.token !== 'string'
+    || envelope.data.token.length === 0) {
+    throw new Error('ordinary session mint returned an invalid hostOpsResult envelope');
+  }
+  return Object.freeze({ token: envelope.data.token });
+};
+
 const waitForApplicationReady = async () => {
   // @ref LLP 0224#phases — Phase 1 proof: the harness waits on the application-readiness receipt; the first authority-bearing call runs un-retried.
   const waiter = spawn(executable, [
@@ -165,6 +207,29 @@ const waitForExit = async (timeoutMs) => {
     await new Promise((resolveWait) => setTimeout(resolveWait, 25));
   }
   return child.exitCode !== null || child.signalCode !== null;
+};
+
+const admittedBinding = (serverUrl) => {
+  const issuedAt = new Date();
+  return Object.freeze({
+    format: 'snapback.app-binding.v1',
+    source: 'supervised-dev',
+    descriptorIdentity: app.identity.descriptor,
+    target: Object.freeze({
+      app: app.identity.app,
+      schema: app.identity.schema,
+      functions: app.identity.functions,
+      origin: serverUrl,
+      routing: 'loopback',
+    }),
+    capabilities: Object.freeze({ offered: Object.freeze([...app.capabilities.required]) }),
+    provenance: Object.freeze({
+      supervisorGeneration: `expo-chat-acceptance-${app.identity.descriptor}`,
+      issuedAt: issuedAt.toISOString(),
+      expiresAt: new Date(issuedAt.getTime() + 60 * 60 * 1000).toISOString(),
+    }),
+    integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
+  });
 };
 
 const snapshotEnvFiles = (directory) => {
@@ -305,41 +370,18 @@ try {
     firstQueryRetries: 0,
   });
 
-  const now = Date.now();
-  const binding = Object.freeze({
-    format: 'snapback.app-binding.v1',
-    source: 'supervised-dev',
-    descriptorIdentity: app.identity.descriptor,
-    target: Object.freeze({
-      app: app.identity.app,
-      schema: app.identity.schema,
-      functions: app.identity.functions,
-      origin: ready.serverUrl,
-      routing: 'loopback',
-    }),
-    capabilities: Object.freeze({
-      offered: Object.freeze([...new Set([
-        ...app.capabilities.required,
-        'auth.passwords',
-      ])].sort()),
-    }),
-    provenance: Object.freeze({
-      supervisorGeneration: `expo-chat-acceptance-${process.pid}`,
-      issuedAt: new Date(now - 60_000).toISOString(),
-      expiresAt: new Date(now + 60 * 60_000).toISOString(),
-    }),
-    integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
+  const indexedDB = new IDBFactory();
+  const binding = admittedBinding(ready.serverUrl);
+  const platform = Object.freeze({
+    kind: 'expo-web',
+    indexedDB,
+    cryptoObject: webcrypto,
+    databaseName: `snapback-expo-chat-acceptance-${process.pid}`,
   });
-  appClient = await createSnapbackAppClient({
-    app,
-    binding,
-    platform: 'memory',
-    now: () => now,
-  });
-  client = appClient.client;
+  appClient = await createSnapbackAppClient({ app, binding, platform });
   assert.equal(appClient.bootstrapState().status, 'ready');
   assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
-  pass('anonymous-ready', { custody: appClient.bootstrapState().custody.carrier });
+  pass('web-anonymous-ready', { platform: 'expo-web', principal: 'anonymous' });
 
   const identity = `expo-chat-${process.pid}@example.com`;
   const password = 'expo-chat-password';
@@ -347,14 +389,52 @@ try {
   assert.equal(signup.recoveryCodes.length, 8);
   assert.equal(Object.hasOwn(signup, 'token'), false);
   assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
-  pass('password-signup-recovery', { recoveryCodeCount: signup.recoveryCodes.length });
+  const signedUpUserId = appClient.auth.currentPrincipal().userId;
+  pass('password-signup-recovery', {
+    recoveryCodeCount: signup.recoveryCodes.length,
+    bearerProjected: false,
+  });
+
+  await appClient.dispose();
+  appClient = await createSnapbackAppClient({ app, binding, platform });
+  assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+  assert.equal(appClient.auth.currentPrincipal().userId, signedUpUserId);
+  pass('reload-restores-principal', { userId: signedUpUserId });
+
+  await assert.rejects(
+    appClient.auth.signUpWithPassword({ email: `second-${identity}`, password }),
+    (error) => error?.code === 'SNAPBACK_AUTH_ENTRY_AUTHENTICATED',
+  );
+  pass('authenticated-entry-refusal', { code: 'SNAPBACK_AUTH_ENTRY_AUTHENTICATED' });
+
   await appClient.auth.signOut();
   assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
-  pass('password-signout');
-  const signin = await appClient.auth.signInWithPassword({ email: identity, password });
-  assert.equal(Object.hasOwn(signin, 'recoveryCodes'), false);
-  assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
-  pass('password-signin', { userId: signin.session.userId });
+  pass('sign-out', { principal: 'anonymous' });
+  await appClient.dispose();
+  appClient = null;
+
+  await assert.rejects(
+    createSnapbackAppClient({
+      app,
+      binding,
+      platform: 'expo-native-phase-2-evidence-required',
+    }),
+    (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED'
+      && error?.bootstrapState?.status === 'unsupported',
+  );
+  pass('native-refusal', {
+    code: 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
+    platform: 'expo-native-phase-2-evidence-required',
+  });
+
+  const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
+  const minted = await mintOrdinarySession(adminToken);
+  client = createExternalSessionClient(ready.serverUrl, {
+    bearerToken: minted.token,
+    authInvalidationProtocol: 1,
+    rqsStore: null,
+    offlineQueue: false,
+  });
   const conversationRows = (await client.query(api.conversations, { args: {} })).rows;
   const inspected = await client.inspect();
   assert.equal(inspected.functions?.appId, artifacts.appId);

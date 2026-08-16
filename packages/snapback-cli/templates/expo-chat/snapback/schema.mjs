@@ -59,19 +59,20 @@ export default defineSchema(
       handle: v.string(),
       name: v.string(),
       color: v.string(),
-    }).index('by_handle', ['handle'], { unique: true }).sync(),
+    }).visibility({ kind: 'public-read' }).index('by_handle', ['handle'], { unique: true }).sync(),
     conversations: defineTable({
       kind: v.string(),
       title: v.string(),
       updatedAt: v.integer(),
       lastPreview: v.string(),
-    }).index('by_updated', ['updatedAt']).sync(),
+    }).visibility({ kind: 'public-read' }).index('by_updated', ['updatedAt']).sync(),
     // @ref LLP 0196#program — the T0 starter models
     // inbox membership explicitly so the visible test persona changes data.
     memberships: defineTable({
       conversationId: v.id('conversations'),
       userId: v.id('users'),
     })
+      .visibility({ kind: 'public-read' })
       .index('by_user', ['userId'])
       .index('by_conversation', ['conversationId'])
       .index('by_conversation_user', ['conversationId', 'userId'], { unique: true })
@@ -87,6 +88,7 @@ export default defineSchema(
       replyToId: v.optional(v.id('messages')),
       sentAt: v.integer(),
     })
+      .visibility({ kind: 'public-read' })
       .index('by_conversation_sent', ['conversationId', 'sentAt'])
       // Starter choice: message images are public-read. A production chat
       // derives byte authority from conversation membership instead.
@@ -98,6 +100,7 @@ export default defineSchema(
       userId: v.id('users'),
       emoji: v.string(),
     })
+      .visibility({ kind: 'public-read' })
       .index('by_conversation', ['conversationId'])
       .index('by_message', ['messageId'])
       .index('by_message_user_emoji', ['messageId', 'userId', 'emoji'], { unique: true })

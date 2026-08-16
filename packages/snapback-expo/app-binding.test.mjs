@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   cpSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -373,7 +374,18 @@ try {
   const demoRoot = join(generatedHostedDemoRoot, 'todo');
   const backendRoot = join(demoRoot, 'snapback');
   cpSync(join(repoRoot, 'demos', 'todo'), demoRoot, { recursive: true });
+  const governanceFiles = [
+    'visibility-override-owner-baseline.json',
+    'visibility-override-baseline.json',
+    'table-visibility-policy-baseline.json',
+    'table-visibility-policy-transition-ledger.json',
+    'visibility-governance-quarantine-ledger.json',
+  ].map((name) => [name, readFileSync(join(backendRoot, 'generated', name))]);
   rmSync(join(backendRoot, 'generated'), { recursive: true, force: true });
+  mkdirSync(join(backendRoot, 'generated'), { recursive: true });
+  for (const [name, bytes] of governanceFiles) {
+    writeFileSync(join(backendRoot, 'generated', name), bytes);
+  }
   const defineUrl = pathToFileURL(
     join(repoRoot, 'packages', 'snapback-codegen', 'define.mjs'),
   ).href;

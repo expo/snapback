@@ -37,7 +37,7 @@ const PASSWORD = 'expo-bootstrap-password-secret';
 const TEST_NOW_MS = Date.parse('2026-08-15T12:30:00.000Z');
 
 const generatedRoot = new URL(
-  '../snapback-react/fixtures/conversation/app/snapback/generated/',
+  '../snapback-cli/templates/react/snapback/generated/',
   import.meta.url,
 );
 const app = JSON.parse(readFileSync(new URL('app.descriptor.json', generatedRoot)));

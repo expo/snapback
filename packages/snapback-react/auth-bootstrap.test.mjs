@@ -62,7 +62,9 @@ const binding = Object.freeze({
     origin: 'http://127.0.0.1:4811',
     routing: 'loopback',
   }),
-  capabilities: Object.freeze({ offered: Object.freeze(['auth.passwords']) }),
+  capabilities: Object.freeze({
+    offered: Object.freeze(['auth.application-bootstrap.v1', 'auth.passwords']),
+  }),
   provenance: Object.freeze({
     supervisorGeneration: 'react-auth-bootstrap-test',
     // Dynamic window: binding-expiry admission honors the boot clock, so a

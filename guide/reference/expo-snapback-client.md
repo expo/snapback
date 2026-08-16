@@ -1991,7 +1991,7 @@ export function createRqsRegisteredRegistry(bundle: unknown): RqsRegisteredRegis
 
 Stable identity: `npm:@expo/snapback-client#createSnapbackAppClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/app-client.d.mts:173`
+Source: `packages/snapback-client/app-client.d.mts:175`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createSnapbackAppClient(input: Readonly<{
@@ -5675,7 +5675,7 @@ export type SnapbackAppBindingV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-client#SnapbackAppClient`
 Kind: `type-interface`
-Source: `packages/snapback-client/app-client.d.mts:165`
+Source: `packages/snapback-client/app-client.d.mts:167`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackAppClient {
@@ -5826,6 +5826,8 @@ export interface SnapbackAuthFacade {
   subscribeCurrentPrincipal(listener: () => void): () => void;
   readonly signUpWithPassword: SnapbackClient['authPasswordSignup'];
   readonly signInWithPassword: SnapbackClient['authPasswordSignIn'];
+  readonly consumeRecoveryCode: SnapbackClient['authRecoveryConsume'];
+  readonly rotateRecoveryCodes: SnapbackClient['authRecoveryRotate'];
   readonly changePassword: SnapbackClient['authPasswordChange'];
   readonly signOut: SnapbackClient['authLogout'];
 }
@@ -5837,6 +5839,8 @@ Members and overload groups:
 - `subscribeCurrentPrincipal` — method; 1 signature
 - `signUpWithPassword` — property; 1 signature
 - `signInWithPassword` — property; 1 signature
+- `consumeRecoveryCode` — property; 1 signature
+- `rotateRecoveryCodes` — property; 1 signature
 - `changePassword` — property; 1 signature
 - `signOut` — property; 1 signature
 
@@ -7339,6 +7343,8 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT'
   | 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID'
   | 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE'
+  | 'SNAPBACK_AUTH_BOOTSTRAP_CAPABILITY_UNAVAILABLE'
+  | 'SNAPBACK_AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED'
   | 'SNAPBACK_AUTH_BOOTSTRAP_FAILED'
   | 'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID'
   | 'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE'
@@ -7518,6 +7524,8 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_AUTH_RANDOM_UNAVAILABLE'
   | 'SNAPBACK_AUTH_RATE_BUDGET'
   | 'SNAPBACK_AUTH_RECOVERY_CODE_INVALID'
+  | 'SNAPBACK_AUTH_RECOVERY_POLICY_UNSUPPORTED'
+  | 'SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED'
   | 'SNAPBACK_AUTH_REFRESH_SUPERSEDED'
   | 'SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED'
   | 'SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH'

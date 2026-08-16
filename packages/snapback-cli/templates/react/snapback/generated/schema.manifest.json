@@ -51,12 +51,12 @@
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:2cc749f970484c664f91c872a33b24bb3c67029d0090026ddb8118f98521c2e4",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:329da2b2bc51771c15524908baa29bbe22769ec01605ad2862aad966cc116d7c",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:cc3284b54dfa7b4f3d7d47455977626aa89e7f522dd2f67739e48ca5f3cfd5d0",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:d50396cb565f064c0f6dade36cf36d4661f818bbdf31a36b53561d694983aa8f",
   "schemaVersion": "snapback.v1",
   "tables": [
     {

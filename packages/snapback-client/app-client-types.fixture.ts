@@ -38,7 +38,7 @@ const binding = {
     origin: 'http://127.0.0.1:3000',
     routing: 'loopback',
   },
-  capabilities: { offered: ['auth.passwords'] },
+  capabilities: { offered: ['auth.application-bootstrap.v1', 'auth.passwords'] },
   provenance: {
     supervisorGeneration: 'supervisor-1',
     issuedAt: '2026-08-15T12:00:00.000Z',
@@ -58,7 +58,7 @@ const hostedDevelopmentBinding = {
     origin: 'https://hosted.example.test',
     routing: 'https',
   },
-  capabilities: { offered: ['auth.passwords'] },
+  capabilities: { offered: ['auth.application-bootstrap.v1', 'auth.passwords'] },
   provenance: { hostedTargetReceipt: 'sha256:hosted-target-receipt' },
   integrity: { channel: 'hosted-target-admission' },
 } as const satisfies SnapbackAppBindingV1;
@@ -75,6 +75,13 @@ async function fixture() {
   signup.recoveryCodes satisfies readonly string[];
   const signin = await appClient.auth.signInWithPassword({ email: 'a@b.c', password: 'password' });
   signin.session.userId satisfies string;
+  const consumed = await appClient.auth.consumeRecoveryCode({
+    email: 'a@b.c',
+    code: 'AAAAA-BBBBB-CCCCC',
+  });
+  consumed.recoveryCodes satisfies readonly string[];
+  const rotated = await appClient.auth.rotateRecoveryCodes();
+  rotated.recoveryCodes satisfies readonly string[];
   const changed = await appClient.auth.changePassword({
     currentPassword: 'password',
     newPassword: 'new-password',

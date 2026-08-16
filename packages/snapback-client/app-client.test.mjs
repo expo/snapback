@@ -196,7 +196,9 @@ function makeBinding(app, {
       origin,
       routing: 'loopback',
     }),
-    capabilities: Object.freeze({ offered: Object.freeze(['auth.passwords']) }),
+    capabilities: Object.freeze({
+      offered: Object.freeze(['auth.application-bootstrap.v1', 'auth.passwords']),
+    }),
     provenance: Object.freeze({ supervisorGeneration, issuedAt, expiresAt }),
     integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
   });
@@ -217,7 +219,9 @@ function makeHostedDevelopmentBinding(app, {
       origin,
       routing: 'https',
     }),
-    capabilities: Object.freeze({ offered: Object.freeze(['auth.passwords']) }),
+    capabilities: Object.freeze({
+      offered: Object.freeze(['auth.application-bootstrap.v1', 'auth.passwords']),
+    }),
     provenance: Object.freeze({ hostedTargetReceipt }),
     integrity: Object.freeze({ channel: 'hosted-target-admission' }),
   });
@@ -454,6 +458,53 @@ test('managed browser bindings admit the same-origin relay without exposing a ba
   }
 });
 
+test('managed browser relay admission pins documented plain-segment prefixes', async () => {
+  const app = makeApp();
+  const rejectingServer = installServer();
+  try {
+    for (const origin of [
+      '/_snapback',
+      '/admin',
+      '/@fs/etc/passwd',
+      '/%2e%2e%2fadmin',
+      '/__snapback%2f..%2fadmin',
+      '/http://evil.com',
+      '//evil.com',
+      '/__snapback/',
+      '/__snapback?next=/admin',
+      '/__snapback#admin',
+    ]) {
+      const before = rejectingServer.requests.length;
+      await assert.rejects(
+        createSnapbackAppClient(optionsFor(app, makeBinding(app, { origin }))),
+        (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID',
+        `relay base ${origin} must refuse`,
+      );
+      assert.equal(
+        rejectingServer.requests.length,
+        before,
+        `${origin} reached transport before refusal`,
+      );
+    }
+  } finally {
+    rejectingServer.restore();
+  }
+
+  for (const origin of ['/__snapback/v1', '/__exact/snapback', '/__exact/snapback/v1']) {
+    const admittingServer = installServer({ relayBase: origin });
+    try {
+      const admitted = await createSnapbackAppClient(optionsFor(
+        app,
+        makeBinding(app, { origin }),
+      ));
+      assert.equal(admitted.bootstrapState().status, 'ready', `${origin} should be admitted`);
+      await admitted.dispose();
+    } finally {
+      admittingServer.restore();
+    }
+  }
+});
+
 test('policy, binding, and durable-custody refusals happen before transport I/O', async () => {
   const server = installServer();
   try {
@@ -466,6 +517,15 @@ test('policy, binding, and durable-custody refusals happen before transport I/O'
     await assert.rejects(
       createSnapbackAppClient(optionsFor(app, invalidBinding)),
       (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID',
+    );
+    const missingBootstrapCapability = {
+      ...makeBinding(app),
+      capabilities: { offered: ['auth.passwords'] },
+    };
+    await assert.rejects(
+      createSnapbackAppClient(optionsFor(app, missingBootstrapCapability)),
+      (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_CAPABILITY_UNAVAILABLE'
+        && error?.diagnostic?.details?.missingCapability === 'auth.application-bootstrap.v1',
     );
     await assert.rejects(
       createSnapbackAppClient({ ...optionsFor(app), bearerToken: 'must-not-be-admitted' }),
@@ -502,8 +562,47 @@ test('policy, binding, and durable-custody refusals happen before transport I/O'
       }),
       (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE',
     );
+    await assert.rejects(
+      noPasswordClient.auth.consumeRecoveryCode({
+        email: 'person@example.com',
+        code: RECOVERY_CODES[0],
+      }),
+      (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE',
+    );
+    await assert.rejects(
+      noPasswordClient.auth.rotateRecoveryCodes(),
+      (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE',
+    );
     assert.equal(server.requests.length, afterNoPasswordBoot);
     await noPasswordClient.dispose();
+  } finally {
+    server.restore();
+  }
+});
+
+test('auth-policy unavailability projects the canonical authority-required bootstrap state', async () => {
+  const server = installServer();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const parsed = new URL(url);
+    if (parsed.pathname === '/auth/session') {
+      return Response.json({
+        diagnostic: {
+          schemaVersion: 'snapback.client-diagnostic.v1',
+          code: 'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
+          message: 'Sessions policy is unavailable.',
+          details: {},
+        },
+      }, { status: 409 });
+    }
+    return originalFetch(url, init);
+  };
+  try {
+    await assert.rejects(
+      createSnapbackAppClient(optionsFor(makeApp())),
+      (error) => error?.bootstrapState?.status === 'authority-required'
+        && error.bootstrapState.diagnostic.code === 'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
+    );
   } finally {
     server.restore();
   }
@@ -1320,6 +1419,57 @@ test('entry gating protects authenticated principals while changePassword remain
       (error) => error?.code === 'SNAPBACK_AUTH_CHANGE_PASSWORD_REQUIRES_AUTHENTICATED'
         && error?.diagnostic?.details?.principalStatus === 'blocked',
     );
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('recovery facade preserves consume and rotate one-time result contracts', async () => {
+  const server = installServer();
+  const appClient = await createSnapbackAppClient(optionsFor(makeApp()));
+  try {
+    await assert.rejects(
+      appClient.auth.rotateRecoveryCodes(),
+      (error) => error?.code === 'SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED',
+      'anonymous recovery rotation must refuse before transport',
+    );
+    server.respond('/auth/recovery/consume', ({ authorization, body }) => {
+      assert.equal(authorization, null);
+      assert.deepEqual(body, { email: 'person@example.com', code: RECOVERY_CODES[0] });
+      return Response.json(server.credential({ codes: RECOVERY_CODES }));
+    });
+    const consumed = await appClient.auth.consumeRecoveryCode({
+      email: 'person@example.com',
+      code: RECOVERY_CODES[0],
+    });
+    assert.deepEqual(consumed.recoveryCodes, RECOVERY_CODES);
+    assert.equal(Object.hasOwn(consumed, 'token'), false);
+
+    const rotatedCodes = [...RECOVERY_CODES].reverse();
+    server.respond('/auth/recovery/rotate', ({ authorization, body }) => {
+      assert.equal(authorization, `Bearer ${APPLICATION_BEARER}`);
+      assert.deepEqual(body, {});
+      return Response.json(server.credential({
+        token: ROTATED_BEARER,
+        codes: rotatedCodes,
+      }));
+    });
+    const rotated = await appClient.auth.rotateRecoveryCodes();
+    assert.deepEqual(rotated.recoveryCodes, rotatedCodes);
+    assert.equal(Object.hasOwn(rotated, 'token'), false);
+    assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+    const beforeAuthenticatedConsume = server.requests.length;
+    await assert.rejects(
+      appClient.auth.consumeRecoveryCode({
+        email: 'person@example.com',
+        code: RECOVERY_CODES[1],
+      }),
+      (error) => error?.code === 'SNAPBACK_AUTH_ENTRY_AUTHENTICATED'
+        && error.remediations[0].kind === 'signOut',
+      'an authenticated application principal must sign out before recovery entry',
+    );
+    assert.equal(server.requests.length, beforeAuthenticatedConsume);
   } finally {
     await appClient.dispose();
     server.restore();

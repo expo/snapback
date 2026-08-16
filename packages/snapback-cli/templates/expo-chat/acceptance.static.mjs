@@ -78,6 +78,8 @@ assert.match(inboxScreen, /item\.kind === 'group'/);
 assert.match(personaContext, /production identity must come from adopted authority/);
 assert.deepEqual(expoManifest.expo.platforms, ['ios', 'android', 'web']);
 assert.equal(packageManifest.scripts.web, 'expo start --web');
+assert.equal(packageManifest.scripts.dev, 'snapback dev snapback --expo --expo-platform web');
+assert.equal(packageManifest.scripts['dev:native-refusal'], 'snapback dev snapback --expo --expo-platform ios');
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
 assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
 assert.equal(packageManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
@@ -98,20 +100,21 @@ assert.match(
 assert.match(runtimeAcceptance, /runExpoDev/);
 assert.match(runtimeAcceptance, /createSnapbackExpoBoot/);
 assert.match(runtimeAcceptance, /createSnapbackAppClient/);
-assert.doesNotMatch(
-  runtimeAcceptance,
-  /new SnapbackClient|createExternalSessionClient|AuthCoordinator|bearer|adoptAuthority/u,
-);
+assert.match(runtimeAcceptance, /createExternalSessionClient/);
+assert.match(runtimeAcceptance, /authInvalidationProtocol:\s*1/u);
+assert.doesNotMatch(runtimeAcceptance, /new SnapbackClient|AuthCoordinator|adoptAuthority/u);
 assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
 assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
 assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
 assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
 for (const check of [
   'zero-config-supervised-connect',
-  'anonymous-ready',
+  'web-anonymous-ready',
   'password-signup-recovery',
-  'password-signout',
-  'password-signin',
+  'reload-restores-principal',
+  'authenticated-entry-refusal',
+  'sign-out',
+  'native-refusal',
   'membership-and-conversation-shape',
   'test-persona-membership-switch',
   'reply-and-observation',

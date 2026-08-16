@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -19,6 +20,7 @@ import { generate } from './index.mjs';
 import {
   APPLICATION_AUTH_LIFECYCLE_SOURCE,
   APPLICATION_AUTH_PLATFORM_KINDS,
+  AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE,
   CLIENT_COMPATIBILITY_ALIASES,
   assertApplicationAuthLifecycleCompleteness,
   renderReferenceJSDoc,
@@ -32,6 +34,22 @@ import { FAMILIAR_DISPOSITIONS } from './familiar-dispositions.mjs';
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
 const roots = [];
+
+function sourceFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      return ['node_modules', 'generated', '.snapback'].includes(entry.name)
+        ? []
+        : sourceFiles(path);
+    }
+    return entry.name.endsWith('.mjs')
+      && !entry.name.endsWith('.test.mjs')
+      && entry.name !== 'client-lifecycle.mjs'
+      ? [path]
+      : [];
+  });
+}
 
 function backend() {
   const root = mkdtempSync(join(tmpdir(), 'snapback-client-lifecycle-'));
@@ -57,7 +75,7 @@ const authProgram = defineAuth({
   secretReferences: {},
 });
 export default defineSchema(
-  { todos: defineTable({ title: v.string() }).sync() },
+  { todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync() },
   { auth: { mode: 'sessions' }, authProgram },
 );
 `);
@@ -161,25 +179,28 @@ test('manifest vocabulary, generated types, and JSDoc share one lifecycle projec
     lastAuthenticator: 'enforce',
   });
   assert.deepEqual(
-    authRows.authRecoveryLifecycle.operations.map(({ operation, clientMethod, resultType }) => (
-      [operation, clientMethod, resultType]
+    authRows.authRecoveryLifecycle.operations.map(({
+      operation,
+      applicationFacadeMethod,
+      clientMethod,
+      resultType,
+    }) => (
+      [operation, clientMethod, applicationFacadeMethod, resultType]
     )),
     [
-      ['consume', 'authRecoveryConsume', 'Promise<AuthRecoveryCredentialPublicProjectionV1>'],
-      ['rotate', 'authRecoveryRotate', 'Promise<AuthRecoveryCredentialPublicProjectionV1>'],
+      ['consume', 'authRecoveryConsume', 'consumeRecoveryCode', 'Promise<AuthRecoveryCredentialPublicProjectionV1>'],
+      ['rotate', 'authRecoveryRotate', 'rotateRecoveryCodes', 'Promise<AuthRecoveryCredentialPublicProjectionV1>'],
     ],
   );
   assert.deepEqual(
-    authRows.authCustodyPlatforms.platforms.map(({ platform, grade, disposition }) => (
-      [platform, grade, disposition]
+    authRows.authCustodyPlatforms.platforms.map(({ platform, carriers, grade, disposition }) => (
+      [platform, carriers, grade, disposition]
     )),
     [
-      ['browser', 'durable', 'shipped'],
-      ['expo-web', 'durable', 'shipped'],
-      ['memory', 'volatile', 'shipped-nonclaim'],
-      ['expo-ios', 'pending-per-os-evidence', 'refused-pending-evidence'],
-      ['expo-android', 'pending-per-os-evidence', 'refused-pending-evidence'],
-      ['node-headless', 'caller-evidenced', 'not-admitted-by-ordinary-app-client'],
+      ['browser', ['indexeddb-web-locks', 'indexeddb-fenced-lease'], 'durable', 'shipped'],
+      ['expo-web', ['indexeddb-web-locks', 'indexeddb-fenced-lease'], 'durable', 'shipped'],
+      ['memory', ['memory'], 'volatile', 'shipped-nonclaim'],
+      ['expo-native-phase-2-evidence-required', [], 'pending-per-os-evidence', 'refused-pending-evidence'],
     ],
   );
   assert.deepEqual(authRows.authBootstrapState.stages, ['binding', 'custody', 'authority', 'client']);
@@ -191,7 +212,7 @@ test('manifest vocabulary, generated types, and JSDoc share one lifecycle projec
     authRows.authBootstrapState.advisories.map(({ diagnosticCode, state }) => [diagnosticCode, state]),
     [['SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT', 'ready']],
   );
-  assert.equal(authRows.authBootstrapState.diagnostics.length, 8);
+  assert(authRows.authBootstrapState.diagnostics.length >= 8);
   assert.deepEqual(
     authRows.authBootstrapState.remediations.map(({ kind }) => kind),
     [
@@ -224,9 +245,12 @@ test('manifest vocabulary, generated types, and JSDoc share one lifecycle projec
   assert(authRows.authAnchors.guide.includes('guide/auth/passwords.md#sign-up-then-sign-in'));
 
   for (const operation of manifest.operations) {
-    const start = apiTypes.indexOf(`reference \`${operation.semanticIdentity}\``);
+    const declarationSurface = operation.kind === 'Action'
+      ? envelope.declarations.appBindings
+      : apiTypes;
+    const start = declarationSurface.indexOf(`reference \`${operation.semanticIdentity}\``);
     assert.notEqual(start, -1, operation.semanticIdentity);
-    const declaration = apiTypes.slice(start, start + 1_000);
+    const declaration = declarationSurface.slice(start, start + 1_000);
     for (const verb of operation.legalVerbs) {
       assert.ok(declaration.includes(`\`${verb}\``), `${operation.semanticIdentity} omits ${verb}`);
     }
@@ -382,23 +406,97 @@ test('shipped codegen, declarations, hooks, platforms, and diagnostics conform t
   }
   for (const operation of rows.authRecoveryLifecycle.operations) {
     assert(clientTypes.includes(operation.clientMethod), operation.clientMethod);
-    assert.equal(operation.facadeOwner, 'SnapbackClient.auth');
-    assert(clientTypes.includes(operation.facadeMethod), operation.facadeMethod);
-    assert.equal(operation.applicationFacadeMethod, null);
-    assert.match(operation.facadeDisposition, /no-ordinary-app-facade-method/u);
+    assert.equal(operation.facadeOwner, 'SnapbackAppClient.auth');
+    assert(clientTypes.includes(operation.clientNamespaceMethod), operation.clientNamespaceMethod);
+    assert(appClientTypes.includes(operation.applicationFacadeMethod), operation.applicationFacadeMethod);
+    assert(appClientRuntime.includes(`${operation.facadeMethod}:`), operation.facadeMethod);
+    assert.match(operation.facadeDisposition, /ordinary-app-facade-exact-client-contract/u);
   }
   assert(appClientRuntime.includes('createIndexedDbAuthCustodyStorage'));
   assert(appClientRuntime.includes('createMemoryAuthCustodyStorage'));
   assert(expoRuntime.includes('expo-native-phase-2-evidence-required'));
   assert(appClientTypes.includes("'browser' | 'expo-web' | 'memory'"));
+  const shippedPlatformType = appClientTypes.match(
+    /export type SnapbackAppClientPlatform =([\s\S]*?);\n\n/u,
+  )?.[1] ?? '';
+  const publicPlatforms = [...new Set(
+    [...shippedPlatformType.matchAll(/'([^']+)'/gu)].map((match) => match[1])
+      .filter((value) => ['browser', 'expo-web', 'memory'].includes(value)),
+  )];
+  const providerSentinel = expoRuntime.match(
+    /kind: '(expo-native-phase-2-evidence-required)'/u,
+  )?.[1];
+  assert(providerSentinel, 'Expo provider must expose the Phase-2 native refusal sentinel');
+  assert.deepEqual(
+    [...APPLICATION_AUTH_PLATFORM_KINDS],
+    [...publicPlatforms, providerSentinel],
+    'D9 expected platforms must mirror the shipped app-client type plus Expo provider sentinel',
+  );
+  assert.deepEqual(
+    rows.authCustodyPlatforms.platforms.map(({ platform }) => platform),
+    [...APPLICATION_AUTH_PLATFORM_KINDS],
+    'every authoritative shipped platform has exactly one D9 row',
+  );
+  const codegenRuntime = readFileSync(join(packageRoot, 'index.mjs'), 'utf8');
+  assert.match(
+    codegenRuntime,
+    /applicationAuth:\s*\{[\s\S]*?platformKinds:\s*APPLICATION_AUTH_PLATFORM_KINDS/u,
+    'generate() must pass the independently maintained expected platform set',
+  );
   assert(expoTypes.includes('FirstPartyExpoBootState'));
   for (const { status } of rows.authBootstrapState.states) {
     assert(appClientTypes.includes(`status: '${status}'`) || appClientTypes.includes(`status: 'blocked' | 'unsupported' | 'error'`), status);
   }
-  const diagnosticSources = `${appClientRuntime}\n${authorityRuntime}\n${reactRuntime}\n${expoRuntime}`;
-  for (const diagnosticClass of rows.authBootstrapState.diagnostics) {
-    for (const code of diagnosticClass.codes) assert(diagnosticSources.includes(code), code);
+  const repoRoot = join(packageRoot, '..', '..');
+  const diagnosticRegistry = JSON.parse(readFileSync(
+    join(repoRoot, 'guide/reference/diagnostics-registry.json'),
+    'utf8',
+  ));
+  const diagnosticRowFor = (code) => rows.authBootstrapState.diagnostics.find(
+    (row) => row.codes.includes(code),
+  );
+  assert.equal(diagnosticRowFor('SNAPBACK_AUTH_POLICY_UNAVAILABLE')?.state, 'authority-required');
+  for (const row of rows.authBootstrapState.diagnostics) {
+    assert.equal(typeof row.state, 'string', `${row.class} lacks a D7 state projection`);
+    assert(Array.isArray(row.remediations), `${row.class} lacks typed remediations`);
+    for (const code of row.codes) {
+      assert(diagnosticRegistry.diagnostics[code], `diagnostics registry omits ${code}`);
+    }
   }
+  const bootstrapEmissionSources = [appClientRuntime, codegenRuntime].join('\n');
+  const emittedBootstrapCodes = new Set(
+    [...bootstrapEmissionSources.matchAll(/SNAPBACK_AUTH_BOOTSTRAP_[A-Z0-9_]+/gu)]
+      .map((match) => match[0]),
+  );
+  const bootstrapAdjacentCodes = [
+    'SNAPBACK_APP_BINDING_EXPIRED',
+    'SNAPBACK_APP_BINDING_TARGET_INVALID',
+    'SNAPBACK_APP_BINDING_INTEGRITY_INVALID',
+    'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE',
+    'SNAPBACK_AUTH_CUSTODY_OWNER_KEY_UNSUPPORTED',
+    'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
+    'SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT',
+  ];
+  for (const code of bootstrapAdjacentCodes) emittedBootstrapCodes.add(code);
+  const classifiedCodes = new Set(
+    rows.authBootstrapState.diagnostics.flatMap(({ codes }) => codes),
+  );
+  for (const code of emittedBootstrapCodes) {
+    assert(classifiedCodes.has(code), `bootstrap-emitted code ${code} has no D9 diagnostic row`);
+  }
+  const packageSource = [
+    ...sourceFiles(join(repoRoot, 'packages/snapback-client')),
+    ...sourceFiles(join(repoRoot, 'packages/snapback-contract')),
+    ...sourceFiles(join(repoRoot, 'packages/snapback-expo')),
+    ...sourceFiles(join(repoRoot, 'packages/snapback-codegen')),
+  ].map((path) => readFileSync(path, 'utf8')).join('\n');
+  for (const code of classifiedCodes) {
+    assert(packageSource.includes(code), `classified bootstrap code ${code} is not emitted`);
+  }
+  assert(
+    diagnosticRegistry.diagnostics[AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE],
+    `diagnostics registry omits ${AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE}`,
+  );
   assert(clientTypes.includes('export type SnapbackAuthRemediation = Readonly<{'));
   for (const field of ['riskClass', 'machineApplicable', 'requiresApproval', 'authorityEffect']) {
     assert(clientTypes.includes(`${field}:`), field);

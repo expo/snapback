@@ -1909,6 +1909,11 @@ export function defineAuth(program) {
     'SNAPBACK_AUTH_PROGRAM_INVALID',
   );
   assert(
+    recoveryCodes.enabled === true,
+    'defineAuth recoveryPolicy.recoveryCodes.enabled=false is not yet enforced by shipped clients',
+    'SNAPBACK_AUTH_RECOVERY_POLICY_UNSUPPORTED',
+  );
+  assert(
     recoveryCodes.requiredWhen === 'no-independent-recovery',
     'defineAuth recoveryPolicy.recoveryCodes.requiredWhen must be no-independent-recovery',
     'SNAPBACK_AUTH_PROGRAM_INVALID',

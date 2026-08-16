@@ -304,11 +304,12 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["platform", "runtimePlatformKind", "adapter", "grade", "policy", "disposition", "refusalCode"],
+            "required": ["platform", "runtimePlatformKind", "adapter", "carriers", "grade", "policy", "disposition", "refusalCode"],
             "properties": {
               "platform": { "type": "string", "minLength": 1 },
               "runtimePlatformKind": { "type": ["string", "null"] },
               "adapter": { "type": "string", "minLength": 1 },
+              "carriers": { "$ref": "#/$defs/stringList" },
               "grade": { "type": "string", "minLength": 1 },
               "policy": { "type": "string", "minLength": 1 },
               "disposition": { "type": "string", "minLength": 1 },
@@ -356,9 +357,11 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["class", "codes"],
+            "required": ["class", "state", "remediations", "codes"],
             "properties": {
               "class": { "type": "string", "minLength": 1 },
+              "state": { "enum": ["ready", "authority-required", "blocked", "unsupported", "error"] },
+              "remediations": { "$ref": "#/$defs/stringList" },
               "codes": { "$ref": "#/$defs/stringList" }
             }
           }

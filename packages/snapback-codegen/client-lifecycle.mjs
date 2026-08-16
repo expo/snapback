@@ -8,14 +8,18 @@ export const CLIENT_LIFECYCLE_MANIFEST_FILE = 'client-lifecycle.v1.json';
 export const CLIENT_LIFECYCLE_MANIFEST_VERSION = 'snapback.client-lifecycle.v1';
 export const CLIENT_REFERENCE_GUIDE = '/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs';
 export const CLIENT_REFERENCE_KIND_MISMATCH_CODE = 'SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH';
+export const AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE =
+  'SNAPBACK_AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED';
 
+// This maintained expectation mirrors the shipped SnapbackAppClientPlatform
+// declaration plus the Expo provider's explicit native refusal sentinel. A
+// cross-package test opens both declarations so this gate is independent from
+// the D9 rows it audits.
 export const APPLICATION_AUTH_PLATFORM_KINDS = Object.freeze([
   'browser',
   'expo-web',
   'memory',
-  'expo-ios',
-  'expo-android',
-  'node-headless',
+  'expo-native-phase-2-evidence-required',
 ]);
 
 const applicationAuthSource = {
@@ -175,14 +179,14 @@ const applicationAuthSource = {
   },
   recoveryOperations: {
     consume: {
-      predecessor: 'settled-anonymous',
+      predecessor: 'settled-anonymous-or-process-local-supervised-adopted',
       targetCapability: 'auth.passwords',
       clientMethod: 'authRecoveryConsume',
       clientNamespaceMethod: 'authRecoveryConsume',
-      applicationFacadeMethod: null,
-      facadeOwner: 'SnapbackClient.auth',
-      facadeMethod: 'authRecoveryConsume',
-      facadeDisposition: 'shipped-client-namespace-no-ordinary-app-facade-method',
+      applicationFacadeMethod: 'consumeRecoveryCode',
+      facadeOwner: 'SnapbackAppClient.auth',
+      facadeMethod: 'consumeRecoveryCode',
+      facadeDisposition: 'shipped-ordinary-app-facade-exact-client-contract',
       resultType: 'Promise<AuthRecoveryCredentialPublicProjectionV1>',
       recoveryProjection: 'one-time-response',
     },
@@ -191,10 +195,10 @@ const applicationAuthSource = {
       targetCapability: 'auth.passwords',
       clientMethod: 'authRecoveryRotate',
       clientNamespaceMethod: 'authRecoveryRotate',
-      applicationFacadeMethod: null,
-      facadeOwner: 'SnapbackClient.auth',
-      facadeMethod: 'authRecoveryRotate',
-      facadeDisposition: 'shipped-client-namespace-no-ordinary-app-facade-method',
+      applicationFacadeMethod: 'rotateRecoveryCodes',
+      facadeOwner: 'SnapbackAppClient.auth',
+      facadeMethod: 'rotateRecoveryCodes',
+      facadeDisposition: 'shipped-ordinary-app-facade-exact-client-contract',
       resultType: 'Promise<AuthRecoveryCredentialPublicProjectionV1>',
       recoveryProjection: 'one-time-response',
     },
@@ -203,6 +207,7 @@ const applicationAuthSource = {
     browser: {
       runtimePlatformKind: 'browser',
       adapter: 'createIndexedDbAuthCustodyStorage',
+      carriers: ['indexeddb-web-locks', 'indexeddb-fenced-lease'],
       grade: 'durable',
       policy: 'durable-required-or-explicit-memory',
       disposition: 'shipped',
@@ -211,6 +216,7 @@ const applicationAuthSource = {
     'expo-web': {
       runtimePlatformKind: 'expo-web',
       adapter: 'createIndexedDbAuthCustodyStorage',
+      carriers: ['indexeddb-web-locks', 'indexeddb-fenced-lease'],
       grade: 'durable',
       policy: 'durable-required-or-explicit-memory',
       disposition: 'shipped',
@@ -219,33 +225,19 @@ const applicationAuthSource = {
     memory: {
       runtimePlatformKind: 'memory',
       adapter: 'createMemoryAuthCustodyStorage',
+      carriers: ['memory'],
       grade: 'volatile',
       policy: 'volatile-explicit-only',
       disposition: 'shipped-nonclaim',
       refusalCode: 'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE',
     },
-    'expo-ios': {
+    'expo-native-phase-2-evidence-required': {
       runtimePlatformKind: 'expo-native-phase-2-evidence-required',
       adapter: 'createSecureStoreAuthCustodyStorage',
+      carriers: [],
       grade: 'pending-per-os-evidence',
       policy: 'durable-required-refused',
       disposition: 'refused-pending-evidence',
-      refusalCode: 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
-    },
-    'expo-android': {
-      runtimePlatformKind: 'expo-native-phase-2-evidence-required',
-      adapter: 'createSecureStoreAuthCustodyStorage',
-      grade: 'pending-per-os-evidence',
-      policy: 'durable-required-refused',
-      disposition: 'refused-pending-evidence',
-      refusalCode: 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
-    },
-    'node-headless': {
-      runtimePlatformKind: null,
-      adapter: 'explicit-file-or-transactional-adapter',
-      grade: 'caller-evidenced',
-      policy: 'advanced-explicit-only',
-      disposition: 'not-admitted-by-ordinary-app-client',
       refusalCode: 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
     },
   },
@@ -269,14 +261,24 @@ const applicationAuthSource = {
       authorityEffect: 'non-authoritative',
     }],
     diagnostics: [
-      { class: 'durable-custody-unavailable', codes: ['SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE', 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED'] },
-      { class: 'duplicate-ordinary-advanced-owner', codes: ['SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID'] },
-      { class: 'binding-app-profile-mismatch', codes: ['SNAPBACK_AUTH_BOOTSTRAP_APP_INVALID', 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID', 'SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID'] },
-      { class: 'custody-corrupt-or-unrecognized', codes: ['SNAPBACK_AUTH_CUSTODY_CORRUPT', 'SNAPBACK_AUTH_CUSTODY_AMBIGUOUS'] },
-      { class: 'supervised-principal-conflict', codes: ['SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT'] },
-      { class: 'mechanism-unavailable', codes: ['SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE'] },
-      { class: 'auth-mode-not-sessions', codes: ['SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID'] },
-      { class: 'participant-barrier-or-final-confirmation', codes: ['SNAPBACK_AUTH_BOOTSTRAP_FAILED'] },
+      { class: 'durable-custody-unavailable', state: 'unsupported', remediations: ['installDurableCustody', 'selectSupportedPlatform'], codes: ['SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE', 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED'] },
+      { class: 'custody-owner-key-unavailable', state: 'blocked', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_CUSTODY_OWNER_KEY_UNSUPPORTED'] },
+      { class: 'duplicate-ordinary-advanced-owner', state: 'error', remediations: ['disposeAndReconstruct', 'useStoragePartition'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID'] },
+      { class: 'storage-partition-invalid', state: 'error', remediations: ['useStoragePartition'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_PARTITION_INVALID'] },
+      { class: 'binding-app-profile-mismatch', state: 'error', remediations: ['regenerateAppDescriptor', 'retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_APP_INVALID', 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID', 'SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID'] },
+      { class: 'binding-capability-unavailable', state: 'error', remediations: ['selectCompatibleBinding'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_CAPABILITY_UNAVAILABLE'] },
+      { class: 'binding-owner-conflict', state: 'error', remediations: ['disposeAndReconstruct', 'useStoragePartition'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT'] },
+      { class: 'live-policy-rotation', state: 'error', remediations: ['disposeAndReconstruct'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION'] },
+      { class: 'stale-or-expired-binding', state: 'error', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE', 'SNAPBACK_APP_BINDING_EXPIRED'] },
+      { class: 'hosted-binding-invalid', state: 'error', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_APP_BINDING_TARGET_INVALID', 'SNAPBACK_APP_BINDING_INTEGRITY_INVALID'] },
+      { class: 'completeness-unclassified', state: 'error', remediations: ['regenerateAppDescriptor'], codes: [AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE] },
+      { class: 'bootstrap-failure-fallback', state: 'error', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_FAILED'] },
+      { class: 'custody-corrupt-or-unrecognized', state: 'blocked', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_CUSTODY_CORRUPT', 'SNAPBACK_AUTH_CUSTODY_AMBIGUOUS', 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED', 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED'] },
+      { class: 'supervised-principal-conflict', state: 'ready', remediations: ['keepCurrentPrincipal', 'signOut'], codes: ['SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT'] },
+      { class: 'mechanism-unavailable', state: 'error', remediations: ['regenerateAppDescriptor'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE'] },
+      { class: 'recovery-rotation-predecessor', state: 'error', remediations: [], codes: ['SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED'] },
+      { class: 'auth-mode-not-sessions', state: 'authority-required', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_POLICY_UNAVAILABLE', 'SNAPBACK_AUTH_MODE_PENDING'] },
+      { class: 'participant-barrier-or-final-confirmation', state: 'error', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_TRANSITION_FAILED', 'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID'] },
     ],
     remediations: [
       { kind: 'retryAuthBootstrap', publicType: 'SnapbackAuthRemediation', riskClass: 'mechanical', machineApplicable: true, requiresApproval: false, authorityEffect: 'none' },
@@ -349,7 +351,29 @@ function assertExactDispositionSet(label, domain, dispositions) {
   if (JSON.stringify(expected) !== JSON.stringify(actual)) {
     const missing = expected.filter((entry) => !actual.includes(entry));
     const extra = actual.filter((entry) => !expected.includes(entry));
-    throw new TypeError(`client lifecycle ${label} dispositions are incomplete: ${JSON.stringify({ missing, extra })}`);
+    const error = new TypeError(
+      `${AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE}: client lifecycle ${label} dispositions are incomplete: ${JSON.stringify({ missing, extra })}`,
+    );
+    error.code = AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE;
+    error.details = Object.freeze({
+      family: label,
+      value: missing[0] ?? extra[0] ?? null,
+      missing: Object.freeze(missing),
+      extra: Object.freeze(extra),
+    });
+    throw error;
+  }
+}
+
+function assertDispositionMembers(label, domain, dispositions) {
+  for (const value of domain) {
+    if (Object.hasOwn(dispositions ?? {}, value)) continue;
+    const error = new TypeError(
+      `${AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE}: client lifecycle ${label} ${JSON.stringify(value)} has no disposition`,
+    );
+    error.code = AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED_CODE;
+    error.details = Object.freeze({ family: label, value });
+    throw error;
   }
 }
 
@@ -358,6 +382,7 @@ function assertExactDispositionSet(label, domain, dispositions) {
 // mechanism, platform, or authoring-profile domain grows without a row.
 export function assertApplicationAuthLifecycleCompleteness({
   authProgram,
+  applicationAuthBootstrap,
   authProgramFields,
   mechanismKinds,
   entryMechanisms,
@@ -373,17 +398,24 @@ export function assertApplicationAuthLifecycleCompleteness({
   assertExactDispositionSet('auth custody platform', platformKinds, source.platforms);
   assertExactDispositionSet('auth authoring profile', authoringProfiles, source.profiles);
   if (authProgram !== undefined && authProgram !== null) {
-    if (authProgram.recoveryPolicy === undefined) {
-      throw new TypeError('client lifecycle auth program is missing recoveryPolicy');
-    }
-    if (authProgram.recoveryPolicy.recoveryCodes?.enabled === true) {
-      assertExactDispositionSet(
-        'enabled recovery lifecycle',
-        ['consume', 'rotate'],
-        source.recoveryOperations,
-      );
-    }
+    assertDispositionMembers(
+      'auth-program-mechanism',
+      Object.values(authProgram.mechanisms ?? {}).map((mechanism) => mechanism?.kind ?? null),
+      source.mechanismKinds,
+    );
   }
+  if (applicationAuthBootstrap !== undefined && applicationAuthBootstrap !== null) {
+    assertDispositionMembers(
+      'entry-mechanism',
+      applicationAuthBootstrap.entryMechanisms ?? [],
+      source.entryMechanisms,
+    );
+  }
+  assertExactDispositionSet(
+    'enabled recovery lifecycle',
+    ['consume', 'rotate'],
+    source.recoveryOperations,
+  );
   return true;
 }
 
@@ -410,7 +442,6 @@ export function buildApplicationAuthLifecycleRows(input) {
     configured: policy?.entryMechanisms?.includes(mechanism) ?? false,
     ...source.entryMechanisms[mechanism],
   }));
-  const recoveryEnabled = authProgram?.recoveryPolicy?.recoveryCodes?.enabled === true;
   return {
     authBootstrapPolicy: {
       configured: policy !== null,
@@ -432,9 +463,11 @@ export function buildApplicationAuthLifecycleRows(input) {
     authRecoveryLifecycle: {
       sourceField: 'recoveryPolicy',
       policy: authProgram?.recoveryPolicy ?? null,
-      operations: recoveryEnabled
-        ? Object.entries(source.recoveryOperations).map(([operation, row]) => ({ operation, ...row }))
-        : [],
+      // Absence retains the shipped password floor: signup provisions
+      // one-time codes and consume/rotate remain available. Authored false is
+      // refused by defineAuth until an end-to-end disabled policy exists.
+      operations: Object.entries(source.recoveryOperations)
+        .map(([operation, row]) => ({ operation, ...row })),
     },
     authCustodyPlatforms: {
       selectedPolicy: policy?.custody ?? null,

@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { createSnapbackAppClient } from '@expo/snapback-client';
+import { createSnapbackAppClient, SnapbackClient } from '@expo/snapback-client';
 import { IDBFactory } from 'fake-indexeddb';
 import {
   createSnapbackReactProvider,
@@ -25,8 +25,9 @@ const EXPECTED_CHECKS = Object.freeze([
   'managed-lifecycle',
   'anonymous-ready',
   'password-signup-recovery',
-  'password-signout',
-  'password-signin',
+  'reload-restores-principal',
+  'authenticated-entry-refusal',
+  'sign-out',
   'artifact-identity',
   'query',
   'mutation-and-observation',
@@ -184,19 +185,19 @@ try {
     }),
     integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
   });
+  const indexedDB = new IDBFactory();
+  const platform = Object.freeze({
+    kind: 'browser',
+    indexedDB,
+    cryptoObject: webcrypto,
+    databaseName: `snapback-react-starter-acceptance-${process.pid}`,
+  });
   appClient = await createSnapbackAppClient({
     app,
     binding,
-    platform: Object.freeze({
-      kind: 'browser',
-      indexedDB: new IDBFactory(),
-      lockManager: Object.freeze({ request: (_name, _options, operation) => operation() }),
-      cryptoObject: webcrypto,
-      databaseName: `snapback-react-starter-acceptance-${process.pid}`,
-    }),
+    platform,
     now: () => now,
   });
-  client = appClient.client;
   assert.equal(appClient.bootstrapState().status, 'ready');
   assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
   pass('anonymous-ready', { custody: appClient.bootstrapState().custody.carrier });
@@ -207,14 +208,37 @@ try {
   assert.equal(signup.recoveryCodes.length, 8);
   assert.equal(Object.hasOwn(signup, 'token'), false);
   assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
-  pass('password-signup-recovery', { recoveryCodeCount: signup.recoveryCodes.length });
+  const signedUpUserId = appClient.auth.currentPrincipal().userId;
+  pass('password-signup-recovery', {
+    recoveryCodeCount: signup.recoveryCodes.length,
+    bearerProjected: false,
+  });
+
+  await appClient.dispose();
+  appClient = await createSnapbackAppClient({ app, binding, platform, now: () => now });
+  assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+  assert.equal(appClient.auth.currentPrincipal().userId, signedUpUserId);
+  pass('reload-restores-principal', { userId: signedUpUserId });
+
+  await assert.rejects(
+    appClient.auth.signInWithPassword({ email: identity, password }),
+    (error) => error?.code === 'SNAPBACK_AUTH_ENTRY_AUTHENTICATED',
+  );
+  pass('authenticated-entry-refusal', { code: 'SNAPBACK_AUTH_ENTRY_AUTHENTICATED' });
+
   await appClient.auth.signOut();
   assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
-  pass('password-signout');
-  const signin = await appClient.auth.signInWithPassword({ email: identity, password });
-  assert.equal(Object.hasOwn(signin, 'recoveryCodes'), false);
-  assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
-  pass('password-signin', { userId: signin.session.userId });
+  pass('sign-out', { principal: 'anonymous' });
+
+  const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
+  client = new SnapbackClient(ready.serverUrl, {
+    adminToken,
+    authClientProtocol: 1,
+    authInvalidationProtocol: 1,
+    custody: 'anonymous-public',
+    rqsStore: null,
+    offlineQueue: false,
+  });
   const initial = await client.query(api.listTodos, { args: {} });
   assert(Array.isArray(initial.rows));
   const inspected = await client.inspect();

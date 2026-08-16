@@ -120,22 +120,46 @@ const emitSnapshot = (owner, snapshot) => {
 
 const starting = (owner, stage) => emitSnapshot(owner, { status: 'starting', stage });
 
+const canonicalSupervisedRelayPath = (value) => {
+  if (
+    !nonEmptyString(value)
+    || value.includes('%')
+    || value.includes('\\')
+    || /[?#\u0000-\u001f\u007f]/u.test(value)
+    || value.endsWith('/')
+  ) return null;
+  // packages/snapback-vite serves only these documented supervised relay
+  // namespaces. Children are admitted as plain path segments so URL decoding
+  // cannot widen the allowlist into Vite or Snapback control routes.
+  for (const prefix of ['/__snapback', '/__exact/snapback']) {
+    if (value === prefix) return value;
+    if (!value.startsWith(`${prefix}/`)) continue;
+    const segments = value.slice(prefix.length + 1).split('/');
+    if (segments.every((segment) => (
+      segment !== ''
+      && segment !== '.'
+      && segment !== '..'
+      && /^[A-Za-z0-9._~-]+$/u.test(segment)
+    ))) return value;
+  }
+  return null;
+};
+
 // @ref LLP 0030#generated-app-facts — a managed browser app receives the
 // same-origin relay base, never the private loopback backend origin. Release
 // bindings remain exact absolute HTTPS origins.
 const canonicalTargetBase = (value) => {
   if (!nonEmptyString(value)) return null;
   if (value.startsWith('/')) {
+    const relayPath = canonicalSupervisedRelayPath(value);
+    if (relayPath === null) return null;
     try {
-      const parsed = new URL(value, 'http://snapback-vite-relay.invalid');
+      const parsed = new URL(relayPath, 'http://snapback-vite-relay.invalid');
       if (
-        value.startsWith('//')
-        || parsed.origin !== 'http://snapback-vite-relay.invalid'
-        || parsed.pathname !== value
+        parsed.origin !== 'http://snapback-vite-relay.invalid'
+        || parsed.pathname !== relayPath
         || parsed.search !== ''
         || parsed.hash !== ''
-        || value === '/'
-        || value.endsWith('/')
       ) return null;
       return Object.freeze({ kind: 'same-origin-relay', url: parsed });
     } catch {
@@ -421,6 +445,18 @@ function validateBinding(binding, app, policy, now = Date.now) {
       [retryBootstrap('SNAPBACK_APP_BINDING_INTEGRITY_INVALID')],
     );
   }
+  if (!binding.capabilities.offered.includes('auth.application-bootstrap.v1')) {
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_CAPABILITY_UNAVAILABLE',
+      'The admitted binding does not offer the application-auth bootstrap capability.',
+      { appId: app.identity.app, missingCapability: 'auth.application-bootstrap.v1' },
+      [remediation(
+        'selectCompatibleBinding',
+        'Select a binding that offers auth.application-bootstrap.v1.',
+        { capability: 'auth.application-bootstrap.v1' },
+      )],
+    );
+  }
   if (
     policy.entryMechanisms.includes('password-v1')
     && !binding.capabilities.offered.includes('auth.passwords')
@@ -659,7 +695,8 @@ function failureSnapshot(error) {
   const status = causeCode === 'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE'
     || causeCode === 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED'
     ? 'unsupported'
-    : causeCode.includes('AUTH_MODE')
+    : (causeCode === 'SNAPBACK_AUTH_POLICY_UNAVAILABLE'
+      || causeCode.includes('AUTH_MODE'))
       ? 'authority-required'
       : causeCode.includes('CUSTODY') || causeCode.includes('AUTHORITY')
         ? 'blocked'
@@ -991,6 +1028,16 @@ function unsettledEntryError(status) {
   );
 }
 
+function recoveryRotateUnsettledError(status) {
+  return refusal(
+    'SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED',
+    `Recovery-code rotation requires a settled authenticated principal; current state is ${status}.`,
+    { principalStatus: status },
+    [retryBootstrap('SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED')],
+    { operation: 'auth-recovery-rotate', effectCommitted: false, effectMayHaveCommitted: false },
+  );
+}
+
 function requirePasswordMechanism(owner) {
   if (owner.policy.entryMechanisms.includes('password-v1')) return;
   throw refusal(
@@ -1025,9 +1072,9 @@ function entryFailure(error, signedOut, principalStatus) {
   );
 }
 
-async function enterWith(owner, operation) {
+async function enterWith(owner, operation, { requirePassword = false } = {}) {
   return serializeOwner(owner, async () => {
-    requirePasswordMechanism(owner);
+    if (requirePassword) requirePasswordMechanism(owner);
     const principal = owner.client.auth.currentPrincipal();
     if (['loading', 'refreshing', 'blocked'].includes(principal.status)) {
       throw unsettledEntryError(principal.status);
@@ -1116,11 +1163,34 @@ function createFacade(owner, subscriptions) {
     signUpWithPassword: (input) => enterWith(
       owner,
       () => owner.client.auth.authPasswordSignup(input),
+      { requirePassword: true },
     ),
     signInWithPassword: (input) => enterWith(
       owner,
       () => owner.client.auth.authPasswordSignIn(input),
+      { requirePassword: true },
     ),
+    // @ref LLP 0258#d9-generated-completeness-keeps-mechanisms-and-clients-aligned
+    // — recovery is policy-derived rather than an entry mechanism, while the
+    // facade preserves the shipped one-time recovery projection exactly.
+    consumeRecoveryCode: (input) => enterWith(
+      owner,
+      () => owner.client.auth.authRecoveryConsume(input),
+      { requirePassword: true },
+    ),
+    rotateRecoveryCodes: () => serializeOwner(owner, async () => {
+      requirePasswordMechanism(owner);
+      const principal = owner.client.auth.currentPrincipal();
+      if (principal.status !== 'authenticated') {
+        throw recoveryRotateUnsettledError(principal.status);
+      }
+      owner.ownerTransitionInFlight = true;
+      try {
+        return await owner.client.auth.authRecoveryRotate();
+      } finally {
+        owner.ownerTransitionInFlight = false;
+      }
+    }),
     changePassword: (input) => serializeOwner(owner, async () => {
       requirePasswordMechanism(owner);
       const principal = owner.client.auth.currentPrincipal();

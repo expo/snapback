@@ -205,7 +205,18 @@ test('external entry is opt-in and custody defaults without target inference', a
 
   const noProgram = fixture();
   writeExplicit(noProgram);
-  assert.equal(bootstrap(await generate(noProgram)).custody, 'durable-required');
+  const noProgramResult = await generate(noProgram);
+  assert.equal(bootstrap(noProgramResult).custody, 'durable-required');
+  assert.equal(
+    noProgramResult.clientLifecycleManifest.rows.authRecoveryLifecycle.policy,
+    null,
+  );
+  assert.deepEqual(
+    noProgramResult.clientLifecycleManifest.rows.authRecoveryLifecycle.operations
+      .map(({ operation }) => operation),
+    ['consume', 'rotate'],
+    'an absent authored policy reports the shipped password recovery floor',
+  );
 
   const dev = fixture();
   writeExplicit(dev, { sessions: false });
@@ -293,13 +304,10 @@ test('bootstrap is inspectable and custody or mechanism changes rotate semantic 
     program: authProgram({ mechanisms: reordered, recoveryEnabled: false }),
   });
   const recoveryDisabled = await generate(root);
-  assert.equal(recoveryDisabled.ok, true, JSON.stringify(recoveryDisabled.diagnostics));
-  assert.notEqual(recoveryDisabled.identities.semanticId, baseline.identities.semanticId);
-  assert.deepEqual(recoveryDisabled.appDescriptor.authBootstrap, baseline.appDescriptor.authBootstrap);
-  assert.deepEqual(
-    recoveryDisabled.clientLifecycleManifest.rows.authRecoveryLifecycle.operations,
-    [],
-  );
+  assert.equal(recoveryDisabled.ok, false);
+  assert(recoveryDisabled.diagnostics.some(
+    ({ code }) => code === 'SNAPBACK_AUTH_RECOVERY_POLICY_UNSUPPORTED',
+  ), JSON.stringify(recoveryDisabled.diagnostics));
 
   writeExplicit(root, { program: authProgram({ custody: 'volatile-explicit', mechanisms: reordered }) });
   const volatile = await generate(root);
@@ -330,7 +338,39 @@ test('recoveryPolicy is required and keeps the exact LLP 0214 wave-1 shape', () 
     () => defineAuth(base),
     (error) => error?.code === 'SNAPBACK_AUTH_PROGRAM_INVALID',
   );
+  assert.throws(
+    () => defineAuth({
+      ...base,
+      recoveryPolicy: {
+        recoveryCodes: {
+          enabled: false,
+          requiredWhen: 'no-independent-recovery',
+          rotateAfterUse: true,
+          plaintextCustody: 'one-time-response',
+        },
+        lastAuthenticator: 'enforce',
+      },
+    }),
+    (error) => error?.code === 'SNAPBACK_AUTH_RECOVERY_POLICY_UNSUPPORTED',
+  );
   for (const recoveryPolicy of [
+    {
+      recoveryCodes: {
+        enabled: 'yes',
+        requiredWhen: 'no-independent-recovery',
+        rotateAfterUse: true,
+        plaintextCustody: 'one-time-response',
+      },
+      lastAuthenticator: 'enforce',
+    },
+    {
+      recoveryCodes: {
+        enabled: true,
+        rotateAfterUse: true,
+        plaintextCustody: 'one-time-response',
+      },
+      lastAuthenticator: 'enforce',
+    },
     {
       recoveryCodes: {
         enabled: true,

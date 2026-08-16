@@ -8,5 +8,5 @@ export default defineSchema({
   todos: defineTable({
     title: v.string(),
     completed: v.boolean(),
-  }).sync().index('by_completed', ['completed']),
+  }).visibility({ kind: 'public-read' }).sync().index('by_completed', ['completed']),
 });

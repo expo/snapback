@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "6668f8e0b5693db2891932629f0b1275b709e7393767a02b5346732a4497dbc9",
+  "inputsHash": "8524d9b6a312e26e7da3c3c9261d4e0e0afb54cefbad2208d6c6291bb4d33900",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -651,13 +651,43 @@
           "codes": [
             "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE",
             "SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED"
-          ]
+          ],
+          "remediations": [
+            "installDurableCustody",
+            "selectSupportedPlatform"
+          ],
+          "state": "unsupported"
+        },
+        {
+          "class": "custody-owner-key-unavailable",
+          "codes": [
+            "SNAPBACK_AUTH_CUSTODY_OWNER_KEY_UNSUPPORTED"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "blocked"
         },
         {
           "class": "duplicate-ordinary-advanced-owner",
           "codes": [
             "SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID"
-          ]
+          ],
+          "remediations": [
+            "disposeAndReconstruct",
+            "useStoragePartition"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "storage-partition-invalid",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_PARTITION_INVALID"
+          ],
+          "remediations": [
+            "useStoragePartition"
+          ],
+          "state": "error"
         },
         {
           "class": "binding-app-profile-mismatch",
@@ -665,38 +695,149 @@
             "SNAPBACK_AUTH_BOOTSTRAP_APP_INVALID",
             "SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID",
             "SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID"
-          ]
+          ],
+          "remediations": [
+            "regenerateAppDescriptor",
+            "retryAuthBootstrap"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "binding-capability-unavailable",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_CAPABILITY_UNAVAILABLE"
+          ],
+          "remediations": [
+            "selectCompatibleBinding"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "binding-owner-conflict",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT"
+          ],
+          "remediations": [
+            "disposeAndReconstruct",
+            "useStoragePartition"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "live-policy-rotation",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION"
+          ],
+          "remediations": [
+            "disposeAndReconstruct"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "stale-or-expired-binding",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE",
+            "SNAPBACK_APP_BINDING_EXPIRED"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "hosted-binding-invalid",
+          "codes": [
+            "SNAPBACK_APP_BINDING_TARGET_INVALID",
+            "SNAPBACK_APP_BINDING_INTEGRITY_INVALID"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "completeness-unclassified",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED"
+          ],
+          "remediations": [
+            "regenerateAppDescriptor"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "bootstrap-failure-fallback",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_FAILED"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "error"
         },
         {
           "class": "custody-corrupt-or-unrecognized",
           "codes": [
             "SNAPBACK_AUTH_CUSTODY_CORRUPT",
-            "SNAPBACK_AUTH_CUSTODY_AMBIGUOUS"
-          ]
+            "SNAPBACK_AUTH_CUSTODY_AMBIGUOUS",
+            "SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED",
+            "SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "blocked"
         },
         {
           "class": "supervised-principal-conflict",
           "codes": [
             "SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT"
-          ]
+          ],
+          "remediations": [
+            "keepCurrentPrincipal",
+            "signOut"
+          ],
+          "state": "ready"
         },
         {
           "class": "mechanism-unavailable",
           "codes": [
             "SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE"
-          ]
+          ],
+          "remediations": [
+            "regenerateAppDescriptor"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "recovery-rotation-predecessor",
+          "codes": [
+            "SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED"
+          ],
+          "remediations": [],
+          "state": "error"
         },
         {
           "class": "auth-mode-not-sessions",
           "codes": [
-            "SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID"
-          ]
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "SNAPBACK_AUTH_MODE_PENDING"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "authority-required"
         },
         {
           "class": "participant-barrier-or-final-confirmation",
           "codes": [
-            "SNAPBACK_AUTH_BOOTSTRAP_FAILED"
-          ]
+            "SNAPBACK_AUTH_TRANSITION_FAILED",
+            "SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "error"
         }
       ],
       "remediations": [
@@ -828,6 +969,10 @@
       "platforms": [
         {
           "adapter": "createIndexedDbAuthCustodyStorage",
+          "carriers": [
+            "indexeddb-web-locks",
+            "indexeddb-fenced-lease"
+          ],
           "disposition": "shipped",
           "grade": "durable",
           "platform": "browser",
@@ -837,6 +982,10 @@
         },
         {
           "adapter": "createIndexedDbAuthCustodyStorage",
+          "carriers": [
+            "indexeddb-web-locks",
+            "indexeddb-fenced-lease"
+          ],
           "disposition": "shipped",
           "grade": "durable",
           "platform": "expo-web",
@@ -846,6 +995,9 @@
         },
         {
           "adapter": "createMemoryAuthCustodyStorage",
+          "carriers": [
+            "memory"
+          ],
           "disposition": "shipped-nonclaim",
           "grade": "volatile",
           "platform": "memory",
@@ -855,30 +1007,13 @@
         },
         {
           "adapter": "createSecureStoreAuthCustodyStorage",
+          "carriers": [],
           "disposition": "refused-pending-evidence",
           "grade": "pending-per-os-evidence",
-          "platform": "expo-ios",
+          "platform": "expo-native-phase-2-evidence-required",
           "policy": "durable-required-refused",
           "refusalCode": "SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED",
           "runtimePlatformKind": "expo-native-phase-2-evidence-required"
-        },
-        {
-          "adapter": "createSecureStoreAuthCustodyStorage",
-          "disposition": "refused-pending-evidence",
-          "grade": "pending-per-os-evidence",
-          "platform": "expo-android",
-          "policy": "durable-required-refused",
-          "refusalCode": "SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED",
-          "runtimePlatformKind": "expo-native-phase-2-evidence-required"
-        },
-        {
-          "adapter": "explicit-file-or-transactional-adapter",
-          "disposition": "not-admitted-by-ordinary-app-client",
-          "grade": "caller-evidenced",
-          "platform": "node-headless",
-          "policy": "advanced-explicit-only",
-          "refusalCode": "SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED",
-          "runtimePlatformKind": null
         }
       ],
       "selectedPolicy": null
@@ -1021,7 +1156,34 @@
       "sameOwnerKeyDisposition": "reference-counted-reuse"
     },
     "authRecoveryLifecycle": {
-      "operations": [],
+      "operations": [
+        {
+          "applicationFacadeMethod": "consumeRecoveryCode",
+          "clientMethod": "authRecoveryConsume",
+          "clientNamespaceMethod": "authRecoveryConsume",
+          "facadeDisposition": "shipped-ordinary-app-facade-exact-client-contract",
+          "facadeMethod": "consumeRecoveryCode",
+          "facadeOwner": "SnapbackAppClient.auth",
+          "operation": "consume",
+          "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+          "recoveryProjection": "one-time-response",
+          "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>",
+          "targetCapability": "auth.passwords"
+        },
+        {
+          "applicationFacadeMethod": "rotateRecoveryCodes",
+          "clientMethod": "authRecoveryRotate",
+          "clientNamespaceMethod": "authRecoveryRotate",
+          "facadeDisposition": "shipped-ordinary-app-facade-exact-client-contract",
+          "facadeMethod": "rotateRecoveryCodes",
+          "facadeOwner": "SnapbackAppClient.auth",
+          "operation": "rotate",
+          "predecessor": "settled-authenticated-same-authority-with-recent-auth",
+          "recoveryProjection": "one-time-response",
+          "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>",
+          "targetCapability": "auth.passwords"
+        }
+      ],
       "policy": null,
       "sourceField": "recoveryPolicy"
     },

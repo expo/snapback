@@ -230,7 +230,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:806f39e046f49eb37823929bf25aa8ba101fb18bd27adb9071b74726802a1329`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:61e89b334ebc11a8fe7a9d443585c473e3945161322287bd88da67d2fba90213`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "joinAsHost": FunctionReference<"joinAsHost", 'Mutation', Record<string, never>, null, "snapback-explicit-v1">;
   /**
@@ -239,7 +239,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:806f39e046f49eb37823929bf25aa8ba101fb18bd27adb9071b74726802a1329`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:61e89b334ebc11a8fe7a9d443585c473e3945161322287bd88da67d2fba90213`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "leaveHost": FunctionReference<"leaveHost", 'Mutation', Record<string, never>, null, "snapback-explicit-v1">;
   /**
@@ -248,7 +248,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `notifications.expoPushSeam`, `result_contract_v1`.
    * Freshness: one-shot authoritative response or liveQuery snapshot followed by updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:806f39e046f49eb37823929bf25aa8ba101fb18bd27adb9071b74726802a1329`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:61e89b334ebc11a8fe7a9d443585c473e3945161322287bd88da67d2fba90213`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "pushLedger": FunctionReference<"pushLedger", 'Query', { intentId: string }, ReadonlyArray<{ "_id": string; "intentId": string; "triggerMode": "immediate" | "system" | "deferred"; "intentState": string; "attemptCount": number; "createdAtMs": number; "updatedAtMs": number; "expiresAtMs": number; "batchId": null | string; "attemptNumber": null | number; "batchIndex": null | number; "batchState": null | string; "transmittingAtMs": null | number; "settledAtMs": null | number; "httpStatus": null | number; "requestErrorCode": null | string; "previousAmbiguous": null | boolean; "messageId": null | string; "tokenId": null | string; "messageState": null | string; "ticketId": null | string; "receiptPollCount": null | number; "nextReceiptPollAtMs": null | number; "receiptWindowClosesAtMs": null | number; "handedToExpoAtMs": null | number; "expoAcceptedAtMs": null | number; "expoErrorCode": null | string; "retirementEffect": null | boolean }>, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;

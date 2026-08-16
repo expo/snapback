@@ -20,7 +20,9 @@ const app = join(root, 'mixed-client-app', 'snapback');
 mkdirSync(app, { recursive: true });
 writeFileSync(join(app, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+export default defineSchema({
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
+});
 `);
 writeFileSync(join(app, 'functions.mjs'), `
 import { defineLiveQuery, defineQuery, v } from '${defineUrl}';

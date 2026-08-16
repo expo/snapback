@@ -51,7 +51,7 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-const tables = `todos: defineTable({ title: v.string() }).index('by_title', ['title']).sync().permissionBacking(['title'])`;
+const tables = `todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).index('by_title', ['title']).sync().permissionBacking(['title'])`;
 const devSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({ ${tables} });

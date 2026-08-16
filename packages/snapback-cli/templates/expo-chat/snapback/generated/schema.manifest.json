@@ -75,7 +75,7 @@
     "requiredAssuranceProducers": {},
     "verifiedProvisioningCompiled": false
   },
-  "authoredSourceHash": "sha256:18dc98baa5d8c1d9b41fd200edb96a53ebaffd5c11dd4d267a5c3be74417636e",
+  "authoredSourceHash": "sha256:169b3094b6bd1468551efadd99b9bbd7a6ba81de79830f7a52790b6be6bddcc3",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [
     {
@@ -129,12 +129,12 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:e8de075651c2dff51bef41dda8591b617d0a37284132b6930443169ffffc6c02",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:452eec0cf676058a6ada521ae9695e47bbeb54df47190fba74323505239fffc9",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:1e076a5aa5e995e76634462a030bc3c8117b4cee5882cf7b032884e191ec8afa",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:98668346ea7291b97a85d01bd0d573914934c5a7f3c8fe017d845bf72b15fd6f",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
@@ -165,7 +165,10 @@
         }
       ],
       "name": "users",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "fields": [
@@ -199,7 +202,10 @@
         }
       ],
       "name": "conversations",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "fields": [
@@ -245,7 +251,10 @@
         }
       ],
       "name": "memberships",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "assetSharing": {
@@ -314,7 +323,10 @@
         }
       ],
       "name": "messages",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "fields": [
@@ -375,7 +387,10 @@
         }
       ],
       "name": "reactions",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     }
   ],
   "targetProfile": "local-dev-sqlite-ibex"

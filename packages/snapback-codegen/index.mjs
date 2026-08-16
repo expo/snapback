@@ -7121,32 +7121,43 @@ async function generateInProcessLocked({
   )) {
     delete generatedReferences.api.mutations[functionName];
   }
-  const clientLifecycleManifest = buildClientLifecycleManifest({
-    appId,
-    inputsHash,
-    authoredSourceHash,
-    targetProfile,
-    functions: functionManifest.functions,
-    commands: generatedCommands,
-    // @ref LLP 0247#d5-generated-lifecycle-metadata-owns-normalization-and-failure-tables
-    // — extend LLP 0238's one lifecycle manifest instead of publishing a
-    // competing normalization/failure table.
-    ordinaryRows: buildOrdinaryClientLifecycleRows({
+  let clientLifecycleManifest;
+  try {
+    clientLifecycleManifest = buildClientLifecycleManifest({
+      appId,
+      inputsHash,
+      authoredSourceHash,
+      targetProfile,
       functions: functionManifest.functions,
-      ephemeralCollections,
-    }),
-    applicationAuth: {
-      authProgram: schemaDef.authProgram,
-      applicationAuthBootstrap,
-      authProgramFields: AUTH_PROGRAM_FIELDS,
-      mechanismKinds: AUTH_PROGRAM_MECHANISM_KINDS,
-      entryMechanisms: APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS,
-      platformKinds: APPLICATION_AUTH_PLATFORM_KINDS,
-      authoringProfiles: [EXPLICIT_AUTHORING_PROFILE, FAMILIAR_AUTHORING_PROFILE],
-      authoringProfile,
-      familiarDispositions: FAMILIAR_DISPOSITIONS.authProgramFields,
-    },
-  });
+      commands: generatedCommands,
+      // @ref LLP 0247#d5-generated-lifecycle-metadata-owns-normalization-and-failure-tables
+      // — extend LLP 0238's one lifecycle manifest instead of publishing a
+      // competing normalization/failure table.
+      ordinaryRows: buildOrdinaryClientLifecycleRows({
+        functions: functionManifest.functions,
+        ephemeralCollections,
+      }),
+      applicationAuth: {
+        authProgram: schemaDef.authProgram,
+        applicationAuthBootstrap,
+        authProgramFields: AUTH_PROGRAM_FIELDS,
+        mechanismKinds: AUTH_PROGRAM_MECHANISM_KINDS,
+        entryMechanisms: APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS,
+        platformKinds: APPLICATION_AUTH_PLATFORM_KINDS,
+        authoringProfiles: [EXPLICIT_AUTHORING_PROFILE, FAMILIAR_AUTHORING_PROFILE],
+        authoringProfile,
+        familiarDispositions: FAMILIAR_DISPOSITIONS.authProgramFields,
+      },
+    });
+  } catch (error) {
+    err(
+      error?.code ?? 'SNAPBACK_AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED',
+      'auth',
+      error.message,
+      error?.details ?? {},
+    );
+    return { ok: false, diagnostics };
+  }
   const generatedSurfaces = buildGeneratedSurfaces({
     appId,
     surfaceDefs,
@@ -17975,6 +17986,7 @@ const DEFINITION_EVALUATION_TIMEOUT_MS = 5_000;
 const DEFINITION_EVALUATOR_PROCESS_TIMEOUT_MS = 15_000;
 const DEFINITION_EVALUATOR_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
+  'SNAPBACK_AUTH_RECOVERY_POLICY_UNSUPPORTED',
   'SNAPBACK_CODEGEN_FAMILIAR_AUTH_MISSING',
   'SNAPBACK_CODEGEN_FAMILIAR_DELIVERY_INVALID',
   'SNAPBACK_CODEGEN_FAMILIAR_KEY_UNSUPPORTED',

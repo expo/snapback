@@ -52,11 +52,21 @@ assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '6000
 assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
 assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
 assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
+for (const check of [
+  'anonymous-ready',
+  'password-signup-recovery',
+  'reload-restores-principal',
+  'authenticated-entry-refusal',
+  'sign-out',
+]) {
+  assert.match(runtimeAcceptance, new RegExp(check));
+}
+assert.match(runtimeAcceptance, /authInvalidationProtocol:\s*1/u);
 assert.doesNotMatch(
   runtimeAcceptance,
   /ensureApp|\.seed\(/,
   'runtime acceptance must not restore browser-side provisioning or seed ownership',
 );
 assert.match(runtimeAcceptance, /createSnapbackAppClient/);
-assert.doesNotMatch(runtimeAcceptance, /new SnapbackClient|AuthCoordinator|bearer|adoptAuthority/u);
+assert.doesNotMatch(runtimeAcceptance, /AuthCoordinator|adoptAuthority/u);
 console.log('react starter static coherence: generated refs and first-party hooks are coherent');

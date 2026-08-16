@@ -44,7 +44,7 @@ symlinkSync(packageRoot, join(snapbackModules, 'snapback-codegen'), 'dir');
 const validSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  items: defineTable({ group: v.string(), title: v.string() }).index('by_group', ['group']).sync(),
+  items: defineTable({ group: v.string(), title: v.string() }).visibility({ kind: 'public-read' }).index('by_group', ['group']).sync(),
 });
 `;
 const validFunctions = `
@@ -289,7 +289,7 @@ try {
       writeFileSync(join(surfacelessBackend, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  items: defineTable({ group: v.string(), title: v.string() }).index('by_group', ['group']).sync(),
+  items: defineTable({ group: v.string(), title: v.string() }).visibility({ kind: 'public-read' }).index('by_group', ['group']).sync(),
 });
 `);
       writeFileSync(join(surfacelessBackend, 'functions.mjs'), `
@@ -666,6 +666,9 @@ void directMutationWithoutImage; void commandWithRequiredImage; void commandWith
     capabilities: descriptor.capabilities,
     api: descriptor.api,
     authoringProfile: descriptor.authoringProfile,
+    ...(descriptor.authBootstrap === undefined
+      ? {}
+      : { authBootstrap: descriptor.authBootstrap }),
   };
   assert.equal(
     canonicalizeAppDescriptorV1(insertionVariant),
@@ -1097,7 +1100,7 @@ ${scopeFieldNames.map((name) => `    ${name}: v.string(),`).join('\n')}
 import { defineEphemeral, defineSchema, defineTable, v } from '${defineUrl}';
 import { typing } from './surface-model.mjs';
 export default defineSchema(
-  { items: defineTable({ title: v.string() }).sync() },
+  { items: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync() },
   { ephemeral: defineEphemeral({ typing }) },
 );
 `);
@@ -1125,7 +1128,7 @@ ${scopeFieldNames.map((name) => `        ${name}: 'bounded',`).join('\n')}
   writeFileSync(join(backend, 'schema.mjs'), `
 import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '${defineUrl}';
 export default defineSchema(
-  { items: defineTable({ title: v.string() }).sync() },
+  { items: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync() },
   { ephemeral: defineEphemeral({
     typing: ephemeral.collection({
       scope: { roomId: v.string() },

@@ -158,6 +158,8 @@ export interface SnapbackAuthFacade {
   subscribeCurrentPrincipal(listener: () => void): () => void;
   readonly signUpWithPassword: SnapbackClient['authPasswordSignup'];
   readonly signInWithPassword: SnapbackClient['authPasswordSignIn'];
+  readonly consumeRecoveryCode: SnapbackClient['authRecoveryConsume'];
+  readonly rotateRecoveryCodes: SnapbackClient['authRecoveryRotate'];
   readonly changePassword: SnapbackClient['authPasswordChange'];
   readonly signOut: SnapbackClient['authLogout'];
 }
