@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:be26d23b33890bfe053d5c8b30d3fe4809c1ccd81ef35163c0fb1c5716f11f67"
+    "sourceDigest": "sha256:8b4e8ccbb63ac0f478d1fb9aa4b4fd030d81d97a91f9667ea994ac792385aabc"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2158,10 +2158,11 @@
       "targets": [
         "local"
       ],
-      "maturity": "shipped",
+      "maturity": "partial",
       "capabilities": [
         "backend.functions",
-        "backend.query-semantics"
+        "backend.query-semantics",
+        "backend.batch-reads"
       ],
       "authorities": [
         "llp/0003-local-code-hosting-and-storage-core.rfc.md",
@@ -2172,12 +2173,20 @@
         "llp/0174-authoring-incidents-at-security-fences.research.md",
         "llp/0231-entity-and-permissioning-recommendation.rfc.md",
         "llp/0245-infer-show-freeze-declarations.rfc.md",
+        "llp/0248-bounded-batch-reads.rfc.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/inline-handlers.mjs",
         "packages/snapback-codegen/result-contracts.mjs",
+        "packages/snapback-codegen/ctx.d.mts",
+        "packages/snapback-codegen/authoring-validation.test.mjs",
         "packages/snapback-harness/ctx-bootstrap.js",
+        "packages/snapback-harness/envelope.test.mjs",
+        "schemas/capability.manifest.local-dev-sqlite-ibex.json",
+        "src/manifest.rs",
         "src/runtime.rs",
+        "src/storage.rs",
         "src/result_contract.rs",
+        "tests/local_v0.rs",
         "demos/signal-desk/snapback/functions.mjs"
       ],
       "examples": [
@@ -2185,9 +2194,9 @@
         "demos/todo-v2",
         "demos/signal-desk"
       ],
-      "reviewed": "2026-08-12",
-      "reviewedAuthoritiesDigest": "sha256:41c3a00bd35a8f3531746ad25e722709a8d269bf91fa2172c00b34dddfb3915c",
-      "sha256": "2c1d34559d298cdd905d6445f8e853cac8df1fa57c64a4a41655d344c265045f",
+      "reviewed": "2026-08-15",
+      "reviewedAuthoritiesDigest": "sha256:d73e07d20ee44c44a46e6694e7dac32eb072847d7010065c13373cb282b61df1",
+      "sha256": "ff443b0c4e4c3b98deb8ab51ada433c2d49e3e43061fbf9c4bc33fe0d95edd8c",
       "snippets": [
         {
           "lang": "js",
@@ -2198,6 +2207,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/signal-desk/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-harness/envelope.test.mjs"
         },
         {
           "lang": "js",
@@ -2225,15 +2239,17 @@
         "llp/0080-portable-relational-queries-and-projections.rfc.md",
         "llp/0110-bounded-children-and-activity-patterns.spec.md",
         "llp/0065-generated-data-pattern-soundness.rfc.md",
+        "llp/0187-agent-discoverability-routing.rfc.md",
+        "llp/0248-bounded-batch-reads.rfc.md",
         "packages/snapback-codegen/define.mjs"
       ],
       "examples": [
         "packages/snapback-codegen/relational-authoring.test.mjs",
         "packages/snapback-codegen/relation-activity-authoring.test.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedAuthoritiesDigest": "sha256:c762f859e8d1f553c899de48d81ac1020929f6cd618b04e514ec8b100ab77bc1",
-      "sha256": "79bbe54b7bbb66791a636afb36354558cadc513a7cfdf6a032cdf7b465b0d70f",
+      "reviewed": "2026-08-15",
+      "reviewedAuthoritiesDigest": "sha256:a51f3ecd3f5812a27fa4c4c048ff898da589f9e25df5abf1e67dff43e4e1cd56",
+      "sha256": "b8402ebe5d4a9cf94b613dd0ae714e4e427a5ee94890d4e614e48853e2b2e203",
       "snippets": [
         {
           "lang": "js",
@@ -2666,6 +2682,7 @@
         "llp/0218-outbox-settlement-contract.rfc.md",
         "llp/0222-connected-client-predicate.rfc.md",
         "llp/0245-infer-show-freeze-declarations.rfc.md",
+        "llp/0248-bounded-batch-reads.rfc.md",
         "llp/0255-tiny-data-surface-v1-api.spec.md",
         "src/server.rs",
         "src/admin.rs",
@@ -2684,8 +2701,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-15",
-      "reviewedAuthoritiesDigest": "sha256:770295e6f03ea49913518d8b9c9597c091ebd796a92d43e317e2f769141ce1c8",
-      "sha256": "8746cf5f355677c39506f767429c624418f55ccf4741474a2145ceb82df4191d",
+      "reviewedAuthoritiesDigest": "sha256:134ddc4456d12f412ffa6a89692db652243d622e1b98fa192891c3d54f846275",
+      "sha256": "168bbf43c1bab4095ae055e4113fa9e3ea2dff759337f1f67e6e7eabcb06c989",
       "snippets": []
     },
     "clients.app-cli": {
@@ -11541,7 +11558,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2247957,
-      "sha256": "959830126dbc002e014cf5a6b16658ecaf8c53fce9966daa54eacbb0a91e4b1f",
+      "sha256": "8296796db076cf782845a5a27fd64aeb0662080fa71764c7489729e44cbf5ade",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -11550,7 +11567,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:83622b63217710d0f59bcda4f5b077448883a951fcb9e4043c38be5f00c29db8",
+      "sourceDigest": "sha256:0e00a6aed798ea89a7dd0c8d433c29bce512454a8f22574eba5026e1adc14e74",
       "codes": 3212,
       "emittingSites": 11007
     }
@@ -11577,6 +11594,7 @@
       "authority.profile.v1",
       "backend.actions",
       "backend.assets",
+      "backend.batch-reads",
       "backend.codegen",
       "backend.cron",
       "backend.error-tracking-v1",
@@ -11664,7 +11682,6 @@
     "gaps": [
       "assets.media-collection.v1",
       "assets.media-command.v1",
-      "backend.batch-reads",
       "backend.bounded-children-v1",
       "backend.handler-typescript",
       "backend.identity-columns",
@@ -11690,16 +11707,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3236022,
-      "sha256": "323699aba0ecfefe946ff50f14e866a25f286e7ab089ee7a1b8a8648cce9953b"
+      "bytes": 3239509,
+      "sha256": "9e77413f7cc704d1fad5b2b76e5f9b371027ed32d78163d8b1661dad127e8f3a"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 147038,
-        "sha256": "84cc6ce8f0a61cc82c922c78813c05c72a70621a6bcab7d62b3002230d92eeb6"
+        "bytes": 147013,
+        "sha256": "8affec08c9151a28cc7774bf55bb8f42cf3edbd08c66c0f02323a0e36c7ca406"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -11712,8 +11729,8 @@
         "path": "guide/guide-flat.backend.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.backend.generated.md",
         "uri": "snapback-guide://flat/backend",
-        "bytes": 341752,
-        "sha256": "d0c5745a292c0bb06d2f4327c396272eb7663507aea703282a07607a98e4b0df"
+        "bytes": 345264,
+        "sha256": "fa7170e85611af1c2c20b775d874ada4a696c810ffe6e9f00e20d0f67f3016cc"
       },
       "clients": {
         "path": "guide/guide-flat.clients.generated.md",
@@ -11794,5 +11811,5 @@
       }
     }
   },
-  "contentHash": "be26d23b33890bfe053d5c8b30d3fe4809c1ccd81ef35163c0fb1c5716f11f67"
+  "contentHash": "8b4e8ccbb63ac0f478d1fb9aa4b4fd030d81d97a91f9667ea994ac792385aabc"
 }

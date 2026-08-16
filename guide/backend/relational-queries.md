@@ -4,13 +4,13 @@ id: backend.relational-queries
 order: 26
 audience: agent-first
 capabilities: [backend.relational-queries]
-authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/define.mjs]
+authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0187-agent-discoverability-routing.rfc.md, llp/0248-bounded-batch-reads.rfc.md, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/relational-authoring.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
-reviewed-authorities-digest: sha256:c762f859e8d1f553c899de48d81ac1020929f6cd618b04e514ec8b100ab77bc1
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:a51f3ecd3f5812a27fa4c4c048ff898da589f9e25df5abf1e67dff43e4e1cd56
 ---
 
 # Relational queries (bounded joins)
@@ -269,6 +269,10 @@ whose parent or authorization stream changed requires a first-page restart.
 
 ## Anti-patterns
 
+- Do not build a relational plan merely to re-fetch exact ids or complete
+  unique keys the handler already has. Use the bounded
+  [`ctx.db.getMany` / `ctx.db.uniqueMany` batch-read surface](./queries.md#batch-exact-lookups-in-one-host-call)
+  for that imperative hydration shape.
 - Do not hand-author a relation-incarnation value or expose it as an argument.
 - Do not group an unbounded all-child feed in the client and call it bounded.
 - Do not authorize children after applying the page limit.

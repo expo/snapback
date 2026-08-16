@@ -8,14 +8,14 @@ title: Queries
 id: backend.queries
 order: 1
 audience: agent-first
-capabilities: [backend.functions, backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-harness/ctx-bootstrap.js, src/runtime.rs, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
+capabilities: [backend.functions, backend.query-semantics, backend.batch-reads]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/authoring-validation.test.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-harness/envelope.test.mjs, schemas/capability.manifest.local-dev-sqlite-ibex.json, src/manifest.rs, src/runtime.rs, src/storage.rs, src/result_contract.rs, tests/local_v0.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
-maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:41c3a00bd35a8f3531746ad25e722709a8d269bf91fa2172c00b34dddfb3915c
+maturity: partial
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:d73e07d20ee44c44a46e6694e7dac32eb072847d7010065c13373cb282b61df1
 ---
 
 # Queries
@@ -200,6 +200,52 @@ The returned `version` is an exact integer in
 `0..=Number.MAX_SAFE_INTEGER`. A malformed, negative, or out-of-range durable
 cursor fails closed instead of being rounded, wrapped, or replaced with zero.
 
+## Batch exact lookups in one host call
+
+The experimental local `bounded_batch_reads_v1` profile has two positional
+forms. `ctx.db.getMany(table, ids)` reads generated ids from one table;
+`ctx.db.uniqueMany(table, index, keys)` reads complete keys through a declared
+unique index. The generated [`QueryDatabase` reference](../reference/expo-snapback-codegen--ctx.md#symbol-querydatabase-8d46ad3df0)
+types both the input keys and the resulting `Array<HandlerRow | null>`.
+
+```js source=packages/snapback-harness/envelope.test.mjs
+          ids: await ctx.db.getMany('items', ['b', 'a', 'b']),
+          keys: await ctx.db.uniqueMany('items', 'bySlug', [{ slug: 'two' }]),
+```
+
+Each `ids` or `keys` array admits **0..256 items**, inclusive. The complete
+canonically encoded host request is capped at **1,048,576 bytes (1 MiB)**, and
+the canonical returned array is capped at **4,194,304 bytes (4 MiB)**. Item or
+request-byte overflow refuses before storage work; response-byte overflow
+refuses before any result is released. An empty array returns `[]` without a
+host transition.
+
+One non-empty method call makes one logical JavaScript-to-host call, never one
+call per item, and all distinct lookups resolve inside one pinned read view.
+This is not a one-SQL-statement promise: a target may use bounded internal
+chunks. The result always has the input's length and order. Duplicate ids or
+keys are looked up and authorized once, then repeated at every corresponding
+output position. A missing row and a row hidden by table visibility both
+produce `null`: **hidden and absent are indistinguishable**, with no per-item
+reason or hidden count.
+
+`uniqueMany` accepts only a declared unique index, and each key must be a
+closed, complete object containing exactly that index's components. Object
+construction order does not matter; Snapback canonicalizes components in
+manifest index order. Static malformed literals refuse during generation;
+malformed dynamic keys refuse before storage. For an index declared with
+`whereApplicable: true`, every single-field or compound component must be
+present, non-null, and valid for its declared field type, or the whole batch
+refuses.
+
+Use these methods when the handler already has exact ids or complete unique
+keys and needs bounded JavaScript hydration. If the code is instead discovering
+related rows or repeating a stable relationship shape, choose
+[`defineRelationalQuery` or `defineMaintainedProjection`](./relational-queries.md)
+at that point: those declarative carriers can own the relationship plus live,
+cursor, retention, and whole-plan cost facts; a batch remains an imperative
+exact lookup.
+
 ## Bound every collection intentionally
 
 `ctx.db.query(...).collect()` is not an unbounded table scan. Without an
@@ -343,6 +389,9 @@ polling contract. See [live queries](../realtime/live-queries.md).
   in the query predicate.
 - **Do not omit an available index.** A declarative `index` or JS
   `withIndex` makes the intended lookup explicit and portable.
+- **Do not issue a loop of exact point reads after collecting the ids.** Use
+  [`getMany` or `uniqueMany`](#batch-exact-lookups-in-one-host-call) so the
+  bounded lookup crosses the host boundary once.
 - **Do not sort or filter after an implicit `collect()` to infer a global
   result.** Push the operation into the query builder and declare `.take(n)`.
 - **Do not mark every query live.** Ordinary queries stay ordinary; opt into
@@ -4927,13 +4976,13 @@ id: backend.relational-queries
 order: 26
 audience: agent-first
 capabilities: [backend.relational-queries]
-authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/define.mjs]
+authorities: [llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0187-agent-discoverability-routing.rfc.md, llp/0248-bounded-batch-reads.rfc.md, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/relational-authoring.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-05
-reviewed-authorities-digest: sha256:c762f859e8d1f553c899de48d81ac1020929f6cd618b04e514ec8b100ab77bc1
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:a51f3ecd3f5812a27fa4c4c048ff898da589f9e25df5abf1e67dff43e4e1cd56
 ---
 
 # Relational queries (bounded joins)
@@ -5192,6 +5241,10 @@ whose parent or authorization stream changed requires a first-page restart.
 
 ## Anti-patterns
 
+- Do not build a relational plan merely to re-fetch exact ids or complete
+  unique keys the handler already has. Use the bounded
+  [`ctx.db.getMany` / `ctx.db.uniqueMany` batch-read surface](./queries.md#batch-exact-lookups-in-one-host-call)
+  for that imperative hydration shape.
 - Do not hand-author a relation-incarnation value or expose it as an argument.
 - Do not group an unbounded all-child feed in the client and call it bounded.
 - Do not authorize children after applying the page limit.
