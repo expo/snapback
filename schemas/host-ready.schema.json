@@ -105,6 +105,13 @@
       },
       "type": "array"
     },
+    "devIdentityCapabilityFile": {
+      "description": "Owner-only per-process developer-identity capability on the admin-token\nanchor ladder. The descriptor advertises only the resolved path, never\nthe bearer.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "host": {
       "type": "string"
     },

@@ -1103,6 +1103,18 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
     assert_eq!(descriptor.pid, std::process::id());
     assert!(descriptor.server_url.starts_with("http://127.0.0.1:"));
     assert_eq!(descriptor.database.mode, "memory");
+    let dev_identity_path = descriptor
+        .dev_identity_capability_file
+        .as_deref()
+        .map(PathBuf::from)
+        .expect("memory serve advertises developer identity custody");
+    assert_eq!(
+        dev_identity_path,
+        fs::canonicalize(dir.path())
+            .unwrap()
+            .join("ready.json.dev-identity")
+    );
+    assert!(dev_identity_path.exists());
     // The stop-verification identity (ENG-23366): the descriptor carries the
     // same per-process nonce this process reports on /health, so `snapback
     // stop` can confirm the pid still belongs to this server before signaling.
@@ -1117,6 +1129,11 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
     assert!(HostReadyDescriptor::validate(&tampered).is_err());
 
     server.abort();
+    let _ = server.await;
+    assert!(
+        !dev_identity_path.exists(),
+        "developer identity sidecar must not outlive ready descriptor custody"
+    );
 }
 
 // Regression (0137 G1): the `<ready>.secret-read-root` proof root is named

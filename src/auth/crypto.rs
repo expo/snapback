@@ -21,6 +21,7 @@ const RESUME_KEY_PREFIX: &str = "sbrq_";
 const SESSION_PREFIX: &str = "sbs_";
 const SENDER_SESSION_PREFIX: &str = "sbs2_";
 const IMPERSONATION_PREFIX: &str = "sbic_";
+const DEV_IDENTITY_PREFIX: &str = "sbdev_";
 const REHEARSAL_CAPABILITY_PREFIX: &str = "sbrc_";
 const CODE_DIGEST_DOMAIN: &[u8] = b"snapback.auth.email-code.v1";
 // @ref LLP 0039#dated-amendment-operation-bound-step-up-2026-07-15 — login
@@ -512,6 +513,37 @@ impl fmt::Debug for ImpersonationBearer {
     }
 }
 
+/// One process-bound developer-identity custody capability.
+///
+/// @ref LLP 0262#d1-the-dev-identity-capability — dev identity uses its own
+///   registered `sbdev_` credential class and the shared 256-bit bearer
+///   spelling; it is never an `Authorization` credential.
+pub struct DevIdentityBearer(Zeroizing<String>);
+
+impl DevIdentityBearer {
+    pub fn parse(input: &str) -> Result<Self, CryptoError> {
+        parse_bearer(input, DEV_IDENTITY_PREFIX).map(|value| Self(Zeroizing::new(value)))
+    }
+
+    pub fn generate(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+        mint_bearer(random, DEV_IDENTITY_PREFIX).map(|value| Self(Zeroizing::new(value)))
+    }
+
+    pub(crate) fn expose_secret(&self) -> &str {
+        &self.0
+    }
+
+    pub fn token_hash(&self) -> TokenHash {
+        hash_bearer(self.expose_secret().as_bytes())
+    }
+}
+
+impl fmt::Debug for DevIdentityBearer {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("DevIdentityBearer([REDACTED])")
+    }
+}
+
 /// One auth-rehearsal grant capability. The request resolver retains only the
 /// SHA-256 digest; plaintext exists in this zeroizing, redacted carrier long
 /// enough to publish the mint response or its owner-only local sidecar.
@@ -629,6 +661,8 @@ pub enum CredentialClass {
     SenderSession,
     /// `sbic_` — the operator-plane impersonation-capability carrier (LLP 0057).
     ImpersonationCapability,
+    /// `sbdev_` — app-plane developer-identity custody capability (LLP 0262).
+    DevIdentityCapability,
     /// `sbrc_` — finite auth-rehearsal grant authority (LLP 0213).
     RehearsalCapability,
     /// `sbac_` — long-lived agent credential (LLP 0055).
@@ -678,6 +712,7 @@ impl CredentialClass {
             Self::Session => SESSION_PREFIX,
             Self::SenderSession => SENDER_SESSION_PREFIX,
             Self::ImpersonationCapability => IMPERSONATION_PREFIX,
+            Self::DevIdentityCapability => DEV_IDENTITY_PREFIX,
             Self::RehearsalCapability => REHEARSAL_CAPABILITY_PREFIX,
             Self::AgentCredential => AGENT_CREDENTIAL_PREFIX,
             Self::ScopedToken => SCOPED_TOKEN_PREFIX,
@@ -736,6 +771,7 @@ pub const REGISTERED_CREDENTIAL_PREFIXES: &[(&str, CredentialClass)] = &[
         IMPERSONATION_PREFIX,
         CredentialClass::ImpersonationCapability,
     ),
+    (DEV_IDENTITY_PREFIX, CredentialClass::DevIdentityCapability),
     (
         REHEARSAL_CAPABILITY_PREFIX,
         CredentialClass::RehearsalCapability,
@@ -1194,6 +1230,10 @@ mod tests {
             .unwrap()
             .expose_secret()
             .to_string();
+        let dev_identity = DevIdentityBearer::generate(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
         let rehearsal = RehearsalBearer::generate(&random)
             .unwrap()
             .expose_secret()
@@ -1219,10 +1259,11 @@ mod tests {
             .expose_secret()
             .to_string();
 
-        let samples: [(CredentialClass, &str); 9] = [
+        let samples: [(CredentialClass, &str); 10] = [
             (CredentialClass::Session, &session),
             (CredentialClass::SenderSession, &sender_session),
             (CredentialClass::ImpersonationCapability, &impersonation),
+            (CredentialClass::DevIdentityCapability, &dev_identity),
             (CredentialClass::RehearsalCapability, &rehearsal),
             (CredentialClass::AgentCredential, &credential),
             (CredentialClass::ScopedToken, &token),
@@ -1245,6 +1286,9 @@ mod tests {
                     CredentialClass::SenderSession => SessionBearer::parse_sender_v2(other).is_ok(),
                     CredentialClass::ImpersonationCapability => {
                         ImpersonationBearer::parse(other).is_ok()
+                    }
+                    CredentialClass::DevIdentityCapability => {
+                        DevIdentityBearer::parse(other).is_ok()
                     }
                     CredentialClass::RehearsalCapability => RehearsalBearer::parse(other).is_ok(),
                     CredentialClass::AgentCredential => AgentCredential::parse(other).is_ok(),

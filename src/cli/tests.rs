@@ -1001,6 +1001,7 @@ fn stop_descriptor(startup_nonce: Option<&str>) -> crate::host_ops::HostReadyDes
         admin_token_file: None,
         secret_read_root_file: None,
         impersonation_capability_file: None,
+        dev_identity_capability_file: None,
         diagnostics: Vec::new(),
     }
 }
@@ -4326,6 +4327,66 @@ fn terminal_emission_seam_consumes_one_operator_and_frames_one_line() {
     assert!(output.starts_with("impersonation capability: sbic_"));
     assert_eq!(output.lines().count(), 1);
     assert!(output.ends_with('\n'));
+
+    let (_registry, operator) = crate::dev_identity::DevIdentityCapabilityRegistry::generate(
+        "nonce-dev-identity-terminal".to_owned(),
+        None,
+        &crate::auth::crypto::OsRandom,
+    )
+    .unwrap();
+    let mut output = Vec::new();
+    super::emit_dev_identity_capability_to_writer(operator, &mut output).unwrap();
+    let output = String::from_utf8(output).unwrap();
+    assert!(output.starts_with("developer identity capability: sbdev_"));
+    assert_eq!(output.lines().count(), 1);
+    assert!(output.ends_with('\n'));
+}
+
+#[cfg(unix)]
+#[test]
+fn dev_identity_ready_sidecar_rotates_and_follows_descriptor_custody() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let dir = tempfile::tempdir().unwrap();
+    let ready = dir.path().join("server.ready.json");
+    let mut target = ReadyFileTarget::open(&ready).unwrap();
+    let pinned_ready = target.pinned_path().to_path_buf();
+    let sidecar = crate::dev_identity::dev_identity_capability_sibling(&pinned_ready).unwrap();
+    let temporary = super::ready_file_temp_path(&sidecar).unwrap();
+    let (_old_registry, old_operator) =
+        crate::dev_identity::DevIdentityCapabilityRegistry::generate(
+            "nonce-dev-ready-old".to_owned(),
+            Some(sidecar.clone()),
+            &crate::auth::crypto::OsRandom,
+        )
+        .unwrap();
+    old_operator
+        .publish_with(&pinned_ready, crate::secure_file::write_owner_only)
+        .unwrap();
+
+    let (registry, operator) = crate::dev_identity::DevIdentityCapabilityRegistry::generate(
+        "nonce-dev-ready".to_owned(),
+        Some(sidecar.clone()),
+        &crate::auth::crypto::OsRandom,
+    )
+    .unwrap();
+    operator
+        .publish_with(&pinned_ready, |path, bytes| {
+            target.publish_owner_only_sibling_atomic(path, &temporary, bytes)
+        })
+        .unwrap();
+    let bearer = crate::dev_identity::parse_dev_identity_capability_file(
+        zeroize::Zeroizing::new(std::fs::read(&sidecar).unwrap()),
+    )
+    .unwrap();
+    assert!(registry.authorize(Some(bearer.expose_secret())).is_ok());
+    assert_eq!(
+        std::fs::metadata(&sidecar).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+    assert!(!temporary.exists());
+    drop(target);
+    assert!(!sidecar.exists());
 }
 
 #[cfg(unix)]

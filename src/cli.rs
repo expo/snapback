@@ -3852,6 +3852,18 @@ fn emit_agent_destroy_capability_to_writer(
     })
 }
 
+fn emit_dev_identity_capability_to_writer(
+    operator: crate::dev_identity::DevIdentityOperator,
+    writer: &mut impl std::io::Write,
+) -> std::io::Result<()> {
+    operator.emit_once_to_terminal(|bearer| {
+        writer.write_all(b"developer identity capability: ")?;
+        writer.write_all(bearer.as_bytes())?;
+        writer.write_all(b"\n")?;
+        writer.flush()
+    })
+}
+
 /// No-ready-file fallback. Write the process bearer directly to the
 /// controlling terminal: never stdout/stderr, tracing, or a generic inherited
 /// file descriptor that a launcher may capture into logs.
@@ -3893,6 +3905,25 @@ fn emit_agent_destroy_capability_to_controlling_terminal(
     emit_agent_destroy_capability_to_writer(operator, &mut terminal)
 }
 
+#[cfg(unix)]
+fn emit_dev_identity_capability_to_controlling_terminal(
+    operator: crate::dev_identity::DevIdentityOperator,
+) -> std::io::Result<()> {
+    use std::os::unix::fs::{FileTypeExt as _, OpenOptionsExt as _};
+
+    let mut terminal = std::fs::OpenOptions::new()
+        .write(true)
+        .custom_flags(libc::O_CLOEXEC | libc::O_NOFOLLOW)
+        .open("/dev/tty")?;
+    if !terminal.metadata()?.file_type().is_char_device() {
+        return Err(std::io::Error::new(
+            ErrorKind::PermissionDenied,
+            "controlling-terminal capability is not a character device",
+        ));
+    }
+    emit_dev_identity_capability_to_writer(operator, &mut terminal)
+}
+
 #[cfg(not(unix))]
 fn emit_impersonation_capability_to_controlling_terminal(
     _operator: crate::admin_impersonation::ImpersonationOperator,
@@ -3906,6 +3937,16 @@ fn emit_impersonation_capability_to_controlling_terminal(
 #[cfg(not(unix))]
 fn emit_agent_destroy_capability_to_controlling_terminal(
     _operator: crate::admin_agent_destroy::AgentDestroyCapabilityOperator,
+) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        ErrorKind::Unsupported,
+        "direct controlling-terminal capability emission is unavailable on this host",
+    ))
+}
+
+#[cfg(not(unix))]
+fn emit_dev_identity_capability_to_controlling_terminal(
+    _operator: crate::dev_identity::DevIdentityOperator,
 ) -> std::io::Result<()> {
     Err(std::io::Error::new(
         ErrorKind::Unsupported,
@@ -8156,6 +8197,7 @@ async fn run_composed(
     // This keeps profile/capture posture identical for numeric hosts and DNS
     // aliases without opening a listener early.
     let bind_ip = resolve_bind_ip(&args.host).await?;
+    let startup_profile = ServerProfile::for_bind_ip(bind_ip);
     // @ref LLP 0060#d5-hosted-readiness-is-conjunctive — reject an explicit
     // hosted request before opening target state; operator config is a request,
     // never authority for target-owned TLS/proxy/throttle/invalidation facts.
@@ -8196,6 +8238,17 @@ async fn run_composed(
         .as_deref()
         .map(ready_file_temp_path)
         .transpose()?;
+    let provisional_dev_identity_temp = if prepared_database_path.is_none() {
+        args.ready_file
+            .as_deref()
+            .map(crate::dev_identity::dev_identity_capability_sibling)
+            .transpose()?
+            .as_deref()
+            .map(ready_file_temp_path)
+            .transpose()?
+    } else {
+        None
+    };
     let mut provisional_paths = managed_startup_paths(
         prepared_database_path.as_deref(),
         args.ready_file.as_deref(),
@@ -8215,6 +8268,12 @@ async fn run_composed(
     if let Some(path) = provisional_agent_destroy_temp {
         provisional_paths.push(ManagedPath {
             label: "agent destroy capability temporary artifact",
+            path,
+        });
+    }
+    if let Some(path) = provisional_dev_identity_temp {
+        provisional_paths.push(ManagedPath {
+            label: "developer identity capability temporary artifact",
             path,
         });
     }
@@ -8252,6 +8311,19 @@ async fn run_composed(
         .as_deref()
         .map(ready_file_temp_path)
         .transpose()?;
+    let dev_identity_capability_file = prepared_database_path
+        .as_deref()
+        .or(ready_path.as_deref())
+        .map(crate::dev_identity::dev_identity_capability_sibling)
+        .transpose()?;
+    let dev_identity_temp_path = if prepared_database_path.is_none() {
+        dev_identity_capability_file
+            .as_deref()
+            .map(ready_file_temp_path)
+            .transpose()?
+    } else {
+        None
+    };
     let rehearsal_capability_file = ready_path
         .as_deref()
         .map(crate::auth::rehearsal::rehearsal_capability_sibling)
@@ -8276,6 +8348,12 @@ async fn run_composed(
             path: path.clone(),
         });
     }
+    if let Some(path) = &dev_identity_temp_path {
+        managed_paths.push(ManagedPath {
+            label: "developer identity capability temporary artifact",
+            path: path.clone(),
+        });
+    }
     if let Some(path) = &rehearsal_capability_file {
         managed_paths.push(ManagedPath {
             label: "auth rehearsal capability",
@@ -8283,6 +8361,15 @@ async fn run_composed(
         });
     }
     validate_path_disjointness(&managed_paths)?;
+
+    // @ref LLP 0262#d1-custody-model-sidecar-primary-environment-fallback —
+    // production never mints or consumes the developer-identity capability;
+    // even a stale anchor is an operator-visible startup refusal.
+    if startup_profile == ServerProfile::Prod {
+        if let Some(sidecar) = dev_identity_capability_file.as_deref() {
+            crate::dev_identity::ensure_production_sidecar_absent(sidecar)?;
+        }
+    }
 
     let mut database_lock = None;
     let database_path = prepared_database_path;
@@ -8352,7 +8439,6 @@ async fn run_composed(
     // not activation: an uninitialized catalog remains dormant and no keyring
     // is minted; a marked catalog validates only its existing sibling.
     // @ref LLP 0057#activation-ordering — startup never activates the auth catalog or replaces a lost ReadyV1 keyring.
-    let startup_profile = ServerProfile::for_bind_ip(bind_ip);
     if startup_profile == ServerProfile::Prod {
         if snapback.auth_rehearsal_state_present_at_open()? {
             return Err(anyhow::Error::new(crate::auth::rehearsal::state_present()));
@@ -8529,6 +8615,22 @@ async fn run_composed(
         } else {
             (None, None)
         };
+    // @ref LLP 0262#d1-custody-model-sidecar-primary-environment-fallback —
+    // one startup-nonce-bound capability is minted for every non-production
+    // serve boot and handed off on the same anchor ladder as the admin token.
+    let (_dev_identity_capabilities, dev_identity_operator) = if server_context.profile
+        != crate::contract_types::ServerProfile::Prod
+    {
+        let (registry, operator) = crate::dev_identity::DevIdentityCapabilityRegistry::generate(
+            startup_nonce.clone(),
+            dev_identity_capability_file.clone(),
+            &crate::auth::crypto::OsRandom,
+        )
+        .context("failed to generate the process-bound developer identity capability")?;
+        (Some(registry), Some(operator))
+    } else {
+        (None, None)
+    };
     let secret_read_root_file = ready_path.as_deref().map(secret_read_root_sibling);
     let secret_read_proof_root = match (ready_target.as_ref(), secret_read_root_file.as_ref()) {
         (Some(target), Some(path)) => Some(
@@ -8961,6 +9063,49 @@ async fn run_composed(
                 .map_err(|_| anyhow::Error::new(ready_descriptor_required_error()))?;
         }
     }
+    let mut database_dev_identity_sidecar = None;
+    let mut dev_identity_capability_file_display = None;
+    if let Some(operator) = dev_identity_operator {
+        if let Some(database) = database_path.as_deref() {
+            let sidecar = operator
+                .publish_database_sidecar(database)
+                .with_context(|| {
+                    format!(
+                        "failed to publish owner-only developer identity capability for {}",
+                        database.display()
+                    )
+                })?;
+            anyhow::ensure!(
+                dev_identity_capability_file.as_deref() == Some(sidecar.path()),
+                "developer identity publisher returned a non-mechanical database sidecar path"
+            );
+            dev_identity_capability_file_display = Some(sidecar.path().display().to_string());
+            database_dev_identity_sidecar = Some(sidecar);
+        } else if let Some(target) = ready_target.as_mut() {
+            let ready_file = target.pinned_path().to_path_buf();
+            let temporary = dev_identity_temp_path
+                .as_deref()
+                .context("developer identity sidecar temporary path was not allocated")?;
+            let path = operator
+                .publish_with(&ready_file, |path, bytes| {
+                    target.publish_owner_only_sibling_atomic(path, temporary, bytes)
+                })
+                .with_context(|| {
+                    format!(
+                        "failed to publish owner-only developer identity capability for {}",
+                        ready_file.display()
+                    )
+                })?;
+            anyhow::ensure!(
+                dev_identity_capability_file.as_deref() == Some(path.as_path()),
+                "developer identity publisher returned a non-mechanical ready-file sidecar path"
+            );
+            dev_identity_capability_file_display = Some(path.display().to_string());
+        } else {
+            emit_dev_identity_capability_to_controlling_terminal(operator)
+                .map_err(|_| anyhow::Error::new(ready_descriptor_required_error()))?;
+        }
+    }
 
     // @ref LLP 0030#readiness-and-port-discovery — the readiness file is
     // the structured handshake: out-of-band so launcher stdout (cargo build
@@ -9001,6 +9146,7 @@ async fn run_composed(
                 .as_ref()
                 .map(|path| path.display().to_string()),
             impersonation_capability_file: impersonation_capability_file_display.clone(),
+            dev_identity_capability_file: dev_identity_capability_file_display.clone(),
             diagnostics: auth_startup_diagnostics.clone(),
         };
         target
@@ -9223,9 +9369,13 @@ async fn run_composed(
         }
     }
     drop(database_lock);
+    if let Some(sidecar) = database_dev_identity_sidecar.as_mut() {
+        let _ = sidecar.remove_if_current();
+    }
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();
         let _ = target.remove_agent_destroy_capability();
+        let _ = target.remove_dev_identity_capability();
         let _ = target.remove_secret_read_root();
         // Keep the non-secret descriptor after an expiry-driven shutdown.
         // The next registry-bound reap can then verify the recorded PID is
@@ -9396,6 +9546,7 @@ async fn run_auth_collision_recovery(
             admin_token_file: admin_token_file_display,
             secret_read_root_file: None,
             impersonation_capability_file: impersonation_capability_file_display,
+            dev_identity_capability_file: None,
             diagnostics: Vec::new(),
         };
         target
@@ -9518,6 +9669,10 @@ pub(crate) fn managed_startup_paths(
             path: crate::admin::admin_token_sibling(database),
         });
         paths.push(ManagedPath {
+            label: "developer identity capability",
+            path: crate::dev_identity::dev_identity_capability_sibling(database)?,
+        });
+        paths.push(ManagedPath {
             label: "auth keyring",
             path: crate::auth::keyring::AuthKeyringStore::keyring_path(database),
         });
@@ -9555,6 +9710,12 @@ pub(crate) fn managed_startup_paths(
             label: "agent destroy capability",
             path: crate::admin_agent_destroy::agent_destroy_capability_sibling(ready_file)?,
         });
+        if database.is_none() {
+            paths.push(ManagedPath {
+                label: "developer identity capability",
+                path: crate::dev_identity::dev_identity_capability_sibling(ready_file)?,
+            });
+        }
     }
     Ok(paths)
 }
@@ -9663,6 +9824,63 @@ fn validate_path_disjointness(paths: &[ManagedPath]) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Clone, Copy)]
+enum ManagedProcessCapabilityKind {
+    Impersonation,
+    AgentDestroy,
+    DevIdentity,
+}
+
+impl ManagedProcessCapabilityKind {
+    fn for_ready_sibling(ready_file: &Path, path: &Path) -> std::io::Result<Self> {
+        if crate::admin_impersonation::impersonation_capability_sibling(ready_file)? == path {
+            return Ok(Self::Impersonation);
+        }
+        if crate::admin_agent_destroy::agent_destroy_capability_sibling(ready_file)? == path {
+            return Ok(Self::AgentDestroy);
+        }
+        if crate::dev_identity::dev_identity_capability_sibling(ready_file)? == path {
+            return Ok(Self::DevIdentity);
+        }
+        Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            "path is not a registered process capability sibling",
+        ))
+    }
+
+    fn maximum_file_bytes(self) -> usize {
+        match self {
+            Self::Impersonation => {
+                crate::admin_impersonation::MAX_IMPERSONATION_CAPABILITY_FILE_BYTES
+            }
+            Self::AgentDestroy => {
+                crate::admin_agent_destroy::MAX_AGENT_DESTROY_CAPABILITY_FILE_BYTES
+            }
+            Self::DevIdentity => crate::dev_identity::MAX_DEV_IDENTITY_CAPABILITY_FILE_BYTES,
+        }
+    }
+
+    fn validate_existing(self, bytes: zeroize::Zeroizing<Vec<u8>>) -> std::io::Result<()> {
+        let valid = match self {
+            Self::Impersonation => {
+                crate::admin_impersonation::parse_impersonation_capability_file(bytes).map(|_| ())
+            }
+            Self::AgentDestroy => {
+                crate::admin_agent_destroy::parse_agent_destroy_capability_file(bytes).map(|_| ())
+            }
+            Self::DevIdentity => {
+                crate::dev_identity::parse_dev_identity_capability_file(bytes).map(|_| ())
+            }
+        };
+        valid.map_err(|_| {
+            std::io::Error::new(
+                ErrorKind::InvalidData,
+                "existing process capability sidecar is not a canonical process bearer",
+            )
+        })
+    }
+}
+
 /// A ready-file pathname resolved once into a stable parent-directory
 /// capability. The original pathname is deliberately not reused for writes or
 /// removal: an attacker (or launcher cleanup) may replace one of its symlinked
@@ -9674,6 +9892,7 @@ struct ReadyFileTarget {
     parent_identity: Option<(u64, u64)>,
     impersonation_identity: Option<(PathBuf, (u64, u64))>,
     agent_destroy_identity: Option<(PathBuf, (u64, u64))>,
+    dev_identity_identity: Option<(PathBuf, (u64, u64))>,
     secret_read_root_identity: Option<(PathBuf, (u64, u64))>,
     #[cfg(unix)]
     _secret_read_root_handle: Option<std::fs::File>,
@@ -9744,6 +9963,7 @@ impl ReadyFileTarget {
             parent_identity,
             impersonation_identity: None,
             agent_destroy_identity: None,
+            dev_identity_identity: None,
             secret_read_root_identity: None,
             #[cfg(unix)]
             _secret_read_root_handle: None,
@@ -9994,7 +10214,10 @@ impl ReadyFileTarget {
                 std::io::Error::new(ErrorKind::InvalidInput, "temporary sibling contains NUL")
             })?;
         let parent_fd = self.parent.as_raw_fd();
-        let prior_identity = self.validated_impersonation_destination(path)?;
+        let capability_kind =
+            ManagedProcessCapabilityKind::for_ready_sibling(&self.pinned_path, path)?;
+        let prior_identity =
+            self.validated_process_capability_destination(path, capability_kind)?;
         // SAFETY: the temporary name is one component relative to the pinned
         // directory. O_EXCL and O_NOFOLLOW refuse every pre-created/racing
         // inode instead of truncating it.
@@ -10023,7 +10246,7 @@ impl ReadyFileTarget {
             if identity != created_identity {
                 return Err(std::io::Error::new(
                     ErrorKind::PermissionDenied,
-                    "impersonation sidecar temporary inode changed during publication",
+                    "process capability sidecar temporary inode changed during publication",
                 ));
             }
             if let Some(prior_identity) = prior_identity {
@@ -10042,7 +10265,7 @@ impl ReadyFileTarget {
                     let _ = renameat_exchange(parent_fd, &temporary_name, &final_name);
                     return Err(std::io::Error::new(
                         ErrorKind::PermissionDenied,
-                        "impersonation sidecar destination changed during atomic replacement",
+                        "process capability sidecar destination changed during atomic replacement",
                     ));
                 }
                 if let Err(error) = self.remove_sibling_if_identity(temporary_path, prior_identity)
@@ -10056,7 +10279,7 @@ impl ReadyFileTarget {
                 {
                     return Err(std::io::Error::new(
                         ErrorKind::PermissionDenied,
-                        "displaced impersonation sidecar could not be removed safely",
+                        "displaced process capability sidecar could not be removed safely",
                     ));
                 }
             } else {
@@ -10080,20 +10303,25 @@ impl ReadyFileTarget {
             let _ = self.parent.sync_all();
         }
         let identity = result?;
-        if crate::admin_agent_destroy::agent_destroy_capability_sibling(&self.pinned_path)
-            .is_ok_and(|expected| expected == path)
-        {
-            self.agent_destroy_identity = Some((path.to_path_buf(), identity));
-        } else {
-            self.impersonation_identity = Some((path.to_path_buf(), identity));
+        match capability_kind {
+            ManagedProcessCapabilityKind::Impersonation => {
+                self.impersonation_identity = Some((path.to_path_buf(), identity));
+            }
+            ManagedProcessCapabilityKind::AgentDestroy => {
+                self.agent_destroy_identity = Some((path.to_path_buf(), identity));
+            }
+            ManagedProcessCapabilityKind::DevIdentity => {
+                self.dev_identity_identity = Some((path.to_path_buf(), identity));
+            }
         }
         Ok(())
     }
 
     #[cfg(unix)]
-    fn validated_impersonation_destination(
+    fn validated_process_capability_destination(
         &self,
         path: &Path,
+        capability_kind: ManagedProcessCapabilityKind,
     ) -> std::io::Result<Option<(u64, u64)>> {
         use std::ffi::CString;
         use std::io::Read as _;
@@ -10129,24 +10357,18 @@ impl ReadyFileTarget {
             || metadata.permissions().mode() & 0o777 != 0o600
             || metadata.uid() != unsafe { libc::geteuid() }
             || metadata.nlink() != 1
-            || metadata.len()
-                > crate::admin_impersonation::MAX_IMPERSONATION_CAPABILITY_FILE_BYTES as u64
+            || metadata.len() > capability_kind.maximum_file_bytes() as u64
         {
             return Err(std::io::Error::new(
                 ErrorKind::PermissionDenied,
-                "existing impersonation sidecar is not a strict owner-only regular file",
+                "existing process capability sidecar is not a strict owner-only regular file",
             ));
         }
         let mut bytes = zeroize::Zeroizing::new(Vec::new());
         file.by_ref()
-            .take(crate::admin_impersonation::MAX_IMPERSONATION_CAPABILITY_FILE_BYTES as u64 + 1)
+            .take(capability_kind.maximum_file_bytes() as u64 + 1)
             .read_to_end(&mut bytes)?;
-        crate::admin_impersonation::parse_impersonation_capability_file(bytes).map_err(|_| {
-            std::io::Error::new(
-                ErrorKind::InvalidData,
-                "existing impersonation sidecar is not a canonical process bearer",
-            )
-        })?;
+        capability_kind.validate_existing(bytes)?;
         Ok(Some((metadata.dev(), metadata.ino())))
     }
 
@@ -10172,6 +10394,13 @@ impl ReadyFileTarget {
 
     fn remove_agent_destroy_capability(&self) -> std::io::Result<()> {
         let Some((path, identity)) = self.agent_destroy_identity.as_ref() else {
+            return Ok(());
+        };
+        self.remove_sibling_if_identity(path, *identity)
+    }
+
+    fn remove_dev_identity_capability(&self) -> std::io::Result<()> {
+        let Some((path, identity)) = self.dev_identity_identity.as_ref() else {
             return Ok(());
         };
         self.remove_sibling_if_identity(path, *identity)
@@ -10450,6 +10679,7 @@ impl Drop for ReadyFileTarget {
     fn drop(&mut self) {
         let _ = self.remove_impersonation_capability();
         let _ = self.remove_agent_destroy_capability();
+        let _ = self.remove_dev_identity_capability();
         // The secret-read proof root shares the descriptor's identity; a
         // target that dies without reaching the explicit shutdown removal
         // (startup failure, task abort) must not orphan it (0137 G1).

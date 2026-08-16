@@ -150,6 +150,15 @@ pub struct HostReadyDescriptor {
         skip_serializing_if = "Option::is_none"
     )]
     pub impersonation_capability_file: Option<String>,
+    /// Owner-only per-process developer-identity capability on the admin-token
+    /// anchor ladder. The descriptor advertises only the resolved path, never
+    /// the bearer.
+    #[serde(
+        rename = "devIdentityCapabilityFile",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub dev_identity_capability_file: Option<String>,
     pub diagnostics: Vec<Diagnostic>,
 }
 

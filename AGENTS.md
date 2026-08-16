@@ -244,6 +244,7 @@ silent wedge trap (ENG-22659).
   `hermesvm.framework` without `DYLD_FRAMEWORK_PATH` even under SIP. Every
   bootstrap failure path fails with a stable `SNAPBACK_*` code (see LLP 0010,
   "Bootstrap diagnostic codes"): the submodule states, plus
+  `SNAPBACK_DEV_IDENTITY_CONFIG_FORBIDDEN`,
   `SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING`, `SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED`,
   `SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE`,
   `SNAPBACK_IBEX_CARGO_NOT_FOUND`, `SNAPBACK_IBEX_CARGO_BUILD_FAILED`,

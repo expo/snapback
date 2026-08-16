@@ -268,6 +268,52 @@ pub(crate) fn write_new_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> 
     result
 }
 
+/// Replace one strict owner-only capability with freshly written bytes.
+///
+/// The candidate is fully written and descriptor-validated before the atomic
+/// rename. An existing destination must itself be a strict single-link 0600
+/// owner file; symlinks, hard links, ACL-bearing files, and non-files refuse
+/// without exposing or modifying their contents.
+#[cfg(unix)]
+pub(crate) fn replace_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    use std::os::unix::fs::OpenOptionsExt as _;
+
+    let file_name = path.file_name().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "owner-only replacement path has no file name",
+        )
+    })?;
+    let mut temporary_name = file_name.to_os_string();
+    temporary_name.push(format!(".tmp-{}", uuid::Uuid::new_v4().simple()));
+    let temporary = path.with_file_name(temporary_name);
+    write_new_owner_only(&temporary, bytes)?;
+    let result = (|| {
+        match std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+            .open(path)
+        {
+            Ok(existing) => validate_strict_owner_only_descriptor(&existing)?,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+        std::fs::rename(&temporary, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    result
+}
+
+#[cfg(not(unix))]
+pub(crate) fn replace_owner_only(_path: &Path, _bytes: &[u8]) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "strict owner-only capability replacement is not implemented on this host",
+    ))
+}
+
 #[cfg(not(unix))]
 pub(crate) fn write_new_owner_only(_path: &Path, _bytes: &[u8]) -> io::Result<()> {
     Err(io::Error::new(

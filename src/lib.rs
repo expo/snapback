@@ -97,6 +97,8 @@ pub mod data_tier;
 #[doc(hidden)]
 pub mod deploy;
 #[doc(hidden)]
+pub mod dev_identity;
+#[doc(hidden)]
 pub mod diagnostic;
 #[doc(hidden)]
 pub mod ephemeral;

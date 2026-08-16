@@ -20189,6 +20189,14 @@ fn production_snapback_literals() -> BTreeSet<String> {
 // helper constructors, embedded runtime source, and macros.
 const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
+        "SNAPBACK_DEV_IDENTITY_CONFIG_FORBIDDEN",
+        "pre-bind production custody refusal printed only to the local operator; never an HTTP diagnostic",
+    ),
+    (
+        "SNAPBACK_DEV_IDENTITY_FILE_INVALID",
+        "local owner-only custody-file parser refusal; never an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG",
         "target-owned configuration path for LLP 0234 activation custody; never an HTTP diagnostic",
     ),

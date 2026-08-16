@@ -289,6 +289,10 @@ agents match on codes rather than prose. The submodule-state codes (ENG-22595):
 The remaining (non-submodule) bootstrap failure paths carry codes too
 (ENG-22660):
 
+- `SNAPBACK_DEV_IDENTITY_CONFIG_FORBIDDEN` — a production boot found the
+  per-process developer-identity sidecar on its resolved custody anchor and
+  refused before binding; the operator removes that stale sidecar only after
+  confirming no non-production server still owns it (LLP 0262 D1).
 - `SNAPBACK_IBEX_HOST_UNSUPPORTED` — the host OS has no bootstrap/doctor artifact
   probe; use `vendor/ibex` platform setup directly.
 - `SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING` — prepared Hermes
