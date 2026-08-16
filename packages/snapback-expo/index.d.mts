@@ -245,6 +245,8 @@ export interface SnapbackExpoEnvironmentV1 {
   resolveAppClientPlatform?(input: Readonly<{
     app: AppDescriptorV1Like;
   }>): SnapbackAppClientPlatform | Promise<SnapbackAppClientPlatform>;
+  /** Narrow host-OS seam used before the evidence-gated native custody load. */
+  resolveNativeAuthCustodyOperatingSystem?(): string | Promise<string>;
   resolveBinding(input: Readonly<{
     app: AppDescriptorV1Like;
     bindingOverride: AppBindingV1 | null;

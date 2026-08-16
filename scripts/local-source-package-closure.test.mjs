@@ -61,6 +61,7 @@ test('nested Expo fixture cold-installs one all-local Expo/client/React closure'
       '@expo/snapback-client',
       '@expo/snapback-contract',
       '@expo/snapback-expo',
+      '@expo/snapback-expo-custody',
       '@expo/snapback-react',
     ]);
     assert.equal(firstReceipt.installed, true);
@@ -69,6 +70,7 @@ test('nested Expo fixture cold-installs one all-local Expo/client/React closure'
       '@expo/snapback-client',
       '@expo/snapback-contract',
       '@expo/snapback-expo',
+      '@expo/snapback-expo-custody',
       '@expo/snapback-react',
     ]);
     for (const [name, digest] of Object.entries(firstReceipt.artifactDigests)) {
@@ -93,12 +95,14 @@ test('nested Expo fixture cold-installs one all-local Expo/client/React closure'
     assert.match(manifest.overrides['@expo/snapback-client'], /^file:/u);
     assert.match(manifest.overrides['@expo/snapback-react'], /^file:/u);
     assert.match(manifest.overrides['@expo/snapback-expo'], /^file:/u);
+    assert.match(manifest.overrides['@expo/snapback-expo-custody'], /^file:/u);
 
     const lock = readFileSync(join(appRoot, 'bun.lock'), 'utf8');
     for (const name of [
       '@expo/snapback-client',
       '@expo/snapback-contract',
       '@expo/snapback-expo',
+      '@expo/snapback-expo-custody',
       '@expo/snapback-react',
     ]) {
       const escaped = name.replace('/', '\\/');
@@ -107,7 +111,7 @@ test('nested Expo fixture cold-installs one all-local Expo/client/React closure'
         new RegExp(`\\["${escaped}@\\.snapback/local-source-packages/`, 'u'),
       );
     }
-    assert.doesNotMatch(lock, /@expo\/snapback-(?:client|contract|expo|react)@(?:https?:|npm:)/u);
+    assert.doesNotMatch(lock, /@expo\/snapback-(?:client|contract|expo(?:-custody)?|react)@(?:https?:|npm:)/u);
     assert.deepEqual(
       readdirSync(join(appRoot, '.snapback', 'local-source-packages')).sort(),
       Object.values(firstReceipt.localSpecifiers)
@@ -190,7 +194,7 @@ test('nested Expo fixture cold-installs one all-local Expo/client/React closure'
     const imported = spawnSync(process.execPath, [
       '--input-type=module',
       '--eval',
-      "await import('@expo/snapback-client'); await import('@expo/snapback-react'); await import('@expo/snapback-expo');",
+      "await import('@expo/snapback-client'); await import('@expo/snapback-react'); await import('@expo/snapback-expo'); await import('@expo/snapback-expo-custody');",
     ], { cwd: appRoot, encoding: 'utf8' });
     assert.equal(imported.status, 0, imported.stderr || imported.stdout);
 

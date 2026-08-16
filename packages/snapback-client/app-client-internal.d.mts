@@ -22,6 +22,17 @@ export function createSnapbackAppClientWithBootstrapObserver(
   observer: (snapshot: AuthBootstrapSnapshot) => void,
 ): Promise<SnapbackAppClient>;
 
+export function createProviderValidatedExpoNativePlatform(input: Readonly<{
+  authCustodyStorage: Extract<SnapbackAppClientPlatform, { kind: 'expo-native' }>['authCustodyStorage'];
+  authCustodyGrade: Readonly<{
+    os: 'android';
+    grade: 'single-runtime';
+    mechanism: unknown;
+    readonly [key: string]: unknown;
+  }>;
+  cryptoObject?: unknown;
+}>): Extract<SnapbackAppClientPlatform, { kind: 'expo-native' }>;
+
 export function applicationDescriptorForAppClient(
   appClient: SnapbackAppClient,
 ): SnapbackApplicationDescriptorV1;

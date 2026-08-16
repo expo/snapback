@@ -1,4 +1,5 @@
 const SAFE_DIAGNOSTIC_CODE = /^SNAPBACK_[A-Z0-9_]+$/u;
+const SAFE_CAUSE_CODE = /^(?:ERR|SNAPBACK)_[A-Z0-9_]+$/u;
 const SAFE_IDENTIFIER = /^[A-Za-z][A-Za-z0-9._-]{0,127}$/u;
 const SECRET_BEARING_TEXT = /(?:\bBearer\s+\S+|sbs_[A-Za-z0-9._~-]+|sbrv1_[A-Za-z0-9._~-]+)/iu;
 const UNSAFE_FACT_KEY = /(?:bearer|credential|password|recovery|secret|token)/iu;
@@ -73,7 +74,11 @@ function sanitizeNamedFacts(value, allowedKeys) {
   const entries = [];
   for (const [key, fact] of Object.entries(value)) {
     if (UNSAFE_FACT_KEY.test(key) || !allowedKeys.has(key)) continue;
-    if ((key === 'code' || key === 'causeCode') && !safeString(fact, { code: true })) continue;
+    if (key === 'code' && !safeString(fact, { code: true })) continue;
+    if (
+      key === 'causeCode'
+      && !(safeString(fact) && SAFE_CAUSE_CODE.test(fact))
+    ) continue;
     const safe = sanitizeValue(fact);
     if (safe !== undefined) entries.push([key, safe]);
   }

@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:09e310b520587b2572af621660bc4d27c4c0ea388e6e
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:dbe355cae8d64c81e3de61a808287994a513834c03d8e255a949fb3cd504e382`.
+`sha256:0c358c38c20a9c8edabd18b65b4aa9400fa5af73bd16d7a9b0b39754ddc99611`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -7474,6 +7474,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION'
   | 'SNAPBACK_AUTH_CUSTODY_LOCK_LOST'
   | 'SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE'
+  | 'SNAPBACK_AUTH_CUSTODY_MODULE_INVALID'
   | 'SNAPBACK_AUTH_CUSTODY_OPERATION_OVERLAP'
   | 'SNAPBACK_AUTH_CUSTODY_OWNERSHIP_REENTRANT'
   | 'SNAPBACK_AUTH_CUSTODY_OWNER_KEY_UNSUPPORTED'

@@ -18,6 +18,7 @@ export const DEFAULT_AUTH_STORAGE_PARTITION = 'default';
 
 const OWNER_REGISTRY = new Map();
 const PROJECTION_OWNERS = new WeakMap();
+const PROVIDER_VALIDATED_NATIVE_GRADES = new WeakMap();
 const POLICY_KEYS = [
   'anonymousPublic',
   'appId',
@@ -671,13 +672,18 @@ async function resolveCustody(preflighted) {
     });
   }
   if (platform.kind === 'expo-native') {
-    // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — explicit advanced injection only; ordinary native admission stays refused pending per-OS Phase 2 evidence.
+    // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — ordinary native admission is Expo-provider evidence-gated; this layer re-checks the provider-threaded or advanced-injection grade.
     let reportedGrade;
     try {
-      if (typeof platform.authCustodyStorage.platformGrade !== 'function') {
-        throw new TypeError('injected native custody has no platformGrade method');
+      const providerValidatedGrade = PROVIDER_VALIDATED_NATIVE_GRADES.get(platform);
+      if (providerValidatedGrade !== undefined) {
+        reportedGrade = providerValidatedGrade;
+      } else {
+        if (typeof platform.authCustodyStorage.platformGrade !== 'function') {
+          throw new TypeError('injected native custody has no platformGrade method');
+        }
+        reportedGrade = await platform.authCustodyStorage.platformGrade();
       }
-      reportedGrade = await platform.authCustodyStorage.platformGrade();
     } catch (error) {
       throw refusal(
         'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE',
@@ -1539,6 +1545,20 @@ export function __applicationDescriptorForAppClient(appClient) {
   const owner = PROJECTION_OWNERS.get(appClient);
   if (!owner) throw new TypeError('expected a live SnapbackAppClient projection');
   return owner.app;
+}
+
+export function __createProviderValidatedExpoNativePlatform({
+  authCustodyStorage,
+  authCustodyGrade,
+  cryptoObject,
+}) {
+  const platform = Object.freeze({
+    kind: 'expo-native',
+    authCustodyStorage,
+    cryptoObject,
+  });
+  PROVIDER_VALIDATED_NATIVE_GRADES.set(platform, authCustodyGrade);
+  return platform;
 }
 
 // Kept outside the package export map: the Expo slice will replace this test

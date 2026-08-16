@@ -7,6 +7,8 @@ clients, Custody, Password auth, Code generation, Packaging, Diagnostics,
 Guide, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-15
+**Revised:** 2026-08-16 (Phase 2 evidence admits Android native custody at
+`single-runtime`; iOS remains refused pending a real extension-refusal probe)
 **Revised:** 2026-08-16 (publication posture: the first-party native custody
 package enters the 0.1.24 qualified closure as Experimental without changing
 either OS capability claim; see the implementation record)
@@ -1026,6 +1028,12 @@ custody/barrier semantics.
   `single-runtime`, the config plugin must be listed in the application's Expo
   `plugins` array, and both per-OS flips remain gated by
   `issues/20260815-llp-0258-phase-2-native-custody-evidence.md`.
+- Phase 2 evidence close-out (2026-08-16): the committed Android PASS bundle
+  `demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android`
+  admits the ordinary Expo path at `single-runtime`. The iOS bundle
+  `demos/native-custody-probes/evidence/20260816T214117Z-dfaa64ff-phase2-ios`
+  passes its exercised arms but marks P4 extension refusal INCOMPLETE, so iOS
+  stays refused pending `issues/20260816-ios-extension-refusal-probe.md`.
 - Remaining closure is tracked by
   `issues/20260815-llp-0258-phase-2-native-custody-evidence.md`,
   `issues/20260815-llp-0258-phase-3-remainders.md`,

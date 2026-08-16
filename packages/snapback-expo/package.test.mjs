@@ -50,6 +50,9 @@ assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
   '@expo/snapback-client',
   '@expo/snapback-react',
 ]);
+assert.deepEqual(manifest.optionalDependencies, {
+  '@expo/snapback-expo-custody': 'workspace:*',
+});
 assert.equal(manifest.publishConfig.access, 'public');
 assert.equal(
   require('@expo/snapback-expo'),

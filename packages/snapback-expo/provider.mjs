@@ -11,6 +11,7 @@ import {
 } from '@expo/snapback-client';
 import {
   adoptSupervisedBootstrapAuthority,
+  createProviderValidatedExpoNativePlatform,
   createSnapbackAppClientWithBootstrapObserver,
 } from '@expo/snapback-client/app-client-internal';
 import { createAssetClient } from '@expo/snapback-client/assets';
@@ -77,6 +78,50 @@ function productionCondition() {
 const APPLICATION_AUTH_BOOTSTRAP_FORMAT = 'snapback.application-auth-bootstrap.v1';
 export const APPLICATION_AUTH_BOOTSTRAP_CAPABILITY = 'auth.application-bootstrap.v1';
 
+// @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
+// — Android admission is frozen to the qualifying receipt at
+// demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android;
+// iOS stays refused pending issues/20260816-ios-extension-refusal-probe.md.
+const QUALIFIED_NATIVE_AUTH_CUSTODY_OSES = Object.freeze(['android']);
+
+const NATIVE_AUTH_CUSTODY_PACKAGE = '@expo/snapback-expo-custody';
+const NATIVE_AUTH_CUSTODY_SENTINEL = Object.freeze({
+  kind: 'expo-native-phase-2-evidence-required',
+});
+
+function causeCode(cause, fallback = null) {
+  const observed = cause?.diagnostic?.code ?? cause?.code;
+  return typeof observed === 'string' && observed.length > 0 ? observed : fallback;
+}
+
+function durableCustodyUnavailable(cause) {
+  const error = new Error(
+    'The generated policy requires native durable custody, but the optional custody module is unavailable.',
+  );
+  error.code = 'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE';
+  error.diagnostic = diagnostic(error.code, error.message, {
+    package: NATIVE_AUTH_CUSTODY_PACKAGE,
+    causeCode: causeCode(cause),
+  });
+  return error;
+}
+
+async function resolveNativeOperatingSystem(environment) {
+  if (typeof environment.resolveNativeAuthCustodyOperatingSystem === 'function') {
+    return environment.resolveNativeAuthCustodyOperatingSystem();
+  }
+  if (typeof require !== 'function') return 'unknown';
+  try {
+    // Expo's own optional DOM/webview loaders use a literal require inside a
+    // try block. Expo Metro enables allowOptionalDependencies, so this shape
+    // keeps an omitted peer out of non-native graphs while native app closures
+    // resolve the peer they already ship.
+    return require('react-native')?.Platform?.OS ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
 function firstPartyBootstrapOptIn(app) {
   // @ref LLP 0258#compatibility-and-migration — the v1 policy plus one ordinary
   // descriptor requirement is the least-invasive capability-gated opt-in.
@@ -94,10 +139,50 @@ async function resolveAppClientPlatform(environment, app) {
   if (app.authBootstrap.custody === 'volatile-explicit') {
     return Object.freeze({ kind: 'memory' });
   }
-  // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
-  // — native durable-required remains refused until Phase 2 has per-OS
-  // kill/relaunch and fencing evidence. Expo web uses IndexedDB above.
-  return Object.freeze({ kind: 'expo-native-phase-2-evidence-required' });
+  const operatingSystem = await resolveNativeOperatingSystem(environment);
+  if (!QUALIFIED_NATIVE_AUTH_CUSTODY_OSES.includes(operatingSystem)) {
+    return NATIVE_AUTH_CUSTODY_SENTINEL;
+  }
+  try {
+    let custodyModule;
+    if (typeof environment.resolveNativeAuthCustodyModule === 'function') {
+      custodyModule = await environment.resolveNativeAuthCustodyModule();
+    } else if (typeof require === 'function') {
+      // Keep this literal in the same guarded shape: Metro can bundle when the
+      // optional package is omitted, web never executes the native branch, and
+      // Expo Go's installed JS package can fail below as a typed native-unlinked
+      // refusal instead of crashing provider import.
+      custodyModule = require('@expo/snapback-expo-custody');
+    } else {
+      const error = new Error('native custody package resolution is unavailable');
+      error.code = 'ERR_MODULE_NOT_FOUND';
+      throw error;
+    }
+    const createNativeAuthCustodyStorage = custodyModule?.createNativeAuthCustodyStorage
+      ?? custodyModule?.default?.createNativeAuthCustodyStorage;
+    if (typeof createNativeAuthCustodyStorage !== 'function') {
+      const error = new TypeError(
+        'The optional native custody module does not expose createNativeAuthCustodyStorage().',
+      );
+      error.code = 'SNAPBACK_AUTH_CUSTODY_MODULE_INVALID';
+      throw error;
+    }
+    const authCustodyStorage = createNativeAuthCustodyStorage();
+    const authCustodyGrade = await authCustodyStorage.platformGrade();
+    if (
+      authCustodyGrade?.os === 'android'
+      && authCustodyGrade?.grade === 'single-runtime'
+    ) {
+      return createProviderValidatedExpoNativePlatform({
+        authCustodyStorage,
+        authCustodyGrade,
+        cryptoObject: globalThis.crypto,
+      });
+    }
+    return NATIVE_AUTH_CUSTODY_SENTINEL;
+  } catch (cause) {
+    throw durableCustodyUnavailable(cause);
+  }
 }
 
 function canonicalJson(value) {

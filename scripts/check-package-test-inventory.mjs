@@ -268,6 +268,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'package.test.mjs',
       'provider.test.mjs',
       'provider-auth-bootstrap.test.mjs',
+      'provider-native-custody.test.mjs',
       'release-export-vocabulary.test.mjs',
       'supervised-environment.test.mjs',
       'supervised-offline-fallback.test.mjs',
@@ -545,7 +546,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 306,
+  expectedTotal = 307,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -991,6 +992,8 @@ export function checkPackageTestInventories(options = {}) {
 // snapback-expo-dev-identity module gains its hook-install/rotation suite.
 // 304 -> 306 (2026-08-16, LLP 0270 D3): @expo/snapback-client and
 // @expo/snapback-react gain ordinary generated optimistic-projection suites.
+// 306 -> 307 (2026-08-16, LLP 0258 Phase 2 close-out):
+// @expo/snapback-expo gains the per-OS native-custody provider admission suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

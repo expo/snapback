@@ -46,9 +46,12 @@ into the common application client and exposes `useSnapbackAuth()` plus
 for anonymous `ready`, signup and its one-time recovery projection, sign-in,
 restoration, sign-out, and user switch.
 
-Expo web has the shipped browser durable-custody evidence. Expo native does
-not: `durable-required` remains refused there until Phase-2 iOS/Android
-evidence lands, while a disposable native app may declare
+Expo web has the shipped browser durable-custody evidence. The source-current
+Android native path now admits `durable-required` at `single-runtime` on its
+Phase-2 force-stop receipt, but remains unpublished behind
+`issues/20260816-custody-first-publish-gate.md`. iOS still returns the Phase-2
+evidence sentinel pending `issues/20260816-ios-extension-refusal-probe.md`.
+The cross-platform disposable template therefore remains
 `volatile-explicit` without claiming process-death restoration. Keep the
 [native threat-model page](../auth/native-apps.md) and
 [target-honesty page](../auth/targets.md) in view before changing that policy.

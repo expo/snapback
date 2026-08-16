@@ -5,4 +5,5 @@ export {
   __classifyHostedDevelopmentHostname as classifyHostedDevelopmentHostname,
   __adoptSupervisedBootstrapAuthority as adoptSupervisedBootstrapAuthority,
   __createSnapbackAppClientWithBootstrapObserver as createSnapbackAppClientWithBootstrapObserver,
+  __createProviderValidatedExpoNativePlatform as createProviderValidatedExpoNativePlatform,
 } from './app-client.mjs';

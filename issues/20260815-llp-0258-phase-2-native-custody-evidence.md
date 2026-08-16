@@ -89,3 +89,34 @@ convention all of this yields to landed code.
 `@expo/snapback-expo-custody` package joins the qualified 0.1.24 publication
 closure; this does not close this ticket or establish either per-OS durable
 custody claim.
+
+## Phase 2 close-out record (2026-08-16)
+
+- Committed receipts:
+  `demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android`
+  (Android PASS) and
+  `demos/native-custody-probes/evidence/20260816T214117Z-dfaa64ff-phase2-ios`
+  (iOS PASS with P4 extension refusal explicitly INCOMPLETE).
+- Android proved the ordinary provider journey and exact force-stop
+  restoration without credential re-entry, 15 jittered kill-mid-write runs
+  spanning predecessor and successor restoration, distinct-PID `:probe`
+  refusal with `SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED`, real AEAD
+  byte-flip corruption refusal, uninstall-clears-data, quiesced ordinary-path
+  refusal, and a clean leakage scan. This landing therefore admits Android at
+  grade `single-runtime` through the ordinary Expo resolver.
+- iOS proved its recorded kill/relaunch, old-or-new write restoration, CAS,
+  corruption/reinstall, ordinary-boundary refusal, and leakage arms, but the
+  committed v1 app has no extension target. LLP 0258 requires background,
+  extension, and multi-process entry refusal for `single-runtime`; iOS remains
+  refused and continues in
+  `issues/20260816-ios-extension-refusal-probe.md`.
+- Claim chain: `b7f01a693` claimed the lane; `676d53befa` recorded its cession
+  to the commissioned Phase 2 owner; this record closes the Android flip from
+  the committed evidence while preserving the iOS holdout.
+- The generated target-capability row is untouched: no codegen home exists
+  yet. That remains Phase 3 row-group-4's dependency rather than an invented
+  target claim in this lane.
+
+**Ticket disposition:** OPEN. The Android arm is complete, but this ticket is
+the per-OS Phase 2 tracker and stays open until the iOS arm qualifies; do not
+move it to `issues/closed/` for the Android-only flip.
