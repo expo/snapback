@@ -5,8 +5,8 @@
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-15 (v0.2 — G1 same-principal live-evaluation memoization
-implemented; Status remains Draft)
+**Revised:** 2026-08-16 (v0.3 — D2-H1 measured; G1 key recorded as
+session-exact; Status remains Draft)
 **Related:** LLP 0183 (D2 charter this Spec owns), LLP 0191 (evidence and the
 five-rung ladder), LLP 0200 (the D4-side sibling: scheduling/settlement;
 measured Phase-1 record in its §6a), LLP 0008 (DK-3 `live_delta` precedent,
@@ -521,6 +521,38 @@ or identities.
 
 ## Revision history
 
+- **v0.3 (2026-08-16).** G1 measured, and its shipped key recorded
+  precisely. Two facts the D2-H1 run established:
+  1. **The sound pre-G0 key is session-exact, not user-exact.** Opaque JS
+     handlers can read `ctx.auth.sessionId` (and the full prepared
+     projection), so LLP 0190 §4.3's complete-inputs standard forces every
+     handler-visible authority field — session and authority-instance
+     identity included — into the memo key (two independent review
+     families converged on this). Consequently "N identical same-principal
+     subscriptions" shares only when the N subscriptions present the
+     *same session*. E-3's six-observer spike shape as operationalized by
+     the OQ4 harness minted six sessions of one user; that shape gains
+     little (~15% evaluation-count reduction measured) and its collapse
+     is a G0-era target: sharing across sessions of one principal
+     requires declared inputs proving sessionId non-consumption. The
+     harness gained `--observer-session shared|distinct` to measure the
+     truly-identical shape.
+  2. **D2-H1 on the shared-session arm (2026-08-16, N=2, regenerated
+     era-stamped 5.5M-row fixture, memo on/off interleaved on one host):**
+     per-turn evaluation duration p50 869 ms → 42 ms; total serialized
+     evaluation time 25.9 s → 10.7 s (2.4×, r2 pair; the r1 pair's
+     memo-on arm paid cold page cache); one ~900 ms real evaluation per
+     trigger version with the remainder memo hits (vs six real
+     evaluations memo-off); mixed-partition arms byte-identical eval
+     counts (47/47); 6-observer memo-on trigger settle p50 169–190 ms,
+     inside 2× of the 1-observer arm (262–283 ms). Host-noise and
+     store-era caveats recorded in the arm directories; the regenerated
+     store's hot frames are ~5 MB (the 2026-08-08 store's 61–68 MB frames
+     included burned-in diagnosis history), so byte-scale claims must
+     requalify on a burned-in store. Kill switch
+     `SNAPBACK_LIVE_EVAL_MEMO_DISABLED=1` is the control arm; memo
+     entries are drain-cycle-scoped; oversize results are refused
+     clone-free with a 256 MiB budget sized to the measured hot shape.
 - **v0.2 (2026-08-15).** G1 same-principal live-evaluation memoization landed.
 - **v0.1 (2026-08-09).** Initial draft per
   `issues/20260808-d2-d4-owner-specs-commission.md`, grounded in the OQ4

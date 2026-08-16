@@ -180,3 +180,25 @@ d885c5a8f): fence-applied p95 0.09 ms; restoration p50 4.6 s / p95 7.0 s.
 Full Phase-2 record and the split H-3 verdict: LLP 0200 §6c. The
 convergence-vs-serial-floor clause remains open on evaluation cost — the
 D2 sharing/widening ladder this ticket anchors.
+
+## 2026-08-16 — G1 same-principal memoization landed and measured
+
+LLP 0209 G1 landed (five commits ending a2cd51af0): scheduler-level
+memoization of identical (function, canonical args, complete handler-visible
+authority identity, evaluation cut, drain cycle) subscriptions behind
+`SNAPBACK_LIVE_EVAL_MEMO_DISABLED=1`, drain-cycle-scoped, matcher/fence
+retired, oversize-refused clone-free under a 256 MiB budget.
+
+D2-H1 (2026-08-16, regenerated era-stamped fixture, N=2 interleaved): on the
+six-observer **shared-session** arm, per-turn evaluation p50 869 ms → 42 ms
+and total serialized evaluation time 25.9 s → 10.7 s (one real evaluation
+per trigger version instead of six). The harness's original six-observer
+shape minted six *sessions* of one user — sessionId is handler-visible, so
+the sound pre-G0 key cannot share across sessions and that shape gains only
+~15%. Cross-session sharing for one principal is a G0 target (declared
+inputs proving sessionId non-consumption). Full record: LLP 0209 v0.3
+revision note; arms under the g1-memo worktree's
+`demos/zerobugs/fixtures-local/oq4-arms/`.
+
+The structural ceiling this ticket names remains G2/G3's to remove (per-node
+precision + delta lanes); G1 removes the same-key multiplier only.
