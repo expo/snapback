@@ -5,7 +5,7 @@ use super::auth::PasswordIdentifierMode;
 use crate::auth::crypto::{CanonicalAddress, RandomSource, SessionBearer, StepUpConsumption};
 use crate::auth::identity_core::{
     AssuranceKind, AssuranceProvenance, AssuranceRecord, AuthClaimsProjection, ClaimsIdentity,
-    PasswordSecret, RecoveryCodes,
+    DeploymentPosture, PasswordSecret, RecoveryCodes,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use argon2::{
@@ -554,8 +554,11 @@ impl<'a> RecoveryKeyMaterial<'a> {
     }
 }
 
-/// A prepared authority cannot be decoded from a request or constructed by an
-/// app handler. The host supplies server-resolved ids from one verified event.
+/// UNWIRED-DO-NOT-CALL: this dormant shape is not a verified-provisioning
+/// authority. No host invocation currently injects or verifies its fields.
+/// The required lane remains open in
+/// `issues/20260808-guide-gap-principal-to-app-identity-binding.md`.
+#[allow(dead_code)]
 pub(crate) struct VerifiedProvisioningAuthority {
     hook_id: String,
     hook_digest: [u8; 32],
@@ -566,6 +569,7 @@ pub(crate) struct VerifiedProvisioningAuthority {
     declared_writes: BTreeSet<String>,
 }
 
+#[allow(dead_code)]
 pub(crate) struct ProvisioningInsert {
     pub table: String,
     pub columns: Vec<(String, String)>,
@@ -600,11 +604,16 @@ pub(crate) fn prepare_verified_email_claim(
     })
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(dead_code)]
 pub(crate) enum ProvisioningOutcome {
     Committed,
     AlreadyCommitted,
 }
 
+/// UNWIRED-DO-NOT-CALL: construction here does not verify a principal or
+/// establish the sealed host authority required by LLP 0214 §§5.3–5.5.
+/// Follow `issues/20260808-guide-gap-principal-to-app-identity-binding.md`.
+#[allow(dead_code)]
 pub(crate) fn prepare_verified_provisioning(
     hook_id: &str,
     hook_digest: [u8; 32],
@@ -2776,8 +2785,11 @@ impl LocalDatabase {
         })
     }
 
-    /// @ref LLP 0214#53-sealed-invocation-authority — declared app inserts and the
-    /// protected idempotency receipt commit in one host-only transaction.
+    /// UNWIRED-DO-NOT-CALL: this dormant storage helper has no host invocation
+    /// and does not verify the principal/identity fields it receives. It is not
+    /// the sealed writer specified by LLP 0214 §§5.3–5.5. The platform ask is
+    /// tracked in `issues/20260808-guide-gap-principal-to-app-identity-binding.md`.
+    #[allow(dead_code)]
     pub(crate) fn execute_verified_provisioning(
         &mut self,
         authority: &VerifiedProvisioningAuthority,
@@ -3404,8 +3416,185 @@ impl LocalDatabase {
         &self,
         session_id: &str,
         now: u64,
+        profile: crate::contract_types::ServerProfile,
     ) -> SnapbackResult<AuthClaimsProjection> {
-        self.with_auth_read(|conn|{super::auth::require_identity_core_v3_on(conn)?;let user:String=conn.query_row("SELECT user_id FROM _auth_sessions WHERE id=?1 AND revoked_at_ms IS NULL AND expires_at_ms>?2",params![session_id,now],|r|r.get(0))?;let mut identities=vec![];let mut stmt=conn.prepare("SELECT kind,provider,issuer,subject,canonical_value FROM _auth_identities WHERE user_id=?1 AND disabled_at_ms IS NULL ORDER BY kind,provider,subject")?;for row in stmt.query_map([&user],|r|Ok(ClaimsIdentity{kind:r.get(0)?,provider_key:r.get(1)?,issuer:r.get(2)?,subject:r.get(3)?,value:r.get(4)?}))?{identities.push(row?);}let mut assurances=vec![];let mut stmt=conn.prepare("SELECT kind,provenance,issued_at_ms,expires_at_ms,governing_authority FROM _auth_assurances WHERE user_id=?1 AND session_id=?2 AND revoked_at_ms IS NULL AND (expires_at_ms IS NULL OR expires_at_ms>?3)")?;for row in stmt.query_map(params![user,session_id,now],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get(2)?,r.get(3)?,r.get(4)?)))?{let(k,p,issued,expires,governing)=row?;let kind=match k.as_str(){"authenticated"=>AssuranceKind::Authenticated,"email_verified"=>AssuranceKind::EmailVerified,"phone_verified"=>AssuranceKind::PhoneVerified,"recent_auth"=>AssuranceKind::RecentAuth,_=>AssuranceKind::PhishingResistant};let provenance=match p.as_str(){"session"=>AssuranceProvenance::Session,"credential"=>AssuranceProvenance::Credential,"delivery"=>AssuranceProvenance::Delivery,"federation"=>AssuranceProvenance::Federation,"import"=>AssuranceProvenance::Import,_=>AssuranceProvenance::Rehearsal};assurances.push(AssuranceRecord{kind,provenance,issued_at:issued,expires_at:expires,governing_authority:governing});}Ok(AuthClaimsProjection::server_derived(identities,assurances))})
+        self.with_auth_read(|conn| {
+            super::auth::require_identity_core_v3_on(conn)?;
+            let (user, mut identity_id, credential_id): (String, Option<String>, Option<String>) =
+                conn.query_row(
+                    "SELECT user_id,identity_id,credential_id FROM _auth_sessions
+                 WHERE id=?1 AND revoked_at_ms IS NULL
+                   AND expires_at_ms>?2 AND absolute_expires_at_ms>?2",
+                    params![session_id, now],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )?;
+            if identity_id.is_none()
+                && let Some(credential_id) = credential_id
+            {
+                let credential_kind: Option<String> = conn
+                    .query_row(
+                        "SELECT kind FROM _auth_credentials
+                         WHERE id=?1 AND user_id=?2 AND revoked_at_ms IS NULL",
+                        params![credential_id, user],
+                        |row| row.get(0),
+                    )
+                    .optional()?;
+                if credential_kind.as_deref() == Some("password") {
+                    identity_id = conn
+                        .query_row(
+                            "SELECT id FROM _auth_identities
+                             WHERE user_id=?1 AND provider='local-password'
+                               AND disabled_at_ms IS NULL",
+                            [&user],
+                            |row| row.get(0),
+                        )
+                        .optional()?;
+                }
+            }
+
+            // @ref LLP 0214#62-projection-rules — a session
+            // exposes only the identity that authenticated that session.
+            // Other linked identities do not become ambient claims.
+            let mut identities = Vec::new();
+            if let Some(identity_id) = identity_id {
+                let raw = conn
+                    .query_row(
+                        "SELECT kind,provider,issuer,subject,canonical_value
+                         FROM _auth_identities
+                         WHERE id=?1 AND user_id=?2 AND disabled_at_ms IS NULL",
+                        params![identity_id, user],
+                        |row| {
+                            Ok((
+                                row.get::<_, String>(0)?,
+                                row.get::<_, String>(1)?,
+                                row.get::<_, Option<String>>(2)?,
+                                row.get::<_, String>(3)?,
+                                row.get::<_, Option<String>>(4)?,
+                            ))
+                        },
+                    )
+                    .optional()?;
+                if let Some((kind, provider_key, issuer, subject, canonical_value)) = raw {
+                    let (issuer, value) = match kind.as_str() {
+                        "email" | "phone" | "username" => {
+                            let value = canonical_value
+                                .filter(|value| !value.is_empty())
+                                .ok_or_else(|| {
+                                    auth_error(
+                                        "SNAPBACK_AUTH_CLAIMS_CORRUPT",
+                                        "value-bearing identity claim has no canonical value",
+                                    )
+                                })?;
+                            (None, Some(value))
+                        }
+                        "oidc" => {
+                            let issuer =
+                                issuer.filter(|value| !value.is_empty()).ok_or_else(|| {
+                                    auth_error(
+                                        "SNAPBACK_AUTH_CLAIMS_CORRUPT",
+                                        "OIDC identity claim has no issuer",
+                                    )
+                                })?;
+                            (Some(issuer), None)
+                        }
+                        "oauth2" | "external" => (issuer, None),
+                        _ => {
+                            return Err(auth_error(
+                                "SNAPBACK_AUTH_CLAIMS_CORRUPT",
+                                "identity catalog contains an unprojectable claim kind",
+                            ));
+                        }
+                    };
+                    identities.push(ClaimsIdentity {
+                        kind,
+                        provider_key,
+                        issuer,
+                        subject,
+                        value,
+                    });
+                }
+            }
+
+            let mut assurances = Vec::new();
+            let mut stmt = conn.prepare(
+                "SELECT a.kind,a.provenance,a.issued_at_ms,a.expires_at_ms,
+                        a.governing_authority
+                 FROM _auth_assurances a
+                 LEFT JOIN _auth_identities i ON i.id=a.identity_id
+                 LEFT JOIN _auth_credentials c ON c.id=a.credential_id
+                 WHERE a.user_id=?1
+                   AND (a.session_id=?2 OR a.session_id IS NULL)
+                   AND a.revoked_at_ms IS NULL
+                   AND (a.expires_at_ms IS NULL OR a.expires_at_ms>?3)
+                   AND (a.identity_id IS NULL OR
+                        (i.user_id=?1 AND i.disabled_at_ms IS NULL))
+                   AND (a.credential_id IS NULL OR
+                        (c.user_id=?1 AND c.revoked_at_ms IS NULL))",
+            )?;
+            let rows = stmt.query_map(params![user, session_id, now], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            })?;
+            for row in rows {
+                let (kind, provenance, issued_at, expires_at, governing_authority) = row?;
+                let kind = match kind.as_str() {
+                    "authenticated" => AssuranceKind::Authenticated,
+                    "email_verified" => AssuranceKind::EmailVerified,
+                    "phone_verified" => AssuranceKind::PhoneVerified,
+                    "recent_auth" => AssuranceKind::RecentAuth,
+                    "phishing_resistant" => AssuranceKind::PhishingResistant,
+                    _ => {
+                        return Err(auth_error(
+                            "SNAPBACK_AUTH_CLAIMS_CORRUPT",
+                            "identity catalog contains an unknown assurance kind",
+                        ));
+                    }
+                };
+                let provenance = match provenance.as_str() {
+                    "session" => AssuranceProvenance::Session,
+                    "credential" => AssuranceProvenance::Credential,
+                    "delivery" => AssuranceProvenance::Delivery,
+                    "federation" => AssuranceProvenance::Federation,
+                    "import" => AssuranceProvenance::Import,
+                    "rehearsal" => AssuranceProvenance::Rehearsal,
+                    _ => {
+                        return Err(auth_error(
+                            "SNAPBACK_AUTH_CLAIMS_CORRUPT",
+                            "identity catalog contains an unknown assurance provenance",
+                        ));
+                    }
+                };
+                let assurance = AssuranceRecord {
+                    kind,
+                    provenance,
+                    issued_at,
+                    expires_at,
+                    governing_authority,
+                };
+                assurance.admit(DeploymentPosture::from_server_profile(profile), now)?;
+                if assurance.provenance == AssuranceProvenance::Rehearsal {
+                    let governor = assurance
+                        .governing_authority
+                        .as_deref()
+                        .expect("admission requires a rehearsal governor");
+                    if !super::auth_rehearsal::rehearsal_assurance_governor_is_live_on(
+                        conn, governor, now,
+                    )? {
+                        return Err(auth_error(
+                            "SNAPBACK_AUTH_ASSURANCE_INADMISSIBLE",
+                            "assurance governing authority is expired or revoked",
+                        ));
+                    }
+                }
+                assurances.push(assurance);
+            }
+            Ok(AuthClaimsProjection::server_derived(identities, assurances))
+        })
     }
 }
 
@@ -3559,6 +3748,19 @@ mod tests {
             )
             .unwrap();
         let guest = db.identity_guest_create(50_000, 2, &random).unwrap();
+        let guest_claims = db
+            .identity_claims(
+                &guest.session_id,
+                2,
+                crate::contract_types::ServerProfile::Test,
+            )
+            .unwrap();
+        assert!(guest_claims.identities.is_empty());
+        assert_eq!(guest_claims.assurances.len(), 1);
+        assert_eq!(
+            guest_claims.assurances[0].kind,
+            AssuranceKind::Authenticated
+        );
         let error = db
             .identity_guest_claim_password(
                 &guest.bearer,
@@ -3591,6 +3793,19 @@ mod tests {
             .identity_guest_claim_verified_email(&email_guest.bearer, &proof, 5, &random)
             .unwrap();
         assert_eq!(email_claimed.user_id, email_guest.user_id);
+        let email_claims = db
+            .identity_claims(
+                &email_claimed.session_id,
+                5,
+                crate::contract_types::ServerProfile::Test,
+            )
+            .unwrap();
+        assert_eq!(email_claims.identities.len(), 1);
+        assert_eq!(email_claims.identities[0].kind, "email");
+        assert_eq!(
+            email_claims.identities[0].value.as_deref(),
+            Some("verified@example.com")
+        );
         let collision_guest = db.identity_guest_create(50_000, 5, &random).unwrap();
         assert_eq!(
             db.identity_guest_claim_verified_email(&collision_guest.bearer, &proof, 6, &random)
@@ -3667,8 +3882,16 @@ mod tests {
                 &random,
             )
             .unwrap();
-        let claims = db.identity_claims(&authenticated.session_id, 12).unwrap();
+        let claims = db
+            .identity_claims(
+                &authenticated.session_id,
+                12,
+                crate::contract_types::ServerProfile::Test,
+            )
+            .unwrap();
         assert_eq!(claims.identities[0].provider_key, "local-password");
+        assert_eq!(claims.identities[0].kind, "username");
+        assert_eq!(claims.identities[0].value.as_deref(), Some("person"));
         assert_eq!(
             claims.assurances[0].provenance,
             AssuranceProvenance::Credential
@@ -3698,6 +3921,17 @@ mod tests {
             .identity_recovery_consume("person", &first_code, 15, &random, "key-1", &key)
             .unwrap();
         assert!(recovered.recovery_codes.is_some());
+        assert!(
+            db.identity_claims(
+                &recovered.session_id,
+                15,
+                crate::contract_types::ServerProfile::Test,
+            )
+            .unwrap()
+            .identities
+            .is_empty(),
+            "recovery session has no identity claim beyond its assurance records"
+        );
         assert_eq!(
             db.identity_recovery_consume("person", &first_code, 16, &random, "key-1", &key)
                 .unwrap_err()
@@ -3711,6 +3945,140 @@ mod tests {
                 .expose_once()
                 .len(),
             RECOVERY_COUNT
+        );
+    }
+
+    #[test]
+    fn oidc_projection_exposes_exact_subject_but_not_mutable_profile_value() {
+        let random = CounterRandom::new();
+        let key = [12; 32];
+        let mut db = ready();
+        let account = db
+            .identity_password_register(
+                "federated",
+                &password("strong-federated-secret-1"),
+                10,
+                &random,
+                "key-1",
+                &key,
+            )
+            .unwrap();
+        db.with_auth_transaction(|tx| {
+            tx.execute(
+                "UPDATE _auth_identities
+                 SET kind='oidc',provider='workforce',issuer='https://issuer.example',
+                     subject='subject-123',canonical_value='mutable@example.com'
+                 WHERE user_id=?1",
+                [&account.user_id],
+            )?;
+            let identity_id: String = tx.query_row(
+                "SELECT id FROM _auth_identities WHERE user_id=?1",
+                [&account.user_id],
+                |row| row.get(0),
+            )?;
+            tx.execute(
+                "UPDATE _auth_sessions
+                 SET identity_id=?2,credential_id=NULL,authn_source='identity'
+                 WHERE id=?1",
+                params![account.session_id, identity_id],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        let claims = db
+            .identity_claims(
+                &account.session_id,
+                10,
+                crate::contract_types::ServerProfile::Test,
+            )
+            .unwrap();
+        assert_eq!(claims.identities.len(), 1);
+        assert_eq!(claims.identities[0].kind, "oidc");
+        assert_eq!(claims.identities[0].provider_key, "workforce");
+        assert_eq!(
+            claims.identities[0].issuer.as_deref(),
+            Some("https://issuer.example")
+        );
+        assert_eq!(claims.identities[0].subject, "subject-123");
+        assert_eq!(claims.identities[0].value, None);
+    }
+
+    #[test]
+    fn claims_projection_applies_assurance_admission_before_exposure() {
+        let random = CounterRandom::new();
+        let key = [15; 32];
+        let mut db = ready();
+        let account = db
+            .identity_password_register(
+                "assurance-admission",
+                &password("strong-assurance-admission-secret"),
+                10,
+                &random,
+                "key-1",
+                &key,
+            )
+            .unwrap();
+        db.with_auth_transaction(|tx| {
+            tx.execute(
+                "INSERT INTO _auth_assurances(
+                   id,user_id,session_id,identity_id,credential_id,kind,
+                   provenance,issued_at_ms,expires_at_ms,governing_authority,
+                   revoked_at_ms
+                 ) VALUES(
+                   'rehearsal-projection',?1,?2,NULL,NULL,'email_verified',
+                   'rehearsal',11,100,'rehearsal-window',NULL
+                 )",
+                params![account.user_id, account.session_id],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+
+        let production = db
+            .identity_claims(
+                &account.session_id,
+                12,
+                crate::contract_types::ServerProfile::Prod,
+            )
+            .expect_err("rehearsal assurance must never project in production");
+        assert_eq!(
+            production.diagnostic.code,
+            "SNAPBACK_AUTH_ASSURANCE_INADMISSIBLE"
+        );
+
+        let ended_governor = db
+            .identity_claims(
+                &account.session_id,
+                12,
+                crate::contract_types::ServerProfile::Test,
+            )
+            .expect_err("a missing or ended rehearsal governor must fail closed");
+        assert_eq!(
+            ended_governor.diagnostic.code,
+            "SNAPBACK_AUTH_ASSURANCE_INADMISSIBLE"
+        );
+
+        db.with_auth_transaction(|tx| {
+            tx.execute(
+                "UPDATE _auth_assurances
+                 SET provenance='delivery',issued_at_ms=20,
+                     governing_authority='email-code:built-in'
+                 WHERE id='rehearsal-projection'",
+                [],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+        let future = db
+            .identity_claims(
+                &account.session_id,
+                12,
+                crate::contract_types::ServerProfile::Test,
+            )
+            .expect_err("future-issued assurance must fail closed");
+        assert_eq!(
+            future.diagnostic.code,
+            "SNAPBACK_AUTH_ASSURANCE_INADMISSIBLE"
         );
     }
 
@@ -3751,7 +4119,13 @@ mod tests {
                 &random,
             )
             .unwrap();
-        let claims = db.identity_claims(&authenticated.session_id, 12).unwrap();
+        let claims = db
+            .identity_claims(
+                &authenticated.session_id,
+                12,
+                crate::contract_types::ServerProfile::Test,
+            )
+            .unwrap();
         let local = claims
             .identities
             .iter()
@@ -3879,7 +4253,7 @@ mod tests {
     }
 
     #[test]
-    fn verified_provisioning_is_sealed_idempotent_and_atomic() {
+    fn unwired_verified_provisioning_storage_helper_is_idempotent_and_atomic() {
         let random = CounterRandom::new();
         let key = [4; 32];
         let mut db = ready();

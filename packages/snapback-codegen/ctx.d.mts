@@ -195,6 +195,42 @@ export interface AnonymousAuthContext {
   readonly isAuthenticated: false;
 }
 
+export type AuthClaimIdentity =
+  | Readonly<{
+      kind: 'email' | 'phone' | 'username';
+      providerKey: string;
+      subject: string;
+      value: string;
+      issuer?: never;
+    }>
+  | Readonly<{
+      kind: 'oidc';
+      providerKey: string;
+      issuer: string;
+      subject: string;
+      value?: never;
+    }>
+  | Readonly<{
+      kind: 'oauth2' | 'external';
+      providerKey: string;
+      issuer?: string;
+      subject: string;
+      value?: never;
+    }>;
+
+export interface AuthAssuranceRecord {
+  readonly kind: 'authenticated' | 'email_verified' | 'phone_verified' | 'recent_auth' | 'phishing_resistant';
+  readonly provenance: 'session' | 'credential' | 'delivery' | 'federation' | 'import' | 'rehearsal';
+  readonly issuedAt: number;
+  readonly expiresAt?: number;
+  readonly governingAuthority?: string;
+}
+
+export interface AuthClaimsProjection {
+  readonly identities: readonly AuthClaimIdentity[];
+  readonly assurances: readonly AuthAssuranceRecord[];
+}
+
 export interface AuthenticatedAuthContext<Principal extends string = string> {
   readonly userId: Principal;
   readonly sessionId: string | null;
@@ -208,6 +244,8 @@ export interface AuthenticatedAuthContext<Principal extends string = string> {
     readonly grantId: string;
   };
   readonly actorKind?: 'asset-callbacks';
+  /** Present only for catalog-backed interactive sessions. */
+  readonly claims?: AuthClaimsProjection;
 }
 
 export type AuthContext<Principal extends string = string> =

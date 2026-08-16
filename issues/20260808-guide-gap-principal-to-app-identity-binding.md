@@ -1,6 +1,6 @@
 # guide-gap: no recipe for binding server principals to app-owned identities
 
-**Opened:** 2026-08-08 · **Severity:** P3 (guide-gap; the largest identity friction cluster)
+**Opened:** 2026-08-08 · **Status:** Open · **Severity:** P3 (guide-gap; the largest identity friction cluster)
 
 The sessions guide documents `ctx.auth.userId`, dev minting, logout, and
 bearer replacement, but gives no recipe for the thing every ported app
@@ -25,7 +25,7 @@ D7 afterthought.
 ## Partial resolution — 2026-08-08 (guide page landed; platform ask remains)
 
 **The docs ask is done.** New page
-[`guide/auth/app-identity-binding.md`](../guide/auth/app-identity-binding.md)
+[`guide/auth/app-identity-binding.md`](../../guide/auth/app-identity-binding.md)
 — *"Bind a principal to your app's user identity"* — linked from the guide
 index under Auth, claiming `auth.sessions` + `auth.external-identity-broker`,
 `maturity: partial`, `targets: [local]`.
@@ -91,8 +91,8 @@ not this file. Ticket stays open until that is filed or ruled out.
 ## Further partial resolution — 2026-08-08 (registered browser carrier)
 
 The local composition is now executable rather than pseudocode. Registered
-[`demos/browser-auth`](../demos/browser-auth) and
-[`guide/recipes/browser-auth.md`](../guide/recipes/browser-auth.md) prove in
+[`demos/browser-auth`](../../demos/browser-auth) and
+[`guide/recipes/browser-auth.md`](../../guide/recipes/browser-auth.md) prove in
 real Chrome that an app-owned trusted server can:
 
 - verify a replaceable signed external assertion fixture;
@@ -120,3 +120,28 @@ The unresolved decision is still whether verified provider claims enter the
 handler authority projection or bindings use a declared privileged
 provisioning channel. Therefore this ticket remains open and must not be closed
 or converted into a hosted-production capability claim by the carrier above.
+
+## Fix round — 2026-08-16 (claims and seal shipped; writer remains open)
+
+LLP 0226 lane (b) shipped two useful parts under LLP 0214 §6/§23:
+
+- real catalog-backed sessions receive a server-derived, claim-by-claim,
+  deeply read-only `ctx.auth.claims` projection, including first live-query
+  snapshots and the existing assurance-admission rules; and
+- `verifiedProvisioning` identity-binding declarations compile to a sealed
+  table descriptor. Every ordinary buffered and HostPlan/IR write path,
+  including batch paths, refuses declared-table writes with
+  `SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN`.
+
+The remaining platform ask is the verified-provisioning writer itself. It must
+be **host-invoked**, receive a **host-injected principal**, expose `ctx.db`
+limited to exactly the declared reads and writes, and have principal/identity
+fields **injected and verified by the host rather than caller-supplied**. The
+dormant storage helper is not this writer: no host path invokes it and it does
+not verify the principal/identity inputs. Codegen therefore records a
+declaration without reporting a compiled writer.
+
+Until that lane lands, the broker and frozen actor-map remain the conforming
+executable patterns. The guide must not instruct authors to write an in-handler
+provisioning hook that can only meet the seal's refusal. This ticket stays open
+for the host-invoked writer; hosted provider lifecycle remains LLP 0151 scope.

@@ -2089,7 +2089,8 @@ impl<'a> IbexHostContext<'a> {
     ) -> SnapbackResult<Self> {
         let projection = HandlerAuthProjection::from_authority(
             &ResolvedAppAuthority::dev_from_auth(&input.auth),
-        );
+            None,
+        )?;
         Self::new_action_with_projection(
             input,
             projection,
@@ -7776,7 +7777,7 @@ mod runtime_boundary_hardening_tests {
         IbexHostContext::new_with_projection(
             DbRead::Live(db),
             input,
-            HandlerAuthProjection::from_authority(&authority),
+            HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             false,
@@ -8396,7 +8397,7 @@ mod private_failure_carrier_tests {
         let mut invocation = IbexHostContext::new_with_projection(
             DbRead::Live(&db),
             HandlerInput::default(),
-            HandlerAuthProjection::from_authority(&authority),
+            HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             true,
@@ -8576,7 +8577,7 @@ mod handler_result_bridge_tests {
         let mut invocation = IbexHostContext::new_with_projection(
             DbRead::Live(&db),
             HandlerInput::default(),
-            HandlerAuthProjection::from_authority(&authority),
+            HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             false,
@@ -9018,7 +9019,7 @@ mod table_visibility_runtime_tests {
         IbexHostContext::new_with_projection(
             DbRead::Live(db),
             input,
-            HandlerAuthProjection::from_authority(&authority),
+            HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             writable,
@@ -10490,7 +10491,7 @@ mod membership_bridge_tests {
         IbexHostContext::new_with_projection(
             DbRead::Live(db),
             input,
-            HandlerAuthProjection::from_authority(&authority),
+            HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             true,
@@ -10522,7 +10523,7 @@ mod membership_bridge_tests {
         IbexHostContext::new_with_projection(
             DbRead::Live(db),
             input,
-            HandlerAuthProjection::from_authority(&authority),
+            HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved_with_authority_creating(
                 &authority,
@@ -10915,7 +10916,7 @@ mod membership_bridge_tests {
         let mut ctx = IbexHostContext::new_with_projection(
             DbRead::Live(db),
             input,
-            HandlerAuthProjection::from_authority(&authority),
+            HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             true,
@@ -12220,7 +12221,7 @@ mod direct_human_projection_tests {
 
     fn run(authority: ResolvedAppAuthority) -> Value {
         let db = LocalDatabase::memory().unwrap();
-        let projection = HandlerAuthProjection::from_authority(&authority);
+        let projection = HandlerAuthProjection::from_authority(&authority, None).unwrap();
         let mut invocation = IbexHostContext::new_with_projection(
             DbRead::Live(&db),
             HandlerInput::default(),

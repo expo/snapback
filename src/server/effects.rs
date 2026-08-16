@@ -60,7 +60,7 @@ pub(super) async fn effect_list(
     ))
 }
 
-async fn prepare_original_authority(
+pub(super) async fn prepare_original_authority(
     runtime: &AppState,
     management: &PreparedAuthority,
     effect: &crate::storage::pending_effects::PendingEffectRecord,
@@ -164,15 +164,20 @@ async fn prepare_original_authority(
             )
         }
     };
-    let prepared = InvocationGate::prepare_admitted_authority(
-        InvocationSource::EffectExecution,
-        AuthMode::Sessions,
-        runtime.server.profile,
-        management.admission_lease().clone(),
-        &WireAuthorityFields::default(),
-        resolved,
-    )
-    .map_err(ApiError::from)?
+    let profile = runtime.server.profile;
+    let admission = management.admission_lease().clone();
+    let prepared = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.prepare_resolved_authority(
+            InvocationSource::EffectExecution,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            resolved,
+            now_ms,
+        )
+    })
+    .await?
     .with_fenced_publication(publication)
     .with_caller_attribution(
         crate::telemetry::CallerAttributionV1::from_effect(

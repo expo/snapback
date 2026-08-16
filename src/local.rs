@@ -4619,7 +4619,12 @@ impl LocalSnapback {
                 .into_trusted_permission_denial());
             }
         }
-        let prepared = retained.prepare_rerun(admission)?;
+        let session_claims = self.session_claims_for_authority(
+            retained.resolved(),
+            retained.profile(),
+            now_millis(),
+        )?;
+        let prepared = retained.prepare_rerun(admission, session_claims)?;
         self.persist_and_validate_prepared_service_authority(&prepared)?;
         Ok(prepared)
     }
@@ -4790,6 +4795,48 @@ impl LocalSnapback {
                 .saturating_add(evictions);
         }
         Ok(result)
+    }
+
+    /// Resolve the claims half of the authority projection from the protected
+    /// catalog. Every caller then hands the resolved authority and this value
+    /// to the one `HandlerAuthProjection::from_authority` constructor, which
+    /// rejects either a session omission or a non-session claim injection.
+    ///
+    /// @ref LLP 0214#62-projection-rules — a real catalog session projects
+    /// claims in its first snapshot; non-session authority cannot acquire them.
+    fn session_claims_for_authority(
+        &mut self,
+        resolved: &ResolvedAppAuthority,
+        profile: ServerProfile,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<crate::auth::identity_core::AuthClaimsProjection>> {
+        resolved
+            .session_id()
+            .map(|session_id| self.db.identity_claims(session_id, now_ms, profile))
+            .transpose()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn prepare_resolved_authority(
+        &mut self,
+        source: InvocationSource,
+        active_mode: AuthMode,
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        wire: &WireAuthorityFields,
+        resolved: ResolvedAppAuthority,
+        now_ms: u64,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let session_claims = self.session_claims_for_authority(&resolved, profile, now_ms)?;
+        InvocationGate::prepare_admitted_authority(
+            source,
+            active_mode,
+            profile,
+            admission,
+            wire,
+            resolved,
+            session_claims,
+        )
     }
 
     /// Cloneable process-local admission authority for HTTP composition.
@@ -7449,6 +7496,7 @@ impl LocalSnapback {
             branch.admission.admit_for_mode(active_mode)?,
             &WireAuthorityFields::default(),
             resolved,
+            None,
         )?;
         if definition.kind == FunctionKind::Mutation {
             let context = crate::fork_promotion::BranchMutationCommitV1 {
@@ -14589,6 +14637,7 @@ impl LocalSnapback {
             admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::dev_from_auth(auth),
+            None,
         )?;
         self.evaluate_bundle(entry, params, request_route, auth, &authority, None)
     }
@@ -14766,18 +14815,20 @@ impl LocalSnapback {
                                 refuse(code::QUERY_FAILED, "bundle admission unavailable")
                                     .with_details(json!({ "cause": error.diagnostic.code }))
                             })?;
-                        let sub_authority = InvocationGate::prepare_admitted_authority(
-                            InvocationSource::LiveInitialQuery,
-                            authority.active_mode(),
-                            authority.profile(),
-                            admission,
-                            &WireAuthorityFields::default(),
-                            authority.resolved().clone(),
-                        )
-                        .map_err(|error| {
-                            refuse(code::QUERY_FAILED, "bundle register authority refused")
-                                .with_details(json!({ "cause": error.diagnostic.code }))
-                        })?;
+                        let sub_authority = snapback
+                            .prepare_resolved_authority(
+                                InvocationSource::LiveInitialQuery,
+                                authority.active_mode(),
+                                authority.profile(),
+                                admission,
+                                &WireAuthorityFields::default(),
+                                authority.resolved().clone(),
+                                now_millis(),
+                            )
+                            .map_err(|error| {
+                                refuse(code::QUERY_FAILED, "bundle register authority refused")
+                                    .with_details(json!({ "cause": error.diagnostic.code }))
+                            })?;
                         let sub_input = LiveSubscribeInput {
                             connection_id: target.connection_id.clone(),
                             input: HandlerInput {
@@ -14977,13 +15028,14 @@ impl LocalSnapback {
                         refuse(code::QUERY_FAILED, "mixed live admission unavailable")
                             .with_details(json!({ "cause": error.diagnostic.code }))
                     })?;
-                InvocationGate::prepare_admitted_authority(
+                self.prepare_resolved_authority(
                     InvocationSource::LiveInitialQuery,
                     authority.active_mode(),
                     authority.profile(),
                     lease,
                     &WireAuthorityFields::default(),
                     authority.resolved().clone(),
+                    now_millis(),
                 )
                 .map_err(|error| {
                     refuse(code::QUERY_FAILED, "mixed live authority refused")
@@ -15232,6 +15284,7 @@ impl LocalSnapback {
             admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::dev_from_auth(&input.input.auth),
+            None,
         )?;
         self.subscribe_live_prepared_with_invalidation(
             name,
@@ -16530,6 +16583,7 @@ impl LocalSnapback {
             admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::dev_from_auth(&input.auth),
+            None,
         )?;
         self.unsubscribe_live_prepared(name, input, authority, None)
     }
@@ -16977,6 +17031,7 @@ impl LocalSnapback {
             admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::dev_from_auth(&input.auth),
+            None,
         )?;
         self.resume_live_prepared_with_invalidation(
             name,
@@ -18156,6 +18211,7 @@ impl LocalSnapback {
             admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::System,
+            None,
         )?;
         let prepared = InvocationGate::prepare_function(authority, &function)?;
         Ok(self.staged_mode(&function, prepared, None))
@@ -18180,6 +18236,7 @@ impl LocalSnapback {
             admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::System,
+            None,
         )?
         .with_deferred_rehearsal_provenance(
             rehearsal_provenance,
@@ -20067,6 +20124,7 @@ impl LocalSnapback {
                 claim.admission.clone(),
                 &WireAuthorityFields::default(),
                 resolved,
+                None,
             )?
             .with_caller_attribution(crate::telemetry::CallerAttributionV1::owner(
                 record.owner_principal_id.clone(),
@@ -22885,6 +22943,7 @@ impl LocalSnapback {
                 admission,
                 &WireAuthorityFields::default(),
                 ResolvedAppAuthority::System,
+                None,
             )?;
             let prepared = InvocationGate::prepare_function(authority, &function)?;
             let result = self
@@ -25007,27 +25066,6 @@ impl LocalSnapback {
             // never leave predecessor-authority delivery enabled.
             let marking_started = Instant::now();
             for subscription in &subscriptions {
-                // @ref LLP 0209#6 — an authority fence retires the complete
-                // predecessor authority component, independent of current
-                // holder membership. That includes orphaned entries left by
-                // any earlier lifecycle defect; the delivery gate remains the
-                // safety boundary.
-                if !self.pending_live_fanout.evaluation_memo.disabled {
-                    let projection = HandlerAuthProjection::from_authority(
-                        subscription.authority.resolved(),
-                    );
-                    if let Some(authority_component) =
-                        Self::live_evaluation_memo_authority_component(
-                            &subscription.input.auth,
-                            &projection,
-                            &subscription.authority.resolved().invalidation_subject(),
-                        )
-                    {
-                        self.pending_live_fanout
-                            .evaluation_memo
-                            .retire_authority(&authority_component);
-                    }
-                }
                 coalescer.fence_authority(&subscription.id, authorization.version.clone());
                 crate::spike_trace::fence(
                     &subscription.id,
@@ -25047,6 +25085,39 @@ impl LocalSnapback {
             self.live_authority_stats.last_fence_marking_latency_ms = marking_ms;
             if marking_ms > self.live_authority_stats.max_fence_marking_latency_ms {
                 self.live_authority_stats.max_fence_marking_latency_ms = marking_ms;
+            }
+
+            if !self.pending_live_fanout.evaluation_memo.disabled {
+                let claims_now_ms = now_millis();
+                for subscription in &subscriptions {
+                    // @ref LLP 0209#6 — an authority fence retires the complete
+                    // predecessor authority component, independent of current
+                    // holder membership. That includes orphaned entries left by
+                    // any earlier lifecycle defect; the delivery gate remains the
+                    // safety boundary.
+                    let resolved = subscription.authority.resolved();
+                    // Memo-key reconstruction is not a new InvocationSource.
+                    // Resolve the same catalog half, then use the sole projection
+                    // constructor without minting a second PreparedAuthority.
+                    let session_claims = self.session_claims_for_authority(
+                        resolved,
+                        subscription.authority.profile(),
+                        claims_now_ms,
+                    )?;
+                    let projection =
+                        HandlerAuthProjection::from_authority(resolved, session_claims)?;
+                    if let Some(authority_component) =
+                        Self::live_evaluation_memo_authority_component(
+                            &subscription.input.auth,
+                            &projection,
+                            &resolved.invalidation_subject(),
+                        )
+                    {
+                        self.pending_live_fanout
+                            .evaluation_memo
+                            .retire_authority(&authority_component);
+                    }
+                }
             }
         }
 

@@ -19,6 +19,9 @@ budget; see Status)
 **Revised:** 2026-08-10 (i — closing revision, loop terminal; see Status)
 **Revised:** 2026-08-10 (j — Accepted: both loop-proposed rulings
 (bootstrap conversion; destructive-reset-new-lineage) author-confirmed)
+**Revised:** 2026-08-16 (k — lane (b) partial implementation pointer to LLP
+0214 §6/§23: claims and the ordinary-write seal shipped; the host writer is
+open; no Decision ruling changed)
 **Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0011, LLP 0043, LLP 0057,
 LLP 0058, LLP 0081, LLP 0110, LLP 0129, LLP 0133, LLP 0135, LLP 0148,
 LLP 0151, LLP 0158, LLP 0163, LLP 0191, LLP 0192,
@@ -316,8 +319,8 @@ folded in as the ruled direction:
 
 Owner: the auth provider protocol and session surface (LLP 0057/0058 seam;
 LLP 0151 for the first-party provider substrate). Ticket:
-`issues/20260808-guide-gap-principal-to-app-identity-binding.md` (open
-platform ask). Constraints from this Decision:
+`issues/20260808-guide-gap-principal-to-app-identity-binding.md` (open).
+Constraints from this Decision:
 
 - The §1 principal/provider-identity split governs: the principal (`usr_…`,
   `ctx.auth.userId`) is the app-side key; provider identities (`idn_…`,
@@ -336,7 +339,13 @@ platform ask). Constraints from this Decision:
   trust-boundary decision; the privileged-provisioning channel remains the
   alternative where no claims should reach handlers at all.
 - The guide's broker and frozen-actor-map recipes remain the conforming
-  patterns until the amendment lands.
+  patterns after the amendment as alternative trusted-writer shapes.
+- **Partially implemented 2026-08-16:** LLP 0214 §6 and §23 record the exact
+  exposed claim boundary, server-derived frozen projection, and complete
+  declaration-derived seal against ordinary writes. The host-invoked,
+  host-injected writer remains open; the broker and frozen actor-map remain
+  the conforming executable writers. Email/provider facts cannot authorize an
+  ordinary binding write; durable app access remains principal-keyed.
 
 ### (c) D5/effects owner — settlement identity
 

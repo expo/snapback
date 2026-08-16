@@ -1876,6 +1876,46 @@ fn load_grant_by_id(
     load_grant_by_carrier(connection, &carrier_hash)
 }
 
+/// Resolve the durable governor named by a rehearsal assurance. A window is
+/// live only while both it and its parent grant are unrevoked and unexpired;
+/// a grant-governed assurance is bounded directly by the grant.
+///
+/// @ref LLP 0214#49-rehearsal-provenance — expiry or revocation of the exact
+/// window (or its parent grant) makes the assurance inadmissible.
+pub(super) fn rehearsal_assurance_governor_is_live_on(
+    connection: &rusqlite::Connection,
+    governing_authority: &str,
+    now_ms: u64,
+) -> SnapbackResult<bool> {
+    if !table_exists(connection, GRANTS)? || !table_exists(connection, WINDOWS)? {
+        return Ok(false);
+    }
+    if let Some(grant) = load_grant_by_id(connection, governing_authority)? {
+        return Ok(grant.revoked_at.is_none() && now_ms < grant.expires_at);
+    }
+    let window: Option<(String, Option<i64>)> = connection
+        .query_row(
+            &format!("SELECT record_json, revoked_at_ms FROM {WINDOWS} WHERE window_id = ?1"),
+            params![governing_authority],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((window_json, revoked_at)) = window else {
+        return Ok(false);
+    };
+    let mut window: AuthRehearsalWindowV1 =
+        serde_json::from_str(&window_json).map_err(|_| request_invalid())?;
+    window.revoked_at = revoked_at.and_then(|value| u64::try_from(value).ok());
+    window.validate_record()?;
+    if window.revoked_at.is_some() || now_ms >= window.expires_at {
+        return Ok(false);
+    }
+    let Some(parent) = load_grant_by_id(connection, &window.grant_id)? else {
+        return Ok(false);
+    };
+    Ok(parent.revoked_at.is_none() && now_ms < parent.expires_at)
+}
+
 fn ensure_store_markers_in(
     transaction: &Transaction<'_>,
     disposable_at_creation: bool,
@@ -2790,6 +2830,15 @@ mod tests {
             .unwrap();
         assert!(matches!(replay.0, RehearsalExerciseOutcome::Replay(_)));
         assert_eq!(replay.1.window_id, window.window_id);
+        assert!(
+            db.with_auth_read(|connection| rehearsal_assurance_governor_is_live_on(
+                connection,
+                &window.window_id,
+                now_ms,
+            ))
+            .unwrap(),
+            "an unrevoked window and parent grant admit their governed assurance"
+        );
 
         let guessed = CanonicalAddress::parse("browser@example.invalid").unwrap();
         assert!(
@@ -2888,6 +2937,15 @@ mod tests {
         );
         db.auth_rehearsal_revoke(&window.grant_id, now_ms + 1)
             .unwrap();
+        assert!(
+            !db.with_auth_read(|connection| rehearsal_assurance_governor_is_live_on(
+                connection,
+                &window.window_id,
+                now_ms + 1,
+            ))
+            .unwrap(),
+            "parent revocation ends the window-governed assurance"
+        );
         assert!(
             db.auth_rehearsal_window_for_contact(
                 &CanonicalAddress::parse(&format!("after@{namespace}")).unwrap(),

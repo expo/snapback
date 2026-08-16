@@ -12,6 +12,7 @@ use crate::auth::descriptor::{
     AUTHORITY_DESCRIPTOR_VERSION, canonical_uuid_v7, service_authority_instance_id,
     validate_descriptor_values,
 };
+use crate::auth::identity_core::AuthClaimsProjection;
 use crate::auth::provider::ResolvedSession;
 use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
@@ -388,6 +389,13 @@ impl ResolvedGrantScope {
 }
 
 impl ResolvedAppAuthority {
+    pub(crate) fn session_id(&self) -> Option<&str> {
+        match self {
+            Self::Session { session_id, .. } => Some(session_id),
+            _ => None,
+        }
+    }
+
     pub(crate) fn has_ask_consent_scope(&self) -> bool {
         matches!(self, Self::Session { .. })
             || matches!(
@@ -678,6 +686,14 @@ pub struct HandlerAuthProjection {
     actor: Option<HandlerAuthActorProjection>,
     #[serde(skip_serializing_if = "Option::is_none")]
     actor_kind: Option<String>,
+    /// Server-catalog projection for a real session. No wire or non-session
+    /// authority can populate this member.
+    ///
+    /// @ref LLP 0214#6-read-only-ctxauth-claims — verified claims are
+    /// installed only after session resolution and copied into the frozen JS
+    /// projection.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    claims: Option<AuthClaimsProjection>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -733,8 +749,22 @@ impl DirectAuthorizationProjection {
 }
 
 impl HandlerAuthProjection {
-    pub fn from_authority(authority: &ResolvedAppAuthority) -> Self {
-        match authority {
+    pub(crate) fn from_authority(
+        authority: &ResolvedAppAuthority,
+        session_claims: Option<AuthClaimsProjection>,
+    ) -> SnapbackResult<Self> {
+        if matches!(authority, ResolvedAppAuthority::Session { .. }) != session_claims.is_some() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_CLAIMS_AUTHORITY_INVALID",
+                "auth",
+                if session_claims.is_some() {
+                    "verified claims require resolved session authority"
+                } else {
+                    "resolved session authority requires its server-catalog claims projection"
+                },
+            ));
+        }
+        Ok(match authority {
             ResolvedAppAuthority::Session {
                 user_id,
                 session_id,
@@ -749,6 +779,7 @@ impl HandlerAuthProjection {
                 kind: Some("human".to_owned()),
                 actor: None,
                 actor_kind: None,
+                claims: session_claims,
             },
             ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. } => Self {
                 user_id: Some(user_id.clone()),
@@ -759,6 +790,7 @@ impl HandlerAuthProjection {
                 kind: Some("human".to_owned()),
                 actor: None,
                 actor_kind: None,
+                claims: None,
             },
             ResolvedAppAuthority::DevImpersonation { user_id, roles, .. } => Self {
                 user_id: Some(user_id.clone()),
@@ -769,6 +801,7 @@ impl HandlerAuthProjection {
                 kind: Some("human".to_owned()),
                 actor: None,
                 actor_kind: None,
+                claims: None,
             },
             ResolvedAppAuthority::ServicePrincipal {
                 actor_user_id,
@@ -794,6 +827,7 @@ impl HandlerAuthProjection {
                         grant_id: grant_id.clone(),
                     }),
                 actor_kind: None,
+                claims: None,
             },
             ResolvedAppAuthority::Anonymous
             | ResolvedAppAuthority::AdminBypass { .. }
@@ -806,8 +840,9 @@ impl HandlerAuthProjection {
                 kind: None,
                 actor: None,
                 actor_kind: None,
+                claims: None,
             },
-        }
+        })
     }
 
     /// Exact handler projection for the bearer-free callback service. The
@@ -828,6 +863,7 @@ impl HandlerAuthProjection {
             kind: Some("agent".to_owned()),
             actor: None,
             actor_kind: Some(ASSET_CALLBACKS_SERVICE_NAME.to_owned()),
+            claims: None,
         }
     }
 
@@ -956,7 +992,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 46] = [
+    pub const ALL: [Self; 47] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -991,6 +1027,7 @@ impl InvocationSource {
         Self::LiveRerun,
         Self::MutationSettlementAcknowledgement,
         Self::InvalidationAcknowledgement,
+        Self::AssetTransfer,
         Self::ConnectionOpen,
         Self::ConnectionClose,
         Self::EphemeralRegister,
@@ -1572,6 +1609,10 @@ impl RetainedLiveAuthority {
         &self.resolved
     }
 
+    pub(crate) fn profile(&self) -> ServerProfile {
+        self.profile
+    }
+
     /// Attribution for the authority that ESTABLISHED this subscription.
     /// `resolved` is cloned once at establishment and never rewritten, so the
     /// block a renewal resubscribe carries is byte-identical to the one the
@@ -1603,6 +1644,7 @@ impl RetainedLiveAuthority {
     pub(crate) fn prepare_rerun(
         &self,
         admission: AdmissionLease,
+        session_claims: Option<AuthClaimsProjection>,
     ) -> SnapbackResult<PreparedAuthority> {
         let prepared = InvocationGate::prepare_admitted_authority_inner(
             InvocationSource::LiveRerun,
@@ -1611,6 +1653,7 @@ impl RetainedLiveAuthority {
             admission,
             &WireAuthorityFields::default(),
             self.resolved.clone(),
+            session_claims,
             true,
         )?;
         let prepared = match &self.service_publication {
@@ -1808,6 +1851,8 @@ impl InvocationGate {
         wire: &WireAuthorityFields,
         resolved: ResolvedAppAuthority,
     ) -> SnapbackResult<PreparedAuthority> {
+        let session_claims = matches!(&resolved, ResolvedAppAuthority::Session { .. })
+            .then(|| AuthClaimsProjection::server_derived(Vec::new(), Vec::new()));
         Self::prepare_admitted_authority(
             source,
             active_mode,
@@ -1815,6 +1860,7 @@ impl InvocationGate {
             AdmissionLease::unmanaged(transition_generation, admission_epoch),
             wire,
             resolved,
+            session_claims,
         )
     }
 
@@ -1828,6 +1874,7 @@ impl InvocationGate {
         admission: AdmissionLease,
         wire: &WireAuthorityFields,
         resolved: ResolvedAppAuthority,
+        session_claims: Option<AuthClaimsProjection>,
     ) -> SnapbackResult<PreparedAuthority> {
         Self::prepare_admitted_authority_inner(
             source,
@@ -1836,6 +1883,7 @@ impl InvocationGate {
             admission,
             wire,
             resolved,
+            session_claims,
             false,
         )
     }
@@ -1848,6 +1896,7 @@ impl InvocationGate {
         admission: AdmissionLease,
         wire: &WireAuthorityFields,
         resolved: ResolvedAppAuthority,
+        session_claims: Option<AuthClaimsProjection>,
         allow_inherited_live_rerun: bool,
     ) -> SnapbackResult<PreparedAuthority> {
         admission.validate("invocation preparation")?;
@@ -1901,7 +1950,7 @@ impl InvocationGate {
                 AuthorityAuditFact::DevBodyAuthority
             }
         };
-        let projection = HandlerAuthProjection::from_authority(&resolved);
+        let projection = HandlerAuthProjection::from_authority(&resolved, session_claims)?;
         let direct_authorization = match &resolved {
             ResolvedAppAuthority::ServicePrincipal {
                 effective_user_id: Some(effective_user_id),
@@ -1974,6 +2023,7 @@ impl InvocationGate {
             admission,
             &WireAuthorityFields::default(),
             resolved,
+            None,
             false,
         )?;
         authority.projection = HandlerAuthProjection::for_asset_callbacks(&principal);
@@ -2011,6 +2061,7 @@ impl InvocationGate {
             admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::dev_from_auth(&input.auth),
+            None,
         )
     }
 
@@ -2472,6 +2523,47 @@ mod tests {
     }
 
     #[test]
+    fn claims_are_required_at_the_authority_projection_chokepoint() {
+        let session = ResolvedAppAuthority::Session {
+            user_id: "user-1".to_owned(),
+            session_id: "session-1".to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: "authority-1".to_owned(),
+            session_not_after_ms: 10_000,
+            provider_not_after_ms: None,
+            rehearsal_provenance: None,
+        };
+        let projection = HandlerAuthProjection::from_authority(
+            &session,
+            Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
+        )
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(&projection).unwrap()["claims"],
+            json!({ "identities": [], "assurances": [] })
+        );
+
+        assert_eq!(
+            HandlerAuthProjection::from_authority(
+                &ResolvedAppAuthority::Anonymous,
+                Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
+            )
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_AUTH_CLAIMS_AUTHORITY_INVALID"
+        );
+        assert_eq!(
+            HandlerAuthProjection::from_authority(&session, None)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_CLAIMS_AUTHORITY_INVALID"
+        );
+    }
+
+    #[test]
     fn wire_presence_preserves_explicit_null_without_scanning_args() {
         let fields = WireAuthorityFields::inspect_handler(&json!({
             "auth": null,
@@ -2626,9 +2718,9 @@ mod tests {
 
     #[test]
     fn projections_expose_only_the_exact_authority_shape() {
-        let anonymous = serde_json::to_value(HandlerAuthProjection::from_authority(
-            &ResolvedAppAuthority::Anonymous,
-        ))
+        let anonymous = serde_json::to_value(
+            HandlerAuthProjection::from_authority(&ResolvedAppAuthority::Anonymous, None).unwrap(),
+        )
         .unwrap();
         assert_eq!(
             anonymous,
@@ -2639,18 +2731,22 @@ mod tests {
             })
         );
 
-        let session = serde_json::to_value(HandlerAuthProjection::from_authority(
-            &ResolvedAppAuthority::Session {
-                user_id: "user_1".to_owned(),
-                session_id: "session_1".to_owned(),
-                provider: "email-code".to_owned(),
-                generation: 3,
-                authority_instance_id: "authority_1".to_owned(),
-                session_not_after_ms: 10_000,
-                provider_not_after_ms: None,
-                rehearsal_provenance: None,
-            },
-        ))
+        let session = serde_json::to_value(
+            HandlerAuthProjection::from_authority(
+                &ResolvedAppAuthority::Session {
+                    user_id: "user_1".to_owned(),
+                    session_id: "session_1".to_owned(),
+                    provider: "email-code".to_owned(),
+                    generation: 3,
+                    authority_instance_id: "authority_1".to_owned(),
+                    session_not_after_ms: 10_000,
+                    provider_not_after_ms: None,
+                    rehearsal_provenance: None,
+                },
+                Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
+            )
+            .unwrap(),
+        )
         .unwrap();
         assert_eq!(
             session,
@@ -2660,23 +2756,28 @@ mod tests {
                 "isAuthenticated": true,
                 "provider": "email-code",
                 "roles": [],
-                "kind": "human"
+                "kind": "human",
+                "claims": { "identities": [], "assurances": [] }
             })
         );
 
-        let autonomous = serde_json::to_value(HandlerAuthProjection::from_authority(
-            &ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent_1".to_owned(),
-                credential_id: "credential_1".to_owned(),
-                credential_generation: 2,
-                grant_id: "grant_1".to_owned(),
-                token_id: "token_1".to_owned(),
-                effective_user_id: None,
-                scopes: Vec::new(),
-                token_expires_at_ms: 20_000,
-                integration_status: None,
-            },
-        ))
+        let autonomous = serde_json::to_value(
+            HandlerAuthProjection::from_authority(
+                &ResolvedAppAuthority::ServicePrincipal {
+                    actor_user_id: "agent_1".to_owned(),
+                    credential_id: "credential_1".to_owned(),
+                    credential_generation: 2,
+                    grant_id: "grant_1".to_owned(),
+                    token_id: "token_1".to_owned(),
+                    effective_user_id: None,
+                    scopes: Vec::new(),
+                    token_expires_at_ms: 20_000,
+                    integration_status: None,
+                },
+                None,
+            )
+            .unwrap(),
+        )
         .unwrap();
         assert_eq!(
             autonomous,
@@ -2690,19 +2791,23 @@ mod tests {
             })
         );
 
-        let delegated = serde_json::to_value(HandlerAuthProjection::from_authority(
-            &ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent_1".to_owned(),
-                credential_id: "credential_1".to_owned(),
-                credential_generation: 2,
-                grant_id: "grant_1".to_owned(),
-                token_id: "token_1".to_owned(),
-                effective_user_id: Some("user_1".to_owned()),
-                scopes: Vec::new(),
-                token_expires_at_ms: 20_000,
-                integration_status: None,
-            },
-        ))
+        let delegated = serde_json::to_value(
+            HandlerAuthProjection::from_authority(
+                &ResolvedAppAuthority::ServicePrincipal {
+                    actor_user_id: "agent_1".to_owned(),
+                    credential_id: "credential_1".to_owned(),
+                    credential_generation: 2,
+                    grant_id: "grant_1".to_owned(),
+                    token_id: "token_1".to_owned(),
+                    effective_user_id: Some("user_1".to_owned()),
+                    scopes: Vec::new(),
+                    token_expires_at_ms: 20_000,
+                    integration_status: None,
+                },
+                None,
+            )
+            .unwrap(),
+        )
         .unwrap();
         assert_eq!(
             delegated,
@@ -3152,6 +3257,38 @@ mod tests {
             .inherit_authority_for(InvocationSource::NestedMutation)
             .unwrap();
         assert_eq!(nested_authority.resolved(), outer.authority().resolved());
+
+        let session = ResolvedAppAuthority::Session {
+            user_id: "nested-user".to_owned(),
+            session_id: "nested-session".to_owned(),
+            provider: "email-code".to_owned(),
+            generation: 1,
+            authority_instance_id: "nested-authority".to_owned(),
+            session_not_after_ms: 10_000,
+            provider_not_after_ms: None,
+            rehearsal_provenance: None,
+        };
+        let outer = InvocationGate::prepare_function(
+            InvocationGate::prepare_authority(
+                InvocationSource::HttpQuery,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                0,
+                0,
+                &WireAuthorityFields::default(),
+                session,
+            )
+            .unwrap(),
+            &function(Some(AuthRequirement::Authenticated)),
+        )
+        .unwrap();
+        let nested = outer
+            .inherit_authority_for(InvocationSource::NestedMutation)
+            .expect("nested mutation inherits the prepared session projection");
+        assert!(
+            serde_json::to_value(nested.projection()).unwrap()["claims"].is_object(),
+            "nested invocation must preserve claims rather than re-project authority"
+        );
     }
 
     #[test]
@@ -3176,7 +3313,7 @@ mod tests {
 
     #[test]
     fn source_mode_authority_matrix_is_closed_and_exhaustive() {
-        #[derive(Clone, Copy)]
+        #[derive(Clone, Copy, Debug)]
         enum Kind {
             Anonymous,
             Session,
@@ -3336,8 +3473,25 @@ mod tests {
                         expected(source, mode, kind),
                         "unexpected compatibility for {source:?} in {mode:?}"
                     );
-                    if let Err(error) = result {
-                        assert_eq!(error.diagnostic.code, "SNAPBACK_INVOCATION_SOURCE_INVALID");
+                    match result {
+                        Ok(prepared) => {
+                            let projection = serde_json::to_value(prepared.projection()).unwrap();
+                            if matches!(kind, Kind::Session) {
+                                assert_eq!(
+                                    projection["claims"],
+                                    json!({ "identities": [], "assurances": [] }),
+                                    "every admitted session source must cross the claims projection chokepoint: {source:?}",
+                                );
+                            } else {
+                                assert!(
+                                    projection.get("claims").is_none(),
+                                    "non-session authority must never project claims: {source:?} {kind:?}",
+                                );
+                            }
+                        }
+                        Err(error) => {
+                            assert_eq!(error.diagnostic.code, "SNAPBACK_INVOCATION_SOURCE_INVALID");
+                        }
                     }
                 }
             }
@@ -3384,10 +3538,14 @@ mod tests {
         .unwrap();
         let retained = initial.retain_live_owner().unwrap();
         let rerun = retained
-            .prepare_rerun(AdmissionLease::unmanaged(7, 10))
+            .prepare_rerun(
+                AdmissionLease::unmanaged(7, 10),
+                Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
+            )
             .unwrap();
         assert_eq!(rerun.source(), InvocationSource::LiveRerun);
         assert_eq!(rerun.resolved(), &resolved);
+        assert!(serde_json::to_value(rerun.projection()).unwrap()["claims"].is_object());
 
         let raw = InvocationGate::prepare_authority(
             InvocationSource::LiveRerun,
@@ -3444,6 +3602,7 @@ mod tests {
             controller.admit_for_mode(AuthMode::Sessions).unwrap(),
             &WireAuthorityFields::default(),
             resolved.clone(),
+            Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
         )
         .unwrap();
         assert_eq!(controller.snapshot().in_flight, 1);
@@ -3471,7 +3630,10 @@ mod tests {
             "retained owner must not retain the initial admission root"
         );
         let rerun = retained
-            .prepare_rerun(controller.admit_for_mode(AuthMode::Sessions).unwrap())
+            .prepare_rerun(
+                controller.admit_for_mode(AuthMode::Sessions).unwrap(),
+                Some(AuthClaimsProjection::server_derived(Vec::new(), Vec::new())),
+            )
             .unwrap();
         assert_eq!(controller.snapshot().in_flight, 1);
         assert_eq!(rerun.source(), InvocationSource::LiveRerun);

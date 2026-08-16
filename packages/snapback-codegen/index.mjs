@@ -1483,7 +1483,10 @@ function compileAuthProgramReadiness(schemaDef, functionsModule, err) {
     catalogRequired: 3,
     declarationValid: true,
     assuranceRequirementsCompiled: true,
-    verifiedProvisioningCompiled: program.verifiedProvisioning !== undefined,
+    verifiedProvisioningDeclared: program.verifiedProvisioning !== undefined,
+    // The declaration compiles the ordinary-write seal only. The host-invoked,
+    // host-injected provisioning writer in LLP 0214 §§5.3–5.5 is not wired.
+    verifiedProvisioningCompiled: false,
     claimsProjectionCompiled: true,
     requiredAssuranceProducers,
     deliveryChannels,
@@ -3045,6 +3048,38 @@ async function generateInProcessLocked({
     for (const declaration of table.authorityProfileDeclarations ?? []) {
       authorityProfileRequests.push({ tableName: name, tableBuilder: table, declaration });
     }
+  }
+
+  // @ref LLP 0214#59-relationship-to-the-guide-binding-gap — compile
+  // identity-binding declarations into an activation-visible,
+  // storage-enforced ordinary-write seal. This does not compile or activate
+  // the still-open verified-provisioning writer.
+  const identityBindingTables = [];
+  for (const write of schemaDef.authProgram?.verifiedProvisioning?.writes ?? []) {
+    if (write.mode !== 'identity-binding') continue;
+    const table = tables[write.table];
+    const principal = table?.fields.find((field) => field.name === write.principalField);
+    const identity = table?.fields.find((field) => field.name === write.identityField);
+    const uniqueOn = (field) => table?.indexes.some(
+      (index) => index.unique === true && index.fields.length === 1 && index.fields[0] === field,
+    ) === true;
+    if (!table) {
+      err('SNAPBACK_AUTH_BINDING_TABLE_INVALID', 'auth', `verified provisioning references unknown identity-binding table ${write.table}`, { table: write.table });
+      continue;
+    }
+    if (!principal || principal.optional || principal.field_type !== 'Principal') {
+      err('SNAPBACK_AUTH_BINDING_TABLE_INVALID', 'auth', `${write.table}.${write.principalField} must be a required v.principal() durable binding key`, { table: write.table, field: write.principalField });
+      continue;
+    }
+    if (!identity || identity.optional || !uniqueOn(write.principalField) || !uniqueOn(write.identityField)) {
+      err('SNAPBACK_AUTH_BINDING_TABLE_INVALID', 'auth', `${write.table} identity bindings require required fields and one-field unique indexes on ${write.principalField} and ${write.identityField}`, { table: write.table, identityField: write.identityField, principalField: write.principalField });
+      continue;
+    }
+    identityBindingTables.push({
+      table: write.table,
+      principalField: write.principalField,
+      identityField: write.identityField,
+    });
   }
 
   // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
@@ -6019,11 +6054,12 @@ async function generateInProcessLocked({
   //
   // @ref LLP 0004#first-slice-api-decisions — appId feeds stable function ids.
   const appId = demoMetadata.appId ?? inferAppId(backendRoot);
+  let parsedSeed = null;
   let seedArtifact = null;
   let seedRowCount = null;
   if (seedSource !== null) {
     try {
-      const parsedSeed = parseSeedSourceV1(seedSource, appId);
+      parsedSeed = parseSeedSourceV1(seedSource, appId);
       if (parsedSeed.versioned) {
         seedArtifact = parsedSeed.artifact;
         seedRowCount = parsedSeed.seedRowCount;
@@ -6611,6 +6647,13 @@ async function generateInProcessLocked({
     );
     return { ok: false, diagnostics };
   }
+  refuseGeneratedIdentityBindingWriters(
+    identityBindingTables,
+    decoratedFunctionDefinitions,
+    projections,
+    parsedSeed,
+    err,
+  );
 
   const requiredTargetCapabilities = new Set(schemaRequiredCapabilities);
   for (const fn of decoratedFunctionDefinitions) {
@@ -6832,6 +6875,7 @@ async function generateInProcessLocked({
     ...(schemaRequiredCapabilities.length > 0
       ? { requiredCapabilities: schemaRequiredCapabilities }
       : {}),
+    ...(identityBindingTables.length > 0 ? { identityBindingTables } : {}),
     schemaHash,
     inputsHash,
     authoredSourceHash,
@@ -15509,6 +15553,11 @@ function renderApiTypes(
       .map(([tableName]) => tableName),
   );
   const lastHolderResourceTableNames = new Set();
+  const identityBindingTableNames = new Set(
+    (schemaDef.authProgram?.verifiedProvisioning?.writes ?? [])
+      .filter((write) => write.mode === 'identity-binding')
+      .map((write) => write.table),
+  );
   for (const [, table] of schemaTables) {
     const membership = table.membershipDeclaration;
     if (membership?.scope !== 'resource' || membership.lastHolder === undefined) continue;
@@ -15737,13 +15786,15 @@ function renderApiTypes(
     // that emits GeneratedDataModel; this is not a parallel type model.
     'export type GeneratedTableName = keyof GeneratedDataModel & string;',
     `export type GeneratedReadableTableName = Exclude<GeneratedTableName, ${typeUnion(membershipTableNames)}>;`,
-    `export type GeneratedInsertableTableName = Exclude<GeneratedReadableTableName, ${typeUnion(lastHolderResourceTableNames)}>;`,
-    'export type GeneratedPatchableTableName = GeneratedReadableTableName;',
-    `export type GeneratedDeletableTableName = Exclude<GeneratedReadableTableName, ${typeUnion(lastHolderResourceTableNames)}>;`,
+    `export type GeneratedInsertableTableName = Exclude<GeneratedReadableTableName, ${typeUnion(new Set([...lastHolderResourceTableNames, ...identityBindingTableNames]))}>;`,
+    identityBindingTableNames.size > 0
+      ? `export type GeneratedPatchableTableName = Exclude<GeneratedReadableTableName, ${typeUnion(identityBindingTableNames)}>;`
+      : 'export type GeneratedPatchableTableName = GeneratedReadableTableName;',
+    `export type GeneratedDeletableTableName = Exclude<GeneratedReadableTableName, ${typeUnion(new Set([...lastHolderResourceTableNames, ...identityBindingTableNames]))}>;`,
     'export interface GeneratedInsertModel {',
   );
   for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
-    if (membershipTableNames.has(tableName) || lastHolderResourceTableNames.has(tableName)) continue;
+    if (membershipTableNames.has(tableName) || lastHolderResourceTableNames.has(tableName) || identityBindingTableNames.has(tableName)) continue;
     const properties = Object.entries(table.fields ?? {})
       .filter(([, validator]) => validator.protectedWrite !== true)
       .map(([fieldName, validator]) => {
@@ -15756,7 +15807,7 @@ function renderApiTypes(
     'export interface GeneratedPatchModel {',
   );
   for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
-    if (table.membershipDeclaration !== undefined) continue;
+    if (table.membershipDeclaration !== undefined || identityBindingTableNames.has(tableName)) continue;
     const properties = Object.entries(table.fields ?? {})
       .filter(([, validator]) => validator.protectedWrite !== true)
       .map(([fieldName, validator]) => {
@@ -18717,6 +18768,60 @@ function buildMaintainedProjections(projectionDefs, functions, err) {
     }
   }
   return projections;
+}
+
+// Identity-binding tables have one deliberately unwired writer: verified
+// provisioning. Reject every codegen-expressible non-provisioning write role
+// at authoring time, after generated functions and seeds have been closed.
+// Migrations are operator artifacts rather than codegen writers and remain
+// governed by the migration authorization boundary.
+function refuseGeneratedIdentityBindingWriters(
+  identityBindingTables,
+  functions,
+  projections,
+  parsedSeed,
+  err,
+) {
+  const sealed = new Set(identityBindingTables.map(({ table }) => table));
+  if (sealed.size === 0) return;
+
+  for (const fn of functions) {
+    const writes = fn.writeSetSummary ?? writeSummary(fn);
+    for (const table of new Set(writes.tables ?? [])) {
+      if (!sealed.has(table)) continue;
+      err(
+        'SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN',
+        'auth',
+        `${fn.name}: codegen function write target ${table} is a sealed identity-binding table; only verified provisioning may write it`,
+        { function: fn.name, table, writerRole: 'function' },
+      );
+    }
+  }
+
+  for (const projection of projections) {
+    if (!sealed.has(projection.outputTable)) continue;
+    err(
+      'SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN',
+      'auth',
+      `${projection.id}: maintained-projection output ${projection.outputTable} is a sealed identity-binding table; only verified provisioning may write it`,
+      { projection: projection.id, table: projection.outputTable, writerRole: 'maintainedProjection' },
+    );
+  }
+
+  for (const { tables, label, writerRole } of [
+    { tables: parsedSeed?.artifact?.tables, label: 'versioned seed', writerRole: 'versionedSeed' },
+    { tables: parsedSeed?.seed?.tables, label: 'legacy seed', writerRole: 'legacySeed' },
+  ]) {
+    for (const [table, rows] of Object.entries(tables ?? {})) {
+      if (!sealed.has(table) || !Array.isArray(rows) || rows.length === 0) continue;
+      err(
+        'SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN',
+        'auth',
+        `${label} rows target sealed identity-binding table ${table}; only verified provisioning may write it`,
+        { table, writerRole },
+      );
+    }
+  }
 }
 
 function isIsolatedDefinition(value, expectedKind) {

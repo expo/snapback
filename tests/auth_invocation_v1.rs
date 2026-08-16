@@ -1,11 +1,14 @@
+use std::collections::BTreeMap;
+
 use serde_json::{Value, json};
 use snapback::diagnostic::DiagnosticSeverity;
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     AuthInput, AuthRequirement, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
     CronOverlapPolicy, CronRetryPolicy, CronSchedule, FieldManifest, FieldType, FunctionDefinition,
-    FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, SchemaManifest,
-    TableManifest,
+    FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
+    IdentityBindingTableManifestV1, MutationPlan, MutationStep, SchemaManifest, TableManifest,
+    ValueExpr,
 };
 
 const SOURCE: &str = r#"
@@ -275,6 +278,199 @@ fn nested_mutation_inherits_outer_authority_and_action_errors_stay_enveloped() {
         .expect("scan allowed records");
     assert_eq!(rows.total, 1);
     assert_eq!(rows.rows[0]["owner"], "user_1");
+}
+
+#[test]
+fn ordinary_handler_cannot_write_declared_identity_binding_table() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback
+        .apply_schema(SchemaManifest {
+            tables: vec![TableManifest {
+                name: "identityBindings".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "principal".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "sourceUserID".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                authority_profile: None,
+                asset_sharing: None,
+                visibility: None,
+                history: None,
+            }],
+            identity_binding_tables: vec![IdentityBindingTableManifestV1 {
+                table: "identityBindings".to_owned(),
+                principal_field: "principal".to_owned(),
+                identity_field: "sourceUserID".to_owned(),
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("binding schema");
+    let source = r#"globalThis.__snapbackHandlers = {
+      async createBinding(ctx, args) {
+        return await ctx.db.insert('identityBindings', { principal: ctx.auth.userId, sourceUserID: args.sourceUserID });
+      },
+      async batchBindings(ctx, args) {
+        await ctx.db.insert('identityBindings', { principal: ctx.auth.userId, sourceUserID: args.sourceUserID });
+        return await ctx.db.insert('identityBindings', { principal: ctx.auth.userId, sourceUserID: args.secondSourceUserID });
+      }
+    };"#;
+    let mut function = module(
+        "createBinding",
+        FunctionKind::Mutation,
+        Some(AuthRequirement::Authenticated),
+    );
+    function.runtime = FunctionRuntime::IbexModule(IbexModule {
+        source: source.to_owned(),
+        export: "createBinding".to_owned(),
+    });
+    let mut batch_function = module(
+        "batchBindings",
+        FunctionKind::Mutation,
+        Some(AuthRequirement::Authenticated),
+    );
+    batch_function.runtime = FunctionRuntime::IbexModule(IbexModule {
+        source: source.to_owned(),
+        export: "batchBindings".to_owned(),
+    });
+    let host_plan = |name: &str, step: MutationStep| {
+        let mut function = FunctionDefinition::new(
+            name,
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![step],
+                return_value: None,
+            })),
+        );
+        function.auth_requirement = Some(AuthRequirement::Authenticated);
+        function
+    };
+    let host_functions = vec![
+        host_plan(
+            "hostInsertBinding",
+            MutationStep::Insert {
+                table: "identityBindings".to_owned(),
+                values: BTreeMap::from([
+                    ("principal".to_owned(), ValueExpr::AuthUserId),
+                    (
+                        "sourceUserID".to_owned(),
+                        ValueExpr::Arg("sourceUserID".to_owned()),
+                    ),
+                ]),
+                bind_id_as: None,
+            },
+        ),
+        host_plan(
+            "hostPatchBinding",
+            MutationStep::Patch {
+                table: "identityBindings".to_owned(),
+                id: ValueExpr::Literal(json!("binding_1")),
+                values: BTreeMap::from([(
+                    "sourceUserID".to_owned(),
+                    ValueExpr::Arg("sourceUserID".to_owned()),
+                )]),
+            },
+        ),
+        host_plan(
+            "hostDeleteBinding",
+            MutationStep::Delete {
+                table: "identityBindings".to_owned(),
+                id: ValueExpr::Literal(json!("binding_1")),
+            },
+        ),
+        host_plan(
+            "hostDeleteWhereBindings",
+            MutationStep::DeleteWhere {
+                table: "identityBindings".to_owned(),
+                filter: Vec::new(),
+            },
+        ),
+        host_plan(
+            "hostInsertEachBinding",
+            MutationStep::InsertEach {
+                table: "identityBindings".to_owned(),
+                source: ValueExpr::Literal(json!([])),
+                item_as: "item".to_owned(),
+                values: BTreeMap::from([
+                    ("principal".to_owned(), ValueExpr::AuthUserId),
+                    (
+                        "sourceUserID".to_owned(),
+                        ValueExpr::Arg("sourceUserID".to_owned()),
+                    ),
+                ]),
+            },
+        ),
+    ];
+    let diagnostics = snapback.load_functions(FunctionManifest {
+        functions: [function, batch_function]
+            .into_iter()
+            .chain(host_functions)
+            .collect(),
+        ..FunctionManifest::default()
+    });
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error)
+    );
+    let error = snapback
+        .invoke_mutation(
+            "createBinding",
+            input(Some("user_1"), json!({ "sourceUserID": "external-1" })),
+        )
+        .expect_err("ordinary identity-binding write must be sealed");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN"
+    );
+    let error = snapback
+        .invoke_mutation(
+            "batchBindings",
+            input(
+                Some("user_1"),
+                json!({
+                    "sourceUserID": "external-1",
+                    "secondSourceUserID": "external-2",
+                }),
+            ),
+        )
+        .expect_err("a buffered write batch must be sealed at its shared commit primitive");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN"
+    );
+    for function_name in [
+        "hostInsertBinding",
+        "hostPatchBinding",
+        "hostDeleteBinding",
+        "hostDeleteWhereBindings",
+        "hostInsertEachBinding",
+    ] {
+        let error = snapback
+            .invoke_mutation(
+                function_name,
+                input(Some("user_1"), json!({ "sourceUserID": "external-1" })),
+            )
+            .expect_err("every HostPlan identity-binding write form must be sealed");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
+            "unexpected refusal for {function_name}"
+        );
+    }
 }
 
 #[test]

@@ -2167,6 +2167,7 @@ fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
         admission,
         &WireAuthorityFields::default(),
         ResolvedAppAuthority::Anonymous,
+        None,
     )
     .expect("bundle authority");
     let response = snapback
@@ -2233,6 +2234,102 @@ fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
         (1, 1)
     );
     assert_eq!(aggregate.weakest, "read-only");
+}
+
+// @ref LLP 0214#62-projection-rules — registered and mixed-bundle live
+// children must receive the real session's claims in their first snapshot,
+// not only after a retained invalidation rerun.
+#[test]
+fn bundled_live_first_snapshots_preserve_catalog_session_claims() {
+    let mut snapback = retainable_sessions_snapback();
+    snapback.admission = AdmissionController::from_mode_state(&settled_sessions_state())
+        .expect("settled Sessions admission controller");
+    let connection = install_test_invalidation(&mut snapback);
+
+    let resolved = lease_session_authority().resolved().clone();
+    let admission = snapback
+        .admission
+        .admit_for_mode(AuthMode::Sessions)
+        .expect("parent route admission");
+    let authority = snapback
+        .prepare_resolved_authority(
+            InvocationSource::HttpQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            admission,
+            &WireAuthorityFields::default(),
+            resolved,
+            now_millis(),
+        )
+        .expect("prepare parent route authority with catalog claims");
+    let route = |mixed: bool| crate::bundle::BundleRouteEntry {
+        route: if mixed {
+            "/claims-mixed".to_owned()
+        } else {
+            "/claims-registered".to_owned()
+        },
+        queries: vec![crate::bundle::BundleQuerySpec {
+            function: "claimsSnapshot".to_owned(),
+            args: json!({}),
+        }],
+        persist: None,
+        register_group_eligible: !mixed,
+        mixed_group_eligible: mixed,
+        mixed_profile: mixed.then(|| crate::bundle::MixedRouteProfileV2 {
+            format_version: 2,
+            profile: "mixed-route.v2".to_owned(),
+            normalized_composite_plan: json!({}),
+            plan_hash: format!("sha256:{}", "c".repeat(64)),
+        }),
+    };
+    let target = |connection_id: &str, instance: u64, mixed: bool| super::BundleRegisterTarget {
+        connection_id: connection_id.to_owned(),
+        effect_fence: crate::ephemeral::ConnectionEffectFence::session(
+            "claims-stream",
+            format!("claims-grant-{instance}"),
+            "session_1",
+            1,
+        ),
+        invalidation_connection: Some(connection.clone()),
+        authorization_namespaces: vec![Some(QueryNamespace {
+            client_store_id: "claims-store".to_owned(),
+            query_key: "claimsSnapshot:{}".to_owned(),
+            query_instance_id: instance,
+        })],
+        mixed_children: mixed.then(|| {
+            vec![crate::bundle::MixedChildAdmissionV2 {
+                node_plan_hash: format!("sha256:{}", "d".repeat(64)),
+                live: true,
+            }]
+        }),
+    };
+
+    for (mixed, connection_id, instance) in [
+        (false, "claims-registered", 601),
+        (true, "claims-mixed", 602),
+    ] {
+        let entry = route(mixed);
+        let response = snapback
+            .evaluate_bundle(
+                &entry,
+                &BTreeMap::new(),
+                &entry.route,
+                &AuthInput::default(),
+                &authority,
+                Some(target(connection_id, instance, mixed)),
+            )
+            .expect("claims bundle first snapshot");
+        assert_eq!(
+            response.entries[0].rows,
+            vec![json!({ "value": "lease@example.test" })],
+            "{} first snapshot must contain claims",
+            if mixed {
+                "mixed-bundle"
+            } else {
+                "registered bundle"
+            }
+        );
+    }
 }
 
 #[test]
@@ -12849,6 +12946,7 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
         admission,
         &WireAuthorityFields::default(),
         ResolvedAppAuthority::from_scoped_token(resolved),
+        None,
     )
     .expect("prepare service live authority")
     .with_service_publication(service_publication)
@@ -19887,6 +19985,126 @@ fn generation_activation_reopen_uses_durable_record_and_matching_materialization
     assert_eq!(receipt.row_count, rows.len());
 }
 
+// @ref LLP 0214#59-relationship-to-the-guide-binding-gap — maintained
+// projection rebuild and same-transaction maintenance are distinct row-write
+// primitives, and both enforce the sealed identity-binding output at their
+// shared entry rather than relying on individual callers.
+#[test]
+fn identity_binding_seal_refuses_projection_rebuild_and_maintenance() {
+    let sealed_schema = |mut schema: SchemaManifest| {
+        schema.identity_binding_tables = vec![crate::manifest::IdentityBindingTableManifestV1 {
+            table: "bookSummaries".to_owned(),
+            principal_field: "ownerId".to_owned(),
+            identity_field: "title".to_owned(),
+        }];
+        schema
+    };
+
+    let (schema, functions, plan) = projection_fixture(2);
+    let mut rebuild = LocalSnapback::memory().expect("memory projection rebuild seal fixture");
+    rebuild
+        .apply_schema(sealed_schema(schema.clone()))
+        .expect("apply sealed projection schema");
+    let diagnostics = rebuild.load_functions(functions.clone());
+    assert!(
+        diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN"
+                || diagnostic
+                    .message
+                    .contains("SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN")
+        }),
+        "projection rebuild must refuse the sealed output: {diagnostics:?}"
+    );
+
+    let mut maintenance =
+        LocalSnapback::memory().expect("memory projection maintenance seal fixture");
+    maintenance
+        .apply_schema(sealed_schema(schema))
+        .expect("apply sealed projection maintenance schema");
+    let mut functions_without_projection = functions;
+    functions_without_projection.projections.clear();
+    let diagnostics = maintenance.load_functions(functions_without_projection);
+    assert!(
+        diagnostics.iter().all(|diagnostic| {
+            diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+        }),
+        "source mutation fixture must activate before installing the sealed plan: {diagnostics:?}"
+    );
+    maintenance.db.set_projections(vec![plan]);
+    let before = maintenance
+        .db
+        .query_reads_read()
+        .query(
+            &QueryPlan {
+                table_visibility: None,
+                table: "books".to_owned(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            },
+            &HandlerInput::default(),
+        )
+        .expect("read books before sealed maintenance")
+        .rows;
+    assert!(before.is_empty());
+    let error = maintenance
+        .invoke_mutation(
+            "addBook",
+            HandlerInput {
+                args: json!({ "title": "sealed", "slug": "sealed", "author": "ada" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect_err("projection maintenance must refuse the sealed output");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN"
+    );
+    let after = maintenance
+        .db
+        .query_reads_read()
+        .query(
+            &QueryPlan {
+                table_visibility: None,
+                table: "books".to_owned(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            },
+            &HandlerInput::default(),
+        )
+        .expect("read books after sealed maintenance")
+        .rows;
+    assert!(
+        after.is_empty(),
+        "source write must roll back with sealed projection maintenance"
+    );
+
+    let mut seed = LocalSnapback::memory().expect("memory identity-binding seed seal fixture");
+    seed.apply_schema(sealed_schema(projection_fixture(2).0))
+        .expect("apply sealed seed schema");
+    let error = seed
+        .seed(crate::manifest::SeedData {
+            tables: BTreeMap::from([(
+                "bookSummaries".to_owned(),
+                vec![serde_json::Map::from_iter([
+                    ("title".to_owned(), json!("sealed")),
+                    ("authorName".to_owned(), json!("Ada")),
+                    ("ownerId".to_owned(), json!("principal_1")),
+                ])],
+            )]),
+        })
+        .expect_err("declarative seed must refuse the sealed table");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN"
+    );
+}
+
 #[test]
 fn oq3_crash_after_projection_materialization_reopens_unpinned_and_retry_converges() {
     let directory = tempfile::tempdir().expect("projection crash-cut directory");
@@ -26843,13 +27061,31 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         mode: Some("relational".to_owned()),
         auth_scope_field: None,
     };
+    let mut claims_live = FunctionDefinition::new(
+        "claimsSnapshot",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: r#"
+globalThis.__snapbackHandlers = {
+  async claimsSnapshot(ctx) {
+    return [{ value: ctx.auth.claims.identities[0].value }];
+  }
+};
+"#
+            .to_owned(),
+            export: "claimsSnapshot".to_owned(),
+        }),
+    );
+    claims_live.auth_requirement = Some(AuthRequirement::Authenticated);
     let diagnostics = snapback.load_functions(FunctionManifest {
         bundle_hash: Some(deployment.bundle_hash.clone()),
-        functions: vec![retained, relational_retained],
+        functions: vec![retained, relational_retained, claims_live],
         ..FunctionManifest::default()
     });
     assert!(
-        diagnostics.is_empty(),
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
         "unexpected function diagnostics: {diagnostics:?}"
     );
 

@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:96a3ecbf97b37e689e1d40df948957664d08cf0db387
 # @expo/snapback-react/core
 
 Build-bound public API projection for `@expo/snapback-react/core`. Canonical registry identity:
-`sha256:74f80bb05801b63af56c5a43c3214eb59cc416f8136d3fc03e814d2be90dd2fb`.
+`sha256:66eb1195633d75621bd8f9760c910c97f715de142e50c04cf193a1fca98f93bc`.
 Runtime parity condition:
 `import` → `packages/snapback-react/core.mjs`.
 

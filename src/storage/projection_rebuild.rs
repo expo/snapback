@@ -279,6 +279,10 @@ pub(super) fn materialize_projection_in(
     cause: &str,
     now_ms: u64,
 ) -> SnapbackResult<PendingProjectionPublication> {
+    // Projection rebuild is its own row-writing primitive rather than an
+    // ordinary handler write. Keep the identity-binding seal at that shared
+    // primitive so every activation/rebuild caller is covered.
+    super::enforce_identity_binding_write_seal(schema, &plan.output_table)?;
     let current_version = current_version_on(tx)?;
     let next_version = next_storage_version(current_version)?;
     let root_table = schema_table(schema, &plan.root)?;
@@ -805,6 +809,10 @@ pub(super) fn maintain_projections_in_tx(
         if !touches_plan {
             continue;
         }
+        // Projection maintenance writes output rows directly in this
+        // transaction. Seal its one shared primitive before identity/meta or
+        // row effects so source and projection still refuse atomically.
+        super::enforce_identity_binding_write_seal(schema, &plan.output_table)?;
         let root_table = schema_table(schema, &plan.root)?;
         let output_table = schema_table(schema, &plan.output_table)?;
         let (identity, activated_at_ms) = ensure_projection_identity(tx, &plan.id, now_ms)?;

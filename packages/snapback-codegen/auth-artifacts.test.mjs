@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -13,6 +14,7 @@ import {
 import { defineAuth, defineSchema, defineTable, v } from './define.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = join(packageDir, '../..');
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
 const guideManifest = JSON.parse(readFileSync(
   join(packageDir, '..', '..', 'guide', 'guide-manifest.generated.json'),
@@ -1004,6 +1006,242 @@ export const sensitiveWrite = defineMutation({
     },
   });
   assert.deepEqual(manifest.authProgramReadiness.noDeliveryCheck, { enforced: false, satisfied: false });
+}
+
+// @ref LLP 0214#53-sealed-invocation-authority — one declaration produces
+// the storage guard and removes the table from ordinary generated mutations.
+{
+  const schema = `
+import { defineAuth, defineSchema, defineTable, v } from '${defineUrl}';
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: { emailCode: { kind: 'email-code', identityKind: 'email', provider: 'builtIn', delivery: 'mail' } },
+  assuranceRequirements: {},
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+  verifiedProvisioning: {
+    handler: 'provisionBinding', requires: [], reads: ['users'],
+    writes: [{ table: 'identityBindings', mode: 'identity-binding', principalField: 'principal', identityField: 'sourceUserID' }],
+  },
+});
+export default defineSchema({
+  users: defineTable({ sourceUserID: v.string() }).index('by_source', ['sourceUserID'], { unique: true }),
+  identityBindings: defineTable({ principal: v.principal(), sourceUserID: v.string() })
+    .index('by_principal', ['principal'], { unique: true })
+    .index('by_source', ['sourceUserID'], { unique: true }),
+}, { auth: { mode: 'sessions' }, authProgram });
+`;
+  const functions = `
+import { defineAction } from '${defineUrl}';
+export const provisionBinding = defineAction({ args: {}, auth: 'authenticated', handler: async () => null });
+`;
+  const dir = backend(schema, functions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = readJson(join(dir, 'generated', 'schema.manifest.json'));
+  assert.deepEqual(manifest.identityBindingTables, [{
+    table: 'identityBindings', principalField: 'principal', identityField: 'sourceUserID',
+  }]);
+  assert.equal(manifest.authProgramReadiness.verifiedProvisioningDeclared, true);
+  assert.equal(manifest.authProgramReadiness.verifiedProvisioningCompiled, false);
+  const apiTypes = readFileSync(join(dir, 'generated', 'api.d.ts'), 'utf8');
+  assert.match(apiTypes, /GeneratedInsertableTableName = Exclude<GeneratedReadableTableName, "identityBindings">/);
+  assert.match(apiTypes, /GeneratedPatchableTableName = Exclude<GeneratedReadableTableName, "identityBindings">/);
+  assert.doesNotMatch(apiTypes, /"identityBindings": \{ "principal"/);
+
+  writeFileSync(join(dir, 'ctx.d.mts'), readFileSync(join(packageDir, 'ctx.d.mts'), 'utf8'));
+  writeFileSync(join(dir, 'claims-consumer.ts'), `
+import type { AuthClaimIdentity } from './ctx.mjs';
+
+declare const identity: AuthClaimIdentity;
+if (identity.kind === 'oidc') {
+  identity.issuer.toUpperCase();
+  // @ts-expect-error OIDC identities do not expose mutable profile values.
+  identity.value.toUpperCase();
+}
+if (identity.kind === 'email') {
+  identity.value.toUpperCase();
+  // @ts-expect-error email identities have no issuer field.
+  identity.issuer.toUpperCase();
+}
+// @ts-expect-error the OIDC variant cannot express value.
+const invalidOidc: AuthClaimIdentity = {
+  kind: 'oidc', providerKey: 'workforce', issuer: 'https://issuer.example',
+  subject: 'subject-1',
+  value: 'mutable@example.test',
+};
+// @ts-expect-error the email variant cannot express issuer.
+const invalidEmail: AuthClaimIdentity = {
+  kind: 'email', providerKey: 'email-code', subject: 'person@example.test',
+  value: 'person@example.test',
+  issuer: 'https://issuer.example',
+};
+const structuralOidcSource = {
+  kind: 'oidc' as const,
+  providerKey: 'workforce',
+  issuer: 'https://issuer.example',
+  subject: 'subject-2',
+  value: 'structural@example.test',
+};
+// @ts-expect-error negative variant fields must reject non-fresh structural assignments.
+const structuralOidc: AuthClaimIdentity = structuralOidcSource;
+const structuralEmailSource = {
+  kind: 'email' as const,
+  providerKey: 'email-code',
+  subject: 'subject-3',
+  value: 'person@example.test',
+  issuer: 'https://issuer.example',
+};
+// @ts-expect-error negative variant fields must reject non-fresh structural assignments.
+const structuralEmail: AuthClaimIdentity = structuralEmailSource;
+void invalidOidc;
+void invalidEmail;
+void structuralOidc;
+void structuralEmail;
+`);
+  execFileSync(join(repoRoot, 'node_modules/.bin/tsc'), [
+    '--noEmit', '--strict', '--target', 'es2022', '--module', 'esnext',
+    '--moduleResolution', 'bundler', 'claims-consumer.ts',
+  ], { cwd: dir, stdio: 'pipe' });
+}
+
+// @ref LLP 0214#59-relationship-to-the-guide-binding-gap — every generated
+// non-provisioning writer role is refused once the schema seals the target.
+{
+  const schema = `
+import { defineAuth, defineSchema, defineTable, v } from '${defineUrl}';
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: { emailCode: { kind: 'email-code', identityKind: 'email', provider: 'builtIn', delivery: 'mail' } },
+  assuranceRequirements: {}, guestPolicy: { enabled: false }, secretReferences: {},
+  verifiedProvisioning: {
+    handler: 'provisionBinding', requires: [], reads: ['roots'],
+    writes: [{ table: 'identityBindings', mode: 'identity-binding', principalField: 'principal', identityField: 'sourceUserID' }],
+  },
+});
+export const roots = defineTable({ principal: v.principal(), sourceUserID: v.string(), joinedKey: v.string() })
+  .index('by_joined', ['joinedKey']);
+export const joined = defineTable({ key: v.string() }).index('by_key', ['key'], { unique: true });
+export const identityBindings = defineTable({ principal: v.principal(), sourceUserID: v.string() })
+  .index('by_principal', ['principal'], { unique: true })
+  .index('by_source', ['sourceUserID'], { unique: true });
+export default defineSchema({ roots, joined, identityBindings }, { auth: { mode: 'sessions' }, authProgram });
+`;
+  const cases = [
+    {
+      role: 'direct declared handler write',
+      functions: `
+import { defineAction } from '${defineUrl}';
+export const provisionBinding = defineAction({ args: {}, auth: 'authenticated', handler: async () => null });
+export const forged = defineAction({ args: {}, auth: 'authenticated', writes: ['identityBindings'], handler: async () => null });
+`,
+    },
+    {
+      role: 'HostPlan write',
+      functions: `
+import { defineAction, defineMutation, insert, lit } from '${defineUrl}';
+export const provisionBinding = defineAction({ args: {}, auth: 'authenticated', handler: async () => null });
+export const forged = defineMutation({ auth: 'authenticated', plan: insert('identityBindings', { principal: lit('principal_1'), sourceUserID: lit('source_1') }) });
+`,
+    },
+    {
+      role: 'synthesized data-resource writers',
+      schema: `
+import { defineAuth, defineSchema, defineTable, v } from '${defineUrl}';
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: { emailCode: { kind: 'email-code', identityKind: 'email', provider: 'builtIn', delivery: 'mail' } },
+  assuranceRequirements: {}, guestPolicy: { enabled: false }, secretReferences: {},
+  verifiedProvisioning: {
+    handler: 'provisionBinding', requires: [], reads: [],
+    writes: [{ table: 'identityBindings', mode: 'identity-binding', principalField: 'principal', identityField: 'principal' }],
+  },
+});
+export const identityBindings = defineTable({ principal: v.principal(), label: v.string() })
+  .index('by_principal', ['principal'], { unique: true })
+  .visibility({ kind: 'owner', field: 'principal' })
+  .data({ listIndex: 'by_principal' });
+export default defineSchema({ identityBindings }, { auth: { mode: 'sessions' }, authProgram });
+`,
+      functions: `
+import { defineAction } from '${defineUrl}';
+export const provisionBinding = defineAction({ args: {}, auth: 'authenticated', handler: async () => null });
+`,
+    },
+    {
+      role: 'maintained projection output',
+      functions: `
+import schema from './schema.mjs';
+import { defineAction, defineMaintainedProjection } from '${defineUrl}';
+export const provisionBinding = defineAction({ args: {}, auth: 'authenticated', handler: async () => null });
+export const forged = defineMaintainedProjection({
+  id: 'forged-bindings', root: schema.tables.roots, joined: schema.tables.joined,
+  output: schema.tables.identityBindings,
+  join: [{ root: 'joinedKey', joined: 'key' }], kind: 'inner',
+  visibility: { root: { kind: 'public-read' }, joined: { kind: 'public-read' }, output: { kind: 'public-read' } },
+  projection: { principal: { root: 'principal' }, sourceUserID: { root: 'sourceUserID' } },
+  rootReverseIndex: 'by_joined', fanOutLimit: 8,
+});
+`,
+    },
+  ];
+  for (const testCase of cases) {
+    const dir = backend(testCase.schema ?? schema, testCase.functions);
+    const result = await generate(dir);
+    assert.equal(result.ok, false, `${testCase.role} must refuse authoring`);
+    assert(
+      result.diagnostics.some((diagnostic) => (
+        diagnostic.code === 'SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN'
+        && diagnostic.table === 'identityBindings'
+      )),
+      `${testCase.role} must emit the sealed-table refusal: ${JSON.stringify(result.diagnostics)}`,
+    );
+  }
+
+  const seedFunctions = `
+import { defineAction } from '${defineUrl}';
+export const provisionBinding = defineAction({ args: {}, auth: 'authenticated', handler: async () => null });
+`;
+  const seedCases = [
+    {
+      role: 'versioned seed',
+      writerRole: 'versionedSeed',
+      seed: {
+        seedVersion: '2026-08-16.1',
+        tables: { identityBindings: [{ principal: 'principal_1', sourceUserID: 'source_1' }] },
+      },
+    },
+    {
+      role: 'legacy seed',
+      writerRole: 'legacySeed',
+      seed: {
+        tables: { identityBindings: [{ principal: 'principal_1', sourceUserID: 'source_1' }] },
+      },
+    },
+  ];
+  for (const seedCase of seedCases) {
+    const seedDir = backend(schema, seedFunctions);
+    writeFileSync(join(seedDir, 'seed.json'), JSON.stringify(seedCase.seed));
+    const seedResult = await generate(seedDir);
+    assert.equal(seedResult.ok, false, `${seedCase.role} writer must refuse authoring`);
+    assert(seedResult.diagnostics.some((diagnostic) => (
+      diagnostic.code === 'SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN'
+      && diagnostic.writerRole === seedCase.writerRole
+    )), JSON.stringify(seedResult.diagnostics));
+  }
+
+  const nonSealedLegacySeedDir = backend(schema, seedFunctions);
+  writeFileSync(join(nonSealedLegacySeedDir, 'seed.json'), JSON.stringify({
+    tables: {
+      roots: [{ principal: 'principal_1', sourceUserID: 'source_1', joinedKey: 'joined_1' }],
+    },
+  }));
+  const nonSealedLegacySeedResult = await generate(nonSealedLegacySeedDir);
+  assert.equal(
+    nonSealedLegacySeedResult.ok,
+    true,
+    `non-sealed legacy seed must author successfully: ${JSON.stringify(nonSealedLegacySeedResult.diagnostics)}`,
+  );
 }
 
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });

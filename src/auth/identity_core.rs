@@ -27,14 +27,22 @@ pub(crate) enum AssuranceProvenance {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-// The password-route lane will select this posture when admitting assurance
-// records; the storage floor intentionally landed the closed enum first.
-#[allow(dead_code)]
 pub(crate) enum DeploymentPosture {
     Production,
     Dev,
     Test,
     Demo,
+}
+
+impl DeploymentPosture {
+    pub(crate) fn from_server_profile(profile: crate::contract_types::ServerProfile) -> Self {
+        match profile {
+            crate::contract_types::ServerProfile::Dev => Self::Dev,
+            crate::contract_types::ServerProfile::Test => Self::Test,
+            crate::contract_types::ServerProfile::Demo => Self::Demo,
+            crate::contract_types::ServerProfile::Prod => Self::Production,
+        }
+    }
 }
 
 /// @ref LLP 0214#41-exact-record — kind states what was established while
@@ -52,8 +60,13 @@ pub(crate) struct AssuranceRecord {
 }
 
 impl AssuranceRecord {
-    // The password-route/assurance-admission lane consumes this coherent API.
-    #[allow(dead_code)]
+    /// Apply the posture-independent timestamp/governor-shape rules and the
+    /// deployment-posture rule before an assurance can reach a handler.
+    /// Durable governing-authority liveness is resolved by storage after this
+    /// value-level admission succeeds.
+    ///
+    /// @ref LLP 0214#43-provenance-independent-checks — future issuance,
+    /// expiry, governing-authority shape, and posture all fail closed.
     pub(crate) fn admit(&self, posture: DeploymentPosture, now_ms: u64) -> SnapbackResult<()> {
         let governed = matches!(
             self.provenance,
@@ -121,13 +134,17 @@ impl AuthClaimsProjection {
         }
     }
 
-    // The verified-provisioning invocation lane consumes this fail-closed seam.
-    #[allow(dead_code)]
-    pub(crate) fn refuse_binding_write(&self) -> SnapbackError {
+    // @ref LLP 0214#59-relationship-to-the-guide-binding-gap — ordinary handler
+    // writes never acquire verified-provisioning authority merely by holding
+    // a claims projection.
+    // @ref LLP 0226#b-authd7-owner--principal-claims — claims may eventually
+    // seed a declared binding row only through the still-open sealed host
+    // writer; today they authorize no binding write at all.
+    pub(crate) fn refuse_binding_write() -> SnapbackError {
         SnapbackError::error(
             "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN",
             "auth",
-            "identity binding requires sealed verified-provisioning authority",
+            "ordinary writes to a declared identity-binding table are forbidden",
         )
     }
 }
@@ -208,9 +225,8 @@ mod tests {
             format!("{:?}", RecoveryCodes::new(vec!["never-print".into()])),
             "RecoveryCodes([REDACTED])"
         );
-        let claims = AuthClaimsProjection::server_derived(vec![], vec![]);
         assert_eq!(
-            claims.refuse_binding_write().diagnostic.code,
+            AuthClaimsProjection::refuse_binding_write().diagnostic.code,
             "SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN"
         );
     }

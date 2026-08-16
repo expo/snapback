@@ -11248,14 +11248,25 @@ async fn prepare_registered_route_authority(
                 }
             }
         };
-    let authority = InvocationGate::prepare_admitted_authority(
-        source,
-        active_mode,
-        runtime.server.profile,
-        admission.clone(),
-        &wire,
-        resolved,
-    )
+    let authority_now_ms = if resolved.session_id().is_some() {
+        installed_auth_provider(runtime)?.now_ms()
+    } else {
+        now_millis()
+    };
+    let profile = runtime.server.profile;
+    let admission = (*admission).clone();
+    let authority = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.prepare_resolved_authority(
+            source,
+            active_mode,
+            profile,
+            admission,
+            &wire,
+            resolved,
+            authority_now_ms,
+        )
+    })
+    .await
     .map_err(ApiError::from)?;
     let authority = match fenced_publication {
         Some(publication) => authority.with_fenced_publication(publication),

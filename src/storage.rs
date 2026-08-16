@@ -3025,6 +3025,17 @@ impl LocalDatabase {
             if let Some(target) = target {
                 if matches!(
                     step,
+                    MutationStep::AssetCollection(_)
+                        | MutationStep::Insert { .. }
+                        | MutationStep::Patch { .. }
+                        | MutationStep::Delete { .. }
+                        | MutationStep::DeleteWhere { .. }
+                        | MutationStep::InsertEach { .. }
+                ) {
+                    enforce_identity_binding_write_seal(&schema, target)?;
+                }
+                if matches!(
+                    step,
                     MutationStep::Insert { .. }
                         | MutationStep::Patch { .. }
                         | MutationStep::Delete { .. }
@@ -3098,6 +3109,7 @@ impl LocalDatabase {
             let step_site = format!("plan/steps/{step_index}");
             match step {
                 MutationStep::AssetCollection(collection_plan) => {
+                    enforce_identity_binding_write_seal(&schema, &collection_plan.child_table)?;
                     let (result, changed_assets) = execute_asset_collection_step(
                         &tx,
                         &schema,
@@ -3170,6 +3182,7 @@ impl LocalDatabase {
                     values,
                     bind_id_as,
                 } => {
+                    enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
                     // @ref LLP 0056 — a protected resource may not be created
                     //   without seating its bootstrap holder (bootstrap path
@@ -3228,6 +3241,7 @@ impl LocalDatabase {
                     });
                 }
                 MutationStep::Patch { table, id, values } => {
+                    enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
                     if values.is_empty() {
                         continue;
@@ -3291,6 +3305,7 @@ impl LocalDatabase {
                     }
                 }
                 MutationStep::Delete { table, id } => {
+                    enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
                     let id = expect_string(
                         eval_expr(
@@ -3594,6 +3609,7 @@ impl LocalDatabase {
                     }
                 }
                 MutationStep::DeleteWhere { table, filter } => {
+                    enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
                     // Reuse the query WHERE builder so DeleteWhere filters share
                     // matcher/SQL semantics with reads (empty filter = clear).
@@ -3684,6 +3700,7 @@ impl LocalDatabase {
                     item_as,
                     values,
                 } => {
+                    enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
                     enforce_protected_resource_insert_guard(&schema, &table.name)?;
                     let source_value = eval_expr(
@@ -4353,6 +4370,7 @@ impl LocalDatabase {
         let mut authority_transition_drafts = Vec::new();
         for (write, write_gate, write_writer) in carried_writes {
             check_live()?;
+            enforce_identity_binding_write_seal(&schema, write.table())?;
             if schema
                 .asset_collections
                 .iter()
@@ -11936,6 +11954,11 @@ fn seed_rows_into_transaction(
         relation_table_depth(schema, table_name, &mut BTreeSet::new())
     });
     for (table_name, rows) in tables {
+        // @ref LLP 0214#59-relationship-to-the-guide-binding-gap — all
+        //   declarative seed variants converge here. A generated/versioned or
+        //   legacy seed is not the verified-provisioning writer and therefore
+        //   cannot populate a sealed identity-binding table.
+        enforce_identity_binding_write_seal(schema, &table_name)?;
         let table = schema_table(schema, &table_name)?;
         for mut row in rows {
             // Declarative seeds may choose a stable id, but every other
@@ -14029,6 +14052,28 @@ fn membership_hostplan_write_denied(table: &str) -> SnapbackError {
         ),
     )
     .with_detail("table", table.to_owned())
+}
+
+pub(super) fn enforce_identity_binding_write_seal(
+    schema: &SchemaManifest,
+    table: &str,
+) -> SnapbackResult<()> {
+    if schema
+        .identity_binding_tables
+        .iter()
+        .any(|binding| binding.table == table)
+    {
+        // @ref LLP 0214#59-relationship-to-the-guide-binding-gap —
+        //   claims never confer binding authority. The seal is checked in
+        //   HostPlan preflight, every HostPlan execution arm, the buffered
+        //   write path, declarative seed installation, and both maintained-
+        //   projection write primitives; the still-open host-invoked
+        //   provisioning lane is the only intended future exception.
+        // @ref LLP 0226#b-authd7-owner--principal-claims — exposed claims may
+        //   inform application behavior but cannot authorize an ordinary write.
+        return Err(crate::auth::identity_core::AuthClaimsProjection::refuse_binding_write());
+    }
+    Ok(())
 }
 
 fn membership_write_provenance(

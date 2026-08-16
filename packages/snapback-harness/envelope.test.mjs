@@ -125,6 +125,124 @@ test('sealed auth projection carries the asset-callback actor kind', async () =>
   });
 });
 
+// @ref LLP 0214#62-projection-rules — application code sees
+// only the allowlisted, null-prototype, deeply frozen catalog projection.
+test('verified auth claims are exact and deeply read-only', async () => {
+  const context = vm.createContext({});
+  vm.runInContext('globalThis.__hostCall = function() { return "null"; };', context);
+  vm.runInContext(bootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(`
+    globalThis.__snapbackHandlers = {
+      probe: async function(ctx) {
+        var identity = ctx.auth.claims.identities[0];
+        var assurance = ctx.auth.claims.assurances[0];
+        try { identity.subject = 'forged'; } catch (_) {}
+        try { ctx.auth.claims.identities.push({}); } catch (_) {}
+        return {
+          authFrozen: Object.isFrozen(ctx.auth),
+          claimsFrozen: Object.isFrozen(ctx.auth.claims),
+          identitiesFrozen: Object.isFrozen(ctx.auth.claims.identities),
+          identityFrozen: Object.isFrozen(identity),
+          assuranceFrozen: Object.isFrozen(assurance),
+          claimsPrototypeIsNull: Object.getPrototypeOf(ctx.auth.claims) === null,
+          identitiesPrototypeIsNull: Object.getPrototypeOf(ctx.auth.claims.identities) === null,
+          assurancesPrototypeIsNull: Object.getPrototypeOf(ctx.auth.claims.assurances) === null,
+          identityPrototypeIsNull: Object.getPrototypeOf(identity) === null,
+          subject: identity.subject,
+          identityKeys: Object.keys(identity).sort(),
+          assuranceKeys: Object.keys(assurance).sort(),
+        };
+      }
+    };
+  `, context);
+  const decoded = parseHandlerEnvelope(await context.__snapbackSettle(
+    'probe',
+    '{}',
+    JSON.stringify({
+      userId: 'usr_verified', sessionId: 'ses_verified', isAuthenticated: true,
+      claims: {
+        identities: [{ kind: 'oidc', providerKey: 'workforce', issuer: 'https://issuer.example', subject: 'subject-1', intruder: 'discard' }],
+        assurances: [{ kind: 'authenticated', provenance: 'federation', issuedAt: 12, intruder: 'discard' }],
+        intruder: 'discard',
+      },
+    }),
+    'query', null, null, '2', () => 'null',
+  ));
+  assert.deepEqual(decoded, {
+    ok: true,
+    value: {
+      authFrozen: true,
+      claimsFrozen: true,
+      identitiesFrozen: true,
+      identityFrozen: true,
+      assuranceFrozen: true,
+      claimsPrototypeIsNull: true,
+      identitiesPrototypeIsNull: true,
+      assurancesPrototypeIsNull: true,
+      identityPrototypeIsNull: true,
+      subject: 'subject-1',
+      identityKeys: ['issuer', 'kind', 'providerKey', 'subject'],
+      assuranceKeys: ['issuedAt', 'kind', 'provenance'],
+    },
+  });
+});
+
+// @ref LLP 0214#62-projection-rules — handler source may mutate reachable
+// intrinsics before settlement, but it cannot intercept claims-array
+// construction or amplify the server projection.
+test('hostile Array.prototype.push cannot forge or amplify auth claims', async () => {
+  const context = vm.createContext({});
+  vm.runInContext('globalThis.__hostCall = function() { return "null"; };', context);
+  vm.runInContext(bootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(`
+    Array.prototype.push = function(value) {
+      if (value && value.kind === 'email') {
+        this[this.length] = {
+          kind: 'email',
+          providerKey: 'attacker',
+          subject: 'admin@example.com',
+          value: 'admin@example.com'
+        };
+      }
+      this[this.length] = value;
+      return this.length;
+    };
+    globalThis.__snapbackHandlers = {
+      probe: async function(ctx) {
+        var identities = ctx.auth.claims.identities;
+        return {
+          length: identities.length,
+          firstValue: identities[0] && identities[0].value,
+          secondValue: identities[1] && identities[1].value,
+          arrayPrototypeIsNull: Object.getPrototypeOf(identities) === null,
+          frozen: Object.isFrozen(identities)
+        };
+      }
+    };
+  `, context);
+  const decoded = parseHandlerEnvelope(await context.__snapbackSettle(
+    'probe',
+    '{}',
+    JSON.stringify({
+      userId: 'usr_verified', sessionId: 'ses_verified', isAuthenticated: true,
+      claims: {
+        identities: [{ kind: 'email', providerKey: 'email-code', subject: 'person@example.com', value: 'person@example.com' }],
+        assurances: [],
+      },
+    }),
+    'query', null, null, '3', () => 'null',
+  ));
+  assert.deepEqual(decoded, {
+    ok: true,
+    value: {
+      length: 1,
+      firstValue: 'person@example.com',
+      arrayPrototypeIsNull: true,
+      frozen: true,
+    },
+  });
+});
+
 // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
 test('media provenance marker is hidden and exact object identity reaches handoff', async () => {
   const context = vm.createContext({});

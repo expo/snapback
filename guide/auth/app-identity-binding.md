@@ -4,13 +4,13 @@ id: auth.app-identity-binding
 order: 2
 audience: agent-first
 capabilities: [auth.sessions, auth.external-identity-broker]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0183-zerobugs-quality-surface.rfc.md, packages/snapback-client/index.mjs, src/cli.rs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0183-zerobugs-quality-surface.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0226-identity-architecture.decision.md, packages/snapback-client/index.mjs, packages/snapback-codegen/ctx.d.mts, src/auth/invocation.rs, src/storage/auth_identity.rs, src/cli.rs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
 examples: [demos/browser-auth, demos/zerobugs/control]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:ac8d62b9963acb4ae03677b4d49c691065590e2dfcaf9763ccf786a6dd95e096
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:f2306d9477abd4af9d9e81a0fd94f5a9f71f3280544cb4626ea2b93c669116f6
 ---
 
 # Bind a principal to your app's user identity
@@ -31,23 +31,37 @@ thing to get wrong, because the obvious approach — a mutation that takes the
 app's user id as an argument and binds it to the caller's principal — is a
 complete authentication bypass.
 
-## Why an in-handler claim cannot prove the binding
+## Claims can inform behavior; they cannot populate a binding yet
 
-`ctx.auth` gives a handler the resolved principal and nothing else. It does
-**not** carry the verified email or external subject the session was minted
-from. So a handler has no way to check that the caller who says "I am
-`sourceUserID: 9Fw3n…`" actually is. Any mutation shaped like
-`bindMe({ sourceUserID })` lets any authenticated principal claim any app
-identity, including an administrator's.
+A real catalog-backed session now exposes a deeply frozen
+`ctx.auth.claims`. It contains only the identity that authenticated this
+session plus active, applicable assurance records. Email, phone, and username
+use their catalog-canonical value; OIDC and other federated identities expose
+their exact provider/issuer/subject and omit mutable profile values. Anonymous,
+dev-impersonated, admin, system, and agent authority do not receive claims.
 
-The consequence is structural, not stylistic:
+This makes read-only in-handler inspection possible, but does not make an
+ordinary `bindMe(...)` mutation safe. Snapback does not yet invoke the sealed
+verified-provisioning writer described by LLP 0214 §§5.3–5.5. A
+`verifiedProvisioning` identity-binding declaration currently installs the
+write seal only: ordinary buffered writes and every HostPlan/IR write form fail
+with `SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN`. Codegen also rejects the sealed
+table as a declared handler, generated data-resource/data-transaction write
+target, maintained-projection output, or non-empty versioned-seed target. Runtime
+rechecks buffered batches, HostPlan writes, declarative seed installation, and
+both projection rebuild and same-transaction maintenance. Schema migration and
+destructive reset remain separately authorized operator lifecycle operations;
+neither is an application binding writer.
 
-> **The binding row must be written by code that already knows both sides
-> — the verified external identity *and* the principal it minted.** Only two
-> places can know both: a trusted server-side broker, or a closed acceptance
-> bootstrap over a frozen fixture.
+> **The future sealed writer may use claims to select the app row once. The
+> durable binding key will still be `ctx.auth.userId`.** Email is mutable, and
+> an issuer/subject pair belongs to the auth substrate; neither replaces the
+> principal in steady-state app reads or writes.
 
-## Declare the binding table
+Never accept a claims object, email, subject, or app-user id from the client as
+proof. Those are selection inputs under caller control.
+
+## Define the binding table
 
 Whichever way you populate it, the table itself is the same shape: one row
 per principal, uniquely indexed on **every** side so the mapping cannot fan
@@ -73,6 +87,15 @@ survives a bug in the handler logic — see
 Keep the physical reference (`v.id('user')`) *and* the external id
 (`sourceUserID`) as separate fields: the typed id is what private rows join
 on, and the external string is what a provider lookup or an audit trail needs.
+
+Do not declare this table under `verifiedProvisioning` and then try to write it
+from an application handler: the declaration seals the table, but there is no
+host-invoked inside writer yet. Until that platform lane lands, use Pattern A
+or the acceptance-only Pattern B below on an undeclared table, with their
+trusted-writer and reachability constraints intact.
+
+After creation, every protected handler resolves only
+`principal → binding → app row`; it does not repeat a claim lookup.
 
 ## Resolve the principal in every protected handler
 
@@ -154,7 +177,7 @@ query scoping, those compare against the **principal**, not the app user row.
 Store the principal on rows you want scoped by the declarative surface, and
 use the binding for everything that must reach the app's own user record.
 
-## Pattern A — product-shaped local bridge: bind in trusted server code
+## Pattern A — still conforming: bind in trusted server code
 
 This is the strongest executable shape today, not a hosted-production claim.
 Snapback's local external-identity seam uses a trusted server-side component
@@ -166,6 +189,10 @@ The broker is the only place that holds all three facts at once — the
 verified external identity, the app user row it maps to, and the principal
 `auth.mintSession` just returned. So the broker is where the binding row gets
 written, before the bearer is released:
+
+This pattern currently uses an ordinary, deliberately non-public mutation, so
+its binding table must not be declared as a `verifiedProvisioning`
+identity-binding table. That declaration would correctly seal the write.
 
 ```js fragment reason="broker-side shape; the mint host-op authorities and the adopt-bearer half are the subject of auth/native-apps.md"
 // Trusted server-side broker (never in an app bundle):
@@ -312,24 +339,25 @@ Two rules follow:
   binding maps to), which is exactly why the loader and the binder each carry
   their own closure sentinel.
 
-## What Snapback does not give you yet
+## Current boundary
 
-Handler auth exposes the resolved principal, not the verified identity claims
-the session was minted from. A first-class surface — verified email/subject
-claims readable by a handler, or a declared privileged provisioning path for
-binding rows — would let an app write the binding inside Snapback instead of
-in a broker. That is an open platform ask, tracked in
-[the identity-binding guide gap](repo:issues/20260808-guide-gap-principal-to-app-identity-binding.md);
-until it exists, Pattern A is the local product-shaped bridge and this section
-is the honest statement of the boundary. Draft LLP 0151 separately owns the
-future provider identity/lifecycle substrate; this app-level join does not
-pretend to implement it.
+The local target now supplies verified read-only claims and a complete
+ordinary-write seal for declared identity-binding tables. It does **not** yet
+supply the host-invoked writer inside that seal. Pattern A and the frozen
+Pattern B remain the executable conforming choices because they arrange for a
+trusted writer to hold both sides before releasing or using the principal;
+their tables remain undeclared until the host writer exists. Draft LLP 0151
+separately owns future provider identity/lifecycle and hosted-target work; this
+app-level join does not pretend to implement it.
 
 ## Anti-patterns
 
 - **Do not accept an app user id as a mutation argument and bind it to the
   caller's principal.** That is the bypass this whole page exists to prevent;
   the caller controls the argument.
+- **Do not write a `verifiedProvisioning` handler today.** Its declared
+  identity-binding table is sealed against ordinary handlers, and the
+  host-invoked inside writer remains an open platform ask.
 - **Do not derive the app identity from anything the client sends** — not an
   email in the body, not a header, not a JWT the client hands you. If the
   handler did not mint it, the handler cannot verify it.

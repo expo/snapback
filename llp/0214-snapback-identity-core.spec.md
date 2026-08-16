@@ -14,6 +14,12 @@ default; `defineAuth` may declare one app-wide 8–128-byte minimum, enforced at
 first-boot provider construction and named in policy refusals)
 **Revised:** 2026-08-15 (v0.4 — LLP 0258 amendment: `defineAuth` owns the
 application-client custody grade and explicit external-session entry seam)
+**Revised:** 2026-08-16 (v0.5 — §6 and §5.9's complete ordinary-write seal
+implemented by LLP 0226 lane (b); §§5.3–5.5's host writer remain open; see
+§23)
+**Revised:** 2026-08-16 (v0.6 — sealed identity-binding write targets now
+refuse at the complete codegen boundary and maintained-projection primitives;
+session claims now install at the authority-projection chokepoint)
 **Related:** LLP 0212, LLP 0011, LLP 0151, LLP 0057, LLP 0055, LLP 0036,
 LLP 0045, LLP 0053, LLP 0058, LLP 0215, LLP 0227, LLP 0241, LLP 0252,
 LLP 0258
@@ -1822,6 +1828,18 @@ client claim
 A declared identity-binding table is write-sealed to the provisioning hook and
 authorized migration tooling.
 
+Codegen MUST refuse the sealed table as every non-provisioning generated write
+target: a declared JavaScript/inline handler write, a HostPlan, a synthesized
+data-resource or data-transaction write, a maintained-projection output, or a
+non-empty versioned-seed target. Migrations are operator artifacts, not codegen writers,
+and remain governed by their migration authorization boundary. Runtime keeps
+the same seal as defense in depth at the ordinary buffered/HostPlan writer,
+the shared declarative-seed row installer, and both maintained-projection
+primitives (rebuild and transactional maintenance). Destructive reset and
+schema migration remain explicit operator lifecycle operations rather than
+application/codegen writers; they cannot populate a binding from a caller
+claim.
+
 An ordinary handler attempting to write it receives
 `SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN`, even when `ctx.auth.claims` contains a
 verified identity.
@@ -1830,20 +1848,41 @@ Undeclared ad hoc app tables receive no platform binding guarantee.
 
 ## 6. Read-only `ctx.auth` claims
 
+**Section status: Implemented (2026-08-16).** The enclosing Spec remains Draft
+for §19's corpus-wide acceptance conditions; this status applies to §6 and
+§5.9's ordinary-write seal only. The host-invoked writer specified by
+§§5.3–5.5 remains unimplemented.
+
 ### 6.1 Projection shape
 
 The handler auth projection gains one optional field:
 
 ```ts
-type AuthClaimsProjection = Readonly<{
-  identities: readonly Readonly<{
-    kind: 'email' | 'phone' | 'oidc' | 'oauth2'
-        | 'username' | 'external'
+type AuthClaimIdentity =
+  | Readonly<{
+    kind: 'email' | 'phone' | 'username'
+    providerKey: string
+    subject: string
+    value: string
+    issuer?: never
+  }>
+  | Readonly<{
+    kind: 'oidc'
+    providerKey: string
+    issuer: string
+    subject: string
+    value?: never
+  }>
+  | Readonly<{
+    kind: 'oauth2' | 'external'
     providerKey: string
     issuer?: string
     subject: string
-    value?: string
-  }>[]
+    value?: never
+  }>;
+
+type AuthClaimsProjection = Readonly<{
+  identities: readonly AuthClaimIdentity[]
 
   assurances: readonly AssuranceRecord[]
 }>;
@@ -1862,9 +1901,33 @@ Internal identity ids, credential ids, assurance ids, password state, recovery
 state, raw provider tokens, session generation, and governing bearer material
 are omitted.
 
+The implementation trust boundary is deliberately claim-by-claim:
+
+| Catalog fact | Handler-visible fields | Decision and rationale |
+| --- | --- | --- |
+| Email identity | `kind`, `providerKey`, exact `subject`, canonical `value` | Expose the catalog-normalized address that proved this session. It may locate an app row during sealed provisioning, but remains mutable and never becomes a durable binding key. |
+| Phone identity | `kind`, `providerKey`, exact `subject`, canonical `value` | Same contact-ownership boundary as email. Formatting/provider payload is excluded. |
+| Username identity | `kind`, `providerKey`, exact `subject`, canonical `value` | Expose the server canonicalizer's result for local lookup; it is not a credential or proof accepted back from a client. |
+| OIDC identity | `kind`, `providerKey`, exact `issuer`, exact `subject`; no `value` | `(issuer, subject)` is the verified federated identity. Mutable profile email/name and raw ID-token claims are excluded. |
+| OAuth2 or external identity | `kind`, `providerKey`, exact `subject`; `issuer` only when the catalog class permits it; no `value` | Expose the smallest catalog identity tuple. Provider payloads, access tokens, and mutable profile attributes remain outside the projection. |
+| Assurance record | exact `kind`, `provenance`, `issuedAt`, optional `expiresAt`, optional opaque `governingAuthority` | Expose only active records applicable to the current session or durable principal. Internal assurance/identity/credential ids are excluded, and unknown enum values fail closed as catalog corruption. |
+
+Only the active identity referenced by the resolved session is projected.
+Other identities linked to the same principal are not ambient claims.
+
 ### 6.2 Projection rules
 
 A real v3 session projects `claims`.
+
+The resolved-authority-to-handler-projection constructor requires claims for
+every `Session` and rejects claims for every non-session authority. Catalog
+lookup occurs before that constructor. Invocation source is not an input to
+this rule: HTTP, registered and mixed bundles, initial live evaluation,
+retained rerun, effect execution after approval, connection/realtime
+authority-only paths, and future sources all receive the same result when they
+carry a real session. Nested invocations inherit the already-prepared
+projection. Watch evaluation/reaction intentionally use
+`RevalidatedPrincipal`, not `Session`, and therefore omit claims.
 
 A guest session projects:
 
@@ -1883,8 +1946,9 @@ A guest session projects:
 An email-code session projects its verified email identity and the applicable
 assurances.
 
-A password session projects its local username identity and credential-derived
-assurances.
+A password session projects its local username or email identifier identity
+and credential-derived assurances. A recovery-code session has no identity
+claim and projects only its applicable assurance records.
 
 Anonymous, AdminBypass, and System authority omit `claims`.
 
@@ -2661,7 +2725,8 @@ Codegen derives, at minimum:
     "catalogRequired": 3,
     "declarationValid": true,
     "assuranceRequirementsCompiled": true,
-    "verifiedProvisioningCompiled": true,
+    "verifiedProvisioningDeclared": true,
+    "verifiedProvisioningCompiled": false,
     "claimsProjectionCompiled": true,
 
     "requiredAssuranceProducers": {
@@ -2888,7 +2953,7 @@ The following are identity-core additions.
 | `SNAPBACK_AUTH_LAST_AUTHENTICATOR` | 409 | Transition would leave no usable authenticator |
 | `SNAPBACK_AUTH_PROVISIONING_INVALID` | codegen/stage | Hook declaration or binding shape is invalid |
 | `SNAPBACK_AUTH_PROVISIONING_WRITE_FORBIDDEN` | hook/operator | Hook attempted an undeclared or wrong-mode write |
-| `SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN` | function/runtime | Ordinary code attempted a sealed identity-binding write |
+| `SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN` | codegen/function/runtime | Generated or ordinary code attempted a sealed identity-binding write |
 | `SNAPBACK_AUTH_PROVISIONING_FAILED` | transition / 503 | Hook failed; transition rolled back |
 | `SNAPBACK_AUTH_PROVISIONING_REPLAY_MISMATCH` | transition / 409 | Idempotency key was reused with a different hook digest |
 | `SNAPBACK_AUTH_IMPORT_ASSURANCE_INVALID` | import | Source evidence cannot produce the claimed assurance |
@@ -3431,3 +3496,58 @@ slot stay out of the generated entry-mechanism allowlist, and
 `recoveryPolicy` continues to own the recovery lifecycle — LLP 0258 D9's
 generated recovery rows derive from it, never from the mechanism/provider
 set.
+
+## 23. Amendment (2026-08-16): verified claims and principal binding
+
+LLP 0226 lane (b)'s claims projection and ordinary-write seal are implemented
+for the local handler/runtime surface. Catalog-backed interactive sessions
+acquire `ctx.auth.claims` only after server-side session resolution. It is
+absent from every request DTO and has no client-controlled installation path;
+the JS harness copies only §6.1's enumerated fields into null-prototype records
+and deep-freezes the projection, null-prototype arrays, and every record without
+consulting handler-mutable array methods. Anonymous, AdminBypass, System, dev
+impersonation, service principals, and LLP 0055 agent authority omit claims.
+Retained live reruns re-read the catalog so expiry and revocation are not frozen
+at subscription creation; bundled and mixed-bundle re-preparation install the
+same projection before their first snapshot. Projection admission rejects
+future issuance, expired or revoked governing authority, and rehearsal
+provenance in production.
+
+Codegen compiles each `verifiedProvisioning` write in `identity-binding` mode
+into an activation-visible table descriptor after requiring a non-optional
+principal field and unique single-field indexes on both the principal and
+bound-identity fields. Generated handler mutation types exclude those tables.
+The ordinary buffered storage cut rejects insert, patch, and delete with
+`SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN`. HostPlan preflight and each execution
+arm reject Insert, Patch, Delete, DeleteWhere, InsertEach, and framework batch
+writes to the same declared set. Codegen reports the hook as declared but
+`verifiedProvisioningCompiled: false`.
+
+The v0.6 completeness closure rejects every codegen-expressible writer role
+after synthesized functions and seed artifacts exist: declared opaque/inline
+writes, HostPlan plus generated data-resource/data-transaction operations,
+maintained-projection outputs, and non-empty versioned seeds. The shared declarative-seed row
+installer, maintained-projection rebuild, and same-transaction projection
+maintenance enforce the same seal before metadata or row effects. Destructive
+reset and schema migration stay at their separately-authorized operator
+lifecycle boundaries rather than becoming application/codegen writers. The
+authority projection constructor likewise accepts exactly one of
+`(Session, catalog claims)` or `(non-session, no claims)`; HTTP, bundle/live,
+effect approval execution, and any future session-capable source cannot opt
+out by omitting a later enrichment call. `InvocationSource::ALL` is the proof
+registry and includes `AssetTransfer`; nested calls inherit the prepared
+projection, retained live reruns re-resolve claims, and watch
+evaluation/reaction remain intentionally claimless revalidated principals.
+
+There is deliberately no active inside writer in this amendment. The dormant
+storage helper is marked `UNWIRED-DO-NOT-CALL`: no host path invokes it, and it
+does not satisfy §§5.3–5.5's host-injected principal/identity contract. Those
+sections remain an open platform ask. Until that lane lands, the broker and
+frozen actor-map guide patterns remain the conforming executable patterns on
+tables that have not been placed behind the declaration-derived seal.
+
+This amendment applies the ruled LLP 0226 C-6 boundary: an exposed email,
+phone, username, or provider subject may eventually seed the one-time app-row
+lookup only inside the specified host writer; the app must durably key the
+resulting binding by principal. No claim object is accepted back from a client
+as proof.

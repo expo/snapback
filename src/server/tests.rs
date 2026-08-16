@@ -15,6 +15,14 @@ use super::{
     with_snapback_staged_authorization_write,
 };
 
+fn test_session_claims_for(
+    authority: &ResolvedAppAuthority,
+) -> Option<crate::auth::identity_core::AuthClaimsProjection> {
+    matches!(authority, ResolvedAppAuthority::Session { .. }).then(|| {
+        crate::auth::identity_core::AuthClaimsProjection::server_derived(Vec::new(), Vec::new())
+    })
+}
+
 #[test]
 fn asset_delivery_window_refuses_oversized_store_chunks() {
     let error = super::advance_asset_delivery_window(10, 4, 5)
@@ -5006,6 +5014,91 @@ async fn effect_approval_refuses_a_revoked_original_session() {
     );
 }
 
+// @ref LLP 0214#62-projection-rules — approval re-prepares the frozen
+// original session as EffectExecution authority, so it must cross the same
+// catalog-claims chokepoint as ordinary HTTP and live sources.
+#[tokio::test]
+async fn effect_approval_reprepares_original_session_with_catalog_claims() {
+    let state = approval_effect_server_fixture(ApiFunctionApproval::Required).await;
+    let router = app(state.clone());
+    let original = mint_test_credential(&state, "effect-claims-original@example.test").await;
+    let original_bearer = original["token"].as_str().unwrap();
+    let pending = response_json(
+        router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/mutation/queuedWrite",
+                br#"{"args":{"value":"claims-original"}}"#.to_vec(),
+                original_bearer,
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let effect_id = pending["diagnostic"]["details"]["effectId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let lookup_id = effect_id.clone();
+    let effect = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .pending_effect(&lookup_id, super::now_millis())
+    })
+    .await
+    .unwrap();
+
+    let approver = mint_test_credential(&state, "effect-claims-approver@example.test").await;
+    let approver_bearer = approver["token"].as_str().unwrap();
+    let provider = state.auth_provider.as_ref().expect("effect provider");
+    let coordinator = state.auth_coordinator.as_ref().expect("effect coordinator");
+    let prepared = coordinator
+        .resolve_required_bearer(approver_bearer, provider.now_ms(), provider.monotonic_now())
+        .expect("resolve effect approver session");
+    let (resolved, publication) = prepared.into_parts();
+    let ResolvedAppAuthority::Session {
+        user_id: approver_user_id,
+        session_id,
+        ..
+    } = &resolved
+    else {
+        panic!("effect approver must resolve to session authority")
+    };
+    let approver_user_id = approver_user_id.clone();
+    let session_id = session_id.clone();
+    let profile = state.server.profile;
+    let claims_now_ms = provider.now_ms();
+    let claims = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .identity_claims(&session_id, claims_now_ms, profile)
+    })
+    .await
+    .unwrap();
+    let management = InvocationGate::prepare_admitted_authority(
+        InvocationSource::EffectManagement,
+        AuthMode::Sessions,
+        state.server.profile,
+        test_route_admission(&state).0,
+        &WireAuthorityFields::default(),
+        resolved,
+        Some(claims),
+    )
+    .unwrap()
+    .with_fenced_publication(publication);
+
+    let execution =
+        super::effects::prepare_original_authority(&state, &management, &effect, &approver_user_id)
+            .await
+            .expect("effect approval must re-prepare original session authority");
+    assert_eq!(execution.source(), InvocationSource::EffectExecution);
+    let projection = serde_json::to_value(execution.projection()).unwrap();
+    assert_eq!(
+        projection["claims"]["identities"][0]["value"],
+        "effect-claims-original@example.test"
+    );
+}
+
 #[tokio::test]
 async fn remote_mcp_refuses_when_the_external_api_is_not_enabled() {
     let refused = app(sessions_activation_server_fixture_async().await)
@@ -7555,6 +7648,7 @@ async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
         admission.clone(),
         &WireAuthorityFields::default(),
         connection_act.resolved.clone(),
+        test_session_claims_for(&connection_act.resolved),
     )
     .expect("prepare staged service authority")
     .with_fenced_publication(connection_act.bound.publication().clone())
@@ -8080,6 +8174,7 @@ async fn direct_outbox_http_response(
         admission.clone(),
         &WireAuthorityFields::default(),
         connection_act.resolved.clone(),
+        test_session_claims_for(&connection_act.resolved),
     )
     .expect("prepare direct outbox authority")
     .with_fenced_publication(connection_act.bound.publication().clone());
@@ -8184,6 +8279,7 @@ fn prepared_provider_route_authority(
         .resolve_family_bearer(bearer, provider.now_ms(), provider.monotonic_now())
         .expect("resolve provider-route bearer through projection");
     let (resolved, publication) = prepared.into_parts();
+    let session_claims = test_session_claims_for(&resolved);
     Extension(
         InvocationGate::prepare_admitted_authority(
             source,
@@ -8192,6 +8288,7 @@ fn prepared_provider_route_authority(
             test_route_admission(state).0,
             &WireAuthorityFields::default(),
             resolved,
+            session_claims,
         )
         .expect("prepare provider-route authority")
         .with_fenced_publication(publication),
@@ -8572,6 +8669,7 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
                 roles: Vec::new(),
                 local_dev_only: true,
             },
+            None,
         )
         .unwrap()
     };
@@ -19171,6 +19269,7 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
         admission.clone(),
         &WireAuthorityFields::default(),
         connection_act.resolved.clone(),
+        test_session_claims_for(&connection_act.resolved),
     )
     .expect("prepare sessions live authority")
     .with_fenced_publication(connection_act.bound.publication().clone());
@@ -19211,6 +19310,7 @@ async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() 
         admission.clone(),
         &WireAuthorityFields::default(),
         connection_act.resolved.clone(),
+        test_session_claims_for(&connection_act.resolved),
     )
     .expect("prepare sessions mutation authority")
     .with_fenced_publication(connection_act.bound.publication().clone());
@@ -25887,6 +25987,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
             token_expires_at_ms: expires_at_ms,
             integration_status: None,
         },
+        None,
     )
     .expect("prepare scoped-token action authority")
     .with_service_publication(publication);
@@ -29105,6 +29206,7 @@ async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains
         admission.clone(),
         &WireAuthorityFields::default(),
         connection_act.resolved.clone(),
+        test_session_claims_for(&connection_act.resolved),
     )
     .expect("prepare staged live authority")
     .with_fenced_publication(connection_act.bound.publication().clone());
@@ -29301,6 +29403,7 @@ async fn refused_connection_act_abandons_staged_subscribe_without_publication() 
         admission.clone(),
         &WireAuthorityFields::default(),
         connection_act.resolved.clone(),
+        test_session_claims_for(&connection_act.resolved),
     )
     .expect("prepare staged live authority")
     .with_fenced_publication(connection_act.bound.publication().clone());
@@ -31446,6 +31549,7 @@ async fn hosted_ephemeral_post_verification_errors_repeat_the_instance() {
         admission.clone(),
         &WireAuthorityFields::default(),
         ResolvedAppAuthority::Anonymous,
+        None,
     )
     .expect("prepare anonymous dev authority");
     let mut headers = HeaderMap::new();

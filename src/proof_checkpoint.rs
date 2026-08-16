@@ -4257,6 +4257,7 @@ mod tests {
             controller.admit().expect("admit protected erasure"),
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::Anonymous,
+            None,
         )
         .expect("prepare registered admin command");
         let credential =

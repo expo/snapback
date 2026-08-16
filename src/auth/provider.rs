@@ -6951,7 +6951,11 @@ mod tests {
             )
             .expect("password bearer resolves immediately without rebuild");
         let claims = database
-            .identity_claims(&response.session.id, now_ms)
+            .identity_claims(
+                &response.session.id,
+                now_ms,
+                crate::contract_types::ServerProfile::Test,
+            )
             .expect("password claims");
         assert!(
             claims
@@ -7904,7 +7908,11 @@ mod tests {
             "credential and identity retire without deleting the principal"
         );
         let claims = database
-            .identity_claims(&new_password.response().session.id, now_ms + 3)
+            .identity_claims(
+                &new_password.response().session.id,
+                now_ms + 3,
+                crate::contract_types::ServerProfile::Test,
+            )
             .expect("new password claims");
         assert!(
             claims

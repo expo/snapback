@@ -5,6 +5,7 @@
   // host's success/failure envelope or blind rejection detection.
   var TrustedError = Error;
   var TrustedFunction = Function;
+  var TrustedArray = Array;
   var TrustedMap = Map;
   var TrustedWeakMap = WeakMap;
   var TrustedPromise = Promise;
@@ -15,6 +16,7 @@
   var trustedJsonStringify = JSON.stringify;
   var trustedCreate = Object.create;
   var trustedDefineProperty = Object.defineProperty;
+  var trustedSetPrototypeOf = Object.setPrototypeOf;
   var trustedGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
   var trustedGetPrototypeOf = Object.getPrototypeOf;
   var trustedHasOwnProperty = Object.prototype.hasOwnProperty;
@@ -43,6 +45,19 @@
   var trustedReflectDeleteProperty = Reflect.deleteProperty;
   var trustedStringCharCodeAt = String.prototype.charCodeAt;
   var trustedStringCharAt = String.prototype.charAt;
+  function nullPrototypeArray() {
+    var array = trustedReflectConstruct(TrustedArray, []);
+    trustedReflectApply(trustedSetPrototypeOf, null, [array, null]);
+    return array;
+  }
+  function defineArrayEntry(array, index, value) {
+    trustedDefineProperty(array, trustedString(index), {
+      value: value,
+      enumerable: true,
+      writable: true,
+      configurable: true
+    });
+  }
   function snapbackError(code, message) {
     var error = new TrustedError(code + ": " + message);
     try { trustedDefineProperty(error, "__snapbackCode", { value: code }); } catch (_) { error.__snapbackCode = code; }
@@ -743,7 +758,7 @@
     // members.
     var parsedAuth = trustedJsonParse(authJson || "{}");
     var auth = trustedReflectApply(trustedCreate, Object, [null]);
-    var authKeys = ["userId", "sessionId", "isAuthenticated", "provider", "roles", "kind", "actor", "actorKind"];
+    var authKeys = ["userId", "sessionId", "isAuthenticated", "provider", "roles", "kind", "actor", "actorKind", "claims"];
     for (var authIndex = 0; authIndex < authKeys.length; authIndex++) {
       var authKey = authKeys[authIndex];
       if (!trustedReflectApply(trustedHasOwnProperty, parsedAuth, [authKey])) continue;
@@ -769,6 +784,49 @@
           });
         }
         authValue = trustedFreeze(actor);
+      } else if (authKey === "claims") {
+        // @ref LLP 0214#62-projection-rules — copy the closed
+        // catalog projection claim-by-claim into captured-intrinsic,
+        // null-prototype arrays and deep-freeze it. Parsed JSON is never
+        // handed to application code directly, and application mutation of
+        // Array.prototype cannot forge or amplify the projection.
+        var parsedClaims = authValue || {};
+        var claims = trustedReflectApply(trustedCreate, Object, [null]);
+        var claimCollections = [
+          ["identities", ["kind", "providerKey", "issuer", "subject", "value"]],
+          ["assurances", ["kind", "provenance", "issuedAt", "expiresAt", "governingAuthority"]]
+        ];
+        for (var claimCollectionIndex = 0; claimCollectionIndex < claimCollections.length; claimCollectionIndex++) {
+          var claimCollection = claimCollections[claimCollectionIndex];
+          var parsedEntries = parsedClaims[claimCollection[0]] || [];
+          var entries = nullPrototypeArray();
+          for (var entryIndex = 0; entryIndex < parsedEntries.length; entryIndex++) {
+            var parsedEntry = parsedEntries[entryIndex] || {};
+            var entry = trustedReflectApply(trustedCreate, Object, [null]);
+            var entryKeys = claimCollection[1];
+            if (claimCollection[0] === "identities") {
+              if (parsedEntry.kind === "email" || parsedEntry.kind === "phone" || parsedEntry.kind === "username") {
+                entryKeys = ["kind", "providerKey", "subject", "value"];
+              } else if (parsedEntry.kind === "oidc") {
+                entryKeys = ["kind", "providerKey", "issuer", "subject"];
+              } else if (parsedEntry.kind === "oauth2" || parsedEntry.kind === "external") {
+                entryKeys = ["kind", "providerKey", "issuer", "subject"];
+              }
+            }
+            for (var entryKeyIndex = 0; entryKeyIndex < entryKeys.length; entryKeyIndex++) {
+              var entryKey = entryKeys[entryKeyIndex];
+              if (!trustedReflectApply(trustedHasOwnProperty, parsedEntry, [entryKey])) continue;
+              trustedDefineProperty(entry, entryKey, {
+                value: parsedEntry[entryKey], enumerable: true, writable: false, configurable: false
+              });
+            }
+            defineArrayEntry(entries, entryIndex, trustedFreeze(entry));
+          }
+          trustedDefineProperty(claims, claimCollection[0], {
+            value: trustedFreeze(entries), enumerable: true, writable: false, configurable: false
+          });
+        }
+        authValue = trustedFreeze(claims);
       }
       trustedDefineProperty(auth, authKey, {
         value: authValue,
