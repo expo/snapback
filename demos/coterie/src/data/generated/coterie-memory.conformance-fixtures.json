@@ -1,0 +1,212 @@
+{
+  "mutations": {
+    "createPost": {
+      "args": {
+        "body": "body-example"
+      },
+      "writes": [
+        "posts"
+      ]
+    },
+    "editProfile": {
+      "args": {
+        "bio": "bio-example",
+        "displayName": "displayName-example"
+      },
+      "writes": [
+        "profiles"
+      ]
+    },
+    "login": {
+      "args": {
+        "email": "email-example",
+        "password": "password-example"
+      },
+      "writes": [
+        "sessions"
+      ]
+    },
+    "logout": {
+      "args": {},
+      "writes": [
+        "sessions"
+      ]
+    },
+    "sendMessage": {
+      "args": {
+        "body": "body-example",
+        "chatId": "chatId-example"
+      },
+      "writes": [
+        "chats",
+        "messages"
+      ]
+    },
+    "toggleFollow": {
+      "args": {
+        "userId": "userId-example"
+      },
+      "writes": [
+        "profiles"
+      ]
+    },
+    "toggleLike": {
+      "args": {
+        "postId": "postId-example"
+      },
+      "writes": [
+        "posts"
+      ]
+    },
+    "votePoll": {
+      "args": {
+        "optionId": "optionId-example",
+        "postId": "postId-example"
+      },
+      "writes": [
+        "pollOptions"
+      ]
+    }
+  },
+  "provider": "coterie-memory",
+  "queries": {
+    "listChats": {
+      "args": {},
+      "exampleResult": [
+        {
+          "accentColor": "accentColor-example",
+          "avatarUrl": "avatarUrl-example",
+          "id": "id-example",
+          "isGroup": true,
+          "preview": "preview-example",
+          "title": "title-example",
+          "unreadCount": 1,
+          "updatedAt": "updatedAt-example"
+        }
+      ]
+    },
+    "listFeed": {
+      "args": {
+        "mode": "mode-example"
+      },
+      "exampleResult": [
+        {
+          "authorHandle": "authorHandle-example",
+          "authorId": "authorId-example",
+          "authorName": "authorName-example",
+          "avatarUrl": "avatarUrl-example",
+          "body": "body-example",
+          "createdAt": "createdAt-example",
+          "id": "id-example",
+          "likeCount": 1,
+          "likedByMe": true,
+          "mediaKind": "mediaKind-example",
+          "mediaUrl": "mediaUrl-example",
+          "pollQuestion": "pollQuestion-example",
+          "replyCount": 1,
+          "repostCount": 1
+        }
+      ]
+    },
+    "listInsights": {
+      "args": {},
+      "exampleResult": [
+        {
+          "day": "day-example",
+          "engagements": 1,
+          "id": "id-example",
+          "views": 1
+        }
+      ]
+    },
+    "listMessages": {
+      "args": {
+        "chatId": "chatId-example"
+      },
+      "exampleResult": [
+        {
+          "attachmentKind": "attachmentKind-example",
+          "attachmentUrl": "attachmentUrl-example",
+          "body": "body-example",
+          "chatId": "chatId-example",
+          "createdAt": "createdAt-example",
+          "deleted": true,
+          "edited": true,
+          "id": "id-example",
+          "mine": true,
+          "quoteText": "quoteText-example",
+          "reaction": "reaction-example",
+          "senderId": "senderId-example",
+          "senderName": "senderName-example",
+          "status": "status-example",
+          "viewOnce": true
+        }
+      ]
+    },
+    "listPollOptions": {
+      "args": {
+        "postId": "postId-example"
+      },
+      "exampleResult": [
+        {
+          "id": "id-example",
+          "label": "label-example",
+          "postId": "postId-example",
+          "selectedByMe": true,
+          "votes": 1
+        }
+      ]
+    },
+    "listProfiles": {
+      "args": {},
+      "exampleResult": [
+        {
+          "avatarUrl": "avatarUrl-example",
+          "bio": "bio-example",
+          "displayName": "displayName-example",
+          "followedByMe": true,
+          "followers": 1,
+          "following": 1,
+          "handle": "handle-example",
+          "id": "id-example",
+          "isMe": true
+        }
+      ]
+    },
+    "listSession": {
+      "args": {},
+      "exampleResult": [
+        {
+          "id": "id-example",
+          "signedIn": true,
+          "userId": "userId-example"
+        }
+      ]
+    },
+    "listTrending": {
+      "args": {},
+      "exampleResult": [
+        {
+          "id": "id-example",
+          "label": "label-example",
+          "postCount": 1,
+          "rank": 1
+        }
+      ]
+    },
+    "searchSocial": {
+      "args": {
+        "query": "query-example"
+      },
+      "exampleResult": [
+        {
+          "avatarUrl": "avatarUrl-example",
+          "id": "id-example",
+          "kind": "kind-example",
+          "subtitle": "subtitle-example",
+          "title": "title-example"
+        }
+      ]
+    }
+  }
+}

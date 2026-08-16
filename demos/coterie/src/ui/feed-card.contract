@@ -1,0 +1,53 @@
+use CoterieAvatar from "./avatar.contract"
+
+component CoterieFeedCard
+  props
+    id: string
+    authorId: string
+    authorName: string
+    authorHandle: string
+    avatarUrl: string = null
+    body: string
+    createdAt: string
+    likeCount: number
+    repostCount: number
+    replyCount: number
+    liked: boolean = false
+    mediaUrl: string = null
+    mediaKind: string = null
+    pollQuestion: string = null
+    pressAuthor: (userId) => void
+    pressLike: (postId) => void
+    pressRepost: () => void
+    pressReply: () => void
+    pressMedia: () => void
+
+  contract
+    has node testId="sm-feed-item"
+    has node testId="sm-post-like"
+    has node testId="sm-post-repost"
+    has node testId="sm-post-reply"
+
+  view
+    article label=`Post by ${authorName}` width="100%" background="#FFFFFF" borderBottomWidth=1 borderColor="#E2E4E8" padding=16 testId="sm-feed-item"
+      row width="100%" align="flex-start" gap=12
+        button press=pressAuthor(authorId) label=`Open ${authorName}'s profile` background="transparent" padding=0 testId="sm-feed-author"
+          CoterieAvatar(name=authorName, src=avatarUrl, size=40)
+        column flex=1 minWidth=0 gap=6
+          row wrap="wrap" align="center" gap=4
+            text authorName size=17 weight=600 color="#17191C"
+            text `@${authorHandle}` size=13 color="#6B7280"
+            text `· ${createdAt}` size=13 color="#6B7280"
+          text body size=15 color="#17191C"
+          when mediaUrl
+            button press=pressMedia label=mediaKind == "video" ? "Video" : "Image" width="100%" padding=0 radius=10 overflow="hidden" background="#E8EAEE" testId="sm-feed-media"
+              image src=mediaUrl alt=`Media from ${authorName}` width="100%" aspectRatio=1.6 objectFit="cover"
+          when pollQuestion
+            text pollQuestion size=15 weight=600 color="#17191C" testId="sm-poll-question"
+          row width="100%" align="center" gap=22 paddingTop=4
+            button press=pressReply label=`Reply (${replyCount})` background="transparent" padding=4 testId="sm-post-reply"
+              text `Reply ${replyCount}` size=13 color="#6B7280"
+            button press=pressRepost label=`Repost (${repostCount})` background="transparent" padding=4 testId="sm-post-repost"
+              text `Repost ${repostCount}` size=13 color="#6B7280"
+            button press=pressLike(id) label=liked ? `Unlike (${likeCount})` : `Like (${likeCount})` accessibilitySelected=liked background="transparent" padding=4 testId="sm-post-like"
+              text `${liked ? "Liked" : "Like"} ${likeCount}` size=13 color=liked ? "#DC2626" : "#6B7280"

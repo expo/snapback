@@ -1,0 +1,53 @@
+use CoterieAvatar from "./avatar.contract"
+use FacetButton from "@exact/facet-contract/components/button.contract"
+use FacetInput from "@exact/facet-contract/components/input.contract"
+
+component CoterieProfileCard
+  props
+    id: string
+    displayName: string
+    handle: string
+    bio: string
+    avatarUrl: string = null
+    followers: number
+    following: number
+    followedByMe: boolean = false
+    isMe: boolean = false
+    editing: boolean = false
+    draftName: string = ""
+    draftBio: string = ""
+    changeName: (value) => void
+    changeBio: (value) => void
+    pressEdit: (name, bio) => void
+    pressSave: () => void
+    pressFollow: (profileId) => void
+
+  contract
+    has node testId="sm-profile"
+    when isMe && !editing then has node testId="sm-profile-edit"
+    when editing then has node testId="sm-profile-save"
+    when !isMe then has node testId="sm-profile-follow"
+
+  view
+    column width="100%" background="#FFFFFF" padding=18 gap=10 testId="sm-profile"
+      row width="100%" align="center" justify="space-between"
+        CoterieAvatar(name=displayName, src=avatarUrl, size=72)
+        when isMe && !editing
+          button "Edit profile" press=pressEdit(displayName, bio) padding=8 radius=8 borderWidth=1 borderColor="#E2E4E8" background="#FFFFFF" testId="sm-profile-edit"
+        when !isMe
+          button followedByMe ? "Following" : "Follow" press=pressFollow(id) padding=8 radius=8 borderWidth=1 borderColor=followedByMe ? "#E2E4E8" : "#4F46E5" background=followedByMe ? "#FFFFFF" : "#4F46E5" color=followedByMe ? "#17191C" : "#FFFFFF" testId="sm-profile-follow"
+      when editing
+        column gap=10 testId="sm-profile-form"
+          FacetInput(value=draftName, label="Display name", change=changeName, testId="sm-profile-field-displayname")
+          column gap=6
+            text "Bio" size=13 weight=600 color="#17191C"
+            input value=draftBio change=changeBio label="Bio" multiline=true minHeight=88 padding=10 radius=8 borderWidth=1 borderColor="#E2E4E8" testId="sm-profile-field-bio"
+          FacetButton(label="Save", press=pressSave, testId="sm-profile-save")
+      else
+        column gap=5
+          text displayName size=22 weight=700 color="#17191C"
+          text `@${handle}` size=15 color="#6B7280"
+          text bio size=15 color="#17191C"
+          row gap=16 paddingTop=4
+            text `${followers} Followers` size=13 color="#6B7280" testId="sm-profile-follower-count"
+            text `${following} Following` size=13 color="#6B7280" testId="sm-profile-following-count"

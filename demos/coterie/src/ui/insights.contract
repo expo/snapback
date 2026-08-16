@@ -1,0 +1,63 @@
+component CoterieInsightsSummary
+  props
+    posts: number
+    likes: number
+    reposts: number
+    replies: number
+    followers: number
+    following: number
+
+  contract
+    has node testId="sm-insights-summary"
+
+  view
+    column width="100%" gap=8 testId="sm-insights-summary"
+      row width="100%" gap=8
+        CoterieInsightTile(label="Posts", value=posts, testId="sm-insights-total-posts")
+        CoterieInsightTile(label="Likes received", value=likes, testId="sm-insights-total-likes-received")
+      row width="100%" gap=8
+        CoterieInsightTile(label="Reposts received", value=reposts, testId="sm-insights-total-reposts-received")
+        CoterieInsightTile(label="Replies received", value=replies, testId="sm-insights-total-replies-received")
+      row width="100%" gap=8
+        CoterieInsightTile(label="Followers", value=followers, testId="sm-insights-total-followers")
+        CoterieInsightTile(label="Following", value=following, testId="sm-insights-total-following")
+
+component CoterieInsightTile
+  props
+    label: string
+    value: number
+    testId: string
+
+  view
+    column flex=1 gap=3 padding=12 radius=10 background="#F4F5F7" testId=testId
+      text `${value}` size=22 weight=700 color="#17191C"
+      text label size=12 color="#6B7280"
+
+component CoterieInsightDayRow
+  props
+    day: string
+    views: number
+    engagements: number
+
+  derive viewWidth = `${Math.min(100, views / 1.5)}%`
+  derive engagementWidth = `${Math.min(100, engagements)}%`
+
+  contract
+    has node testId="sm-insights-day-row"
+    has node testId="sm-insights-day-posts-bar"
+    has node testId="sm-insights-day-likes-bar"
+
+  view
+    row width="100%" align="center" gap=10 paddingTop=10 paddingBottom=10 borderBottomWidth=1 borderColor="#E2E4E8" testId="sm-insights-day-row"
+      text day size=13 weight=600 color="#17191C" width=42
+      column flex=1 gap=6
+        row width="100%" align="center" gap=8
+          text "Views" size=12 color="#6B7280" width=82
+          column flex=1 height=8 radius=999 background="#F4F5F7" overflow="hidden"
+            column width=viewWidth height=8 radius=999 background="#4F46E5" testId="sm-insights-day-posts-bar"
+          text `${views}` size=12 color="#6B7280" width=32
+        row width="100%" align="center" gap=8
+          text "Engagements" size=12 color="#6B7280" width=82
+          column flex=1 height=8 radius=999 background="#F4F5F7" overflow="hidden"
+            column width=engagementWidth height=8 radius=999 background="#EF6351" testId="sm-insights-day-likes-bar"
+          text `${engagements}` size=12 color="#6B7280" width=32

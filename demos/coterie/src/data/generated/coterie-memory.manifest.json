@@ -1,0 +1,682 @@
+{
+  "capabilities": {
+    "branchableFixtures": false,
+    "forceStates": false,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "optimisticMutations": false,
+    "rowSyncState": false,
+    "serverRunnableQueries": false,
+    "subscriptions": true
+  },
+  "inputsHash": "b99d16d677cfe8b0",
+  "manifestVersion": 2,
+  "mutations": {
+    "createPost": {
+      "argOrder": [
+        "body"
+      ],
+      "args": {
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "createPost",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "posts"
+      ]
+    },
+    "editProfile": {
+      "argOrder": [
+        "displayName",
+        "bio"
+      ],
+      "args": {
+        "bio": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "displayName": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "editProfile",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "profiles"
+      ]
+    },
+    "login": {
+      "argOrder": [
+        "email",
+        "password"
+      ],
+      "args": {
+        "email": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "password": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "login",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "sessions"
+      ]
+    },
+    "logout": {
+      "argOrder": [],
+      "args": {},
+      "name": "logout",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "sessions"
+      ]
+    },
+    "sendMessage": {
+      "argOrder": [
+        "chatId",
+        "body"
+      ],
+      "args": {
+        "body": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "sendMessage",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "chats",
+        "messages"
+      ]
+    },
+    "toggleFollow": {
+      "argOrder": [
+        "userId"
+      ],
+      "args": {
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "toggleFollow",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "profiles"
+      ]
+    },
+    "toggleLike": {
+      "argOrder": [
+        "postId"
+      ],
+      "args": {
+        "postId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "toggleLike",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "posts"
+      ]
+    },
+    "votePoll": {
+      "argOrder": [
+        "postId",
+        "optionId"
+      ],
+      "args": {
+        "optionId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "postId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "votePoll",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "pollOptions"
+      ]
+    }
+  },
+  "provider": "coterie-memory",
+  "queries": {
+    "listChats": {
+      "argOrder": [],
+      "args": {},
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listChats",
+      "reads": [
+        "chats"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "accentColor": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "avatarUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "isGroup": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "preview": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "unreadCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "updatedAt": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "listFeed": {
+      "argOrder": [
+        "mode"
+      ],
+      "args": {
+        "mode": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listFeed",
+      "reads": [
+        "posts"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "authorHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "avatarUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "likeCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "likedByMe": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "mediaKind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mediaUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pollQuestion": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "repostCount": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "listInsights": {
+      "argOrder": [],
+      "args": {},
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listInsights",
+      "reads": [
+        "insights"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "day": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "engagements": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "views": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "listMessages": {
+      "argOrder": [
+        "chatId"
+      ],
+      "args": {
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listMessages",
+      "reads": [
+        "messages"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "attachmentKind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "attachmentUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "chatId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "deleted": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "edited": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mine": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "quoteText": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "reaction": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "viewOnce": {
+              "name": "boolean",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "listPollOptions": {
+      "argOrder": [
+        "postId"
+      ],
+      "args": {
+        "postId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listPollOptions",
+      "reads": [
+        "pollOptions"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "label": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "postId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "selectedByMe": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "votes": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "listProfiles": {
+      "argOrder": [],
+      "args": {},
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listProfiles",
+      "reads": [
+        "profiles"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "avatarUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "bio": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "displayName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "followedByMe": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "followers": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "following": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "handle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "isMe": {
+              "name": "boolean",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "listSession": {
+      "argOrder": [],
+      "args": {},
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listSession",
+      "reads": [
+        "sessions"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "signedIn": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "listTrending": {
+      "argOrder": [],
+      "args": {},
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listTrending",
+      "reads": [
+        "trends"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "label": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "postCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "rank": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "searchSocial": {
+      "argOrder": [
+        "query"
+      ],
+      "args": {
+        "query": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "searchSocial",
+      "reads": [
+        "search"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "avatarUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "kind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "subtitle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    }
+  }
+}

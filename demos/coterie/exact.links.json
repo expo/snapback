@@ -1,0 +1,12 @@
+{
+  "@exact/adapter-node": "../../../exact/packages/exact-adapter-node",
+  "@exact/contract": "../../../exact/packages/exact-contract",
+  "@exact/core": "../../../exact/packages/exact-core",
+  "@exact/devtools": "../../../exact/packages/exact-devtools",
+  "@exact/facet-contract": "../../../exact/packages/exact-facet-contract",
+  "@exact/observability": "../../../exact/packages/exact-observability",
+  "@exact/renderer": "../../../exact/packages/exact-renderer",
+  "@exact/router": "../../../exact/packages/exact-router",
+  "@exact/server": "../../../exact/packages/exact-server",
+  "@exact/runtime": "../../../exact/js"
+}

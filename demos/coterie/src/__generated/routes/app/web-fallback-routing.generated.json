@@ -1,0 +1,51 @@
+{
+  "kind": "exact-web-fallback-routing",
+  "schemaVersion": 1,
+  "provenance": "// GENERATED FILE — do not edit by hand.",
+  "production": {
+    "classifier": {
+      "schemaVersion": 1,
+      "explicitRoutes": [
+        {
+          "pathnamePattern": "/about",
+          "routeId": "app/about.contract",
+          "owningProfile": "app"
+        },
+        {
+          "pathnamePattern": "/",
+          "routeId": "app/index.contract",
+          "owningProfile": "app"
+        }
+      ],
+      "zone": null,
+      "digest": "sha256:fafc33e54c50ea7ac9d706d67d30e0b1903788ee8237010ce6f428a4e58aed61"
+    },
+    "navigationPolicy": {
+      "schemaVersion": 2,
+      "rules": [],
+      "default": "external"
+    },
+    "policyDigest": "sha256:eace5a3d0b5d7a0da88a1eb81dafeb9ce0c60d5286fcb42de16476f193ea3771",
+    "shadowRoutes": [],
+    "zoneSnapshot": {
+      "schemaVersion": 1,
+      "classifierDigest": "sha256:fafc33e54c50ea7ac9d706d67d30e0b1903788ee8237010ce6f428a4e58aed61",
+      "policyDigest": "sha256:eace5a3d0b5d7a0da88a1eb81dafeb9ce0c60d5286fcb42de16476f193ea3771",
+      "zone": null,
+      "routes": []
+    }
+  },
+  "productionZoneDiff": {
+    "schemaVersion": 1,
+    "beforeClassifierDigest": "sha256:fafc33e54c50ea7ac9d706d67d30e0b1903788ee8237010ce6f428a4e58aed61",
+    "afterClassifierDigest": "sha256:fafc33e54c50ea7ac9d706d67d30e0b1903788ee8237010ce6f428a4e58aed61",
+    "nativeAdded": [],
+    "nativeRemoved": [],
+    "shadowAdded": [],
+    "shadowRemoved": [],
+    "changed": [],
+    "autoClaimBundleImpact": []
+  },
+  "profiles": {},
+  "profileZoneDiffs": {}
+}

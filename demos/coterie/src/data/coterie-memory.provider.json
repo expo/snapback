@@ -1,0 +1,369 @@
+{
+  "schemaVersion": "provider-declaration.v1",
+  "provider": "coterie-memory",
+  "declarationVersion": "1",
+  "capabilities": {
+    "push": true,
+    "pollingCadenceMs": null,
+    "transactions": false,
+    "optimistic": false,
+    "deduplication": false,
+    "cancellation": false,
+    "localReplica": false,
+    "initialSnapshot": true,
+    "rowSyncState": false,
+    "serverRunnableQueries": false,
+    "forceStates": false,
+    "branchableFixtures": false,
+    "headlessBoot": true
+  },
+  "partitionPolicy": {
+    "minting": "per-instance-default",
+    "rotationTriggers": []
+  },
+  "queries": [
+    {
+      "name": "listSession",
+      "descriptorId": "listSession",
+      "compatibilityToken": "1",
+      "reads": ["sessions"],
+      "params": [],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "Session",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "userId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "signedIn", "type": { "kind": "boolean" }, "nullable": false }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [],
+      "receipts": "none"
+    },
+    {
+      "name": "listFeed",
+      "descriptorId": "listFeed",
+      "compatibilityToken": "1",
+      "reads": ["posts"],
+      "params": [
+        { "name": "mode", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "FeedItem",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "authorId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "authorName", "type": { "kind": "string" }, "nullable": false },
+            { "name": "authorHandle", "type": { "kind": "string" }, "nullable": false },
+            { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true },
+            { "name": "body", "type": { "kind": "string" }, "nullable": false },
+            { "name": "createdAt", "type": { "kind": "string" }, "nullable": false },
+            { "name": "likeCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "repostCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "replyCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "likedByMe", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "mediaUrl", "type": { "kind": "string" }, "nullable": true },
+            { "name": "mediaKind", "type": { "kind": "string" }, "nullable": true },
+            { "name": "pollQuestion", "type": { "kind": "string" }, "nullable": true }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [],
+      "receipts": "none"
+    },
+    {
+      "name": "listProfiles",
+      "descriptorId": "listProfiles",
+      "compatibilityToken": "1",
+      "reads": ["profiles"],
+      "params": [],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "Profile",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "handle", "type": { "kind": "string" }, "nullable": false },
+            { "name": "displayName", "type": { "kind": "string" }, "nullable": false },
+            { "name": "bio", "type": { "kind": "string" }, "nullable": false },
+            { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true },
+            { "name": "followers", "type": { "kind": "number" }, "nullable": false },
+            { "name": "following", "type": { "kind": "number" }, "nullable": false },
+            { "name": "followedByMe", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "isMe", "type": { "kind": "boolean" }, "nullable": false }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [],
+      "receipts": "none"
+    },
+    {
+      "name": "listChats",
+      "descriptorId": "listChats",
+      "compatibilityToken": "1",
+      "reads": ["chats"],
+      "params": [],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "Chat",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "title", "type": { "kind": "string" }, "nullable": false },
+            { "name": "preview", "type": { "kind": "string" }, "nullable": false },
+            { "name": "updatedAt", "type": { "kind": "string" }, "nullable": false },
+            { "name": "unreadCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "isGroup", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "accentColor", "type": { "kind": "string" }, "nullable": false },
+            { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [],
+      "receipts": "none"
+    },
+    {
+      "name": "listMessages",
+      "descriptorId": "listMessages",
+      "compatibilityToken": "1",
+      "reads": ["messages"],
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "Message",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "senderId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "senderName", "type": { "kind": "string" }, "nullable": false },
+            { "name": "body", "type": { "kind": "string" }, "nullable": false },
+            { "name": "createdAt", "type": { "kind": "string" }, "nullable": false },
+            { "name": "mine", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "status", "type": { "kind": "string" }, "nullable": false },
+            { "name": "reaction", "type": { "kind": "string" }, "nullable": true },
+            { "name": "quoteText", "type": { "kind": "string" }, "nullable": true },
+            { "name": "edited", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "deleted", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "attachmentUrl", "type": { "kind": "string" }, "nullable": true },
+            { "name": "attachmentKind", "type": { "kind": "string" }, "nullable": true },
+            { "name": "viewOnce", "type": { "kind": "boolean" }, "nullable": false }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [],
+      "receipts": "none"
+    },
+    {
+      "name": "searchSocial",
+      "descriptorId": "searchSocial",
+      "compatibilityToken": "1",
+      "reads": ["search"],
+      "params": [
+        { "name": "query", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "SearchResult",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "kind", "type": { "kind": "string" }, "nullable": false },
+            { "name": "title", "type": { "kind": "string" }, "nullable": false },
+            { "name": "subtitle", "type": { "kind": "string" }, "nullable": false },
+            { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [],
+      "receipts": "none"
+    },
+    {
+      "name": "listPollOptions",
+      "descriptorId": "listPollOptions",
+      "compatibilityToken": "1",
+      "reads": ["pollOptions"],
+      "params": [
+        { "name": "postId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "PollOption",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "postId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "label", "type": { "kind": "string" }, "nullable": false },
+            { "name": "votes", "type": { "kind": "number" }, "nullable": false },
+            { "name": "selectedByMe", "type": { "kind": "boolean" }, "nullable": false }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [],
+      "receipts": "none"
+    },
+    {
+      "name": "listInsights",
+      "descriptorId": "listInsights",
+      "compatibilityToken": "1",
+      "reads": ["insights"],
+      "params": [],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "InsightDay",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "day", "type": { "kind": "string" }, "nullable": false },
+            { "name": "views", "type": { "kind": "number" }, "nullable": false },
+            { "name": "engagements", "type": { "kind": "number" }, "nullable": false }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [],
+      "receipts": "none"
+    },
+    {
+      "name": "listTrending",
+      "descriptorId": "listTrending",
+      "compatibilityToken": "1",
+      "reads": ["trends"],
+      "params": [],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "TrendingTopic",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "rank", "type": { "kind": "number" }, "nullable": false },
+            { "name": "label", "type": { "kind": "string" }, "nullable": false },
+            { "name": "postCount", "type": { "kind": "number" }, "nullable": false }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [],
+      "receipts": "none"
+    }
+  ],
+  "mutations": [
+    {
+      "name": "login",
+      "params": [
+        { "name": "email", "type": { "kind": "string" }, "nullable": false },
+        { "name": "password", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["sessions"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": []
+    },
+    {
+      "name": "logout",
+      "params": [],
+      "writes": ["sessions"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": []
+    },
+    {
+      "name": "createPost",
+      "params": [
+        { "name": "body", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["posts"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": []
+    },
+    {
+      "name": "toggleLike",
+      "params": [
+        { "name": "postId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["posts"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": []
+    },
+    {
+      "name": "toggleFollow",
+      "params": [
+        { "name": "userId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["profiles"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": []
+    },
+    {
+      "name": "editProfile",
+      "params": [
+        { "name": "displayName", "type": { "kind": "string" }, "nullable": false },
+        { "name": "bio", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["profiles"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": []
+    },
+    {
+      "name": "sendMessage",
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "body", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["messages", "chats"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": []
+    },
+    {
+      "name": "votePoll",
+      "params": [
+        { "name": "postId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "optionId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["pollOptions"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": []
+    }
+  ],
+  "extensions": {
+    "coterie.fixtureProfile": "clique-feature-parity",
+    "coterie.persistence": "process-memory-only"
+  }
+}

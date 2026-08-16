@@ -1,0 +1,15 @@
+component CoterieNavigation
+  props
+    selected: string
+    select: (value) => void
+
+  contract
+    has node testId="coterie-nav"
+
+  view
+    nav label="Primary" width="100%" background="#FFFFFF" borderWidth=1 borderColor="#E2E4E8" radius=16 padding=6 testId="coterie-nav"
+      row width="100%" gap=4
+        button "Feed" press=select("feed") accessibilitySelected=selected == "feed" flex=1 padding=10 radius=10 background=selected == "feed" ? "#EEF2FF" : "transparent" testId="coterie-nav-feed"
+        button "Chats" press=select("chats") accessibilitySelected=selected == "chats" flex=1 padding=10 radius=10 background=selected == "chats" ? "#EEF2FF" : "transparent" testId="coterie-nav-chats"
+        button "Search" press=select("search") accessibilitySelected=selected == "search" flex=1 padding=10 radius=10 background=selected == "search" ? "#EEF2FF" : "transparent" testId="coterie-nav-search"
+        button "Profile" press=select("profile") accessibilitySelected=selected == "profile" flex=1 padding=10 radius=10 background=selected == "profile" ? "#EEF2FF" : "transparent" testId="coterie-nav-profile"

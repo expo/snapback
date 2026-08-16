@@ -1,0 +1,24 @@
+{
+  "kind": "exact-hydration-build-descriptors",
+  "version": 1,
+  "descriptors": [
+    {
+      "version": 1,
+      "schemaVersion": 1,
+      "routeId": "app/about.contract",
+      "routeGraphDigest": "sha256:08d88abfbd0c86d26047a8def29599c1e24b7363d7e08e2c3a7ae7c000308e9b",
+      "sourceVersion": "sha256:08d88abfbd0c86d26047a8def29599c1e24b7363d7e08e2c3a7ae7c000308e9b",
+      "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "generatedAdapterVersion": "exact-contract-router-chain-v1"
+    },
+    {
+      "version": 1,
+      "schemaVersion": 1,
+      "routeId": "app/index.contract",
+      "routeGraphDigest": "sha256:28d8e9e57d39dcc916a609d51f844d9351bf721c89c2735ee03db2380d57561e",
+      "sourceVersion": "sha256:28d8e9e57d39dcc916a609d51f844d9351bf721c89c2735ee03db2380d57561e",
+      "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "generatedAdapterVersion": "exact-contract-router-chain-v1"
+    }
+  ]
+}

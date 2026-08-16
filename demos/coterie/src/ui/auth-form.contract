@@ -1,0 +1,30 @@
+use FacetButton from "@exact/facet-contract/components/button.contract"
+use FacetInput from "@exact/facet-contract/components/input.contract"
+use CoterieBrand from "./brand.contract"
+
+component CoterieAuthForm
+  props
+    email: string
+    password: string
+    errorText: string = null
+    changeEmail: (value) => void
+    changePassword: (value) => void
+    submit: () => void
+
+  contract
+    has node testId="sm-auth-email"
+    has node testId="sm-auth-password"
+    has node testId="sm-auth-submit"
+
+  view
+    column width="100%" maxWidth=420 alignSelf="center" gap=18 padding=24 background="#FFFFFF" radius=16 borderWidth=1 borderColor="#E2E4E8" testId="sm-auth-form"
+      CoterieBrand()
+      column gap=8
+        text "Welcome back" size=22 weight=700 color="#17191C"
+        text "Sign in to your circle" size=13 color="#6B7280"
+      FacetInput(value=email, label="Email", placeholder="you@example.com", change=changeEmail, testId="sm-auth-email")
+      column gap=6
+        input value=password change=changePassword label="Password" placeholder="Password" secure=true width="100%" padding=12 radius=8 borderWidth=1 borderColor="#E2E4E8" testId="sm-auth-password"
+      when errorText
+        text errorText size=13 color="#DC2626" testId="sm-auth-error"
+      FacetButton(label="Sign in", press=submit, testId="sm-auth-submit")

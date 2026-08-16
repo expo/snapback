@@ -1,0 +1,31 @@
+use CoterieAvatar from "./avatar.contract"
+
+component CoterieChatListRow
+  props
+    id: string
+    title: string
+    preview: string
+    timestamp: string
+    unreadCount: number = 0
+    avatarUrl: string = null
+    accentColor: string = "#4F46E5"
+    press: (chatId) => void
+
+  contract
+    has node testId="sm-chats-item"
+    when unreadCount > 0 then has node testId="sm-chats-unread"
+
+  view
+    listitem width="100%"
+      button press=press(id) label=`Open chat with ${title}` width="100%" background="#FFFFFF" padding=14 borderBottomWidth=1 borderColor="#E2E4E8" testId="sm-chats-item"
+        row width="100%" align="center" gap=12
+          CoterieAvatar(name=title, src=avatarUrl, size=48, accent=accentColor)
+          column flex=1 minWidth=0 gap=4
+            row width="100%" align="center" justify="space-between"
+              text title size=17 weight=unreadCount > 0 ? 700 : 600 color="#17191C"
+              text timestamp size=12 color="#6B7280"
+            row width="100%" align="center" justify="space-between" gap=8
+              text preview size=13 color=unreadCount > 0 ? "#17191C" : "#6B7280" numberOfLines=1 flex=1
+              when unreadCount > 0
+                column minWidth=22 height=22 paddingLeft=6 paddingRight=6 radius=11 background="#4F46E5" align="center" justify="center" testId="sm-chats-unread"
+                  text `${unreadCount}` size=12 weight=700 color="#FFFFFF"

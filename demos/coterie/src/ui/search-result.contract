@@ -1,0 +1,23 @@
+use CoterieAvatar from "./avatar.contract"
+
+component CoterieSearchResult
+  props
+    title: string
+    subtitle: string
+    kind: string
+    destination: string
+    avatarUrl: string = null
+    press: (destination) => void
+
+  contract
+    has node testId="sm-search-result"
+
+  view
+    listitem width="100%"
+      button press=press(destination) label=`Open ${title}` width="100%" padding=12 background="#FFFFFF" borderBottomWidth=1 borderColor="#E2E4E8" testId="sm-search-result"
+        row width="100%" align="center" gap=12
+          CoterieAvatar(name=title, src=avatarUrl, size=40, accent=kind == "person" ? "#4F46E5" : "#0D9488")
+          column flex=1 gap=3
+            text title size=15 weight=600 color="#17191C"
+            text subtitle size=13 color="#6B7280"
+          text kind size=12 color="#9CA3AF"

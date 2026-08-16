@@ -1,0 +1,53 @@
+component CoterieMessageBubble
+  props
+    senderName: string
+    body: string
+    timestamp: string
+    mine: boolean = false
+    status: string = "sent"
+    reaction: string = null
+    quoteText: string = null
+    edited: boolean = false
+    deleted: boolean = false
+    attachmentUrl: string = null
+    viewOnce: boolean = false
+    accentColor: string = "#4F46E5"
+    pressReaction: () => void
+    pressMedia: () => void
+
+  derive bubbleColor = mine ? "#DDE7FF" : "#F1F2F4"
+
+  contract
+    has node testId="sm-convo-bubble"
+    when mine && !deleted then has node testId="sm-convo-receipt"
+    when reaction then has node testId="sm-convo-reaction-chip"
+    when quoteText then has node testId="sm-convo-quote"
+
+  view
+    row width="100%" justify=mine ? "flex-end" : "flex-start" paddingLeft=12 paddingRight=12 paddingTop=3 paddingBottom=3
+      column maxWidth="78%" align=mine ? "flex-end" : "flex-start" gap=3
+        button label=deleted ? "Deleted message" : `Message from ${senderName}` longpress=pressReaction background=bubbleColor radius=18 padding=10 testId="sm-convo-bubble"
+          column gap=4
+            when !mine
+              text senderName size=13 weight=600 color=accentColor
+            when quoteText
+              column borderLeftWidth=3 borderColor=accentColor paddingLeft=8 testId="sm-convo-quote"
+                text quoteText size=12 color="#6B7280" numberOfLines=2
+            when deleted
+              text "This message was deleted" size=15 color="#6B7280" testId="sm-convo-tombstone"
+            else
+              when viewOnce
+                button "Photo — view once" press=pressMedia disabled=false padding=8 radius=999 borderWidth=1 borderColor="#E2E4E8" background="transparent" testId="sm-convo-viewonce"
+              when attachmentUrl
+                button press=pressMedia label="Photo message" padding=0 radius=10 overflow="hidden" testId="sm-convo-media"
+                  image src=attachmentUrl alt="Message attachment" width=220 height=150 objectFit="cover"
+              text body size=15 color="#17191C"
+            row align="center" justify="flex-end" gap=4
+              when edited && !deleted
+                text "edited" size=12 color="#6B7280"
+              text timestamp size=12 color="#6B7280"
+              when mine && !deleted
+                text status == "read" ? "Read" : status == "delivered" ? "Delivered" : "Sent" size=11 color=status == "read" ? "#2F80ED" : "#6B7280" testId="sm-convo-receipt"
+        when reaction
+          button press=pressReaction label=`Reaction ${reaction}` accessibilitySelected=true paddingLeft=8 paddingRight=8 paddingTop=3 paddingBottom=3 radius=999 borderWidth=1 borderColor="#4F46E5" background="#DDE7FF" testId="sm-convo-reaction-chip"
+            text reaction size=13 color="#17191C"
