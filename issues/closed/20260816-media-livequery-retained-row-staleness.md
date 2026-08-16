@@ -42,3 +42,19 @@ Root-cause and fix in the client rehydration/supersession path for
 media-bearing retained rows; regression coverage at the rqs-resume level
 (the existing rqs-resume-expo suites are the home). The device demo and its
 probes are the live repro.
+
+## Resolution (2026-08-16, Phase I)
+
+Root cause: the QMK/materialization retained-seed path in
+`SnapbackClient.liveQuery()` set `seededFromMaterialization` but never
+`seedFrameDelivered`, so after the retained first paint the fresh baseline
+subscribe installed the new rows on the handle but the post-establishment
+callback to frame-driven consumers stayed guarded off forever — React hooks
+rendered the stale retained row indefinitely while imperative reads saw
+truth. Exactly the device symptom (media-bearing rows are the common case
+because they always retain without a resume class, but the hole was not
+media-specific). Fixed by marking the seed frame delivered on that path;
+three-session real-file-store regression (session A retains → out-of-band
+media change → session B must supersede) proven red→green in
+rqs-resume-native.test.mjs. Landed with the Phase I lane; the device demo
+re-verifies visually on the next run.

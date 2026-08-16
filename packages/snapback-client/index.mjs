@@ -11817,7 +11817,7 @@ export class SnapbackClient {
     // resume" recency bookkeeping (LLP 0091 §0A.5 eviction rule).
     let pendingResumeConfirmation = false;
     let seededFromResumeState = false;
-    // True once a persisted/preloaded seed frame reached onUpdate. An
+    // True once any retained seed frame reached onUpdate. An
     // establishment that lands AFTER that frame must re-deliver the
     // authoritative rows through onUpdate: frame-driven consumers (the React
     // binding) otherwise keep rendering the retained seed while the handle
@@ -12010,7 +12010,12 @@ export class SnapbackClient {
         deliverAuthorityObservation,
         onUpdate,
       });
-      if (result?.seeded === true) seededFromMaterialization = true;
+      if (result?.seeded === true) {
+        seededFromMaterialization = true;
+        // @ref LLP 0166#d4--completeness-honest-local-answers — a retained
+        // QMK frame must be superseded by the next fresh establishment.
+        seedFrameDelivered = true;
+      }
     };
 
     const seedFromProtectedRetentionState = async () => {
