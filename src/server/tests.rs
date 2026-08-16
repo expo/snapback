@@ -16537,26 +16537,58 @@ async fn concurrent_auth_refresh_has_exactly_one_http_winner() {
     let initial_token = initial["token"].as_str().unwrap().to_owned();
     let router = app(state);
 
-    let request_a = router.clone().oneshot(session_auth_http_request(
+    let pause_a = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterRefreshPremark,
+    );
+    let pause_b = install_test_finite_authority_pause(
+        TestFiniteAuthorityPausePoint::AfterRefreshPremark,
+    );
+    let mut request_a = session_auth_http_request(
         "/auth/refresh",
         br#"{}"#.to_vec(),
         &initial_token,
-    ));
-    let request_b = router.clone().oneshot(session_auth_http_request(
+    );
+    request_a.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(pause_a.id()).expect("first refresh pause header"),
+    );
+    let mut request_b = session_auth_http_request(
         "/auth/refresh",
         br#"{}"#.to_vec(),
         &initial_token,
-    ));
-    let (response_a, response_b) = tokio::join!(request_a, request_b);
-    let response_a = response_a.expect("first concurrent refresh response");
-    let response_b = response_b.expect("second concurrent refresh response");
+    );
+    request_b.headers_mut().insert(
+        HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+        HeaderValue::from_str(pause_b.id()).expect("second refresh pause header"),
+    );
+    let router_a = router.clone();
+    let request_a = tokio::spawn(async move { router_a.oneshot(request_a).await });
+    let request_b = tokio::spawn(async move { router.oneshot(request_b).await });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        tokio::join!(pause_a.wait_until_reached(), pause_b.wait_until_reached());
+    })
+    .await
+    .expect("both refresh requests reach the post-premark rendezvous");
+
+    // Both exact rotation tickets are now pending. Release only A so its
+    // committed response must cross admission while B still owns its sibling
+    // ticket; this deterministically fails against the pre-fix generic fence.
+    pause_a.release().await;
+    let response_a = tokio::time::timeout(Duration::from_secs(5), request_a)
+        .await
+        .expect("first concurrent refresh response timed out")
+        .expect("first concurrent refresh task")
+        .expect("first concurrent refresh response");
+    assert_eq!(response_a.status(), StatusCode::OK);
+
+    pause_b.release().await;
+    let response_b = tokio::time::timeout(Duration::from_secs(5), request_b)
+        .await
+        .expect("second concurrent refresh response timed out")
+        .expect("second concurrent refresh task")
+        .expect("second concurrent refresh response");
+    assert_eq!(response_b.status(), StatusCode::CONFLICT);
     let outcomes = [response_a, response_b];
-    let mut statuses = outcomes
-        .iter()
-        .map(|response| response.status())
-        .collect::<Vec<_>>();
-    statuses.sort();
-    assert_eq!(statuses, [StatusCode::OK, StatusCode::CONFLICT]);
 
     for response in outcomes {
         let status = response.status();

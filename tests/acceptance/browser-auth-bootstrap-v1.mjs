@@ -283,6 +283,33 @@ const readRequestBytes = async (request, maximum = 1024 * 1024) => {
   return Buffer.concat(chunks);
 };
 
+const DEBUG_SECRET_BODY_FIELD = /(?:password|passcode|code|token|bearer|secret|credential)/iu;
+
+const redactDebugRequestBody = (body) => {
+  if (body === undefined) return null;
+  const raw = Buffer.from(body).toString('utf8');
+  if (raw.length === 0) return '';
+  try {
+    const redact = (value, fieldName = null) => {
+      if (fieldName !== null && DEBUG_SECRET_BODY_FIELD.test(fieldName)) {
+        return '<redacted-present>';
+      }
+      if (Array.isArray(value)) return value.map((entry) => redact(entry));
+      if (value !== null && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(
+          ([name, entry]) => [name, redact(entry, name)],
+        ));
+      }
+      return fieldName === null && typeof value === 'string'
+        ? '<redacted-scalar-body>'
+        : value;
+    };
+    return JSON.stringify(redact(JSON.parse(raw)));
+  } catch {
+    return `<redacted-unparseable-body:${body.length}-bytes>`;
+  }
+};
+
 function createGate(pathname, expected) {
   let resolveEntered;
   let resolveRelease;
@@ -364,7 +391,7 @@ async function startHarnessServer(bundle, upstreamOrigin) {
       if (process.env.SNAPBACK_BROWSER_AUTH_DEBUG_HEADERS === '1' && url.pathname.startsWith('/auth/')) {
         const scrubbed = Object.fromEntries(Object.entries(request.headers).map(([n, v]) =>
           [n, /authorization|cookie|token/i.test(n) ? '<redacted-present>' : v]));
-        const bodyText = body ? Buffer.from(body).toString('utf8').replace(/"password":"[^"]*"/g, '"password":"<redacted>"') : null;
+        const bodyText = redactDebugRequestBody(body);
         console.error('AUTH-DEBUG', url.pathname, JSON.stringify({ headers: scrubbed, body: bodyText, status: upstream.status }).slice(0, 900));
       }
       const responseHeaders = {};
@@ -1201,7 +1228,7 @@ async function runWebDriverMockCheck() {
           value: { method: body.args[1], argument: body.args[3], handle: currentHandle },
         });
         value = true;
-      } else if (body.script.includes('globalThis.__snapbackWebDriverOperationsV1')) {
+      } else if (body.script.includes('window.__snapbackWebDriverOperationsV1')) {
         value = operations.get(body.args[0]) ?? { done: false };
         operations.delete(body.args[0]);
       } else {
@@ -2038,21 +2065,22 @@ try {
   // index.mjs): the rotation winner resolves with the rotated credential
   // projection; a superseded caller that observes the winner's successor
   // revision resolves { superseded: true } — with cross-context wakeups
-  // wired, the loser ordinarily RESOLVES rather than rejecting, while the
+  // wired, the loser RESOLVES rather than rejecting, while the
   // wire still shows exactly one 200 and one typed 409. The proof therefore
   // requires exactly one 'rotated' resolution, exactly one converged
-  // supersession (resolved superseded-converged OR a typed rejection), and
-  // the exact 200/409 wire pair.
+  // supersession (`superseded-converged`), and the exact 200/409 wire pair.
   const rotatedRefreshes = refreshRace.results.filter(
     (result) => result.ok && result.refreshOutcome === 'rotated',
   );
   const supersededRefreshes = refreshRace.results.filter(
-    (result) => (result.ok && result.refreshOutcome === 'superseded-converged')
-      || (!result.ok && result.code === 'SNAPBACK_AUTH_REFRESH_SUPERSEDED'),
+    (result) => result.ok && result.refreshOutcome === 'superseded-converged',
+  );
+  const rejectedSupersededRefreshes = refreshRace.results.filter(
+    (result) => !result.ok && result.code === 'SNAPBACK_AUTH_REFRESH_SUPERSEDED',
   );
   const refreshSuccesses = rotatedRefreshes.length;
   const refreshWinner = rotatedRefreshes.length === 1 ? rotatedRefreshes[0].snapshot : null;
-  const refreshLoserTyped = supersededRefreshes.length === 1
+  const refreshLoserConverged = supersededRefreshes.length === 1
     && rotatedRefreshes.length + supersededRefreshes.length === refreshRace.results.length;
   const refreshWireAfter = harness.counts()['POST /auth/refresh'] ?? { total: 0, statuses: {} };
   const refreshWireDelta = {
@@ -2079,7 +2107,7 @@ try {
   const refreshCapturesMatch = refreshAuto.every(captureMatchesCustody);
   const refreshConverged = refreshSuccesses === 1
     && refreshWinnerRotated
-    && refreshLoserTyped
+    && refreshLoserConverged
     && refreshWireExact
     && refreshProjectionConverged
     && refreshCapturesMatch;
@@ -2094,14 +2122,17 @@ try {
   ));
   const refreshFailureNote = (() => {
     if (refreshConverged) return 'one refresh rotated on the wire (exactly one 200 and one typed 409), its peer converged through the documented superseded resolution, and both tabs settled on the same-authority rotated custody revision';
+    if (rejectedSupersededRefreshes.length > 0) {
+      return 'the non-winning caller rejected instead of resolving the documented superseded convergence';
+    }
     if (refreshSuccesses === 0 && refreshFailClosedBlank) {
       return 'refresh race had zero rotation winners and fail-closed blanked both tabs automatically';
     }
     if (refreshSuccesses !== 1) {
       return `refresh race produced ${refreshSuccesses} rotation winners instead of exactly one`;
     }
-    if (!refreshLoserTyped) {
-      return 'the non-winning caller neither resolved the documented superseded convergence nor refused typed superseded';
+    if (!refreshLoserConverged) {
+      return 'the non-winning caller did not resolve the documented superseded convergence';
     }
     if (!refreshWireExact) {
       return `the /auth/refresh wire pair was not exactly one 200 and one 409 (total=${refreshWireDelta.total} ok=${refreshWireDelta.ok} superseded=${refreshWireDelta.superseded})`;

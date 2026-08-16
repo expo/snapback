@@ -16,9 +16,10 @@ use super::provider::{
 };
 use super::session_projection::{
     AUTH_LOCK_RANK_TOPOLOGY, AuthorityWorkDrain, BoundConnectionSessionIdentity, DueExpiryBatch,
-    DueExpiryFinalization, FencedPublication, MutationTicket, PendingMutationKind,
-    ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution, ProjectedSessionAuthority,
-    ProjectedTokenResolution, RankedMutexGuard, SessionProjection, ranked_mutex_lock,
+    DueExpiryFinalization, FencedPublication, FinalizedRotationPublicationCut, MutationTicket,
+    PendingMutationKind, ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution,
+    ProjectedSessionAuthority, ProjectedTokenResolution, RankedMutexGuard, SessionProjection,
+    ranked_mutex_lock,
 };
 use crate::contract_types::{AuthorizationStreamIncarnation, RevocationReason, TokenDigest};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -216,6 +217,7 @@ struct CommittedAuthOutcomeState {
     publication: FencedPublication,
     ticket: MutationTicket,
     permitted_pending_tickets: BTreeSet<MutationTicket>,
+    finalized_rotation_cut: Option<FinalizedRotationPublicationCut>,
     response_class: CommittedAuthResponseClass,
 }
 
@@ -247,14 +249,18 @@ impl CommittedAuthOutcome {
         // Keep it alive through the guarded handoff so the capability binds
         // both the finalized mutation and its fixed response class.
         let _finalized_ticket = state.ticket;
-        state
-            .publication
-            .try_publish_with_permitted_pending_tickets(
+        match state.finalized_rotation_cut {
+            Some(finalized_cut) => state.publication.try_publish_committed_rotation(
                 epoch_now_ms,
                 monotonic_now,
                 &state.permitted_pending_tickets,
+                finalized_cut,
                 publish,
-            )
+            ),
+            None => state
+                .publication
+                .try_publish(epoch_now_ms, monotonic_now, publish),
+        }
     }
 }
 
@@ -993,6 +999,7 @@ impl AuthCoordinator {
                         publication: topology.projection.anonymous_publication_fence(),
                         ticket: carrier.ticket.clone(),
                         permitted_pending_tickets: BTreeSet::new(),
+                        finalized_rotation_cut: None,
                         response_class,
                     }))),
                 };
@@ -1051,12 +1058,15 @@ impl AuthCoordinator {
                     );
                     return Err(projection_unavailable());
                 };
-                if self.take_finalize_failpoint()
-                    || topology
+                let finalized_rotation_cut = if self.take_finalize_failpoint() {
+                    None
+                } else {
+                    topology
                         .projection
                         .finalize_token_rotation(&carrier.ticket, carrier.plan.session_id())
-                        .is_err()
-                {
+                        .ok()
+                };
+                let Some(finalized_rotation_cut) = finalized_rotation_cut else {
                     fail_session_closed(
                         &mut topology,
                         &carrier.ticket,
@@ -1067,12 +1077,13 @@ impl AuthCoordinator {
                     // credential is never published while its projection is
                     // unavailable.
                     return Err(projection_unavailable());
-                }
+                };
                 let outcome = CommittedAuthOutcome {
                     state: Arc::new(Mutex::new(Some(CommittedAuthOutcomeState {
                         publication,
                         ticket: carrier.ticket.clone(),
                         permitted_pending_tickets,
+                        finalized_rotation_cut: Some(finalized_rotation_cut),
                         response_class: CommittedAuthResponseClass::CredentialSecret,
                     }))),
                 };
@@ -1211,6 +1222,7 @@ impl AuthCoordinator {
                         publication: topology.projection.anonymous_publication_fence(),
                         ticket: carrier.issuance_ticket.clone(),
                         permitted_pending_tickets: BTreeSet::new(),
+                        finalized_rotation_cut: None,
                         response_class: CommittedAuthResponseClass::CredentialSecret,
                     }))),
                 };
@@ -2671,6 +2683,139 @@ mod tests {
             "the same session authority reopens after its losing refresh exact-unmarks"
         );
         fixture.coordinator.check_invariants().unwrap();
+
+        let successor_fixture = self::fixture();
+        let successor_one = SessionBearer::generate(&FixedRandom(11)).unwrap();
+        let successor_one_digest = TokenDigest::from_token_hash(&successor_one.token_hash());
+        let first_rotation = successor_fixture
+            .coordinator
+            .premark_rotation(ProviderTokenRotationPlan::for_test(
+                successor_fixture.session_id.clone(),
+                1,
+                successor_fixture.digest,
+                successor_one,
+                250,
+            ))
+            .await
+            .unwrap();
+        let RotationFinish::Committed {
+            outcome: successor_one_outcome,
+            ..
+        } = successor_fixture
+            .coordinator
+            .finish_rotation(
+                first_rotation,
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                    session: committed_rotation_session(&successor_fixture),
+                }),
+            )
+            .unwrap()
+        else {
+            panic!("first same-generation successor commits");
+        };
+        let successor_two = SessionBearer::generate(&FixedRandom(12)).unwrap();
+        let successor_two_text = successor_two.expose_secret().to_owned();
+        let second_rotation = successor_fixture
+            .coordinator
+            .premark_rotation(ProviderTokenRotationPlan::for_test(
+                successor_fixture.session_id.clone(),
+                1,
+                successor_one_digest,
+                successor_two,
+                260,
+            ))
+            .await
+            .unwrap();
+        assert!(matches!(
+            successor_fixture
+                .coordinator
+                .finish_rotation(
+                    second_rotation,
+                    AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                        session: committed_rotation_session(&successor_fixture),
+                    }),
+                )
+                .unwrap(),
+            RotationFinish::Committed { .. }
+        ));
+        let successor_two_authority = successor_fixture
+            .coordinator
+            .resolve_required_bearer(&successor_two_text, 270, successor_fixture.monotonic_start)
+            .unwrap();
+        assert!(matches!(
+            successor_two_authority.authority(),
+            ResolvedAppAuthority::Session { generation: 1, .. }
+        ));
+        assert!(
+            successor_one_outcome
+                .try_publish(
+                    CommittedAuthResponseClass::CredentialSecret,
+                    270,
+                    successor_fixture.monotonic_start,
+                    || Ok(()),
+                )
+                .unwrap()
+                .is_none(),
+            "a finalized successor-one outcome cannot publish after a ticket-free, same-generation successor-two rotation"
+        );
+        successor_fixture.coordinator.check_invariants().unwrap();
+
+        let deadline_fixture = self::fixture();
+        let deadline_rotation = deadline_fixture
+            .coordinator
+            .premark_rotation(ProviderTokenRotationPlan::for_test(
+                deadline_fixture.session_id.clone(),
+                1,
+                deadline_fixture.digest,
+                SessionBearer::generate(&FixedRandom(13)).unwrap(),
+                250,
+            ))
+            .await
+            .unwrap();
+        let RotationFinish::Committed {
+            outcome: captured_deadline_outcome,
+            ..
+        } = deadline_fixture
+            .coordinator
+            .finish_rotation(
+                deadline_rotation,
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                    session: committed_rotation_session(&deadline_fixture),
+                }),
+            )
+            .unwrap()
+        else {
+            panic!("deadline fixture rotation commits");
+        };
+        assert!(
+            deadline_fixture
+                .coordinator
+                .finalize_authenticated_use(
+                    &deadline_fixture.session_id,
+                    1,
+                    AuthenticatedUse::Unchanged {
+                        expires_at_ms: 1_000,
+                    },
+                    300,
+                    deadline_fixture.monotonic_start + Duration::from_millis(100),
+                )
+                .unwrap()
+                .is_some(),
+            "authenticated use replaces the captured deadline"
+        );
+        assert!(
+            captured_deadline_outcome
+                .try_publish(
+                    CommittedAuthResponseClass::CredentialSecret,
+                    350,
+                    deadline_fixture.monotonic_start + Duration::from_millis(150),
+                    || Ok(()),
+                )
+                .unwrap()
+                .is_none(),
+            "a committed refresh outcome cannot publish after its authenticated-use deadline snapshot is replaced"
+        );
+        deadline_fixture.coordinator.check_invariants().unwrap();
 
         let revocation_fixture = self::fixture();
         let winner = revocation_fixture

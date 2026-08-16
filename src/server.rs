@@ -11830,6 +11830,7 @@ async fn pause_test_coordinated_mutation_after_commit(function: &str) {
 enum TestFiniteAuthorityPausePoint {
     BeforeHandler,
     BeforeResponsePublication,
+    AfterRefreshPremark,
     AfterScopedTokenStreamCapture,
     AfterScopedTokenDurableResolve,
     AfterSessionTerminalOwnedSpawn,
@@ -16922,6 +16923,11 @@ async fn auth_refresh(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
+    #[cfg(test)]
+    let test_finite_authority_pause_id = headers
+        .get(TEST_FINITE_AUTHORITY_PAUSE_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
     require_provider_session_authority(&authority, InvocationSource::AuthRefresh)?;
     let provider = installed_auth_provider(&runtime)?;
     let coordinator = installed_auth_coordinator(&runtime)?;
@@ -16950,6 +16956,13 @@ async fn auth_refresh(
                     .premark_rotation(plan)
                     .await
                     .map_err(ApiError::from)?;
+                #[cfg(test)]
+                pause_test_finite_authority_request(
+                    test_finite_authority_pause_id.as_deref(),
+                    TestFiniteAuthorityPausePoint::AfterRefreshPremark,
+                    None,
+                )
+                .await;
                 let commit_plan = carrier.plan().commit_plan();
                 let effect_authority = authority.clone();
                 let owned_provider = provider.clone();

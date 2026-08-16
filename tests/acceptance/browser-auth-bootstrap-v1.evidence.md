@@ -62,18 +62,23 @@ bearer/recovery-token scans pass).
    client `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID`. Fixed in this
    landing with an operation-specific committed-refresh fence
    (`src/auth/session_projection.rs`) that admits the winner past only its
-   already-doomed sibling refresh tickets while still blocking
-   logout/revocation/expiry/generation/stream changes; a Rust HTTP race
-   regression pins exactly one 200 winner, and a revocation-boundary test
-   pins the security posture.
+   already-doomed sibling refresh tickets while binding admission to the
+   finalized successor digest and captured authenticated-use deadline pair;
+   later finalized same-generation rotation, deadline replacement,
+   logout/revocation/expiry/generation/stream changes all refuse. LLP 0059's
+   dated 2026-08-16 leaf-fence amendment now records that sole exception. A
+   barrier-gated Rust HTTP race regression pins exactly one 200 winner, and a
+   revocation-boundary test pins the security posture.
 4. With the fix live, the race resolves per the documented client
    contract: the wire shows exactly one 200 and one typed 409; the winning
    caller returns the rotated credential; the superseded caller observes
    the winner's successor revision through the cross-tab wakeups and
-   resolves `{ superseded: true }`. The harness predicate now requires
-   exactly that (one rotated resolution, one converged supersession, the
-   exact 200/409 wire pair, same-authority revision-only rotation with
-   unchanged epoch, automatic two-tab convergence).
+   resolves `{ superseded: true }`. The harness predicate accepts only that
+   resolved `superseded-converged` outcome for the loser; a typed
+   `SNAPBACK_AUTH_REFRESH_SUPERSEDED` client rejection fails even when the
+   wire remains correct. It also requires one rotated resolution, the exact
+   200/409 wire pair, same-authority revision-only rotation with unchanged
+   epoch, and automatic two-tab convergence.
 5. Fresh-prime drift on current main forced the harness onto its own
    fixture backend: freshly primed `demos/rbac/snapback` cannot boot a
    server (governance carrier, then
@@ -133,7 +138,8 @@ scratch directories) are recorded per engine in the witness.
   PASS (see the landing's commit message for verbatim counts); the fix
   binary is the one the recorded run launched.
 - `node --check` for the runner and page: PASS.
-- WebDriver adapter mock-lifecycle test mode (shared W3C session, two
+- WebDriver adapter mock-lifecycle test mode, including the window-pinned
+  cross-call operation registry (shared W3C session, two
   windows, concurrent handle routing, reload, window close, session close,
   initialization-failure cleanup, Firefox capabilities/port-retry/profile
   lifecycle): PASS.

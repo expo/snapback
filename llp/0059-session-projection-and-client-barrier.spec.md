@@ -5,7 +5,12 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-15 (shipped native custody adapter:
+**Revised:** 2026-08-16 (committed-refresh publication amendment: ordinary
+publication still requires an empty pending-ticket set; the sole exception is
+one exact finalized rotation response bound to its current successor digest,
+complete authenticated-use deadline pair, generation, stream incarnation, and
+captured exact-predecessor sibling-ticket set; every later or different cut
+refuses). 2026-08-15 (shipped native custody adapter:
 `@expo/snapback-contract/auth-custody-secure-store` promotes the
 previously guide-documented Expo SecureStore adapter to first-party
 surface — dependency-injected SecureStore module, custody keyed by
@@ -399,6 +404,7 @@ struct ProjectedSession {
     expires_at_ms: i64,
     absolute_expires_at_ms: i64,
     state: ProjectedSessionState,
+    current_token: Option<Sha256Digest>,
     pending: BTreeMap<MutationTicket, PendingMutation>,
     fence: Arc<SessionFence>,
 }
@@ -545,6 +551,7 @@ connection grants, and effect publishers. Its logical state is:
 ```rust
 struct SessionFenceState {
     generation: u64,
+    current_token: Option<TokenDigest>,
     deadline: DeadlinePair,
     terminal: Option<RevocationReason>,
     pending_tickets: BTreeSet<MutationTicket>,
@@ -555,6 +562,28 @@ An act is admissible only when its expected generation matches, both deadlines
 are live, `terminal` is absent, and `pending_tickets` is empty. The separate
 leaf fence lets an act validate and publish without holding the projection
 topology mutex or a SQLite/provider lock.
+
+**Committed-refresh leaf-fence amendment (2026-08-16).** Ordinary
+publication continues to require `pending_tickets.is_empty()`. The sole
+exception is the one-shot credential response for a bearer rotation that has
+already committed and finalized, closing
+[`issues/closed/20260816-refresh-race-zero-winner.md`](../issues/closed/20260816-refresh-race-zero-winner.md).
+That outcome may pass only the exact ticket ids captured before its finalize
+which were then-projected, same-generation `TokenSupersede` siblings for the
+same exact predecessor. Admission compares the live leaf against the complete
+captured commit cut: authorization-stream incarnation, session generation,
+finalized current successor digest, and the `DeadlinePair` (both epoch and
+monotonic authenticated-use deadlines) captured by finalize.
+
+Everything else refuses: any `Revoke` or `Expire` ticket; any later,
+non-captured, different-generation, or different-predecessor
+`TokenSupersede`; any stream pending ticket or incarnation replacement; any
+generation or terminal-state change; any later finalized bearer successor
+even when its ticket is already gone and generation did not advance; any
+authenticated-use deadline replacement; and any deadline that is no longer
+live. The captured sibling ids grant no authority after their exact
+predecessor relationship changes, and the committed outcome remains
+response-class-bound and one-shot.
 
 ### Plan, begin, commit, finalize
 

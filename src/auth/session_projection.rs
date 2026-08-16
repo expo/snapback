@@ -696,16 +696,23 @@ pub(crate) struct SessionFence {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct SessionFenceState {
     generation: u64,
+    current_token: Option<TokenDigest>,
     deadline: DeadlinePair,
     terminal: Option<RevocationReason>,
     pending_tickets: BTreeSet<MutationTicket>,
 }
 
 impl SessionFence {
-    fn new(generation: u64, deadline: DeadlinePair, terminal: Option<RevocationReason>) -> Self {
+    fn new(
+        generation: u64,
+        current_token: Option<TokenDigest>,
+        deadline: DeadlinePair,
+        terminal: Option<RevocationReason>,
+    ) -> Self {
         Self {
             state: Mutex::new(SessionFenceState {
                 generation,
+                current_token,
                 deadline,
                 terminal,
                 pending_tickets: BTreeSet::new(),
@@ -915,6 +922,20 @@ struct SessionPublicationFence {
     session: Arc<SessionFence>,
 }
 
+/// Exact projected state minted by one successful bearer-rotation finalize.
+/// The digest names the non-reusable successor, while the complete deadline
+/// pair snapshots the mutable authenticated-use cut at that same instant.
+///
+/// @ref LLP 0059#operation-specific-publication — committed-refresh
+/// publication is the sole pending-ticket exception and remains bound to the
+/// exact finalized successor and authenticated-use deadline.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FinalizedRotationPublicationCut {
+    generation: u64,
+    successor_digest: TokenDigest,
+    authenticated_use_deadline: DeadlinePair,
+}
+
 impl FencedPublication {
     pub(crate) fn authorization_stream_incarnation(&self) -> &str {
         self.expected_incarnation.as_str()
@@ -931,10 +952,11 @@ impl FencedPublication {
         monotonic_now: Instant,
         publish: impl FnOnce() -> SnapbackResult<T>,
     ) -> SnapbackResult<Option<T>> {
-        self.try_publish_with_permitted_pending_tickets(
+        self.try_publish_with_session_cut(
             epoch_now_ms,
             monotonic_now,
             &BTreeSet::new(),
+            None,
             publish,
         )
     }
@@ -950,11 +972,29 @@ impl FencedPublication {
     /// @ref LLP 0059#operation-specific-publication — the committed winner's
     /// fixed credential response remains fenced against every mutation that
     /// can still change authority.
-    pub(crate) fn try_publish_with_permitted_pending_tickets<T>(
+    pub(crate) fn try_publish_committed_rotation<T>(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
         permitted_pending_tickets: &BTreeSet<MutationTicket>,
+        finalized_cut: FinalizedRotationPublicationCut,
+        publish: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<Option<T>> {
+        self.try_publish_with_session_cut(
+            epoch_now_ms,
+            monotonic_now,
+            permitted_pending_tickets,
+            Some(finalized_cut),
+            publish,
+        )
+    }
+
+    fn try_publish_with_session_cut<T>(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+        permitted_pending_tickets: &BTreeSet<MutationTicket>,
+        finalized_rotation_cut: Option<FinalizedRotationPublicationCut>,
         publish: impl FnOnce() -> SnapbackResult<T>,
     ) -> SnapbackResult<Option<T>> {
         validate_timestamp_u64(epoch_now_ms)?;
@@ -966,12 +1006,18 @@ impl FencedPublication {
             return publish().map(Some);
         };
         let session_state = session.session.lock()?;
+        let finalized_rotation_mismatch = finalized_rotation_cut.is_some_and(|cut| {
+            cut.generation != session.expected_generation
+                || session_state.current_token != Some(cut.successor_digest)
+                || session_state.deadline != cut.authenticated_use_deadline
+        });
         if session_state.generation != session.expected_generation
             || session_state.terminal.is_some()
             || !session_state
                 .pending_tickets
                 .is_subset(permitted_pending_tickets)
             || !session_state.deadline.live_at(epoch_now_ms, monotonic_now)
+            || finalized_rotation_mismatch
         {
             return Ok(None);
         }
@@ -1305,7 +1351,12 @@ impl SessionProjection {
                 state,
                 current_token,
                 pending: BTreeMap::new(),
-                fence: Arc::new(SessionFence::new(generation, deadline, terminal)),
+                fence: Arc::new(SessionFence::new(
+                    generation,
+                    current_token,
+                    deadline,
+                    terminal,
+                )),
             };
             if by_session.insert(session_id, projected).is_some() {
                 return Err(projection_corrupt("duplicate projected session id"));
@@ -2040,6 +2091,7 @@ impl SessionProjection {
         session.current_token = None;
         session.pending.remove(ticket);
         self.ticket_index.remove(ticket);
+        fence_state.current_token = None;
         fence_state.terminal = Some(RevocationReason::Uncertain);
         fence_state.pending_tickets.remove(ticket);
         Ok(())
@@ -2170,7 +2222,12 @@ impl SessionProjection {
             state: ProjectedSessionState::Current,
             current_token: Some(insert.token_digest),
             pending: BTreeMap::new(),
-            fence: Arc::new(SessionFence::new(insert.generation, deadline, None)),
+            fence: Arc::new(SessionFence::new(
+                insert.generation,
+                Some(insert.token_digest),
+                deadline,
+                None,
+            )),
         };
         let deadline_key = deadline_key_for(&session);
         if self
@@ -2440,6 +2497,7 @@ impl SessionProjection {
         };
         let mut fence_state = fence.lock()?;
         if fence_state.generation != pending.expected_generation
+            || fence_state.current_token != Some(current_token)
             || !fence_state.pending_tickets.contains(ticket)
         {
             return Err(projection_unavailable(
@@ -2460,6 +2518,7 @@ impl SessionProjection {
         session.pending.remove(ticket);
         self.ticket_index.remove(ticket);
         fence_state.generation = committed_generation;
+        fence_state.current_token = None;
         fence_state.terminal = Some(reason);
         fence_state.pending_tickets.remove(ticket);
         Ok(())
@@ -2505,6 +2564,7 @@ impl SessionProjection {
         };
         let mut fence_state = fence.lock()?;
         if !fence_state.pending_tickets.contains(ticket)
+            || fence_state.current_token != Some(current_token)
             || fence_state.deadline != deadline
             || fence_state.deadline.live_at(epoch_now_ms, monotonic_now)
         {
@@ -2524,6 +2584,7 @@ impl SessionProjection {
         session.current_token = None;
         session.pending.remove(ticket);
         self.ticket_index.remove(ticket);
+        fence_state.current_token = None;
         fence_state.terminal = Some(RevocationReason::Expired);
         fence_state.pending_tickets.remove(ticket);
         Ok(())
@@ -2533,7 +2594,7 @@ impl SessionProjection {
         &mut self,
         ticket: &MutationTicket,
         session_id: &str,
-    ) -> SnapbackResult<()> {
+    ) -> SnapbackResult<FinalizedRotationPublicationCut> {
         let (fence, pending, predecessor, successor, superseded_at_ms) = {
             let session = self.session_for_ticket(ticket, session_id)?;
             let pending = session
@@ -2580,6 +2641,7 @@ impl SessionProjection {
         }
         let mut fence_state = fence.lock()?;
         if fence_state.generation != pending.expected_generation
+            || fence_state.current_token != Some(predecessor)
             || fence_state.terminal.is_some()
             || !fence_state.pending_tickets.contains(ticket)
         {
@@ -2604,8 +2666,13 @@ impl SessionProjection {
         session.current_token = Some(successor);
         session.pending.remove(ticket);
         self.ticket_index.remove(ticket);
+        fence_state.current_token = Some(successor);
         fence_state.pending_tickets.remove(ticket);
-        Ok(())
+        Ok(FinalizedRotationPublicationCut {
+            generation: pending.expected_generation,
+            successor_digest: successor,
+            authenticated_use_deadline: fence_state.deadline,
+        })
     }
 
     pub(crate) fn begin_stream_mutation(
@@ -2740,6 +2807,7 @@ impl SessionProjection {
             }
             let fence = session.fence.lock()?;
             if fence.generation != session.generation
+                || fence.current_token != session.current_token
                 || fence.deadline != session.deadline
                 || fence.pending_tickets != session.pending.keys().cloned().collect()
             {

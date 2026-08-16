@@ -1,6 +1,6 @@
 # Concurrent two-tab refresh race has no winner and fail-closed blanks both tabs
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 2
@@ -94,8 +94,9 @@ client's opaque-credential-route handling types as
 `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID`. Fixed with an
 operation-specific committed-refresh fence
 (`src/auth/session_projection.rs`): the coordinator mints a one-shot
-committed-refresh outcome carrying the exact finalized rotation's fence and
-only same-generation, exact-predecessor sibling `TokenSupersede` tickets;
+committed-refresh outcome carrying the exact finalized rotation's fence,
+successor digest, finalize-time authenticated-use `DeadlinePair`, and only
+same-generation, exact-predecessor sibling `TokenSupersede` tickets;
 the specialized fence admits the winner while those already-doomed sibling
 refreshes settle, and still blocks logout/revocation tickets, expiry or
 stream mutations, later refreshes not present at the commit cut, and
