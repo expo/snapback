@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { webcrypto } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { SnapbackClient } from '@expo/snapback-client';
+import { createSnapbackAppClient } from '@expo/snapback-client';
+import { IDBFactory } from 'fake-indexeddb';
 import {
   createSnapbackReactProvider,
   invokeSnapbackMutation,
   observeSnapbackQueries,
 } from '@expo/snapback-react';
-import api from './snapback/generated/api.mjs';
+import api, { app } from './snapback/generated/api.mjs';
 import artifacts from './snapback/generated/artifacts.json' with { type: 'json' };
 import functions from './snapback/generated/functions.manifest.json' with { type: 'json' };
 import capabilityManifest from './snapback/generated/capability.manifest.json' with { type: 'json' };
@@ -21,6 +23,10 @@ import capabilityManifest from './snapback/generated/capability.manifest.json' w
 
 const EXPECTED_CHECKS = Object.freeze([
   'managed-lifecycle',
+  'anonymous-ready',
+  'password-signup-recovery',
+  'password-signout',
+  'password-signin',
   'artifact-identity',
   'query',
   'mutation-and-observation',
@@ -59,6 +65,7 @@ let failure = null;
 let observer = null;
 let provider = null;
 let client = null;
+let appClient = null;
 let childSpawnError = null;
 
 const appendBounded = (current, chunk) =>
@@ -152,12 +159,62 @@ try {
     firstQueryRetries: 0,
   });
 
-  const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
-  client = new SnapbackClient(ready.serverUrl, {
-    adminToken,
-    rqsStore: null,
-    offlineQueue: false,
+  const now = Date.now();
+  const binding = Object.freeze({
+    format: 'snapback.app-binding.v1',
+    source: 'supervised-dev',
+    descriptorIdentity: app.identity.descriptor,
+    target: Object.freeze({
+      app: app.identity.app,
+      schema: app.identity.schema,
+      functions: app.identity.functions,
+      origin: ready.serverUrl,
+      routing: 'loopback',
+    }),
+    capabilities: Object.freeze({
+      offered: Object.freeze([...new Set([
+        ...app.capabilities.required,
+        'auth.passwords',
+      ])].sort()),
+    }),
+    provenance: Object.freeze({
+      supervisorGeneration: `react-starter-acceptance-${process.pid}`,
+      issuedAt: new Date(now - 60_000).toISOString(),
+      expiresAt: new Date(now + 60 * 60_000).toISOString(),
+    }),
+    integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
   });
+  appClient = await createSnapbackAppClient({
+    app,
+    binding,
+    platform: Object.freeze({
+      kind: 'browser',
+      indexedDB: new IDBFactory(),
+      lockManager: Object.freeze({ request: (_name, _options, operation) => operation() }),
+      cryptoObject: webcrypto,
+      databaseName: `snapback-react-starter-acceptance-${process.pid}`,
+    }),
+    now: () => now,
+  });
+  client = appClient.client;
+  assert.equal(appClient.bootstrapState().status, 'ready');
+  assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
+  pass('anonymous-ready', { custody: appClient.bootstrapState().custody.carrier });
+
+  const identity = `react-starter-${process.pid}@example.com`;
+  const password = 'react-starter-password';
+  const signup = await appClient.auth.signUpWithPassword({ email: identity, password });
+  assert.equal(signup.recoveryCodes.length, 8);
+  assert.equal(Object.hasOwn(signup, 'token'), false);
+  assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+  pass('password-signup-recovery', { recoveryCodeCount: signup.recoveryCodes.length });
+  await appClient.auth.signOut();
+  assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
+  pass('password-signout');
+  const signin = await appClient.auth.signInWithPassword({ email: identity, password });
+  assert.equal(Object.hasOwn(signin, 'recoveryCodes'), false);
+  assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+  pass('password-signin', { userId: signin.session.userId });
   const initial = await client.query(api.listTodos, { args: {} });
   assert(Array.isArray(initial.rows));
   const inspected = await client.inspect();
@@ -168,10 +225,10 @@ try {
     bundleHash: artifacts.bundleHash,
   });
 
-  const binding = await client.prepareReactBinding({
+  const preparedBinding = await client.prepareReactBinding({
     generatedManifest: { functions, capabilityManifest },
   });
-  provider = createSnapbackReactProvider(binding, {
+  provider = createSnapbackReactProvider(preparedBinding, {
     connectionId: 'react_starter_acceptance',
   });
   let latest = null;
@@ -219,6 +276,8 @@ try {
       );
     }
     if (client) assert.equal((await client.inspect()).subscriptions.length, 0);
+    await appClient?.dispose();
+    appClient = null;
     cleanup.clientResourcesReleased = true;
   } catch (error) {
     failure ??= {

@@ -118,6 +118,12 @@ test('sessions bootstrap follows public operation posture independently of guest
     anonymousPublic: 'allowed',
     lifecycleProtocol: 1,
   });
+  assert(
+    publicResult.appDescriptor.capabilities.required.includes(
+      'auth.application-bootstrap.v1',
+    ),
+    'sessions generation must opt the descriptor into the first-party application-auth client closure',
+  );
 
   writeExplicit(root, { program, functionsAuth: 'authenticated' });
   const privateResult = await generate(root);
@@ -206,6 +212,12 @@ test('external entry is opt-in and custody defaults without target inference', a
   const devResult = await generate(dev);
   assert.equal(devResult.ok, true, JSON.stringify(devResult.diagnostics));
   assert.equal(Object.hasOwn(devResult.appDescriptor, 'authBootstrap'), false);
+  assert.equal(
+    devResult.appDescriptor.capabilities.required.includes(
+      'auth.application-bootstrap.v1',
+    ),
+    false,
+  );
 
   assert.throws(
     () => defineAuth({

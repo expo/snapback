@@ -10,6 +10,12 @@ const functions = JSON.parse(readFileSync(
   'utf8',
 ));
 const app = readFileSync(new URL('./src/App.tsx', import.meta.url), 'utf8');
+const main = readFileSync(new URL('./src/main.tsx', import.meta.url), 'utf8');
+const schemaSource = readFileSync(new URL('./snapback/schema.mjs', import.meta.url), 'utf8');
+const descriptor = JSON.parse(readFileSync(
+  new URL('./snapback/generated/app.descriptor.json', import.meta.url),
+  'utf8',
+));
 const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.url), 'utf8');
 const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const agentInstructions = readFileSync(new URL('./AGENTS.md', import.meta.url), 'utf8');
@@ -18,6 +24,18 @@ assert.equal(artifacts.artifactKind, 'artifactIndex');
 assert.deepEqual(functions.functions.map((fn) => fn.name).sort(), ['createTodo', 'listTodos']);
 assert.match(app, /useSnapbackQueries/);
 assert.match(app, /useSnapbackMutation/);
+assert.match(app, /useSnapbackAuth/);
+assert.match(app, /useSnapbackCurrentPrincipal/);
+assert.match(app, /signUpWithPassword/);
+assert.match(app, /signInWithPassword/);
+assert.match(app, /auth\.signOut/);
+assert.match(main, /createSnapbackAppClient/);
+assert.match(main, /createSnapbackDevAppBinding/);
+assert.match(main, /<SnapbackProvider/u);
+assert.doesNotMatch(main, /new SnapbackClient|createSnapbackReactProvider|AuthCoordinator|bearer|adoptAuthority/u);
+assert.match(schemaSource, /kind:\s*'password'/u);
+assert.equal(descriptor.authBootstrap.format, 'snapback.application-auth-bootstrap.v1');
+assert(descriptor.capabilities.required.includes('auth.application-bootstrap.v1'));
 assert.match(packageManifest.scripts.prove, /^snapback verify snapback /);
 assert.match(agentInstructions, /the acceptance command/);
 assert.equal(packageManifest.scripts['carry:headless'], 'node carrier.mjs headless');
@@ -39,4 +57,6 @@ assert.doesNotMatch(
   /ensureApp|\.seed\(/,
   'runtime acceptance must not restore browser-side provisioning or seed ownership',
 );
+assert.match(runtimeAcceptance, /createSnapbackAppClient/);
+assert.doesNotMatch(runtimeAcceptance, /new SnapbackClient|AuthCoordinator|bearer|adoptAuthority/u);
 console.log('react starter static coherence: generated refs and first-party hooks are coherent');

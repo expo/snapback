@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:15f6d60f5b086ed584981d4f4e5e150aa90d8ad5957e821d64ff75045f867a03 -->
+<!-- start-packet:begin expo-chat digest=sha256:fcab1c6ba754e26aa6a92aae49abe13e8a25019c3c7efe23a86c0e44d9a23c50 -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside
@@ -25,8 +25,8 @@ watching and serves a stale bundle; prefer `bun run dev`.
 
 ## Edit targets (work files — listed, not charged to the first read)
 
-- `snapback/schema.mjs` — sessions mode with guest auth
-  (`defineAuth` + `{ auth: { mode: 'sessions' } }`), tables for users,
+- `snapback/schema.mjs` — sessions mode with guest, password, and email-code
+  entry (`defineAuth` + `{ auth: { mode: 'sessions' } }`), tables for users,
   conversations, memberships, messages, reactions; ephemeral `typing`.
 - `snapback/functions.mjs` — inbox and thread live queries, `sendText` /
   `sendReply` / `react` mutations, and the bound `send` command.
@@ -34,6 +34,8 @@ watching and serves a stale bundle; prefer `bun run dev`.
 - `App.tsx` — boot: `SnapbackExpoProvider` with the generated `app`
   descriptor; `registerExpoFileSystemRqsFiles` at the root gives retained
   offline rendering on native (web uses the browser persistence arm).
+  `useSnapbackCurrentPrincipal` and `useSnapbackAuth` provide the ordinary
+  password signup/sign-in/current-principal/sign-out journey.
 - `src/screens/inbox-screen.tsx` / `src/screens/chat-screen.tsx` — the
   consumers: `useSnapbackQuery` for inbox rows; one `useSurface` handle
   drives the thread (live reads, replies, reactions, typing presence,
@@ -45,9 +47,15 @@ watching and serves a stale bundle; prefer `bun run dev`.
 
 ## Posture
 
-- **Auth: sessions mode, guest-first.** The supervised dev loop mints its
-  session automatically; that is what makes authenticated sends and in-app
-  image upload (typed `assetRef` delivery) work out of the box.
+- **Auth: sessions mode, guest-first plus ordinary password entry.** The
+  generated application descriptor opts into the first-party auth path and
+  reaches anonymous `ready` before entry. Recovery codes surface once after
+  password signup. The supervised dev loop may also provide a guest session
+  for authenticated sends and in-app image upload.
+- **Custody: `volatile-explicit`.** Native durable custody is still pending
+  Phase 2, so this disposable chat template says memory custody explicitly;
+  it does not claim durable native custody or silently weaken a durable
+  policy. Move to `durable-required` only after the native platform row ships.
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive

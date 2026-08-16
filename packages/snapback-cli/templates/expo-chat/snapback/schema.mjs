@@ -12,8 +12,18 @@ import { typing } from './surface-model.mjs';
 // opts into guest identity; guest auth is not a platform-wide default.
 const authProgram = defineAuth({
   version: 1,
+  // Native durable-required remains refused until the per-OS Phase 2 proof in
+  // issues/20260815-llp-0258-phase-2-native-custody-evidence.md passes. This
+  // disposable starter therefore makes its volatile auth custody explicit.
+  custody: 'volatile-explicit',
   mechanisms: {
     guest: { kind: 'guest' },
+    password: {
+      kind: 'password',
+      identifier: 'email',
+      provider: 'builtIn',
+      recovery: 'recoveryCodes',
+    },
     emailCode: {
       kind: 'email-code',
       identityKind: 'email',

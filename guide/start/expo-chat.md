@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:5e73cea0980cf3d5103f4deb1ce5c34a7b4be9e5143faeec7987309701d1a4ed
+reviewed-authorities-digest: sha256:e07d541390899cfe56369a926f42311454acea946eea744cd20f36c8ec25de65
 ---
 
 # Start packet: the `expo-chat` template
@@ -39,8 +39,8 @@ watching and serves a stale bundle; prefer `bun run dev`.
 
 ## Edit targets (work files — listed, not charged to the first read)
 
-- `snapback/schema.mjs` — sessions mode with guest auth
-  (`defineAuth` + `{ auth: { mode: 'sessions' } }`), tables for users,
+- `snapback/schema.mjs` — sessions mode with guest, password, and email-code
+  entry (`defineAuth` + `{ auth: { mode: 'sessions' } }`), tables for users,
   conversations, memberships, messages, reactions; ephemeral `typing`.
 - `snapback/functions.mjs` — inbox and thread live queries, `sendText` /
   `sendReply` / `react` mutations, and the bound `send` command.
@@ -48,6 +48,8 @@ watching and serves a stale bundle; prefer `bun run dev`.
 - `App.tsx` — boot: `SnapbackExpoProvider` with the generated `app`
   descriptor; `registerExpoFileSystemRqsFiles` at the root gives retained
   offline rendering on native (web uses the browser persistence arm).
+  `useSnapbackCurrentPrincipal` and `useSnapbackAuth` provide the ordinary
+  password signup/sign-in/current-principal/sign-out journey.
 - `src/screens/inbox-screen.tsx` / `src/screens/chat-screen.tsx` — the
   consumers: `useSnapbackQuery` for inbox rows; one `useSurface` handle
   drives the thread (live reads, replies, reactions, typing presence,
@@ -59,9 +61,15 @@ watching and serves a stale bundle; prefer `bun run dev`.
 
 ## Posture
 
-- **Auth: sessions mode, guest-first.** The supervised dev loop mints its
-  session automatically; that is what makes authenticated sends and in-app
-  image upload (typed `assetRef` delivery) work out of the box.
+- **Auth: sessions mode, guest-first plus ordinary password entry.** The
+  generated application descriptor opts into the first-party auth path and
+  reaches anonymous `ready` before entry. Recovery codes surface once after
+  password signup. The supervised dev loop may also provide a guest session
+  for authenticated sends and in-app image upload.
+- **Custody: `volatile-explicit`.** Native durable custody is still pending
+  Phase 2, so this disposable chat template says memory custody explicitly;
+  it does not claim durable native custody or silently weaken a durable
+  policy. Move to `durable-required` only after the native platform row ships.
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive

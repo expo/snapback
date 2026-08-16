@@ -11,6 +11,7 @@ import {
 } from '@expo/snapback-codegen/define';
 
 export const listTodos = defineLiveQuery({
+  auth: 'public',
   table: 'todos',
   args: {},
   order: [asc('title')],
@@ -18,6 +19,7 @@ export const listTodos = defineLiveQuery({
 });
 
 export const createTodo = defineMutation({
+  auth: 'public',
   args: { title: v.string() },
   plan: insert('todos', {
     title: arg('title'),

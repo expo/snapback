@@ -12,11 +12,12 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { createExternalSessionClient } from '@expo/snapback-client';
+import { createSnapbackAppClient } from '@expo/snapback-client';
+import { runExpoDev } from '@expo/snapback-cli/expo-dev';
 import {
-  SUPERVISED_EXCHANGE_PATH,
-  runExpoDev,
-} from '@expo/snapback-cli/expo-dev';
+  createSnapbackExpoBoot,
+  createSupervisedExpoEnvironment,
+} from '@expo/snapback-expo';
 import {
   createSnapbackReactProvider,
   observeSnapbackSurface,
@@ -32,6 +33,10 @@ import artifacts from './snapback/generated/artifacts.json' with { type: 'json' 
 const EXPECTED_CHECKS = Object.freeze([
   'zero-config-supervised-connect',
   'managed-lifecycle',
+  'anonymous-ready',
+  'password-signup-recovery',
+  'password-signout',
+  'password-signin',
   'artifact-identity',
   'membership-and-conversation-shape',
   'test-persona-membership-switch',
@@ -69,6 +74,7 @@ let failure = null;
 let surface = null;
 let provider = null;
 let client = null;
+let appClient = null;
 let childSpawnError = null;
 let child = null;
 
@@ -102,43 +108,6 @@ const startManagedChild = () => {
   });
   child.stderr.on('data', (chunk) => { stderr = appendBounded(stderr, chunk); });
   child.on('error', (error) => { childSpawnError = error; });
-};
-
-const mintOrdinarySession = async (adminToken) => {
-  const mint = spawn(executable, [
-    'session', 'mint',
-    '--email', 'acceptance@expo-chat.test',
-    '--ready-file', readyFile,
-  ], {
-    cwd: root,
-    env: { ...process.env, SNAPBACK_ADMIN_TOKEN: adminToken },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  let mintStdout = '';
-  let mintStderr = '';
-  mint.stdout.on('data', (chunk) => { mintStdout = appendBounded(mintStdout, chunk); });
-  mint.stderr.on('data', (chunk) => { mintStderr = appendBounded(mintStderr, chunk); });
-  const exit = await new Promise((resolveExit, reject) => {
-    mint.once('error', reject);
-    mint.once('close', (code, signal) => resolveExit({ code, signal }));
-  });
-  if (exit.code !== 0) {
-    throw new Error(`ordinary session mint failed (${exit.code ?? exit.signal})`);
-  }
-  let envelope;
-  try {
-    envelope = JSON.parse(mintStdout);
-  } catch {
-    throw new Error('ordinary session mint did not return one hostOpsResult JSON document');
-  }
-  if (envelope?.ok !== true
-    || envelope?.operation !== 'auth.mintSession'
-    || envelope?.data?.tokenType !== 'Bearer'
-    || typeof envelope?.data?.token !== 'string'
-    || envelope.data.token.length === 0) {
-    throw new Error('ordinary session mint returned an invalid hostOpsResult envelope');
-  }
-  return Object.freeze({ token: envelope.data.token });
 };
 
 const waitForApplicationReady = async () => {
@@ -243,7 +212,7 @@ process.once('SIGINT', stop);
 `);
 
   let supervisor = null;
-  let roundTripClient = null;
+  let roundTripBoot = null;
   let details = null;
   try {
     supervisor = await runExpoDev({
@@ -274,23 +243,20 @@ process.once('SIGINT', stop);
     const metroFacts = await metroResponse.json();
     assert.equal(metroFacts.supervisorOrigin, readiness.bootstrap.origin);
 
-    const bootstrapResponse = await fetch(
-      `${readiness.bootstrap.origin}${SUPERVISED_EXCHANGE_PATH}`,
-    );
-    assert.equal(bootstrapResponse.ok, true);
-    const exchange = await bootstrapResponse.json();
-    assert.equal(exchange.format, 'snapback.expo-supervised-exchange.v1');
-    assert.equal(exchange.binding.source, 'supervised-dev');
-    assert.equal(exchange.binding.target.origin, readiness.binding.target.origin);
-    assert.equal(exchange.authority.status, 'ready');
-    assert.equal(exchange.authority.tokenType, 'Bearer');
-    assert.match(exchange.authority.token, /^sbs_/u);
-
-    roundTripClient = createExternalSessionClient(exchange.binding.target.origin, {
-      bearerToken: exchange.authority.token,
-      rqsStore: null,
-      offlineQueue: false,
+    const environment = createSupervisedExpoEnvironment({
+      exchangeOrigin: readiness.bootstrap.origin,
+      bindingCache: null,
+      appState: {
+        currentState: 'active',
+        addEventListener() { return { remove() {} }; },
+      },
     });
+    roundTripBoot = createSnapbackExpoBoot({ app, environment });
+    const bootState = await roundTripBoot.start();
+    assert.equal(bootState.status, 'ready');
+    assert.equal(bootState.binding.source, 'supervised-dev');
+    assert.equal(bootState.binding.target.origin, readiness.binding.target.origin);
+    const roundTripClient = roundTripBoot.appClient().client;
     const before = (await roundTripClient.query(api.messagesForConversation, {
       args: { conversationId: CONVERSATION_ID },
     })).rows;
@@ -317,11 +283,8 @@ process.once('SIGINT', stop);
       descriptorMode: '0600',
     };
   } finally {
-    try {
-      await roundTripClient?.closeAuth();
-    } finally {
-      await supervisor?.close();
-    }
+    await roundTripBoot?.dispose();
+    await supervisor?.close();
   }
   assert.deepEqual(snapshotEnvFiles(root), environmentBefore);
   assert.equal(existsSync(supervisorDescriptor), false);
@@ -342,13 +305,56 @@ try {
     firstQueryRetries: 0,
   });
 
-  const adminToken = readFileSync(ready.adminTokenFile, 'utf8').trim();
-  const minted = await mintOrdinarySession(adminToken);
-  client = createExternalSessionClient(ready.serverUrl, {
-    bearerToken: minted.token,
-    rqsStore: null,
-    offlineQueue: false,
+  const now = Date.now();
+  const binding = Object.freeze({
+    format: 'snapback.app-binding.v1',
+    source: 'supervised-dev',
+    descriptorIdentity: app.identity.descriptor,
+    target: Object.freeze({
+      app: app.identity.app,
+      schema: app.identity.schema,
+      functions: app.identity.functions,
+      origin: ready.serverUrl,
+      routing: 'loopback',
+    }),
+    capabilities: Object.freeze({
+      offered: Object.freeze([...new Set([
+        ...app.capabilities.required,
+        'auth.passwords',
+      ])].sort()),
+    }),
+    provenance: Object.freeze({
+      supervisorGeneration: `expo-chat-acceptance-${process.pid}`,
+      issuedAt: new Date(now - 60_000).toISOString(),
+      expiresAt: new Date(now + 60 * 60_000).toISOString(),
+    }),
+    integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
   });
+  appClient = await createSnapbackAppClient({
+    app,
+    binding,
+    platform: 'memory',
+    now: () => now,
+  });
+  client = appClient.client;
+  assert.equal(appClient.bootstrapState().status, 'ready');
+  assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
+  pass('anonymous-ready', { custody: appClient.bootstrapState().custody.carrier });
+
+  const identity = `expo-chat-${process.pid}@example.com`;
+  const password = 'expo-chat-password';
+  const signup = await appClient.auth.signUpWithPassword({ email: identity, password });
+  assert.equal(signup.recoveryCodes.length, 8);
+  assert.equal(Object.hasOwn(signup, 'token'), false);
+  assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+  pass('password-signup-recovery', { recoveryCodeCount: signup.recoveryCodes.length });
+  await appClient.auth.signOut();
+  assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
+  pass('password-signout');
+  const signin = await appClient.auth.signInWithPassword({ email: identity, password });
+  assert.equal(Object.hasOwn(signin, 'recoveryCodes'), false);
+  assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+  pass('password-signin', { userId: signin.session.userId });
   const conversationRows = (await client.query(api.conversations, { args: {} })).rows;
   const inspected = await client.inspect();
   assert.equal(inspected.functions?.appId, artifacts.appId);
@@ -387,8 +393,8 @@ try {
     katherineConversationCount: katherineMemberships.length,
   });
 
-  const binding = await client.prepareReactBinding({ generatedManifest: app });
-  provider = createSnapbackReactProvider(binding, {
+  const preparedBinding = await client.prepareReactBinding({ generatedManifest: app });
+  provider = createSnapbackReactProvider(preparedBinding, {
     connectionId: 'expo_chat_acceptance',
   });
   let latest = null;
@@ -505,6 +511,8 @@ try {
       );
     }
     if (client) assert.equal((await client.inspect()).subscriptions.length, 0);
+    await appClient?.dispose();
+    appClient = null;
     cleanup.clientResourcesReleased = true;
   } catch (error) {
     failure ??= {

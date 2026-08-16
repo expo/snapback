@@ -1,20 +1,24 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SnapbackClient } from '@expo/snapback-client';
-import { SnapbackProvider, createSnapbackReactProvider } from '@expo/snapback-react';
-import { snapbackBasePath } from 'virtual:snapback/dev';
+import { createSnapbackAppClient } from '@expo/snapback-client';
+import type { AuthBootstrapSnapshot } from '@expo/snapback-client';
+import { SnapbackProvider } from '@expo/snapback-react';
+import { createSnapbackDevAppBinding } from 'virtual:snapback/dev';
 import { App } from './App';
-import functions from '../snapback/generated/functions.manifest.json';
-import capabilityManifest from '../snapback/generated/capability.manifest.json';
-import schema from '../snapback/generated/schema.manifest.json';
+import { app } from '../snapback/generated/app.mjs';
 
-const client = new SnapbackClient(snapbackBasePath);
-const binding = await client.prepareReactBinding({
-  generatedManifest: { schema, functions, capabilityManifest },
+const appClient = await createSnapbackAppClient({
+  app,
+  binding: createSnapbackDevAppBinding(app),
+  platform: 'browser',
 });
-const provider = createSnapbackReactProvider(binding);
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <SnapbackProvider provider={provider}><App /></SnapbackProvider>
+    <SnapbackProvider
+      appClient={appClient}
+      fallback={(state: AuthBootstrapSnapshot) => <p>Opening Snapback: {state.status}</p>}
+    >
+      <App />
+    </SnapbackProvider>
   </StrictMode>,
 );

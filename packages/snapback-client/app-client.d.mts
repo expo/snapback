@@ -30,7 +30,6 @@ export type SnapbackApplicationDescriptorV1 = Readonly<{
     descriptor: string;
   }>;
   authBootstrap: ApplicationAuthBootstrapV1;
-  readonly [key: string]: unknown;
 }>;
 
 export type SnapbackAppBindingV1 = Readonly<{

@@ -59,6 +59,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     expectedFiles: [
       'adapters/fly-machines-vm-driver.test.mjs',
       'agent-setup.test.mjs',
+      'application-auth-fixtures.test.mjs',
       'application-ready.test.mjs',
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
@@ -511,7 +512,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 293,
+  expectedTotal = 294,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -932,6 +933,8 @@ export function checkPackageTestInventories(options = {}) {
 // defineMediaCommand closed-binding/source-attributed-refusal suite.
 // 292 -> 293 (2026-08-16, LLP 0234 G2): @expo/snapback-codegen gains the
 // card-game implicit-policy completion matrix across every declared read class.
+// 293 -> 294 (2026-08-16, LLP 0258 Phase 0.4): @expo/snapback-cli gains the
+// four clean generated application fixture and Explicit/Familiar parity proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

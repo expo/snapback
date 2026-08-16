@@ -189,7 +189,7 @@ const deploymentIdentity = (appId) => Object.freeze({
   inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
 });
 
-function installServer() {
+function installServer({ relayBase = '' } = {}) {
   const originalFetch = globalThis.fetch;
   const priorRqsSetting = process.env.SNAPBACK_CLIENT_RQS_STORE;
   process.env.SNAPBACK_CLIENT_RQS_STORE = 'off';
@@ -281,13 +281,16 @@ function installServer() {
   };
 
   globalThis.fetch = async (url, init = {}) => {
-    const parsed = new URL(url);
-    const path = parsed.pathname;
+    const parsed = new URL(url, 'http://browser-app.example.test');
+    const rawPath = parsed.pathname;
+    const path = relayBase !== '' && rawPath.startsWith(`${relayBase}/`)
+      ? rawPath.slice(relayBase.length)
+      : rawPath;
     const headers = new Headers(init.headers);
     const authorization = headers.get('authorization');
     const bearer = authorization?.replace(/^Bearer /u, '') ?? null;
     const body = init.body === undefined ? undefined : JSON.parse(init.body);
-    requests.push({ path, authorization, body, origin: parsed.origin });
+    requests.push({ path, rawPath, authorization, body, origin: parsed.origin });
     if (path === '/auth/session') {
       return Response.json(handshake(bearer, APP_ID));
     }
@@ -362,6 +365,25 @@ test('framework-neutral bootstrap reaches ready through every starting stage and
     ]) {
       assert.equal(retained.includes(secret), false);
     }
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('managed browser bindings admit the same-origin relay without exposing a backend origin', async () => {
+  const server = installServer({ relayBase: '/__snapback' });
+  const app = makeApp();
+  const appClient = await createSnapbackAppClient(optionsFor(
+    app,
+    makeBinding(app, { origin: '/__snapback' }),
+  ));
+  try {
+    assert.equal(appClient.bootstrapState().status, 'ready');
+    assert.deepEqual(server.requests.map(({ rawPath }) => rawPath), [
+      '/__snapback/auth/session',
+    ]);
+    assert.equal(server.requests[0].origin, 'http://browser-app.example.test');
   } finally {
     await appClient.dispose();
     server.restore();

@@ -43,6 +43,11 @@ a listener, relay, tunnel, or E5 carrier. The LLP 0168 successor-RFC gate stays
 closed on A3 grounds; a client using the admitted hosted target is outside that
 edge gate. Rulings 4–6 remain open.
 **Revised:** 2026-08-15 (n) — Reconciles ordinary-session custody ownership
+**Revised:** 2026-08-16 (o) — Records the supervised-browser compatibility
+projection: LLP 0030 may put its same-origin relative Vite relay base in the
+legacy-named `target.origin` field without exposing the backend loopback URL;
+native supervision and every release binding retain resolved absolute origins;
+2026-08-15 (n) — Reconciles ordinary-session custody ownership
 with Accepted LLP 0258: E1/E2 adopt and rotate a bearer only for the life of
 the supervised client, and restart-persistent ordinary custody is owned by
 LLP 0258 — its D3 first-party native custody module with whole-record atomic
@@ -364,6 +369,17 @@ load-bearing properties are:
 - no secret or application authority appears in the binding;
 - **binding integrity.** A supervised-development binding travels only over
   the local supervised IPC channel between `snapback dev --expo` and the provider —
+- **supervised browser relay compatibility.** LLP 0030's managed Vite arm may
+  carry its same-origin relative relay base (for example `/__snapback`) in the
+  legacy-named `target.origin` field. Admission treats that value as a path
+  only for a `source: "supervised-dev"`, `routing: "loopback"`,
+  `local-supervised-ipc` binding created by the local Vite supervisor; it may
+  not contain a host, query, fragment, root path, or trailing slash. Native
+  supervision continues to carry its resolved absolute loopback origin, and
+  release bindings continue to require an exact absolute HTTPS origin. This
+  projection exposes no backend URL and creates no application override;
+- **binding integrity.** A development binding travels only over the local
+  supervised IPC channel between `snapback dev --expo` and the provider —
   never a network hop, so there is no remote party to authenticate against.
   A hosted-development binding must match an exact target tuple in the exact
   generated `app` artifact and its generated-module predicate must accept

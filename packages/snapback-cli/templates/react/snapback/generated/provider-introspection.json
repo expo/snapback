@@ -37,7 +37,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:183eacdd291aace7e537f40eba314ec53ab2435baedec326d97336385a2cee0c",
-          "implementationHash": "sha256:3fe6892e82cdf0cd8525a88d1a51326154e4e2e6398f2df0b6039a454d6d0d46",
+          "implementationHash": "sha256:b74f2874733657e83fc74a7ec72813723a4fd0e1bb3d3fc9521733a4cb201c1c",
           "result": {
             "kind": "value",
             "value": {
@@ -100,7 +100,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
-          "implementationHash": "sha256:b2d9ad3fb9935f8a79e8b3f577a342ff93d212e80b05bf577560861bd65f9bee",
+          "implementationHash": "sha256:398e435943ece5a74b86b09f5178718624acb543d31621cf8f1a8ef240512d06",
           "result": {
             "document": {
               "allowExtra": false,
@@ -227,13 +227,13 @@
   },
   "provider": {
     "id": "snapback",
-    "version": "snapback.v0"
+    "version": "snapback.v1"
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "authoredSourceHash": "sha256:04b71a28cfc667dd2bc235b476fb5dde2be923e303582257baff58e6d7abb360",
-    "implementationHash": "sha256:055fdb3e1de49654",
-    "inputsHash": "a44b06f644cdb0d900be683665c36b52808c0af03283c3a1b3f717070eac3845",
-    "schemaHash": "sha256:be0175f2216a5d41"
+    "authoredSourceHash": "sha256:62b4ca9c0c77f2171960308ade5484cb2c1876152bfbbc94332b4ecf1695889e",
+    "implementationHash": "snapback.v1:sessions:function:sha256:af9358a6c35ace2b71da1ea067d4e14a16d7118062ef9071244660874cb63735",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:2cc749f970484c664f91c872a33b24bb3c67029d0090026ddb8118f98521c2e4",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:cc3284b54dfa7b4f3d7d47455977626aa89e7f522dd2f67739e48ca5f3cfd5d0"
   }
 }

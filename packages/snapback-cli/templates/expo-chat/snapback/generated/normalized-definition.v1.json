@@ -1,0 +1,2400 @@
+{
+  "definition": {
+    "application": {
+      "assetUploadIntents": [
+        {
+          "accept": {
+            "maxBytes": 12000000,
+            "mediaTypes": [
+              "image/jpeg",
+              "image/png",
+              "image/webp"
+            ]
+          },
+          "access": {
+            "read": "via-references"
+          },
+          "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+          "authRequirement": "authenticated",
+          "callbacks": null,
+          "delivery": {
+            "kind": "public-immutable"
+          },
+          "grants": false,
+          "image": {
+            "location": "strip",
+            "variants": [
+              {
+                "key": "chat",
+                "required": true,
+                "width": 1440
+              }
+            ]
+          },
+          "intentPolicyHash": "sha256:ef9f04dcc743d930444ffe86bc7b34646512e996b4995564f7427725a9cf3cfa",
+          "name": "messageImageUpload",
+          "reads": [],
+          "video": null
+        }
+      ],
+      "authorityProfile": null,
+      "memberships": [],
+      "migrations": null,
+      "retention": {
+        "operations": [
+          {
+            "operationName": "addReaction",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "conversationDetails",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "conversations",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "membershipsForConversation",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "membershipsForUser",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "messagesForConversation",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "reactionsForConversation",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "removeReaction",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "sendMessage",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "sendReply",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "sendText",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "users",
+            "retainable": false,
+            "retentionClass": null
+          }
+        ],
+        "schema": null
+      },
+      "routes": null,
+      "schema": {
+        "api": null,
+        "assets": null,
+        "auth": {
+          "mode": "sessions",
+          "passwordIdentifierMode": "email-v1"
+        },
+        "authProgram": {
+          "assuranceRequirements": {},
+          "custody": "volatile-explicit",
+          "guestPolicy": {
+            "claiming": [
+              "emailCode"
+            ],
+            "enabled": true,
+            "reaping": {
+              "afterMs": 604800000,
+              "cleanup": {
+                "default": "tombstone",
+                "kind": "declarative",
+                "tables": {}
+              }
+            }
+          },
+          "mechanisms": {
+            "emailCode": {
+              "canonicalization": "email-v1",
+              "delivery": "email",
+              "identityKind": "email",
+              "kind": "email-code",
+              "provider": "emailCode"
+            },
+            "guest": {
+              "kind": "guest"
+            },
+            "password": {
+              "identifier": "email",
+              "kind": "password",
+              "provider": "builtIn",
+              "recovery": "recoveryCodes"
+            }
+          },
+          "recoveryPolicy": {
+            "lastAuthenticator": "enforce",
+            "recoveryCodes": {
+              "enabled": true,
+              "plaintextCustody": "one-time-response",
+              "requiredWhen": "no-independent-recovery",
+              "rotateAfterUse": true
+            }
+          },
+          "secretReferences": {},
+          "version": 1
+        },
+        "ephemeralCollections": [
+          {
+            "burst": 8,
+            "defaultTtlMs": 4000,
+            "dispatchMs": 80,
+            "hardMaxValueBytes": 4096,
+            "keyMode": "Connection",
+            "maxPendingEphemeralKeys": 1024,
+            "maxTtlMs": 8000,
+            "maxValueBytes": 128,
+            "name": "typing",
+            "publish": "AllowAll",
+            "routingFields": [
+              "conversationId"
+            ],
+            "scopeContract": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "conversationId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "conversations"
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "scopeFields": [
+              "conversationId"
+            ],
+            "subscribe": "AllowAll",
+            "sustainedHz": 4,
+            "valueContract": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "displayName",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "withdrawalVisibilityDeadlineMs": 2000
+          }
+        ],
+        "portabilityFlags": [],
+        "pushSeam": null,
+        "requiredCapabilities": [
+          "auth.sessions.v1"
+        ],
+        "strictDeclarations": false,
+        "tables": [
+          {
+            "fields": [
+              {
+                "field_type": "String",
+                "name": "handle",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "name",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "color",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "handle"
+                ],
+                "name": "by_handle",
+                "unique": true
+              }
+            ],
+            "name": "users",
+            "syncable": true
+          },
+          {
+            "fields": [
+              {
+                "field_type": "String",
+                "name": "kind",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "title",
+                "optional": false
+              },
+              {
+                "field_type": "Integer",
+                "name": "updatedAt",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "lastPreview",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "updatedAt"
+                ],
+                "name": "by_updated"
+              }
+            ],
+            "name": "conversations",
+            "syncable": true
+          },
+          {
+            "fields": [
+              {
+                "field_type": {
+                  "Id": {
+                    "table": "conversations"
+                  }
+                },
+                "name": "conversationId",
+                "optional": false
+              },
+              {
+                "field_type": {
+                  "Id": {
+                    "table": "users"
+                  }
+                },
+                "name": "userId",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "userId"
+                ],
+                "name": "by_user"
+              },
+              {
+                "fields": [
+                  "conversationId"
+                ],
+                "name": "by_conversation"
+              },
+              {
+                "fields": [
+                  "conversationId",
+                  "userId"
+                ],
+                "name": "by_conversation_user",
+                "unique": true
+              }
+            ],
+            "name": "memberships",
+            "syncable": true
+          },
+          {
+            "assetSharing": {
+              "kind": "public-read"
+            },
+            "fields": [
+              {
+                "field_type": {
+                  "Id": {
+                    "table": "conversations"
+                  }
+                },
+                "name": "conversationId",
+                "optional": false
+              },
+              {
+                "field_type": {
+                  "Id": {
+                    "table": "users"
+                  }
+                },
+                "name": "senderId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "kind",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "text",
+                "optional": true
+              },
+              {
+                "field_type": {
+                  "AssetRef": {
+                    "upload": "messageImageUpload"
+                  }
+                },
+                "name": "image",
+                "optional": true
+              },
+              {
+                "field_type": {
+                  "Id": {
+                    "table": "messages"
+                  }
+                },
+                "name": "replyToId",
+                "optional": true
+              },
+              {
+                "field_type": "Integer",
+                "name": "sentAt",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "conversationId",
+                  "sentAt"
+                ],
+                "name": "by_conversation_sent"
+              }
+            ],
+            "name": "messages",
+            "syncable": true
+          },
+          {
+            "fields": [
+              {
+                "field_type": {
+                  "Id": {
+                    "table": "conversations"
+                  }
+                },
+                "name": "conversationId",
+                "optional": false
+              },
+              {
+                "field_type": {
+                  "Id": {
+                    "table": "messages"
+                  }
+                },
+                "name": "messageId",
+                "optional": false
+              },
+              {
+                "field_type": {
+                  "Id": {
+                    "table": "users"
+                  }
+                },
+                "name": "userId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "emoji",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "conversationId"
+                ],
+                "name": "by_conversation"
+              },
+              {
+                "fields": [
+                  "messageId"
+                ],
+                "name": "by_message"
+              },
+              {
+                "fields": [
+                  "messageId",
+                  "userId",
+                  "emoji"
+                ],
+                "name": "by_message_user_emoji",
+                "unique": true
+              }
+            ],
+            "name": "reactions",
+            "syncable": true
+          }
+        ],
+        "version": "snapback.v1"
+      }
+    },
+    "operations": [
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "messageId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messages"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            },
+            {
+              "name": "emoji",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "insert"
+              ],
+              "table": "reactions"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "addReaction",
+        "plan": {
+          "Mutation": {
+            "return_value": {
+              "Expr": {
+                "Record": {
+                  "fields": {
+                    "reactionId": {
+                      "Binding": "reactionId"
+                    }
+                  }
+                }
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "reactionId",
+                  "table": "reactions",
+                  "values": {
+                    "conversationId": {
+                      "Arg": "conversationId"
+                    },
+                    "emoji": {
+                      "Arg": "emoji"
+                    },
+                    "messageId": {
+                      "Arg": "messageId"
+                    },
+                    "userId": {
+                      "Arg": "userId"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "reactionId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "reactions"
+                }
+              }
+            ],
+            "kind": "object"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "mutationPlan",
+          "primaryTable": "reactions",
+          "tables": [
+            "reactions"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": true,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1",
+          "single_table_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "conversations"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "conversationDetails",
+        "plan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "_id",
+                "op": "Eq",
+                "value": {
+                  "Arg": "conversationId"
+                }
+              }
+            ],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "conversations"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "conversations",
+          "tables": [
+            "conversations"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "conversations"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "kind",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              },
+              {
+                "name": "lastPreview",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "conversations"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": []
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": true,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1",
+          "single_table_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_updated",
+              "table": "conversations"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "conversations",
+        "plan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": "by_updated",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "updatedAt"
+              }
+            ],
+            "table": "conversations"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "conversations",
+          "tables": [
+            "conversations"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "conversations"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "kind",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              },
+              {
+                "name": "lastPreview",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "conversations"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": true,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1",
+          "single_table_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_conversation",
+              "table": "memberships"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "membershipsForConversation",
+        "plan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "conversationId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "conversationId"
+                }
+              }
+            ],
+            "indexed_by": "by_conversation",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "memberships"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "memberships",
+          "tables": [
+            "memberships"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "memberships"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "conversationId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "conversations"
+                }
+              },
+              {
+                "name": "userId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "users"
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "memberships"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": true,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1",
+          "single_table_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_user",
+              "table": "memberships"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "membershipsForUser",
+        "plan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "userId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "userId"
+                }
+              }
+            ],
+            "indexed_by": "by_user",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "memberships"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "memberships",
+          "tables": [
+            "memberships"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "memberships"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "conversationId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "conversations"
+                }
+              },
+              {
+                "name": "userId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "users"
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "memberships"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": true,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1",
+          "single_table_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_conversation_sent",
+              "table": "messages"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "messagesForConversation",
+        "plan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "conversationId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "conversationId"
+                }
+              }
+            ],
+            "indexed_by": "by_conversation_sent",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "sentAt"
+              }
+            ],
+            "table": "messages"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "messages",
+          "tables": [
+            "messages"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "messages"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "conversationId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "conversations"
+                }
+              },
+              {
+                "name": "senderId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "users"
+                }
+              },
+              {
+                "name": "kind",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "text",
+                "required": true,
+                "value": {
+                  "kind": "union",
+                  "variants": [
+                    {
+                      "kind": "null"
+                    },
+                    {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "image",
+                "required": true,
+                "value": {
+                  "kind": "union",
+                  "variants": [
+                    {
+                      "kind": "null"
+                    },
+                    {
+                      "kind": "assetRef"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "replyToId",
+                "required": true,
+                "value": {
+                  "kind": "union",
+                  "variants": [
+                    {
+                      "kind": "null"
+                    },
+                    {
+                      "kind": "id",
+                      "table": "messages"
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "sentAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "messages"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": true,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1",
+          "single_table_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_conversation",
+              "table": "reactions"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "reactionsForConversation",
+        "plan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "conversationId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "conversationId"
+                }
+              }
+            ],
+            "indexed_by": "by_conversation",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "reactions"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "reactions",
+          "tables": [
+            "reactions"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "reactions"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "conversationId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "conversations"
+                }
+              },
+              {
+                "name": "messageId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "messages"
+                }
+              },
+              {
+                "name": "userId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "users"
+                }
+              },
+              {
+                "name": "emoji",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "reactions"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "reactionId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "reactions"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "point",
+              "table": "reactions"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "delete"
+              ],
+              "table": "reactions"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "removeReaction",
+        "plan": {
+          "Mutation": {
+            "return_value": {
+              "Expr": {
+                "Record": {
+                  "fields": {
+                    "removed": {
+                      "Literal": true
+                    }
+                  }
+                }
+              }
+            },
+            "steps": [
+              {
+                "Delete": {
+                  "id": {
+                    "Arg": "reactionId"
+                  },
+                  "table": "reactions"
+                }
+              }
+            ]
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "reactions",
+          "tables": [
+            "reactions"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "removed",
+                "required": true,
+                "value": {
+                  "kind": "boolean"
+                }
+              }
+            ],
+            "kind": "object"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "mutationPlan",
+          "primaryTable": "reactions",
+          "tables": [
+            "reactions"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "senderId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            },
+            {
+              "name": "body",
+              "required": false,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "image",
+              "required": false,
+              "value": {
+                "kind": "assetRef"
+              }
+            },
+            {
+              "name": "replyToId",
+              "required": false,
+              "value": {
+                "kind": "id",
+                "table": "messages"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "conversations"
+            },
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "messages"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "sendMessage",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "kind": "id",
+            "table": "messages"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "messages",
+          "tables": [
+            "messages",
+            "conversations"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "senderId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            },
+            {
+              "name": "text",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "replyToId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messages"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [
+            "runtimeNow"
+          ],
+          "reads": [
+            {
+              "access": "point",
+              "table": "conversations"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "patch"
+              ],
+              "table": "conversations"
+            },
+            {
+              "operations": [
+                "insert"
+              ],
+              "table": "messages"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "sendReply",
+        "plan": {
+          "Mutation": {
+            "return_value": {
+              "Expr": {
+                "Record": {
+                  "fields": {
+                    "messageId": {
+                      "Binding": "messageId"
+                    }
+                  }
+                }
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "messageId",
+                  "table": "messages",
+                  "values": {
+                    "conversationId": {
+                      "Arg": "conversationId"
+                    },
+                    "kind": {
+                      "Literal": "text"
+                    },
+                    "replyToId": {
+                      "Arg": "replyToId"
+                    },
+                    "senderId": {
+                      "Arg": "senderId"
+                    },
+                    "sentAt": "RuntimeNow",
+                    "text": {
+                      "Arg": "text"
+                    }
+                  }
+                }
+              },
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "conversationId"
+                  },
+                  "table": "conversations",
+                  "values": {
+                    "lastPreview": {
+                      "Arg": "text"
+                    },
+                    "updatedAt": "RuntimeNow"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "conversations",
+          "tables": [
+            "conversations"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "messageId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "messages"
+                }
+              }
+            ],
+            "kind": "object"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "mutationPlan",
+          "primaryTable": "messages",
+          "tables": [
+            "messages",
+            "conversations"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "senderId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "users"
+              }
+            },
+            {
+              "name": "text",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [
+            "runtimeNow"
+          ],
+          "reads": [
+            {
+              "access": "point",
+              "table": "conversations"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "patch"
+              ],
+              "table": "conversations"
+            },
+            {
+              "operations": [
+                "insert"
+              ],
+              "table": "messages"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "sendText",
+        "plan": {
+          "Mutation": {
+            "return_value": {
+              "Expr": {
+                "Record": {
+                  "fields": {
+                    "messageId": {
+                      "Binding": "messageId"
+                    }
+                  }
+                }
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "messageId",
+                  "table": "messages",
+                  "values": {
+                    "conversationId": {
+                      "Arg": "conversationId"
+                    },
+                    "kind": {
+                      "Literal": "text"
+                    },
+                    "senderId": {
+                      "Arg": "senderId"
+                    },
+                    "sentAt": "RuntimeNow",
+                    "text": {
+                      "Arg": "text"
+                    }
+                  }
+                }
+              },
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "conversationId"
+                  },
+                  "table": "conversations",
+                  "values": {
+                    "lastPreview": {
+                      "Arg": "text"
+                    },
+                    "updatedAt": "RuntimeNow"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "conversations",
+          "tables": [
+            "conversations"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "messageId",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "messages"
+                }
+              }
+            ],
+            "kind": "object"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "mutationPlan",
+          "primaryTable": "messages",
+          "tables": [
+            "messages",
+            "conversations"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": []
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": true,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1",
+          "single_table_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "users"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "users",
+        "plan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "users"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "users",
+          "tables": [
+            "users"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "users"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "handle",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "name",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "color",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "users"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      }
+    ]
+  },
+  "excludedFields": [
+    "behavior",
+    "graphRecords",
+    "authoringProfile",
+    "appId"
+  ],
+  "normalizedContractId": "sha256:d8b98b96796b4071128cb866b8c46d44e1e513dfa00f40ef2cdb19a1d6c65a66",
+  "normalizedSchemaId": "sha256:4c04afa531832662bad4fbbac7295a4c081d43eb2226fd4531d2ba56ac6aad4f",
+  "schemaVersion": "snapback.normalized-application-definition.v1"
+}

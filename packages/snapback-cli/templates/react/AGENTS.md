@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin react digest=sha256:c2182bd1669bb913e1a639d53980b25303cb8d1a45a19c5d9aa3f3b89884ad83 -->
+<!-- start-packet:begin react digest=sha256:6b0fe4b5843be43b7a0439461390cc21c52e33f00744b88b5074fe0e50266d42 -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside
@@ -28,11 +28,13 @@ server.
   `listTodos` and `createTodo` ship as working examples to copy.
 - `snapback/seed.json` — the versioned seed fixture.
 - `src/App.tsx` — the consumer: a hoisted `useSnapbackQueries` entries map
-  plus `useSnapbackMutation` and `useSnapbackConnection` from
-  `@expo/snapback-react`.
-- `src/main.tsx` — boot: `SnapbackClient` → `prepareReactBinding` →
-  `createSnapbackReactProvider` → `<SnapbackProvider>`. Leave it alone
-  unless boot itself is the task.
+  plus `useSnapbackMutation`, `useSnapbackConnection`,
+  `useSnapbackCurrentPrincipal`, and `useSnapbackAuth` from
+  `@expo/snapback-react`. The password form is the ordinary anonymous-ready
+  entry, sign-in, current-principal, and sign-out example.
+- `src/main.tsx` — boot: generated `app` + supervised Vite app binding →
+  `createSnapbackAppClient` → `<SnapbackProvider appClient={...}>`. Leave it
+  alone unless boot itself is the task.
 - `acceptance.mjs` + `snapback.verify.config.mjs` — the registered proof.
 
 `snapback/generated/` is codegen-owned: regenerate, commit
@@ -40,10 +42,13 @@ server.
 
 ## Posture
 
-- **Auth: dev mode** (no `auth` block in the schema). Users or app-side
-  uploads need sessions: add `{ auth: { mode: 'sessions' } }` **before**
-  building that UI, declare each function's `auth` explicitly, and scope
-  server-side (`eq('ownerId', authUserId())`) — never a client-supplied
+- **Auth: sessions mode, password entry, durable browser custody.** The
+  generated application descriptor opts into the first-party auth path;
+  IndexedDB plus Web Locks is required, with no memory fallback. Recovery
+  codes surface once after signup. The todo example remains public so the
+  provider reaches anonymous `ready` before entry.
+- Declare each function's `auth` explicitly and scope private data
+  server-side (`eq('ownerId', authUserId())`) — never trust a client-supplied
   owner argument.
 - **Uploads: none wired here.** Flip to sessions first, then
   `snapback guide assets` for the one named page.

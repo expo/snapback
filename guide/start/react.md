@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:8eec1a04daa7a5512264a00d40cf195b4eeb4653d3319607cf4d0abef7a1d85d
+reviewed-authorities-digest: sha256:bb51fb7bff16d6c94335925cb0522657982e212144f54e5be6a224438bc6f82e
 ---
 
 # Start packet: the `react` template
@@ -42,11 +42,13 @@ server.
   `listTodos` and `createTodo` ship as working examples to copy.
 - `snapback/seed.json` — the versioned seed fixture.
 - `src/App.tsx` — the consumer: a hoisted `useSnapbackQueries` entries map
-  plus `useSnapbackMutation` and `useSnapbackConnection` from
-  `@expo/snapback-react`.
-- `src/main.tsx` — boot: `SnapbackClient` → `prepareReactBinding` →
-  `createSnapbackReactProvider` → `<SnapbackProvider>`. Leave it alone
-  unless boot itself is the task.
+  plus `useSnapbackMutation`, `useSnapbackConnection`,
+  `useSnapbackCurrentPrincipal`, and `useSnapbackAuth` from
+  `@expo/snapback-react`. The password form is the ordinary anonymous-ready
+  entry, sign-in, current-principal, and sign-out example.
+- `src/main.tsx` — boot: generated `app` + supervised Vite app binding →
+  `createSnapbackAppClient` → `<SnapbackProvider appClient={...}>`. Leave it
+  alone unless boot itself is the task.
 - `acceptance.mjs` + `snapback.verify.config.mjs` — the registered proof.
 
 `snapback/generated/` is codegen-owned: regenerate, commit
@@ -54,10 +56,13 @@ server.
 
 ## Posture
 
-- **Auth: dev mode** (no `auth` block in the schema). Users or app-side
-  uploads need sessions: add `{ auth: { mode: 'sessions' } }` **before**
-  building that UI, declare each function's `auth` explicitly, and scope
-  server-side (`eq('ownerId', authUserId())`) — never a client-supplied
+- **Auth: sessions mode, password entry, durable browser custody.** The
+  generated application descriptor opts into the first-party auth path;
+  IndexedDB plus Web Locks is required, with no memory fallback. Recovery
+  codes surface once after signup. The todo example remains public so the
+  provider reaches anonymous `ready` before entry.
+- Declare each function's `auth` explicitly and scope private data
+  server-side (`eq('ownerId', authUserId())`) — never trust a client-supplied
   owner argument.
 - **Uploads: none wired here.** Flip to sessions first, then
   `snapback guide assets` for the one named page.

@@ -1193,6 +1193,10 @@ function startMetro({ command, directory, port, platform, bootstrapOrigin, env, 
 }
 
 function bindingFromDescriptor({ descriptor, origin, routing, generation, now, ttlMs }) {
+  const offeredCapabilities = new Set(descriptor.capabilities.required);
+  if (descriptor.authBootstrap?.entryMechanisms?.includes('password-v1')) {
+    offeredCapabilities.add('auth.passwords');
+  }
   return Object.freeze({
     format: 'snapback.app-binding.v1',
     source: 'supervised-dev',
@@ -1204,7 +1208,7 @@ function bindingFromDescriptor({ descriptor, origin, routing, generation, now, t
       origin,
       routing,
     }),
-    capabilities: Object.freeze({ offered: Object.freeze([...descriptor.capabilities.required]) }),
+    capabilities: Object.freeze({ offered: Object.freeze([...offeredCapabilities].sort()) }),
     provenance: Object.freeze({
       supervisorGeneration: generation,
       issuedAt: new Date(now).toISOString(),

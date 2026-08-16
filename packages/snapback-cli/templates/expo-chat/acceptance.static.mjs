@@ -10,6 +10,10 @@ const functions = JSON.parse(readFileSync(
   'utf8',
 ));
 const schemaSource = readFileSync(new URL('./snapback/schema.mjs', import.meta.url), 'utf8');
+const descriptor = JSON.parse(readFileSync(
+  new URL('./snapback/generated/app.descriptor.json', import.meta.url),
+  'utf8',
+));
 const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 const chatScreen = readFileSync(new URL('./src/screens/chat-screen.tsx', import.meta.url), 'utf8');
 const inboxScreen = readFileSync(new URL('./src/screens/inbox-screen.tsx', import.meta.url), 'utf8');
@@ -42,11 +46,23 @@ assert.deepEqual(
   ['messageImageUpload'],
 );
 assert.match(schemaSource, /auth:\s*\{\s*mode:\s*'sessions'\s*\}/);
+assert.match(schemaSource, /custody:\s*'volatile-explicit'/);
+assert.match(schemaSource, /20260815-llp-0258-phase-2-native-custody-evidence\.md/);
+assert.match(schemaSource, /kind:\s*'password'/);
+assert.equal(descriptor.authBootstrap.format, 'snapback.application-auth-bootstrap.v1');
+assert.equal(descriptor.authBootstrap.custody, 'volatile-explicit');
+assert(descriptor.capabilities.required.includes('auth.application-bootstrap.v1'));
 assert.match(schemaSource, /memberships:\s*defineTable/);
 assert.match(schemaSource, /replyToId:\s*v\.optional\(v\.id\('messages'\)\)/);
 assert.match(schemaSource, /reactions:\s*defineTable/);
 assert.match(appSource, /registerExpoFileSystemRqsFiles\(/);
 assert.match(appSource, /SnapbackExpoProvider/);
+assert.match(appSource, /useSnapbackAuth/);
+assert.match(appSource, /useSnapbackCurrentPrincipal/);
+assert.match(appSource, /signUpWithPassword/);
+assert.match(appSource, /signInWithPassword/);
+assert.match(appSource, /auth\.signOut/);
+assert.doesNotMatch(appSource, /new SnapbackClient|AuthCoordinator|bearer|adoptAuthority/u);
 assert.match(appSource, /TestPersonaProvider/);
 assert.match(appSource, /InboxScreen/);
 assert.match(chatScreen, /useSurface\(/);
@@ -80,12 +96,22 @@ assert.match(
   'runtime acceptance must wait through the package CLI on the application-readiness receipt',
 );
 assert.match(runtimeAcceptance, /runExpoDev/);
+assert.match(runtimeAcceptance, /createSnapbackExpoBoot/);
+assert.match(runtimeAcceptance, /createSnapbackAppClient/);
+assert.doesNotMatch(
+  runtimeAcceptance,
+  /new SnapbackClient|createExternalSessionClient|AuthCoordinator|bearer|adoptAuthority/u,
+);
 assert.match(runtimeAcceptance, /'--level', 'application', '--timeout-ms', '60000'/);
 assert.match(runtimeAcceptance, /applicationReadyObserved: true/);
 assert.match(runtimeAcceptance, /firstQueryRetries: 0/);
 assert.doesNotMatch(runtimeAcceptance, /generated-and-loaded/);
 for (const check of [
   'zero-config-supervised-connect',
+  'anonymous-ready',
+  'password-signup-recovery',
+  'password-signout',
+  'password-signin',
   'membership-and-conversation-shape',
   'test-persona-membership-switch',
   'reply-and-observation',

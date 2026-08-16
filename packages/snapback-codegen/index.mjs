@@ -1028,6 +1028,7 @@ const GENERATED_API_RESERVED_EXPORTS = new Set([
 const SCHEMA_VERSION = 'snapback.v0';
 const SESSIONS_SCHEMA_VERSION = 'snapback.v1';
 const AUTH_MODES = new Set(['dev', 'sessions']);
+const APPLICATION_AUTH_BOOTSTRAP_CAPABILITY = 'auth.application-bootstrap.v1';
 const AUTH_PASSWORD_IDENTIFIER_MODES = new Set(['username-v1', 'email-v1']);
 const AGENT_REGISTRATION_MODES = new Set(['disabled', 'invited', 'open']);
 const AGENT_INVITERS = new Set(['operators', 'users']);
@@ -7039,7 +7040,17 @@ async function generateInProcessLocked({
     api: generatedReferences.api,
     commands: generatedCommands,
     surfaces: generatedSurfaces,
-    requiredCapabilities: [...requiredTargetCapabilities],
+    // `auth.application-bootstrap.v1` is a client-package closure fact, not a
+    // runtime target capability. It therefore joins the portable application
+    // requirements only after target-artifact admission has checked the
+    // runtime-owned set above. Older generated descriptors intentionally lack
+    // this second opt-in fact and retain the legacy Expo provider path.
+    requiredCapabilities: [
+      ...requiredTargetCapabilities,
+      ...(applicationAuthBootstrap == null
+        ? []
+        : [APPLICATION_AUTH_BOOTSTRAP_CAPABILITY]),
+    ],
   });
   // @ref LLP 0178#integration-with-the-descriptor-spine — descriptor
   // validation joins the existing unsuppressible lane before any generated

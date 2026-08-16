@@ -111,6 +111,11 @@ development virtual module:
 
 ```ts source=packages/snapback-cli/templates/react/src/snapback-dev.d.ts
 declare module 'virtual:snapback/dev' {
+  import type {
+    SnapbackAppBindingV1,
+    SnapbackApplicationDescriptorV1,
+  } from '@expo/snapback-client';
+
   export const snapbackBasePath: string;
   export const snapbackDevState: Readonly<{
     mode: 'off' | 'external' | 'attach' | 'managed' | 'auto';
@@ -118,15 +123,19 @@ declare module 'virtual:snapback/dev' {
     ready: boolean;
     basePath: string;
   }>;
+  export function createSnapbackDevAppBinding(
+    app: SnapbackApplicationDescriptorV1,
+  ): SnapbackAppBindingV1;
 }
 ```
 
 `@expo/snapback-vite` supplies `virtual:snapback/dev`; there is no file to
 install or generate at that specifier. A hand-built TypeScript/Vite app must
 add the ambient declaration above (conventionally
-`src/snapback-dev.d.ts`) so the compiler knows `snapbackBasePath` and
-`snapbackDevState`. Import `snapbackBasePath` in the client entry and pass it
-to the Snapback provider/client instead of baking in a loopback server URL.
+`src/snapback-dev.d.ts`) so the compiler knows the relay state and app-binding
+helper. Pass the generated `app` to `createSnapbackDevAppBinding`, then pass
+that binding to `createSnapbackAppClient`; the helper emits only the
+same-origin relative relay path, never a loopback server URL.
 
 The package `@expo/snapback-cli` supplies the `snapback` command — the
 terminal npm identity (LLP 0115 decision 9): the workspace name and the

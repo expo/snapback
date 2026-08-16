@@ -35,6 +35,7 @@ export function resolveGeneratedImport(id: string, importer: string): string | n
 export function renderVirtualModule(input: {
   base: string;
   state?: Readonly<Record<string, unknown>>;
+  supervisorGeneration?: string;
 }): string;
 
 export default snapbackDev;

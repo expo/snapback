@@ -51,7 +51,8 @@
           ],
           "scopeFields": [
             "conversationId"
-          ]
+          ],
+          "withdrawalVisibilityDeadlineMs": 2000
         },
         "delivery": {
           "defaultLive": true,
@@ -1769,9 +1770,9 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "authoredSourceHash": "sha256:7e2fc64548d99f46d74c0851cc30209fa4d289ad7a77cc8b3ca935402531dd41",
-    "implementationHash": "snapback.v1:sessions:function:sha256:c0a3c2c2095e35458b924fe04ccbc66ce27cbb1d1cb89122889af53c8147b70e",
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:e1ba5a90fb2491ee331c99b0385fc19ffa28e81d1288207d6d7651e52689e0b9",
-    "schemaHash": "snapback.v1:sessions:schema:sha256:bfcc77c2351aaecdb97391b42c63eb604fefc141f3b770a6b3a24bd1fa28d8e5"
+    "authoredSourceHash": "sha256:18dc98baa5d8c1d9b41fd200edb96a53ebaffd5c11dd4d267a5c3be74417636e",
+    "implementationHash": "snapback.v1:sessions:function:sha256:cd52f404337edd835c85b8d00c8d6f7310d65c0e6b9f1c3c655a0ca037edb684",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:e8de075651c2dff51bef41dda8591b617d0a37284132b6930443169ffffc6c02",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:1e076a5aa5e995e76634462a030bc3c8117b4cee5882cf7b032884e191ec8afa"
   }
 }

@@ -53,11 +53,11 @@
   },
   "provider": {
     "id": "snapback",
-    "version": "snapback.v0"
+    "version": "snapback.v1"
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "a44b06f644cdb0d900be683665c36b52808c0af03283c3a1b3f717070eac3845",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:2cc749f970484c664f91c872a33b24bb3c67029d0090026ddb8118f98521c2e4",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

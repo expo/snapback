@@ -131,10 +131,36 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
     state: { mode: 'managed', shape: 'managed', ready: true, serverUrl: 'http://127.0.0.1:45123', pid: 4242 },
   });
   assert.match(rendered, /snapbackBasePath = "\/__snapback"/);
+  assert.match(rendered, /createSnapbackDevAppBinding/);
+  assert.match(rendered, /auth\.passwords/);
+  assert.match(rendered, /supervisorGeneration: "vite-relay:standalone"/);
   assert.match(rendered, /"mode":"managed"/);
   assert.ok(!rendered.includes('45123'), 'virtual module must not leak the backend origin');
   assert.ok(!rendered.includes('serverUrl'), 'virtual module must not carry a serverUrl field');
   assert.ok(!rendered.includes('4242'), 'virtual module must not leak the backend pid');
+  const executableModule = await import(`data:text/javascript;base64,${Buffer.from(renderVirtualModule({
+    base: '/__snapback',
+    state: { mode: 'managed', shape: 'managed', ready: true },
+    supervisorGeneration: 'vite-relay:no-network-witness',
+  })).toString('base64')}`);
+  const generatedApp = Object.freeze({
+    format: 'snapback.app.v1',
+    identity: Object.freeze({
+      app: 'vite-fixture',
+      schema: 'sha256:schema',
+      functions: 'sha256:functions',
+      descriptor: 'sha256:descriptor',
+    }),
+    authBootstrap: Object.freeze({ entryMechanisms: Object.freeze(['password-v1']) }),
+    capabilities: Object.freeze({ required: Object.freeze(['auth.application-bootstrap.v1']) }),
+  });
+  const appBinding = executableModule.createSnapbackDevAppBinding(generatedApp);
+  assert.equal(appBinding.target.origin, '/__snapback');
+  assert.equal(appBinding.provenance.supervisorGeneration, 'vite-relay:no-network-witness');
+  assert.deepEqual(appBinding.capabilities.offered, [
+    'auth.application-bootstrap.v1',
+    'auth.passwords',
+  ]);
 
   assert.throws(() => snapbackDev({ server: { mode: 'bogus' } }), (error) => error.code === 'SNAPBACK_DEV_SERVER_MODE_INVALID');
   assert.throws(() => snapbackDev({ server: { mode: 'external' } }), (error) => error.code === 'SNAPBACK_DEV_EXTERNAL_URL_REQUIRED');
@@ -292,6 +318,11 @@ try {
   assert.equal(virtualModule.snapbackBasePath, '/__snapback');
   assert.equal(virtualModule.snapbackDevState.mode, 'managed');
   assert.equal(virtualModule.snapbackDevState.ready, true);
+  const generatedApp = (await import(join(backend, 'generated', 'app.mjs'))).app;
+  const appBinding = virtualModule.createSnapbackDevAppBinding(generatedApp);
+  assert.equal(appBinding.target.origin, '/__snapback');
+  assert.equal(appBinding.descriptorIdentity, generatedApp.identity.descriptor);
+  assert.deepEqual(appBinding.capabilities.offered, generatedApp.capabilities.required);
   const adminTokenValue = readFileSync(`${database}.admin-token`, 'utf8').trim();
   const virtualSource = renderVirtualModule({ base: '/__snapback', state: virtualModule.snapbackDevState });
   assert.ok(adminTokenValue.length > 0);

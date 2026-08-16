@@ -395,6 +395,15 @@ console.log(JSON.stringify({
     `the untouched React starter must generate without degraded-result advisories: ${JSON.stringify(generatedReact.summary.degradedResults)}`,
   );
   assert.match(readFileSync(join(reactProject, 'src', 'App.tsx'), 'utf8'), /useSnapbackQueries/);
+  assert.match(readFileSync(join(reactProject, 'src', 'App.tsx'), 'utf8'), /useSnapbackAuth/);
+  assert.match(readFileSync(join(reactProject, 'src', 'App.tsx'), 'utf8'), /useSnapbackCurrentPrincipal/);
+  assert.match(readFileSync(join(reactProject, 'src', 'main.tsx'), 'utf8'), /createSnapbackAppClient/);
+  assert.doesNotMatch(
+    readFileSync(join(reactProject, 'src', 'main.tsx'), 'utf8'),
+    /new SnapbackClient|createSnapbackReactProvider|AuthCoordinator|bearer|adoptAuthority/u,
+  );
+  assert.equal(generatedReact.appDescriptor.authBootstrap.format, 'snapback.application-auth-bootstrap.v1');
+  assert(generatedReact.appDescriptor.capabilities.required.includes('auth.application-bootstrap.v1'));
   const reactStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], {
     cwd: reactProject,
     encoding: 'utf8',
@@ -403,6 +412,7 @@ console.log(JSON.stringify({
   assertCarrierSelfCheck(reactProject, ['headless', 'web-browser']);
   const reactAcceptanceSource = readFileSync(join(reactProject, 'acceptance.mjs'), 'utf8');
   assert.match(reactAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
+  assert.match(reactAcceptanceSource, /createSnapbackAppClient/u);
   assert.match(reactAcceptanceSource, /client\.query\(api\.listTodos/u);
   assert.match(reactAcceptanceSource, /invokeSnapbackMutation/u);
 
@@ -502,6 +512,10 @@ console.log(JSON.stringify({
     'the expo-chat starter must generate the LLP 0179 conversation surface',
   );
   assert.match(readFileSync(join(chatProject, 'App.tsx'), 'utf8'), /SnapbackExpoProvider/);
+  assert.match(readFileSync(join(chatProject, 'App.tsx'), 'utf8'), /useSnapbackAuth/);
+  assert.match(readFileSync(join(chatProject, 'App.tsx'), 'utf8'), /useSnapbackCurrentPrincipal/);
+  assert.equal(generatedChat.appDescriptor.authBootstrap.custody, 'volatile-explicit');
+  assert(generatedChat.appDescriptor.capabilities.required.includes('auth.application-bootstrap.v1'));
   assert.match(
     readFileSync(join(chatProject, 'src', 'screens', 'chat-screen.tsx'), 'utf8'),
     /useSurface\(/,
@@ -519,6 +533,11 @@ console.log(JSON.stringify({
   assert.match(chatAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
   assert.match(chatAcceptanceSource, /zero-config-supervised-connect/u);
   assert.match(chatAcceptanceSource, /runExpoDev/u);
+  assert.match(chatAcceptanceSource, /createSnapbackExpoBoot/u);
+  assert.doesNotMatch(
+    chatAcceptanceSource,
+    /new SnapbackClient|createExternalSessionClient|AuthCoordinator|bearer|adoptAuthority/u,
+  );
   assert.match(chatAcceptanceSource, /observeSnapbackSurface/u);
   assert.match(chatAcceptanceSource, /client\.mutate\(api\.sendMessage/u);
   assert.match(

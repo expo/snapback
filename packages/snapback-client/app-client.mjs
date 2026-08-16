@@ -120,8 +120,28 @@ const emitSnapshot = (owner, snapshot) => {
 
 const starting = (owner, stage) => emitSnapshot(owner, { status: 'starting', stage });
 
-const canonicalOrigin = (value) => {
+// @ref LLP 0030#generated-app-facts — a managed browser app receives the
+// same-origin relay base, never the private loopback backend origin. Release
+// bindings remain exact absolute HTTPS origins.
+const canonicalTargetBase = (value) => {
   if (!nonEmptyString(value)) return null;
+  if (value.startsWith('/')) {
+    try {
+      const parsed = new URL(value, 'http://snapback-vite-relay.invalid');
+      if (
+        value.startsWith('//')
+        || parsed.origin !== 'http://snapback-vite-relay.invalid'
+        || parsed.pathname !== value
+        || parsed.search !== ''
+        || parsed.hash !== ''
+        || value === '/'
+        || value.endsWith('/')
+      ) return null;
+      return Object.freeze({ kind: 'same-origin-relay', url: parsed });
+    } catch {
+      return null;
+    }
+  }
   try {
     const parsed = new URL(value);
     if (
@@ -133,7 +153,7 @@ const canonicalOrigin = (value) => {
       || parsed.origin === 'null'
       || parsed.origin !== value.replace(/\/$/u, '')
     ) return null;
-    return parsed;
+    return Object.freeze({ kind: 'absolute-origin', url: parsed });
   } catch {
     return null;
   }
@@ -302,7 +322,7 @@ function validateBinding(binding, app, policy, now = Date.now) {
       [retryBootstrap('SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID')],
     );
   }
-  const origin = canonicalOrigin(binding.target.origin);
+  const targetBase = canonicalTargetBase(binding.target.origin);
   // @ref LLP 0181#appbinding-v1 — hosted-development is a closed HTTPS-only
   // arm; it cannot inherit supervised loopback/forwarding semantics.
   const supervised = binding.source === 'supervised-dev';
@@ -336,15 +356,19 @@ function validateBinding(binding, app, policy, now = Date.now) {
   );
   const hostedDevelopmentIntegrity = exactKeys(binding.integrity, ['channel'])
     && binding.integrity.channel === 'hosted-target-admission';
-  const hostedDevelopmentOriginClassification = hostedDevelopment && origin !== null
-    ? __classifyHostedDevelopmentHostname(origin.hostname)
+  const hostedDevelopmentOrigin = hostedDevelopment
+    && targetBase !== null && targetBase.kind === 'absolute-origin'
+    ? targetBase.url
+    : null;
+  const hostedDevelopmentOriginClassification = hostedDevelopmentOrigin !== null
+    ? __classifyHostedDevelopmentHostname(hostedDevelopmentOrigin.hostname)
     : null;
   if (
     hostedDevelopment
     && (
-      origin === null
+      hostedDevelopmentOrigin === null
       || binding.target.routing !== 'https'
-      || origin.protocol !== 'https:'
+      || hostedDevelopmentOrigin.protocol !== 'https:'
       || hostedDevelopmentOriginClassification !== null
     )
   ) {
@@ -353,18 +377,23 @@ function validateBinding(binding, app, policy, now = Date.now) {
       'Hosted-development bindings require a public HTTPS origin, not a loopback name, unspecified address, or private IP literal.',
       {
         appId: app.identity.app,
-        hostname: origin?.hostname ?? null,
+        hostname: hostedDevelopmentOrigin?.hostname ?? null,
         classification: hostedDevelopmentOriginClassification,
       },
       [retryBootstrap('SNAPBACK_APP_BINDING_TARGET_INVALID')],
     );
   }
-  const validRoute = origin !== null && (supervised
-    ? ['loopback', 'port-forward'].includes(binding.target.routing)
-      && ['http:', 'https:'].includes(origin.protocol)
-      && (isLoopbackHost(origin.hostname)
-        || (binding.target.routing === 'port-forward' && origin.hostname === '10.0.2.2'))
-    : binding.target.routing === 'https' && origin.protocol === 'https:');
+  const validRoute = targetBase !== null && (supervised
+    ? targetBase.kind === 'same-origin-relay'
+      ? binding.target.routing === 'loopback'
+      : ['loopback', 'port-forward'].includes(binding.target.routing)
+        && ['http:', 'https:'].includes(targetBase.url.protocol)
+        && (isLoopbackHost(targetBase.url.hostname)
+          || (binding.target.routing === 'port-forward'
+            && targetBase.url.hostname === '10.0.2.2'))
+    : targetBase.kind === 'absolute-origin'
+      && binding.target.routing === 'https'
+      && targetBase.url.protocol === 'https:');
   if (
     !validRoute
     || (supervised
