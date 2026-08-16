@@ -1411,6 +1411,24 @@ lands with this record. The `@expo/snapback` README and the
 `guide/data/promotion.md` page landed after the candidate cut and ride
 the next release.
 
+### 0.1.22 (2026-08-15) — twelve-package fast-path publication
+
+The twelve-package closure published from clean revision
+`272bea745bb00728b76297e313c5a0e58b55a4c9` under holding tag
+`fastpath-0-1-22-272bea745bb0`. Darwin arm64 and Linux x64 store
+qualification both passed, every registry tarball re-downloaded byte-identical
+to the retained candidate ledger, and the external install/boot smoke passed
+twice. The retained ledger is
+`~/snapback-release-ledgers/fastpath-ledger-0.1.22-272bea745bb0.json`
+(SHA-256 `9ae8172b272a8a2ba0bc546b4bff4e7209d09d8b0a2340e9ad3ec5997daf0743`).
+
+The first `latest` readback observed npm propagation lag on nine names and
+correctly left the ceremony incomplete. An idempotent resume skipped all
+already-published immutable versions, re-verified their bytes, repeated the
+consumer smoke, and closed with all twelve `latest` tags resolving to 0.1.22.
+This is a fast-path publication, so `newestPublished` advances while
+`newestQualified` remains 0.1.21.
+
 ### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
 
 The eleven-package closure published fast-path to `latest` from clean main

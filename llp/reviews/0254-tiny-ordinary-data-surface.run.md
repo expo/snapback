@@ -617,5 +617,6 @@ implementation deliverables (Phase 0).
   `c3f53f464abcff65f02faa2fa8660774cf29d8c756d543598e3bc47b8e99e17b`
   (54,534 bytes; status/note-only edit over r4). `./ref-check` 0 errors.
 - Landed files: the accepted RFC plus the four review-corpus files
-  (claude, codex, grok, run journal). Landed commit recorded below
-  after push.
+  (claude, codex, grok, run journal). **Landed commit: `e15064b46`**
+  (fast-forward onto `7be645fc0`, 2026-08-13; this SHA note rides the
+  next landing since the landed journal copy predates the push).

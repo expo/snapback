@@ -1,6 +1,6 @@
 {
   "schemaVersion": "snapback-published-symbols.v1",
-  "publishedVersion": "0.1.21",
+  "publishedVersion": "0.1.22",
   "seededFrom": {
     "kind": "working-tree-registry-seed",
     "date": "2026-08-09",
@@ -12,11 +12,11 @@
   },
   "lastRefreshedFrom": {
     "kind": "successful-candidate-publication",
-    "publishedVersion": "0.1.21",
-    "sourceRevision": "c10b454162f6f29803769e9820f1dea54f5e04bb",
-    "candidateLedgerSha256": "33b24d728176ef5b295be54c98cfc8b0f8c19bfccf040f988cc0bee6eb974de3",
-    "registrySourceDigest": "sha256:bae0b194fb86c0262a3573dab545cceb40b28a4a55ca67b3fa5c0ec1bd0917f6",
-    "capturedAt": "2026-08-14T19:20:43.966Z"
+    "publishedVersion": "0.1.22",
+    "sourceRevision": "272bea745bb00728b76297e313c5a0e58b55a4c9",
+    "candidateLedgerSha256": "9ae8172b272a8a2ba0bc546b4bff4e7209d09d8b0a2340e9ad3ec5997daf0743",
+    "registrySourceDigest": "sha256:6dc021cc466ffadc3a49b6e274721008b79154429c370768bc0736f08cebbf9a",
+    "capturedAt": "2026-08-16T00:38:44.599Z"
   },
   "identities": [
     "npm:@expo/snapback-cli/verify#CLOUDFLARE_ACCEPTANCE_SCHEMA_VERSION",
@@ -834,6 +834,7 @@
     "npm:@expo/snapback-client#SettlementMintClaim.site",
     "npm:@expo/snapback-client#SnapbackAppDescriptorV1",
     "npm:@expo/snapback-client#SnapbackAppDescriptorV1.api",
+    "npm:@expo/snapback-client#SnapbackAppDescriptorV1.authoringProfile",
     "npm:@expo/snapback-client#SnapbackAppDescriptorV1.capabilities",
     "npm:@expo/snapback-client#SnapbackAppDescriptorV1.commands",
     "npm:@expo/snapback-client#SnapbackAppDescriptorV1.format",
@@ -2992,10 +2993,16 @@
     "npm:@expo/snapback-codegen/ctx#QueryContext.refuse",
     "npm:@expo/snapback-codegen/ctx#QueryContext.runtime",
     "npm:@expo/snapback-codegen/ctx#QueryDatabase",
+    "npm:@expo/snapback-codegen/ctx#QueryDatabase.elevated",
     "npm:@expo/snapback-codegen/ctx#QueryDatabase.get",
     "npm:@expo/snapback-codegen/ctx#QueryDatabase.getMany",
     "npm:@expo/snapback-codegen/ctx#QueryDatabase.query",
     "npm:@expo/snapback-codegen/ctx#QueryDatabase.uniqueMany",
+    "npm:@expo/snapback-codegen/ctx#ReadDatabaseAuthority",
+    "npm:@expo/snapback-codegen/ctx#ReadDatabaseAuthority.get",
+    "npm:@expo/snapback-codegen/ctx#ReadDatabaseAuthority.getMany",
+    "npm:@expo/snapback-codegen/ctx#ReadDatabaseAuthority.query",
+    "npm:@expo/snapback-codegen/ctx#ReadDatabaseAuthority.uniqueMany",
     "npm:@expo/snapback-codegen/ctx#ReadableTable",
     "npm:@expo/snapback-codegen/ctx#RealtimeContext",
     "npm:@expo/snapback-codegen/ctx#RealtimeContext.hasFreshClient",
