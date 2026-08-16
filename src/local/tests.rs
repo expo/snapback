@@ -2375,8 +2375,7 @@ fn table_visibility_activation_validates_owner_field() {
     );
 }
 
-#[test]
-fn table_visibility_activation_validates_membership_self_resource() {
+fn membership_self_resource_visibility_schema() -> SchemaManifest {
     let applications = TableManifest {
         name: "applications".to_owned(),
         fields: vec![FieldManifest {
@@ -2451,10 +2450,15 @@ fn table_visibility_activation_validates_membership_self_resource() {
         visibility: None,
         history: None,
     };
-    let mut schema = SchemaManifest {
+    SchemaManifest {
         tables: vec![applications, application_members],
         ..SchemaManifest::default()
-    };
+    }
+}
+
+#[test]
+fn table_visibility_activation_validates_membership_self_resource() {
+    let mut schema = membership_self_resource_visibility_schema();
 
     validate_function_schema_references(&FunctionManifest::default(), &schema)
         .expect("membership visibility may use the resource table's server-owned _id");
@@ -2473,6 +2477,47 @@ fn table_visibility_activation_validates_membership_self_resource() {
             "{resource_field}"
         );
     }
+}
+
+#[test]
+fn table_visibility_activation_rejects_child_table_self_resource() {
+    let mut schema = membership_self_resource_visibility_schema();
+    schema.tables[0].visibility = None;
+    schema.tables.insert(
+        1,
+        TableManifest {
+            name: "application_notes".to_owned(),
+            fields: vec![FieldManifest {
+                name: "applicationId".to_owned(),
+                field_type: FieldType::Id {
+                    table: "applications".to_owned(),
+                },
+                optional: false,
+            }],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::Membership {
+                declaration: "application-members".to_owned(),
+                resource_field: "_id".to_owned(),
+                roles: Some(vec!["member".to_owned()]),
+            }),
+            history: None,
+        },
+    );
+    let error = validate_function_schema_references(&FunctionManifest::default(), &schema)
+        .expect_err("child-table _id cannot identify a different resource table");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_TYPE_MISMATCH"
+    );
 }
 
 #[test]
