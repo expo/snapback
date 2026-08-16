@@ -1,6 +1,6 @@
 # LLP 0258 lane claim: React auth hooks (D6) + Expo provider integration (Phases 2-3)
 
-**Status:** Open
+**Status:** Closed (2026-08-15)
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 3
@@ -35,3 +35,13 @@ note it here — this claim yields to landed code, per the fleet convention.
 
 Close when both lanes land (or when superseded by another session's
 landing, noted with the SHA).
+
+## Resolution (2026-08-15)
+
+Superseded by landed code per this ticket's own yield rule: `b186296fd`
+landed both claimed lanes (useSnapbackCurrentPrincipal/useSnapbackAuth +
+Familiar aliases, and the Expo provider first-party bootstrap integration
+with supervised precedence) while the claiming session's duplicate React
+lane was in review. The claiming session's parallel-lane review findings
+were applied to the landed core instead (699b7f907 + 8c79faccd), and a
+seeded review of b186296fd's own surface follows the same pattern.
