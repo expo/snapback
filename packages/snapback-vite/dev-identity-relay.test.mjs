@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -19,6 +27,10 @@ const VITE_8_DEFAULT_FS_DENY = [
   '.yarnrc.yml',
   '**/.git/**',
 ];
+
+function vitePath(path) {
+  return realpathSync.native(path).replaceAll('\\', '/');
+}
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -145,6 +157,11 @@ try {
   writeFileSync(join(viteRoot, '.env'), 'SECRET=sbdev_env_must_stay_denied\n');
   writeFileSync(viteCapabilityFile, 'sbdev_real_vite_secret\n', { mode: 0o600 });
   writeFileSync(globDeniedFile, 'sbdev_glob_denied_secret\n', { mode: 0o600 });
+  const canonicalViteRoot = realpathSync.native(viteRoot);
+  const aliasedViteRoot = join(root, 'vite-app-symlink');
+  symlinkSync(viteRoot, aliasedViteRoot, process.platform === 'win32' ? 'junction' : 'dir');
+  const aliasedViteCapabilityFile = join(aliasedViteRoot, '.snapback', 'custom-carrier');
+  const canonicalViteCapabilityFile = vitePath(viteCapabilityFile);
   const { createServer: createViteServer } = await import('vite');
   viteServer = await createViteServer({
     root: viteRoot,
@@ -153,7 +170,7 @@ try {
     plugins: [snapbackDev({
       server: { mode: 'external', url: backendUrl },
       projectRoot: viteRoot,
-      env: { SNAPBACK_DEV_IDENTITY_FILE: viteCapabilityFile },
+      env: { SNAPBACK_DEV_IDENTITY_FILE: aliasedViteCapabilityFile },
       logJson: false,
     })],
     server: { host: '127.0.0.1', port: 0 },
@@ -161,14 +178,15 @@ try {
   await viteServer.listen();
   const viteOrigin = `http://127.0.0.1:${viteServer.httpServer.address().port}`;
   assert.ok(viteServer.config.server.fs.deny.includes('**/*.dev-identity'));
-  assert.ok(viteServer.config.server.fs.deny.includes(viteCapabilityFile));
+  assert.ok(viteServer.config.server.fs.deny.includes(canonicalViteCapabilityFile));
   for (const pattern of VITE_8_DEFAULT_FS_DENY) {
     assert.ok(viteServer.config.server.fs.deny.includes(pattern), `resolved deny keeps Vite default ${pattern}`);
   }
   for (const [path, secret] of [
     ['/.env', 'sbdev_env_must_stay_denied'],
     ['/.snapback/custom-carrier', 'sbdev_real_vite_secret'],
-    [encodeURI(`/@fs/${viteCapabilityFile}`), 'sbdev_real_vite_secret'],
+    [encodeURI(`/@fs/${canonicalViteCapabilityFile}`), 'sbdev_real_vite_secret'],
+    [encodeURI(`/@fs/${aliasedViteCapabilityFile}`), 'sbdev_real_vite_secret'],
     ['/.snapback/unconfigured.dev-identity', 'sbdev_glob_denied_secret'],
     [encodeURI(`/@fs/${globDeniedFile}`), 'sbdev_glob_denied_secret'],
   ]) {
@@ -200,25 +218,59 @@ try {
   assert.deepEqual(customDenyPatch.server.fs.deny, [
     '**/user-secret',
     '**/*.dev-identity',
-    viteCapabilityFile,
+    canonicalViteCapabilityFile,
   ]);
 
-  const strictFalseEvents = [];
+  const managedStrictFalseEvents = [];
+  await assert.rejects(
+    createViteServer({
+      root: canonicalViteRoot,
+      configFile: false,
+      logLevel: 'silent',
+      plugins: [snapbackDev({
+        server: { mode: 'managed' },
+        projectRoot: canonicalViteRoot,
+        onEvent: (event) => managedStrictFalseEvents.push(event),
+        logJson: false,
+      })],
+      server: { host: '127.0.0.1', port: 0, fs: { strict: false } },
+    }),
+    (error) => error.code === 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED',
+  );
+  assert.equal(
+    managedStrictFalseEvents.filter((event) => (
+      event.code === 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED'
+      && event.event === 'diagnostic'
+    )).length,
+    1,
+  );
+  assert.equal(
+    managedStrictFalseEvents.some((event) => event.event === 'server-ready'),
+    false,
+    'managed lifecycle must not start when in-root carrier custody cannot be enforced',
+  );
+
+  const strictFalseOutsideEvents = [];
   viteServer = await createViteServer({
-    root: viteRoot,
+    root: canonicalViteRoot,
     configFile: false,
     logLevel: 'silent',
     plugins: [snapbackDev({
       server: { mode: 'external', url: backendUrl },
       projectRoot: viteRoot,
-      env: { SNAPBACK_DEV_IDENTITY_FILE: viteCapabilityFile },
-      onEvent: (event) => strictFalseEvents.push(event),
+      env: { SNAPBACK_DEV_IDENTITY_FILE: relayCapabilityFile },
+      onEvent: (event) => strictFalseOutsideEvents.push(event),
       logJson: false,
     })],
     server: { host: '127.0.0.1', port: 0, fs: { strict: false } },
   });
   await viteServer.listen();
   const strictFalseOrigin = `http://127.0.0.1:${viteServer.httpServer.address().port}`;
+  const strictFalseCarrierResponse = await fetch(
+    `${strictFalseOrigin}${encodeURI(`/@fs/${relayCapabilityFile}`)}`,
+  );
+  assert.equal(strictFalseCarrierResponse.status, 403);
+  assert.ok(!(await strictFalseCarrierResponse.text()).includes('sbdev_relay_fixture_two'));
   const strictFalseHeaderIndex = observedHttpHeaders.length;
   const strictFalseRelayResponse = await fetch(`${strictFalseOrigin}/__snapback/connection/open`, {
     method: 'POST',
@@ -226,16 +278,52 @@ try {
     body: '{}',
   });
   assert.equal(strictFalseRelayResponse.status, 200);
-  assert.equal(observedHttpHeaders[strictFalseHeaderIndex][DEV_IDENTITY_HEADER], undefined);
   assert.equal(
-    strictFalseEvents.filter((event) => (
-      event.code === 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED'
-      && event.event === 'dev-identity-stamping-refused'
-    )).length,
-    1,
+    observedHttpHeaders[strictFalseHeaderIndex][DEV_IDENTITY_HEADER],
+    'sbdev_relay_fixture_two',
+  );
+  assert.equal(
+    strictFalseOutsideEvents.some((event) => event.code === 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED'),
+    false,
   );
   await viteServer.close();
   viteServer = null;
+
+  const servableCarrierEvents = [];
+  const servableCarrierPlugin = snapbackDev({
+    server: { mode: 'external', url: backendUrl },
+    projectRoot: canonicalViteRoot,
+    env: { SNAPBACK_DEV_IDENTITY_FILE: viteCapabilityFile },
+    onEvent: (event) => servableCarrierEvents.push(event),
+    logJson: false,
+  });
+  servableCarrierPlugin.config({}, { command: 'serve' });
+  const servableCarrierConfig = {
+    root: canonicalViteRoot,
+    publicDir: false,
+    server: {
+      host: '127.0.0.1',
+      fs: { strict: true, allow: [canonicalViteRoot] },
+    },
+    fsDenyGlob: () => false,
+    safeModulePaths: new Set(),
+  };
+  servableCarrierPlugin.configResolved(servableCarrierConfig);
+  await assert.rejects(
+    servableCarrierPlugin.configureServer({
+      config: servableCarrierConfig,
+      middlewares: { use: () => {} },
+      httpServer: null,
+    }),
+    (error) => error.code === 'SNAPBACK_DEV_IDENTITY_CARRIER_SERVABLE',
+  );
+  assert.equal(
+    servableCarrierEvents.filter((event) => (
+      event.code === 'SNAPBACK_DEV_IDENTITY_CARRIER_SERVABLE'
+      && event.event === 'diagnostic'
+    )).length,
+    1,
+  );
 
   const publicDir = join(viteRoot, 'public');
   const publicCarrier = join(publicDir, 'leaked.dev-identity');
@@ -252,7 +340,7 @@ try {
     () => publicCarrierPlugin.configResolved({ root: viteRoot, publicDir, server: { host: '127.0.0.1' } }),
     (error) => error.code === 'SNAPBACK_DEV_READY_FILE_INVALID',
   );
-  console.log('dev identity relay: Vite defaults and exact carriers stay denied; fs.strict=false refuses stamping');
+  console.log('dev identity relay: canonical exact carriers stay denied; disabled fs checks refuse in-root custody only');
 
   const database = join(root, 'fixture.sqlite3');
   const readyFile = join(root, 'fixture.ready.json');

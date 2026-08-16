@@ -9,8 +9,8 @@
 // plugin loads already-generated artifacts at bring-up and nothing more.
 
 import { randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -66,8 +66,29 @@ const VITE_8_DEFAULT_FS_DENY = Object.freeze([
   '**/.git/**',
 ]);
 
+function canonicalFilesystemPath(path) {
+  const absolute = resolve(path);
+  let existing = absolute;
+  const missing = [];
+  while (true) {
+    try {
+      return resolve(realpathSync.native(existing), ...missing);
+    } catch (error) {
+      if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') throw error;
+      const parent = dirname(existing);
+      if (parent === existing) return absolute;
+      missing.unshift(basename(existing));
+      existing = parent;
+    }
+  }
+}
+
+function viteFilesystemPath(path) {
+  return canonicalFilesystemPath(path).replaceAll('\\', '/');
+}
+
 function isWithinDirectory(directory, path) {
-  const nested = relative(resolve(directory), resolve(path));
+  const nested = relative(canonicalFilesystemPath(directory), canonicalFilesystemPath(path));
   return nested === '' || (nested !== '..' && !nested.startsWith(`..${sep}`) && !isAbsolute(nested));
 }
 
@@ -83,6 +104,52 @@ function configuredDevIdentityCarriers({ mode, projectRoot, serverOptions, env }
     carriers.push(resolve(projectRoot, handoff));
   }
   return carriers;
+}
+
+function requestFilesystemPath(root, requestUrl) {
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(requestUrl ?? '/', 'http://snapback.invalid').pathname);
+  } catch {
+    return null;
+  }
+  if (pathname.startsWith('/@fs/')) {
+    let fsPath = pathname.slice('/@fs/'.length);
+    if (process.platform === 'win32' && /^\/[A-Za-z]:/u.test(fsPath)) fsPath = fsPath.slice(1);
+    return canonicalFilesystemPath(fsPath);
+  }
+  return canonicalFilesystemPath(resolve(root, `.${pathname}`));
+}
+
+// @ref LLP 0262#d2-carriers-per-shipped-topology — the relay may hold the
+// carrier, but neither ordinary root serving nor /@fs may redistribute it.
+function installCarrierRequestGuard(server, carriers) {
+  if (carriers.length === 0) return;
+  const denied = new Set(carriers.map(canonicalFilesystemPath));
+  server.middlewares.use((req, res, next) => {
+    const requested = requestFilesystemPath(server.config.root, req.url);
+    if (requested === null || !denied.has(requested)) {
+      next();
+      return;
+    }
+    res.statusCode = 403;
+    res.setHeader('content-type', 'text/plain; charset=utf-8');
+    res.end('Forbidden\n');
+  });
+}
+
+async function assertDevIdentityCarriersDenied(server, carriers) {
+  if (server.config.server?.fs?.strict === false) return;
+  const { isFileServingAllowed } = await import('vite');
+  for (const carrier of carriers) {
+    const canonicalCarrier = viteFilesystemPath(carrier);
+    if (!isFileServingAllowed(server.config, canonicalCarrier)) continue;
+    throw diagnosticError(
+      'SNAPBACK_DEV_IDENTITY_CARRIER_SERVABLE',
+      'dev-identity relay stamping refused because the capability carrier is servable by Vite',
+      { carrier: canonicalCarrier, root: viteFilesystemPath(server.config.root) },
+    );
+  }
 }
 
 function normalizeRoute(route) {
@@ -285,8 +352,7 @@ export function snapbackDev(options = {}) {
 
   let command = 'serve';
   let lifecycle = null;
-  let devIdentityStampAllowed = true;
-  let fsChecksDisabledDiagnosticEmitted = false;
+  let devIdentityStampAllowed = false;
   const verifiedGraphRoots = new Map();
   const supervisorGeneration = `vite-relay:${randomUUID()}`;
 
@@ -311,7 +377,7 @@ export function snapbackDev(options = {}) {
           projectRoot,
           serverOptions,
           env: options.env ?? process.env,
-        }),
+        }).map(viteFilesystemPath),
       ]) {
         if (!deny.includes(pattern)) deny.push(pattern);
       }
@@ -330,16 +396,31 @@ export function snapbackDev(options = {}) {
         verifyGeneratedGraph(resolve(projectRoot, generatedRoot));
       }
       if (command !== 'serve' || mode === 'off') return;
-      devIdentityStampAllowed = config.server?.fs?.strict !== false;
-      if (!devIdentityStampAllowed && !fsChecksDisabledDiagnosticEmitted) {
-        fsChecksDisabledDiagnosticEmitted = true;
+      const carriers = configuredDevIdentityCarriers({
+        mode,
+        projectRoot,
+        serverOptions,
+        env: options.env ?? process.env,
+      });
+      const servedRoot = resolve(config.root);
+      const exposedCarrier = config.server?.fs?.strict === false
+        ? carriers.find((carrier) => isWithinDirectory(servedRoot, carrier))
+        : null;
+      if (exposedCarrier) {
+        const error = diagnosticError(
+          'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED',
+          'dev-identity relay custody refused because Vite server.fs.strict is false and the capability carrier is inside the served root',
+          { carrier: viteFilesystemPath(exposedCarrier), root: viteFilesystemPath(servedRoot) },
+        );
         channel.emit({
-          event: 'dev-identity-stamping-refused',
-          code: 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED',
+          event: 'diagnostic',
+          code: error.code,
           severity: 'error',
           mode,
-          message: 'dev-identity relay stamping refused because Vite server.fs.strict is false and carrier custody cannot be enforced',
+          message: error.message,
+          details: error.diagnostic.details,
         });
+        throw error;
       }
       const publicDir = config.publicDir;
       if (publicDir) {
@@ -366,9 +447,17 @@ export function snapbackDev(options = {}) {
 
     async configureServer(server) {
       if (mode === 'off') return;
+      const projectRoot = resolve(options.projectRoot ?? server.config.root);
+      const carriers = configuredDevIdentityCarriers({
+        mode,
+        projectRoot,
+        serverOptions,
+        env: options.env ?? process.env,
+      });
+      installCarrierRequestGuard(server, carriers);
       lifecycle = createSnapbackViteLifecycle({
         mode,
-        projectRoot: options.projectRoot ?? server.config.root,
+        projectRoot,
         database: serverOptions.db ?? serverOptions.database,
         readyFile: serverOptions.readyFile,
         url: serverOptions.url,
@@ -381,6 +470,8 @@ export function snapbackDev(options = {}) {
       });
       try {
         await lifecycle.start();
+        await assertDevIdentityCarriersDenied(server, carriers);
+        devIdentityStampAllowed = true;
       } catch (error) {
         channel.emit({
           event: 'diagnostic',
@@ -390,6 +481,7 @@ export function snapbackDev(options = {}) {
           message: error?.message ?? String(error),
           ...(error?.diagnostic?.details ? { details: error.diagnostic.details } : {}),
         });
+        await lifecycle.close();
         throw error;
       }
       const proxy = createSnapbackProxy({
