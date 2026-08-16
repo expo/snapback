@@ -1,14 +1,15 @@
 # LLP 0258: First-party application auth bootstrap
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Auth, Client integration, Sessions, React, React/Expo, Native
 clients, Custody, Password auth, Code generation, Packaging, Diagnostics,
 Guide, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-15
-**Revised:** 2026-08-15 (r4: post-convergence fix revision, UNREVIEWED — see
-Revision history)
+**Revised:** 2026-08-15 (Accepted on the author's in-session build directive
+after super-refine convergence at r3; r4 fixes are UNREVIEWED — see Revision
+history)
 **Related:** LLP 0039, LLP 0043, LLP 0053, LLP 0057, LLP 0058, LLP 0059,
 LLP 0060, LLP 0061, LLP 0064, LLP 0077, LLP 0096, LLP 0114, LLP 0151,
 LLP 0176, LLP 0181, LLP 0214, LLP 0218, LLP 0227, LLP 0236, LLP 0238,
@@ -983,7 +984,10 @@ is resolved normatively in D2: custody initializes first.
 
 ## Status
 
-Review. The component protocols are already owned and substantially
+Accepted (2026-08-15, author build directive following super-refine
+convergence; the r4 revision is unreviewed and the growth-budget escalation
+in the run journal remains open for author ratification). The component
+protocols are already owned and substantially
 implemented. This RFC proposes the missing composition boundary, platform
 custody obligation, precedence rules, and whole-journey proof. The native
 carrier design is decided in D3 with fail-closed per-platform capability
