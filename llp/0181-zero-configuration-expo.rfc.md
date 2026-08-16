@@ -1149,3 +1149,30 @@ binding-integrity/authenticated-delivery requirement, a stale LLP 0168
 citation whose actual current document states a materially different
 posture than assumed, and a Metro-loopback gap between this RFC's own
 baseline routing text and its stated acceptance criterion.
+
+## Amendment — 2026-08-15 (LLP 0258 Phase 0.3)
+
+Accepted LLP 0258 changes this RFC's owned provider surface on the opted-in
+first-party application-auth path. `SnapbackExpoProvider` delegates that path
+to the framework-neutral application client instead of constructing a second
+auth owner. `ExpoBootState` embeds LLP 0258 D7's `AuthBootstrapSnapshot` as its
+construction-status source of truth while retaining this RFC's public binding
+facts and deployment/persisted-receipt preparation fact. Principal truth stays
+on LLP 0238's current-principal projection; `ready` may therefore be anonymous.
+
+Supervised adoption on this path handshakes into the coordinator through the
+ordinary `/auth/session` path under LLP 0258 D5. A supervised mint no longer
+auto-adopts over application authority at boot, on a binding remint, or during
+`refreshAuthority`: valid durable restored authority wins, a different
+supervised principal surfaces as the non-blocking `ready` advisory, and a
+same-principal supervised remint rotates only the bearer through the
+coordinator. `refreshAuthority` is not a bearer setter on the ordinary path.
+The `adoptAuthority` success contract likewise no longer treats an absent
+ordinary supervised session as `authority-required`; the anonymous settled
+authority remains a successful `ready` outcome.
+
+This amendment is gated by both generated facts: the descriptor carries an
+`authBootstrap` fact whose format is
+`snapback.application-auth-bootstrap.v1`, and its required capabilities include
+`auth.application-bootstrap.v1`. If either opt-in fact is absent, the legacy
+non-opted-in provider path retains its prior contract unchanged.

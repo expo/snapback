@@ -478,3 +478,11 @@ loop closed (run journal:
 `llp/reviews/0255-tiny-data-surface-v1-api.run.md`). The normative
 amendment text lives in LLP 0255 S3.3 and applies to this document as law;
 implementation lands with the LLP 0254 phase that consumes it.
+
+## Cross-reference — 2026-08-15 (LLP 0258 Phase 1)
+
+LLP 0258 Phase 1 implements D6's client projection as
+`client.auth.currentPrincipal()` and
+`client.auth.subscribeCurrentPrincipal(listener)`. This is implementation
+evidence for the existing closed `CurrentPrincipalSnapshot` vocabulary, not a
+change to this RFC's lifecycle protocol or state union.

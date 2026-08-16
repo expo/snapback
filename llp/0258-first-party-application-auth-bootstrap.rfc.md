@@ -996,6 +996,22 @@ gating, so acceptance does not wait on the Phase 0 probes; each platform's
 Implementation must not introduce a second auth protocol or weaken existing
 custody/barrier semantics.
 
+### Implementation record — 2026-08-15
+
+- `d42dabce3` landed the generated `ApplicationAuthBootstrapV1` policy fact
+  and the LLP 0214/0253 Phase 0 amendments.
+- `450d150e6` landed the framework-neutral `createSnapbackAppClient` owner and
+  `client.auth` projection with browser durable custody.
+- `b186296fd` landed the capability-gated ordinary React/Expo projections,
+  auth hooks and Familiar aliases, and LLP 0258 D5 supervised precedence.
+- `0477fda40` independently threaded the full owner key through
+  `AuthCoordinator` and custody adapters without adding a custody-record
+  field; `75da1f28a` independently shipped the SecureStore adapter.
+- Remaining closure is tracked by
+  `issues/20260815-llp-0258-phase-2-native-custody-evidence.md`,
+  `issues/20260815-llp-0258-phase-3-remainders.md`, and
+  `issues/20260815-llp-0258-phase-4-external-qualification.md`.
+
 ## Revision history
 
 - **r1 (2026-08-15):** initial Draft; entered super-refine review

@@ -1097,3 +1097,12 @@ same-landing cross-reference amendments to LLP 0127, 0130, and 0238
 measured exception. Acceptance also does not sequence this experiment ahead
 of the hosted-operations term: LLP 0198 records operations, not syntax, as
 the largest stable deficit, and its P4 remains that decision's owner.
+
+## Cross-reference — 2026-08-15 (LLP 0258 custody disposition)
+
+The custody-grade field disposition required by LLP 0258 is recorded in LLP
+0214 §22 and LLP 0253 Appendix A: Familiar supplies the inspectable
+`durable-required` default and refuses an authored `volatile-explicit`, while
+both profiles consume the same normalized auth-program record. This note
+records that disposition only; it changes no LLP 0252 protocol or experiment
+rule.
