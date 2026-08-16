@@ -1,0 +1,117 @@
+Starting project at /Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app
+Logs: /Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.expo/dev/logs/start.log
+Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Waiting on http://localhost:8081
+
+Logs for your project will appear below.
+Android Bundled 2191ms index.js (771 modules)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 95ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 14ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 9ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 13ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 8ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 14ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 9ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 13ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 8ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 13ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 8ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 12ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 10ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 14ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 9ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 13ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 8ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 12ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 9ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 13ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 8ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 13ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 8ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 12ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 8ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 12ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 9ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 14ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 8ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 13ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 8ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 13ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 8ms node_modules/expo-modules-core/src/index.ts (1 module)
+Android Bundled 14ms index.js (1 module)
+ WARN  Require cycle: ../../../packages/snapback-client/app-client.mjs -> ../../../packages/snapback-client/index.mjs -> ../../../packages/snapback-client/app-client.mjs
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+ WARN  SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context
+Android Bundled 9ms node_modules/expo-modules-core/src/index.ts (1 module)

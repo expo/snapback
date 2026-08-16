@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "snapback.native-custody-build.v1",
+  "runId": "0a6c91ed",
+  "platform": "android",
+  "bundleId": "dev.snapback.custodyprobes",
+  "buildMode": "built-this-run",
+  "artifact": {
+    "nativeBuildConfiguration": "debug",
+    "bundleDelivery": "metro",
+    "kind": "apk",
+    "path": "/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/android/app/build/outputs/apk/debug/app-debug.apk",
+    "binaryPath": "/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/android/app/build/outputs/apk/debug/app-debug.apk",
+    "sha256": "sha256:85ef770af08882bd59efd456202474ac1e54f7ae33c11c7c70534b6dc4e52271"
+  },
+  "reusedFrom": null,
+  "createdAt": "2026-08-16T21:46:58.972Z"
+}

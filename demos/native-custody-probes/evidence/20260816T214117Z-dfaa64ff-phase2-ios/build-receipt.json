@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "snapback.native-custody-build.v1",
+  "runId": "dfaa64ff",
+  "platform": "ios",
+  "bundleId": "dev.snapback.custodyprobes",
+  "buildMode": "built-this-run",
+  "artifact": {
+    "kind": "app-bundle",
+    "path": "/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.build/ios-derived-data/Build/Products/Debug-iphonesimulator/NativeCustodyProbes.app",
+    "binaryPath": "/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.build/ios-derived-data/Build/Products/Debug-iphonesimulator/NativeCustodyProbes.app/NativeCustodyProbes",
+    "bundleId": "dev.snapback.custodyprobes",
+    "nativeBuildConfiguration": "Debug",
+    "bundleDelivery": "metro",
+    "appPathOverride": null,
+    "codesign": "dev.snapback.custodyprobes",
+    "sha256": "sha256:f6e46c0a360033539577f6178f23450e1b338b2bcded9ba4dff1a6a8b20d1bc8",
+    "inventoryFormat": "snapback.ios-app-bundle-inventory.v1",
+    "inventoryFileCount": 70
+  },
+  "reusedFrom": null,
+  "createdAt": "2026-08-16T21:41:33.502Z"
+}
