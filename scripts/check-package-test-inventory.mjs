@@ -75,6 +75,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'generate-check.test.mjs',
       'hosted-admission-producer.test.mjs',
       'hosted-control.test.mjs',
+      'init.test.mjs',
       'load-generated.test.mjs',
       'mcp-control.test.mjs',
       'package.test.mjs',
@@ -474,7 +475,7 @@ export function auditInventory({ root = ROOT, inventory }) {
   }
   discovered.sort();
   const declared = commands.flatMap((command) => [
-    ...command.matchAll(/(?:^|&&)\s*(?:node|bun)\s+([^\s&]+\.mjs)(?=\s|$)/g),
+    ...command.matchAll(/(?:^|&&)\s*(?:node|bun)(?:\s+--test)?\s+([^\s&]+\.mjs)(?=\s|$)/g),
   ])
     .map((match) => match[1].replace(/^\.\//, ''))
     .filter((path) => path.endsWith(inventory.suffix))
@@ -513,7 +514,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 295,
+  expectedTotal = 296,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -923,6 +924,8 @@ export function checkPackageTestInventories(options = {}) {
 // 293 -> 295 (2026-08-15, LLP 0258 Phase 1 Slice 3): @expo/snapback-react and
 // @expo/snapback-expo gain ordinary-provider/hook ownership and supervised
 // precedence/bootstrap-state projection coverage.
+// 295 -> 296 (2026-08-16, LLP 0261): @expo/snapback-cli gains the offline
+// existing-app init detection, adoption, collision, and idempotence suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

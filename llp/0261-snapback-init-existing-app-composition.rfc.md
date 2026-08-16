@@ -1,10 +1,22 @@
 # LLP 0261: `snapback init` — composing Snapback into an existing app
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** CLI, Templates, React/Expo, Packaging, Code generation, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-15
+**Revised:** 2026-08-16 (d — v1 implementation record: `snapback init` landed
+in `packages/snapback-cli` after a three-round dual-family adversarial review
+(grok-4.6 xhigh + gpt-5.6-sol xhigh; round 3 READY, zero open findings;
+64-test offline suite). The published-package qualification bar of §Design
+remains open — the guide GAP row and sibling-scaffold workaround page stand
+until it is met.)
+**Revised:** 2026-08-15 (c — implementation review clarifies the authored
+backend seam, codegen ownership, and the fail-closed resume boundary)
+**Revised:** 2026-08-15 (b — Draft → Accepted: author direction in session,
+Charlie Cheever 2026-08-15, commissioning implementation; OQ4 resolved — the
+commissioned lane owns v1 implementation, dual-family review per author
+direction)
 **Revised:** 2026-08-15 (a — initial draft recording the author's
 product-surface ruling from the 2026-08-15 sitting)
 **Related:** LLP 0181 (zero-configuration Expo integration — the supervised
@@ -65,13 +77,18 @@ able to run it with no TTY.
    closure (LLP 0255) at a single qualified version to the app's existing
    package manifest — using the app's own package manager, without rewriting
    unrelated dependencies, scripts, or configuration.
-3. **Adopt, never clobber.** Create only the conventional backend child
-   (`snapback/` with schema, functions, config) and the required client
-   integration seams. Any collision — an existing `snapback/` directory, a
-   provider already wired in the app shell, a conflicting typecheck boundary
-   — is a typed refusal with the manual seam spelled out, never an
-   overwrite. Re-running `init` on an already-initialized root is a no-op
-   report, not an error and not a second copy.
+3. **Adopt, never clobber.** Create only the conventional backend child and
+   the required client integration seams. On first adoption, `init` seeds the
+   packaged backend snapshot; afterward only `schema.mjs`, `functions.mjs`,
+   and `seed.json` are byte-owned authored seams. `snapback/generated/` is
+   codegen-owned: any generated contents are accepted and never resumed or
+   rewritten by `init`. A pre-existing `snapback/` is resumable only when at
+   least one authored seam is present and every present authored seam
+   byte-matches what `init` writes; an empty, foreign, or mismatched child is
+   a typed collision. A provider already wired in the app shell or a
+   conflicting typecheck boundary likewise refuses with its targeted manual
+   seam, never an overwrite. Re-running `init` on an already-initialized root
+   is a no-op report, not an error and not a second copy.
 4. **Narrow the typecheck boundary.** Apply the same tsconfig narrowing the
    guide currently instructs by hand.
 5. **Exit into the ordinary lifecycle.** After `init`, `snapback generate`
@@ -95,5 +112,6 @@ and the capability GAP row flip.
 - **OQ3 — acceptance registration.** Whether `init` also registers the
   default `snapback verify` proof command (LLP 0196's every-template rule)
   in the adopted app, or leaves that to `generate`.
-- **OQ4 — implementation owner.** The ticket's "assign an owner" half is
-  still open; this RFC is the design home once assigned.
+- **OQ4 — implementation owner.** Resolved 2026-08-15: the author
+  commissioned implementation in session (codex lane, dual-family review);
+  this RFC is the design home.

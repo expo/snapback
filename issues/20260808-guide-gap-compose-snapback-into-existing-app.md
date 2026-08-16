@@ -43,3 +43,21 @@ Design home: `llp/0261-snapback-init-existing-app-composition.rfc.md` (Draft).
 Its OQ4 carries this ticket's still-open "assign an owner" half. The
 qualification bar above is unchanged and restated in the RFC; the GAP row and
 the workaround page stay until that bar is met.
+
+## Implementation landed — 2026-08-16 (ticket stays open for the published-path bar)
+
+`snapback init` v1 is implemented in `packages/snapback-cli` per LLP 0261:
+create-expo-app (classic and expo-router default layouts, `package.json.main`
+disambiguation), the guide's React scaffold shape, transactional
+preflight-then-commit adoption with rollback, typed `SNAPBACK_INIT_*`
+refusals, JSONC-aware config handling, package-manager
+detection/conflict refusal, realpath containment, and idempotent
+resume-or-refuse reruns. 64 offline regression tests; three-round
+dual-family adversarial review (grok-4.6 + gpt-5.6-sol) converged READY.
+Control-catalog row `cli.packaged.init` added.
+
+Still open before this ticket closes (LLP 0261 qualification bar): prove the
+path from clean React and Expo scaffolds against the **published** packages
+(codegen, typecheck, supervised dev, registered acceptance) after the next
+publication picks this up, then flip the capability GAP row and replace the
+sibling-scaffold workaround page.

@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:6dc9ae941bd5ca77cca4420b991374143bf8a0d2a51105701167284ca3f4f708",
+  "catalogDigest": "sha256:d343ca728048710e3cf9a383d02e1aab800b5ac2d61fd5f41f64157683124f0a",
   "buildIdentity": {
-    "sourceCommit": "b94fef6d8a68238558a07ffe16e2e294bddafc6a",
+    "sourceCommit": "e7a2df19d51360963459dc5b76ba4159e9d1a1d2",
     "dirty": true
   },
-  "generatedAtCommit": "b94fef6d8a68238558a07ffe16e2e294bddafc6a",
+  "generatedAtCommit": "e7a2df19d51360963459dc5b76ba4159e9d1a1d2",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -4380,6 +4380,58 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.hosted"
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "cli.packaged.init",
+      "title": "Compose Snapback into an existing app",
+      "intents": [
+        "add Snapback to my app",
+        "init Snapback in an existing Expo or React root"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Adoption writes the caller's local application root and has no MCP filesystem-custody contract; collisions refuse rather than overwrite (LLP 0261).",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "none",
+        "effect": "provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback init",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "clients/react-expo.md",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.init"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",

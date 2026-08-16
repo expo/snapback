@@ -294,6 +294,40 @@ export function scaffoldApp(target: string, options?: {
   readonly template?: string;
 }): ScaffoldResult;
 
+export interface InitAppResult {
+  readonly schemaVersion: 'snapback.init.v1';
+  readonly ok: true;
+  readonly state: 'initialized' | 'already-initialized';
+  readonly root: string;
+  readonly appKind: 'create-expo-app' | 'packaged-react-scaffold';
+  readonly packageManager: 'bun' | 'npm' | 'pnpm' | 'yarn';
+  readonly lockfiles: readonly string[];
+  readonly packageManagerSource: 'default' | 'local' | 'packageManager' | 'workspace';
+  readonly snapbackVersion: string;
+  readonly dependenciesAdded: readonly string[];
+  readonly filesCreated: readonly string[];
+  readonly filesUpdated: readonly string[];
+  readonly filesUnchanged: readonly string[];
+  readonly install: Readonly<{
+    requested: boolean;
+    ran: boolean;
+    command: readonly string[];
+    lockfileEffects: 'not-run' | 'package-manager-controlled';
+  }>;
+  readonly next: readonly string[];
+}
+
+/** Adopt Snapback into one recognized existing Expo or React app root. */
+export function initApp(target?: string, options?: {
+  readonly install?: boolean;
+  readonly env?: EnvironmentVariables;
+  readonly installRunner?: (
+    executable: string,
+    args: readonly string[],
+    options: Readonly<Record<string, unknown>>,
+  ) => Readonly<{ error?: Error; status?: number | null; stderr?: string }>;
+}): InitAppResult;
+
 export interface GenerateAppSuccess {
   schemaVersion: 'snapback.generate.v1';
   targetProfile: string;

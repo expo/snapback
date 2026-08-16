@@ -86,16 +86,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **154 operations** at digest `sha256:6dc9ae941bd5ca77cca4420b991374143bf8a0d2a51105701167284ca3f4f708`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **155 operations** at digest `sha256:d343ca728048710e3cf9a383d02e1aab800b5ac2d61fd5f41f64157683124f0a`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 54 |
-| surfaceAccess | `cliOnly` | 52 |
+| surfaceAccess | `cliOnly` | 53 |
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 42 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 115 |
+| operability | `direct` | 116 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 21 |
@@ -178,6 +178,7 @@ The embedded build catalog contains **154 operations** at digest `sha256:6dc9ae9
 | `cli.packaged.generate` | `cliOnly` | `direct` | `shipped` | snapback generate | — | getting-started/the-authoring-loop.md#2-regenerate |
 | `cli.packaged.guide` | `cliOnly` | `direct` | `shipped` | snapback guide | — | index.md |
 | `cli.packaged.hosted` | `cliOnly` | `direct` | `shipped` | snapback hosted | — | deploying/releases.md#qualify-an-adapter-and-prepare-a-release |
+| `cli.packaged.init` | `cliOnly` | `direct` | `shipped` | snapback init | — | clients/react-expo.md |
 | `cli.packaged.inspect` | `cliOnly` | `direct` | `shipped` | snapback inspect | — | deploying/releases.md#query-bounded-logs-and-authenticated-inspection |
 | `cli.packaged.logs` | `cliOnly` | `direct` | `shipped` | snapback logs | — | deploying/releases.md#query-bounded-logs-and-authenticated-inspection |
 | `cli.packaged.mcpControl` | `cliOnly` | `direct` | `shipped` | snapback mcp-control | — | operating/agent-controls.md#native-resource-availability |

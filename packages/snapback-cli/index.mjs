@@ -17,7 +17,9 @@ import {
   readdirSync,
   realpathSync,
   renameSync,
+  rmdirSync,
   rmSync,
+  statSync,
   watch,
   writeFileSync,
 } from 'node:fs';
@@ -1698,6 +1700,1639 @@ export function scaffoldApp(target, options = {}) {
     template,
     target: destination,
     skillFiles: [...scaffoldAuthoringSkillFiles],
+  };
+}
+
+function initSiblingScaffoldWorkaround() {
+  return [
+    `npx --yes @expo/snapback-cli@${packageVersion()} new ../snapback-backend-scaffold --template react`,
+    'cp -R ../snapback-backend-scaffold/snapback ./snapback',
+  ].join(' && ');
+}
+
+const INIT_APP_PROFILES = Object.freeze({
+  expo: Object.freeze({
+    id: 'create-expo-app',
+    dependencies: Object.freeze([
+      '@expo/snapback-cli',
+      '@expo/snapback-client',
+      '@expo/snapback-codegen',
+      '@expo/snapback-expo',
+      '@expo/snapback-react',
+    ]),
+    nativeDependencies: Object.freeze([
+      'expo-file-system',
+      'expo-crypto',
+      'expo-image-picker',
+    ]),
+    supportedDependency: 'expo',
+    supportedRange: '>=57.0.0 <58.0.0',
+    supportedMajor: 57,
+  }),
+  react: Object.freeze({
+    id: 'packaged-react-scaffold',
+    dependencies: Object.freeze([
+      '@expo/snapback-cli',
+      '@expo/snapback-client',
+      '@expo/snapback-codegen',
+      '@expo/snapback-react',
+      '@expo/snapback-vite',
+    ]),
+    nativeDependencies: Object.freeze([]),
+    supportedDependency: 'vite',
+    supportedRange: '^8.0.0',
+    supportedMajor: 8,
+  }),
+});
+
+const INIT_REACT_PROVIDER_FILE = 'src/snapback-init-provider.tsx';
+const INIT_REACT_VIRTUAL_MODULE_FILE = 'src/snapback-dev.d.ts';
+const INIT_SEAM_MARKER = '@snapback-init seam v1';
+const INIT_EXPO_ROUTER_SDK_57_LAYOUT = `import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { useColorScheme } from 'react-native';
+
+import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import AppTabs from '@/components/app-tabs';
+
+SplashScreen.preventAutoHideAsync();
+
+export default function TabLayout() {
+  const colorScheme = useColorScheme();
+
+  return (
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <AnimatedSplashOverlay />
+      <AppTabs />
+    </ThemeProvider>
+  );
+}
+`;
+const INIT_EXPO_ROUTER_BLANK_LAYOUT = `import { Stack } from 'expo-router';
+
+export default function RootLayout() {
+  return <Stack />;
+}
+`;
+const INIT_REACT_PROVIDER_SOURCE = `import type { PropsWithChildren } from 'react';
+import { SnapbackClient } from '@expo/snapback-client';
+import { SnapbackProvider, createSnapbackReactProvider } from '@expo/snapback-react';
+import { snapbackBasePath } from 'virtual:snapback/dev';
+import functions from '../snapback/generated/functions.manifest.json';
+import capabilityManifest from '../snapback/generated/capability.manifest.json';
+import schema from '../snapback/generated/schema.manifest.json';
+
+const client = new SnapbackClient(snapbackBasePath);
+const binding = await client.prepareReactBinding({
+  generatedManifest: { schema, functions, capabilityManifest },
+});
+const provider = createSnapbackReactProvider(binding);
+
+export function SnapbackInitProvider({ children }: PropsWithChildren) {
+  return <SnapbackProvider provider={provider}>{children}</SnapbackProvider>;
+}
+`;
+const INIT_REACT_VIRTUAL_MODULE_SOURCE = `declare module 'virtual:snapback/dev' {
+  export const snapbackBasePath: string;
+  export const snapbackDevState: Readonly<{
+    mode: 'off' | 'external' | 'attach' | 'managed' | 'auto';
+    shape: string | null;
+    ready: boolean;
+    basePath: string;
+  }>;
+}
+`;
+
+function initRefusal(code, message, root, details = {}) {
+  return diagnosticError(code, message, {
+    root,
+    ...(code === 'SNAPBACK_INIT_ROOT_UNRECOGNIZED'
+      ? { siblingScaffoldWorkaround: initSiblingScaffoldWorkaround() }
+      : {}),
+    ...details,
+  });
+}
+
+function isInitRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function stripInitJsonComments(source) {
+  let output = '';
+  let inString = false;
+  let escaped = false;
+  let hasComments = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (inString) {
+      output += character;
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+      output += character;
+      continue;
+    }
+    if (character === '/' && next === '/') {
+      hasComments = true;
+      output += '  ';
+      index += 2;
+      while (index < source.length && source[index] !== '\n' && source[index] !== '\r') {
+        output += ' ';
+        index += 1;
+      }
+      if (index < source.length) output += source[index];
+      continue;
+    }
+    if (character === '/' && next === '*') {
+      hasComments = true;
+      output += '  ';
+      index += 2;
+      while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) {
+        output += source[index] === '\n' || source[index] === '\r' ? source[index] : ' ';
+        index += 1;
+      }
+      if (index < source.length) {
+        output += '  ';
+        index += 1;
+      }
+      continue;
+    }
+    output += character;
+  }
+  return { source: output, hasComments };
+}
+
+function stripInitJsonTrailingCommas(source) {
+  let output = '';
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (inString) {
+      output += character;
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+      output += character;
+      continue;
+    }
+    if (character === ',') {
+      let next = index + 1;
+      while (next < source.length && /\s/u.test(source[next])) next += 1;
+      if (source[next] === '}' || source[next] === ']') continue;
+    }
+    output += character;
+  }
+  return output;
+}
+
+function parseInitJsonc(source) {
+  const stripped = stripInitJsonComments(source);
+  return {
+    value: JSON.parse(stripInitJsonTrailingCommas(stripped.source)),
+    hasComments: stripped.hasComments,
+  };
+}
+
+function readInitJson(path, root, description, options = {}) {
+  let source;
+  try {
+    source = readFileSync(path, 'utf8');
+  } catch (cause) {
+    const error = initRefusal(
+      'SNAPBACK_INIT_CONFIG_INVALID',
+      `snapback init could not read ${description}; no files were changed`,
+      root,
+      { path, config: description },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  try {
+    const parsed = options.jsonc === true
+      ? parseInitJsonc(source)
+      : { value: JSON.parse(source), hasComments: false };
+    return { source, ...parsed };
+  } catch (cause) {
+    const error = initRefusal(
+      'SNAPBACK_INIT_CONFIG_INVALID',
+      `snapback init could not parse ${description}${options.jsonc === true ? ' as JSONC' : ' as JSON'}; fix that file and rerun (no files were changed)`,
+      root,
+      { path, config: description, jsoncAccepted: options.jsonc === true },
+    );
+    error.cause = cause;
+    throw error;
+  }
+}
+
+function initDependencies(manifest) {
+  return {
+    ...(isInitRecord(manifest.devDependencies) ? manifest.devDependencies : {}),
+    ...(isInitRecord(manifest.dependencies) ? manifest.dependencies : {}),
+  };
+}
+
+function initFileExists(root, path, kind = 'file') {
+  try {
+    const metadata = statSync(join(root, path));
+    return kind === 'directory' ? metadata.isDirectory() : metadata.isFile();
+  } catch {
+    return false;
+  }
+}
+
+function initPathInside(root, path) {
+  const offset = relative(root, path);
+  return offset === '' || (offset !== '..' && !offset.startsWith(`..${sep}`));
+}
+
+function initContainedPath(root, path, label) {
+  let cursor = path;
+  let canonical;
+  while (true) {
+    try {
+      canonical = realpathSync.native(cursor);
+      break;
+    } catch {
+      const parent = dirname(cursor);
+      if (parent === cursor) {
+        throw initRefusal(
+          'SNAPBACK_INIT_PATH_ESCAPE',
+          `snapback init could not resolve a contained path for ${label} (${path}); no files were changed`,
+          root,
+          { path, label },
+        );
+      }
+      cursor = parent;
+    }
+  }
+  if (!initPathInside(root, canonical)) {
+    throw initRefusal(
+      'SNAPBACK_INIT_PATH_ESCAPE',
+      `snapback init refuses ${label} because ${path} resolves outside the canonical app root ${root}`,
+      root,
+      { path, canonicalPath: canonical, label },
+    );
+  }
+  if (cursor === path) return canonical;
+  return join(canonical, relative(cursor, path));
+}
+
+// @ref LLP 0261#design — v1 recognizes only the two evidence-backed root
+// shapes; every other frontend refuses instead of receiving guessed edits.
+function detectInitApp(root, manifest) {
+  const dependencies = initDependencies(manifest);
+  const expoFacts = {
+    expoDependency: typeof dependencies.expo === 'string',
+    reactNativeDependency: typeof dependencies['react-native'] === 'string',
+    appConfig: initFileExists(root, 'app.json'),
+    appEntry: initFileExists(root, 'App.tsx'),
+    registrationEntry: initFileExists(root, 'index.ts'),
+    routerDependency: typeof dependencies['expo-router'] === 'string',
+    routerDirectory: initFileExists(root, 'app', 'directory'),
+    routerLayout: initFileExists(root, 'app/_layout.tsx'),
+    typecheckConfig: initFileExists(root, 'tsconfig.json'),
+  };
+  const reactFacts = {
+    reactDependency: typeof dependencies.react === 'string',
+    reactDomDependency: typeof dependencies['react-dom'] === 'string',
+    viteDependency: typeof dependencies.vite === 'string',
+    reactPluginDependency: typeof dependencies['@vitejs/plugin-react'] === 'string',
+    appEntry: initFileExists(root, 'src/App.tsx'),
+    renderEntry: initFileExists(root, 'src/main.tsx'),
+    viteConfig: initFileExists(root, 'vite.config.ts'),
+    typecheckConfig: initFileExists(root, 'tsconfig.json'),
+  };
+  const expoCommon = expoFacts.expoDependency
+    && expoFacts.reactNativeDependency
+    && expoFacts.appConfig
+    && expoFacts.typecheckConfig;
+  const classicShape = expoCommon && expoFacts.appEntry && expoFacts.registrationEntry;
+  const routerShape = expoCommon
+    && expoFacts.routerDependency
+    && expoFacts.routerDirectory
+    && expoFacts.routerLayout;
+  const declaredMain = typeof manifest.main === 'string' ? manifest.main : null;
+  const routerMain = declaredMain === 'expo-router/entry';
+  const classicMain = declaredMain === 'index.ts' || declaredMain === './index.ts';
+  if (routerMain && routerShape) return { kind: 'expo-router', facts: expoFacts };
+  if (classicMain && classicShape) return { kind: 'expo', facts: expoFacts };
+  if (classicShape && routerShape) {
+    initCollision(
+      root,
+      'app-entry ambiguity',
+      'package.json',
+      `Both the classic App.tsx/index.ts and expo-router app/_layout.tsx shapes are present, but package.json main (${JSON.stringify(declaredMain)}) selects neither. Set main to "index.ts" or "expo-router/entry" before rerunning.`,
+    );
+  }
+  if (!routerMain && classicShape) {
+    return { kind: 'expo', facts: expoFacts };
+  }
+  if (!classicMain && routerShape) {
+    return { kind: 'expo-router', facts: expoFacts };
+  }
+  if (Object.values(reactFacts).every(Boolean)) return { kind: 'react', facts: reactFacts };
+  throw initRefusal(
+    'SNAPBACK_INIT_ROOT_UNRECOGNIZED',
+    `snapback init looked for create-expo-app (classic App.tsx/index.ts or default expo-router app/_layout.tsx) or the packaged React scaffold shape, but this root matched neither. Use the sibling-scaffold workaround: ${initSiblingScaffoldWorkaround()}`,
+    root,
+    {
+      lookedFor: ['create-expo-app', 'packaged-react-scaffold'],
+      observed: { expo: expoFacts, react: reactFacts },
+    },
+  );
+}
+
+function initProfile(detected) {
+  return INIT_APP_PROFILES[detected.kind === 'react' ? 'react' : 'expo'];
+}
+
+function initTypecheckInclude(detected) {
+  if (detected.kind === 'expo-router') return ['app', 'snapback/generated/*.d.ts'];
+  if (detected.kind === 'expo') return ['App.tsx', 'index.ts', 'snapback/generated/*.d.ts'];
+  return ['src', 'snapback/generated/*.d.ts', 'vite.config.ts'];
+}
+
+function sameStringSet(left, right) {
+  return Array.isArray(left)
+    && Array.isArray(right)
+    && left.length === right.length
+    && new Set(left).size === left.length
+    && left.every((value) => right.includes(value));
+}
+
+function initCollisionError(root, seam, path, manualSeam) {
+  // @ref LLP 0261#design — partial or foreign adoption is never overwritten;
+  // the refusal names the exact seam a person must reconcile by hand.
+  return initRefusal(
+    'SNAPBACK_INIT_COLLISION',
+    `snapback init found a collision at the ${seam} seam (${path}). ${manualSeam}`,
+    root,
+    { seam, path, manualSeam },
+  );
+}
+
+function initCollision(root, seam, path, manualSeam) {
+  throw initCollisionError(root, seam, path, manualSeam);
+}
+
+const INIT_LOCKFILES = Object.freeze([
+  { manager: 'bun', path: 'bun.lock' },
+  { manager: 'bun', path: 'bun.lockb' },
+  { manager: 'pnpm', path: 'pnpm-lock.yaml' },
+  { manager: 'yarn', path: 'yarn.lock' },
+  { manager: 'npm', path: 'package-lock.json' },
+  { manager: 'npm', path: 'npm-shrinkwrap.json' },
+]);
+
+function initLocksAt(directory) {
+  return INIT_LOCKFILES
+    .filter(({ path }) => initFileExists(directory, path))
+    .map((entry) => ({ ...entry, absolutePath: join(directory, entry.path) }));
+}
+
+function initDeclaredPackageManager(root, manifest) {
+  if (!Object.hasOwn(manifest, 'packageManager')) return null;
+  const declaration = manifest.packageManager;
+  const match = typeof declaration === 'string'
+    ? declaration.match(/^(bun|npm|pnpm|yarn)(?:@[^\s]+)?$/u)
+    : null;
+  if (match) return match[1];
+  throw initRefusal(
+    'SNAPBACK_INIT_PACKAGE_MANAGER_CONFLICT',
+    `package.json declares packageManager=${JSON.stringify(declaration)}, but snapback init supports bun, npm, pnpm, or yarn declarations`,
+    root,
+    {
+      declaredPackageManager: declaration,
+      supportedPackageManagers: ['bun', 'npm', 'pnpm', 'yarn'],
+    },
+  );
+}
+
+function initWorkspaceMarker(directory) {
+  if (initFileExists(directory, 'pnpm-workspace.yaml')) return true;
+  const manifestPath = join(directory, 'package.json');
+  if (!initFileExists(directory, 'package.json')) return false;
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    return isInitRecord(manifest) && (Array.isArray(manifest.workspaces) || isInitRecord(manifest.workspaces));
+  } catch {
+    return false;
+  }
+}
+
+function initPackageManagerConflict(root, locks, managers, declared = null) {
+  throw initRefusal(
+    'SNAPBACK_INIT_PACKAGE_MANAGER_CONFLICT',
+    `snapback init found conflicting package-manager ownership (${[
+      ...locks.map(({ absolutePath }) => relative(root, absolutePath)),
+      ...(declared === null ? [] : [`packageManager=${declared}`]),
+    ].join(', ')}); keep one authoritative manager and rerun`,
+    root,
+    {
+      lockfiles: locks.map(({ absolutePath }) => relative(root, absolutePath)),
+      packageManagers: managers,
+      declaredPackageManager: declared,
+    },
+  );
+}
+
+function detectInitPackageManager(root, manifest) {
+  const declared = initDeclaredPackageManager(root, manifest);
+  let locks = initLocksAt(root);
+  let source = 'local';
+  if (locks.length === 0) {
+    let cursor = dirname(root);
+    while (cursor !== dirname(cursor)) {
+      const candidate = initLocksAt(cursor);
+      if (candidate.length > 0 && initWorkspaceMarker(cursor)) {
+        locks = candidate;
+        source = 'workspace';
+        break;
+      }
+      cursor = dirname(cursor);
+    }
+  }
+  const managers = [...new Set(locks.map(({ manager }) => manager))];
+  if (managers.length > 1) initPackageManagerConflict(root, locks, managers, declared);
+  if (managers.length === 1 && declared !== null && declared !== managers[0]) {
+    initPackageManagerConflict(root, locks, [...new Set([managers[0], declared])], declared);
+  }
+  return {
+    manager: managers[0] ?? declared ?? 'npm',
+    lockfiles: locks.map(({ absolutePath }) => relative(root, absolutePath)),
+    source: locks.length > 0 ? source : declared === null ? 'default' : 'packageManager',
+  };
+}
+
+function expoInstallCommand(manager, profile, version) {
+  const launcher = {
+    bun: ['bunx', 'expo', 'install'],
+    npm: ['npx', 'expo', 'install'],
+    pnpm: ['pnpm', 'exec', 'expo', 'install'],
+    yarn: ['yarn', 'expo', 'install'],
+  }[manager];
+  return [
+    ...launcher,
+    ...profile.dependencies.map((name) => `${name}@${version}`),
+    ...profile.nativeDependencies,
+  ];
+}
+
+function initInstallCommand(manager, profile, version) {
+  if (profile.id === 'create-expo-app') return expoInstallCommand(manager, profile, version);
+  return manager === 'yarn' ? ['yarn', 'install'] : [manager, 'install'];
+}
+
+function initJsonIndent(source) {
+  return source.match(/\n([ \t]+)\S/u)?.[1] ?? '  ';
+}
+
+function renderInitJson(source, value) {
+  const newline = source.includes('\r\n') ? '\r\n' : '\n';
+  const trailingNewline = /(?:\r\n|\n)$/u.test(source) ? newline : '';
+  return JSON.stringify(value, null, initJsonIndent(source)).replaceAll('\n', newline) + trailingNewline;
+}
+
+function initSupportedVersion(root, manifest, detected) {
+  const profile = initProfile(detected);
+  const version = initDependencies(manifest)[profile.supportedDependency];
+  const admittedRange = typeof version === 'string'
+    ? version.trim().match(/^(?:[~^]|>=?|=)?\s*(\d+)(?:\.\d+)?/u)
+    : null;
+  const major = admittedRange === null ? Number.NaN : Number(admittedRange[1]);
+  if (!Number.isInteger(major) || major !== profile.supportedMajor) {
+    throw initRefusal(
+      'SNAPBACK_INIT_VERSION_UNSUPPORTED',
+      `snapback init supports ${profile.supportedDependency} ${profile.supportedRange} for this closure, but the app declares ${JSON.stringify(version)}`,
+      root,
+      {
+        dependency: profile.supportedDependency,
+        declared: version ?? null,
+        supportedRange: profile.supportedRange,
+      },
+    );
+  }
+}
+
+function initOverrideConflicts(manifest, version) {
+  const conflicts = [];
+  const visit = (value, path) => {
+    if (!isInitRecord(value)) return;
+    for (const [key, child] of Object.entries(value)) {
+      const nextPath = [...path, key];
+      if (/@expo\/snapback-[a-z0-9-]+/u.test(key)) {
+        const selected = typeof child === 'string'
+          ? child
+          : isInitRecord(child) && typeof child['.'] === 'string' ? child['.'] : null;
+        if (selected !== null && selected !== version) conflicts.push({ path: nextPath.join('.'), version: selected });
+      }
+      visit(child, nextPath);
+    }
+  };
+  visit(manifest.overrides, ['overrides']);
+  visit(manifest.resolutions, ['resolutions']);
+  return conflicts;
+}
+
+const INIT_DEPENDENCY_GROUPS = Object.freeze([
+  'dependencies',
+  'devDependencies',
+  'optionalDependencies',
+  'peerDependencies',
+]);
+
+function initDependencyEntries(manifest, name) {
+  return INIT_DEPENDENCY_GROUPS.flatMap((group) => (
+    Object.hasOwn(manifest[group] ?? {}, name)
+      ? [{ group, path: `${group}.${name}`, version: manifest[group][name] }]
+      : []
+  ));
+}
+
+function initDependencyState(manifest, profile, version, root) {
+  const overrideConflicts = initOverrideConflicts(manifest, version);
+  if (overrideConflicts.length > 0) {
+    initCollision(
+      root,
+      'dependency-manifest',
+      'package.json',
+      `Reconcile overrides/resolutions with the executing CLI's exact ${version} closure: ${overrideConflicts.map(({ path, version: found }) => `${path}=${found}`).join(', ')}.`,
+    );
+  }
+  const closureNames = new Set(profile.nativeDependencies);
+  for (const group of INIT_DEPENDENCY_GROUPS) {
+    for (const name of Object.keys(manifest[group] ?? {})) {
+      if (name.startsWith('@expo/snapback-')) closureNames.add(name);
+    }
+  }
+  for (const name of closureNames) {
+    const entries = initDependencyEntries(manifest, name);
+    if (entries.length > 1 && new Set(entries.map(({ version: found }) => found)).size > 1) {
+      initCollision(
+        root,
+        'dependency-manifest',
+        'package.json',
+        `Reconcile conflicting ${name} declarations across dependency groups: ${entries.map(({ path, version: found }) => `${path}=${JSON.stringify(found)}`).join(', ')}.`,
+      );
+    }
+  }
+  const added = [];
+  for (const name of profile.dependencies) {
+    const entries = initDependencyEntries(manifest, name);
+    const dependencyEntry = entries.find(({ group }) => group === 'dependencies');
+    if (entries.length > 0 && dependencyEntry === undefined) {
+      initCollision(
+        root,
+        'dependency-manifest',
+        'package.json',
+        `Move ${entries.map(({ path }) => path).join(', ')} to dependencies at the exact ${version} closure version, or reconcile the package roots manually.`,
+      );
+    }
+    if (dependencyEntry !== undefined && dependencyEntry.version !== version) {
+      initCollision(
+        root,
+        'dependency-manifest',
+        'package.json',
+        `Reconcile ${dependencyEntry.path}=${JSON.stringify(dependencyEntry.version)} with the executing CLI's coherent ${version} closure before rerunning.`,
+      );
+    }
+    if (dependencyEntry === undefined) added.push(name);
+  }
+  return added;
+}
+
+function readInitConfigs(root, detected) {
+  const tsconfigPath = join(root, 'tsconfig.json');
+  const tsconfig = readInitJson(tsconfigPath, root, 'tsconfig.json', { jsonc: true });
+  if (!isInitRecord(tsconfig.value)) {
+    throw initRefusal(
+      'SNAPBACK_INIT_CONFIG_INVALID',
+      'snapback init requires tsconfig.json to contain an object; no files were changed',
+      root,
+      { path: tsconfigPath, config: 'tsconfig.json' },
+    );
+  }
+  if (detected.kind === 'react') {
+    return {
+      tsconfig,
+      entryPath: join(root, 'src', 'main.tsx'),
+      entrySource: readFileSync(join(root, 'src', 'main.tsx'), 'utf8'),
+      appSource: readFileSync(join(root, 'src', 'App.tsx'), 'utf8'),
+      vitePath: join(root, 'vite.config.ts'),
+      viteSource: readFileSync(join(root, 'vite.config.ts'), 'utf8'),
+    };
+  }
+  if (detected.kind === 'expo-router') {
+    return {
+      tsconfig,
+      entryPath: join(root, 'app', '_layout.tsx'),
+      entryRelativePath: 'app/_layout.tsx',
+      entrySource: readFileSync(join(root, 'app', '_layout.tsx'), 'utf8'),
+      appConfig: readInitJson(join(root, 'app.json'), root, 'app.json', { jsonc: true }),
+    };
+  }
+  return {
+    tsconfig,
+    entryPath: join(root, 'index.ts'),
+    entryRelativePath: 'index.ts',
+    entrySource: readFileSync(join(root, 'index.ts'), 'utf8'),
+    appSource: readFileSync(join(root, 'App.tsx'), 'utf8'),
+    appConfig: readInitJson(join(root, 'app.json'), root, 'app.json', { jsonc: true }),
+  };
+}
+
+function validateInitAppConfig(root, document) {
+  const appConfig = document.value;
+  if (!isInitRecord(appConfig) || !isInitRecord(appConfig.expo)) {
+    initCollision(
+      root,
+      'Expo config plugin',
+      'app.json',
+      'Restore app.json to an object with an expo object, then add @expo/snapback-expo to expo.plugins manually.',
+    );
+  }
+  const plugins = appConfig.expo.plugins;
+  if (plugins !== undefined && (!Array.isArray(plugins) || plugins.some((plugin) => (
+    typeof plugin !== 'string'
+      && !(Array.isArray(plugin) && typeof plugin[0] === 'string')
+  )))) {
+    initCollision(
+      root,
+      'Expo config plugin',
+      'app.json',
+      'Make expo.plugins an array whose entries are plugin-name strings or [plugin-name, options] tuples, then add @expo/snapback-expo manually.',
+    );
+  }
+  return appConfig;
+}
+
+function initExpoPluginEntries(appConfig) {
+  return (appConfig.expo.plugins ?? []).filter((plugin) => {
+    const name = Array.isArray(plugin) ? plugin[0] : plugin;
+    return name === '@expo/snapback-expo' || name === '@expo/snapback-expo/app.plugin';
+  });
+}
+
+function initRefuseCommentEdit(root, document, path, manualSeam) {
+  if (!document.hasComments) return;
+  initCollision(
+    root,
+    'comment-preserving configuration',
+    path,
+    `${manualSeam} snapback init will not reserialize a commented configuration file.`,
+  );
+}
+
+function plannedInitTypecheck(root, detected, configs) {
+  if (Object.hasOwn(configs.tsconfig.value, 'files') || Object.hasOwn(configs.tsconfig.value, 'references')) {
+    initCollision(
+      root,
+      'typecheck-boundary',
+      'tsconfig.json',
+      `Preserve files/references and add ${JSON.stringify(initTypecheckInclude(detected))} to the appropriate project boundary manually.`,
+    );
+  }
+  const include = configs.tsconfig.value?.include;
+  if (typeof include === 'string') {
+    initCollision(
+      root,
+      'typecheck-boundary',
+      'tsconfig.json',
+      `Preserve the string include and add ${JSON.stringify(initTypecheckInclude(detected))} to the appropriate project boundary manually.`,
+    );
+  }
+  if (!Array.isArray(include) || include.some((entry) => typeof entry !== 'string')) {
+    initCollision(
+      root,
+      'typecheck-boundary',
+      'tsconfig.json',
+      `Set include to a string array containing ${JSON.stringify(initTypecheckInclude(detected))} while preserving intentional ambient declaration entries.`,
+    );
+  }
+  const broadEntries = new Set(['**/*.ts', '**/*.tsx', 'snapback/generated/**/*.ts']);
+  for (const entry of include) {
+    if (broadEntries.has(entry)) continue;
+    if (/[*?].*\.(?:ts|tsx)$/u.test(entry)
+        && !entry.endsWith('.d.ts')
+        && entry !== '.expo/types/**/*.ts') {
+      initCollision(
+        root,
+        'typecheck-boundary',
+        'tsconfig.json',
+        `Preserve the intentional wildcard ${JSON.stringify(entry)}, then add ${JSON.stringify(initTypecheckInclude(detected))} and remove only the broad Snapback-generated source projection by hand.`,
+      );
+    }
+  }
+  const required = initTypecheckInclude(detected);
+  const retained = include.filter((entry) => !broadEntries.has(entry));
+  const nextInclude = [...required, ...retained.filter((entry) => !required.includes(entry))];
+  if (sameStringSet(include, nextInclude)) return null;
+  initRefuseCommentEdit(
+    root,
+    configs.tsconfig,
+    'tsconfig.json',
+    `Set include to ${JSON.stringify(nextInclude)} manually.`,
+  );
+  return {
+    ...configs.tsconfig.value,
+    include: nextInclude,
+  };
+}
+
+function maskInitSourceCommentsAndStrings(source) {
+  let output = '';
+  let state = 'code';
+  let quote = null;
+  let escaped = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (state === 'line-comment') {
+      if (character === '\n' || character === '\r') {
+        state = 'code';
+        output += character;
+      } else output += ' ';
+      continue;
+    }
+    if (state === 'block-comment') {
+      if (character === '*' && next === '/') {
+        output += '  ';
+        index += 1;
+        state = 'code';
+      } else output += character === '\n' || character === '\r' ? character : ' ';
+      continue;
+    }
+    if (state === 'string') {
+      output += character === '\n' || character === '\r' ? character : ' ';
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === quote) {
+        state = 'code';
+        quote = null;
+      }
+      continue;
+    }
+    if (character === '/' && next === '/') {
+      output += '  ';
+      index += 1;
+      state = 'line-comment';
+    } else if (character === '/' && next === '*') {
+      output += '  ';
+      index += 1;
+      state = 'block-comment';
+    } else if (character === "'" || character === '"' || character === '`') {
+      output += ' ';
+      state = 'string';
+      quote = character;
+    } else output += character;
+  }
+  return output;
+}
+
+function initImportBindings(source) {
+  const bindings = new Set();
+  const masked = maskInitSourceCommentsAndStrings(source);
+  for (const match of masked.matchAll(/(?:^|[;\n])\s*import\s+(?:type\s+)?([^;]*?)\s+from\b/gu)) {
+    const clause = match[1].trim();
+    const defaultBinding = clause.match(/^([A-Za-z_$][\w$]*)\b/u)?.[1];
+    if (defaultBinding) bindings.add(defaultBinding);
+    const namespaceBinding = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)\b/u)?.[1];
+    if (namespaceBinding) bindings.add(namespaceBinding);
+    const named = clause.match(/\{([\s\S]*?)\}/u)?.[1];
+    for (const specifier of named?.split(',') ?? []) {
+      const binding = specifier.trim()
+        .replace(/^type\s+/u, '')
+        .match(/^(?:[A-Za-z_$][\w$]*\s+as\s+)?([A-Za-z_$][\w$]*)$/u)?.[1];
+      if (binding) bindings.add(binding);
+    }
+  }
+  return bindings;
+}
+
+function initBindingDeclared(source, name) {
+  if (initImportBindings(source).has(name)) return true;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  const masked = maskInitSourceCommentsAndStrings(source);
+  return new RegExp(`\\b(?:const|let|var|function|class)\\s+${escaped}\\b`, 'u').test(masked);
+}
+
+function assertInitBindingsAvailable(root, source, path, names) {
+  const collisions = names.filter((name) => initBindingDeclared(source, name));
+  if (collisions.length > 0) {
+    initCollision(
+      root,
+      'lexical binding',
+      path,
+      `Rename or manually reuse the existing ${collisions.join(', ')} binding(s); init will not insert duplicate imports/declarations.`,
+    );
+  }
+}
+
+function normalizeInitPristineSource(source) {
+  return source.replace(/[\s;]/gu, '');
+}
+
+function initClassicExpoEntries() {
+  return ["'./App'", "'./App.tsx'", '"./App"', '"./App.tsx"'].map((specifier) => `
+import { registerRootComponent } from 'expo';
+import App from ${specifier};
+
+registerRootComponent(App);
+`);
+}
+
+function initExpoEntryImports(router = false) {
+  return [
+    `// ${INIT_SEAM_MARKER}`,
+    ...(router ? [] : ["import { createElement } from 'react';"]),
+    "import { Platform } from 'react-native';",
+    "import * as FileSystem from 'expo-file-system';",
+    "import * as Crypto from 'expo-crypto';",
+    "import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';",
+    "import { SnapbackExpoProvider } from '@expo/snapback-expo';",
+    router
+      ? "import { app as snapbackApp } from '../snapback/generated/app.mjs';"
+      : "import { app as snapbackApp } from './snapback/generated/app.mjs';",
+  ].join('\n');
+}
+
+function initSourceNewline(source) {
+  return source.includes('\r\n') ? '\r\n' : '\n';
+}
+
+function renderInitSourceFragment(source, fragment) {
+  return fragment.replaceAll('\n', initSourceNewline(source));
+}
+
+function initClassicExpoRegistration(appIdentifier) {
+  return `if (Platform.OS !== 'web') {
+  registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
+}
+
+function SnapbackInitRoot() {
+  return createElement(SnapbackExpoProvider, { app: snapbackApp }, createElement(${appIdentifier}));
+}
+
+registerRootComponent(SnapbackInitRoot);`;
+}
+
+function initRouterExpoTail() {
+  return `if (Platform.OS !== 'web') {
+  registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
+}
+
+export default function RootLayout() {
+  return (
+    <SnapbackExpoProvider app={snapbackApp}>
+      <SnapbackInitRouterContent />
+    </SnapbackExpoProvider>
+  );
+}
+`;
+}
+
+function initExpoEntryOwned(source, router = false) {
+  const newline = initSourceNewline(source);
+  const imports = renderInitSourceFragment(source, initExpoEntryImports(router));
+  if (!source.startsWith(`${imports}${newline}`)) return false;
+  let remainder = source.slice(imports.length + newline.length);
+  if (router) {
+    const tail = renderInitSourceFragment(source, initRouterExpoTail());
+    if (!remainder.endsWith(`${newline}${newline}${tail}`)) return false;
+    remainder = remainder.slice(0, -(`${newline}${newline}${tail}`).length);
+    const contentHeaders = [...remainder.matchAll(/function\s+SnapbackInitRouterContent\s*\(\s*\)\s*\{/gu)];
+    if (contentHeaders.length !== 1) return false;
+    remainder = remainder.replace(contentHeaders[0][0], '');
+  } else {
+    const appImport = remainder.match(/import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]\.\/App(?:\.tsx)?['"]\s*;?/u);
+    if (!appImport) return false;
+    const registration = renderInitSourceFragment(source, initClassicExpoRegistration(appImport[1]));
+    if (remainder.split(registration).length !== 2) return false;
+    remainder = remainder.replace(registration, '');
+    if (/registerRootComponent\s*\(/u.test(remainder)) return false;
+  }
+  return !/@snapback-init|SnapbackExpoProvider|registerExpoFileSystemRqsFiles|\bsnapbackApp\b/u.test(remainder);
+}
+
+function plannedClassicExpoEntry(root, configs) {
+  if (initExpoEntryOwned(configs.entrySource)) return null;
+  const appShellSource = `${configs.entrySource}\n${configs.appSource}`;
+  if (appShellSource.includes('SnapbackExpoProvider')
+      || appShellSource.includes('@expo/snapback-expo')
+      || appShellSource.includes('registerExpoFileSystemRqsFiles')
+      || appShellSource.includes(INIT_SEAM_MARKER)) {
+    initCollision(
+      root,
+      'provider',
+      'index.ts',
+      'Keep the existing provider/store ownership and wrap the registered App with the generated app descriptor manually.',
+    );
+  }
+  assertInitBindingsAvailable(root, configs.entrySource, 'index.ts', [
+    'createElement',
+    'Platform',
+    'FileSystem',
+    'Crypto',
+    'registerExpoFileSystemRqsFiles',
+    'SnapbackExpoProvider',
+    'snapbackApp',
+    'SnapbackInitRoot',
+  ]);
+  const appImport = configs.entrySource.match(/import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]\.\/App(?:\.tsx)?['"]\s*;?/u);
+  if (!appImport
+      || appImport[1] !== 'App'
+      || !initClassicExpoEntries().some((pristine) => (
+        normalizeInitPristineSource(pristine) === normalizeInitPristineSource(configs.entrySource)
+      ))) {
+    initCollision(
+      root,
+      'provider',
+      'index.ts',
+      "Expected one pristine create-expo-app registration: `import App from './App'` (or './App.tsx') followed by `registerRootComponent(App)`; wire SnapbackExpoProvider manually around custom registration code.",
+    );
+  }
+  return renderExpoEntry(configs.entrySource, appImport[1]);
+}
+
+function plannedRouterExpoEntry(root, configs) {
+  if (initExpoEntryOwned(configs.entrySource, true)) return null;
+  if (configs.entrySource.includes('@expo/snapback-expo')
+      || configs.entrySource.includes('SnapbackExpoProvider')
+      || configs.entrySource.includes(INIT_SEAM_MARKER)) {
+    initCollision(
+      root,
+      'provider',
+      'app/_layout.tsx',
+      'Keep the existing router provider ownership and wrap its root layout with SnapbackExpoProvider manually.',
+    );
+  }
+  assertInitBindingsAvailable(root, configs.entrySource, 'app/_layout.tsx', [
+    'Platform',
+    'FileSystem',
+    'Crypto',
+    'registerExpoFileSystemRqsFiles',
+    'SnapbackExpoProvider',
+    'snapbackApp',
+    'SnapbackInitRouterContent',
+  ]);
+  const normalized = normalizeInitPristineSource(configs.entrySource);
+  const pristineLayouts = [
+    { source: INIT_EXPO_ROUTER_SDK_57_LAYOUT, functionName: 'TabLayout' },
+    { source: INIT_EXPO_ROUTER_BLANK_LAYOUT, functionName: 'RootLayout' },
+  ];
+  const pristine = pristineLayouts.find(({ source }) => normalizeInitPristineSource(source) === normalized);
+  if (pristine === undefined) {
+    initCollision(
+      root,
+      'provider',
+      'app/_layout.tsx',
+      'The automatic seam expects the pristine Expo 57 create-expo-app TabLayout (ThemeProvider, AnimatedSplashOverlay, AppTabs) or its pristine blank Stack layout. Wrap a customized layout with SnapbackExpoProvider manually.',
+    );
+  }
+  return renderRouterExpoLayout(configs.entrySource, pristine.functionName);
+}
+
+function initReactEntryOwned(source) {
+  const header = renderInitSourceFragment(
+    source,
+    `// ${INIT_SEAM_MARKER}\nimport { SnapbackInitProvider } from './snapback-init-provider';\n`,
+  );
+  const wrapper = '<SnapbackInitProvider><App /></SnapbackInitProvider>';
+  if (!source.startsWith(header)) return false;
+  const remainder = source.slice(header.length);
+  return remainder.split(wrapper).length === 2
+    && !/@snapback-init|SnapbackInitProvider|@expo\/snapback-react/u.test(remainder.replace(wrapper, ''));
+}
+
+function initReactViteOwned(source) {
+  const header = renderInitSourceFragment(
+    source,
+    `// ${INIT_SEAM_MARKER}\nimport { snapbackDev } from '@expo/snapback-vite';\n`,
+  );
+  const block = renderInitSourceFragment(source, `snapbackDev({
+      server: { mode: 'attach' },
+      generatedRoots: ['snapback/generated'],
+    })`);
+  if (!source.startsWith(header)) return false;
+  const remainder = source.slice(header.length);
+  return remainder.split(block).length === 2
+    && !/@snapback-init|snapbackDev|@expo\/snapback-vite/u.test(remainder.replace(block, ''));
+}
+
+function plannedReactEntry(root, configs) {
+  if (initReactEntryOwned(configs.entrySource)) return null;
+  const appShellSource = `${configs.entrySource}\n${configs.appSource}`;
+  const appShellCode = maskInitSourceCommentsAndStrings(appShellSource);
+  if (appShellCode.includes('SnapbackProvider')
+      || appShellCode.includes('SnapbackInitProvider')
+      || appShellSource.includes(INIT_SEAM_MARKER)) {
+    initCollision(
+      root,
+      'provider',
+      'src/main.tsx',
+      'Keep the existing React provider ownership and bind it to the generated manifests manually.',
+    );
+  }
+  assertInitBindingsAvailable(root, configs.entrySource, 'src/main.tsx', ['SnapbackInitProvider']);
+  const appTags = [...maskInitSourceCommentsAndStrings(configs.entrySource)
+    .matchAll(/<App\s*(?:\/>|>\s*<\/App>)/gu)];
+  if (appTags.length !== 1) {
+    initCollision(
+      root,
+      'provider',
+      'src/main.tsx',
+      'Wrap the app shell once with <SnapbackInitProvider> and retain the existing provider ordering by hand.',
+    );
+  }
+  return renderReactEntry(configs.entrySource, appTags[0]);
+}
+
+function plannedReactVite(root, configs) {
+  if (initReactViteOwned(configs.viteSource)) return null;
+  const viteCode = maskInitSourceCommentsAndStrings(configs.viteSource);
+  if (viteCode.includes('snapbackDev')
+      || configs.viteSource.includes(INIT_SEAM_MARKER)) {
+    initCollision(
+      root,
+      'Vite integration',
+      'vite.config.ts',
+      'Keep the existing Snapback Vite integration and reconcile its generatedRoots/server mode manually.',
+    );
+  }
+  const pluginMatches = [...viteCode.matchAll(/plugins:\s*\[\s*react\(\),?\s*\]/gu)];
+  if (pluginMatches.length !== 1) {
+    initCollision(
+      root,
+      'Vite integration',
+      'vite.config.ts',
+      "Preserve the custom Vite plugin order and add snapbackDev({ server: { mode: 'attach' }, generatedRoots: ['snapback/generated'] }) manually.",
+    );
+  }
+  assertInitBindingsAvailable(root, configs.viteSource, 'vite.config.ts', ['snapbackDev']);
+  return renderReactViteConfig(configs.viteSource, pluginMatches[0]);
+}
+
+function renderExpoEntry(source, appIdentifier) {
+  const newline = initSourceNewline(source);
+  const imports = renderInitSourceFragment(source, initExpoEntryImports());
+  const registration = new RegExp(`registerRootComponent\\(\\s*${appIdentifier}\\s*\\)\\s*;?`, 'u');
+  const replacement = renderInitSourceFragment(source, initClassicExpoRegistration(appIdentifier));
+  return `${imports}${newline}${source.replace(registration, replacement)}`;
+}
+
+function renderRouterExpoLayout(source, functionName) {
+  const newline = initSourceNewline(source);
+  const imports = renderInitSourceFragment(source, initExpoEntryImports(true));
+  const content = source.replace(
+    new RegExp(`export\\s+default\\s+function\\s+${functionName}\\s*\\(\\s*\\)\\s*\\{`, 'u'),
+    'function SnapbackInitRouterContent() {',
+  );
+  const tail = renderInitSourceFragment(source, initRouterExpoTail());
+  return `${imports}${newline}${content.trimEnd()}${newline}${newline}${tail}`;
+}
+
+function renderReactEntry(source, appTag) {
+  const header = renderInitSourceFragment(
+    source,
+    `// ${INIT_SEAM_MARKER}\nimport { SnapbackInitProvider } from './snapback-init-provider';\n`,
+  );
+  const replaced = `${source.slice(0, appTag.index)}<SnapbackInitProvider><App /></SnapbackInitProvider>${source.slice(appTag.index + appTag[0].length)}`;
+  return `${header}${replaced}`;
+}
+
+function renderReactViteConfig(source, pluginsMatch) {
+  const header = renderInitSourceFragment(
+    source,
+    `// ${INIT_SEAM_MARKER}\nimport { snapbackDev } from '@expo/snapback-vite';\n`,
+  );
+  const replacement = renderInitSourceFragment(source, `plugins: [
+    react(),
+    snapbackDev({
+      server: { mode: 'attach' },
+      generatedRoots: ['snapback/generated'],
+    }),
+  ]`);
+  const replaced = `${source.slice(0, pluginsMatch.index)}${replacement}${source.slice(pluginsMatch.index + pluginsMatch[0].length)}`;
+  return `${header}${replaced}`;
+}
+
+function initPathMetadata(path) {
+  try {
+    return lstatSync(path);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function walkInitTree(root, prefix = '') {
+  const entries = [];
+  for (const entry of readdirSync(join(root, prefix), { withFileTypes: true })) {
+    const relativePath = prefix ? join(prefix, entry.name) : entry.name;
+    if (entry.isDirectory()) {
+      entries.push({ kind: 'directory', relativePath });
+      entries.push(...walkInitTree(root, relativePath));
+    } else if (entry.isFile()) {
+      entries.push({ kind: 'file', relativePath });
+    } else {
+      entries.push({ kind: 'other', relativePath });
+    }
+  }
+  return entries;
+}
+
+function createInitWritePlan(root) {
+  return {
+    root,
+    newEntries: [],
+    updates: [],
+    unchanged: new Set(),
+  };
+}
+
+function planInitNewDirectory(plan, relativePath) {
+  plan.newEntries.push({
+    kind: 'new-directory',
+    relativePath: relativePath.endsWith('/') ? relativePath : `${relativePath}/`,
+    path: join(plan.root, relativePath),
+  });
+}
+
+function planInitNewFile(plan, relativePath, content, options = {}) {
+  plan.newEntries.push({
+    kind: options.copySource === undefined ? 'new-file' : 'copy-file',
+    relativePath,
+    path: join(plan.root, relativePath),
+    content,
+    ...(options.copySource === undefined ? {} : { copySource: options.copySource }),
+  });
+}
+
+function planInitUpdate(plan, relativePath, originalSource, content) {
+  if (content === originalSource) {
+    plan.unchanged.add(relativePath);
+    return;
+  }
+  const path = join(plan.root, relativePath);
+  plan.updates.push({
+    kind: 'update',
+    relativePath,
+    path,
+    actualPath: initContainedPath(plan.root, path, relativePath),
+    originalSource,
+    content,
+  });
+}
+
+function planInitOwnedFile(plan, root, relativePath, expectedSource, seam) {
+  const path = join(root, relativePath);
+  const metadata = initPathMetadata(path);
+  if (metadata === null) {
+    initContainedPath(root, path, relativePath);
+    planInitNewFile(plan, relativePath, expectedSource);
+    return;
+  }
+  initContainedPath(root, path, relativePath);
+  if (!metadata.isFile() || metadata.isSymbolicLink() || readFileSync(path, 'utf8') !== expectedSource) {
+    initCollision(
+      root,
+      seam,
+      relativePath,
+      `The present seam does not byte-match what snapback init writes. Reconcile ${relativePath} manually or restore the init-owned bytes.`,
+    );
+  }
+  plan.unchanged.add(relativePath);
+}
+
+// @ref LLP 0261#design — fresh adoption seeds the packaged tree, but resumed
+// ownership stops at the three authored files and never constrains codegen.
+function planInitBackend(plan, root) {
+  const templateRoot = join(packageRoot, 'templates', 'react', 'snapback');
+  const backendRoot = join(root, 'snapback');
+  const backendMetadata = initPathMetadata(backendRoot);
+  if (backendMetadata === null) {
+    const sourceEntries = walkInitTree(templateRoot);
+    planInitNewDirectory(plan, 'snapback');
+    for (const entry of sourceEntries.filter(({ kind }) => kind === 'directory')) {
+      planInitNewDirectory(plan, join('snapback', entry.relativePath));
+    }
+    for (const entry of sourceEntries.filter(({ kind }) => kind === 'file')) {
+      const relativePath = join('snapback', entry.relativePath);
+      const sourcePath = join(templateRoot, entry.relativePath);
+      planInitNewFile(plan, relativePath, readFileSync(sourcePath), { copySource: sourcePath });
+    }
+    return;
+  }
+  initContainedPath(root, backendRoot, 'snapback/');
+  if (!backendMetadata.isDirectory() || backendMetadata.isSymbolicLink()) {
+    initCollision(root, 'backend child', 'snapback/', 'The backend seam must be an init-owned directory, not a file or symlink.');
+  }
+
+  const authoredFiles = ['schema.mjs', 'functions.mjs', 'seed.json'];
+  const allowedEntries = new Set([...authoredFiles, 'generated']);
+  const actualEntries = readdirSync(backendRoot, { withFileTypes: true });
+  for (const entry of actualEntries) {
+    if (!allowedEntries.has(entry.name)) {
+      initCollision(
+        root,
+        'backend child',
+        join('snapback', entry.name),
+        'The present backend entry is not part of the init-authored seed set or the codegen-owned generated/ tree. Preserve it and reconcile the snapback/ child manually.',
+      );
+    }
+  }
+
+  let matchingAuthoredFiles = 0;
+  for (const name of authoredFiles) {
+    const relativePath = join('snapback', name);
+    const path = join(root, relativePath);
+    const metadata = initPathMetadata(path);
+    const sourcePath = join(templateRoot, name);
+    const expectedBytes = readFileSync(sourcePath);
+    if (metadata !== null) {
+      initContainedPath(root, path, relativePath);
+      if (!metadata.isFile() || metadata.isSymbolicLink() || !readFileSync(path).equals(expectedBytes)) {
+        initCollision(
+          root,
+          'backend child',
+          relativePath,
+          'The present authored backend file differs from the packaged init bytes; reconcile it manually before rerunning.',
+        );
+      }
+      matchingAuthoredFiles += 1;
+      plan.unchanged.add(relativePath);
+    } else {
+      initContainedPath(root, path, relativePath);
+      planInitNewFile(plan, relativePath, expectedBytes, { copySource: sourcePath });
+    }
+  }
+  if (matchingAuthoredFiles === 0) {
+    initCollision(
+      root,
+      'backend child',
+      'snapback/',
+      'The pre-existing snapback/ directory has no byte-matching init-authored schema.mjs, functions.mjs, or seed.json seam, so init will not claim or populate it.',
+    );
+  }
+  plan.unchanged.add('snapback/');
+  if (actualEntries.some(({ name }) => name === 'generated')) {
+    plan.unchanged.add('snapback/generated/');
+  }
+}
+
+function initRequiredPaths(root, detected) {
+  const common = ['package.json', 'tsconfig.json'];
+  if (detected.kind === 'react') {
+    return [...common, 'src', 'src/App.tsx', 'src/main.tsx', 'vite.config.ts'];
+  }
+  if (detected.kind === 'expo-router') {
+    return [...common, 'app.json', 'app', 'app/_layout.tsx'];
+  }
+  return [...common, 'app.json', 'App.tsx', 'index.ts'];
+}
+
+function rollbackInitCreations(created) {
+  const rolledBack = [];
+  const rollbackFailed = [];
+  for (const entry of [...created].reverse()) {
+    try {
+      if (entry.kind === 'new-directory') rmdirSync(entry.path);
+      else rmSync(entry.path, { force: true });
+      rolledBack.push(entry.relativePath);
+    } catch (error) {
+      rollbackFailed.push({ path: entry.relativePath, code: error?.code ?? null });
+    }
+  }
+  return { rolledBack, rollbackFailed };
+}
+
+function replaceInitFileAtomically(entry, content, afterTempWrite = () => {}) {
+  const mode = statSync(entry.actualPath).mode & 0o777;
+  const temporary = join(dirname(entry.actualPath), `.${basename(entry.actualPath)}.snapback-init-${randomUUID()}.tmp`);
+  try {
+    writeFileSync(temporary, content, { flag: 'wx', mode });
+    afterTempWrite();
+    renameSync(temporary, entry.actualPath);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+}
+
+function rollbackInitUpdates(updated) {
+  const updatedRestored = [];
+  const updateRestoreFailed = [];
+  for (const entry of [...updated].reverse()) {
+    try {
+      if (readFileSync(entry.path, 'utf8') !== entry.content) {
+        const error = new Error('file changed after snapback init updated it');
+        error.code = 'SNAPBACK_INIT_ROLLBACK_CONCURRENT_EDIT';
+        throw error;
+      }
+      replaceInitFileAtomically(entry, entry.originalSource);
+      updatedRestored.push(entry.relativePath);
+    } catch (error) {
+      updateRestoreFailed.push({ path: entry.relativePath, code: error?.code ?? null });
+    }
+  }
+  return { updatedRestored, updateRestoreFailed };
+}
+
+function initTransactionFailure(root, cause, created, updated) {
+  const updateRollback = rollbackInitUpdates(updated);
+  const creationRollback = rollbackInitCreations(created);
+  let error = cause;
+  if (cause?.code === 'EEXIST') {
+    error = initCollisionError(
+      root,
+      'transaction',
+      cause.snapbackInitPath ?? 'planned write',
+      'A path appeared after preflight. Preserve the concurrent file and rerun after reconciling it.',
+    );
+    error.cause = cause;
+  } else if (!cause?.diagnostic || !`${cause.code ?? ''}`.startsWith('SNAPBACK_INIT_')) {
+    error = initRefusal(
+      'SNAPBACK_INIT_TRANSACTION_FAILED',
+      `snapback init could not finish the preflighted write plan: ${cause?.message ?? cause}`,
+      root,
+    );
+    error.cause = cause;
+  }
+  error.diagnostic.details = {
+    ...(error.diagnostic.details ?? {}),
+    transaction: {
+      created: created.map(({ relativePath }) => relativePath),
+      updated: updated.map(({ relativePath }) => relativePath),
+      rolledBack: creationRollback.rolledBack,
+      rollbackFailed: creationRollback.rollbackFailed,
+      updatedRestored: updateRollback.updatedRestored,
+      updateRestoreFailed: updateRollback.updateRestoreFailed,
+    },
+  };
+  throw error;
+}
+
+function commitInitWritePlan(plan, options) {
+  const created = [];
+  const updated = [];
+  let attemptedNewEntry = null;
+  const notify = (event, entry) => options.transactionHook?.({ event, path: entry.relativePath });
+  try {
+    for (const entry of plan.newEntries) {
+      notify('before-new', entry);
+      attemptedNewEntry = entry;
+      if (entry.kind === 'new-directory') {
+        mkdirSync(entry.path);
+      } else if (entry.kind === 'copy-file') {
+        cpSync(entry.copySource, entry.path, { force: false, errorOnExist: true });
+        created.push(entry);
+        if (!readFileSync(entry.path).equals(entry.content)) {
+          throw new Error(`copied bytes changed during commit for ${entry.relativePath}`);
+        }
+      } else {
+        writeFileSync(entry.path, entry.content, { flag: 'wx' });
+      }
+      if (!created.includes(entry)) created.push(entry);
+      attemptedNewEntry = null;
+      notify('after-new', entry);
+    }
+    for (const entry of plan.updates) {
+      notify('before-update', entry);
+      if (readFileSync(entry.path, 'utf8') !== entry.originalSource) {
+        throw initCollisionError(
+          plan.root,
+          'transaction',
+          entry.relativePath,
+          'The file changed after preflight; preserve the concurrent edit and rerun.',
+        );
+      }
+      replaceInitFileAtomically(entry, entry.content, () => notify('after-temp-write', entry));
+      updated.push(entry);
+      notify('after-update', entry);
+    }
+  } catch (cause) {
+    if (attemptedNewEntry !== null
+        && cause?.code !== 'EEXIST'
+        && initPathMetadata(attemptedNewEntry.path) !== null
+        && !created.includes(attemptedNewEntry)) {
+      created.push(attemptedNewEntry);
+    }
+    if (cause && typeof cause === 'object' && cause.code === 'EEXIST' && cause.snapbackInitPath === undefined) {
+      cause.snapbackInitPath = plan.newEntries.find(({ path }) => path === cause.path)?.relativePath ?? cause.path;
+    }
+    initTransactionFailure(plan.root, cause, created, updated);
+  }
+  return {
+    created: created.map(({ relativePath }) => relativePath),
+    updated: updated.map(({ relativePath }) => relativePath),
+  };
+}
+
+function runInitInstall(command, root, options, adoption) {
+  const runner = options.installRunner ?? ((executable, args, spawnOptions) => spawnSync(executable, args, spawnOptions));
+  const result = runner(command[0], command.slice(1), {
+    cwd: root,
+    encoding: 'utf8',
+    env: options.env ?? process.env,
+  });
+  if (result?.error || result?.status !== 0) {
+    const cause = result?.error;
+    const error = initRefusal(
+      'SNAPBACK_INIT_INSTALL_FAILED',
+      `snapback init file adoption is complete but the explicit install command failed; rerun ${command.join(' ')}`,
+      root,
+      {
+        command,
+        exitCode: result?.status ?? null,
+        stderr: `${result?.stderr ?? ''}`.trim().slice(0, 4_000),
+        adoption,
+        lockfileEffects: 'package-manager-controlled',
+      },
+    );
+    if (cause) error.cause = cause;
+    throw error;
+  }
+}
+
+/** Adopt the packaged React backend into one recognized existing app root. */
+export function initApp(target = process.cwd(), options = {}) {
+  const requestedRoot = resolve(target);
+  let root;
+  try {
+    root = realpathSync.native(requestedRoot);
+    if (!statSync(root).isDirectory()) throw new Error('not a directory');
+  } catch (cause) {
+    const error = initRefusal(
+      'SNAPBACK_INIT_ROOT_UNRECOGNIZED',
+      `snapback init requires an existing app directory at ${requestedRoot}`,
+      requestedRoot,
+      { lookedFor: ['create-expo-app', 'packaged-react-scaffold'] },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  const manifestPath = join(root, 'package.json');
+  if (!initFileExists(root, 'package.json')) {
+    throw initRefusal(
+      'SNAPBACK_INIT_ROOT_UNRECOGNIZED',
+      `snapback init requires package.json and looked for a create-expo-app root or the packaged React scaffold shape. Use the sibling-scaffold workaround: ${initSiblingScaffoldWorkaround()}`,
+      root,
+      { lookedFor: ['create-expo-app', 'packaged-react-scaffold'] },
+    );
+  }
+  initContainedPath(root, manifestPath, 'package.json');
+  const manifestDocument = readInitJson(manifestPath, root, 'package.json');
+  const manifest = manifestDocument.value;
+  if (!isInitRecord(manifest)) {
+    throw initRefusal(
+      'SNAPBACK_INIT_ROOT_UNRECOGNIZED',
+      'snapback init requires package.json to contain an object; no files were changed',
+      root,
+      { path: manifestPath, lookedFor: ['create-expo-app', 'packaged-react-scaffold'] },
+    );
+  }
+  for (const section of [
+    'dependencies',
+    'devDependencies',
+    'optionalDependencies',
+    'peerDependencies',
+    'overrides',
+    'resolutions',
+  ]) {
+    if (manifest[section] !== undefined && !isInitRecord(manifest[section])) {
+      throw initRefusal(
+        'SNAPBACK_INIT_CONFIG_INVALID',
+        `snapback init requires package.json ${section} to be an object; no files were changed`,
+        root,
+        { path: manifestPath, section },
+      );
+    }
+  }
+  const detected = detectInitApp(root, manifest);
+  for (const path of initRequiredPaths(root, detected)) {
+    initContainedPath(root, join(root, path), path);
+  }
+  initSupportedVersion(root, manifest, detected);
+  const profile = initProfile(detected);
+  const configs = readInitConfigs(root, detected);
+  const packageManager = detectInitPackageManager(root, manifest);
+  const version = packageVersion();
+  const installCommand = initInstallCommand(packageManager.manager, profile, version);
+  const dependenciesAdded = initDependencyState(manifest, profile, version, root);
+  const plan = createInitWritePlan(root);
+  if (dependenciesAdded.length === 0) {
+    plan.unchanged.add('package.json');
+  } else {
+    const nextManifest = {
+      ...manifest,
+      dependencies: {
+        ...manifest.dependencies,
+        ...Object.fromEntries(dependenciesAdded.map((name) => [name, version])),
+      },
+    };
+    planInitUpdate(plan, 'package.json', manifestDocument.source, renderInitJson(manifestDocument.source, nextManifest));
+  }
+  const nextTsconfig = plannedInitTypecheck(root, detected, configs);
+  if (nextTsconfig === null) plan.unchanged.add('tsconfig.json');
+  else planInitUpdate(
+    plan,
+    'tsconfig.json',
+    configs.tsconfig.source,
+    renderInitJson(configs.tsconfig.source, nextTsconfig),
+  );
+
+  if (detected.kind === 'react') {
+    const nextEntry = plannedReactEntry(root, configs);
+    if (nextEntry === null) plan.unchanged.add('src/main.tsx');
+    else planInitUpdate(plan, 'src/main.tsx', configs.entrySource, nextEntry);
+    const nextVite = plannedReactVite(root, configs);
+    if (nextVite === null) plan.unchanged.add('vite.config.ts');
+    else planInitUpdate(plan, 'vite.config.ts', configs.viteSource, nextVite);
+    planInitOwnedFile(plan, root, INIT_REACT_PROVIDER_FILE, INIT_REACT_PROVIDER_SOURCE, 'provider');
+    planInitOwnedFile(plan, root, INIT_REACT_VIRTUAL_MODULE_FILE, INIT_REACT_VIRTUAL_MODULE_SOURCE, 'Vite client types');
+  } else {
+    const appConfig = validateInitAppConfig(root, configs.appConfig);
+    const pluginEntries = initExpoPluginEntries(appConfig);
+    if (pluginEntries.length === 1 && pluginEntries[0] === '@expo/snapback-expo') {
+      plan.unchanged.add('app.json');
+    } else if (pluginEntries.length > 0) {
+      initCollision(
+        root,
+        'Expo config plugin',
+        'app.json',
+        'The present Snapback plugin seam does not shape-match the single @expo/snapback-expo string that init writes; reconcile the plugin entry manually.',
+      );
+    } else {
+      initRefuseCommentEdit(
+        root,
+        configs.appConfig,
+        'app.json',
+        'Add @expo/snapback-expo to expo.plugins manually.',
+      );
+      const nextAppConfig = {
+        ...appConfig,
+        expo: {
+          ...appConfig.expo,
+          plugins: [...(appConfig.expo.plugins ?? []), '@expo/snapback-expo'],
+        },
+      };
+      planInitUpdate(
+        plan,
+        'app.json',
+        configs.appConfig.source,
+        renderInitJson(configs.appConfig.source, nextAppConfig),
+      );
+    }
+    const nextEntry = detected.kind === 'expo-router'
+      ? plannedRouterExpoEntry(root, configs)
+      : plannedClassicExpoEntry(root, configs);
+    if (nextEntry === null) plan.unchanged.add(configs.entryRelativePath);
+    else planInitUpdate(plan, configs.entryRelativePath, configs.entrySource, nextEntry);
+  }
+
+  // @ref LLP 0261#design — all init-owned files and every replacement are
+  // preflighted before the first creation; user-owned replacements commit last.
+  planInitBackend(plan, root);
+  const adoption = plan.newEntries.length === 0 && plan.updates.length === 0
+    ? { created: [], updated: [] }
+    : commitInitWritePlan(plan, options);
+  const state = adoption.created.length === 0 && adoption.updated.length === 0
+    ? 'already-initialized'
+    : 'initialized';
+  const requestedInstall = options.install === true;
+  if (requestedInstall) runInitInstall(installCommand, root, options, adoption);
+  return {
+    schemaVersion: 'snapback.init.v1',
+    ok: true,
+    state,
+    root,
+    appKind: profile.id,
+    packageManager: packageManager.manager,
+    lockfiles: packageManager.lockfiles,
+    packageManagerSource: packageManager.source,
+    snapbackVersion: version,
+    dependenciesAdded,
+    filesCreated: adoption.created,
+    filesUpdated: adoption.updated,
+    filesUnchanged: [...plan.unchanged].sort(),
+    install: {
+      requested: requestedInstall,
+      ran: requestedInstall,
+      command: installCommand,
+      lockfileEffects: requestedInstall ? 'package-manager-controlled' : 'not-run',
+    },
+    next: detected.kind !== 'react'
+      ? ['snapback generate snapback --json', 'snapback dev snapback --expo']
+      : ['snapback generate snapback --json', 'snapback dev snapback --client . --client-command vite'],
   };
 }
 
@@ -3536,6 +5171,11 @@ function takeBooleanFlag(args, name) {
 function printResult(result, json) {
   if (json) console.log(JSON.stringify(result, null, 2));
   else if (result.ok === undefined) console.log(JSON.stringify(result, null, 2));
+  else if (result.ok !== false && result.schemaVersion === 'snapback.init.v1') {
+    console.log(`snapback.init.v1: ${result.state}`);
+    console.log(`Install command: ${result.install.command.join(' ')}`);
+    for (const command of result.next) console.log(`Next: ${command}`);
+  }
   else if (result.ok !== false && result.schemaVersion === 'snapback.generate.v1' && result.summary) {
     for (const diagnostic of result.diagnostics ?? []) {
       console.error(`[${diagnostic.severity}] ${diagnostic.code} (${diagnostic.subsystem}) ${diagnostic.message}`);
@@ -3778,6 +5418,12 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     description: 'Return a build-bound exact API symbol or bounded module slice; fuzzy queries delegate to the native Guide search.', lifecycle: 'one-shot/read-only',
     output: 'snapback.guide-search.v1 in JSON mode on channels, exact, fuzzy, and zero-match branches', exits: '0 completed lookup (including zero matches); 1 invalid slice or identity mismatch',
     recovery: 'Use the emitted next command for truncated slices, or regenerate the Guide when registry identity mismatches.',
+  },
+  {
+    name: 'init', usage: 'snapback init [--install] [--json]',
+    description: 'Adopt Snapback into a recognized existing Expo or packaged-shape React application without overwriting it.', lifecycle: 'one-shot',
+    output: 'snapback.init.v1 JSON with --json; adoption/install/next commands otherwise', exits: '0 initialized or already initialized; 1 typed detection, collision, package-manager, or install refusal',
+    recovery: 'Follow the named manual seam or sibling-scaffold workaround; reruns of a complete initialization are no-ops.',
   },
   {
     // The template list is enumerated from the packaged template registry
@@ -4600,6 +6246,19 @@ export async function runCli(argv, options = {}) {
     if (receiptPath !== null) writeVerifyReceipt(receiptPath, result);
     printResult(result, json);
     return result.ok ? 0 : 1;
+  }
+  if (command === 'init') {
+    const install = takeBooleanFlag(args, '--install');
+    if (args.length > 0) {
+      const usage = PACKAGED_CLI_COMMAND_BY_NAME.get('init').usage;
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        `usage: ${usage}`,
+      );
+    }
+    const result = initApp(options.cwd ?? process.cwd(), { ...options, install });
+    printResult(result, json);
+    return 0;
   }
   if (command === 'new') {
     const target = args.shift();

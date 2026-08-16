@@ -21,6 +21,12 @@
       "mcpDeferralReason": "Scaffolding writes a caller-selected local directory and has no MCP filesystem-custody contract.", "sources": ["packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.new"]
     },
     {
+      "operation": "cli.packaged.init", "packagedCommand": "init", "title": "Compose Snapback into an existing app", "intents": ["add Snapback to my app", "init Snapback in an existing Expo or React root"],
+      "guide": "clients/react-expo.md", "policy": { "authority": "none", "effect": "provisioning", "responseSensitivity": "OperatorMetadata" },
+      "behavior": { "readOnly": false, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": true },
+      "mcpDeferralReason": "Adoption writes the caller's local application root and has no MCP filesystem-custody contract; collisions refuse rather than overwrite (LLP 0261).", "sources": ["packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.init"]
+    },
+    {
       "operation": "cli.packaged.generate", "packagedCommand": "generate", "title": "Generate reviewable app artifacts", "intents": ["generate backend code", "refresh generated artifacts"],
       "guide": "getting-started/the-authoring-loop.md#2-regenerate", "policy": { "authority": "none", "effect": "none", "responseSensitivity": "OperatorMetadata" },
       "behavior": { "readOnly": false, "destructive": false, "idempotent": true, "openWorld": false, "persistsAcrossRestart": true },
