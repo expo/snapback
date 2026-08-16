@@ -4,7 +4,7 @@ import { AuthCoordinator, createMemoryAuthCustodyStorage } from '@expo/snapback-
 import { MEDIA_POST_PERSONAS } from '../personas.mjs';
 import api from '../snapback/generated/api.mjs';
 
-const persona = MEDIA_POST_PERSONAS[1];
+const persona = MEDIA_POST_PERSONAS[0];
 const coordinator = new AuthCoordinator({
   appId: 'media-happy-post',
   storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
