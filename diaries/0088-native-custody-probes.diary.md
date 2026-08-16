@@ -164,3 +164,50 @@ conservative than treating either old-or-new result as sufficient on its own.
 No Guide gap ticket was filed. The work is review-driven qualification
 hardening for LLP 0258 Phase 2, not missing author guidance for a supported
 Snapback application surface.
+
+## 2026-08-16 — the evidence campaign on a headless probe host
+
+Running these probes for real on a headless-booted Mac-mini simulator took
+twenty-five iOS runs, and nearly every failure taught something a laptop-with-
+Simulator.app workflow would have hidden. The environment chain alone:
+simulator runtimes ship no shell (`simctl spawn <udid> sh` cannot exist);
+`simctl openurl` silently refuses to cold-start an app on a headless boot, so
+the launch had to become a plain `simctl launch` with the witness falling back
+to its fixed default director origin; a fully unsigned build
+(`CODE_SIGNING_ALLOWED=NO`) gets Keychain `-34018 errSecMissingEntitlement`,
+so simulator ad-hoc signing is load-bearing for custody, not cosmetic; and RN
+`AppState` reports `inactive` forever on a headless boot, which the provider
+correctly treats as "pause live streams" — the probe app now pins an
+always-active app-state source and the receipt says so.
+
+The deepest find was a product defect stack, not an environment one: a
+protected live query under the ordinary first-party bootstrap stayed pending
+forever with zero WebSocket attempts. Three causes layered: the React
+registry re-entered during the coordinator's deliberately closed publication
+window and never got a second edge (fixed by staging re-entry through the
+coordinator's own stagePublication seam), a narrower race where a store
+registering between staged flush and exposure dropped the exact capture, and
+the application client omitting `authInvalidationProtocol: 1`, which the real
+sessions server answers with a protected-subscription refusal. The browser
+Phase 1 work never saw any of this because nothing on that path had composed
+the real provider, the real coordinator, and a real server around an
+authenticated live query. The kill/relaunch probes forced that composition on
+the first day they ran. This is the strongest argument the diary can make for
+LLP 0258's insistence on device evidence: the capability gap was not in the
+Keychain or the Keystore — the native CAS passed its first real exercise —
+it was in wiring nobody had been able to execute end to end before.
+
+Metrology honesty also had to be fought for. A fire-and-forget write pulse
+let the loop race forty-four writes past the armed kill target, so the pulses
+became lockstep; the PID lookup cost half a second, so processes are located
+before arming; the immediate kill then landed before commit fifteen times in
+a row on Android, so the kill got its LLP 0263 random offset back. The
+harness's own leakage scanner twice flagged the harness itself (a count field
+named `password`, a URL-credentials field) — embarrassing and exactly what
+the scanner is for.
+
+Final state: Android holds an unqualified PASS bundle. iOS holds
+PASS with its extension-refusal arm explicitly INCOMPLETE — the committed v1
+app has no extension target, and the harness refuses to launder native-unit
+evidence into an on-device claim. Compared to a Convex or Supabase app, none
+of this work would exist — but none of the claims would exist either.
