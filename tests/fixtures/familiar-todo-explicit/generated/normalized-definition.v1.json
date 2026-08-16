@@ -59,7 +59,10 @@
               }
             ],
             "name": "todos",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           }
         ],
         "version": "snapback.v0"
@@ -86,6 +89,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -111,6 +115,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "todos.create",
         "plan": null,
@@ -139,6 +144,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "todos",
@@ -167,6 +176,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -185,6 +195,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "Action",
         "operationName": "todos.createFromAction",
         "plan": null,
@@ -213,6 +224,7 @@
         "stream": false,
         "syncabilityClass": "action",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": null,
@@ -240,6 +252,7 @@
           "authorizationDependence": [
             "opaque"
           ],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -263,6 +276,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "todos.list",
         "plan": null,
@@ -346,6 +360,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": null,
@@ -360,7 +375,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:6f55125e4b2dba403af01ec949afe11477ad3a2557ec1ab61f7f69656e040d33",
-  "normalizedSchemaId": "sha256:d0cbc1c39f98ca5a530a9d17124cd439be23dc61d3365d6cf511cfef63d731fb",
+  "normalizedContractId": "sha256:55c1298713cf3f461b292be1fcaaf29b6819f99050a4ffb5d32adef615b6c849",
+  "normalizedSchemaId": "sha256:1215a502ea9d20eecd894a24e7c75c3a75867ae1d912cf2a742688be2b67e2bb",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

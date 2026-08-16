@@ -1,6 +1,6 @@
 # LLP 0234 G2 flip missed tests/fixtures/familiar-todo*: app-binding descriptor contract red on main
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -32,3 +32,23 @@ visibility to all five CLI scaffold templates and regenerates their committed
 artifacts. The default `scaffoldApp` → `generateApp` path and direct generation
 of all five template backends pass. This note does not change this ticket's
 status or claim the familiar-todo fixture half; that remains with its owner.
+
+## Resolution — 2026-08-16
+
+Both halves are now complete:
+
+- The scaffold-template half landed as `80ff4864f`, with honest visibility on
+  all five templates and regenerated committed outputs.
+- The fixture half keeps `public-read` for both `familiar-todo` schemas. That is
+  the honest corpus-closure shape: both profiles deliberately expose public
+  list/create operations over the same synthetic shared rows, and neither
+  fixture models a principal or owner field. Each declaration now carries the
+  LLP 0234 G2 `@ref` rationale, and both committed generated review artifacts
+  are regenerated with one declared public table and zero implicit tables.
+- The broader Familiar Phase B regeneration gate now gives its inline upload
+  fixture owner visibility, lets its public name-collision negative control
+  reach the intended diagnostic, refreshes the dual-profile identity goldens,
+  and preserves ordinary Familiar actions in generated API types while still
+  excluding command-only targets.
+
+Verification output is retained verbatim in `report.md`.

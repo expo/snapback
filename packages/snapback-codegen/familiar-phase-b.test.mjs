@@ -211,10 +211,14 @@ test('familiar explicit video intents occupy the same two-segment api namespace'
   writeFileSync(join(root, 'schema.ts'), `
 import { defineSchema, defineTable, v } from './generated/server';
 export default defineSchema({
+  // @ref LLP 0234#phase-g2--d2-enforcing-closure — the upload fixture carries
+  // an owner principal, so table and asset visibility use the same owner field.
   videos: defineTable({
     ownerId: v.principal(),
     clip: v.assetRef({ upload: 'media.videoUpload' }),
-  }).assetSharing({ kind: 'owner', field: 'ownerId' }),
+  })
+    .visibility({ kind: 'owner', field: 'ownerId' })
+    .assetSharing({ kind: 'owner', field: 'ownerId' }),
 });
 `);
   writeFileSync(join(root, 'media.ts'), `
@@ -262,11 +266,11 @@ test('dual-profile todo fixtures normalize equally and emit lawful dotted surfac
   assert.notEqual(familiar.identities.generationId, explicit.identities.generationId);
   assert.equal(
     familiar.identities.normalizedContractId,
-    'sha256:6f55125e4b2dba403af01ec949afe11477ad3a2557ec1ab61f7f69656e040d33',
+    'sha256:55c1298713cf3f461b292be1fcaaf29b6819f99050a4ffb5d32adef615b6c849',
   );
   assert.equal(
     familiar.identities.normalizedSchemaId,
-    'sha256:d0cbc1c39f98ca5a530a9d17124cd439be23dc61d3365d6cf511cfef63d731fb',
+    'sha256:1215a502ea9d20eecd894a24e7c75c3a75867ae1d912cf2a742688be2b67e2bb',
   );
 
   const familiarOutput = join(familiarFixture, 'generated');
@@ -618,7 +622,11 @@ test('generation refuses unsupported familiar source and dynamic api references 
   temporaryRoots.push(collisionRoot);
   writeFileSync(join(collisionRoot, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
-export default defineSchema({ todos: defineTable({ title: v.string() }) });
+export default defineSchema({
+  // @ref LLP 0234#phase-g2--d2-enforcing-closure — this negative control has
+  // only public operations; visibility must not preempt its name-collision diagnostic.
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+});
 `);
   writeFileSync(join(collisionRoot, 'functions.mjs'), `
 import { defineQuery } from ${JSON.stringify(defineUrl)};

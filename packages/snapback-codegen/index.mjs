@@ -15297,6 +15297,14 @@ function standaloneDescriptorFunctions(functions) {
   ));
 }
 
+// @ref LLP 0253#s51-the-api-namespace — Familiar actions remain ordinary
+// generated api members even though AppDescriptorV1 partitions actions out.
+function standaloneApiFunctions(functions) {
+  return functions.filter(({ mediaCommandBindings }) => (
+    !(Array.isArray(mediaCommandBindings) && mediaCommandBindings.length > 0)
+  ));
+}
+
 function generatedOperationLocal(name) {
   return `__snapback${pascal(name)}`;
 }
@@ -16143,7 +16151,7 @@ function renderApiTypes(
       `  ${JSON.stringify(fn.name)}: FunctionReference<${JSON.stringify(fn.name)}, '${fn.kind}', ${args}, ${result}, ${JSON.stringify(authoringProfile)}>;`,
     ];
   };
-  for (const fn of standaloneDescriptorFunctions(functions)) {
+  for (const fn of standaloneApiFunctions(functions)) {
     lines.push(...renderGeneratedFunctionReference(fn));
   }
   for (const profileName of authorityProfileNames) {
