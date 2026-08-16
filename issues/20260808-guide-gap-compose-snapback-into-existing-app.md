@@ -26,3 +26,20 @@ not a first-class composition capability.
   codegen, typecheck, supervised development, and registered acceptance.
 - Replace the capability GAP and sibling-scaffold workaround only after the
   published package path is qualified.
+
+## Author ruling — 2026-08-15 (product surface decided; ticket stays open for implementation)
+
+The product surface is **`snapback init`** — a new top-level command run at
+the root of an existing React or Expo app, non-interactive first, adopting
+rather than scaffolding: install the published twelve-package closure without
+clobbering unrelated configuration, create only the conventional `snapback/`
+child and required client seams, refuse collisions with typed
+`SNAPBACK_INIT_*` diagnostics, narrow the typecheck boundary, and exit into
+the ordinary `generate`/supervised-dev lifecycle. The backend-only template
+mode was considered and rejected (overloads `snapback new`'s meaning and
+leaves the adoption half as guide prose).
+
+Design home: `llp/0261-snapback-init-existing-app-composition.rfc.md` (Draft).
+Its OQ4 carries this ticket's still-open "assign an owner" half. The
+qualification bar above is unchanged and restated in the RFC; the GAP row and
+the workaround page stay until that bar is met.

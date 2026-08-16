@@ -66,3 +66,26 @@ production signup blind-accept and mail-delivered password reset are **not**
 implemented — both are annotated LLP 0045 delivery prerequisites and
 `authProgramReadiness` reports them unready. Local reset works only against the
 capture mailbox. `auth.importPasswordCredential` is not implemented.
+
+## Publication blocker cleared — 2026-08-15
+
+The "waits on the next qualified publication" condition is satisfied: 0.1.21
+(2026-08-14, LLP 0041 §0.1.21) was the fourth completed qualified promotion,
+cut from `c10b454162f6`, which carries the entire password surface listed
+above (all four landings are 2026-08-11/12). The 0.1.22 fast-path publication
+(2026-08-15, from `272bea745bb0`) carries the same closure; `newestQualified`
+remains 0.1.21. The clean-install proof can now run against published
+packages; it is in flight in this session and its outcome will be recorded
+here.
+
+## Author ruling — 2026-08-15: mail-reset and import stay deferred
+
+Mail-delivered password reset and `auth.importPasswordCredential` are **not
+commissioned now**. Mail reset stays behind its LLP 0045 delivery
+prerequisite rather than stacking a second gated program on the outbox; note
+that the same day's wave-4 identity ruling
+(`issues/20260808-wave4-identity-program.md`) commits to operating an
+Expo-hosted shared email/SMS delivery service, so the prerequisite has a
+ruled path — revisit both features when that delivery path exists or a
+benchmark/demand signal forces them. Until then the honest-boundaries
+paragraph above remains the accurate capability statement.
