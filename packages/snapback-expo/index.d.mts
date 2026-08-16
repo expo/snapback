@@ -9,6 +9,7 @@ import type {
 } from '@expo/snapback-react';
 
 export * from '@expo/snapback-react';
+export { useSnapbackActivityPresence } from './activity-presence.mjs';
 export {
   adaptExpoAssetSource,
   createExpoAssetSourceAdapter,

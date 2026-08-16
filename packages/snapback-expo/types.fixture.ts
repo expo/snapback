@@ -1,8 +1,10 @@
 import {
   createSnapbackExpoBoot,
   createExpoAssetSourceAdapter,
+  useSnapbackActivityPresence,
   type AppBindingV1,
   type AppDescriptorV1Like,
+  type ConnectionEphemeralCollectionReference,
   type ExpoBootState,
   type SnapbackExpoEnvironmentV1,
 } from './index.mjs';
@@ -11,6 +13,23 @@ import type { GeneratedAppDescriptorV1 } from '../../demos/zero-bakeoff/apps/fie
 declare const app: AppDescriptorV1Like;
 declare const environment: SnapbackExpoEnvironmentV1;
 declare const generatedApp: GeneratedAppDescriptorV1;
+declare const typing: ConnectionEphemeralCollectionReference<
+  'typing',
+  { roomId: string },
+  { userHandle: string; name: string }
+>;
+
+function ActivityFixture() {
+  const presence = useSnapbackActivityPresence(typing, {
+    scope: { roomId: 'room-one' },
+    value: () => ({ userHandle: 'ada', name: 'Ada' }),
+    idleMs: 3_000,
+  });
+  presence.touch();
+  void presence.withdraw();
+  return presence.peers.length;
+}
+void ActivityFixture;
 
 const binding = {
   format: 'snapback.app-binding.v1',

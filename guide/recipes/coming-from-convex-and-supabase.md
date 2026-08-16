@@ -4,13 +4,13 @@ id: recipes.coming-from-convex-and-supabase
 order: 7
 audience: agent-first
 capabilities: [backend.functions, auth.scoped-queries, clients.react, backend.assets, backend.relational-queries, realtime.ephemeral]
-authorities: [llp/0186-agent-authoring-efficiency-program.plan.md, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/expo-golden-path-fixture/snapback/schema.mjs, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/competitive-checkpoint/snapback/functions.mjs, demos/messaging-snapback/src/lib/useTyping.ts, demos/cursors-web/snapback/schema.mjs, packages/snapback-react/exact-result-types.fixture.ts]
+authorities: [llp/0186-agent-authoring-efficiency-program.plan.md, llp/0257-activity-scoped-presence-convenience.rfc.md, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/expo-golden-path-fixture/snapback/schema.mjs, demos/expo-golden-path-fixture/snapback/functions.mjs, demos/expo-golden-path-fixture/src/screens/chat-screen.tsx, demos/competitive-checkpoint/snapback/functions.mjs, demos/messaging-snapback/src/lib/useTyping.ts, demos/cursors-web/snapback/schema.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 examples: [demos/card-game, demos/expo-golden-path-fixture, demos/competitive-checkpoint, demos/messaging-snapback, demos/cursors-web, demos/partiful-matrix]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:81a9bf72530b3e0a80f036530ba131b47acf290f203203d1145c57b982e84ea3
+reviewed-authorities-digest: sha256:ce7e2b314843aeeb1d854b89474a0d27a688e2849f63a74aaabb340bba401cce
 ---
 
 # Recipe: coming from Convex and Supabase
@@ -419,11 +419,17 @@ and `demos/competitive-checkpoint/tests/acceptance/step5-both-helpers.mjs`
 
 **Read next:** [relational queries](../backend/relational-queries.md).
 
+<!-- since: 0.1.23 unreleased -->
+
+> **Unreleased.** `useSnapbackActivityPresence` is newer than the newest
+> published package closure, 0.1.22.
+
 <a id="ephemeral-presence"></a>
 ### Typing indicators and cursors: presence vs. broadcast
 
 **Find this page by:** "Supabase Presence", "Supabase Broadcast", "presence",
-"cursors", "typing indicator", "ephemeral", "useSnapbackPresence".
+"cursors", "typing indicator", "ephemeral", "useSnapbackPresence",
+"useSnapbackActivityPresence".
 
 **Use this when** you need to show who else is here (online/typing state) or
 where their cursor is (high-frequency motion), and you're deciding whether
@@ -455,38 +461,35 @@ channel.on("broadcast", { event: "cursor" }, ({ payload }) => {
 channel.send({ type: "broadcast", event: "cursor", payload: { userId, x, y } });
 ```
 
-Snapback uses one mechanism for both: a typed ephemeral collection, published
-and observed through `useSnapbackPresence`. The typing/online case:
+Snapback uses one mechanism for both: a typed ephemeral collection. The base
+projection is `useSnapbackPresence`; typing uses its activity-scoped
+convenience. The typing/online case:
 
 ```tsx source=demos/messaging-snapback/src/lib/useTyping.ts
-export function useTyping(conversationId: string, selfHandle: string) {
+export function useTyping(conversationId: string, selfHandle: string, selfName: string) {
   const scope = useMemo(() => ({ conversationId }), [conversationId]);
-  const presence = useSnapbackPresence(typingRef, { scope, value: skip });
+  const presence = useSnapbackActivityPresence(typingRef, {
+    scope,
+    value: () => ({ userHandle: selfHandle, name: selfName }),
+    idleMs: 3_000,
+  });
   const typers = useMemo<Typer[]>(() => {
-    if (presence.status !== 'ready' && presence.status !== 'stale') return [];
-    return presence.entries
-      .filter((entry) => entry.key !== presence.selfKey)
+    return presence.peers
       .filter((entry) => entry.value.userHandle !== selfHandle)
       .map((entry) => entry.value);
   }, [presence, selfHandle]);
 
-  function publishTyping(name: string) {
-    void presence
-      .publish({ userHandle: selfHandle, name }, { ttlMs: PUBLISH_TTL_MS })
-      .catch(() => {});
-  }
-
-  function clearTyping() {
-    void presence.delete().catch(() => {});
-  }
-
-  return { typers, publishTyping, clearTyping };
+  return {
+    typers,
+    publishTyping: presence.touch,
+    clearTyping: presence.withdraw,
+  };
 }
 ```
 
-And the cursor case is the same hook over a collection tuned for
-high-frequency, small-payload publishes — the difference is entirely in the
-collection's declared budget, not a different API:
+And the cursor case is the same ephemeral mechanism over a collection tuned
+for high-frequency, small-payload publishes — the difference is entirely in
+the collection's declared budget, not a different wire API:
 
 ```js source=demos/cursors-web/snapback/schema.mjs
     webCursors: ephemeral.collection({

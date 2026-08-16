@@ -441,6 +441,41 @@ export function useSnapbackPresence<
   }>,
 ): PresenceState<EphemeralValue<Ref>>;
 
+export type ActivityPresenceOptions<Ref extends ConnectionEphemeralCollectionReference> =
+  Readonly<{
+    scope: EphemeralScope<Ref>;
+    value: () => EphemeralValue<Ref>;
+    idleMs: number;
+    ttlMs?: number;
+    /** Defaults to true. False retains the granted connection's own entry. */
+    excludeSelf?: boolean;
+    onError?: (diagnostic: SnapbackDiagnostic) => void;
+  }>;
+
+export type ActivityPresenceState<Value> = Readonly<{
+  status: PresenceState<Value>['status'];
+  active: boolean;
+  touch(): void;
+  withdraw(): Promise<void>;
+  peers: readonly PresenceEntry<Value>[];
+  publisher: PublisherState;
+  connection: SnapbackConnection;
+  diagnostic: SnapbackDiagnostic | null;
+  lastError: SnapbackDiagnostic | null;
+}>;
+
+/**
+ * Announce a connection-owned ephemeral value after activity ticks and
+ * withdraw it after the absolute idle deadline, explicit withdrawal, room
+ * replacement, or unmount. Renewal remains provider-owned.
+ */
+export function useSnapbackActivityPresence<
+  Ref extends ConnectionEphemeralCollectionReference,
+>(
+  reference: Ref,
+  options: ActivityPresenceOptions<Ref>,
+): ActivityPresenceState<EphemeralValue<Ref>>;
+
 export interface SnapbackSurfaceMember<Reference = unknown, Input = Record<string, never>> {
   readonly artifactKind: 'surfaceMemberBinding';
   readonly reference: Reference;

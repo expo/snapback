@@ -208,6 +208,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     suffix: '.test.mjs',
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
+      'activity-presence.test.mjs',
       'assets.test.mjs',
       'auth-blocked-resource.test.mjs',
       'authorization-denial.test.mjs',
@@ -248,6 +249,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     testDir: '.',
     suffix: '.test.mjs',
     expectedFiles: [
+      'activity-presence.test.mjs',
       'app-binding.test.mjs',
       'asset-source.test.mjs',
       'config-plugin.test.mjs',
@@ -506,7 +508,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 288,
+  expectedTotal = 290,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -904,6 +906,9 @@ export function checkPackageTestInventories(options = {}) {
 // generated application-auth bootstrap policy derivation and identity suite.
 // 287 -> 288 (2026-08-15, take-limit parity guard): @expo/snapback-contract
 // gains the shared JS/Rust relational and snapshot-batch ceiling proof.
+// 288 -> 290 (2026-08-15, LLP 0257): @expo/snapback-react and
+// @expo/snapback-expo gain the activity deadline/error and Expo lifecycle
+// wrapper suites.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

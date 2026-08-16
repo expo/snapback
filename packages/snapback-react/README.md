@@ -14,6 +14,8 @@ The package root is the full compatibility composition. It exports:
 - `useSnapbackOptimisticCreate(ref, { query, args, select })` for one
   generated `Insert` with typed provisional identity;
 - `useSnapbackPresence(ref, { scope, value, ttlMs })`;
+- `useSnapbackActivityPresence(ref, { scope, value: () => value, idleMs })`
+  for typing/editing-style activity with helper-owned withdrawal;
 - `useSnapbackConnection()`;
 - framework-neutral `observeSnapbackQueries`,
   `observeSnapbackOptimisticCreate`, `observeSnapbackPresence`, and

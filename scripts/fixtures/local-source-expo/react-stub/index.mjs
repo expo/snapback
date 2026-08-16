@@ -6,6 +6,7 @@ export const useContext = (context) => context?.value;
 export const useEffect = () => {};
 export const useMemo = (factory) => factory();
 export const useRef = (current) => ({ current });
+export const useState = (initial) => [initial, () => {}];
 export const useSyncExternalStore = (_subscribe, getSnapshot) => getSnapshot();
 
 export default Object.freeze({
@@ -15,5 +16,6 @@ export default Object.freeze({
   useEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
 });

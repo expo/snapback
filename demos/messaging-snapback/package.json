@@ -17,6 +17,7 @@
     "@expo/snapback-client": "file:../../packages/snapback-client",
     "@expo/snapback-codegen": "file:../../packages/snapback-codegen",
     "@expo/snapback-contract": "file:../../packages/snapback-contract",
+    "@expo/snapback-expo": "file:../../packages/snapback-expo",
     "@expo/snapback-react": "file:../../packages/snapback-react",
     "expo": "~57.0.7",
     "expo-crypto": "~57.0.1",
@@ -39,6 +40,8 @@
     "typescript": "~6.0.3"
   },
   "overrides": {
+    "@expo/snapback-client": "file:../../packages/snapback-client",
+    "@expo/snapback-react": "file:../../packages/snapback-react",
     "@expo/snapback-contract": "file:../../packages/snapback-contract"
   }
 }

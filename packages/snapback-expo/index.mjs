@@ -24,9 +24,11 @@ export {
   expoAssetFetch,
   resolveExpoFetch,
 } from './asset-source.mjs';
+export { useSnapbackActivityPresence } from './activity-presence.mjs';
 
 // Expo-safe hooks and the existing low-level provider remain aliases of the
-// canonical React owner; this package does not fork their behavior.
+// canonical React owner except for activity presence, whose explicit facade
+// wrapper adds application-lifecycle policy.
 export * from '@expo/snapback-react';
 
 export const SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT =

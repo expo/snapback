@@ -289,3 +289,41 @@ declared refusal reaches the external JS client with `diagnostic.code =
 there is no top-level `error.code` property on the thrown error. Guide pages
 describe the envelope correctly, but an example of the *client-side* match
 (as opposed to the handler-side `ctx.refuse`) would have saved a round trip.
+
+## 2026-08-15 — Activity-scoped typing presence (LLP 0257)
+
+The typing integration now expresses product intent instead of transport
+choreography. `useTyping` supplies the conversation scope, a value thunk, and
+a three-second idle deadline to `useSnapbackActivityPresence`; the conversation
+screen calls `touch()` for non-empty edits and `withdraw()` on clear/send. The
+screen-owned timer ref, cancellation, and repeated clear paths disappeared.
+The domain-level same-user/device filter remains explicit because the helper
+can identify only its own connection key. The migration also stopped forcing
+the collection's 15-second maximum TTL and now takes its six-second default,
+which tightens the ghost window if a final withdrawal is lost.
+
+What felt especially good was that the convenience stayed visibly layered on
+the existing presence owner. It did not require a second room or renewal path,
+and unchanged values still collapse locally while the value thunk is sampled
+on every input tick. Compared with a typical React plus Supabase Realtime or
+hand-rolled Convex presence hook, the application no longer owns timeout
+generation fencing, connection-self filtering, heartbeat, reconnect, or room
+cleanup. The Expo facade also makes background withdrawal part of the import
+choice instead of another AppState effect every screen must remember.
+
+The hard part moved into the library, where it belongs: delayed AppState
+resolution must gate first publication without re-evaluating the thunk;
+canceled-but-queued timers need both generation and absolute-deadline checks;
+and admission, transport, withdrawal, and lifecycle failures do not all arrive
+through the same base channel. Testing those distinctions required a focused
+fake-client room plus a stub lifecycle source. One spec wrinkle was visible:
+the accepted RFC defines peers unconditionally as entries minus `selfKey`,
+while the implementation charter adds an `excludeSelf?` option. The hook keeps
+the RFC behavior by default and treats `excludeSelf: false` as the charter's
+explicit opt-out.
+
+The guide now puts the convenience first, retains observer-mode
+`useSnapbackPresence` as a “how it works underneath” appendix, and calls out
+the volatile-thunk rate-budget trap. That closes the discovery and timer-
+choreography friction recorded by this diary's earlier presence correction;
+no additional guide-gap ticket was needed.

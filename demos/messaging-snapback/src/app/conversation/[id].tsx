@@ -34,12 +34,11 @@ export default function ConversationScreen() {
   const toggleReaction = useSnapbackMutation(api.toggleReaction);
   const upload = useSnapbackAssetUpload({ upload: api.messageImageUpload });
 
-  const { typers, publishTyping, clearTyping } = useTyping(id, self.handle);
+  const { typers, publishTyping, clearTyping } = useTyping(id, self.handle, self.name);
 
   const [body, setBody] = useState('');
   const [replyTo, setReplyTo] = useState<MessageRow | null>(null);
   const [pendingAssetId, setPendingAssetId] = useState<string | null>(null);
-  const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const conversation = conversationQuery.status === 'ready' || conversationQuery.status === 'refreshing'
     ? conversationQuery.data[0]
@@ -64,11 +63,9 @@ export default function ConversationScreen() {
   function onChangeBody(text: string) {
     setBody(text);
     if (text.trim().length > 0) {
-      publishTyping(self.name);
-      if (typingTimeout.current) clearTimeout(typingTimeout.current);
-      typingTimeout.current = setTimeout(clearTyping, 3_000);
+      publishTyping();
     } else {
-      clearTyping();
+      void clearTyping();
     }
   }
 
@@ -91,8 +88,7 @@ export default function ConversationScreen() {
   async function submit() {
     const trimmed = body.trim();
     if (!trimmed && !pendingAssetId) return;
-    clearTyping();
-    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    void clearTyping();
     setBody('');
     const assetId = pendingAssetId;
     setPendingAssetId(null);

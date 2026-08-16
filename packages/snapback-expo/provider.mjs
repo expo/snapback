@@ -25,8 +25,10 @@ import {
   adaptExpoAssetSource,
   expoAssetFetch,
 } from './asset-source.mjs';
+import { resolveSnapbackExpoLifecycleSource } from './lifecycle-source.mjs';
 
 const bootContext = createContext(null);
+const lifecycleContext = createContext(null);
 let bootSequence = 0;
 
 function freezeRecord(value) {
@@ -129,25 +131,6 @@ function errorState(error, correlationId) {
 
 export const defaultSnapbackExpoEnvironment = createSupervisedExpoEnvironment();
 
-async function appStateFor(environment) {
-  if (environment?.appState?.addEventListener) return environment.appState;
-  if (typeof environment?.resolveAppState === 'function') {
-    const resolved = await environment.resolveAppState();
-    if (resolved?.addEventListener) return resolved;
-  }
-  const { resolveDefaultAppState } = await import('#app-state');
-  const appState = await resolveDefaultAppState();
-  if (!appState?.addEventListener) {
-    const error = new Error(
-      'No platform AppState-compatible lifecycle source resolved; inject appState '
-      + '(or resolveAppState) via createSupervisedExpoEnvironment({ appState }).',
-    );
-    error.code = 'SNAPBACK_EXPO_COMPATIBILITY_UNSUPPORTED';
-    throw error;
-  }
-  return appState;
-}
-
 // @ref LLP 0181#provider — the controller exposes exactly the RFC boot-state
 // union. Binding, authority, and client preparation are distinct stages; no
 // missing authority path is converted to anonymous success.
@@ -169,6 +152,7 @@ export function createSnapbackExpoBoot({
   let startPromise = null;
   let reactProvider = null;
   let lifecycle = null;
+  let lifecycleSource = null;
   let authorityDisposer = null;
   let admittedBinding = null;
   let admittedBindingFacts = null;
@@ -303,9 +287,9 @@ export function createSnapbackExpoBoot({
         assetSourceAdapter: adaptExpoAssetSource,
       });
       reactProvider.start?.();
-      const appState = await appStateFor(environment);
+      lifecycleSource = await resolveSnapbackExpoLifecycleSource(environment);
       if (disposed) return state;
-      lifecycle = bindLifecycle(appState, reactProvider, {
+      lifecycle = bindLifecycle(lifecycleSource, reactProvider, {
         onError(error) {
           try { environment.onDiagnostic?.(normalizedDiagnostic(error, correlationId)); } catch { /* observational */ }
         },
@@ -403,6 +387,7 @@ export function createSnapbackExpoBoot({
       return refreshPromise;
     },
     reactProvider: () => reactProvider,
+    lifecycleSource: () => lifecycleSource,
     async dispose() {
       if (disposed) return;
       disposed = true;
@@ -427,6 +412,7 @@ export function SnapbackExpoProvider({
     let current = Object.freeze({
       state: Object.freeze({ status: 'starting', stage: 'binding' }),
       reactProvider: null,
+      lifecycleSource: null,
     });
     return Object.freeze({
       getSnapshot: () => current,
@@ -449,6 +435,7 @@ export function SnapbackExpoProvider({
       store.publish(Object.freeze({
         state: boot.getSnapshot(),
         reactProvider: boot.reactProvider(),
+        lifecycleSource: boot.lifecycleSource(),
       }));
     };
     const unsubscribe = boot.subscribe(sync);
@@ -461,6 +448,10 @@ export function SnapbackExpoProvider({
     };
   }, [app, binding, environment, store]);
   const state = active.state;
+  const lifecycleValue = useMemo(() => Object.freeze({
+    environment,
+    source: active.lifecycleSource,
+  }), [environment, active.lifecycleSource]);
   const content = state.status === 'ready'
     ? React.createElement(SnapbackProvider, {
         provider: active.reactProvider,
@@ -468,7 +459,21 @@ export function SnapbackExpoProvider({
         outboxDrainOptions,
       }, children)
     : (typeof fallback === 'function' ? fallback(state) : fallback);
-  return React.createElement(bootContext.Provider, { value: state }, content);
+  return React.createElement(
+    bootContext.Provider,
+    { value: state },
+    React.createElement(lifecycleContext.Provider, { value: lifecycleValue }, content),
+  );
+}
+
+// Internal bridge for the Expo activity wrapper and its focused lifecycle
+// tests. It is deliberately not re-exported from the package facade.
+export function SnapbackExpoLifecycleContextProvider({ value, children = null }) {
+  return React.createElement(lifecycleContext.Provider, { value }, children);
+}
+
+export function useSnapbackExpoLifecycleContext() {
+  return useContext(lifecycleContext);
 }
 
 export function useSnapbackExpoBootState() {

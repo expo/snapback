@@ -286,13 +286,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, demos/_kit/tests/regression-multiplexed-lanes.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:1dfb1bb7330852b80eafba26b21c6c650ac47bfdff67a0ea21bff4bf31eb925d
+reviewed-authorities-digest: sha256:db92bd62a8b6e44311e5a8b2db0b1bd3e3c76e27bcd1237d3f199aada3ced9f0
 ---
 
 # Ephemeral realtime state
@@ -310,70 +310,82 @@ Start with the [presence-cursors recipe](../recipes/presence-cursors.md) when
 building a feature. Use this page when choosing collection options or handling
 recovery.
 
-## Find the React hook from ephemeral vocabulary
+<!-- since: 0.1.23 unreleased -->
+
+> **Unreleased.** `useSnapbackActivityPresence` is newer than the newest
+> published package closure, 0.1.22. Use a checkout build until a later closure
+> includes it.
+
+## Stop publishing when activity goes idle
 
 In the schema and headless client this feature is named **ephemeral**. In the
-React client the scoped hook is named **`useSnapbackPresence`**. The names are
-two views of the same generated ephemeral collection: use the hook for online
-presence, conversation-scoped typing indicators, cursors, and other managed
-React values. There is no separate `useSnapbackEphemeral` hook.
+React client the base scoped hook is named **`useSnapbackPresence`**, and
+**`useSnapbackActivityPresence`** adds the common “publish now, withdraw after
+the last activity tick” lifecycle. There is no separate
+`useSnapbackEphemeral` hook.
 
 `scope` is the room boundary, so a conversation id gives one typing room per
 conversation. `ConnectionEphemeralCollectionReference` describes how each row
 inside that room is owned and keyed; it does not force a global or
-connection-only scope. `value: skip` observes without publishing; if this
-owner previously published, transitioning to `skip` also stops renewal and
-sends an idempotent fenced withdrawal so the old member disappears within the
-collection's `withdrawalVisibilityDeadlineMs` (at most half its TTL) instead
-of lingering to expiry. A delayed or ambiguous withdrawal settles
-`superseded` and can never delete a republished successor. From the observer
-state, `publish` installs managed intent (including heartbeat) and `delete`
-clears it immediately. A non-skipped `value` is the declarative form.
-In both forms the first-party React provider owns subscription, heartbeat,
-cleanup, reconnect, and authority transition:
+connection-only scope. Call `touch()` for each keystroke or other activity
+tick. The value thunk is sampled only by that call, the provider owns lease
+renewal, and the helper withdraws after the absolute `idleMs` deadline.
+`withdraw()` clears immediately for events such as editor clear or message
+send. The result retains the base `status`, `connection`, `publisher`, and
+`diagnostic` fields; action failures use `onError` and `lastError`.
+
+In Expo, import the hook from `@expo/snapback-expo`. Its facade wrapper gates
+the first publication until AppState observation is established and withdraws
+on backgrounding. A direct `@expo/snapback-react` import has the same deadline
+state machine but no platform lifecycle listener.
 
 ```tsx source=demos/messaging-snapback/src/lib/useTyping.ts
 import { useMemo } from 'react';
-import { skip, useSnapbackPresence } from '@messenger/snapback-react';
+import { useSnapbackActivityPresence } from '@messenger/snapback-expo';
 import { ephemeral } from '@generated/api.mjs';
 
 export type Typer = { userHandle: string; name: string };
 
 const typingRef = ephemeral.typing;
-const PUBLISH_TTL_MS = typingRef.maxTtlMs;
 
-// `useSnapbackPresence` is the React hook for generated ephemeral collections.
-// Observer mode keeps publish/delete imperative so clearing a typing indicator
-// remains immediate while the provider owns the room, heartbeat, and cleanup.
-export function useTyping(conversationId: string, selfHandle: string) {
+// @ref LLP 0257#expo-backgrounding-and-resume — the Expo facade adds
+// background withdrawal to the canonical activity state machine.
+export function useTyping(conversationId: string, selfHandle: string, selfName: string) {
   const scope = useMemo(() => ({ conversationId }), [conversationId]);
-  const presence = useSnapbackPresence(typingRef, { scope, value: skip });
+  const presence = useSnapbackActivityPresence(typingRef, {
+    scope,
+    value: () => ({ userHandle: selfHandle, name: selfName }),
+    idleMs: 3_000,
+  });
   const typers = useMemo<Typer[]>(() => {
-    if (presence.status !== 'ready' && presence.status !== 'stale') return [];
-    return presence.entries
-      .filter((entry) => entry.key !== presence.selfKey)
+    return presence.peers
       .filter((entry) => entry.value.userHandle !== selfHandle)
       .map((entry) => entry.value);
   }, [presence, selfHandle]);
 
-  function publishTyping(name: string) {
-    void presence
-      .publish({ userHandle: selfHandle, name }, { ttlMs: PUBLISH_TTL_MS })
-      .catch(() => {});
-  }
-
-  function clearTyping() {
-    void presence.delete().catch(() => {});
-  }
-
-  return { typers, publishTyping, clearTyping };
+  return {
+    typers,
+    publishTyping: presence.touch,
+    clearTyping: presence.withdraw,
+  };
 }
 ```
 
-(That import path, `@messenger/snapback-react`, is the messaging demo's own
-tsconfig/metro alias for **`@expo/snapback-react`** — there is no published
+(That import path, `@messenger/snapback-expo`, is the messaging demo's own
+tsconfig/metro alias for **`@expo/snapback-expo`** — there is no published
 `@messenger/*` package. In your app, install and import
-`@expo/snapback-react`.)
+`@expo/snapback-expo`.)
+
+The helper removes only the current connection's `selfKey`. The visible
+`userHandle` filter is still required to hide the same user typing from
+another device when that is the application's desired behavior.
+
+Keep the thunk stable in meaning. A timestamp, counter, or other volatile
+field changes the canonical value on every `touch()`, defeats the base
+unchanged-value/TTL no-op, and creates a real wire publish for every tick. At
+keystroke rates that can reach the collection budget and surface as
+`publisher.status === 'publish-error'`. It is not descriptor churn: the
+helper's observer descriptor remains stable.
 
 The example memoizes its scope for compatibility with published closure
 0.1.15. On affected versions, a per-render managed presence value combined
@@ -383,7 +395,34 @@ merely waste a subscription. Current source content-keys both inputs; see
 [Use inline hook inputs without subscription churn](../clients/react.md#use-inline-hook-inputs-without-subscription-churn).
 
 See [the React client](../clients/react.md#publish-and-observe-ephemeral-presence)
-for the hook's state and lifecycle contract. Reach for the lower-level
+for the base state and lifecycle contract.
+
+### How it works underneath
+
+The convenience composes the existing hook in observer mode. That base mode
+uses `value: skip`, then exposes imperative `publish` and `delete` actions:
+
+```tsx fragment reason="Anatomy of the convenience; production code also needs its absolute-deadline and generation fences, complete error algebra, and Expo lifecycle gate."
+const base = useSnapbackPresence(typingRef, { scope, value: skip });
+const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+function touch() {
+  void base.publish({ userHandle: selfHandle, name: selfName });
+  if (timer.current) clearTimeout(timer.current);
+  timer.current = setTimeout(() => void base.delete(), 3_000);
+}
+
+function withdraw() {
+  if (timer.current) clearTimeout(timer.current);
+  timer.current = null;
+  return base.delete();
+}
+```
+
+That sketch explains the composition, but it is not a substitute for the
+helper: it omits the canceled-timer generation fence, absolute-deadline
+backstop after suspension, typed error channels, scope-reset semantics,
+Strict Mode cleanup, and Expo background withdrawal. Use the lower-level
 `subscribeEphemeral` overlay below only in headless code or when you
 deliberately need to own overlay lifecycle, manual draining, or polling.
 

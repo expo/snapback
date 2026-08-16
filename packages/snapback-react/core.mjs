@@ -21,6 +21,7 @@ export {
   useSnapbackConnection,
   useSnapbackDiagnostics,
   useSnapbackMutation,
+  useSnapbackActivityPresence,
   useSnapbackOptimisticCreate,
   useSnapbackOutbox,
   useSnapbackPresence,

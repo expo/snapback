@@ -1,12 +1,18 @@
 # LLP 0257: Activity-scoped presence convenience
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Developer
 experience, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-15
-**Revised:** 2026-08-15 (r7, super-refine round-6 response, applied at
+**Revised:** 2026-08-15 (implementation reconciliation, landed with the
+implementation: `excludeSelf?: boolean` restored to the public options
+(default `true` removes only the `selfKey` entry; `false` opts out); error
+class 1 pinned to preserve a previously admitted, unexpired generation
+until its original deadline — a failed thunk refresh neither extends nor
+withdraws it; status → Implemented). 2026-08-15 (r7, super-refine round-6
+response, applied at
 loop close and unreviewed as a delta: a fifth error class added for
 lifecycle-observation failure in the Expo wrapper with an explicit
 refusal projection; the gated admission pinned to an internal
@@ -101,6 +107,7 @@ const presence = useSnapbackActivityPresence(ephemeral.typing, {
   value: () => ({ userHandle: self, name }), // evaluated on each touch()
   idleMs: 3_000,          // withdraw this long after the last touch()
   ttlMs?: number,          // per-publish TTL; default = collection default
+  excludeSelf?: boolean,   // default true: peers omits the selfKey entry
   onError?: (diagnostic) => void,
 });
 // presence: { status, active, touch, withdraw, peers, publisher,
@@ -209,7 +216,11 @@ the channels, not by rejection).
 1. **Value-thunk throw** — caught by the helper; no publish is attempted.
    The thrown value is wrapped into a typed helper diagnostic (a stable
    `SNAPBACK_REACT_ACTIVITY_*` code via the existing error-serialization
-   path) so `lastError` remains a `SnapbackDiagnostic`, never untyped.
+   path) so `lastError` remains a `SnapbackDiagnostic`, never untyped. A
+   thunk failure on a `touch()` while a previously admitted generation is
+   still unexpired preserves that generation untouched — armed until its
+   original deadline, neither extended nor withdrawn — so a transient
+   thunk bug cannot silently tear down live intent.
 2. **Admission refusal** — the base observer `publish` is `async` and runs
    admission before any await, so a refusal (TTL/value bounds, payload
    size, heartbeat budget, same-room value conflict) arrives as an
@@ -246,10 +257,11 @@ suspension/publish-error, the next `touch()` is an ordinary re-admitting
 action, exactly as the demo behaves today; admission bounds (rate/size)
 refuse before wire work.
 
-Self-filtering removes only the granted connection's entry. Same-user
-other-device entries are a domain concept the helper cannot identify;
-apps keep their one-line value-level filter (the guide example will show
-it). A caller-supplied peer predicate is deferred.
+Self-filtering removes only the granted connection's entry, controlled by
+`excludeSelf` (default `true`; `false` keeps the self entry in `peers`).
+Same-user other-device entries are a domain concept the helper cannot
+identify; apps keep their one-line value-level filter (the guide example
+shows it). A caller-supplied peer predicate is deferred.
 
 ### Expo: backgrounding and resume
 

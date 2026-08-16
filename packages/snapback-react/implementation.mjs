@@ -11,8 +11,11 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
 } from 'react';
+
+import { SnapbackDiagnosticError } from '@expo/snapback-client/diagnostic-error';
 
 import {
   admittedReactCommand,
@@ -51,6 +54,13 @@ import { placeholderToDataURL, thumbHashToApproximateAspectRatio } from './thumb
 // transactional, with only unique one-for-one supersession at saturation.
 
 export const skip = Symbol.for('snapback.react.skip.v1');
+
+const ACTIVITY_PRESENCE_INTERNAL = Symbol.for(
+  'snapback.react.activity-presence.internal.v1',
+);
+const ACTIVITY_CAPTURE_EMPTY = Symbol('snapback.react.activity-presence.capture-empty');
+const ACTIVITY_IDLE_MIN_MS = 250;
+const ACTIVITY_IDLE_MAX_MS = 2_147_483_647;
 
 const QUERY_CACHE_CAP = 256;
 const CONSUMER_CAP = 1_024;
@@ -4073,6 +4083,508 @@ export function useSnapbackPresence(reference, options) {
     () => provider.registry.presenceSnapshot(descriptor, token),
     () => provider.registry.presenceSnapshot(descriptor, token),
   );
+}
+
+function activityPresenceDiagnostic(code, message, details = {}) {
+  return diagnostic(code, message, details);
+}
+
+function assertActivityPresenceIdleMs(idleMs) {
+  if (
+    !Number.isSafeInteger(idleMs)
+    || idleMs < ACTIVITY_IDLE_MIN_MS
+    || idleMs > ACTIVITY_IDLE_MAX_MS
+  ) {
+    const value = activityPresenceDiagnostic(
+      'SNAPBACK_REACT_ACTIVITY_IDLE_MS_INVALID',
+      'activity presence idleMs must be a safe integer from 250ms through 2147483647ms',
+      {
+        idleMs,
+        minIdleMs: ACTIVITY_IDLE_MIN_MS,
+        maxIdleMs: ACTIVITY_IDLE_MAX_MS,
+      },
+    );
+    throw new SnapbackDiagnosticError(value, {
+      operation: 'activity-presence',
+      refKind: 'ephemeralCollection',
+    });
+  }
+}
+
+function activityThunkDiagnostic(error) {
+  const cause = serializeError(error);
+  return activityPresenceDiagnostic(
+    'SNAPBACK_REACT_ACTIVITY_VALUE_FAILED',
+    'activity presence value thunk failed',
+    {
+      causeCode: cause.code,
+      causeMessage: cause.message,
+    },
+  );
+}
+
+/**
+ * Activity-scoped projection over the canonical observer-mode presence hook.
+ * The third argument is an intentionally untyped package-private seam used by
+ * the Expo facade to gate admission while its lifecycle source is resolving.
+ */
+export function useSnapbackActivityPresence(reference, options, internalOptions = null) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    throw new TypeError(
+      'useSnapbackActivityPresence requires scope, value, and idleMs options',
+    );
+  }
+  if (typeof options.value !== 'function') {
+    throw new TypeError('useSnapbackActivityPresence value must be a function');
+  }
+  if (options.onError !== undefined && typeof options.onError !== 'function') {
+    throw new TypeError('useSnapbackActivityPresence onError must be a function');
+  }
+  if (options.excludeSelf !== undefined && typeof options.excludeSelf !== 'boolean') {
+    throw new TypeError('useSnapbackActivityPresence excludeSelf must be a boolean');
+  }
+  // @ref LLP 0257#design — invalid idle configuration is an unconditional,
+  // typed render-time refusal, outside the constructed hook's error algebra.
+  assertActivityPresenceIdleMs(options.idleMs);
+
+  const provider = useProvider();
+  const presence = useSnapbackPresence(reference, {
+    scope: options.scope,
+    value: skip,
+  });
+  const scopeKey = canonicalContractInputKey(reference.scopeContract, options.scope, 'scope');
+  const lifecycleGated = internalOptions?.[ACTIVITY_PRESENCE_INTERNAL]?.gated === true;
+  const [, forceRender] = useState(0);
+  const activityRef = useRef(null);
+  if (activityRef.current === null) {
+    activityRef.current = {
+      provider,
+      reference,
+      scopeKey,
+      generation: 0,
+      active: false,
+      deadlineMs: null,
+      captured: ACTIVITY_CAPTURE_EMPTY,
+      admittedGeneration: null,
+      deferredWithdrawalGeneration: null,
+      timer: null,
+      mounted: false,
+      disposed: false,
+      mountEpoch: 0,
+      lastError: null,
+      lastPublisherError: null,
+      lifecycle: lifecycleGated ? 'pending' : 'active',
+      lifecycleGated,
+      latest: null,
+      internal: null,
+    };
+  }
+  const activity = activityRef.current;
+  activity.latest = {
+    idleMs: options.idleMs,
+    onError: options.onError,
+    presence,
+    ttlMs: options.ttlMs,
+    value: options.value,
+  };
+
+  const clearActivityTimer = useCallback(() => {
+    if (activity.timer !== null) clearTimeout(activity.timer);
+    activity.timer = null;
+  }, [activity]);
+
+  const notifyActivity = useCallback(() => {
+    if (!activity.mounted || activity.disposed) return;
+    forceRender((revision) => revision + 1);
+  }, [activity]);
+
+  const reportActivityError = useCallback((value) => {
+    const projected = value?.schemaVersion === 'snapback.client-diagnostic.v1'
+      ? value
+      : serializeError(value);
+    activity.lastError = projected;
+    notifyActivity();
+    try { activity.latest.onError?.(projected); } catch { /* observational */ }
+  }, [activity, notifyActivity]);
+
+  const attemptActivityWithdrawal = useCallback((generation, {
+    clearErrorOnSuccess = true,
+  } = {}) => {
+    let task;
+    try {
+      task = activity.latest.presence.delete();
+    } catch (error) {
+      reportActivityError(error);
+      return Promise.resolve();
+    }
+    // @ref LLP 0257#result-and-error-surface — attach both settlement arms
+    // immediately: base withdrawal rejection is otherwise absent from the
+    // level-triggered publisher state.
+    return Promise.resolve(task).then(
+      () => {
+        if (
+          clearErrorOnSuccess
+          && activity.generation === generation
+          && activity.lifecycle !== 'failed'
+          && activity.lastError !== null
+        ) {
+          activity.lastError = null;
+          notifyActivity();
+        }
+      },
+      (error) => {
+        reportActivityError(error);
+      },
+    ).then(() => undefined);
+  }, [activity, notifyActivity, reportActivityError]);
+
+  const expireActivity = useCallback((generation, deadlineMs, {
+    notify = true,
+    deferWithdrawal = false,
+  } = {}) => {
+    if (
+      activity.disposed
+      || !activity.mounted
+      || !activity.active
+      || activity.generation !== generation
+      || activity.deadlineMs !== deadlineMs
+    ) return false;
+    const remainingMs = deadlineMs - Date.now();
+    if (remainingMs > 0) return false;
+    if (!deferWithdrawal) clearActivityTimer();
+    activity.active = false;
+    activity.deadlineMs = null;
+    activity.captured = ACTIVITY_CAPTURE_EMPTY;
+    activity.admittedGeneration = null;
+    if (notify) notifyActivity();
+    if (deferWithdrawal) activity.deferredWithdrawalGeneration = generation;
+    else void attemptActivityWithdrawal(generation);
+    return true;
+  }, [activity, attemptActivityWithdrawal, clearActivityTimer, notifyActivity]);
+
+  const scheduleActivityDeadline = useCallback((generation, deadlineMs) => {
+    clearActivityTimer();
+    const schedule = () => {
+      if (
+        activity.disposed
+        || !activity.mounted
+        || !activity.active
+        || activity.generation !== generation
+        || activity.deadlineMs !== deadlineMs
+      ) return;
+      const remainingMs = deadlineMs - Date.now();
+      if (remainingMs <= 0) {
+        expireActivity(generation, deadlineMs);
+        return;
+      }
+      // @ref LLP 0257#activity-model-absolute-deadline-plus-generation-fence
+      // — a stale or late timer must prove both the activity generation and
+      // the absolute deadline before withdrawing.
+      activity.timer = setTimeout(schedule, remainingMs);
+      activity.timer.unref?.();
+    };
+    schedule();
+  }, [activity, clearActivityTimer, expireActivity]);
+
+  const admitCapturedActivity = useCallback((generation, captured) => {
+    if (
+      activity.disposed
+      || !activity.mounted
+      || activity.lifecycle !== 'active'
+      || !activity.active
+      || activity.generation !== generation
+      || activity.captured !== captured
+      || activity.admittedGeneration === generation
+    ) return;
+    const deadlineMs = activity.deadlineMs;
+    if (deadlineMs === null || deadlineMs <= Date.now()) {
+      expireActivity(generation, deadlineMs);
+      return;
+    }
+    activity.admittedGeneration = generation;
+    let task;
+    try {
+      task = activity.latest.presence.publish(
+        captured,
+        activity.latest.ttlMs === undefined
+          ? undefined
+          : { ttlMs: activity.latest.ttlMs },
+      );
+    } catch (error) {
+      activity.admittedGeneration = null;
+      reportActivityError(error);
+      return;
+    }
+    // Admission executes synchronously inside the async base action. Install
+    // the rejection handler in this same call stack so its already-rejected
+    // promise can never become an unhandled rejection.
+    void Promise.resolve(task).then(
+      () => {
+        if (activity.generation !== generation) return;
+        if (activity.lastError !== null) {
+          activity.lastError = null;
+          notifyActivity();
+        }
+      },
+      (error) => {
+        if (activity.generation === generation) activity.admittedGeneration = null;
+        reportActivityError(error);
+      },
+    );
+  }, [activity, expireActivity, notifyActivity, reportActivityError]);
+
+  const withdraw = useCallback(() => {
+    if (activity.disposed || !activity.mounted) return Promise.resolve();
+    clearActivityTimer();
+    activity.generation += 1;
+    const generation = activity.generation;
+    activity.active = false;
+    activity.deadlineMs = null;
+    activity.captured = ACTIVITY_CAPTURE_EMPTY;
+    activity.admittedGeneration = null;
+    activity.deferredWithdrawalGeneration = null;
+    notifyActivity();
+    return attemptActivityWithdrawal(generation);
+  }, [activity, attemptActivityWithdrawal, clearActivityTimer, notifyActivity]);
+
+  const touch = useCallback(() => {
+    if (
+      activity.disposed
+      || !activity.mounted
+      || activity.lifecycle === 'failed'
+      || activity.lifecycle === 'inactive'
+    ) return;
+    const now = Date.now();
+    if (
+      activity.active
+      && activity.deadlineMs !== null
+      && activity.deadlineMs <= now
+    ) {
+      const expiredGeneration = activity.generation;
+      clearActivityTimer();
+      activity.active = false;
+      activity.deadlineMs = null;
+      activity.captured = ACTIVITY_CAPTURE_EMPTY;
+      activity.admittedGeneration = null;
+      activity.deferredWithdrawalGeneration = null;
+      // Clear the predecessor intent synchronously before admitting a new
+      // generation. LLP 0247 D3 fences the in-flight wire withdrawal.
+      void attemptActivityWithdrawal(expiredGeneration);
+    }
+
+    let captured;
+    try {
+      captured = activity.latest.value();
+    } catch (error) {
+      reportActivityError(activityThunkDiagnostic(error));
+      return;
+    }
+    activity.generation += 1;
+    const generation = activity.generation;
+    const deadlineMs = now + activity.latest.idleMs;
+    activity.active = true;
+    activity.deadlineMs = deadlineMs;
+    activity.captured = captured;
+    activity.admittedGeneration = null;
+    activity.deferredWithdrawalGeneration = null;
+    scheduleActivityDeadline(generation, deadlineMs);
+    notifyActivity();
+    if (activity.lifecycle === 'active') admitCapturedActivity(generation, captured);
+  }, [
+    activity,
+    admitCapturedActivity,
+    attemptActivityWithdrawal,
+    clearActivityTimer,
+    notifyActivity,
+    reportActivityError,
+    scheduleActivityDeadline,
+  ]);
+
+  activity.admitCapturedActivity = admitCapturedActivity;
+  activity.attemptActivityWithdrawal = attemptActivityWithdrawal;
+  activity.clearActivityTimer = clearActivityTimer;
+  activity.expireActivity = expireActivity;
+  activity.notifyActivity = notifyActivity;
+  activity.withdraw = withdraw;
+
+  if (activity.internal === null) {
+    activity.internal = Object.freeze({
+      setLifecycleActive(active) {
+        if (activity.disposed || !activity.mounted || activity.lifecycle === 'failed') return;
+        if (active !== true) {
+          activity.lifecycle = 'inactive';
+          void activity.withdraw();
+          return;
+        }
+        activity.lifecycle = 'active';
+        if (!activity.active) {
+          activity.notifyActivity();
+          return;
+        }
+        const generation = activity.generation;
+        const deadlineMs = activity.deadlineMs;
+        const captured = activity.captured;
+        if (deadlineMs === null || deadlineMs <= Date.now()) {
+          activity.expireActivity(generation, deadlineMs);
+          return;
+        }
+        if (captured !== ACTIVITY_CAPTURE_EMPTY) {
+          // @ref LLP 0257#expo-backgrounding-and-resume — deferred Expo
+          // admission uses the value captured by touch(), never the current
+          // thunk or a re-evaluation during lifecycle resolution.
+          activity.admitCapturedActivity(generation, captured);
+        }
+        activity.notifyActivity();
+      },
+      failLifecycle(diagnosticValue) {
+        if (activity.disposed || activity.lifecycle === 'failed') return;
+        activity.lifecycle = 'failed';
+        activity.clearActivityTimer();
+        activity.generation += 1;
+        const generation = activity.generation;
+        activity.active = false;
+        activity.deadlineMs = null;
+        activity.captured = ACTIVITY_CAPTURE_EMPTY;
+        activity.admittedGeneration = null;
+        activity.deferredWithdrawalGeneration = null;
+        reportActivityError(diagnosticValue);
+        void activity.attemptActivityWithdrawal(generation, {
+          clearErrorOnSuccess: false,
+        });
+      },
+    });
+  }
+
+  if (
+    activity.provider !== provider
+    || activity.reference !== reference
+    || activity.scopeKey !== scopeKey
+  ) {
+    // @ref LLP 0257#scope-identity-and-scope-change — activity never migrates
+    // with the base token into a successor room; the old base lease owns its
+    // fenced withdrawal and the new room starts locally withdrawn.
+    clearActivityTimer();
+    activity.provider = provider;
+    activity.reference = reference;
+    activity.scopeKey = scopeKey;
+    activity.generation += 1;
+    activity.active = false;
+    activity.deadlineMs = null;
+    activity.captured = ACTIVITY_CAPTURE_EMPTY;
+    activity.admittedGeneration = null;
+    activity.deferredWithdrawalGeneration = null;
+    activity.lastError = null;
+    activity.lastPublisherError = null;
+  }
+
+  // Render-time absolute-deadline backstop. The synchronous local transition
+  // prevents stale activity presentation; the base delete is generation- and
+  // entry-version-fenced if a successor touch wins before the passive action.
+  if (
+    activity.active
+    && activity.deadlineMs !== null
+    && activity.deadlineMs <= Date.now()
+  ) {
+    const generation = activity.generation;
+    const deadlineMs = activity.deadlineMs;
+    expireActivity(generation, deadlineMs, {
+      notify: false,
+      deferWithdrawal: true,
+    });
+  }
+
+  useEffect(() => {
+    activity.disposed = false;
+    activity.mounted = true;
+    const mountedEpoch = ++activity.mountEpoch;
+    if (activity.active && activity.deadlineMs !== null && activity.timer === null) {
+      scheduleActivityDeadline(activity.generation, activity.deadlineMs);
+    }
+    return () => {
+      activity.mounted = false;
+      clearActivityTimer();
+      const cleanupEpoch = ++activity.mountEpoch;
+      queueMicrotask(() => {
+        if (
+          activity.mounted
+          || activity.mountEpoch !== cleanupEpoch
+          || mountedEpoch >= cleanupEpoch
+        ) return;
+        activity.disposed = true;
+        activity.generation += 1;
+        const generation = activity.generation;
+        activity.active = false;
+        activity.deadlineMs = null;
+        activity.captured = ACTIVITY_CAPTURE_EMPTY;
+        activity.admittedGeneration = null;
+        activity.deferredWithdrawalGeneration = null;
+        void attemptActivityWithdrawal(generation);
+      });
+    };
+  }, [activity, attemptActivityWithdrawal, clearActivityTimer, scheduleActivityDeadline]);
+
+  useEffect(() => {
+    const generation = activity.deferredWithdrawalGeneration;
+    if (generation === null) return;
+    activity.deferredWithdrawalGeneration = null;
+    if (activity.generation === generation && !activity.active) {
+      // Render owns the synchronous deadline backstop; passive work performs
+      // the fenced base action so rendering itself stays side-effect free.
+      void attemptActivityWithdrawal(generation);
+    }
+  });
+
+  useEffect(() => {
+    if (activity.active && activity.deadlineMs !== null) {
+      if (!expireActivity(activity.generation, activity.deadlineMs) && activity.timer === null) {
+        scheduleActivityDeadline(activity.generation, activity.deadlineMs);
+      }
+    }
+  }, [
+    activity,
+    expireActivity,
+    presence.connection,
+    presence.publisher.status,
+    presence.status,
+    scheduleActivityDeadline,
+  ]);
+
+  useEffect(() => {
+    if (presence.publisher.status !== 'publish-error') {
+      activity.lastPublisherError = null;
+      return;
+    }
+    const publisherDiagnostic = presence.publisher.diagnostic;
+    if (activity.lastPublisherError === publisherDiagnostic) return;
+    activity.lastPublisherError = publisherDiagnostic;
+    // @ref LLP 0257#result-and-error-surface — transport failures are
+    // level-triggered; report each distinct publisher transition React
+    // actually observes, without claiming wire-occurrence cardinality.
+    reportActivityError(publisherDiagnostic);
+  }, [activity, presence.publisher, reportActivityError]);
+
+  const peers = useMemo(() => Object.freeze(
+    options.excludeSelf === false || presence.selfKey === null
+      ? [...presence.entries]
+      : presence.entries.filter((entry) => entry.key !== presence.selfKey),
+  ), [options.excludeSelf, presence.entries, presence.selfKey]);
+
+  const result = {
+    status: presence.status,
+    active: activity.active,
+    touch,
+    withdraw,
+    peers,
+    publisher: presence.publisher,
+    connection: presence.connection,
+    diagnostic: presence.diagnostic,
+    lastError: activity.lastError,
+  };
+  Object.defineProperty(result, ACTIVITY_PRESENCE_INTERNAL, {
+    value: activity.internal,
+    enumerable: false,
+  });
+  return Object.freeze(result);
 }
 
 function validateEntries(provider, entries) {

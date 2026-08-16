@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import * as packageEntry from './index.mjs';
 import { db as expoDataDb } from './data.mjs';
 import { db as reactDataDb } from '@expo/snapback-react/data';
+import { useSnapbackActivityPresence as reactActivityPresence } from '@expo/snapback-react';
 
 const require = createRequire(import.meta.url);
 
@@ -56,6 +57,12 @@ assert.equal(typeof packageEntry.adaptExpoAssetSource, 'function');
 assert.equal(typeof packageEntry.useSnapbackQuery, 'function');
 assert.equal(typeof packageEntry.useSnapbackMutation, 'function');
 assert.equal(typeof packageEntry.useSnapbackSettledMutation, 'function');
+assert.equal(typeof packageEntry.useSnapbackActivityPresence, 'function');
+assert.notEqual(
+  packageEntry.useSnapbackActivityPresence,
+  reactActivityPresence,
+  'the Expo facade installs lifecycle policy around the canonical React hook',
+);
 assert.equal(packageEntry.APP_BINDING_FORMAT, 'snapback.app-binding.v1');
 assert.equal(expoDataDb, reactDataDb, 'Expo data is the byte-identical React doorway');
 assert.deepEqual(Object.keys(await import('./data.mjs')), ['db']);
@@ -73,6 +80,8 @@ const productionSources = [
   'app-binding.mjs',
   'supervised-environment.mjs',
   'asset-source.mjs',
+  'activity-presence.mjs',
+  'lifecycle-source.mjs',
   'data.mjs',
 ]
   .map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'))

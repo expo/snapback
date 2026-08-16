@@ -5,6 +5,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@generated/*": ["./snapback/generated/*"],
+      "@messenger/snapback-expo": ["../../packages/snapback-expo/index.d.mts"],
       "@messenger/snapback-react": ["../../packages/snapback-react/index.d.mts"]
     },
     "resolveJsonModule": true

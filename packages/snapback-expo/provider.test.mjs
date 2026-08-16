@@ -186,6 +186,7 @@ assert.equal(ready.authority.bearerToken, undefined);
 assert.equal(ready.authority.sessionId, 'session-public-id');
 assert.equal(ready.binding.target.origin, binding.target.origin);
 assert.equal(authorityAdoptions, 1);
+assert.strictEqual(boot.lifecycleSource(), appState);
 assert.equal(appState.count(), 1);
 appState.emit('background');
 appState.emit('active');

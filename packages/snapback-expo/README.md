@@ -17,6 +17,11 @@ AppState lifecycle shell and the picker-URI asset adapter, and emits a public in
 `expo.extra.snapback.integrationReceipt`.
 
 The provider registers the adapter once on the existing React/client owner.
+Import `useSnapbackActivityPresence` from this facade for typing indicators and
+similar intent-scoped presence. It gates foreground admission and adds
+background withdrawal to the canonical React hook while sharing the provider's
+exact AppState-compatible lifecycle source.
+
 Pass an `expo-image-picker` asset directly to a generated command; the adapter
 uses `expo/fetch` to read `content://`, `ph://`, or `file://` into an immutable,
 slice-readable structural Blob source that the ordinary asset task already
