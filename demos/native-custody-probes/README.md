@@ -32,6 +32,7 @@ SNAPBACK_RUNTIME_BINARY=/path/to/snapback \
   --udid <available-simulator-udid> \
   --server-port 4298 \
   --director-port 18771 \
+  --metro-port 8081 \
   --iterations 15 \
   --ios-extension-evidence /path/to/supervisor-native-refusal-evidence.txt
 ```
@@ -51,8 +52,10 @@ omitted. iOS accepts `--derived-data` and `--app-path`; Android accepts
 `--serial`, `--adb`, `--emulator`, and `--apk`. `--skip-build` reuses the
 resolved `.app` or APK only when an earlier per-run build receipt binds its
 current SHA-256; otherwise the runner refuses. It still generates the backend,
-installs JavaScript dependencies, starts the backend, and (for Android debug)
-starts Metro. Leakage scanning is mandatory and always runs; the dead
+installs JavaScript dependencies, starts the backend, and starts harness-owned
+Metro for both Debug native builds. The iOS Metro port is pinned to 8081 because
+the app uses `RCTBundleURLProvider`'s default with no app-side override. Leakage
+scanning is mandatory and always runs; the dead
 `--leakage-scan` flag has been removed because it never changed that behavior.
 
 The iOS fresh-install precondition resets the selected simulator keychain.

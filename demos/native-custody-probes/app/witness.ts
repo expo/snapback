@@ -84,12 +84,27 @@ export async function startWitness(
           atMs: Date.now(),
         });
       } catch (error) {
-        const candidate = error as { code?: unknown; diagnostic?: { code?: unknown } };
+        const candidate = error as {
+          code?: unknown;
+          message?: unknown;
+          diagnostic?: { code?: unknown; details?: unknown; message?: unknown };
+        };
         const code = typeof candidate?.diagnostic?.code === 'string'
           ? candidate.diagnostic.code
           : typeof candidate?.code === 'string'
             ? candidate.code
             : 'SNAPBACK_NATIVE_PROBE_FAILED';
+        // Typed diagnostic details and messages are non-secret triage facts;
+        // bearer material never travels through diagnostics by contract.
+        let details: unknown;
+        try {
+          details = JSON.parse(JSON.stringify(
+            candidate?.diagnostic?.details
+            ?? { rawMessage: String(candidate?.diagnostic?.message ?? candidate?.message ?? '') },
+          ));
+        } catch {
+          details = 'unserializable';
+        }
         await post(directorOrigin, '/result', {
           schemaVersion: 'snapback.native-custody-result.v1',
           launchId,
@@ -99,6 +114,7 @@ export async function startWitness(
           error: {
             code,
             message: `Native custody probe command refused with ${code}.`,
+            details,
           },
           atMs: Date.now(),
         });

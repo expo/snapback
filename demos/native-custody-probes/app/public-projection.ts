@@ -9,9 +9,24 @@ export function diagnosticCode(error: unknown): string {
 
 export function publicError(error: unknown) {
   const code = diagnosticCode(error);
+  // Typed diagnostic details are non-secret facts (hostnames, codes,
+  // classifications) and are required to triage on-device refusals; bearer
+  // material never travels through diagnostic details by contract.
+  const candidate = error as {
+    details?: unknown;
+    diagnostic?: { details?: unknown };
+  } | null;
+  const rawDetails = candidate?.diagnostic?.details ?? candidate?.details;
+  let details: unknown = null;
+  try {
+    details = rawDetails === undefined ? null : JSON.parse(JSON.stringify(rawDetails));
+  } catch {
+    details = 'unserializable';
+  }
   return Object.freeze({
     code,
     message: `Native custody probe refused with ${code}.`,
+    ...(details === null ? {} : { details }),
   });
 }
 

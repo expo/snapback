@@ -234,10 +234,12 @@ async function tightWriteLoop() {
       });
       sequence += 1;
       const facts = publicCustodyFacts(record);
-      // Initiate the entry pulse before native replace without awaiting the
-      // HTTP acknowledgement. The host can therefore act while the native
-      // compare-and-replace promise is still unresolved.
-      const enteredPulse = emit('write-entered', {
+      // Lockstep: the entered pulse is AWAITED before the native replace, so
+      // the host's acknowledged view is never more than one write behind and
+      // the restored revision is provably the acknowledged predecessor or its
+      // immediate successor. A fire-and-forget pulse lets the loop race
+      // dozens of writes past the host's kill decision.
+      await emit('write-entered', {
         loopId,
         sequence,
         predecessorRevision: record.revision,
@@ -248,7 +250,6 @@ async function tightWriteLoop() {
         principalId: facts.principalId,
       });
       const written = await replaceFrom(record);
-      await enteredPulse;
       await emit('write-completed', {
         loopId,
         sequence,
@@ -420,11 +421,28 @@ export async function executeProbeCommand(command: ProbeCommand): Promise<unknow
       return Object.freeze({ principal: publicPrincipal(auth.currentPrincipal()), credentialEntryCalls });
     }
     case 'protectedRead': {
-      const query = await waitFor(() => (
-        runtime.query !== null && ['ready', 'error', 'blocked'].includes(runtime.query.status)
-          ? runtime.query
-          : null
-      ), 'protected query');
+      let query;
+      try {
+        query = await waitFor(() => (
+          runtime.query !== null && ['ready', 'error', 'blocked'].includes(runtime.query.status)
+            ? runtime.query
+            : null
+        ), 'protected query');
+      } catch (error) {
+        const snapshot = runtime.query;
+        throw Object.assign(error as Error, {
+          diagnostic: {
+            code: 'SNAPBACK_NATIVE_PROBE_TIMEOUT',
+            details: {
+              lastQueryStatus: snapshot?.status ?? 'never-observed',
+              lastQueryDiagnostic: snapshot && 'error' in snapshot
+                ? publicError((snapshot as { error?: unknown }).error)
+                : null,
+              bootStatus: (runtime.boot as { status?: unknown } | null)?.status ?? null,
+            },
+          },
+        });
+      }
       return Object.freeze({
         status: query.status,
         rowCount: Array.isArray(query.data) ? query.data.length : 0,
@@ -432,6 +450,28 @@ export async function executeProbeCommand(command: ProbeCommand): Promise<unknow
       });
     }
     case 'custodyFacts': return custodyFacts();
+    case 'urlProbe': {
+      // Environment preflight: proves the on-device URL implementation
+      // round-trips the binding origin the way app-client's target
+      // canonicalization requires. No custody or network involved.
+      const value = String(args.value ?? '');
+      try {
+        const parsed = new URL(value);
+        return Object.freeze({
+          value,
+          origin: parsed.origin,
+          hostname: parsed.hostname,
+          pathname: parsed.pathname,
+          search: parsed.search,
+          hash: parsed.hash,
+          username: parsed.username,
+          credentialPassword: parsed.password === '' ? '' : 'nonempty',
+          href: parsed.href,
+        });
+      } catch (error) {
+        return Object.freeze({ value, threw: String(error) });
+      }
+    }
     case 'probeState': return probeState();
     case 'probeCounters': return Object.freeze({
       credentialEntryCalls,

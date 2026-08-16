@@ -168,6 +168,7 @@ export function matchingPriorBuildReceipt({
   platform,
   bundleId,
   artifactSha256,
+  expectedArtifactFacts = {},
 }) {
   for (const path of filesNamed(evidenceRoot, 'build-receipt.json')) {
     if (path.startsWith(`${currentRunDirectory}/`)) continue;
@@ -178,6 +179,9 @@ export function matchingPriorBuildReceipt({
         && receipt.platform === platform
         && receipt.bundleId === bundleId
         && receipt.artifact?.sha256 === artifactSha256
+        && Object.entries(expectedArtifactFacts).every(
+          ([key, value]) => receipt.artifact?.[key] === value,
+        )
       ) {
         return Object.freeze({
           path: relative(evidenceRoot, path),

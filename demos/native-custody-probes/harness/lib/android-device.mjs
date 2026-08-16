@@ -73,8 +73,9 @@ export async function createAndroidDevice({ appRoot, evidence, options }) {
     ownerFile: metroOwnerFile,
     role: 'metro',
   });
+  // --clear mirrors the iOS arm: no stale transform can reach evidence runs.
   metro = spawnOwned('Expo Metro', join(appRoot, 'node_modules', '.bin', 'expo'), [
-    'start', '--dev-client', '--port', String(options.metroPort),
+    'start', '--dev-client', '--port', String(options.metroPort), '--clear',
   ], {
     cwd: appRoot,
     env: { CI: '1', EXPO_NO_TELEMETRY: '1' },
@@ -140,19 +141,23 @@ export async function createAndroidDevice({ appRoot, evidence, options }) {
         options.bundleId,
       );
     },
-    async kill({ midWrite = false } = {}) {
+    async locate() {
+      const pid = (await adb('shell', 'pidof', options.bundleId)).trim().split(/\s+/u)[0];
+      return /^\d+$/u.test(pid) ? Object.freeze({ pid: Number(pid) }) : null;
+    },
+    async kill({ midWrite = false, row: providedRow = null } = {}) {
       if (!midWrite) {
         await forceStop();
         return Object.freeze({ mechanism: 'am force-stop', verifiedGone: true });
       }
-      const pid = (await adb('shell', 'pidof', options.bundleId)).trim().split(/\s+/u)[0];
-      if (!/^\d+$/u.test(pid)) throw new Error(`P2/android-kill: no PID for ${options.bundleId}`);
-      const numericPid = Number(pid);
+      const located = providedRow ?? await this.locate();
+      if (located === null) throw new Error(`P2/android-kill: no PID for ${options.bundleId}`);
+      const numericPid = located.pid;
       const attempts = [];
       let mechanism = null;
       for (const candidate of [
-        ['run-as', ['shell', 'run-as', options.bundleId, 'kill', '-9', pid]],
-        ['plain', ['shell', 'kill', '-9', pid]],
+        ['run-as', ['shell', 'run-as', options.bundleId, 'kill', '-9', String(numericPid)]],
+        ['plain', ['shell', 'kill', '-9', String(numericPid)]],
       ]) {
         try {
           await adb(...candidate[1]);
@@ -174,7 +179,7 @@ export async function createAndroidDevice({ appRoot, evidence, options }) {
         }
       }
       if (mechanism === null) {
-        throw Object.assign(new Error(`P2/android-kill: verified SIGKILL was impossible for PID ${pid}`), {
+        throw Object.assign(new Error(`P2/android-kill: verified SIGKILL was impossible for PID ${numericPid}`), {
           code: 'SNAPBACK_NATIVE_PROBE_SIGKILL_UNVERIFIED',
           attempts,
         });
@@ -223,7 +228,9 @@ export async function createAndroidDevice({ appRoot, evidence, options }) {
       );
     },
     artifact() {
-      return Object.freeze({ kind: 'apk', path: apk, binaryPath: apk });
+      return Object.freeze({
+        nativeBuildConfiguration: 'debug',
+        bundleDelivery: 'metro', kind: 'apk', path: apk, binaryPath: apk });
     },
     async reinstallPreservingOsCustody() {
       await forceStop();

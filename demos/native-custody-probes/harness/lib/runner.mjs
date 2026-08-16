@@ -29,6 +29,9 @@ function publicFailure(error) {
     code,
     message: error instanceof Error ? error.message : String(error),
     ...(Array.isArray(error?.attempts) ? { attempts: error.attempts } : {}),
+    ...(error?.observed !== undefined && error?.observed !== null
+      ? { observed: error.observed }
+      : {}),
   };
 }
 
@@ -140,6 +143,7 @@ export async function runNativeCustodyHarness({
     if (envelope.ok !== true) {
       throw Object.assign(new Error(envelope.error?.message ?? `${name} failed in the app`), {
         code: envelope.error?.code ?? 'SNAPBACK_NATIVE_PROBE_APP_COMMAND_FAILED',
+        ...(envelope.error?.details !== undefined ? { observed: envelope.error.details } : {}),
       });
     }
     return envelope.result;
@@ -236,6 +240,13 @@ export async function runNativeCustodyHarness({
         platform,
         bundleId: artifactBundleId,
         artifactSha256,
+        // A reused artifact must have been built under the same recorded
+        // configuration and bundle-delivery posture, or the receipt would
+        // mislabel a Release/embedded build as the probed Debug+Metro one.
+        expectedArtifactFacts: {
+          nativeBuildConfiguration: artifact.nativeBuildConfiguration ?? null,
+          bundleDelivery: artifact.bundleDelivery ?? null,
+        },
       });
       if (reusedFrom === null) {
         throw new Error(
@@ -290,6 +301,20 @@ export async function runNativeCustodyHarness({
       { event: 'witness-ready' },
       launch,
       (value) => value.event === 'witness-ready',
+    );
+    const bindingOrigin = device.origin(options.serverPort);
+    await step(
+      'P0',
+      'device URL canonicalization preflight',
+      { origin: bindingOrigin, roundTrip: 'parsed.origin === value, root path, no credentials' },
+      () => command('urlProbe', { value: bindingOrigin }),
+      (value) => value.threw === undefined
+        && value.origin === bindingOrigin
+        && value.pathname === '/'
+        && value.search === ''
+        && value.hash === ''
+        && value.username === ''
+        && value.credentialPassword === '',
     );
     const initialBoot = await step(
       'P1',
@@ -420,6 +445,11 @@ export async function runNativeCustodyHarness({
           const eventStart = director.events.length;
           const armedAt = new Date().toISOString();
           const activeLaunchId = activeReady.launchId;
+          // Locate the process BEFORE starting the write loop: the PID lookup
+          // (simctl launchctl / adb pidof) costs hundreds of milliseconds, and
+          // paying it after arming lets the lockstepped loop advance dozens of
+          // writes past the armed target before the signal lands.
+          const locatedRow = typeof device.locate === 'function' ? await device.locate() : null;
           const loop = await command('tightWriteLoop');
           const selectionDeadline = Date.now() + 30_000;
           const skippedCompleted = new Set();
@@ -474,9 +504,15 @@ export async function runNativeCustodyHarness({
                 && event.details?.loopId === loop.loopId,
             ).map((event) => event.details.sequence);
           }
-          const targetSequence = pulse.details.sequence;
+          const armedTargetSequence = pulse.details.sequence;
+          // LLP 0263 asks for kills at random offsets: an immediate signal on
+          // a pre-located PID lands before the native commit nearly every
+          // time, which can never observe the committed-before-restore class.
+          // The last-entered selection keeps the revision bound exact under
+          // lockstep regardless of where in the window the kill lands.
+          await delay(Math.floor(Math.random() * 26));
           const killDispatchedAt = new Date().toISOString();
-          const kill = await device.kill({ midWrite: true });
+          const kill = await device.kill({ midWrite: true, row: locatedRow });
           await delay(200);
           const writeEvents = director.events.slice(eventStart).filter(
             (event) => event.launchId === activeLaunchId
@@ -486,7 +522,13 @@ export async function runNativeCustodyHarness({
           assertProbe(failures.length === 0, 'P2', 'tight-write loop reported failure', failures);
           const entered = writeEvents.filter((event) => event.event === 'write-entered');
           const completed = writeEvents.filter((event) => event.event === 'write-completed');
-          const target = pulse.details;
+          // Under the lockstep pulse discipline at most one write is in flight
+          // when the process dies, so the LAST entered pulse received brackets
+          // the death point exactly: the restored record must be that write's
+          // predecessor (killed before commit) or successor (committed before
+          // the kill landed, including a kill between writes).
+          const finalEntered = entered[entered.length - 1] ?? pulse;
+          const target = finalEntered.details;
           assertProbe(
             Number.isSafeInteger(target.sequence)
               && Number.isSafeInteger(target.predecessorRevision)
@@ -538,7 +580,8 @@ export async function runNativeCustodyHarness({
             arm: { eventIndex: eventStart, armedAt, launchId: activeLaunchId, loopId: loop.loopId },
             kill: { dispatchedAt: killDispatchedAt, ...kill },
             writeWindow: {
-              killTargetEnteredSequence: targetSequence,
+              armedTargetEnteredSequence: armedTargetSequence,
+              killTargetEnteredSequence: target.sequence,
               skippedCompletedSequences: [...skippedCompleted],
               completedBeforeKill,
               enteredSequencesAroundKill: entered.map((event) => event.details.sequence),
@@ -628,7 +671,20 @@ export async function runNativeCustodyHarness({
         custodyStorageOperationDelta: 0,
       },
       async () => {
-        const before = await command('probeCounters');
+        // The previous native-mode provider's coordinator issues a burst of
+        // custody reads while unmounting, so the provider is torn down FIRST
+        // and the baseline taken only after the counters are quiescent; the
+        // delta then attributes storage work to the ordinary boot alone.
+        await command('bootstrap', { mode: 'teardown' });
+        const quiesceDeadline = Date.now() + 20_000;
+        let before = await command('probeCounters');
+        for (;;) {
+          await delay(750);
+          const settled = await command('probeCounters');
+          if (settled.storageCounters.total === before.storageCounters.total) { before = settled; break; }
+          before = settled;
+          assertProbe(Date.now() < quiesceDeadline, 'P4', 'custody storage counters never quiesced before the ordinary boundary probe', before);
+        }
         const boot = await command('bootstrap', { mode: 'ordinary' }, 90_000);
         const after = await command('probeCounters');
         return Object.freeze({
@@ -860,10 +916,10 @@ export async function runNativeCustodyHarness({
       || ((secretSummary.bearer ?? 0) >= 1 && (secretSummary['recovery-code'] ?? 0) >= 1);
     writer.record('P6', 'in-memory secret inventory', {
       expected: successfulProbeFlow
-        ? { password: 1, bearerAtLeast: 1, recoveryCodeAtLeast: 1 }
-        : { password: 1, appSecrets: 'flow did not reach all secret producers' },
+        ? { passwordCount: 1, bearerAtLeast: 1, recoveryCodeAtLeast: 1 }
+        : { passwordCount: 1, appSecrets: 'flow did not reach all secret producers' },
       observed: {
-        password: 1,
+        passwordCount: 1,
         bearerReports: secretSummary.bearer ?? 0,
         recoveryCodeReports: secretSummary['recovery-code'] ?? 0,
         persistedByDirector: false,

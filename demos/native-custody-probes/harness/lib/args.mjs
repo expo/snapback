@@ -53,7 +53,7 @@ export function parseArgs(argv, platform, defaults) {
 
 export function harnessUsage(platform) {
   const targetOptions = platform === 'iOS'
-    ? '  --udid <id> --derived-data <path> --app-path <path>\n  --ios-extension-evidence <path> --preserve-keychain'
+    ? '  --udid <id> --derived-data <path> --app-path <path>\n  --ios-extension-evidence <path> --preserve-keychain\n  iOS Debug requires harness-owned Metro on --metro-port 8081'
     : '  --serial <id> --avd <name> --adb <path> --emulator <path> --apk <path>';
   return `${platform} native custody probe harness
 

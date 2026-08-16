@@ -10,3 +10,4 @@ ios/build/
 android/.gradle/
 android/build/
 android/app/build/
+ios/.xcode.env.local

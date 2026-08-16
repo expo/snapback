@@ -84,6 +84,20 @@ export default function App() {
   useEffect(() => {
     installMilestoneRenderer((next) => setMilestone(next as Milestone), launchId);
     installBootstrapInvoker((mode) => {
+      if (mode === 'teardown') {
+        // Unmount the current provider so its coordinator teardown storage
+        // reads settle OUTSIDE any measured probe window.
+        resetRuntimeProjection();
+        if (pending.current !== null) {
+          clearTimeout(pending.current.timer);
+          pending.current.reject(Object.assign(new Error('bootstrap superseded by teardown'), {
+            code: 'SNAPBACK_NATIVE_PROBE_BOOTSTRAP_SUPERSEDED',
+          }));
+          pending.current = null;
+        }
+        setRequest(null);
+        return Promise.resolve(Object.freeze({ mode: 'teardown', status: 'unmounted' }));
+      }
       if (!['native', 'ordinary'].includes(mode)) {
         return Promise.reject(Object.assign(new Error(`unknown bootstrap mode ${mode}`), {
           code: 'SNAPBACK_NATIVE_PROBE_BOOTSTRAP_MODE_UNKNOWN',
@@ -120,7 +134,15 @@ export default function App() {
     if (request === null) return null;
     const value: SnapbackExpoEnvironmentV1 = {
       format: 'snapback.expo-environment.v1',
-      appState: AppState,
+      // The probe pins an always-active app-state source: headless-booted
+      // simulators can report RN AppState 'inactive' indefinitely, and the
+      // provider correctly pauses live streams for non-active apps. Lifecycle
+      // pause/resume is not a property under Phase 2 probe test; the receipt
+      // records this injection.
+      appState: {
+        currentState: 'active',
+        addEventListener() { return { remove() {} }; },
+      },
       async resolveBinding() {
         const config = await fetchDirectorConfig() as { binding?: AppBindingV1 };
         if (config.binding === undefined) {
