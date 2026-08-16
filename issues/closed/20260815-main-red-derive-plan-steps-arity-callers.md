@@ -47,3 +47,16 @@ is theirs to claim, and unclaimed for 24h it becomes fix-forward for anyone.
   assertions still hold.
 - `cargo test` compiles on main (red set returns to the tracked
   content reds, currently the MediaRef family).
+
+## Resolution
+
+Resolved 2026-08-15, fixed forward same-evening (the semantic predecessor
+turned out to be unambiguous at both sites, so the 24h claim window was not
+needed). The owning lane fixed the storage preview caller concurrently
+(`35bc3cd82`, passing `db.schema()` — semantically identical to this run's
+draft, which was ceded to theirs on rebase); this landing fixes the remaining
+`tests/migration_corpus_v0.rs` caller by passing the `predecessor()` already
+constructed in `plan()`. Verified at the pre-race base: lib target compiles,
+`migration_preview_populates_bounded_precondition_rows` passes, and
+`migration_corpus_v0` passes 4/4; re-verified `migration_corpus_v0` 4/4 after
+the rebase.

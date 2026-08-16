@@ -85,7 +85,7 @@ fn plan() -> MigrationPlanArtifactV1 {
             ("region".to_owned(), ValueExpr::Arg("region".to_owned())),
         ]),
     }];
-    let mut steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+    let mut steps = derive_plan_steps(&predecessor, &successor, &intents).expect("derive steps");
     for record in &mut steps {
         if record.id.contains("CopyTable") {
             record.verification = vec![
