@@ -187,6 +187,7 @@ struct CapabilitiesStatus {
 #[serde(rename_all = "camelCase")]
 struct LinksStatus {
     admin_console: String,
+    start_packets: String,
     guide: String,
     flat_guide: String,
     llms_txt: String,
@@ -276,6 +277,7 @@ fn instance_status(inspect: &InspectState, ctx: &ServerContext) -> InstanceStatu
         },
         links: LinksStatus {
             admin_console: "/_snapback/admin".to_owned(),
+            start_packets: "/_snapback/guide/start/index.md".to_owned(),
             guide: "/_snapback/guide".to_owned(),
             flat_guide: "/_snapback/guide/flat.md".to_owned(),
             llms_txt: "/llms.txt".to_owned(),
@@ -384,6 +386,10 @@ fn instance_home_yaml(status: &InstanceStatus) -> String {
     out.push_str(&format!(
         "  adminConsole: {}\n",
         yaml_string(&status.links.admin_console)
+    ));
+    out.push_str(&format!(
+        "  startPackets: {}\n",
+        yaml_string(&status.links.start_packets)
     ));
     out.push_str(&format!("  guide: {}\n", yaml_string(&status.links.guide)));
     out.push_str(&format!(
@@ -497,11 +503,15 @@ fn instance_home_markdown(status: &InstanceStatus) -> String {
         status.links.admin_console
     ));
     out.push_str(&format!(
+        "- [Start packets]({}) — the budgeted first read for building on Snapback; begin here\n",
+        status.links.start_packets
+    ));
+    out.push_str(&format!(
         "- [Snapback Guide]({}) — for humans and agents browsing by topic\n",
         status.links.guide
     ));
     out.push_str(&format!(
-        "- [Flat Snapback Guide]({}) — the complete bulk export (about 2.5 MiB); context-limited agents should use the Guide index or /llms.txt tiers\n",
+        "- [Flat Snapback Guide]({}) — the complete bulk export (about 2.5 MiB); a last resort, not a first read\n",
         status.links.flat_guide
     ));
     out.push_str(&format!(
@@ -557,8 +567,11 @@ fn instance_home_html(status: &InstanceStatus) -> String {
 /// @ref LLP 0061#4-distribution-and-discovery — a running server is the
 /// checkout-independent guide discovery and distribution channel.
 fn instance_home_guide_note(status: &InstanceStatus) -> String {
+    // @ref LLP 0259#1-first-read-contract — the instance home advertises the
+    // start-packet tier first; the bulk flat stays a labeled last resort.
     format!(
-        "<strong>Building on Snapback?</strong> Read the <a href=\"{}\">Snapback Guide</a>. The <a href=\"{}\">complete flat guide</a> is a roughly 2.5 MiB bulk export; context-limited agents should follow the tiered /llms.txt index.",
+        "<strong>Building on Snapback?</strong> Start with the <a href=\"{}\">start packets</a> — the budgeted first read — then the <a href=\"{}\">Snapback Guide</a> by topic. The <a href=\"{}\">complete flat guide</a> is a roughly 2.5 MiB bulk export; a last resort, not a first read.",
+        html_escape(&status.links.start_packets),
         html_escape(&status.links.guide),
         html_escape(&status.links.flat_guide)
     )

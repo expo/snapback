@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:8eed8a57d54fb3121173b00c917c1a56c06f36b198e63891d183841d9700a921"
+    "sourceDigest": "sha256:a5c66f12b1fe25c275a5ad3aa878a8831981e03e90cb364ae3d7cdac07bd7ec5"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -711,6 +711,43 @@
         "id": "reference.api.expo.snapback.codegen.ctx",
         "order": 861,
         "title": "API reference — @expo/snapback-codegen/ctx"
+      }
+    ],
+    "start": [
+      {
+        "id": "start.index",
+        "order": 1,
+        "title": "Start packets"
+      },
+      {
+        "id": "start.mental-model",
+        "order": 2,
+        "title": "Snapback in one screen"
+      },
+      {
+        "id": "start.react",
+        "order": 3,
+        "title": "Start packet — react"
+      },
+      {
+        "id": "start.expo-chat",
+        "order": 4,
+        "title": "Start packet — expo-chat"
+      },
+      {
+        "id": "start.crud-dashboard",
+        "order": 5,
+        "title": "Start stub — crud-dashboard"
+      },
+      {
+        "id": "start.media-feed",
+        "order": 6,
+        "title": "Start stub — media-feed"
+      },
+      {
+        "id": "start.todo-contract",
+        "order": 7,
+        "title": "Start stub — todo-contract"
       }
     ],
     "sync": [
@@ -3964,9 +4001,9 @@
         "demos/partiful-matrix",
         "demos/expo-golden-path-fixture"
       ],
-      "reviewed": "2026-08-10",
-      "reviewedAuthoritiesDigest": "sha256:80af60c8915b1342e86fc952ffa4040036c2e4e1af02f1e5dd53867d0a0ca72f",
-      "sha256": "1e72873672316c35254d1dc4d126528715facbf3e93c3cd9c158323174657632",
+      "reviewed": "2026-08-15",
+      "reviewedAuthoritiesDigest": "sha256:9bc993498cacf9c06be9392fb007475a1329f498346ece1f2edc4832683f66b3",
+      "sha256": "1df948b2152bd7899824290c7002e980e6c6bfee9b224f5219362fe5f519ee6f",
       "snippets": [
         {
           "lang": "json",
@@ -5229,7 +5266,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:fa16911e9c90fd40dcf4b04853af028d2438205bf059a8ed4df514cfd324eec2",
-      "sha256": "7731612a835008220b3e48364389ddadf9b245cabdeb562a43e52dc9a1343efd",
+      "sha256": "eec6f0ad68653a8425ea4fa299b79de6f59d5bbe08f1c6b30873967a17f09cfb",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -11295,6 +11332,156 @@
       "sha256": "57b53394389df4425004b6281036c29a0fe23641b68b5a1a0c38b3e1b3aa54fb",
       "snippets": []
     },
+    "start.crud-dashboard": {
+      "path": "guide/start/crud-dashboard.md",
+      "title": "Start stub — crud-dashboard",
+      "order": 5,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0259-agent-first-read-budget.rfc.md",
+        "packages/snapback-cli/templates/crud-dashboard/snapback/schema.mjs"
+      ],
+      "examples": [
+        "packages/snapback-cli/templates/crud-dashboard"
+      ],
+      "reviewed": "2026-08-15",
+      "reviewedAuthoritiesDigest": "sha256:b1f8201cab1348a01e401a2f12412ee36b6412cc13d389d089b33b61e5bbe396",
+      "sha256": "ac77ba535a87aa83dacd1ed4dee4316ea715d5765eed7f446849394551524d2b",
+      "snippets": []
+    },
+    "start.expo-chat": {
+      "path": "guide/start/expo-chat.md",
+      "title": "Start packet — expo-chat",
+      "order": 4,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0259-agent-first-read-budget.rfc.md",
+        "packages/snapback-cli/templates/expo-chat/snapback/schema.mjs",
+        "packages/snapback-cli/templates/expo-chat/App.tsx"
+      ],
+      "examples": [
+        "packages/snapback-cli/templates/expo-chat"
+      ],
+      "reviewed": "2026-08-15",
+      "reviewedAuthoritiesDigest": "sha256:5e73cea0980cf3d5103f4deb1ce5c34a7b4be9e5143faeec7987309701d1a4ed",
+      "sha256": "ede346984bc64177a8f27544e323ac59a6dbed213f3f8fe2a36da318e22b37dc",
+      "snippets": []
+    },
+    "start.index": {
+      "path": "guide/start/index.md",
+      "title": "Start packets",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0259-agent-first-read-budget.rfc.md"
+      ],
+      "examples": [],
+      "reviewed": "2026-08-15",
+      "reviewedAuthoritiesDigest": "sha256:bd97fffef93eb1f0ec657dc31bc3f48b358897c55b65120859abd274d06ddbaa",
+      "sha256": "bc8b781e4aa0fc47e446ed46c3b7307f7c4f4aa7ada3afb2b4eed0c3563b03a4",
+      "snippets": []
+    },
+    "start.media-feed": {
+      "path": "guide/start/media-feed.md",
+      "title": "Start stub — media-feed",
+      "order": 6,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0259-agent-first-read-budget.rfc.md",
+        "packages/snapback-cli/templates/media-feed/snapback/schema.mjs"
+      ],
+      "examples": [
+        "packages/snapback-cli/templates/media-feed"
+      ],
+      "reviewed": "2026-08-15",
+      "reviewedAuthoritiesDigest": "sha256:f805ed361a34d8e055b4cf2e28c744733ae6c5c2162736f9c4bc3ddb23da9dde",
+      "sha256": "116a8abe5e7b69d7f32b0e8c8816176bafb1b9c593c413f9c12321ed2dc0def9",
+      "snippets": []
+    },
+    "start.mental-model": {
+      "path": "guide/start/mental-model.md",
+      "title": "Snapback in one screen",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0259-agent-first-read-budget.rfc.md"
+      ],
+      "examples": [],
+      "reviewed": "2026-08-15",
+      "reviewedAuthoritiesDigest": "sha256:bd97fffef93eb1f0ec657dc31bc3f48b358897c55b65120859abd274d06ddbaa",
+      "sha256": "5d4c5c29bc4f2e07903a8987aa9962c6b03cfc096a56708d57e5a4dbfbedafcf",
+      "snippets": []
+    },
+    "start.react": {
+      "path": "guide/start/react.md",
+      "title": "Start packet — react",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0259-agent-first-read-budget.rfc.md",
+        "packages/snapback-cli/templates/react/snapback/schema.mjs",
+        "packages/snapback-cli/templates/react/src/App.tsx"
+      ],
+      "examples": [
+        "packages/snapback-cli/templates/react"
+      ],
+      "reviewed": "2026-08-15",
+      "reviewedAuthoritiesDigest": "sha256:8eec1a04daa7a5512264a00d40cf195b4eeb4653d3319607cf4d0abef7a1d85d",
+      "sha256": "1d032d4dc51ee2aa182af493610e461449a63a163c99d3ddf2c13cf2ea0b9259",
+      "snippets": []
+    },
+    "start.todo-contract": {
+      "path": "guide/start/todo-contract.md",
+      "title": "Start stub — todo-contract",
+      "order": 7,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0259-agent-first-read-budget.rfc.md",
+        "packages/snapback-cli/templates/todo-contract/snapback/schema.mjs"
+      ],
+      "examples": [
+        "packages/snapback-cli/templates/todo-contract"
+      ],
+      "reviewed": "2026-08-15",
+      "reviewedAuthoritiesDigest": "sha256:775cff52172764ba61fe9e51b068f63a7dd4afc72372ce48f546116b67e8ceba",
+      "sha256": "cb77e2c7616d41a5ec90975ed44ed68a0099ecc711a3e545820715374e7c6ade",
+      "snippets": []
+    },
     "meta.surface-map": {
       "path": "guide/surface-map.md",
       "title": "Surface map",
@@ -11656,8 +11843,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2286611,
-      "sha256": "99521cbc47eb4e158d95e8adc27aafd69b24e63277a62290371eb3e4990725bd",
+      "bytes": 2286853,
+      "sha256": "661fb91b9a9ff4dd23b9761cb6eb9feefcf286647f224af95373a0792439fc57",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -11666,7 +11853,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:b492ab591680e9770de18a4290d1307b6de26719128ba60bd3a52edac91b9461",
+      "sourceDigest": "sha256:9928e5d30b943cd3c6c91d1bfad42f71298e4bde859cb6ffb4012533ffff89fc",
       "codes": 3273,
       "emittingSites": 11186
     }
@@ -11806,16 +11993,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3282516,
-      "sha256": "05465120893c6537047106145856d8d7cd694d96f2bb9c2843031fd6714d1020"
+      "bytes": 3301989,
+      "sha256": "27282d0d5b6a7aba485125ed202f982a03c655302f078ed362f6d47afdce14d4"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 147062,
-        "sha256": "1391784730c2bf4f4e345108dc6a651da04090151b4b3c65f64463879c671e6c"
+        "bytes": 147836,
+        "sha256": "225f4106c9c3306ce4bc8f0feb0490454c661fc9b1e2d831fb08093c12a0f1b3"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -11892,7 +12079,14 @@
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
         "bytes": 1850846,
-        "sha256": "55ff16b58f1dc3221ef3a43137d82f9b50af629e5421960af123484037a48be3"
+        "sha256": "ceff5d567e9142af1abe3b69232f1b935acb2653df3b39c43c6588a0ea3f3c41"
+      },
+      "start": {
+        "path": "guide/guide-flat.start.generated.md",
+        "servedPath": "/_snapback/guide/guide-flat.start.generated.md",
+        "uri": "snapback-guide://flat/start",
+        "bytes": 18805,
+        "sha256": "bd43742a5ea7514a85f1bc03d9eb88ffd3a59d17c7823ccbef8b9a3431fd3aec"
       },
       "sync": {
         "path": "guide/guide-flat.sync.generated.md",
@@ -11910,5 +12104,5 @@
       }
     }
   },
-  "contentHash": "8eed8a57d54fb3121173b00c917c1a56c06f36b198e63891d183841d9700a921"
+  "contentHash": "a5c66f12b1fe25c275a5ad3aa878a8831981e03e90cb364ae3d7cdac07bd7ec5"
 }

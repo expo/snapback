@@ -1,5 +1,13 @@
 # Agent Instructions
 
+**Building an app ON Snapback (not Snapback itself)?** Do not start from
+this file's corpus: read your template's start packet under
+[`guide/start/`](./guide/start/index.md) — or
+[the mental model](./guide/start/mental-model.md) with no template — then
+escalate one page at a time via `snapback guide <query>`. The capability
+index is a lookup registry, not a first read (LLP 0259). The rest of this
+file is for engineering Snapback itself.
+
 This project uses **Linked Literate Programming (LLP)**. The upstream LLP
 workflow is maintained at <https://github.com/ccheever/llp>; this repository
 keeps its own LLP corpus under [`llp/`](./llp/).

@@ -61,6 +61,18 @@ try {
     assert.match(readme, new RegExp(`^# \`${manifest.name.replace('/', '\\/')}\`$`, 'm'));
     assert.match(readme, /^## Documentation outside a checkout$/mu);
     assert.match(readme, /http:\/\/127\.0\.0\.1:4287\/_snapback\/guide/u);
+    // @ref LLP 0259#1-first-read-contract — the published funnel leads with
+    // the start-packet tier; the capability index is a lookup pointer only.
+    assert.match(
+      readme,
+      /_snapback\/guide\/start\/index\.md/u,
+      `${manifest.name} must point at the start-packet tier first`,
+    );
+    assert.doesNotMatch(
+      readme,
+      /(?:Start (?:with|at)|Check) the \[capability index\]/u,
+      `${manifest.name} must not lead a cold agent into a linear capability-index read`,
+    );
     assert.match(readme, /`snapback guide(?: <query>)?`/u);
     assert.match(readme, /`snapback mcp`/u);
     assert.match(

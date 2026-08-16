@@ -5,7 +5,19 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-08-12 (LLP 0232 D-2 freshness-identity amendment: page
+**Revised:** 2026-08-15 (LLP 0259 Rung A first-read amendment: the served
+funnel and every first-read carrier now lead with the `guide/start/` tier —
+a shared ≤3 KiB mental-model page, full start packets for `react` and
+`expo-chat`, and ≤1 KiB stubs for the other shipped templates, each with a
+checked `FirstReadProfileV1` (`guide/start/first-read-profiles.json`,
+`scripts/check-first-read.mjs`: 16 KiB deduped steering ceiling, component
+caps, digest-bound `AGENTS.md` transclusion, negative-vocabulary fence).
+`/llms.txt`, the instance home, MCP instructions, bare `snapback guide`
+channels, template `AGENTS.md`, the published funnel READMEs, the docs-site
+`/llms.txt`, and the authoring skill demote the capability index to a
+lookup registry; it remains the completeness and GAP authority. Recorded
+here the same way T4/T5 were; LLP 0259 Design 1 owns the edit list.)
+2026-08-12 (LLP 0232 D-2 freshness-identity amendment: page
 review anchors now bind the declared authority bytes directly instead of a
 commit containing them; source-generated Guide, symbol, and diagnostic
 records carry content digests only, while `build.rs` still adds the exact

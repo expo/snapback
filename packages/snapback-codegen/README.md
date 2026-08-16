@@ -60,7 +60,9 @@ These links use the first default development port; use the origin printed by
   before committing generated files.
 - Follow [the authoring loop](http://127.0.0.1:4287/_snapback/guide/getting-started/the-authoring-loop.md)
   for generate, dev, and verification commands.
-- Start at the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
+- Read first: [the start packets](http://127.0.0.1:4287/_snapback/guide/start/index.md)
+  — the budgeted per-template first read (LLP 0259).
+- Look up (do not linear-read) the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
   before hand-authoring a feature that codegen may already expose.
 - Run `snapback guide` or `snapback guide <query>` to browse or search the
   embedded Guide.

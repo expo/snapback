@@ -58,7 +58,9 @@ These links use the first default development port; use the origin printed by
   for the complete React/Vite development flow.
 - Read [generated artifact custody](http://127.0.0.1:4287/_snapback/guide/getting-started/generated-artifacts.md)
   for verified generated-import behavior.
-- Check the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
+- Read first: [the start packets](http://127.0.0.1:4287/_snapback/guide/start/index.md)
+  — the budgeted per-template first read (LLP 0259).
+- Look up (do not linear-read) the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
   before assuming a relayed route or target is supported.
 - Run `snapback guide` or `snapback guide <query>` to browse or search the
   embedded Guide.

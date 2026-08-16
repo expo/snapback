@@ -745,9 +745,18 @@ footer code { word-break: break-all; }
 }
 
 function buildLlmsTxt({ pages, binding, basePath }) {
+  // @ref LLP 0259#1-first-read-contract — same Read-first order as the
+  // served server /llms.txt: the start-packet tier leads (mental model
+  // first), and the capability index sits in corpus order as a lookup
+  // registry rather than being promoted to the front.
+  const startRank = (entry) => {
+    if (entry.page.id === 'start.mental-model') return 0;
+    if (entry.page.id.startsWith('start.')) return 1;
+    return 2;
+  };
   const ordered = [...pages].sort((left, right) => {
-    if (left.page.id === 'meta.capabilities') return -1;
-    if (right.page.id === 'meta.capabilities') return 1;
+    const rank = startRank(left) - startRank(right);
+    if (rank !== 0) return rank;
     return left.page.order - right.page.order || left.page.id.localeCompare(right.page.id);
   });
   const lines = [
@@ -756,6 +765,7 @@ function buildLlmsTxt({ pages, binding, basePath }) {
     `> Published documentation projection of published closure ${binding.closure.version} (D1 ruled 2026-08-08; LLP 0195).`,
     `> Guide content digest: ${binding.guide.contentDigest}`,
     '> Presence in the build-bound API reference is not by itself a package-publication claim.',
+    '> Read first: the start.* packet pages below. The capability index is a lookup registry, not a linear first read.',
     '',
     '## Corpus',
     '',

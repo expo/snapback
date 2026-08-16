@@ -1,55 +1,37 @@
 # Building this Snapback app
 
-<!-- @ref LLP 0187#t4--build-the-out-of-repo-funnel-before-it-is-tested-for-real — every scaffold steers a first-time agent into the build-bound Guide. -->
+<!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
+<!-- start-packet:begin media-feed digest=sha256:92fe4d7d97c203a257eb3747ce3020cf3b8ff1af51382a4ff49b3c1fe645b11a -->
+Mental model first: [Snapback in one screen](/_snapback/guide/start/mental-model.md) — that page
+plus this stub is the whole first read (LLP 0259 Rung A).
 
-Before implementing a feature, check the capability index first. With the dev
-server running, open `http://127.0.0.1:4287/_snapback/guide/capabilities.md`,
-run `snapback guide <query>`, or connect the read-only Guide with `snapback mcp`.
+- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
+  `snapback/seed.json` → `bun run generate` → `bun run dev` →
+  `bun run prove` — the acceptance command (receipt:
+  `.snapback/verify-receipt.json`); carrier kit:
+  `npm run carry:native-simulator`.
+- Edit targets: those three plus `App.tsx` and `pagination.mjs`;
+  `snapback/generated/` is codegen-owned (commit
+  `generated/artifacts.json`).
+- Consumer: Expo + `useSnapbackQuery`; the `publishEntry` command owns
+  upload → finalize → typed `assetRef` attach; sessions custody is
+  required for app-side uploads (the supervised loop adopts it).
+- Pagination keys on an immutable `pageKey`: the live head is whole-result
+  replacement; older pages accumulate in component state, deduplicated by
+  `_id`.
+- Escalate one page at a time: `snapback guide <query>`.
+<!-- start-packet:end -->
 
 ## Operate it
 
-`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.
-Preview control setup with `snapback agent setup --print <client> --server mcp-control`.
+`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds
+typed control tools with local admin authority. Preview setup with
+`snapback agent setup --print <client> --server mcp-control`. With the dev
+server running this packet is served at
+`http://127.0.0.1:4287/_snapback/guide/start/media-feed.md` (replace the
+origin if startup selected another port); `snapback guide <query>` is the
+budgeted lookup channel.
 
-The golden path is: edit `snapback/schema.mjs` and
-`snapback/functions.mjs` → `bun run generate` → `bun run dev` → exercise the
-generated Expo app → `bun run prove`.
-
-`bun run prove` is **the acceptance command** (`npm run prove` is equivalent).
-It delegates the registered live profile to `snapback verify` and writes the
-LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. `test:static` checks
-scaffold coherence without a server; it is not a substitute for that receipt.
-
-Use the executable carrier kits instead of rebuilding proof environments:
-`npm run carry:headless`, `npm run carry:web-browser`, or
-`npm run carry:native-simulator`. The native command owns simulator boot,
-literal dotted-key scheme approval through Python `plistlib`, optional Expo Go
-installation (`-- --app-path /path/to/Expo-Go.app` when it is not installed),
-first-run onboarding dismissal, deep-link drive, online/offline screenshots,
-backend stop, relaunch, and cleanup. Artifacts live under
-`.snapback/carriers/`; the kit starts with `prove` and adds no receipt format.
-Use `npm run carry:self-check` for a no-server/no-simulator validation.
-
-The publish command owns the complete upload → finalize → typed attach path.
-`feedPhotoUpload` strips location metadata, materializes thumbnail and display
-renditions, and deliberately chooses public-immutable delivery for a public
-feed. `privatePhotoUpload` demonstrates the private-strict alternative; use it
-with a separate compatible `assetRef` and sharing policy rather than changing
-the delivery semantics of assets already uploaded. Sessions custody is
-required for app-side uploads and the supervised Expo loop adopts it
-automatically. The first and older pages are public, authority-independent live
-queries, so their bounded snapshots are eligible for retained rendering.
-Pagination uses an immutable, independently unique `pageKey`, not the display
-timestamp: the current window is a whole-result live replacement, while older
-pages accumulate in component state and are deduplicated by canonical `_id`.
-Because this starter is append-only, a row displaced when a newer insert slides
-the live head is rolled into that archive. A feed with deletion needs explicit
-tombstone semantics instead of preserving every displaced row.
-That accumulator is intentionally volatile; retaining an exact query/args
-snapshot does not retain the assembled infinite list across reloads.
-
-Load `snapback guide assets`, `snapback guide paged list`, `snapback guide live
-queries`, and `snapback guide offline retention` before changing those
-surfaces. This app
-ships the `snapback-authoring` agent skill under each supported agent discovery
-path; load it before building.
+This app ships the `snapback-authoring` agent skill at
+`.claude/skills/snapback-authoring/SKILL.md` (mirrored under `.agents/`,
+`.cursor/`, and `.opencode/`); it repeats this packet-first contract.

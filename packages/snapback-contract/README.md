@@ -56,7 +56,9 @@ These links use the first default development port; use the origin printed by
   for generated bindings, surface boot, keyed scopes, and store choices.
 - Read [the headless client guide](http://127.0.0.1:4287/_snapback/guide/clients/headless.md)
   when you need the transport beneath the adapter.
-- Check the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
+- Read first: [the start packets](http://127.0.0.1:4287/_snapback/guide/start/index.md)
+  — the budgeted per-template first read (LLP 0259).
+- Look up (do not linear-read) the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
   for the current target and maturity of each client capability.
 - Run `snapback guide` or `snapback guide <query>` to browse or search the
   embedded Guide.

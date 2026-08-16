@@ -59,7 +59,9 @@ These links use the first default development port; use the origin printed by
   for the supported plan/apply boundaries and current hosted gaps.
 - Read [target authentication honesty](http://127.0.0.1:4287/_snapback/guide/auth/targets.md)
   before making any hosted-auth claim.
-- Check the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
+- Read first: [the start packets](http://127.0.0.1:4287/_snapback/guide/start/index.md)
+  — the budgeted per-template first read (LLP 0259).
+- Look up (do not linear-read) the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
   for the current deployment and hosted maturity facts.
 - Run `snapback guide` or `snapback guide <query>` to browse or search the
   embedded Guide.

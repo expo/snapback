@@ -160,7 +160,12 @@ pub(crate) fn render_guide_command(
                 slice,
                 "channels",
                 json!([]),
+                // @ref LLP 0259#1-first-read-contract — start packets lead
+                // the channel listing; the capability index stays a lookup
+                // channel, not the lead item.
                 json!({
+                    "startPackets": format!("{DEFAULT_SERVED_GUIDE_URL}/start/index.md"),
+                    "mentalModel": format!("{DEFAULT_SERVED_GUIDE_URL}/start/mental-model.md"),
                     "capabilityIndex": format!("{DEFAULT_SERVED_GUIDE_URL}/capabilities.md"),
                     "surfaceMap": format!("{DEFAULT_SERVED_GUIDE_URL}/surface-map.md"),
                     "guide": DEFAULT_SERVED_GUIDE_URL,
@@ -177,8 +182,10 @@ pub(crate) fn render_guide_command(
              \n\
              The URLs below use the first default dev port. If Snapback selected another port, replace the origin with the one printed by snapback dev or snapback start.\n\
              \n\
-             Start with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n\
-             Then read the surface map:       {DEFAULT_SERVED_GUIDE_URL}/surface-map.md\n\
+             Start with your template's start packet: {DEFAULT_SERVED_GUIDE_URL}/start/index.md\n\
+             No template? The mental model:  {DEFAULT_SERVED_GUIDE_URL}/start/mental-model.md\n\
+             Capability index (lookup, not a linear read): {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n\
+             Surface map:                  {DEFAULT_SERVED_GUIDE_URL}/surface-map.md\n\
              Browse the Guide:             {DEFAULT_SERVED_GUIDE_URL}\n\
              API reference index:           {DEFAULT_SERVED_GUIDE_URL}/reference/index.md\n\
              API symbol registry:           {DEFAULT_SERVED_GUIDE_URL}/reference/registry.json\n\
@@ -250,7 +257,7 @@ pub(crate) fn render_guide_command(
     }
     if matches.is_empty() {
         return Ok(format!(
-            "No embedded Guide sections matched {query:?}.\nStart with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n"
+            "No embedded Guide sections matched {query:?}.\nTry a shorter term, look it up in the capability index (a registry, not a first read): {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\nStart packets: {DEFAULT_SERVED_GUIDE_URL}/start/index.md\n"
         ));
     }
 

@@ -284,6 +284,10 @@ if (runConsistency) {
   // @ref LLP 0186#amendment-2026-08-06-w2-rosetta-section--worked-example-tier —
   // OQ6's mechanism: generated/checked projections, not hand-maintained drift.
   runExternalCheck('Rosetta record', 'scripts/check-rosetta.mjs', ['--check']);
+  // @ref LLP 0259#4-firstreadprofilev1--budget-the-bytes-the-carrier-sends —
+  // FirstReadProfileV1 budgets, packet transclusion identity, and the
+  // negative-vocabulary fence are part of the Guide consistency gate.
+  runExternalCheck('first-read profiles', 'scripts/check-first-read.mjs', ['--check']);
   runExternalCheck(
     'retrieval-eval static routing',
     'scripts/check-retrieval-eval.mjs',

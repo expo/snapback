@@ -37,6 +37,8 @@ These links use the first default development port; use the origin printed by
 `snapback dev` or `snapback start` if yours differs.
 
 - Read [the authoring loop](http://127.0.0.1:4287/_snapback/guide/getting-started/the-authoring-loop.md).
-- Check the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md).
+- Read first: [the start packets](http://127.0.0.1:4287/_snapback/guide/start/index.md)
+  — the budgeted per-template first read (LLP 0259).
+- Look up (do not linear-read) the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md).
 - Run `snapback guide` or `snapback guide <query>` to browse or search the embedded Guide.
 - Run `snapback mcp` for the same build-bound corpus as read-only MCP resources, starting at `snapback-guide://manifest`.

@@ -1,39 +1,96 @@
 # Building this Snapback app
 
-<!-- @ref LLP 0187#t4--build-the-out-of-repo-funnel-before-it-is-tested-for-real — every scaffold steers a first-time agent into the build-bound Guide. -->
+<!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
+<!-- start-packet:begin react digest=sha256:564fb5f19ef79d4a16bdcb09aeeebf56c1739dd3288dd8e322f7911144253545 -->
+This packet is the whole required first read for this app (LLP 0259
+Rung A). Open the edit targets below and work; open one further Guide page
+only via `snapback guide <query>` or on a trigger — the brief is outside
+this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
 
-Before implementing a feature, check the capability index first. With the dev
-server running, open
-`http://127.0.0.1:4287/_snapback/guide/capabilities.md` (replace the origin if
-the startup output selected another port), run `snapback guide <query>`, or
-connect the read-only Guide with `snapback mcp`.
+## The loop
+
+Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
+→ `bun run generate` → `bun run dev` (one supervisor: managed server plus
+Vite; it prints the admin console URL) → `bun run prove`.
+
+`bun run prove` (`npm run prove` is equivalent) is the acceptance command:
+it runs the registered live profile through `snapback verify` and writes
+the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
+Carrier kits when you need a driven environment: `npm run carry:headless`,
+`npm run carry:web-browser`; `npm run carry:self-check` validates without a
+server.
+
+## Edit targets (work files — listed, not charged to the first read)
+
+- `snapback/schema.mjs` — `defineSchema`/`defineTable`/`v.*` with
+  `.index(...)`/`.sync()`; authoring profile `snapback-explicit-v1`.
+- `snapback/functions.mjs` — `defineLiveQuery` and `defineMutation` plans;
+  `listTodos` and `createTodo` ship as working examples to copy.
+- `snapback/seed.json` — the versioned seed fixture.
+- `src/App.tsx` — the consumer: a hoisted `useSnapbackQueries` entries map
+  plus `useSnapbackMutation` and `useSnapbackConnection` from
+  `@expo/snapback-react`.
+- `src/main.tsx` — boot: `SnapbackClient` → `prepareReactBinding` →
+  `createSnapbackReactProvider` → `<SnapbackProvider>`. Leave it alone
+  unless boot itself is the task.
+- `acceptance.mjs` + `snapback.verify.config.mjs` — the registered proof.
+
+`snapback/generated/` is codegen-owned: regenerate, commit
+`generated/artifacts.json`, never hand-edit outputs.
+
+## Posture
+
+- **Auth: dev mode** (no `auth` block in the schema). Users or app-side
+  uploads need sessions: add `{ auth: { mode: 'sessions' } }` **before**
+  building that UI, declare each function's `auth` explicitly, and scope
+  server-side (`eq('ownerId', authUserId())`) — never a client-supplied
+  owner argument.
+- **Uploads: none wired here.** Flip to sessions first, then
+  `snapback guide assets` for the one named page.
+
+## Safety traps (reconciled at landing)
+
+1. Query args bind by identity: an inline entries map or args object
+   resubscribes every render — hoist to module scope or `useMemo`
+   (`src/App.tsx` shows the pattern).
+2. A changed seed identity never silently resets data: expect
+   `SNAPBACK_SEED_MIGRATION_REQUIRED`, then choose migration or an explicit
+   reset-install.
+3. Structured stored fields (`v.array(...)`, `v.object({...})`) are typed
+   but opaque (experimental): interiors are not queryable or indexable, and
+   a nested `v.principal()` is a snapshot, not membership. Model queryable
+   state as rows and columns.
+4. Every `SNAPBACK_*` refusal names its rule and fix: read it, then run
+   `snapback guide <CODE>` for the exact entry.
+
+## Escalate
+
+`snapback guide <query>` returns exact symbols, diagnostic codes, and page
+anchors — budgeted lookups do not count as extra pages. The
+[capability index](/_snapback/guide/capabilities.md) is the completeness registry: look
+up, do not linear-read. Deeper pages, only when triggered:
+[your first backend](/_snapback/guide/getting-started/your-first-backend.md),
+[the React client](/_snapback/guide/clients/react.md),
+[queries](/_snapback/guide/backend/queries.md), [mutations](/_snapback/guide/backend/mutations.md).
+
+<!-- llp0259:stop-fence -->
+**Stop signs.** Familiar `query()` / `useQuery` (the TypeScript `schema.ts`
+profile) and tiny-data `db.*` are experimental, non-default surfaces — not
+this template's path. Writing either without an explicit brief means you
+left the golden path.
+<!-- /llp0259:stop-fence -->
+<!-- start-packet:end -->
 
 ## Operate it
 
-`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.
-Preview control setup with `snapback agent setup --print <client> --server mcp-control`.
-
-The golden path is: edit `snapback/schema.mjs` and
-`snapback/functions.mjs` → `bun run generate` → `bun run dev` → exercise the
-generated client or `snapback run` → `bun run prove`.
-
-`bun run prove` is **the acceptance command** (`npm run prove` is equivalent).
-It runs this starter's registered live profile through `snapback verify` and
-writes the LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. The
-lower-level `test` and `test:static` scripts are profile/debugging inputs; do
-not substitute them for the D2 receipt when claiming the app is ready.
-
-Use the executable carrier kits instead of rebuilding proof environments:
-`npm run carry:headless` for the Node carrier and
-`npm run carry:web-browser` for the managed backend + Vite + headless-browser
-capture. Both start with the registered `prove` command and write director
-artifacts under `.snapback/carriers/`; they add no receipt format.
-`npm run carry:self-check` validates the kit without starting a server.
-
-Use `snapback guide` for the served Guide, tiered section projections, and MCP entry
-points. Load the relevant Guide page before using a feature area; do not infer
-that a capability is missing until you have checked the capability index.
+`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds
+typed control tools with local admin authority. Preview setup with
+`snapback agent setup --print <client> --server mcp-control`. With the dev
+server running this packet is served at
+`http://127.0.0.1:4287/_snapback/guide/start/react.md` (replace the
+origin if startup selected another port); `snapback guide <query>` is the
+budgeted lookup channel.
 
 This app ships the `snapback-authoring` agent skill at
 `.claude/skills/snapback-authoring/SKILL.md` (mirrored under `.agents/`,
-`.cursor/`, and `.opencode/`); load it before building.
+`.cursor/`, and `.opencode/`); it repeats this packet-first contract.

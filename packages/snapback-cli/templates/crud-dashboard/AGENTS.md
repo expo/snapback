@@ -1,40 +1,35 @@
 # Building this Snapback app
 
-<!-- @ref LLP 0187#t4--build-the-out-of-repo-funnel-before-it-is-tested-for-real — every scaffold steers a first-time agent into the build-bound Guide. -->
+<!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
+<!-- start-packet:begin crud-dashboard digest=sha256:b554883fef971228106e7cbf3e82738dd9dc815a7c9f205b05366930f4f089f0 -->
+Mental model first: [Snapback in one screen](/_snapback/guide/start/mental-model.md) — that page
+plus this stub is the whole first read (LLP 0259 Rung A).
 
-Before implementing a feature, check the capability index first. With the dev
-server running, open `http://127.0.0.1:4287/_snapback/guide/capabilities.md`,
-run `snapback guide <query>`, or connect the read-only Guide with `snapback mcp`.
+- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
+  `snapback/seed.json` → `bun run generate` → `bun run dev` →
+  `bun run prove` — the acceptance command (receipt:
+  `.snapback/verify-receipt.json`); carrier kit: `npm run carry:web-browser`.
+- Edit targets: those three plus `src/App.tsx`; `snapback/generated/` is
+  codegen-owned (commit `generated/artifacts.json`).
+- Consumer: `useSnapbackQuery` / `useSnapbackMutation` (with a replayable
+  `optimistic:` projection) from `@expo/snapback-react`;
+  `projectDirectory` is a relational query joining projects to teams —
+  keep its joined uniqueness intact.
+- Sessions is the schema default; the sample data and mutations stay
+  public so the scaffold works without sign-in UI.
+- Escalate one page at a time: `snapback guide <query>`.
+<!-- start-packet:end -->
 
 ## Operate it
 
-`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.
-Preview control setup with `snapback agent setup --print <client> --server mcp-control`.
+`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds
+typed control tools with local admin authority. Preview setup with
+`snapback agent setup --print <client> --server mcp-control`. With the dev
+server running this packet is served at
+`http://127.0.0.1:4287/_snapback/guide/start/crud-dashboard.md` (replace the
+origin if startup selected another port); `snapback guide <query>` is the
+budgeted lookup channel.
 
-The golden path is: edit `snapback/schema.mjs` and
-`snapback/functions.mjs` → `bun run generate` → `bun run dev` → exercise the
-generated client → `bun run prove`.
-
-`bun run prove` is **the acceptance command** (`npm run prove` is equivalent).
-It delegates the registered live profile to `snapback verify` and writes the
-LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. `test:static` checks
-scaffold coherence without a server; it is not a substitute for that receipt.
-
-Use the executable carrier kits instead of rebuilding proof environments:
-`npm run carry:headless` for the Node carrier and
-`npm run carry:web-browser` for the managed backend + Vite + headless-browser
-capture. Both start with the registered `prove` command and write director
-artifacts under `.snapback/carriers/`; they add no receipt format.
-`npm run carry:self-check` validates the kit without starting a server.
-
-This starter's project directory is deliberately a relational query: projects
-join teams through a uniquely indexed slug. Its detail is a separate live
-query, and edits install a replayable optimistic projection over the directory.
-Keep the explicit source/output visibility and joined uniqueness intact when
-adapting it. Sessions is the schema default; the sample dataset and mutations
-are public only so a new web scaffold works without app-specific sign-in UI.
-
-Use `snapback guide relational`, `snapback guide live queries`, and
-`snapback guide optimistic` before changing those surfaces. This app ships the
-`snapback-authoring` agent skill under each supported agent discovery path;
-load it before building.
+This app ships the `snapback-authoring` agent skill at
+`.claude/skills/snapback-authoring/SKILL.md` (mirrored under `.agents/`,
+`.cursor/`, and `.opencode/`); it repeats this packet-first contract.

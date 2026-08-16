@@ -208,6 +208,15 @@ async fn memory_server_serves_root_llms_txt_with_guide_identity() {
     assert!(body.contains("/_snapback/guide/surface-map.md"));
     assert!(body.contains("/_snapback/guide/guide-flat.backend.generated.md"));
     assert!(body.contains("about 2.5 MiB"));
+    // @ref LLP 0259#1-first-read-contract — the start-packet tier leads the
+    // Read-first index; the capability index is a labeled lookup registry.
+    assert!(body.contains("/_snapback/guide/start/mental-model.md"));
+    assert!(body.contains("/_snapback/guide/start/index.md"));
+    assert!(
+        body.find("/_snapback/guide/start/mental-model.md").unwrap()
+            < body.find("/_snapback/guide/capabilities.md").unwrap()
+    );
+    assert!(body.contains("do not linear-read"));
     assert!(
         body.find("/_snapback/guide/capabilities.md").unwrap()
             < body

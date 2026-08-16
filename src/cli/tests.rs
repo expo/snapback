@@ -209,11 +209,16 @@ fn guide_section_search_json_exposes_the_control_tool_shape() {
 }
 
 #[test]
-fn guide_channel_output_starts_with_capabilities_and_names_flat_and_mcp() {
+fn guide_channel_output_starts_with_start_packets_and_names_flat_and_mcp() {
+    // @ref LLP 0259#1-first-read-contract — start packets lead the channel
+    // listing; the capability index stays a lookup channel below them.
     let output = render_guide_command(&[], 1, false).unwrap();
+    let start_packets = output.find("/start/index.md").unwrap();
     let capability = output.find("/capabilities.md").unwrap();
     let browse = output.find("Browse the Guide").unwrap();
+    assert!(start_packets < capability, "{output}");
     assert!(capability < browse, "{output}");
+    assert!(output.contains("lookup, not a linear read"), "{output}");
     assert!(output.contains("/_snapback/guide/flat.md"), "{output}");
     assert!(
         output.contains("/_snapback/guide/reference/index.md"),

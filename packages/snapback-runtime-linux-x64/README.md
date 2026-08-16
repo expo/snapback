@@ -14,7 +14,9 @@ A running Snapback server serves the Guide compiled into that exact build.
 These links use the first default development port; use the origin printed by
 `snapback dev` or `snapback start` if yours differs.
 
-- Start with the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md).
+- Read first: [the start packets](http://127.0.0.1:4287/_snapback/guide/start/index.md)
+  — the budgeted per-template first read (LLP 0259).
+- Look up (do not linear-read) the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md).
 - Read [running the server](http://127.0.0.1:4287/_snapback/guide/operating/running-the-server.md)
   for supported runtime lifecycle and readiness behavior.
 - Run `snapback guide` or `snapback guide <query>` to browse or search the

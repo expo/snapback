@@ -1,42 +1,35 @@
 # Building this Snapback app
 
-<!-- @ref LLP 0187#t4--build-the-out-of-repo-funnel-before-it-is-tested-for-real — every scaffold steers a first-time agent into the build-bound Guide. -->
+<!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
+<!-- start-packet:begin todo-contract digest=sha256:b16be0861943e1b1d92e99ce4c6b625e797e5e06b216f3be1867da9a8fc87b32 -->
+Mental model first: [Snapback in one screen](/_snapback/guide/start/mental-model.md) — that page
+plus this stub is the whole first read (LLP 0259 Rung A).
 
-Before implementing a feature, check the capability index first. With the dev
-server running, open
-`http://127.0.0.1:4287/_snapback/guide/capabilities.md` (replace the origin if
-the startup output selected another port), run `snapback guide <query>`, or
-connect the read-only Guide with `snapback mcp`.
+- This starter is backend + headless client only — no UI ships. Want a UI
+  out of the box? Scaffold `react` or `expo-chat` instead.
+- Loop: edit `snapback/schema.mjs` + `snapback/functions.mjs` +
+  `snapback/seed.json` → `bun run generate` → `bun run dev` →
+  `bun run prove` — the acceptance command (receipt:
+  `.snapback/verify-receipt.json`); carrier kit: `npm run carry:headless`.
+- Consumer: the headless `SnapbackClient` — `client.query(api.listTodos,
+  {})` and `client.mutate(api.createTodo, …)` as `acceptance.mjs` shows.
+- Auth: dev mode; flip to `{ auth: { mode: 'sessions' } }` before users or
+  uploads.
+- `snapback/generated/` is codegen-owned (commit
+  `generated/artifacts.json`).
+- Escalate one page at a time: `snapback guide <query>`.
+<!-- start-packet:end -->
 
 ## Operate it
 
-`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.
-Preview control setup with `snapback agent setup --print <client> --server mcp-control`.
-
-The golden path is: edit `snapback/schema.mjs` and
-`snapback/functions.mjs` → `bun run generate` → `bun run dev` → exercise the
-generated client or `snapback run` → `bun run prove`.
-
-Despite its name, this starter is backend + headless client only — it ships
-no Contract (or other UI) surface. Scaffold the `react` or `expo-chat`
-template instead when you want a UI out of the box.
-
-`bun run prove` is **the acceptance command** (`npm run prove` is equivalent).
-It runs this starter's registered live profile through `snapback verify` and
-writes the LLP 0146 D2 receipt to `.snapback/verify-receipt.json`. The
-lower-level `test` and `test:static` scripts are profile/debugging inputs; do
-not substitute them for the D2 receipt when claiming the app is ready.
-
-Use the executable carrier kit instead of rebuilding a proof environment:
-`npm run carry:headless`. It runs the registered `prove` command and writes
-only a director log under `.snapback/carriers/headless/`; the LLP 0146 D2
-receipt remains the proof authority. `npm run carry:self-check` validates the
-kit without starting a server.
-
-Use `snapback guide` for the served Guide, tiered section projections, and MCP entry
-points. Load the relevant Guide page before using a feature area; do not infer
-that a capability is missing until you have checked the capability index.
+`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds
+typed control tools with local admin authority. Preview setup with
+`snapback agent setup --print <client> --server mcp-control`. With the dev
+server running this packet is served at
+`http://127.0.0.1:4287/_snapback/guide/start/todo-contract.md` (replace the
+origin if startup selected another port); `snapback guide <query>` is the
+budgeted lookup channel.
 
 This app ships the `snapback-authoring` agent skill at
 `.claude/skills/snapback-authoring/SKILL.md` (mirrored under `.agents/`,
-`.cursor/`, and `.opencode/`); load it before building.
+`.cursor/`, and `.opencode/`); it repeats this packet-first contract.

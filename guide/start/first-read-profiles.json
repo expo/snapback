@@ -1,0 +1,156 @@
+{
+  "schemaVersion": "snapback.first-read-profile.v1",
+  "generatedBy": "authored; digests maintained by scripts/check-first-read.mjs --write",
+  "accounting": "maxBytes counts steering bytes actually delivered: the always-loaded skill body plus the template AGENTS.md carrier (its transcluded packet or stub counts once) plus, on the stub route, the shared mental-model page. editTargets are work files: listed, never charged. Checked by scripts/check-first-read.mjs (LLP 0259 Rung A).",
+  "profiles": {
+    "react": {
+      "template": "react",
+      "depth": "packet",
+      "steering": [
+        "skills/snapback-authoring/SKILL.md",
+        "packages/snapback-cli/templates/react/AGENTS.md",
+        "guide/start/react.md"
+      ],
+      "editTargets": [
+        "snapback/schema.mjs",
+        "snapback/functions.mjs",
+        "snapback/seed.json",
+        "src/App.tsx",
+        "src/main.tsx",
+        "acceptance.mjs",
+        "snapback.verify.config.mjs"
+      ],
+      "maxBytes": 16384,
+      "requiredSafetyFacts": [
+        "args-identity-resubscribe",
+        "seed-identity-migration",
+        "structured-fields-opaque",
+        "refusals-name-the-fix",
+        "sessions-before-uploads"
+      ],
+      "escalationTriggers": [
+        "brief-outside-packet",
+        "structured-snapback-refusal",
+        "failed-prove"
+      ],
+      "digest": "sha256:564fb5f19ef79d4a16bdcb09aeeebf56c1739dd3288dd8e322f7911144253545"
+    },
+    "expo-chat": {
+      "template": "expo-chat",
+      "depth": "packet",
+      "steering": [
+        "skills/snapback-authoring/SKILL.md",
+        "packages/snapback-cli/templates/expo-chat/AGENTS.md",
+        "guide/start/expo-chat.md"
+      ],
+      "editTargets": [
+        "snapback/schema.mjs",
+        "snapback/functions.mjs",
+        "snapback/seed.json",
+        "App.tsx",
+        "src/screens/inbox-screen.tsx",
+        "src/screens/chat-screen.tsx",
+        "acceptance.mjs",
+        "snapback.verify.config.mjs"
+      ],
+      "maxBytes": 16384,
+      "requiredSafetyFacts": [
+        "sessions-explicit-auth",
+        "sender-id-demo-only",
+        "args-identity-resubscribe",
+        "structured-fields-opaque",
+        "seed-identity-migration",
+        "refusals-name-the-fix",
+        "ci-env-metro-watch-inert"
+      ],
+      "escalationTriggers": [
+        "brief-outside-packet",
+        "structured-snapback-refusal",
+        "failed-prove"
+      ],
+      "digest": "sha256:d0993a54174d8546a473ceed0a4b766f1455fb4835618814b90dc49d810afd6a"
+    },
+    "crud-dashboard": {
+      "template": "crud-dashboard",
+      "depth": "stub",
+      "steering": [
+        "skills/snapback-authoring/SKILL.md",
+        "guide/start/mental-model.md",
+        "packages/snapback-cli/templates/crud-dashboard/AGENTS.md",
+        "guide/start/crud-dashboard.md"
+      ],
+      "editTargets": [
+        "snapback/schema.mjs",
+        "snapback/functions.mjs",
+        "snapback/seed.json",
+        "src/App.tsx"
+      ],
+      "maxBytes": 16384,
+      "requiredSafetyFacts": [
+        "relational-joined-uniqueness",
+        "public-sample-data-not-auth"
+      ],
+      "escalationTriggers": [
+        "brief-outside-packet",
+        "structured-snapback-refusal",
+        "failed-prove"
+      ],
+      "digest": "sha256:b554883fef971228106e7cbf3e82738dd9dc815a7c9f205b05366930f4f089f0"
+    },
+    "media-feed": {
+      "template": "media-feed",
+      "depth": "stub",
+      "steering": [
+        "skills/snapback-authoring/SKILL.md",
+        "guide/start/mental-model.md",
+        "packages/snapback-cli/templates/media-feed/AGENTS.md",
+        "guide/start/media-feed.md"
+      ],
+      "editTargets": [
+        "snapback/schema.mjs",
+        "snapback/functions.mjs",
+        "snapback/seed.json",
+        "App.tsx",
+        "pagination.mjs"
+      ],
+      "maxBytes": 16384,
+      "requiredSafetyFacts": [
+        "sessions-custody-for-uploads",
+        "immutable-page-key-pagination"
+      ],
+      "escalationTriggers": [
+        "brief-outside-packet",
+        "structured-snapback-refusal",
+        "failed-prove"
+      ],
+      "digest": "sha256:92fe4d7d97c203a257eb3747ce3020cf3b8ff1af51382a4ff49b3c1fe645b11a"
+    },
+    "todo-contract": {
+      "template": "todo-contract",
+      "depth": "stub",
+      "steering": [
+        "skills/snapback-authoring/SKILL.md",
+        "guide/start/mental-model.md",
+        "packages/snapback-cli/templates/todo-contract/AGENTS.md",
+        "guide/start/todo-contract.md"
+      ],
+      "editTargets": [
+        "snapback/schema.mjs",
+        "snapback/functions.mjs",
+        "snapback/seed.json",
+        "acceptance.mjs"
+      ],
+      "maxBytes": 16384,
+      "requiredSafetyFacts": [
+        "headless-only-no-ui",
+        "dev-mode-flip-before-users"
+      ],
+      "escalationTriggers": [
+        "brief-outside-packet",
+        "structured-snapback-refusal",
+        "failed-prove"
+      ],
+      "digest": "sha256:b16be0861943e1b1d92e99ce4c6b625e797e5e06b216f3be1867da9a8fc87b32"
+    }
+  }
+}

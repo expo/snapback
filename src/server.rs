@@ -8373,14 +8373,20 @@ const LLMS_TXT: &str = r#"# Snapback
 
 > Snapback is a local-first app backend. This server embeds its own authoring guide.
 
-## Read first — one-request entry tier
+## Read first — the budgeted start tier
 
-- [Capability index](/_snapback/guide/capabilities.md) — about 50 KiB; capability-complete and budgeted.
-- [Surface map](/_snapback/guide/surface-map.md) — about 12 KiB; route and host-operation map within a 16 KiB budget.
+- [Snapback in one screen](/_snapback/guide/start/mental-model.md) — about 3 KiB; the shared mental model.
+- [Start packets](/_snapback/guide/start/index.md) — per-template first reads for scaffolded apps; read yours instead of the corpus.
 - [Guide index](/_snapback/guide) — choose a specific page when you know the topic.
+
+## Lookup registries — grep or query, do not linear-read
+
+- [Capability index](/_snapback/guide/capabilities.md) — about 57 KiB; capability-complete and budgeted; use `snapback guide <query>` or targeted grep.
+- [Surface map](/_snapback/guide/surface-map.md) — about 12 KiB; route and host-operation map within a 16 KiB budget.
 
 ## Section projections — choose only what you need
 
+- [Start packets](/_snapback/guide/guide-flat.start.generated.md) — about 20 KiB.
 - [Getting started](/_snapback/guide/guide-flat.getting-started.generated.md) — about 45 KiB.
 - [Backend](/_snapback/guide/guide-flat.backend.generated.md) — about 275 KiB.
 - [Realtime](/_snapback/guide/guide-flat.realtime.generated.md) — about 40 KiB.

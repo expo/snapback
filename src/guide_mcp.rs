@@ -177,7 +177,7 @@ fn resource_catalog(manifest: &Value) -> anyhow::Result<Vec<GuideResource>> {
         name: "flat".to_owned(),
         title: "Snapback Guide — whole-corpus flat projection".to_owned(),
         description: format!(
-            "Bulk export ({}); context-limited readers should start with capabilities, surface map, or a section projection.",
+            "Bulk export ({}); a last resort. Start with the start.mental-model / start.<template> packets or a section projection; capabilities is a lookup registry.",
             approximate_size(whole_bytes)
         ),
         embedded_path: guide::FLAT_PATH.to_owned(),
@@ -420,7 +420,7 @@ fn handle_request(request: Value) -> Option<Value> {
                     "resources": { "subscribe": false, "listChanged": false }
                 },
                 "serverInfo": { "name": "snapback-guide", "version": env!("CARGO_PKG_VERSION") },
-                "instructions": "Start with snapback-guide://page/meta.capabilities to route by intent. Then read snapback-guide://manifest and compare its guide hash/build commit with every cached resource before combining content.",
+                "instructions": "Start with snapback-guide://page/start.mental-model, or the snapback-guide://page/start.<template> packet for a scaffolded template. Use snapback-guide://page/meta.capabilities as a lookup registry, not a linear read. Then read snapback-guide://manifest and compare its guide hash/build commit with every cached resource before combining content.",
             }),
         )),
         "ping" => Some(success(id, json!({}))),
@@ -687,6 +687,17 @@ mod tests {
         let initialize = request(1, "initialize", json!({}));
         assert_eq!(initialize["result"]["protocolVersion"], PROTOCOL_VERSION);
         let instructions = initialize["result"]["instructions"].as_str().unwrap();
+        // @ref LLP 0259#1-first-read-contract — start packets lead; the
+        // capability index is named as a lookup registry, before the manifest.
+        assert!(
+            instructions
+                .find("snapback-guide://page/start.mental-model")
+                .unwrap()
+                < instructions
+                    .find("snapback-guide://page/meta.capabilities")
+                    .unwrap()
+        );
+        assert!(instructions.contains("lookup registry, not a linear read"));
         assert!(
             instructions
                 .find("snapback-guide://page/meta.capabilities")

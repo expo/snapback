@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:80af60c8915b1342e86fc952ffa4040036c2e4e1af02f1e5dd53867d0a0ca72f
+reviewed: 2026-08-15
+reviewed-authorities-digest: sha256:9bc993498cacf9c06be9392fb007475a1329f498346ece1f2edc4832683f66b3
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -32,12 +32,15 @@ the same command for exact lookup before prose search.
 **Audience:** agents (primarily) and humans (secondarily) building on
 Snapback. In a checkout, read this corpus directly. Outside a checkout, a
 running Snapback server exposes the same build-bound corpus at
-`GET /_snapback/guide` and individual paths below that prefix. Context-limited
-readers should load the one-request entry tier first: the
-[capability index](./capabilities.md) (about 50 KiB under its current enforced
-budget) and [surface map](./surface-map.md) (about 12 KiB under a 16 KiB
-budget). Generated `guide-flat.<section>.generated.md` files provide the next
-tier, one per top-level section. The complete bulk projection remains at
+`GET /_snapback/guide` and individual paths below that prefix. The first
+read is deliberately small (LLP 0259): a template's
+[start packet](./start/index.md), or
+[Snapback in one screen](./start/mental-model.md) when no template is
+selected — then escalate one page at a time. The
+[capability index](./capabilities.md) and [surface map](./surface-map.md)
+are budgeted registries for lookup, not linear first reads. Generated
+`guide-flat.<section>.generated.md` files provide a per-section bulk
+tier. The complete bulk projection remains at
 `GET /_snapback/guide/flat.md`, but is about 2.5 MiB and growing. Those responses
 carry `x-snapback-guide-content-sha256` and
 `x-snapback-server-build-commit`, so a consumer can refuse to combine cached
@@ -69,7 +72,7 @@ postures visible when you configure an agent:
 
 | Server | What it exposes | Authority consequence |
 | --- | --- | --- |
-| `snapback mcp` | The native Rust binary's resource-only Guide server. It reads the compile-time-embedded Guide corpus and exposes the manifest, per-section flats, the roughly 2.5 MiB whole-corpus bulk flat, and manifest-named pages at stable `snapback-guide://` URIs. Context-limited readers should prefer the capability/surface entry tier or a section. It has no mutation or host-operation tools. | Least authority: safe to wire into any agent, with no additional authority grant. |
+| `snapback mcp` | The native Rust binary's resource-only Guide server. It reads the compile-time-embedded Guide corpus and exposes the manifest, per-section flats, the roughly 2.5 MiB whole-corpus bulk flat, and manifest-named pages at stable `snapback-guide://` URIs. Context-limited readers should prefer the `start.*` packet pages or a section; capabilities is a lookup registry. It has no mutation or host-operation tools. | Least authority: safe to wire into any agent, with no additional authority grant. |
 | `snapback mcp-control` | The explicit JS control-plane server shipped by `@expo/snapback-cli`: typed control tools, the generated app-data catalog, `snapback-controls://catalog` plus per-operation/instance resources, and the native Guide resources. It invokes the co-installed native runtime for both embedded Guide and build-catalog bytes; the npm package carries no second snapshot. If that binary is unavailable, resource listing reports `SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` and lists no pretend Guide/catalog resources. | Standing local admin: it authenticates with the auto-minted local admin token, so the wired-in client has admin authority over the local Snapback instance. |
 
 The split makes documentation safe by default while keeping a capable operating
@@ -122,15 +125,26 @@ resolved local executable paths instead):
 Every Guide resource repeats the content hash and build commit in MCP metadata;
 read the manifest first and refuse to combine resources whose identities differ.
 
-**Start every task here:** check the
-[capability index](./capabilities.md) first — it lists everything Snapback
-has, including what this guide doesn't cover yet (explicit GAP rows), so
-you never build around a feature because you didn't know it existed.
-When an example is the fastest route, use the checked
+**Start every task with the start packet or mental model** (LLP 0259):
+[start packets](./start/index.md) for scaffolded templates,
+[Snapback in one screen](./start/mental-model.md) otherwise. The
+[capability index](./capabilities.md) is the completeness registry — it
+lists everything Snapback has, including what this guide doesn't cover yet
+(explicit GAP rows), so you never build around a feature you didn't know
+existed and never assume one that is a named gap. Look terms up in it
+(grep, or `snapback guide <query>`); do not linear-read it before the
+first edit. When an example is the fastest route, use the checked
 [demo catalog](repo:demos/README.md) to choose by client, target, maturity,
 proof command, and honest nonclaims without opening every demo.
 
 ## The map
+
+### Start here
+- [Start packets](./start/index.md) — the budgeted per-template first
+  reads: full packets for `react` and `expo-chat`, stubs for
+  `crud-dashboard`, `media-feed`, and `todo-contract`.
+- [Snapback in one screen](./start/mental-model.md) — the shared mental
+  model when no template is selected (about 3 KiB).
 
 ### Getting started
 - [Your first backend](./getting-started/your-first-backend.md) — schema,
@@ -144,10 +158,6 @@ proof command, and honest nonclaims without opening every demo.
   cache, summaries, and fail-closed resolution.
 
 ### Backend
-- [Familiar TypeScript profile](./backend/familiar-profile.md) — the
-  Experimental/non-default 0.1.22 grammar, server-side authorization,
-  identity-stable React hooks, native SecureStore custody, and one Expo Router
-  journey.
 - [Handler runtime profile and generation preflight](./backend/handler-runtime.md)
   — inspect current handler module/syntax/global limits, run the full
   non-replacing `generate --check` path, and follow build-bound refusal
@@ -171,6 +181,10 @@ proof command, and honest nonclaims without opening every demo.
   `defineRelationalQuery` / `defineMaintainedProjection` support for bounded
   two-source joins, including conversation-membership and message-sender
   shapes; aggregation and self-joins remain explicit gaps.
+- [Familiar TypeScript profile](./backend/familiar-profile.md) — the
+  Experimental/non-default 0.1.22 grammar, server-side authorization,
+  identity-stable React hooks, native SecureStore custody, and one Expo Router
+  journey.
 - [Snapshot batches](./backend/snapshot-batches.md) — 2–8 bounded child
   pages evaluated at one snapshot with one coordinated `sbsb1` cursor
   (experimental local target).

@@ -52,6 +52,35 @@ const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'snapback-cli-packag
 // construction. Assert that identity rather than the `^x.y.z` shape — a shape
 // match passes on any stamped version, including a hardcoded one.
 const SCAFFOLD_PIN = `^${JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version}`;
+// @ref LLP 0259#2-start-packet-not-a-handful-of-independent-cards — every
+// scaffold's AGENTS.md transcludes its template start packet with a digest
+// comment; identity is a compare against the canonical guide/start page, the
+// way the skill's Rosetta block is checked against its records.
+const assertStartPacketTransclusion = (agentInstructions, templateName) => {
+  assert.doesNotMatch(agentInstructions, /capability index first/u);
+  const transcluded = new RegExp(
+    `<!-- start-packet:begin ${templateName} digest=sha256:([0-9a-f]{64}) -->\\n([\\s\\S]*?)<!-- start-packet:end -->`,
+    'u',
+  ).exec(agentInstructions);
+  assert.ok(transcluded, `${templateName} AGENTS.md must transclude its start packet`);
+  assert.equal(
+    createHash('sha256').update(transcluded[2]).digest('hex'),
+    transcluded[1],
+    `${templateName} transcluded start packet must match its digest comment`,
+  );
+  const canonical = new RegExp(
+    `<!-- start-packet:begin ${templateName} -->\\n([\\s\\S]*?)<!-- start-packet:end -->`,
+    'u',
+  ).exec(readFileSync(new URL(`../../guide/start/${templateName}.md`, import.meta.url), 'utf8'));
+  assert.ok(canonical, `guide/start/${templateName}.md must carry the canonical packet`);
+  assert.equal(
+    transcluded[2],
+    canonical[1]
+      .replaceAll('](./', '](/_snapback/guide/start/')
+      .replaceAll('](../', '](/_snapback/guide/'),
+    `${templateName} transcluded packet must match guide/start/${templateName}.md (run scripts/check-first-read.mjs --write)`,
+  );
+};
 try {
   const packagedSkillContent = readFileSync(
     new URL('./skills/snapback-authoring/SKILL.md', import.meta.url),
@@ -325,7 +354,7 @@ console.log(JSON.stringify({
     'the packed template carrier must materialize only as .gitignore',
   );
   const todoAgentInstructions = readFileSync(join(project, 'AGENTS.md'), 'utf8');
-  assert.match(todoAgentInstructions, /capability index first/u);
+  assertStartPacketTransclusion(todoAgentInstructions, 'todo-contract');
   assert.match(todoAgentInstructions, /snapback guide <query>/u);
   assert.match(todoAgentInstructions, /snapback mcp/u);
   assert.match(todoAgentInstructions, /snapback-authoring/u);
@@ -354,7 +383,7 @@ console.log(JSON.stringify({
   assert.equal(reactManifest.scripts['carry:web-browser'], 'node carrier.mjs web-browser');
   assert.equal(existsSync(join(reactProject, 'snapback.verify.config.mjs')), true);
   const reactAgentInstructions = readFileSync(join(reactProject, 'AGENTS.md'), 'utf8');
-  assert.match(reactAgentInstructions, /capability index first/u);
+  assertStartPacketTransclusion(reactAgentInstructions, 'react');
   assert.match(reactAgentInstructions, /snapback guide <query>/u);
   assert.match(reactAgentInstructions, /snapback mcp/u);
   assert.match(reactAgentInstructions, /snapback-authoring/u);
@@ -456,7 +485,7 @@ console.log(JSON.stringify({
   const chatExpoManifest = JSON.parse(readFileSync(join(chatProject, 'app.json'), 'utf8'));
   assert.deepEqual(chatExpoManifest.expo.platforms, ['ios', 'android', 'web']);
   const chatAgentInstructions = readFileSync(join(chatProject, 'AGENTS.md'), 'utf8');
-  assert.match(chatAgentInstructions, /capability index first/u);
+  assertStartPacketTransclusion(chatAgentInstructions, 'expo-chat');
   assert.match(chatAgentInstructions, /snapback guide <query>/u);
   assert.match(chatAgentInstructions, /snapback mcp/u);
   assert.match(chatAgentInstructions, /snapback-authoring/u);
