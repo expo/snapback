@@ -444,13 +444,15 @@ class SnapbackExpoCustodyModule : Module() {
     storeEntryFor(appId, storageKey).store
 
   private suspend fun discardStore(storageKey: String, entry: StoreEntry) {
+    // updateData has durably published the serializer's byte-flipped envelope.
+    // Keep the per-key cache slot occupied until its actor is completely dead:
+    // DataStore forbids overlapping instances for the same file.
+    entry.job.cancelAndJoin()
     if (!stores.remove(storageKey, entry)) {
       throw IllegalStateException("custody DataStore changed during test-hook recreation")
     }
-    // updateData has durably published the serializer's byte-flipped envelope.
-    // Cancelling this per-key instance drops its decoded cache; the next read
-    // constructs a new DataStore and must traverse AES-GCM decryption.
-    entry.job.cancelAndJoin()
+    // The next read constructs a new DataStore and must traverse AES-GCM
+    // decryption instead of observing the discarded decoded cache.
   }
 
   private fun singleRuntimeRefusal(): Map<String, Any?>? {

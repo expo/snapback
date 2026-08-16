@@ -1,4 +1,4 @@
-# Diary 0087: Native custody probes
+# Diary 0088: Native custody probes
 
 **Date:** 2026-08-16
 

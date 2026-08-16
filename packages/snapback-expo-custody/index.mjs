@@ -194,6 +194,43 @@ export function createNativeAuthCustodyStorage(options = {}) {
     }
   };
 
+  const acquireCourtesyQueue = async (nativeModule, storageKey, operation) => {
+    const lock = lockFor(nativeModule, storageKey);
+    const prior = lock.tail;
+    let releaseTail;
+    lock.tail = new Promise((resolve) => { releaseTail = resolve; });
+    let waitTimer;
+    let waitTimedOut = false;
+    try {
+      await new Promise((resolve, reject) => {
+        waitTimer = setTimeout(() => {
+          waitTimedOut = true;
+          reject(createAuthCustodyError(
+            'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
+            'native auth custody ownership wait exceeded its deadlock bound',
+            { operation, reason: 'ownership-wait-timeout' },
+          ));
+        }, ownershipWaitTimeoutMs);
+        waitTimer.unref?.();
+        prior.then(() => {
+          if (waitTimedOut) {
+            // Preserve queue order even though this abandoned waiter has
+            // already refused: its successor cannot bypass the predecessor.
+            releaseTail();
+            return;
+          }
+          resolve();
+        });
+      });
+    } catch (error) {
+      if (!waitTimedOut) releaseTail();
+      throw error;
+    } finally {
+      clearTimeout(waitTimer);
+    }
+    return releaseTail;
+  };
+
   return Object.freeze({
     ownerKeyCapability: 'owner-key-v1',
 
@@ -231,39 +268,11 @@ export function createNativeAuthCustodyStorage(options = {}) {
       }
       const { appId, storageKey } = nativeAddress(ownerKeyInput);
       const nativeModule = assertNativeModule(await resolveNativeModule());
-      const lock = lockFor(nativeModule, storageKey);
-      const prior = lock.tail;
-      let releaseTail;
-      lock.tail = new Promise((resolve) => { releaseTail = resolve; });
-      let waitTimer;
-      let waitTimedOut = false;
-      try {
-        await new Promise((resolve, reject) => {
-          waitTimer = setTimeout(() => {
-            waitTimedOut = true;
-            reject(createAuthCustodyError(
-              'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
-              'native auth custody ownership wait exceeded its deadlock bound',
-              { operation: 'withOwnership', reason: 'ownership-wait-timeout' },
-            ));
-          }, ownershipWaitTimeoutMs);
-          waitTimer.unref?.();
-          prior.then(() => {
-            if (waitTimedOut) {
-              // Preserve queue order even though this abandoned waiter has
-              // already refused: its successor cannot bypass the predecessor.
-              releaseTail();
-              return;
-            }
-            resolve();
-          });
-        });
-      } catch (error) {
-        if (!waitTimedOut) releaseTail();
-        throw error;
-      } finally {
-        clearTimeout(waitTimer);
-      }
+      const releaseTail = await acquireCourtesyQueue(
+        nativeModule,
+        storageKey,
+        'withOwnership',
+      );
 
       const readRecord = async () => {
         const result = await callNative(
@@ -356,14 +365,23 @@ export function createNativeAuthCustodyStorage(options = {}) {
             { operation: 'corruptCiphertext', reason: 'native-test-hook-unavailable' },
           );
         }
-        const result = await callNative(
+        const releaseTail = await acquireCourtesyQueue(
+          nativeModule,
+          storageKey,
           'corruptCiphertext',
-          () => nativeModule.corruptCiphertext(appId, storageKey),
         );
-        if (result?.status !== 'ok') throw nativeFailure(result, 'corruptCiphertext');
-        return Object.freeze({
-          mechanism: result.mechanism ?? 'persisted-aead-byte-flip-datastore-reopen',
-        });
+        try {
+          const result = await callNative(
+            'corruptCiphertext',
+            () => nativeModule.corruptCiphertext(appId, storageKey),
+          );
+          if (result?.status !== 'ok') throw nativeFailure(result, 'corruptCiphertext');
+          return Object.freeze({
+            mechanism: result.mechanism ?? 'persisted-aead-byte-flip-datastore-reopen',
+          });
+        } finally {
+          releaseTail();
+        }
       },
     }),
   });

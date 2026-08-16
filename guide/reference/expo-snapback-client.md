@@ -923,7 +923,7 @@ export type AgentTerminationDisposition =
 
 Stable identity: `npm:@expo/snapback-client#ApplicationAuthBootstrapV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:10`
+Source: `packages/snapback-client/app-client.d.mts:11`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type ApplicationAuthBootstrapV1 = Readonly<{
@@ -1076,7 +1076,7 @@ export type AssetBearingCommandReferenceV1 = Pick<
 
 Stable identity: `npm:@expo/snapback-client#AuthBootstrapAdvisory`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:129`
+Source: `packages/snapback-client/app-client.d.mts:151`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AuthBootstrapAdvisory = Readonly<{
@@ -1090,7 +1090,7 @@ export type AuthBootstrapAdvisory = Readonly<{
 
 Stable identity: `npm:@expo/snapback-client#AuthBootstrapAuthoritySource`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:122`
+Source: `packages/snapback-client/app-client.d.mts:144`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AuthBootstrapAuthoritySource =
@@ -1106,7 +1106,7 @@ export type AuthBootstrapAuthoritySource =
 
 Stable identity: `npm:@expo/snapback-client#AuthBootstrapSnapshot`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:134`
+Source: `packages/snapback-client/app-client.d.mts:156`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AuthBootstrapSnapshot =
@@ -1991,7 +1991,7 @@ export function createRqsRegisteredRegistry(bundle: unknown): RqsRegisteredRegis
 
 Stable identity: `npm:@expo/snapback-client#createSnapbackAppClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/app-client.d.mts:175`
+Source: `packages/snapback-client/app-client.d.mts:197`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createSnapbackAppClient(input: Readonly<{
@@ -2053,7 +2053,7 @@ export function decodeRemediationSet(details: unknown): RemediationSetV1 | null;
 
 Stable identity: `npm:@expo/snapback-client#DEFAULT_AUTH_STORAGE_PARTITION`
 Kind: `runtime-constant`
-Source: `packages/snapback-client/app-client.d.mts:8`
+Source: `packages/snapback-client/app-client.d.mts:9`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 DEFAULT_AUTH_STORAGE_PARTITION: 'default'
@@ -3951,12 +3951,18 @@ export function projectDiagnosticV1(
 
 Stable identity: `npm:@expo/snapback-client#PublicAuthCustodyFacts`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:114`
+Source: `packages/snapback-client/app-client.d.mts:130`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type PublicAuthCustodyFacts = Readonly<{
-  carrier: 'indexeddb-web-locks' | 'indexeddb-fenced-lease' | 'memory';
-  grade: 'durable' | 'volatile';
+  carrier:
+    | 'indexeddb-web-locks'
+    | 'indexeddb-fenced-lease'
+    | 'expo-native-injected'
+    | 'memory';
+  grade: 'single-runtime' | 'durable' | 'volatile';
+  /** Present for injected native custody and copied from the adapter's grade report. */
+  mechanism?: unknown;
   storagePartitionIdentityHash: `sha256:${string}`;
   formatVersion: number;
   recoveryAvailable: boolean;
@@ -5605,7 +5611,7 @@ SNAPBACK_STORE_RUNTIME_LOAD_FAILED: 'SNAPBACK_STORE_RUNTIME_LOAD_FAILED'
 
 Stable identity: `npm:@expo/snapback-client#SnapbackAppBindingV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:35`
+Source: `packages/snapback-client/app-client.d.mts:36`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SnapbackAppBindingV1 = Readonly<{
@@ -5675,7 +5681,7 @@ export type SnapbackAppBindingV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-client#SnapbackAppClient`
 Kind: `type-interface`
-Source: `packages/snapback-client/app-client.d.mts:167`
+Source: `packages/snapback-client/app-client.d.mts:189`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackAppClient {
@@ -5700,7 +5706,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#SnapbackAppClientPlatform`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:96`
+Source: `packages/snapback-client/app-client.d.mts:97`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SnapbackAppClientPlatform =
@@ -5719,6 +5725,21 @@ export type SnapbackAppClientPlatform =
       lockManager?: unknown;
       cryptoObject?: unknown;
       databaseName?: string;
+    }>
+  | Readonly<{
+      kind: 'expo-native';
+      /** Advanced evidence seam only. Ordinary provider resolution does not
+       * construct this shape until the per-OS Phase 2 capability flips. */
+      authCustodyStorage: SnapbackAuthCustodyStorage & Readonly<{
+        ownerKeyCapability: 'owner-key-v1';
+        platformGrade(): Promise<Readonly<{
+          grade: 'single-runtime' | 'durable';
+          mechanism: unknown;
+          carrier?: string;
+          readonly [key: string]: unknown;
+        }>>;
+      }>;
+      cryptoObject?: unknown;
     }>;
 ```
 
@@ -5770,7 +5791,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#SnapbackApplicationDescriptorV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:24`
+Source: `packages/snapback-client/app-client.d.mts:25`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SnapbackApplicationDescriptorV1 = Readonly<{
@@ -5818,7 +5839,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#SnapbackAuthFacade`
 Kind: `type-interface`
-Source: `packages/snapback-client/app-client.d.mts:156`
+Source: `packages/snapback-client/app-client.d.mts:178`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackAuthFacade {
@@ -7392,6 +7413,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_AUTH_CUSTODY_PARTITION_OWNERSHIP_REQUIRED'
   | 'SNAPBACK_AUTH_CUSTODY_PARTITION_SCAN_LIMIT'
   | 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'
+  | 'SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED'
   | 'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED'
   | 'SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED'
   | 'SNAPBACK_AUTH_DEV_ORIGIN_REFUSED'

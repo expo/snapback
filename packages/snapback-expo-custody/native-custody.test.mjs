@@ -356,19 +356,33 @@ test('same-tick same-key ownership queues, serializes, and completes', async () 
   assert.deepEqual(order, ['first-entered', 'first-completed', 'second-entered']);
 });
 
-test('same-key reentrant ownership refuses through the bounded wait breaker', async () => {
-  const nativeModule = fakeNativeModule();
+test('same-key reentrant ownership and corruption refuse through the bounded wait breaker', async () => {
+  const nativeModule = fakeNativeModule({ os: 'android' });
   const storage = createNativeAuthCustodyStorage({
     nativeModule,
     ownershipWaitTimeoutMs: 5,
   });
-  await storage.withOwnership(APP, async () => {
-    await assert.rejects(
-      storage.withOwnership(APP, () => null),
-      (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED'
-        && error?.diagnostic?.details?.reason === 'ownership-wait-timeout',
-    );
-  });
+  const priorDev = globalThis.__DEV__;
+  globalThis.__DEV__ = true;
+  try {
+    await storage.withOwnership(APP, async () => {
+      await assert.rejects(
+        storage.withOwnership(APP, () => null),
+        (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED'
+          && error?.diagnostic?.details?.operation === 'withOwnership'
+          && error?.diagnostic?.details?.reason === 'ownership-wait-timeout',
+      );
+      await assert.rejects(
+        storage.testHooks.corruptCiphertext(APP),
+        (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED'
+          && error?.diagnostic?.details?.operation === 'corruptCiphertext'
+          && error?.diagnostic?.details?.reason === 'ownership-wait-timeout',
+      );
+    });
+  } finally {
+    if (priorDev === undefined) delete globalThis.__DEV__;
+    else globalThis.__DEV__ = priorDev;
+  }
 });
 
 test('normal ownership completion clears its deadlock-breaker timer', async () => {
@@ -556,13 +570,36 @@ test('Android ciphertext corruption hook is development-only and yields typed co
 
   const priorDev = globalThis.__DEV__;
   globalThis.__DEV__ = true;
+  let releaseOwnership;
+  const ownershipGate = new Promise((resolve) => { releaseOwnership = resolve; });
+  let markOwnershipEntered;
+  const ownershipEntered = new Promise((resolve) => { markOwnershipEntered = resolve; });
+  let ownershipTask;
+  let corruptionTask;
   try {
-    const hook = await storage.testHooks.corruptCiphertext({
+    ownershipTask = storage.withOwnership(APP, async (owner) => {
+      assert.deepEqual(await owner.read(), settled());
+      markOwnershipEntered();
+      await ownershipGate;
+    });
+    await ownershipEntered;
+    corruptionTask = storage.testHooks.corruptCiphertext({
       appId: APP,
       storagePartition: 'default',
     });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(
+      nativeModule.calls.some((call) => call[0] === 'corruptCiphertext'),
+      false,
+      'corruption hook waits behind same-key ownership',
+    );
+    releaseOwnership();
+    await ownershipTask;
+    const hook = await corruptionTask;
     assert.equal(hook.mechanism, 'persisted-aead-byte-flip-datastore-reopen');
   } finally {
+    releaseOwnership?.();
+    await Promise.allSettled([ownershipTask, corruptionTask].filter(Boolean));
     if (priorDev === undefined) delete globalThis.__DEV__;
     else globalThis.__DEV__ = priorDev;
   }
