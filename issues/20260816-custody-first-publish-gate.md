@@ -36,3 +36,14 @@ already-promoted prior member and a verified no-op during promotion. If the
 complete ceremony does not close, no qualified-publication claim advances;
 the retained ceremony evidence and this still-open gate require explicit
 reconciliation before another attempt.
+
+## Ceremony addendum (2026-08-16, after the Android flip 7f3607781)
+
+The LLP 0258 Phase-2 Android arm landed source-current-but-unpublished
+(Android-only ordinary-path admission, exact android+single-runtime tuple;
+evidence bundles 75ffc7733; iOS remains refused per
+issues/20260816-ios-extension-refusal-probe.md). Whoever runs this ceremony
+must, in the same publication change, add the Android grade row to
+`packages/snapback-expo-custody/README.md` consistently with the package's
+Experimental / adapter-reported-grades description wording, so the published
+README and the shipped Android capability row agree at first publish.
