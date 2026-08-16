@@ -57,6 +57,14 @@ const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 // @ref LLP 0262#d2-carriers-per-shipped-topology — custody sidecars must be
 // inaccessible to both Vite filesystem serving and its public directory.
 const DEV_IDENTITY_DENY_GLOB = '**/*.dev-identity';
+const VITE_8_DEFAULT_FS_DENY = Object.freeze([
+  '.env',
+  '.env.*',
+  '*.{crt,pem,key,p12,pfx,cer,der}',
+  '.npmrc',
+  '.yarnrc.yml',
+  '**/.git/**',
+]);
 
 function isWithinDirectory(directory, path) {
   const nested = relative(resolve(directory), resolve(path));
@@ -277,6 +285,8 @@ export function snapbackDev(options = {}) {
 
   let command = 'serve';
   let lifecycle = null;
+  let devIdentityStampAllowed = true;
+  let fsChecksDisabledDiagnosticEmitted = false;
   const verifiedGraphRoots = new Map();
   const supervisorGeneration = `vite-relay:${randomUUID()}`;
 
@@ -286,13 +296,29 @@ export function snapbackDev(options = {}) {
     name: 'snapback-dev',
     enforce: 'pre',
 
-    config(_config, env) {
+    config(config, env) {
       command = env.command;
       if (command !== 'serve' || mode === 'off') return undefined;
+      const projectRoot = resolve(options.projectRoot ?? config.root ?? process.cwd());
+      const configuredDeny = config.server?.fs?.deny;
+      const deny = configuredDeny === undefined
+        ? [...VITE_8_DEFAULT_FS_DENY]
+        : [...configuredDeny];
+      for (const pattern of [
+        DEV_IDENTITY_DENY_GLOB,
+        ...configuredDevIdentityCarriers({
+          mode,
+          projectRoot,
+          serverOptions,
+          env: options.env ?? process.env,
+        }),
+      ]) {
+        if (!deny.includes(pattern)) deny.push(pattern);
+      }
       return {
         server: {
           fs: {
-            deny: [DEV_IDENTITY_DENY_GLOB],
+            deny,
           },
         },
       };
@@ -304,6 +330,17 @@ export function snapbackDev(options = {}) {
         verifyGeneratedGraph(resolve(projectRoot, generatedRoot));
       }
       if (command !== 'serve' || mode === 'off') return;
+      devIdentityStampAllowed = config.server?.fs?.strict !== false;
+      if (!devIdentityStampAllowed && !fsChecksDisabledDiagnosticEmitted) {
+        fsChecksDisabledDiagnosticEmitted = true;
+        channel.emit({
+          event: 'dev-identity-stamping-refused',
+          code: 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED',
+          severity: 'error',
+          mode,
+          message: 'dev-identity relay stamping refused because Vite server.fs.strict is false and carrier custody cannot be enforced',
+        });
+      }
       const publicDir = config.publicDir;
       if (publicDir) {
         const carrier = configuredDevIdentityCarriers({
@@ -361,7 +398,9 @@ export function snapbackDev(options = {}) {
         getState: currentState,
         channel,
         refreshTarget: () => lifecycle.refreshTarget(),
-        getDevIdentityCapability: () => lifecycle.readDevIdentityCapability(),
+        getDevIdentityCapability: () => (
+          devIdentityStampAllowed ? lifecycle.readDevIdentityCapability() : null
+        ),
       });
       server.middlewares.use((req, res, next) => proxy.handleRequest(req, res, next));
       server.httpServer?.on('upgrade', (req, socket, head) => {
