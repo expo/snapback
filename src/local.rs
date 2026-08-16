@@ -12402,6 +12402,9 @@ impl LocalSnapback {
                                         .dry_run_media_command_mutation_with_settlement_time(
                                             plan,
                                             &input,
+                                            identity
+                                                .as_ref()
+                                                .expect("validated media command carries a mutation identity"),
                                             media_command,
                                             settlement_time.as_ref(),
                                         )?
@@ -12485,6 +12488,9 @@ impl LocalSnapback {
                                         .dry_run_media_command_buffered_payload(
                                             &input,
                                             &payload,
+                                            identity
+                                                .as_ref()
+                                                .expect("validated media command carries a mutation identity"),
                                             media_command,
                                         )?
                                 } else {

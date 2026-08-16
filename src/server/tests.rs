@@ -11643,6 +11643,116 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(details["candidateFields"][0]["expected"], "string");
 }
 
+/// The served mutation route must carry the command's one replay-stable
+/// attempt through the buffered-Ibex authorization preview as well as commit.
+/// @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit
+#[tokio::test]
+async fn served_http_buffered_media_command_reuses_attempt_for_preview_commit_and_replay() {
+    let mut asset_id = None;
+    let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
+        let schema: SchemaManifest = serde_json::from_str(include_str!(
+            "../../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
+        ))
+        .expect("parse served media-command schema");
+        snapback
+            .apply_schema(schema)
+            .expect("load served media-command schema");
+        let functions: FunctionManifest = serde_json::from_str(include_str!(
+            "../../tests/acceptance/fixtures/media-profile/snapback/generated/functions.manifest.json"
+        ))
+        .expect("parse served media-command functions");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            !diagnostics.iter().any(|diagnostic| matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "served media-command fixture loads: {diagnostics:?}",
+        );
+        let png = include_bytes!("../../brand/favicon-16.png");
+        let uploaded = snapback
+            .asset_host_op(
+                "asset.put",
+                Some(&json!({
+                    "upload": "sharedMediaUpload",
+                    "bytesBase64": base64::engine::general_purpose::STANDARD.encode(png),
+                    "fileName": "served-route.png",
+                    "contentType": "image/png",
+                })),
+                Some("media-route-user"),
+                ServerProfile::Test,
+            )
+            .expect("finalize served media-command asset");
+        asset_id = Some(
+            uploaded["task"]["assetId"]
+                .as_str()
+                .expect("uploaded media asset id")
+                .to_owned(),
+        );
+    });
+    let asset_id = asset_id.expect("served media asset captured");
+    let binding = with_snapback(&state.snapback, |snapback| {
+        snapback
+            .function("createPostMutation")
+            .expect("served media target")
+            .media_command_bindings[0]
+            .clone()
+    })
+    .await;
+    let router = app(state.clone());
+    let attempt_id = "served-media-command-attempt-1";
+    let request = || {
+        Request::builder()
+            .method("POST")
+            .uri("/mutation/createPostMutation")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                serde_json::to_vec(&json!({
+                    "args": { "body": "served route", "assetIds": [asset_id] },
+                    "auth": { "user_id": "media-route-user" },
+                    "clientMutationId": attempt_id,
+                    "wireVersion": "snapback.v1",
+                    "mediaCommand": {
+                        "bindingIdentity": binding.identity,
+                        "commandIdentity": binding.command.id,
+                        "attemptId": attempt_id,
+                        "items": [{ "ordinal": 0, "assetId": asset_id }],
+                    },
+                }))
+                .expect("serialize media command request"),
+            ))
+            .expect("served media command request")
+    };
+
+    let first = router
+        .clone()
+        .oneshot(request())
+        .await
+        .expect("first served media command response");
+    assert_eq!(first.status(), StatusCode::OK);
+    let first = response_json(first).await;
+    let parent_id = first["result"]["_id"]
+        .as_str()
+        .expect("media command returns its inserted parent")
+        .to_owned();
+
+    let replay = router
+        .oneshot(request())
+        .await
+        .expect("replayed served media command response");
+    assert_eq!(replay.status(), StatusCode::OK);
+    let replay = response_json(replay).await;
+    assert_eq!(replay["result"]["_id"], parent_id);
+
+    let posts = with_snapback(&state.snapback, |snapback| {
+        snapback.scan_table("posts", 10, 0)
+    })
+    .await
+    .expect("scan served media-command posts");
+    assert_eq!(posts.total, 1, "same attempt must not insert a second parent");
+}
+
 /// A malformed carrier on a function-authenticated hosted route keeps the
 /// LLP 0077 anti-oracle shape — the keyed cover-nonce sender challenge —
 /// and still refuses before any body poll.

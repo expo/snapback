@@ -309,6 +309,7 @@ impl LocalDatabase {
         &mut self,
         plan: &MutationPlan,
         input: &HandlerInput,
+        identity: &ClientMutationIdentity,
         media_command: &crate::manifest::ResolvedMediaCommandV1,
         policy: Option<&SettlementTimePolicy>,
     ) -> SnapbackResult<MutationPlanExecution> {
@@ -317,7 +318,7 @@ impl LocalDatabase {
             plan,
             input,
             false,
-            None,
+            Some(identity),
             Some(media_command),
             policy,
             None,
@@ -437,6 +438,7 @@ impl LocalDatabase {
         &mut self,
         input: &HandlerInput,
         payload: &BufferedCommitPayload,
+        identity: &ClientMutationIdentity,
         media_command: &crate::manifest::ResolvedMediaCommandV1,
     ) -> SnapbackResult<MutationCommit> {
         let media_projection = match (
@@ -467,7 +469,7 @@ impl LocalDatabase {
             BufferedCommitOptions {
                 ctx_ledger: Some(payload.ctx_ledger.clone()),
                 apply: false,
-                identity: None,
+                identity: Some(identity),
                 media_command: Some(media_command),
                 branch_operation: None,
             },
@@ -817,12 +819,14 @@ impl<'a> MutationWritesKernel<'a> {
         &mut self,
         plan: &MutationPlan,
         input: &HandlerInput,
+        identity: &ClientMutationIdentity,
         media_command: &crate::manifest::ResolvedMediaCommandV1,
         policy: Option<&SettlementTimePolicy>,
     ) -> SnapbackResult<MutationPlanExecution> {
         self.db.dry_run_media_command_mutation_with_settlement_time(
             plan,
             input,
+            identity,
             media_command,
             policy,
         )
@@ -888,10 +892,15 @@ impl<'a> MutationWritesKernel<'a> {
         &mut self,
         input: &HandlerInput,
         payload: &BufferedCommitPayload,
+        identity: &ClientMutationIdentity,
         media_command: &crate::manifest::ResolvedMediaCommandV1,
     ) -> SnapbackResult<MutationCommit> {
-        self.db
-            .dry_run_media_command_buffered_payload(input, payload, media_command)
+        self.db.dry_run_media_command_buffered_payload(
+            input,
+            payload,
+            identity,
+            media_command,
+        )
     }
 
     pub(crate) fn commit_buffered_host_writes_guarded<G, Check, BeforeCommit>(
