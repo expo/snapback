@@ -12,7 +12,9 @@ import { resultContractHash } from '@expo/snapback-codegen/result-contracts';
 import {
   SnapbackProvider,
   skip,
+  useAuth,
   useAction,
+  useCurrentPrincipal,
   useMutation,
   useQuery,
   useQueryState,
@@ -24,6 +26,8 @@ import {
 import {
   createSnapbackReactCoreProvider,
   skip as canonicalSkip,
+  useSnapbackAuth,
+  useSnapbackCurrentPrincipal,
   useSnapbackQuery,
 } from './implementation.mjs';
 import { SnapbackProvider as RootCanonicalProvider } from './index.mjs';
@@ -499,6 +503,8 @@ test('actions call the provider client only at invocation and own no task state'
 test('familiar entry preserves canonical identities and allocates no second owner', () => {
   assert.equal(SnapbackProvider, RootCanonicalProvider);
   assert.equal(useQueryState, useSnapbackQuery);
+  assert.equal(useAuth, useSnapbackAuth);
+  assert.equal(useCurrentPrincipal, useSnapbackCurrentPrincipal);
   assert.equal(skip, canonicalSkip);
   const source = readFileSync(new URL('familiar.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /\b(?:createContext|SnapbackClient|createCache|createOutbox|AuthCoordinator|createTask)\b/u);

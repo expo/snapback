@@ -6,7 +6,13 @@ import type {
   MutationRef,
 } from '@expo/snapback-client';
 
-export { SnapbackProvider, skip, useSnapbackQuery as useQueryState } from './index.mjs';
+export {
+  SnapbackProvider,
+  skip,
+  useSnapbackQuery as useQueryState,
+  useSnapbackAuth as useAuth,
+  useSnapbackCurrentPrincipal as useCurrentPrincipal,
+} from './index.mjs';
 
 export type FamiliarAuthoringProfile = 'snapback-familiar-ts-v1';
 

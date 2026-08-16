@@ -34,6 +34,20 @@ export interface SupervisedBindingCache {
 }
 
 export interface SupervisedSnapbackExpoEnvironmentV1 extends SnapbackExpoEnvironmentV1 {
+  resolveSupervisedAuthority(input: Readonly<{
+    app: AppDescriptorV1Like;
+    binding: AppBindingV1;
+    signal: AbortSignal;
+    refresh?: boolean;
+  }>): Promise<
+    | Readonly<{ status: 'ready'; bearer: string; refreshAfterMs: number }>
+    | Readonly<{ status: 'unavailable' }>
+    | Readonly<{
+        status: 'authority-required';
+        diagnostic: SnapbackDiagnostic;
+        remediations: readonly TypedRemediation[];
+      }>
+  >;
   refreshAuthority(input: Readonly<{
     app: AppDescriptorV1Like;
     binding: AppBindingV1;

@@ -311,9 +311,14 @@ export function validateAppBindingV1(candidate) {
 function assertDescriptorV1(app) {
   const rootKeys = ['api', 'authoringProfile', 'capabilities', 'commands', 'format', 'identity', 'surfaces'];
   const legacyRootKeys = ['api', 'capabilities', 'commands', 'format', 'identity', 'surfaces'];
+  const bootstrapRootKeys = [...rootKeys, 'authBootstrap'];
+  const legacyBootstrapRootKeys = [...legacyRootKeys, 'authBootstrap'];
   const identityKeys = ['app', 'descriptor', 'functions', 'schema'];
   if (
-    (!exactKeys(app, rootKeys) && !exactKeys(app, legacyRootKeys))
+    (!exactKeys(app, rootKeys)
+      && !exactKeys(app, legacyRootKeys)
+      && !exactKeys(app, bootstrapRootKeys)
+      && !exactKeys(app, legacyBootstrapRootKeys))
     || app.format !== 'snapback.app.v1'
     || (Object.hasOwn(app, 'authoringProfile') && !AUTHORING_PROFILES.has(app.authoringProfile))
     || !exactKeys(app.identity, identityKeys)

@@ -9,6 +9,10 @@ import React, {
 import {
   bindSnapbackAppLifecycle,
 } from '@expo/snapback-client';
+import {
+  adoptSupervisedBootstrapAuthority,
+  createSnapbackAppClientWithBootstrapObserver,
+} from '@expo/snapback-client/app-client-internal';
 import { createAssetClient } from '@expo/snapback-client/assets';
 import {
   SnapbackProvider,
@@ -63,6 +67,32 @@ function productionCondition() {
   /* global __DEV__ */
   if (typeof __DEV__ === 'boolean') return __DEV__ === false;
   return typeof process !== 'undefined' && process.env?.NODE_ENV === 'production';
+}
+
+const APPLICATION_AUTH_BOOTSTRAP_FORMAT = 'snapback.application-auth-bootstrap.v1';
+export const APPLICATION_AUTH_BOOTSTRAP_CAPABILITY = 'auth.application-bootstrap.v1';
+
+function firstPartyBootstrapOptIn(app) {
+  // @ref LLP 0258#compatibility-and-migration — the v1 policy plus one ordinary
+  // descriptor requirement is the least-invasive capability-gated opt-in.
+  // Descriptors/bindings that do not require+offer this capability retain LLP
+  // 0181's legacy supervised client byte-for-byte.
+  return app?.authBootstrap?.format === APPLICATION_AUTH_BOOTSTRAP_FORMAT
+    && app?.capabilities?.required?.includes(APPLICATION_AUTH_BOOTSTRAP_CAPABILITY);
+}
+
+async function resolveAppClientPlatform(environment, app) {
+  if (typeof environment.resolveAppClientPlatform === 'function') {
+    return environment.resolveAppClientPlatform({ app });
+  }
+  if (globalThis.indexedDB?.open) return Object.freeze({ kind: 'expo-web' });
+  if (app.authBootstrap.custody === 'volatile-explicit') {
+    return Object.freeze({ kind: 'memory' });
+  }
+  // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
+  // — native durable-required remains refused until Phase 2 has per-OS
+  // kill/relaunch and fencing evidence. Expo web uses IndexedDB above.
+  return Object.freeze({ kind: 'expo-native-phase-2-evidence-required' });
 }
 
 function canonicalJson(value) {
@@ -143,6 +173,8 @@ export function createSnapbackExpoBoot({
   environment = defaultSnapbackExpoEnvironment,
   createProvider = createSnapbackReactProvider,
   bindLifecycle = bindSnapbackAppLifecycle,
+  createApplicationClient = createSnapbackAppClientWithBootstrapObserver,
+  adoptSupervisedAuthority = adoptSupervisedBootstrapAuthority,
   now = () => Date.now(),
 } = {}) {
   const correlationId = `snapback-expo-boot-${++bootSequence}`;
@@ -154,6 +186,8 @@ export function createSnapbackExpoBoot({
   let lifecycle = null;
   let lifecycleSource = null;
   let authorityDisposer = null;
+  let applicationClient = null;
+  let bootstrapUnsubscribe = null;
   let admittedBinding = null;
   let admittedBindingFacts = null;
   let authorityFacts = null;
@@ -181,6 +215,26 @@ export function createSnapbackExpoBoot({
       try { await authorityDisposer(); } catch { /* authority owner retains diagnostics */ }
       authorityDisposer = null;
     }
+    bootstrapUnsubscribe?.();
+    bootstrapUnsubscribe = null;
+    if (applicationClient) {
+      try { await applicationClient.dispose(); } catch { /* bootstrap owner retains diagnostics */ }
+      applicationClient = null;
+    }
+  };
+
+  const projectApplicationBootstrap = () => {
+    // @ref LLP 0258#d7-bootstrap-state-is-construction-truth-not-auth-truth — retain the
+    // app owner's closed snapshot and add only LLP 0181 binding/preparation
+    // facts to its ready arm.
+    const bootstrap = applicationClient.bootstrapState();
+    return bootstrap.status === 'ready'
+      ? Object.freeze({
+          ...bootstrap,
+          binding: admittedBindingFacts,
+          preparation,
+        })
+      : bootstrap;
   };
 
   const run = async () => {
@@ -223,6 +277,93 @@ export function createSnapbackExpoBoot({
         verifyBuildReceipt: admission.verifyBuildReceipt,
       });
       if (disposed) return state;
+
+      if (firstPartyBootstrapOptIn(app)) {
+        const platform = await resolveAppClientPlatform(environment, app);
+        applicationClient = await createApplicationClient(
+          {
+            app,
+            binding: admittedBinding,
+            platform,
+          },
+          (snapshot) => {
+            if (!disposed && snapshot.status !== 'ready') publish(snapshot);
+          },
+        );
+        if (disposed) {
+          await cleanup();
+          return state;
+        }
+
+        if (
+          admittedBinding.source === 'supervised-dev'
+          && typeof environment.resolveSupervisedAuthority === 'function'
+        ) {
+          const supervised = await environment.resolveSupervisedAuthority(Object.freeze({
+            app,
+            binding: admittedBinding,
+            signal: controller.signal,
+            refresh: false,
+          }));
+          if (disposed) {
+            await cleanup();
+            return state;
+          }
+          if (
+            supervised?.status === 'authority-required'
+            && supervised.diagnostic?.code === 'SNAPBACK_AUTH_POLICY_UNAVAILABLE'
+          ) {
+            publish(authorityRequiredState(
+              Object.assign(new Error(supervised.diagnostic.message), {
+                code: supervised.diagnostic.code,
+                diagnostic: supervised.diagnostic,
+              }),
+              correlationId,
+              supervised.remediations,
+            ));
+            return state;
+          }
+          if (supervised?.status === 'ready') {
+            await adoptSupervisedAuthority(applicationClient, {
+              bearer: supervised.bearer,
+              binding: admittedBinding,
+              refreshAfterMs: supervised.refreshAfterMs,
+            });
+            if (disposed) {
+              await cleanup();
+              return state;
+            }
+          }
+        }
+
+        const prepared = await applicationClient.client.prepareReactBinding({
+          generatedManifest: app,
+          ...(environment.developmentSync === undefined
+            ? {}
+            : { developmentSync: environment.developmentSync }),
+        });
+        preparation = Object.freeze({ source: prepared.source ?? 'deployment' });
+        if (disposed) return state;
+        reactProvider = createProvider(prepared, {
+          assets: createAssetClient(applicationClient.client, { fetch: expoAssetFetch }),
+          assetSourceAdapter: adaptExpoAssetSource,
+        });
+        reactProvider.start?.();
+        lifecycleSource = await resolveSnapbackExpoLifecycleSource(environment);
+        if (disposed) return state;
+        lifecycle = bindLifecycle(lifecycleSource, reactProvider, {
+          onError(error) {
+            try { environment.onDiagnostic?.(normalizedDiagnostic(error, correlationId)); } catch { /* observational */ }
+          },
+        });
+        admittedBindingFacts = publicBindingFacts(admittedBinding);
+        bootstrapUnsubscribe = applicationClient.subscribeBootstrap(() => {
+          if (disposed || preparation === null || admittedBindingFacts === null) return;
+          publish(projectApplicationBootstrap());
+        });
+        publish(projectApplicationBootstrap());
+        return state;
+      }
 
       publish(Object.freeze({ status: 'starting', stage: 'authority' }));
       let adopted;
@@ -304,7 +445,11 @@ export function createSnapbackExpoBoot({
       return state;
     } catch (error) {
       await cleanup();
-      if (!disposed) publish(errorState(error, correlationId));
+      if (!disposed) publish(
+        firstPartyBootstrapOptIn(app) && error?.bootstrapState
+          ? error.bootstrapState
+          : errorState(error, correlationId),
+      );
       return state;
     }
   };
@@ -327,6 +472,34 @@ export function createSnapbackExpoBoot({
       if (refreshPromise !== null) return refreshPromise;
       refreshPromise = (async () => {
         if (disposed || state.status !== 'ready' || admittedBinding === null) return state;
+        if (applicationClient !== null) {
+          if (
+            admittedBinding.source !== 'supervised-dev'
+            || typeof environment.resolveSupervisedAuthority !== 'function'
+          ) return state;
+          try {
+            const supervised = await environment.resolveSupervisedAuthority(Object.freeze({
+              app,
+              binding: admittedBinding,
+              signal: controller.signal,
+              refresh: true,
+            }));
+            if (supervised?.status === 'ready') {
+              await adoptSupervisedAuthority(applicationClient, {
+                bearer: supervised.bearer,
+                binding: admittedBinding,
+                refreshAfterMs: supervised.refreshAfterMs,
+              });
+            } else if (supervised?.status === 'authority-required') {
+              try { environment.onDiagnostic?.(supervised.diagnostic); } catch { /* observational */ }
+            }
+            publish(projectApplicationBootstrap());
+          } catch (error) {
+            try { environment.onDiagnostic?.(normalizedDiagnostic(error, correlationId)); } catch { /* observational */ }
+            publish(projectApplicationBootstrap());
+          }
+          return state;
+        }
         if (typeof environment.refreshAuthority !== 'function') {
           const error = new Error('the selected Expo environment cannot refresh ordinary authority');
           error.code = 'SNAPBACK_EXPO_ENVIRONMENT_INVALID';
@@ -387,6 +560,7 @@ export function createSnapbackExpoBoot({
       return refreshPromise;
     },
     reactProvider: () => reactProvider,
+    appClient: () => applicationClient,
     lifecycleSource: () => lifecycleSource,
     async dispose() {
       if (disposed) return;
@@ -411,6 +585,7 @@ export function SnapbackExpoProvider({
     const listeners = new Set();
     let current = Object.freeze({
       state: Object.freeze({ status: 'starting', stage: 'binding' }),
+      appClient: null,
       reactProvider: null,
       lifecycleSource: null,
     });
@@ -434,6 +609,7 @@ export function SnapbackExpoProvider({
       if (!current) return;
       store.publish(Object.freeze({
         state: boot.getSnapshot(),
+        appClient: boot.appClient(),
         reactProvider: boot.reactProvider(),
         lifecycleSource: boot.lifecycleSource(),
       }));
@@ -455,6 +631,7 @@ export function SnapbackExpoProvider({
   const content = state.status === 'ready'
     ? React.createElement(SnapbackProvider, {
         provider: active.reactProvider,
+        __appClientProjection: active.appClient,
         outboxDrain,
         outboxDrainOptions,
       }, children)

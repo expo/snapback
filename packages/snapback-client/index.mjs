@@ -4046,6 +4046,68 @@ export class SnapbackClient {
     return { session: this.#validateAuthSession(session, bearer, offer), capture };
   }
 
+  // Framework-owner seam for LLP 0258's admitted supervised carrier. This is
+  // deliberately absent from client.auth and the public declarations: an
+  // ordinary application never receives a bearer or an adoption primitive.
+  // The Expo owner supplies the carrier only after AppBinding admission, and
+  // this method validates it through the ordinary /auth/session handshake
+  // before the existing coordinator transition/barrier owns publication.
+  async __supervisedBootstrapHandshake(
+    bearer,
+    { refreshAfterMs = Number.MAX_SAFE_INTEGER } = {},
+  ) {
+    if (!this.authCoordinator) {
+      throw new TypeError('supervised bootstrap requires AuthCoordinator custody');
+    }
+    if (typeof bearer !== 'string' || bearer.length === 0) {
+      throw new TypeError('supervised bootstrap requires a non-empty bearer');
+    }
+    await this.authSession();
+    const offeredCapture = this.authCoordinator.capture();
+    const { session } = await this.#fetchAuthSessionWithBearer(bearer, offeredCapture);
+    const observed = clientAuthorityFromHandshake(session);
+    if (observed.kind !== 'session') throw staleAuthorityError();
+
+    let currentCapture;
+    try {
+      currentCapture = this.authCoordinator.capture();
+    } catch (error) {
+      if (
+        error?.code === 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+        || error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+      ) throw staleAuthorityError();
+      throw error;
+    }
+    const current = this.authCoordinator.credentialFor(currentCapture);
+    if (current.authority.kind === 'session') {
+      if (sameClientAuthority(current.authority, observed)) {
+        const rotated = await this.authCoordinator.compareAndRotateBearer(currentCapture, {
+          bearer,
+          refreshAfterMs,
+        });
+        if (!rotated.rotated) throw staleAuthorityError();
+        await this.#commitAuthSession(session, rotated.capture);
+        return Object.freeze({ status: 'rebound', capture: rotated.capture, session });
+      }
+      return Object.freeze({ status: 'conflict', session });
+    } else if (current.authority.kind !== 'anonymous') {
+      throw staleAuthorityError();
+    }
+
+    // @ref LLP 0258#d5-application-authority-wins-over-ambient-development-adoption
+    // — a supervised principal may enter only over a fresh/settled anonymous
+    // predecessor. Same-principal remints took the carrier-only branch above.
+    const successor = await this.authCoordinator.transition(currentCapture, {
+      authority: observed,
+      bearer,
+      refreshAfterMs,
+    }, current.authority.kind === 'anonymous'
+      ? 'supervised-bootstrap'
+      : 'supervised-refresh');
+    await this.#commitAuthSession(session, successor);
+    return Object.freeze({ status: 'adopted', capture: successor, session });
+  }
+
   async #probeUnrecognizedAuthority(predecessor) {
     let session;
     try {

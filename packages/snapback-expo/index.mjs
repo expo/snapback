@@ -6,6 +6,7 @@ export {
   validateAppBindingV1,
 } from './app-binding.mjs';
 export {
+  APPLICATION_AUTH_BOOTSTRAP_CAPABILITY,
   SnapbackExpoProvider,
   createSnapbackExpoBoot,
   defaultSnapbackExpoEnvironment,

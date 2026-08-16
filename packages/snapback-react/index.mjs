@@ -43,6 +43,8 @@ export {
   useSnapbackDiagnostics,
   useSnapbackMutation,
   useSnapbackActivityPresence,
+  useSnapbackAuth,
+  useSnapbackCurrentPrincipal,
   useSnapbackOptimisticCreate,
   useSnapbackOutbox,
   useSnapbackPresence,

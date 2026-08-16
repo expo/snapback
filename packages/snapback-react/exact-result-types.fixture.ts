@@ -1,5 +1,7 @@
 import type {
+  PreparedReactBinding,
   PreparedReactQueryGroup,
+  SnapbackAppClient,
   SnapbackFunctionReference,
 } from '@expo/snapback-client';
 import type {
@@ -17,6 +19,16 @@ import {
   useSnapbackQuery,
   useSurface,
 } from './index.mjs';
+import type { SnapbackProviderProps } from './index.mjs';
+
+declare const ordinaryAppClient: SnapbackAppClient;
+declare const advancedBinding: PreparedReactBinding;
+// @ts-expect-error ordinary app-client ownership and advanced binding injection are exclusive.
+const mixedProviderOwnership: SnapbackProviderProps = {
+  appClient: ordinaryAppClient,
+  binding: advancedBinding,
+};
+void mixedProviderOwnership;
 
 declare const todos: SnapbackFunctionReference<
   'todos',

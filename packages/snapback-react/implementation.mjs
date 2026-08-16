@@ -15,6 +15,10 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 
+import {
+  applicationDescriptorForAppClient,
+  createSnapbackAppClientWithBootstrapObserver,
+} from '@expo/snapback-client/app-client-internal';
 import { SnapbackDiagnosticError } from '@expo/snapback-client/diagnostic-error';
 
 import {
@@ -75,6 +79,7 @@ const DEFAULT_HOOK_CHURN_TRANSITION_THRESHOLD = 8;
 const DEFAULT_HOOK_CHURN_WINDOW_MS = 2_000;
 const DEFAULT_OUTBOX_DRAIN_OPTIONS = Object.freeze({});
 const providerContext = createContext(null);
+const appClientContext = createContext(null);
 let providerSequence = 0;
 // Local-uniqueness labels (provider instances, optimistic-layer ids): NOT
 // security-bearing identity, so a carrier with no WebCrypto (React
@@ -3864,11 +3869,11 @@ function renderSnapbackProvider(
   return React.createElement(providerContext.Provider, { value: active }, children);
 }
 
-export function SnapbackCoreProvider(props) {
+function AdvancedSnapbackCoreProvider(props) {
   return renderSnapbackProvider(props, createSnapbackReactCoreProvider);
 }
 
-export function SnapbackFullProvider({
+function AdvancedSnapbackFullProvider({
   binding = null,
   provider = null,
   children = null,
@@ -3918,6 +3923,264 @@ export function SnapbackFullProvider({
   return React.createElement(providerContext.Provider, { value: active }, children);
 }
 
+function reactAuthOwnerRefusal(message, details = {}) {
+  const error = diagnosticError(
+    'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID',
+    message,
+    details,
+  );
+  error.remediations = Object.freeze([]);
+  return error;
+}
+
+function ordinaryProviderController({ appClient, app, binding, platform, storagePartition }) {
+  let generation = 0;
+  let retained = appClient;
+  let acquisition = null;
+  const constructionListeners = new Set();
+  const owned = appClient === null;
+  const publishConstruction = (snapshot) => {
+    for (const listener of [...constructionListeners]) listener(snapshot);
+  };
+  const acquire = () => {
+    if (retained !== null) return Promise.resolve(retained);
+    acquisition ??= createSnapbackAppClientWithBootstrapObserver(
+      {
+        app,
+        binding,
+        platform,
+        ...(storagePartition === undefined ? {} : { storagePartition }),
+      },
+      publishConstruction,
+    ).then((next) => {
+      retained = next;
+      return next;
+    });
+    return acquisition;
+  };
+  return Object.freeze({
+    acquire,
+    subscribeConstruction(listener) {
+      constructionListeners.add(listener);
+      return () => constructionListeners.delete(listener);
+    },
+    begin() {
+      generation += 1;
+      return generation;
+    },
+    releaseAfterReplayWindow(token, providerDisposal) {
+      queueMicrotask(async () => {
+        try { await providerDisposal; } catch { /* app-owner cleanup still proceeds */ }
+        if (!owned || generation !== token) return;
+        let current = retained;
+        if (current === null && acquisition !== null) {
+          try { current = await acquisition; } catch { return; }
+        }
+        if (generation !== token || current === null) return;
+        retained = null;
+        acquisition = null;
+        await current.dispose();
+      });
+    },
+  });
+}
+
+function failedBootstrapSnapshot(error) {
+  if (error?.bootstrapState) return error.bootstrapState;
+  return Object.freeze({
+    status: 'error',
+    diagnostic: serializeError(error),
+    remediations: Object.freeze([...(error?.remediations ?? [])]),
+  });
+}
+
+function OrdinarySnapbackProvider({
+  appClient = null,
+  app = null,
+  binding = null,
+  platform = null,
+  storagePartition = undefined,
+  fallback = null,
+  children = null,
+  createProvider,
+  full = false,
+  outboxDrain = 'auto',
+  outboxDrainOptions = DEFAULT_OUTBOX_DRAIN_OPTIONS,
+}) {
+  const controller = useMemo(() => ordinaryProviderController({
+    appClient,
+    app,
+    binding,
+    platform,
+    storagePartition,
+  }), [app, appClient, binding, platform, storagePartition]);
+  const store = useMemo(() => {
+    const listeners = new Set();
+    let current = Object.freeze({
+      bootstrap: appClient?.bootstrapState?.()
+        ?? Object.freeze({ status: 'starting', stage: 'binding' }),
+      appClient: null,
+      provider: null,
+    });
+    return Object.freeze({
+      getSnapshot: () => current,
+      subscribe(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      publish(next) {
+        current = Object.freeze(next);
+        for (const listener of [...listeners]) listener();
+      },
+    });
+  }, [appClient, controller]);
+  const current = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  useEffect(() => {
+    const token = controller.begin();
+    let active = true;
+    let projection = null;
+    let provider = null;
+    let unsubscribeBootstrap = null;
+    const unsubscribeConstruction = controller.subscribeConstruction((snapshot) => {
+      if (!active || snapshot.status === 'ready') return;
+      store.publish({
+        bootstrap: snapshot,
+        appClient: null,
+        provider: null,
+      });
+    });
+    void (async () => {
+      try {
+        projection = await controller.acquire();
+        if (!active) return;
+        const syncBootstrap = () => {
+          if (!active) return;
+          const bootstrap = projection.bootstrapState();
+          if (provider === null && bootstrap.status === 'ready') return;
+          store.publish({
+            bootstrap,
+            appClient: projection,
+            provider,
+          });
+        };
+        unsubscribeBootstrap = projection.subscribeBootstrap(syncBootstrap);
+        syncBootstrap();
+        const generatedApp = app ?? applicationDescriptorForAppClient(projection);
+        const prepared = await projection.client.prepareReactBinding({
+          generatedManifest: generatedApp,
+        });
+        if (!active) return;
+        provider = createProvider(prepared);
+        provider.start?.();
+        syncBootstrap();
+      } catch (error) {
+        if (!active) return;
+        store.publish({
+          bootstrap: failedBootstrapSnapshot(error),
+          appClient: null,
+          provider: null,
+        });
+      }
+    })();
+    return () => {
+      active = false;
+      unsubscribeConstruction();
+      unsubscribeBootstrap?.();
+      const providerDisposal = Promise.resolve(provider?.dispose?.());
+      controller.releaseAfterReplayWindow(token, providerDisposal);
+    };
+  }, [app, controller, createProvider, store]);
+
+  if (current.provider === null || current.appClient === null) {
+    return typeof fallback === 'function' ? fallback(current.bootstrap) : fallback;
+  }
+  const projected = full
+    ? React.createElement(AdvancedSnapbackFullProvider, {
+        provider: current.provider,
+        outboxDrain,
+        outboxDrainOptions,
+      }, children)
+    : React.createElement(AdvancedSnapbackCoreProvider, {
+        provider: current.provider,
+      }, children);
+  return React.createElement(
+    appClientContext.Provider,
+    { value: current.appClient },
+    projected,
+  );
+}
+
+function providerOwnershipMode({
+  appClient = null,
+  app = null,
+  binding = null,
+  provider = null,
+}) {
+  // @ref LLP 0258#d6-react-and-expo-project-the-same-owner — a provider
+  // instance selects exactly one construction owner. Mixing app-client/app
+  // ownership with the prepared/provider injection seam refuses synchronously.
+  if (appClient !== null && app !== null) {
+    throw reactAuthOwnerRefusal(
+      'Pass either appClient or app + AppBinding, not both ordinary owner forms.',
+      { ordinaryForms: Object.freeze(['appClient', 'app+binding']) },
+    );
+  }
+  if (appClient !== null && (binding !== null || provider !== null)) {
+    throw reactAuthOwnerRefusal(
+      'appClient ownership cannot be combined with prepared binding or provider injection.',
+      { ordinary: 'appClient', advanced: provider !== null ? 'provider' : 'binding' },
+    );
+  }
+  if (app !== null && provider !== null) {
+    throw reactAuthOwnerRefusal(
+      'app + AppBinding ownership cannot be combined with provider injection.',
+      { ordinary: 'app+binding', advanced: 'provider' },
+    );
+  }
+  if (app !== null && binding === null) {
+    throw reactAuthOwnerRefusal('app ownership requires an admitted AppBinding.', {
+      ordinary: 'app+binding',
+    });
+  }
+  return appClient !== null || app !== null ? 'ordinary' : 'advanced';
+}
+
+export function SnapbackCoreProvider(props) {
+  if (props.__appClientProjection !== undefined) {
+    return React.createElement(
+      appClientContext.Provider,
+      { value: props.__appClientProjection },
+      React.createElement(AdvancedSnapbackCoreProvider, props),
+    );
+  }
+  if (providerOwnershipMode(props) === 'advanced') {
+    return React.createElement(AdvancedSnapbackCoreProvider, props);
+  }
+  return React.createElement(OrdinarySnapbackProvider, {
+    ...props,
+    createProvider: createSnapbackReactCoreProvider,
+    full: false,
+  });
+}
+
+export function SnapbackFullProvider(props) {
+  if (props.__appClientProjection !== undefined) {
+    return React.createElement(
+      appClientContext.Provider,
+      { value: props.__appClientProjection },
+      React.createElement(AdvancedSnapbackFullProvider, props),
+    );
+  }
+  if (providerOwnershipMode(props) === 'advanced') {
+    return React.createElement(AdvancedSnapbackFullProvider, props);
+  }
+  return React.createElement(OrdinarySnapbackProvider, {
+    ...props,
+    createProvider: createSnapbackReactFullProvider,
+    full: true,
+  });
+}
+
 function useProvider() {
   return assertProvider(useContext(providerContext));
 }
@@ -3929,6 +4192,37 @@ function useProvider() {
 // the canonical provider/client owner; they never create a parallel client.
 export function useSnapbackProviderClient() {
   return preparedReactBindingClient(useProvider().binding);
+}
+
+function useSnapbackAppClient() {
+  const appClient = useContext(appClientContext);
+  if (appClient === null) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_AUTH_PROVIDER_REQUIRED',
+      'Auth hooks require the ordinary Snapback app-client provider path.',
+    );
+  }
+  return appClient;
+}
+
+// @ref LLP 0238#d6-current-principal-is-a-first-class-projection — React
+// projects the app client's exact closed principal snapshot; it owns no auth
+// state and introduces no nullable loading shortcut.
+export function useSnapbackCurrentPrincipal() {
+  const auth = useSnapbackAppClient().auth;
+  const subscribe = useCallback(
+    (listener) => auth.subscribeCurrentPrincipal(listener),
+    [auth],
+  );
+  const snapshot = useCallback(() => auth.currentPrincipal(), [auth]);
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
+}
+
+// The facade is stable for one app-client projection. Returning it by identity
+// preserves every exact action/result contract and keeps composition in the
+// framework-neutral owner.
+export function useSnapbackAuth() {
+  return useSnapbackAppClient().auth;
 }
 
 // Narrow provider projection for the experimental data doorway. Generated

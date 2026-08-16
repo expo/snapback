@@ -63,13 +63,20 @@ void pickerAdapter({
 createSnapbackExpoBoot({ app: generatedApp, binding, environment });
 const state: ExpoBootState = boot.getSnapshot();
 if (state.status === 'starting') {
-  const stage: 'binding' | 'authority' | 'client' = state.stage;
+  const stage: 'binding' | 'custody' | 'authority' | 'client' = state.stage;
   void stage;
 } else if (state.status === 'ready') {
   const source: 'supervised-dev' | 'release' = state.binding.source;
-  const kind: 'session' = state.authority.kind;
   void source;
-  void kind;
+  if ('authority' in state) {
+    const kind: 'session' = state.authority.kind;
+    void kind;
+  } else {
+    const authoritySource = state.authoritySource;
+    const custodyGrade: 'durable' | 'volatile' = state.custody.grade;
+    void authoritySource;
+    void custodyGrade;
+  }
 } else {
   const code: string = state.diagnostic.code;
   const remediations = state.remediations;

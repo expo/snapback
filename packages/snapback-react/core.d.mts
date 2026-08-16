@@ -1,6 +1,13 @@
 import type {
+  AuthBootstrapSnapshot,
+  CurrentPrincipalSnapshot,
   PreparedReactBinding,
   PreparedReactQueryGroup,
+  SnapbackAppBindingV1,
+  SnapbackAppClient,
+  SnapbackAppClientPlatform,
+  SnapbackApplicationDescriptorV1,
+  SnapbackAuthFacade,
 } from '@expo/snapback-client';
 import type {
   SnapbackDiagnostic,
@@ -76,8 +83,38 @@ export function createSnapbackReactProvider(
   }>,
 ): SnapbackReactCoreProvider;
 
-export function SnapbackProvider(props: Readonly<{
-  binding?: PreparedReactBinding;
-  provider?: SnapbackReactCoreProvider;
+type SnapbackCoreProviderSharedProps = Readonly<{
   children?: any;
-}>): any;
+  fallback?: any | ((state: AuthBootstrapSnapshot) => any);
+}>;
+
+export type SnapbackProviderProps = SnapbackCoreProviderSharedProps & (
+  | Readonly<{
+      appClient: SnapbackAppClient;
+      app?: never;
+      binding?: never;
+      platform?: never;
+      storagePartition?: never;
+      provider?: never;
+    }>
+  | Readonly<{
+      app: SnapbackApplicationDescriptorV1;
+      binding: SnapbackAppBindingV1;
+      platform: SnapbackAppClientPlatform;
+      storagePartition?: string;
+      appClient?: never;
+      provider?: never;
+    }>
+  | Readonly<{
+      binding?: PreparedReactBinding;
+      provider?: SnapbackReactCoreProvider;
+      appClient?: never;
+      app?: never;
+      platform?: never;
+      storagePartition?: never;
+    }>
+);
+
+export function SnapbackProvider(props: SnapbackProviderProps): any;
+export function useSnapbackCurrentPrincipal(): CurrentPrincipalSnapshot;
+export function useSnapbackAuth(): SnapbackAuthFacade;

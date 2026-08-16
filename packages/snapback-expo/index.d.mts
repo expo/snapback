@@ -1,6 +1,11 @@
 import type {
+  AuthBootstrapSnapshot,
   OutboxDrainOptions,
   PreparedReactBinding,
+  SnapbackAppClient,
+  SnapbackAppClientPlatform,
+  SnapbackAppBindingV1,
+  SnapbackApplicationDescriptorV1,
   SnapbackClient,
 } from '@expo/snapback-client';
 import type {
@@ -21,6 +26,8 @@ export type { ExpoFetchResponseLike, ExpoPickerAssetSource } from './asset-sourc
 export const APP_BINDING_FORMAT: 'snapback.app-binding.v1';
 export const SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT:
   'snapback.expo-integration-receipt.v1';
+export const APPLICATION_AUTH_BOOTSTRAP_CAPABILITY:
+  'auth.application-bootstrap.v1';
 
 export type CapabilityOffer = string;
 
@@ -84,6 +91,8 @@ export interface AppDescriptorV1Like {
     functions: string;
     descriptor: string;
   }>;
+  /** The exact fact plus the bootstrap capability opts into first-party bootstrap. */
+  readonly authBootstrap?: SnapbackApplicationDescriptorV1['authBootstrap'];
   readonly api: Readonly<{
     queries: object;
     mutations: object;
@@ -135,7 +144,7 @@ export type PublicAuthorityFacts = Readonly<{
   sessionGeneration: number | null;
 }>;
 
-export type ExpoBootState =
+export type LegacyExpoBootState =
   | Readonly<{ status: 'starting'; stage: 'binding' | 'authority' | 'client' }>
   | Readonly<{
       status: 'ready';
@@ -153,6 +162,15 @@ export type ExpoBootState =
       diagnostic: SnapbackDiagnostic;
       remediations: readonly TypedRemediation[];
     }>;
+
+export type FirstPartyExpoBootState =
+  | Exclude<AuthBootstrapSnapshot, Readonly<{ status: 'ready' }>>
+  | (Extract<AuthBootstrapSnapshot, Readonly<{ status: 'ready' }>> & Readonly<{
+      binding: PublicBindingFacts;
+      preparation: Readonly<{ source: 'deployment' | 'persisted-receipt' }>;
+    }>);
+
+export type ExpoBootState = LegacyExpoBootState | FirstPartyExpoBootState;
 
 export type AppBindingAdmissionEvidenceV1 = Readonly<{
   productionCondition?: boolean;
@@ -200,6 +218,10 @@ export interface SnapbackExpoEnvironmentV1 {
   readonly appState?: AppStateSource;
   readonly developmentSync?: false | Readonly<Record<string, unknown>>;
   resolveAppState?(): AppStateSource | Promise<AppStateSource>;
+  /** Framework-owned platform resolution for the LLP 0258 opt-in branch. */
+  resolveAppClientPlatform?(input: Readonly<{
+    app: AppDescriptorV1Like;
+  }>): SnapbackAppClientPlatform | Promise<SnapbackAppClientPlatform>;
   resolveBinding(input: Readonly<{
     app: AppDescriptorV1Like;
     bindingOverride: AppBindingV1 | null;
@@ -216,6 +238,21 @@ export interface SnapbackExpoEnvironmentV1 {
     binding: AppBindingV1;
     signal: AbortSignal;
   }>): Promise<AuthorityAdoptionResult> | AuthorityAdoptionResult;
+  /** Supervised carrier handoff used only by the first-party app owner. */
+  resolveSupervisedAuthority?(input: Readonly<{
+    app: AppDescriptorV1Like;
+    binding: AppBindingV1;
+    signal: AbortSignal;
+    refresh?: boolean;
+  }>): Promise<
+    | Readonly<{ status: 'ready'; bearer: string; refreshAfterMs: number }>
+    | Readonly<{ status: 'unavailable' }>
+    | Readonly<{
+        status: 'authority-required';
+        diagnostic: SnapbackDiagnostic;
+        remediations: readonly TypedRemediation[];
+      }>
+  >;
   refreshAuthority?(input: Readonly<{
     app: AppDescriptorV1Like;
     binding: AppBindingV1;
@@ -249,6 +286,7 @@ export interface SnapbackExpoBootController {
   start(): Promise<ExpoBootState>;
   refreshAuthority(): Promise<ExpoBootState>;
   reactProvider(): SnapbackReactProvider | null;
+  appClient(): SnapbackAppClient | null;
   dispose(): Promise<void>;
 }
 
@@ -267,6 +305,19 @@ export function createSnapbackExpoBoot(options: Readonly<{
     provider: Pick<SnapbackReactProvider, 'pause' | 'resume'>,
     options?: Readonly<{ onError?: (error: unknown) => void }>,
   ) => Readonly<{ dispose(): void; settled(): Promise<void> }>;
+  createApplicationClient?: (input: Readonly<{
+    app: SnapbackApplicationDescriptorV1;
+    binding: SnapbackAppBindingV1;
+    platform: SnapbackAppClientPlatform;
+  }>, observer: (snapshot: AuthBootstrapSnapshot) => void) => Promise<SnapbackAppClient>;
+  adoptSupervisedAuthority?: (
+    appClient: SnapbackAppClient,
+    input: Readonly<{
+      bearer: string;
+      binding: SnapbackAppBindingV1;
+      refreshAfterMs: number;
+    }>,
+  ) => Promise<Readonly<{ status: 'adopted' | 'rebound' | 'conflict' | 'dropped' }>>;
   now?: () => number;
 }>): SnapbackExpoBootController;
 

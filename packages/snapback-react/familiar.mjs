@@ -10,6 +10,8 @@ import { assertClientReferenceKind } from '@expo/snapback-client/reference-kinds
 import { SnapbackProvider } from './index.mjs';
 import {
   skip,
+  useSnapbackAuth,
+  useSnapbackCurrentPrincipal,
   useSnapbackProviderClient,
   useSnapbackQuery as canonicalUseQueryState,
   useSnapbackSettledMutation,
@@ -19,7 +21,13 @@ import { classifyFamiliarQueryState } from './familiar-error-classes.mjs';
 const FAMILIAR_AUTHORING_PROFILE = 'snapback-familiar-ts-v1';
 const FAMILIAR_PROFILE = Object.freeze([FAMILIAR_AUTHORING_PROFILE]);
 
-export { SnapbackProvider, canonicalUseQueryState as useQueryState, skip };
+export {
+  SnapbackProvider,
+  canonicalUseQueryState as useQueryState,
+  skip,
+  useSnapbackAuth as useAuth,
+  useSnapbackCurrentPrincipal as useCurrentPrincipal,
+};
 
 const diagnosticsChannelFor = (client) => {
   try {

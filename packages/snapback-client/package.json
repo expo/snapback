@@ -24,6 +24,8 @@
     "app-data.d.mts",
     "app-data.mjs",
     "app-client.d.mts",
+    "app-client-internal.d.mts",
+    "app-client-internal.mjs",
     "app-client.mjs",
     "data-client.d.mts",
     "data-client.mjs",
@@ -127,6 +129,10 @@
     "./app-data": {
       "types": "./app-data.d.mts",
       "import": "./app-data.mjs"
+    },
+    "./app-client-internal": {
+      "types": "./app-client-internal.d.mts",
+      "import": "./app-client-internal.mjs"
     },
     "./data": {
       "types": "./data-client.d.mts",

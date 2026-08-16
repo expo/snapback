@@ -366,6 +366,37 @@ export function createSupervisedExpoEnvironment({
         }),
       });
     },
+    async resolveSupervisedAuthority({ binding, signal, refresh = false }) {
+      const key = bindingKey(binding);
+      const cached = offlineFallbacks.get(key);
+      if (cached !== undefined) {
+        // A persisted binding receipt carries no bearer. LLP 0258 bootstrap
+        // can still settle its own anonymous/restored authority and prepare
+        // retained state; absence of an ambient mint is not boot failure.
+        return Object.freeze({ status: 'unavailable' });
+      }
+      const exchange = refresh
+        ? await fetchExchange(signal)
+        : exchanges.get(key) ?? await fetchExchange(signal);
+      if (bindingKey(exchange.binding) !== key) {
+        throw codedError(
+          refresh ? 'SNAPBACK_APP_BINDING_EXPIRED' : 'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED',
+          refresh
+            ? 'The Expo supervisor generation changed; reload to admit its replacement binding.'
+            : 'The authority exchange did not match the admitted supervised binding.',
+        );
+      }
+      exchanges.delete(key);
+      const required = authorityRequired(exchange);
+      if (required) return required;
+      return Object.freeze({
+        status: 'ready',
+        bearer: exchange.authority.token,
+        // Supervisor events own remint; this explicit custody fact means the
+        // borrowed carrier remains current until that next event.
+        refreshAfterMs: Number.MAX_SAFE_INTEGER,
+      });
+    },
     async adoptAuthority({ binding, signal }) {
       const key = bindingKey(binding);
       const storedExchange = exchanges.get(key);

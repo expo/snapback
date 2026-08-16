@@ -105,6 +105,9 @@ const emitSnapshot = (owner, snapshot) => {
   for (const listener of [...owner.bootstrapListeners]) {
     try { listener(); } catch { /* bootstrap observation cannot own lifecycle */ }
   }
+  for (const observer of [...owner.bootstrapObservers]) {
+    try { observer(owner.snapshot); } catch { /* bootstrap observation cannot own lifecycle */ }
+  }
 };
 
 const starting = (owner, stage) => emitSnapshot(owner, { status: 'starting', stage });
@@ -483,7 +486,46 @@ function publishReady(owner) {
   });
 }
 
-async function constructOwner(preflighted) {
+const supervisedConflictAdvisory = (owner, supervisedPrincipal) => Object.freeze({
+  diagnostic: refusal(
+    'SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT',
+    'The supervised development principal did not replace restored or application authority.',
+    {
+      appId: owner.app.identity.app,
+      currentPrincipalStatus: owner.client.auth.currentPrincipal().status,
+      supervisedUserId: supervisedPrincipal?.userId ?? null,
+    },
+  ).diagnostic,
+  remediations: Object.freeze([
+    remediation(
+      'keepCurrentPrincipal',
+      'Keep the current application principal; no action is required.',
+      { appId: owner.app.identity.app },
+    ),
+    remediation(
+      'signOut',
+      'Call auth.signOut(); the next supervisor event may then admit the development principal.',
+      { principalStatus: 'authenticated' },
+      { authorityEffect: 'clears-session' },
+    ),
+    remediation(
+      'useStoragePartition',
+      'Construct the development projection with an explicit distinct storagePartition.',
+      { appId: owner.app.identity.app },
+    ),
+  ]),
+});
+
+function replaceSupervisedConflictAdvisory(owner, advisory) {
+  owner.advisories = Object.freeze([
+    ...owner.advisories.filter(
+      (entry) => entry.diagnostic.code !== 'SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT',
+    ),
+    ...(advisory === null ? [] : [advisory]),
+  ]);
+}
+
+async function constructOwner(preflighted, bootstrapObservers, onOwner) {
   const owner = {
     app: preflighted.app,
     binding: preflighted.binding,
@@ -495,6 +537,7 @@ async function constructOwner(preflighted) {
     conflictIdentity: conflictIdentity(preflighted.binding),
     retiredGenerations: new Set(),
     bootstrapListeners: new Set(),
+    bootstrapObservers,
     snapshot: freezeSnapshot({ status: 'starting', stage: 'binding' }),
     bootstrapHistory: [],
     operationTail: Promise.resolve(),
@@ -510,6 +553,10 @@ async function constructOwner(preflighted) {
     closed: false,
   };
   owner.bootstrapHistory.push(owner.snapshot);
+  onOwner(owner);
+  for (const observer of [...owner.bootstrapObservers]) {
+    try { observer(owner.snapshot); } catch { /* bootstrap observation cannot own lifecycle */ }
+  }
   try {
     starting(owner, 'custody');
     const custody = await resolveCustody(preflighted);
@@ -546,7 +593,7 @@ async function constructOwner(preflighted) {
     publishReady(owner);
     return owner;
   } catch (error) {
-    owner.snapshot = failureSnapshot(error);
+    emitSnapshot(owner, failureSnapshot(error));
     error.bootstrapState = owner.snapshot;
     try { owner.currentPrincipalUnsubscribe?.(); } catch { /* best effort */ }
     try { await owner.client?.closeAuth?.(); } catch { /* preserve construction error */ }
@@ -888,13 +935,13 @@ function projectionFor(entry, owner) {
   return projection;
 }
 
-/** Framework-neutral owner for first-party application authentication bootstrap. */
-export async function createSnapbackAppClient(input) {
+async function acquireSnapbackAppClient(input, bootstrapObserver) {
   let candidate;
   try {
     candidate = preflight(input);
   } catch (error) {
     error.bootstrapState ??= failureSnapshot(error);
+    try { bootstrapObserver?.(error.bootstrapState); } catch { /* observation only */ }
     throw error;
   }
   const key = ownerKey(candidate.app.identity.app, candidate.storagePartition);
@@ -904,7 +951,13 @@ export async function createSnapbackAppClient(input) {
       await entry.disposePromise;
       continue;
     }
+    let observing = false;
     if (!entry) {
+      const bootstrapObservers = new Set();
+      if (bootstrapObserver !== null) {
+        bootstrapObservers.add(bootstrapObserver);
+        observing = true;
+      }
       entry = {
         key,
         state: 'constructing',
@@ -913,8 +966,12 @@ export async function createSnapbackAppClient(input) {
         finishDispose: null,
         tail: Promise.resolve(),
         promise: null,
+        owner: null,
+        bootstrapObservers,
       };
-      entry.promise = constructOwner(candidate).then((owner) => {
+      entry.promise = constructOwner(candidate, bootstrapObservers, (owner) => {
+        entry.owner = owner;
+      }).then((owner) => {
         entry.state = 'live';
         return owner;
       }).catch((error) => {
@@ -922,16 +979,86 @@ export async function createSnapbackAppClient(input) {
         throw error;
       });
       OWNER_REGISTRY.set(key, entry);
+    } else if (bootstrapObserver !== null) {
+      entry.bootstrapObservers.add(bootstrapObserver);
+      observing = true;
+      if (entry.owner !== null) {
+        try { bootstrapObserver(entry.owner.snapshot); } catch { /* observation only */ }
+      }
     }
-    const owner = await entry.promise;
-    await serializeEntry(entry, async () => {
-      if (entry.state !== 'live') return;
-      assertCompatibleRebind(owner, candidate);
-      entry.refCount += 1;
-    });
-    if (entry.state !== 'live') continue;
-    return projectionFor(entry, owner);
+    try {
+      const owner = await entry.promise;
+      await serializeEntry(entry, async () => {
+        if (entry.state !== 'live') return;
+        assertCompatibleRebind(owner, candidate);
+        entry.refCount += 1;
+      });
+      if (entry.state !== 'live') continue;
+      return projectionFor(entry, owner);
+    } finally {
+      if (observing) entry.bootstrapObservers.delete(bootstrapObserver);
+    }
   }
+}
+
+/** Framework-neutral owner for first-party application authentication bootstrap. */
+export async function createSnapbackAppClient(input) {
+  return acquireSnapbackAppClient(input, null);
+}
+
+export async function __createSnapbackAppClientWithBootstrapObserver(input, observer) {
+  if (typeof observer !== 'function') {
+    throw new TypeError('framework bootstrap observer must be a function');
+  }
+  return acquireSnapbackAppClient(input, observer);
+}
+
+// Framework integration seam. It is exported only from the package's
+// app-client-internal subpath, never from the ordinary client entrypoint.
+export async function __adoptSupervisedBootstrapAuthority(
+  appClient,
+  { bearer, binding, refreshAfterMs = Number.MAX_SAFE_INTEGER },
+) {
+  const owner = PROJECTION_OWNERS.get(appClient);
+  if (!owner) throw new TypeError('expected a live SnapbackAppClient projection');
+  if (binding?.source !== 'supervised-dev' || owner.binding.source !== 'supervised-dev') {
+    throw new TypeError('supervised adoption requires a supervised-source AppBinding');
+  }
+  return serializeOwner(owner, async () => {
+    if (owner.entryInFlight) return Object.freeze({ status: 'dropped' });
+    owner.ownerTransitionInFlight = true;
+    try {
+      const result = await owner.client.__supervisedBootstrapHandshake(bearer, {
+        refreshAfterMs,
+      });
+      if (result.status === 'conflict') {
+        replaceSupervisedConflictAdvisory(
+          owner,
+          supervisedConflictAdvisory(owner, result.session?.authority),
+        );
+        publishReady(owner);
+        return Object.freeze({ status: 'conflict' });
+      }
+      if (result.status === 'adopted') {
+        owner.supervisedAdoptionCapture = result.capture;
+        owner.authoritySource = 'supervised-development';
+      }
+      // A restored/application authority that happens to name the same
+      // principal remains protected; equality does not create a process-local
+      // supervised displacement record.
+      replaceSupervisedConflictAdvisory(owner, null);
+      publishReady(owner);
+      return Object.freeze({ status: result.status });
+    } finally {
+      owner.ownerTransitionInFlight = false;
+    }
+  });
+}
+
+export function __applicationDescriptorForAppClient(appClient) {
+  const owner = PROJECTION_OWNERS.get(appClient);
+  if (!owner) throw new TypeError('expected a live SnapbackAppClient projection');
+  return owner.app;
 }
 
 // Kept outside the package export map: the Expo slice will replace this test

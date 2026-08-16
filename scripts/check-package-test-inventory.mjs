@@ -211,6 +211,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     expectedFiles: [
       'activity-presence.test.mjs',
       'assets.test.mjs',
+      'auth-bootstrap.test.mjs',
       'auth-blocked-resource.test.mjs',
       'authorization-denial.test.mjs',
       'binding-development-sync.test.mjs',
@@ -257,6 +258,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'package-closure.test.mjs',
       'package.test.mjs',
       'provider.test.mjs',
+      'provider-auth-bootstrap.test.mjs',
       'release-export-vocabulary.test.mjs',
       'supervised-environment.test.mjs',
       'supervised-offline-fallback.test.mjs',
@@ -511,7 +513,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 293,
+  expectedTotal = 295,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -918,6 +920,9 @@ export function checkPackageTestInventories(options = {}) {
 // gains the framework-neutral application auth owner/facade conformance suite.
 // 292 -> 293 (2026-08-15, LLP 0248 Rollout 5): @expo/snapback-codegen gains
 // the flag-only N+1 batch-read advisory and threshold/negative-shape suite.
+// 293 -> 295 (2026-08-15, LLP 0258 Phase 1 Slice 3): @expo/snapback-react and
+// @expo/snapback-expo gain ordinary-provider/hook ownership and supervised
+// precedence/bootstrap-state projection coverage.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

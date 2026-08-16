@@ -1,4 +1,6 @@
 import type {
+  AuthBootstrapSnapshot,
+  CurrentPrincipalSnapshot,
   FunctionArgs,
   FunctionResult,
   LiveQueryRef,
@@ -13,6 +15,11 @@ import type {
   OutboxReplayOutcome,
   PreparedReactQueryGroup,
   PreparedReactBinding,
+  SnapbackAppBindingV1,
+  SnapbackAppClient,
+  SnapbackAppClientPlatform,
+  SnapbackApplicationDescriptorV1,
+  SnapbackAuthFacade,
   QuarantinedMutationReentryOutcome,
   QuarantinedMutationTombstone,
   QueryGroupEntries,
@@ -338,13 +345,47 @@ export function createSnapbackReactProvider(
   },
 ): SnapbackReactProvider;
 
-export function SnapbackProvider(props: Readonly<{
-  binding?: PreparedReactBinding;
-  provider?: SnapbackReactProvider;
+type SnapbackProviderSharedProps = Readonly<{
   children?: any;
+  fallback?: any | ((state: AuthBootstrapSnapshot) => any);
   outboxDrain?: 'auto' | 'manual';
   outboxDrainOptions?: Omit<OutboxDrainOptions, 'automatic'>;
-}>): any;
+}>;
+
+export type SnapbackProviderProps = SnapbackProviderSharedProps & (
+  | Readonly<{
+      appClient: SnapbackAppClient;
+      app?: never;
+      binding?: never;
+      platform?: never;
+      storagePartition?: never;
+      provider?: never;
+    }>
+  | Readonly<{
+      app: SnapbackApplicationDescriptorV1;
+      binding: SnapbackAppBindingV1;
+      platform: SnapbackAppClientPlatform;
+      storagePartition?: string;
+      appClient?: never;
+      provider?: never;
+    }>
+  | Readonly<{
+      binding?: PreparedReactBinding;
+      provider?: SnapbackReactProvider;
+      appClient?: never;
+      app?: never;
+      platform?: never;
+      storagePartition?: never;
+    }>
+);
+
+export function SnapbackProvider(props: SnapbackProviderProps): any;
+
+/** Exact LLP 0238 current-principal projection from the ordinary app owner. */
+export function useSnapbackCurrentPrincipal(): CurrentPrincipalSnapshot;
+
+/** Stable projection of the framework-neutral application's auth facade. */
+export function useSnapbackAuth(): SnapbackAuthFacade;
 
 export function useSnapbackQuery<Ref extends QueryReference>(
   reference: Ref,
