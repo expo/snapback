@@ -106,24 +106,28 @@ const credential = () => ({
 
 const protectedQuery = Object.freeze({
   artifactKind: 'functionReference',
+  kind: 'Query',
   name: 'privateRecords',
   argsContract: { kind: 'object', fields: [] },
   authRequirement: 'authenticated',
 });
 const protectedAction = Object.freeze({
   artifactKind: 'functionReference',
+  kind: 'Action',
   name: 'privateAction',
   argsContract: { kind: 'object', fields: [] },
   authRequirement: 'authenticated',
 });
 const protectedMutation = Object.freeze({
   artifactKind: 'functionReference',
+  kind: 'Mutation',
   name: 'privateMutation',
   argsContract: { kind: 'object', fields: [] },
   authRequirement: 'authenticated',
 });
 const legacyProtectedQuery = Object.freeze({
   artifactKind: 'functionReference',
+  kind: 'Query',
   name: 'privateRecords',
   argsContract: { kind: 'object', fields: [] },
 });

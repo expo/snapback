@@ -144,6 +144,41 @@ function exactRecord(value, required, optional, where) {
   }
 }
 
+const GENERATED_REFERENCE_HYDRATION_KEYS = new Set([
+  'authoringProfile',
+  'retention',
+  'delivery',
+  'artifacts',
+]);
+
+function cloneOwnRecord(value, { omit = new Set(), replace = new Map() } = {}) {
+  if (!plainRecord(value)) return value;
+  const clone = Object.create(Object.getPrototypeOf(value));
+  for (const key of Reflect.ownKeys(value)) {
+    if (omit.has(key)) continue;
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (replace.has(key) && Object.hasOwn(descriptor, 'value')) {
+      descriptor.value = replace.get(key);
+    }
+    Object.defineProperty(clone, key, descriptor);
+  }
+  return clone;
+}
+
+function normalizeGeneratedMixedReference(reference) {
+  if (!plainRecord(reference) || !Array.isArray(reference.queries)) return reference;
+  const queries = reference.queries.map((child) => {
+    if (!plainRecord(child) || !plainRecord(child.ref)) return child;
+    // @ref LLP 0157#d2--plan-identity — codegen hydrates the portable function reference with these exact local
+    // consumer annotations. Remove only that closed, known set at registry
+    // admission; preserve every other own key so the portable validator still
+    // rejects unknown enumerable, non-enumerable, and symbol metadata.
+    const ref = cloneOwnRecord(child.ref, { omit: GENERATED_REFERENCE_HYDRATION_KEYS });
+    return cloneOwnRecord(child, { replace: new Map([['ref', ref]]) });
+  });
+  return cloneOwnRecord(reference, { replace: new Map([['queries', queries]]) });
+}
+
 function nonempty(value, where) {
   if (typeof value !== 'string' || value.length === 0) {
     invalidMixed(`${where} must be a nonempty string`, { where });
@@ -656,7 +691,11 @@ export function createRqsRegisteredRegistry(bundle, reference = null, params = {
         { bundleVersion: bundleVersion ?? null, referenceVersion: referenceVersion ?? null },
       );
     }
-    return createMixedRegisteredRegistry(bundle, reference, params);
+    return createMixedRegisteredRegistry(
+      bundle,
+      normalizeGeneratedMixedReference(reference),
+      params,
+    );
   }
   const entries = new Map();
   const commitVersion = typeof bundle?.commitVersion === 'number' ? bundle.commitVersion : 0;

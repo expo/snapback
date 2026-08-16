@@ -1,6 +1,6 @@
 # Client suite: two untracked deterministic reds — 0157-A3 mixed-group and stranded-recovery normalization
 
-**Status:** Open
+**Status:** Closed (2026-08-15)
 **Impact:** 2
 **Urgency:** 3
 **Ease:** 3
@@ -44,3 +44,25 @@ return to 0 fail once this and the related ticket close.
 
 - Both named tests pass in a full-suite run at clean `main`.
 - The resolution records which side (fixture vs product) each failure was.
+
+## Resolution (2026-08-15)
+
+Split verdict, as the ticket requested:
+
+- **mixed-route-v2 red = PRODUCT defect.** Codegen hydrates every query-group
+  child with enumerable `authoringProfile`/`retention`/`delivery` (and
+  `artifacts`) annotations, but `createRqsRegisteredRegistry`'s closed
+  mixed-group validator rejected any unknown key — so a real app passing
+  `api.groups[...]` exactly as codegen publishes it got
+  `SNAPBACK_RQS_MIXED_GROUP_INVALID`. Fixed at the registry admission
+  boundary in `rqs-preload.mjs`: the known generated hydration annotations
+  are stripped before the unchanged closed validator; unknown keys still
+  refuse. The 0157-A3 test now passes the REAL generated group (an earlier
+  candidate fix that sanitized the test input was caught in review as
+  masking this product bug and reverted).
+- **outbox-custody red = fixture defect.** The stranded-recovery fixture
+  constructed an incomplete generated mutation reference; it now carries
+  `artifactKind` plus the closed `argumentSchema` that
+  `normalizeGeneratedArgumentsV1`/`exactArgumentContract` require.
+
+Full client suite green at clean main + this change.

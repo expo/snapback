@@ -1,6 +1,6 @@
 # Client tests still construct generated references without `artifactKind`
 
-**Status:** Open
+**Status:** Closed (2026-08-15)
 **Impact:** 2
 **Urgency:** 3
 **Ease:** 4
@@ -41,3 +41,13 @@ package for any remaining kindless constructions in the same pass.
 
 - `bun run test` in `packages/snapback-client` passes from a fresh clone.
 - Deliberate kind-mismatch coverage (wrong verb/kind refusals) is preserved.
+
+## Resolution (2026-08-15)
+
+Fixture-side, as suspected. `auth-anonymous-read-recovery.test.mjs` now
+constructs closed generated references with `artifactKind:
+"functionReference"` and title-case `kind`; `outbox-custody.test.mjs`
+additionally needed the closed `argumentSchema` the argument-normalization
+path now requires (its red was tracked in the sibling ticket). Deliberate
+wrong-kind refusal coverage is preserved. Full client suite green at clean
+main + this change. Landed with the LLP 0258 lane A2 salvage.

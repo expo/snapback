@@ -137,7 +137,7 @@ test('0157-A3 byte-identical plans classify only from bound liveness', async () 
 
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: null });
   await assert.rejects(
-    client.liveQuery('plainTodos', {
+    client.liveQuery(reference.queries[1].ref, {
       transport: 'stream',
       registeredSubscription: plain,
     }),
@@ -170,6 +170,13 @@ test('mixed consumption refuses unknown versions, open records, and shape infere
     () => createRqsRegisteredRegistry(bundle, openArtifact, mixedParams),
     (error) => error?.code === 'SNAPBACK_RQS_MIXED_GROUP_INVALID',
     'each generated v2 child record is closed',
+  );
+  const openHydratedReference = structuredClone(reference);
+  openHydratedReference.queries[0].ref.futureHydrationAnnotation = true;
+  assert.throws(
+    () => createRqsRegisteredRegistry(bundle, openHydratedReference, mixedParams),
+    (error) => error?.code === 'SNAPBACK_RQS_MIXED_GROUP_INVALID',
+    'registry normalization strips only the closed generated hydration keys',
   );
   const openEntry = structuredClone(bundle);
   openEntry.entries[0].futureField = true;

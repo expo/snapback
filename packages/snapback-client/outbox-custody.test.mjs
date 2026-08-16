@@ -654,8 +654,15 @@ test('stranded recovery reads, discards, and rerecords as a new current intent',
     inputsHash: 'inputs-generation-bound-stranded',
   };
   const generated = await queueOffline(fixture, client, {
+    artifactKind: 'functionReference',
     kind: 'Mutation',
     name: 'recoverGeneratedIntent',
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { value: { type: 'string' } },
+      required: ['value'],
+    },
     expectedGeneration: generatedGeneration,
   }, {
     args: { value: 'recover-generated' },
