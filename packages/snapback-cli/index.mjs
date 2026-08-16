@@ -3428,7 +3428,9 @@ async function validateReadyDescriptorHealth(descriptor) {
     }
     return health;
   } finally {
-    await client.closeAuth();
+    // A close failure must not replace the attach diagnostic; the probe holds
+    // no store or queue, so there is nothing to recover from a failed close.
+    await client.closeAuth().catch(() => {});
   }
 }
 
