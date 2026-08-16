@@ -263,6 +263,16 @@ export const PACKAGE_TEST_INVENTORIES = [
     ],
   },
   {
+    id: '@expo/snapback-expo-custody',
+    packageDir: 'packages/snapback-expo-custody',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: [
+      'config-plugin.test.mjs',
+      'native-custody.test.mjs',
+    ],
+  },
+  {
     id: '@expo/snapback-app-cli',
     packageDir: 'packages/snapback-app-cli',
     testDir: '.',
@@ -510,7 +520,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 292,
+  expectedTotal = 294,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -929,6 +939,9 @@ export function checkPackageTestInventories(options = {}) {
 // visibility override, transition/quarantine, observer, and activation corpus.
 // 290 -> 291 (2026-08-16, LLP 0239 R4): @expo/snapback-codegen gains the
 // defineMediaCommand closed-binding/source-attributed-refusal suite.
+// 292 -> 294 (2026-08-16, LLP 0258 Phase 2 item 1): the new first-party
+// @expo/snapback-expo-custody package registers its native-CAS and mandatory
+// Android backup-exclusion suites.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

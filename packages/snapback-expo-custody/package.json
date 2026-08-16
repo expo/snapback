@@ -1,0 +1,71 @@
+{
+  "name": "@expo/snapback-expo-custody",
+  "version": "0.1.0",
+  "description": "First-party native iOS and Android auth custody for Snapback Expo applications.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-expo-custody"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "auth", "custody", "expo", "react-native"],
+  "main": "index.mjs",
+  "types": "index.d.mts",
+  "files": [
+    "README.md",
+    "index.d.mts",
+    "index.mjs",
+    "app.plugin.js",
+    "config-plugin.cjs",
+    "config-plugin.d.mts",
+    "expo-module.config.json",
+    "ios",
+    "android"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.mts",
+      "import": "./index.mjs",
+      "default": "./index.mjs"
+    },
+    "./app.plugin": {
+      "types": "./config-plugin.d.mts",
+      "require": "./app.plugin.js",
+      "default": "./app.plugin.js"
+    },
+    "./config-plugin": {
+      "types": "./config-plugin.d.mts",
+      "require": "./config-plugin.cjs",
+      "default": "./config-plugin.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@expo/snapback-contract": "workspace:*"
+  },
+  "peerDependencies": {
+    "expo": ">=57.0.0 <58.0.0",
+    "react-native": ">=0.86.0 <0.87.0"
+  },
+  "peerDependenciesMeta": {
+    "expo": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node --test config-plugin.test.mjs && node --test native-custody.test.mjs"
+  }
+}
