@@ -6,6 +6,7 @@
 Hosted execution, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-02
+**Revised:** 2026-08-15 (registry v3 adds the system elevated-read point class and named-count projection)
 **Revised:** 2026-08-07 (LLP 0189 alignment sweep: the exact-current release/promotion authority is annotated as the D-7 per-claim carve-out, not the repo default). 2026-08-02 (v0.1, initial draft from the 2026-08-02 landscape
 research pass: PostHog feature decomposition, backend-platform built-ins
 survey, and the codebase substrate map)
@@ -596,6 +597,7 @@ against LLP 0104's classification):**
 | job run                | joined row at terminal     | scheduler admission **not** independently billable; the invoked logical operation is the billable instance (per LLP 0104's accepted-operation basis) | terminal |
 | lifecycle              | single row                 | not billable               | mirrored               |
 | log line               | single row (capped)        | not billable               | per LLP 0072 policy    |
+| elevated read          | two named point counters per executed read | not billable | none |
 
 **Billable-instance rule:** billing is per accepted *operation
 instance*, not per record or per class — each operation instance yields
@@ -755,6 +757,7 @@ Phase-1 `kind` values, each mapped to one existing server seam:
 | `log`            | the existing `runtime.log` host call        | authored handler output, size-capped,    |
 |                  | (`src/runtime.rs`)                          | low priority, C5 operator-only           |
 | `diagnostic`     | the **emission boundary** only              | see below                                |
+| `elevated_read`  | trusted `ctx.db.elevated` host read seam    | two point names: function and member; no handler arguments or row data |
 
 **Lifecycle allowlist (closed for Phase 1):** process start/ready,
 release (bundle) activation, migration success/failure, reset/restore
@@ -791,6 +794,25 @@ which is C5-sensitive content served only under the D5 raw-read
 authority. No IP persistence in Phase 1, and no knob for it — if IP
 capture ever arrives it is a Phase-3 decision made with the identity
 policy (C5).
+
+### Amendment 2026-08-15: elevated-read point class
+
+The compatible `operation-class.v1.json` artifact family advances its internal
+`registryVersion` from 2 to 3. Registry v3 additively publishes the system
+class `runtime.elevated-read`, telemetry kind `elevated_read`, point
+projection, and no metering rules. The trusted runtime host seam emits two
+point records after each non-empty elevated database read has reached storage:
+`function:<name>` and `member:<query|get|getMany|uniqueMany>`. Thus the existing
+bounded `telemetry.stats` named-count projection answers totals along both
+dimensions without a new endpoint. Ordinary reads, rejected descriptors, and
+empty batch reads emit neither record.
+
+The optional `SNAPBACK_ELEVATED_READ_TRACE=/path/to/file.jsonl` process setting
+adds a JSONL trace event for the same seam with function, member, table,
+invocation mode, correlation, and a process-monotonic timestamp. It captures
+no handler arguments, row data, or policy conclusion. A missing or empty
+setting disables the file trace; telemetry counting remains active when the
+ordinary invocation telemetry sink is installed.
 
 ### Amendment 2026-08-02: error-classifier vocabulary and failure-details allocation
 

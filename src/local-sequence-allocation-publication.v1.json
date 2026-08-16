@@ -14,7 +14,7 @@
     "src/local/live_protocol.rs": "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
     "src/local/tests.rs": "sha256:1b18ce8994ac50e356642c90cd0b2e60f9896112e3a75d182fc5cf3000e19a3c",
-    "src/runtime.rs": "sha256:d75fe4ff25af41de93f7952ee23b464bc5ab915d3c81e12bba62ab2149c04cd8",
+    "src/runtime.rs": "sha256:d36c343b30bc437c131c858031910c9aa90c5ae69b35e385f03499edaf644db4",
     "src/storage.rs": "sha256:0c0ce12c823862a1ee80b33ec5202a8feb8b5ef04411be644798b8b611d83e7e",
     "src/storage/auth.rs": "sha256:3f6e71b3b32d7beda075b336b98aeb618a1fe0eaf54e8049540119b3dea16820",
     "src/storage/auth_agent_credentials.rs": "sha256:d2c5f512a26fd2afca8df6202743b51077d15cde9e0fbd1aed48c555f34dbf3e",
@@ -44,7 +44,7 @@
   },
   "clientSourceSha256": {
     "packages/snapback-contract/derived-overlay.mjs": "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32",
-    "packages/snapback-contract/index.mjs": "sha256:85827bb6019c000631fa6b83efa4e44f675ff2b63c8e405568ff20c526531efa"
+    "packages/snapback-contract/index.mjs": "sha256:8cc0878870ad63e5187039c24a832108f3c43d0cd8f9e0442fd329268b97d412"
   },
   "packageClosureSha256": null,
   "buildProvenanceRequirement": "source-commit-and-embedded-carrier-sha256"

@@ -19,7 +19,7 @@ use serde_json::Value;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub const OPERATION_CLASS_REGISTRY_VERSION: u32 = 2;
+pub const OPERATION_CLASS_REGISTRY_VERSION: u32 = 3;
 /// The artifact-format family remains v1; registryVersion carries compatible
 /// additive vocabulary revisions within that family.
 pub const OPERATION_CLASS_REGISTRY_FILE: &str = "operation-class.v1.json";
@@ -47,6 +47,7 @@ impl OperationClassIdV1 {
     pub const LIFECYCLE: Self = Self("lifecycle");
     pub const LOG: Self = Self("log");
     pub const DIAGNOSTIC: Self = Self("diagnostic");
+    pub const RUNTIME_ELEVATED_READ: Self = Self("runtime.elevated-read");
     pub const INTERNAL_HEALTH: Self = Self("internal.health");
     pub const SYSTEM_CONTROL_API: Self = Self("system.control-api");
     pub const SYSTEM_STATIC_ASSET: Self = Self("system.static-asset");
@@ -193,8 +194,8 @@ fn class(
 /// The full classification table ratified against LLP 0104. Fine-grained
 /// class ids preserve the accepted-operation distinction while the
 /// `telemetry_kind` column maps them onto LLP 0154's intentionally small raw
-/// vocabulary. Registry v2 adds the LLP 0156 failure-classifier vocabulary
-/// without changing these operation-class rows.
+/// vocabulary. Registry v2 adds the LLP 0156 failure-classifier vocabulary;
+/// registry v3 adds the fact-only elevated-read counter seam.
 pub fn operation_class_registry() -> OperationClassRegistryV1 {
     use MeterDerivationV1::{AcceptedOperation, Measured};
     use ObservationStageV1::{Admission, Counter, Terminal};
@@ -322,6 +323,7 @@ pub fn operation_class_registry() -> OperationClassRegistryV1 {
             system("lifecycle", "lifecycle", Point),
             system("log", "log", Point),
             system("diagnostic", "diagnostic", Point),
+            system("runtime.elevated-read", "elevated_read", Point),
             class(
                 "platform.export",
                 "http_request",
@@ -1280,6 +1282,7 @@ mod tests {
                 "platform.suspend",
                 "platform.transfer",
                 "realtime.delivered",
+                "runtime.elevated-read",
                 "stream.connect",
                 "system.console-poll",
                 "system.control-api",

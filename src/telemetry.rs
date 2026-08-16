@@ -1564,6 +1564,27 @@ impl Telemetry {
         );
     }
 
+    /// Record one executed `ctx.db.elevated` read at the trusted host seam.
+    /// Two names make the existing bounded `telemetry.stats` named-count
+    /// projection directly answer totals by function and by member without a
+    /// new read endpoint or sensitive argument capture.
+    ///
+    /// @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated — observation records
+    ///   use of the explicit escape hatch; it does not adjudicate that use.
+    pub(crate) fn elevated_read(&self, function: &str, member: &str, correlation: Option<&str>) {
+        for name in [format!("function:{function}"), format!("member:{member}")] {
+            self.point_classified(
+                OperationClassIdV1::RUNTIME_ELEVATED_READ,
+                &name,
+                None,
+                None,
+                correlation,
+                None,
+                Priority::Normal,
+            );
+        }
+    }
+
     /// Record an unattached diagnostic at the emission boundary. Phase 1
     /// admits only Warning+ diagnostics, further narrowed by `min_level`;
     /// informational diagnostics remain available through the existing

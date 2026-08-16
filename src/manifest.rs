@@ -12071,7 +12071,7 @@ const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:ebb1f59dc17e479a2b0ec5d85fb15ea7cc690ed6d3a81844d562f02474cb0fea";
+    "sha256:b5df8bcdc58b964791f70bb9bfdfd24a633eb4e920edca637b2f2ac1de3860f9";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -12714,7 +12714,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:d75fe4ff25af41de93f7952ee23b464bc5ab915d3c81e12bba62ab2149c04cd8"
+                    "sha256:d36c343b30bc437c131c858031910c9aa90c5ae69b35e385f03499edaf644db4"
                         .to_owned(),
                 ),
                 (
@@ -12848,7 +12848,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "packages/snapback-contract/index.mjs".to_owned(),
-                    "sha256:85827bb6019c000631fa6b83efa4e44f675ff2b63c8e405568ff20c526531efa"
+                    "sha256:8cc0878870ad63e5187039c24a832108f3c43d0cd8f9e0442fd329268b97d412"
                         .to_owned(),
                 ),
             ])

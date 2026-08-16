@@ -62,7 +62,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-platform",
           "schemaVersion": "snapback.usage-event.v1",
@@ -83,7 +83,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-platform",
           "schemaVersion": "snapback.usage-event.v1",
@@ -103,7 +103,7 @@
           "observationId": "obs_platform_export00000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -116,7 +116,7 @@
           "observationId": "obs_platform_restore0000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         }
@@ -137,7 +137,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -163,7 +163,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -193,7 +193,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-batch",
           "schemaVersion": "snapback.usage-event.v1",
@@ -214,7 +214,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-batch",
           "schemaVersion": "snapback.usage-event.v1",
@@ -235,7 +235,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-batch",
           "schemaVersion": "snapback.usage-event.v1",
@@ -255,7 +255,7 @@
           "observationId": "obs_batch_00000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -268,7 +268,7 @@
           "observationId": "obs_batch_10000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -281,7 +281,7 @@
           "observationId": "obs_batch_20000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         }
@@ -302,7 +302,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -328,7 +328,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -354,7 +354,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -384,7 +384,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 41,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-multi-metric",
           "schemaVersion": "snapback.usage-event.v1",
@@ -405,7 +405,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 2048,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-multi-metric",
           "schemaVersion": "snapback.usage-event.v1",
@@ -426,7 +426,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-multi-metric",
           "schemaVersion": "snapback.usage-event.v1",
@@ -446,7 +446,7 @@
           "observationId": "obs_multi_metric00000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         }
@@ -480,7 +480,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -510,7 +510,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-http",
           "schemaVersion": "snapback.usage-event.v1",
@@ -530,7 +530,7 @@
           "observationId": "obs_http_carrier00000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -543,7 +543,7 @@
           "observationId": "obs_http_function0000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         }
@@ -564,7 +564,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -590,7 +590,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -620,7 +620,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "job-1",
           "schemaVersion": "snapback.usage-event.v1",
@@ -640,7 +640,7 @@
           "observationId": "obs_job_scheduler0000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -653,7 +653,7 @@
           "observationId": "obs_job_action0000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         }
@@ -674,7 +674,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -700,7 +700,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -728,7 +728,7 @@
           "observationId": "obs_system_0000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -741,7 +741,7 @@
           "observationId": "obs_system_1000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -754,7 +754,7 @@
           "observationId": "obs_system_2000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -767,7 +767,7 @@
           "observationId": "obs_system_3000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -780,7 +780,7 @@
           "observationId": "obs_system_4000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -793,7 +793,7 @@
           "observationId": "obs_system_5000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -806,7 +806,7 @@
           "observationId": "obs_system_6000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -819,7 +819,7 @@
           "observationId": "obs_system_7000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -832,7 +832,7 @@
           "observationId": "obs_system_8000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -845,7 +845,7 @@
           "observationId": "obs_system_9000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -858,7 +858,7 @@
           "observationId": "obs_system_1000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -871,7 +871,7 @@
           "observationId": "obs_system_1100000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -884,7 +884,7 @@
           "observationId": "obs_system_1200000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -897,7 +897,7 @@
           "observationId": "obs_system_1300000000000000000",
           "phase": "point",
           "recordedTsMs": 1020,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -910,7 +910,7 @@
           "observationId": "obs_system_1400000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -923,7 +923,7 @@
           "observationId": "obs_system_1500000000000000000",
           "phase": "point",
           "recordedTsMs": 1020,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -936,7 +936,7 @@
           "observationId": "obs_system_1600000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -949,7 +949,7 @@
           "observationId": "obs_system_1700000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -962,7 +962,7 @@
           "observationId": "obs_system_1800000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -975,7 +975,7 @@
           "observationId": "obs_system_1900000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -988,7 +988,7 @@
           "observationId": "obs_system_2000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -1001,7 +1001,7 @@
           "observationId": "obs_system_2100000000000000000",
           "phase": "point",
           "recordedTsMs": 1020,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         }
@@ -1022,7 +1022,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1048,7 +1048,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1074,7 +1074,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1100,7 +1100,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1126,7 +1126,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1152,7 +1152,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1178,7 +1178,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1204,7 +1204,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1230,7 +1230,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1256,7 +1256,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1282,7 +1282,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1308,7 +1308,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1334,7 +1334,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1360,7 +1360,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1382,7 +1382,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1408,7 +1408,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1430,7 +1430,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1456,7 +1456,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1482,7 +1482,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1508,7 +1508,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1534,7 +1534,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1560,7 +1560,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1586,7 +1586,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-query",
           "schemaVersion": "snapback.usage-event.v1",
@@ -1607,7 +1607,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 3,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "connection-2",
           "schemaVersion": "snapback.usage-event.v1",
@@ -1628,7 +1628,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "subscription-1",
           "schemaVersion": "snapback.usage-event.v1",
@@ -1648,7 +1648,7 @@
           "observationId": "obs_query000000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -1661,7 +1661,7 @@
           "observationId": "obs_http0000000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -1674,7 +1674,7 @@
           "observationId": "obs_subscribe00000000000000000",
           "phase": "admission",
           "recordedTsMs": 1010,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -1687,7 +1687,7 @@
           "observationId": "obs_subscribe00000000000000000",
           "phase": "terminal",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -1700,7 +1700,7 @@
           "observationId": "obs_socket00000000000000000000",
           "phase": "admission",
           "recordedTsMs": 1010,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -1713,7 +1713,7 @@
           "observationId": "obs_socket00000000000000000000",
           "phase": "terminal",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -1726,7 +1726,7 @@
           "observationId": "obs_job00000000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -1739,7 +1739,7 @@
           "observationId": "obs_lifecycle00000000000000000",
           "phase": "point",
           "recordedTsMs": 1020,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -1752,7 +1752,7 @@
           "observationId": "obs_log00000000000000000000000",
           "phase": "point",
           "recordedTsMs": 1020,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         },
@@ -1765,7 +1765,7 @@
           "observationId": "obs_diagnostic0000000000000000",
           "phase": "point",
           "recordedTsMs": 1020,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         }
@@ -1780,7 +1780,7 @@
           "observationId": "obs_realtime000000000000000000",
           "quantity": 3,
           "recordedTsMs": 1080,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "unit": "delivered-message"
         }
@@ -1800,7 +1800,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1826,7 +1826,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1852,7 +1852,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1878,7 +1878,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1904,7 +1904,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1930,7 +1930,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1952,7 +1952,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -1974,7 +1974,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -2003,7 +2003,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -2029,7 +2029,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-retry",
           "schemaVersion": "snapback.usage-event.v1",
@@ -2049,7 +2049,7 @@
           "observationId": "obs_retry000000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         }
@@ -2070,7 +2070,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -2100,7 +2100,7 @@
             "id": "ownership-interval-fixture"
           },
           "quantity": 1,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "releaseId": "release-fixture",
           "requestOrJobId": "request-identity",
           "schemaVersion": "snapback.usage-event.v1",
@@ -2120,7 +2120,7 @@
           "observationId": "obs_identity000000000000000000",
           "phase": "joined",
           "recordedTsMs": 1090,
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "tsMs": 1000
         }
@@ -2141,7 +2141,7 @@
             "expoAccountId": "account-fixture",
             "id": "ownership-interval-fixture"
           },
-          "registryVersion": 2,
+          "registryVersion": 3,
           "release": "release-fixture",
           "stages": [
             {
@@ -2157,7 +2157,7 @@
       ]
     }
   ],
-  "registryVersion": 2,
+  "registryVersion": 3,
   "rejections": [
     {
       "expectedCode": "SNAPBACK_OPERATION_CLASS_REGISTRY_UNSUPPORTED",
@@ -2175,7 +2175,7 @@
           "expoAccountId": "account-fixture",
           "id": "ownership-interval-fixture"
         },
-        "registryVersion": 3,
+        "registryVersion": 4,
         "release": "release-fixture",
         "stages": [
           {
@@ -2205,7 +2205,7 @@
           "expoAccountId": "account-fixture",
           "id": "ownership-interval-fixture"
         },
-        "registryVersion": 2,
+        "registryVersion": 3,
         "release": "release-fixture",
         "stages": [
           {

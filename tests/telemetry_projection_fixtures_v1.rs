@@ -104,8 +104,8 @@ fn metering_cases(view: &MeteringCorpusView) -> BTreeMap<&str, &MeteringCaseView
 fn telemetry_and_metering_independently_deserialize_one_corpus() {
     let telemetry: TelemetryCorpusView = serde_json::from_str(CORPUS).unwrap();
     let metering: MeteringCorpusView = serde_json::from_str(CORPUS).unwrap();
-    assert_eq!(telemetry.registry_version, 2);
-    assert_eq!(metering.registry_version, 2);
+    assert_eq!(telemetry.registry_version, 3);
+    assert_eq!(metering.registry_version, 3);
     assert_eq!(
         telemetry_cases(&telemetry)
             .keys()
@@ -191,7 +191,7 @@ fn independent_metering_view_pins_multi_metric_ids_retry_and_double_count_rules(
     );
     for event in &multi.expected_metering {
         assert_eq!(event.schema_version, "snapback.usage-event.v1");
-        assert_eq!(event.registry_version, 2);
+        assert_eq!(event.registry_version, 3);
         assert_eq!(event.occurred_at_ms, 1_000);
         match event.stage.as_str() {
             "admission" => assert_eq!(event.observed_at_ms, 1_010),

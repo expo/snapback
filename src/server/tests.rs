@@ -20080,6 +20080,10 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "comma-separated exact loopback-origin configuration for Dev browser body authority; never an HTTP diagnostic",
     ),
     (
+        "SNAPBACK_ELEVATED_READ_TRACE",
+        "environment variable enabling the fact-only elevated-read JSONL trace; never an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_HANDLER_ERROR_EXPOSURE",
         "environment variable selecting redacted versus development handler-error rendering; never an HTTP diagnostic",
     ),

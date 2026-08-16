@@ -77,6 +77,7 @@ pub(crate) mod connected_clients;
 pub(crate) mod contract_exact;
 // @ref LLP 0225#1-ownership-map — owner 1: crate-private generation
 // activation coordinator.
+pub(crate) mod elevated_read_trace;
 pub(crate) mod generation_activation;
 pub(crate) mod spike_trace;
 // @ref LLP 0225#1-ownership-map — dependency-free shared contract/types

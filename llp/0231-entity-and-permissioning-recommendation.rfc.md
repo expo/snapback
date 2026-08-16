@@ -5,7 +5,7 @@
 **Systems:** Auth, Security/authorization, Storage, Live queries, Code generation, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-10
-**Revised:** 2026-08-15 (D3 all-read-surface composition closure; D7 explicit handler-read authority; membership self-resource visibility)
+**Revised:** 2026-08-15 (D3 all-read-surface composition closure; D7 explicit handler-read authority; membership self-resource visibility; D5 elevated-read runtime observation)
 **Related:** LLP 0011, LLP 0035, LLP 0043, LLP 0046, LLP 0053, LLP 0056, LLP 0070, LLP 0073, LLP 0080, LLP 0085, LLP 0170, LLP 0172, LLP 0173, LLP 0187, LLP 0230, LLP 0234, LLP 0235
 
 ## Summary
@@ -394,6 +394,16 @@ cannot see Alice's hand" is a test rather than a hope. For overrides and
 declared field boundaries the identity-switching test is mandatory: those are
 the two places where enforcement is weaker than composition, so the test is
 load-bearing there rather than advisory.
+
+The projection's shipped implementation (LLP 0173, Implemented) also captures
+every statically visible D7 `ctx.db.elevated` call site per operation, so
+elevated authority is reviewable on the same page as the policies it bypasses.
+Execution is observable too: the runtime records each successful non-empty
+elevated read as system telemetry named counts by function and by member
+(LLP 0154 registry v3), and an explicitly enabled
+`SNAPBACK_ELEVATED_READ_TRACE` path receives JSONL facts naming function,
+member, table, invocation mode, and correlation. Neither surface renders an
+authorization verdict; both state facts for review.
 
 ### D6 — reads and writes share the locus and the IR
 

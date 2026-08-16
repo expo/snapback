@@ -1876,6 +1876,9 @@ pub(crate) struct IbexHostContext<'a> {
     rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
     admission: AdmissionLease,
     mode: IbexInvocationMode,
+    /// Exact module export currently executing in this host context. The
+    /// runner binds it before either executor can dispatch a host call.
+    function_name: String,
     /// Default-deny input registry for auth-scoped live and retained queries.
     /// This bit is host-owned and cannot be changed by handler code.
     protected_query_profile: bool,
@@ -2020,6 +2023,7 @@ impl<'a> IbexHostContext<'a> {
             } else {
                 IbexInvocationMode::Query
             },
+            function_name: String::new(),
             protected_query_profile: false,
             declared_refusals: Vec::new(),
             tracked_refusals: Vec::new(),
@@ -2089,6 +2093,7 @@ impl<'a> IbexHostContext<'a> {
             rehearsal_provenance: None,
             admission,
             mode: IbexInvocationMode::Action,
+            function_name: String::new(),
             protected_query_profile: false,
             declared_refusals: Vec::new(),
             tracked_refusals: Vec::new(),
@@ -3121,6 +3126,35 @@ impl<'a> IbexHostContext<'a> {
         }
     }
 
+    /// Count and optionally trace an elevated read only after the host seam
+    /// has validated its descriptor and reached a real storage read.
+    ///
+    /// @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated — this observes use of
+    ///   the explicit read-policy bypass without assigning a policy verdict.
+    fn observe_elevated_read(&self, member: &str, table: &str) {
+        let function = if self.function_name.is_empty() {
+            "<unbound>"
+        } else {
+            &self.function_name
+        };
+        let correlation = RUNTIME_LOG_SINKS.with(|sinks| {
+            let sinks = sinks.borrow();
+            let Some(sink) = sinks.last() else {
+                return None;
+            };
+            sink.telemetry
+                .elevated_read(function, member, sink.correlation.as_deref());
+            sink.correlation.clone()
+        });
+        crate::elevated_read_trace::emit(
+            function,
+            member,
+            table,
+            self.mode_str(),
+            correlation.as_deref(),
+        );
+    }
+
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
         self.admission.validate("runtime host call")?;
         if self.protected_query_profile {
@@ -3288,6 +3322,9 @@ impl<'a> IbexHostContext<'a> {
                 for row in &mut output.rows {
                     self.tag_media_document(&plan.table, row)?;
                 }
+                if elevated {
+                    self.observe_elevated_read("query", &plan.table);
+                }
                 serde_json::to_value(output).map_err(|error| {
                     SnapbackError::error(
                         "SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED",
@@ -3306,6 +3343,9 @@ impl<'a> IbexHostContext<'a> {
                 let id = required_string(&args, "id")?;
                 let (stored, visibility, storage_visible) =
                     self.read_point_with_authority(&table, &id, elevated)?;
+                if elevated {
+                    self.observe_elevated_read("get", &table);
+                }
                 let existed_in_storage = stored.is_some();
                 // E2: read-your-writes — fold buffered writes over the stored
                 // row, then re-check the effective row. A previously hidden
@@ -3347,7 +3387,11 @@ impl<'a> IbexHostContext<'a> {
                 if ids.is_empty() {
                     return Ok(Value::Array(Vec::new()));
                 }
-                self.get_many_batch(&table, &ids, elevated)
+                let output = self.get_many_batch(&table, &ids, elevated)?;
+                if elevated {
+                    self.observe_elevated_read("getMany", &table);
+                }
+                Ok(output)
             }
             // @ref LLP 0248#d3-one-host-operation-one-authoritative-snapshot
             "db.uniqueMany" | "db.elevated.uniqueMany" => {
@@ -3363,7 +3407,11 @@ impl<'a> IbexHostContext<'a> {
                 if keys.is_empty() {
                     return Ok(Value::Array(Vec::new()));
                 }
-                self.unique_many_batch(&table, &index, &keys, elevated)
+                let output = self.unique_many_batch(&table, &index, &keys, elevated)?;
+                if elevated {
+                    self.observe_elevated_read("uniqueMany", &table);
+                }
+                Ok(output)
             }
             "db.insert" => {
                 self.ensure_writable("insert")?;
@@ -5085,6 +5133,7 @@ fn run_ibex_handler_with_context_until_with_exposure(
     deadline: Option<Instant>,
     exposure: HandlerErrorExposure,
 ) -> SnapbackResult<Value> {
+    invocation.function_name.clone_from(&module.export);
     // @ref LLP 0048#architecture — the twin swaps only the handler executor:
     // storage, host-op implementation, and the logical host-call protocol are
     // this same context either way. Actions stay on Ibex (egress and secrets
@@ -7900,7 +7949,8 @@ mod handler_result_bridge_tests {
 #[cfg(test)]
 mod table_visibility_runtime_tests {
     use super::{
-        IbexHostContext, read_dependency_key, run_ibex_handler_with_context, with_host_call_trace,
+        IbexHostContext, read_dependency_key, run_ibex_handler_with_context,
+        with_host_call_trace, with_runtime_log_telemetry,
     };
     use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
@@ -7914,6 +7964,7 @@ mod table_visibility_runtime_tests {
     use crate::storage::{
         BufferedWrite, CapturedReadKind, DbRead, LocalDatabase, MembershipWriter,
     };
+    use crate::telemetry::{Telemetry, TelemetryConfig};
     use serde_json::{Map, Value, json};
     use std::collections::{BTreeMap, BTreeSet};
 
@@ -8314,6 +8365,101 @@ mod table_visibility_runtime_tests {
             source: source.to_owned(),
             export: export.to_owned(),
         }
+    }
+
+    #[test]
+    fn elevated_reads_increment_function_and_member_counts_and_emit_fact_trace() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    await ctx.db.query('unique_docs').take(1).collect();
+    await ctx.db.elevated.query('unique_docs').take(1).collect();
+    await ctx.db.elevated.get('unique_docs', 'unique-one');
+    await ctx.db.elevated.getMany('unique_docs', ['unique-one']);
+    await ctx.db.elevated.uniqueMany('unique_docs', 'bySlug', [{ slug: 'one' }]);
+    await ctx.db.elevated.getMany('unique_docs', []);
+    return null;
+  }
+};
+"#;
+        let db = unique_ready_db();
+        let mut invocation = context(&db, None, false);
+        let telemetry = Telemetry::in_memory(
+            "01900000-0000-7000-8000-000000000001",
+            TelemetryConfig::default(),
+        )
+        .expect("elevated-read telemetry");
+        let (result, trace) = crate::elevated_read_trace::with_captured(|| {
+            with_runtime_log_telemetry(
+                telemetry.clone(),
+                Some("corr-elevated-read".to_owned()),
+                || run_ibex_handler_with_context(&module(SOURCE, "inspect"), &mut invocation, None),
+            )
+        });
+        assert_eq!(result.expect("elevated reads execute"), Value::Null);
+        telemetry
+            .force_flush()
+            .expect("flush elevated-read counters");
+
+        assert_eq!(
+            telemetry.event_count_for_test("elevated_read", "function:inspect", "point"),
+            4,
+            "one ordinary query and one empty elevated batch must not increment the counter"
+        );
+        for member in ["query", "get", "getMany", "uniqueMany"] {
+            assert_eq!(
+                telemetry.event_count_for_test(
+                    "elevated_read",
+                    &format!("member:{member}"),
+                    "point"
+                ),
+                1,
+                "member counter for {member}"
+            );
+        }
+        assert_eq!(trace.len(), 4);
+        assert_eq!(
+            trace
+                .iter()
+                .map(|event| (
+                    event.function.as_str(),
+                    event.member.as_str(),
+                    event.table.as_str(),
+                    event.mode,
+                    event.correlation.as_deref(),
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    "inspect",
+                    "query",
+                    "unique_docs",
+                    "query",
+                    Some("corr-elevated-read")
+                ),
+                (
+                    "inspect",
+                    "get",
+                    "unique_docs",
+                    "query",
+                    Some("corr-elevated-read")
+                ),
+                (
+                    "inspect",
+                    "getMany",
+                    "unique_docs",
+                    "query",
+                    Some("corr-elevated-read")
+                ),
+                (
+                    "inspect",
+                    "uniqueMany",
+                    "unique_docs",
+                    "query",
+                    Some("corr-elevated-read")
+                ),
+            ]
+        );
     }
 
     #[test]

@@ -48,3 +48,32 @@ token-level scanning), unlike arbitrary JS reads which LLP 0170 rules opaque.
 
 Amend LLP 0231 D5 / LLP 0173 in the same change that implements the
 projection entry, per the living-documents rule.
+
+## Resolution (2026-08-15)
+
+Closed by two independent landings:
+
+- **Static census** — `fbf405bac` implemented the full LLP 0173
+  authorization-review projection (now Status: Implemented). Each operation's
+  `elevatedDatabase` fact reports whether call-local elevation is available
+  plus every statically captured direct `ctx.db.elevated` member use, literal
+  table where available, source span, and capture scope, with honest opacity
+  for module computation the capture cannot prove. That satisfies this
+  ticket's projection ask directly in the 0173 artifact rather than a
+  side-car census file.
+- **Runtime observability** — this landing. The trusted host seam records
+  each successful non-empty elevated read as non-billable system telemetry
+  named counts by function and by member (operation-class registry v3,
+  LLP 0154 amendment), and the opt-in `SNAPBACK_ELEVATED_READ_TRACE` path
+  appends fact-only JSONL events naming function, member, table, invocation
+  mode, and correlation. No diagnostic code, no new endpoint, no verdict
+  vocabulary. Runtime tests cover all four elevated members, the
+  ordinary-read exclusion, the empty-batch exclusion, and the trace fields;
+  LLP 0231 D5 records both halves.
+
+A broader-reach static census (TypeScript-AST reachability through local
+helpers and callbacks, plus an always-emitted dedicated census artifact) was
+built and verified but deliberately not landed once `fbf405bac` shipped the
+projection-integrated capture — one review surface beats two overlapping
+ones. The implementation is preserved on the local `save-full-landing` branch
+if the projection's direct-capture scope ever needs widening.
