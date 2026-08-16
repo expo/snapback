@@ -71,4 +71,3 @@ LLP 0262 D5 stage-2 enforcement cannot include the packaged Expo NATIVE row
 until this reader, own-bundle launch path, and the real simulator/emulator/USB
 witnesses land. The already-landed supervisor protocol may continue to evolve
 behind its explicit opt-in, but it does not satisfy the D2 carrier row alone.
-
