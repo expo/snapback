@@ -783,6 +783,7 @@ struct CurrentLiveEvaluation {
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct LiveEvaluationMemoKey {
+    drain_cycle: u64,
     function_generation: u64,
     function: String,
     canonical_arguments: String,
@@ -960,6 +961,23 @@ impl LiveEvaluationMemo {
         }
     }
 
+    fn begin_drain_cycle(&mut self, drain_cycle: u64) {
+        if self.disabled {
+            return;
+        }
+        let retired = self
+            .entries
+            .keys()
+            .filter(|key| key.drain_cycle != drain_cycle)
+            .cloned()
+            .collect::<Vec<_>>();
+        for key in retired {
+            if let Some(entry) = self.entries.remove(&key) {
+                self.estimated_bytes = self.estimated_bytes.saturating_sub(entry.estimated_bytes);
+            }
+        }
+    }
+
     #[cfg(test)]
     fn set_limits(&mut self, max_entries: usize, max_bytes: usize) {
         self.max_entries = max_entries;
@@ -973,6 +991,7 @@ struct PendingLiveScheduler {
     refresh: VecDeque<(String, u64)>,
     data: VecDeque<(String, u64)>,
     next_generation: u64,
+    drain_cycle: u64,
     evaluation_memo: LiveEvaluationMemo,
 }
 
@@ -984,6 +1003,7 @@ impl Default for PendingLiveScheduler {
             refresh: VecDeque::new(),
             data: VecDeque::new(),
             next_generation: 0,
+            drain_cycle: 0,
             evaluation_memo: LiveEvaluationMemo::default(),
         }
     }
@@ -997,6 +1017,7 @@ impl PendingLiveScheduler {
             refresh: VecDeque::new(),
             data: VecDeque::new(),
             next_generation: 0,
+            drain_cycle: 0,
             evaluation_memo: LiveEvaluationMemo::empty(disabled),
         }
     }
@@ -1007,6 +1028,10 @@ impl PendingLiveScheduler {
     }
 
     fn push(&mut self, subscription_id: String, mut pending: PendingLiveFanout) {
+        if self.entries.is_empty() {
+            self.drain_cycle = self.drain_cycle.wrapping_add(1).max(1);
+            self.evaluation_memo.begin_drain_cycle(self.drain_cycle);
+        }
         let generation = self.next_generation();
         pending.generation = generation;
         let lane = pending.lane;
@@ -4489,13 +4514,16 @@ impl LocalSnapback {
             authority.projection(),
             &authority.resolved().invalidation_subject(),
         )?;
-        // @ref LLP 0209#6 — the pre-G0 key is deliberately no broader than
-        // exact function/plan generation + canonical args + handler-visible
-        // prepared authority + the scheduler's atomic evaluation cut. The
-        // containing scheduler makes instance identity implicit and prevents
-        // sharing across LocalSnapback instances. A ctx-answer ledger refuses
-        // memoization because it is an additional handler-visible input.
+        // @ref LLP 0209#6 — within one drain cycle, sharing is the specified
+        // one-evaluation-turn/N-delivery mechanism for exact function/plan
+        // generation + canonical args + handler-visible prepared authority +
+        // the scheduler's atomic evaluation cut. Cross-cycle reuse is refused:
+        // without a ctx-answer ledger, host now, fresh IDs, and warm-pool
+        // module state are not proven identical across cycles under LLP 0190
+        // §4.3's complete-inputs standard. The containing scheduler makes
+        // LocalSnapback instance identity implicit.
         let key = LiveEvaluationMemoKey {
+            drain_cycle: self.pending_live_fanout.drain_cycle,
             function_generation: self.app_generation,
             function: subscription.function.clone(),
             canonical_arguments,
