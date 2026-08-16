@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { WebSocket, WebSocketServer } from 'ws';
 
+import { snapbackDev } from './index.mjs';
 import { createSnapbackViteLifecycle, readManagedDevIdentityCapability } from './lifecycle.mjs';
 import { createSnapbackProxy } from './proxy.mjs';
 
@@ -25,6 +26,17 @@ function close(server) {
   return new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
 }
 
+async function listenProxy(proxy) {
+  const server = createServer((req, res) => {
+    proxy.handleRequest(req, res, () => {
+      res.writeHead(404);
+      res.end();
+    });
+  });
+  server.on('upgrade', (req, socket, head) => proxy.handleUpgrade(req, socket, head));
+  return { server, url: await listen(server) };
+}
+
 const root = mkdtempSync(join(tmpdir(), 'snapback-vite-dev-identity-'));
 const backendWss = new WebSocketServer({ noServer: true });
 const observedHttpHeaders = [];
@@ -38,7 +50,12 @@ const backend = createServer((req, res) => {
   observedHttpHeaders.push(req.headers);
   req.resume();
   req.on('end', () => {
-    res.writeHead(200, { 'content-type': 'application/json' });
+    res.writeHead(200, {
+      'content-type': 'application/json',
+      ...(req.headers[DEV_IDENTITY_HEADER]
+        ? { [DEV_IDENTITY_HEADER]: req.headers[DEV_IDENTITY_HEADER] }
+        : {}),
+    });
     res.end('{}');
   });
 });
@@ -50,7 +67,8 @@ backend.on('upgrade', (req, socket, head) => {
 });
 backendWss.on('connection', (websocket) => websocket.send('ready'));
 
-let relayServer = null;
+const relayServers = [];
+let viteServer = null;
 try {
   const backendUrl = await listen(backend);
 
@@ -70,14 +88,9 @@ try {
     getState: external.state,
     getDevIdentityCapability: external.readDevIdentityCapability,
   });
-  relayServer = createServer((req, res) => {
-    proxy.handleRequest(req, res, () => {
-      res.writeHead(404);
-      res.end();
-    });
-  });
-  relayServer.on('upgrade', (req, socket, head) => proxy.handleUpgrade(req, socket, head));
-  const relayUrl = await listen(relayServer);
+  const externalRelay = await listenProxy(proxy);
+  relayServers.push(externalRelay.server);
+  const relayUrl = externalRelay.url;
 
   const connectionOpen = await fetch(`${relayUrl}/__snapback/connection/open`, {
     method: 'POST',
@@ -89,6 +102,7 @@ try {
   });
   assert.equal(connectionOpen.status, 200);
   assert.equal(observedHttpHeaders[0][DEV_IDENTITY_HEADER], 'sbdev_relay_fixture_one');
+  assert.equal(connectionOpen.headers.get(DEV_IDENTITY_HEADER), null, 'relay strips reflected capability response headers');
 
   writeFileSync(relayCapabilityFile, 'sbdev_relay_fixture_two\n');
   const query = await fetch(`${relayUrl}/__snapback/query/example`, {
@@ -114,6 +128,64 @@ try {
   await external.close();
   console.log('dev identity relay: HTTP /connection/open + request re-read + WS upgrade stamp and overwrite pass');
 
+  const viteRoot = join(root, 'vite-app');
+  const viteStateRoot = join(viteRoot, '.snapback');
+  const viteCapabilityFile = join(viteStateRoot, 'dev.sqlite3.dev-identity');
+  mkdirSync(viteStateRoot, { recursive: true });
+  writeFileSync(join(viteRoot, 'index.html'), '<!doctype html><title>fixture</title>\n');
+  writeFileSync(viteCapabilityFile, 'sbdev_real_vite_secret\n', { mode: 0o600 });
+  const { createServer: createViteServer } = await import('vite');
+  viteServer = await createViteServer({
+    root: viteRoot,
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [snapbackDev({
+      server: { mode: 'external', url: backendUrl },
+      projectRoot: viteRoot,
+      env: { SNAPBACK_DEV_IDENTITY_FILE: viteCapabilityFile },
+      logJson: false,
+    })],
+    server: { host: '127.0.0.1', port: 0 },
+  });
+  await viteServer.listen();
+  const viteOrigin = `http://127.0.0.1:${viteServer.httpServer.address().port}`;
+  assert.ok(viteServer.config.server.fs.deny.includes('**/*.dev-identity'));
+  for (const path of [
+    '/.snapback/dev.sqlite3.dev-identity',
+    encodeURI(`/@fs/${viteCapabilityFile}`),
+  ]) {
+    const response = await fetch(`${viteOrigin}${path}`);
+    assert.equal(response.status, 403, `${path} must be denied by real Vite serving`);
+    assert.ok(!(await response.text()).includes('sbdev_real_vite_secret'));
+  }
+  const viteRelayResponse = await fetch(`${viteOrigin}/__snapback/connection/open`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  });
+  assert.equal(viteRelayResponse.status, 200);
+  assert.equal(observedHttpHeaders.at(-1)[DEV_IDENTITY_HEADER], 'sbdev_real_vite_secret');
+  assert.equal(viteRelayResponse.headers.get(DEV_IDENTITY_HEADER), null);
+  await viteServer.close();
+  viteServer = null;
+
+  const publicDir = join(viteRoot, 'public');
+  const publicCarrier = join(publicDir, 'leaked.dev-identity');
+  mkdirSync(publicDir, { recursive: true });
+  writeFileSync(publicCarrier, 'sbdev_public_must_refuse\n', { mode: 0o600 });
+  const publicCarrierPlugin = snapbackDev({
+    server: { mode: 'external', url: backendUrl },
+    projectRoot: viteRoot,
+    env: { SNAPBACK_DEV_IDENTITY_FILE: publicCarrier },
+    logJson: false,
+  });
+  publicCarrierPlugin.config({}, { command: 'serve' });
+  assert.throws(
+    () => publicCarrierPlugin.configResolved({ root: viteRoot, publicDir, server: { host: '127.0.0.1' } }),
+    (error) => error.code === 'SNAPBACK_DEV_READY_FILE_INVALID',
+  );
+  console.log('dev identity relay: real Vite denies static and /@fs carrier reads while relay stamping works');
+
   const database = join(root, 'fixture.sqlite3');
   const readyFile = join(root, 'fixture.ready.json');
   const managedCapabilityFile = `${database}.dev-identity`;
@@ -129,6 +201,22 @@ try {
   };
   writeFileSync(managedCapabilityFile, 'sbdev_managed_nonce_one\n', { mode: 0o600 });
   writeFileSync(readyFile, `${JSON.stringify(descriptor)}\n`, { mode: 0o600 });
+
+  chmodSync(managedCapabilityFile, 0o644);
+  assert.throws(
+    () => readManagedDevIdentityCapability({ readyFile, database }),
+    (error) => error.code === 'SNAPBACK_DEV_READY_FILE_INVALID',
+  );
+  chmodSync(managedCapabilityFile, 0o600);
+  descriptor.devIdentityCapabilityFile = join(root, 'wrong.dev-identity');
+  writeFileSync(readyFile, `${JSON.stringify(descriptor)}\n`);
+  assert.throws(
+    () => readManagedDevIdentityCapability({ readyFile, database }),
+    (error) => error.code === 'SNAPBACK_DEV_SERVER_TARGET_MISMATCH',
+  );
+  descriptor.devIdentityCapabilityFile = managedCapabilityFile;
+  writeFileSync(readyFile, `${JSON.stringify(descriptor)}\n`);
+
   const firstManaged = readManagedDevIdentityCapability({ readyFile, database });
   assert.equal(firstManaged.descriptor.startupNonce, 'nonce-one');
   assert.equal(firstManaged.capability, 'sbdev_managed_nonce_one');
@@ -139,7 +227,22 @@ try {
   const restartedManaged = readManagedDevIdentityCapability({ readyFile, database });
   assert.equal(restartedManaged.descriptor.startupNonce, 'nonce-two');
   assert.equal(restartedManaged.capability, 'sbdev_managed_nonce_two');
-  console.log('dev identity relay: managed descriptor nonce rotation re-reads the sidecar');
+  const managedProxy = createSnapbackProxy({
+    base: '/__snapback',
+    mode: 'managed',
+    getState: () => ({ serverUrl: backendUrl }),
+    getDevIdentityCapability: () => readManagedDevIdentityCapability({ readyFile, database }).capability,
+  });
+  const managedRelay = await listenProxy(managedProxy);
+  relayServers.push(managedRelay.server);
+  const managedResponse = await fetch(`${managedRelay.url}/__snapback/query/example`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  });
+  assert.equal(managedResponse.status, 200);
+  assert.equal(observedHttpHeaders.at(-1)[DEV_IDENTITY_HEADER], 'sbdev_managed_nonce_two');
+  console.log('dev identity relay: managed descriptor + owner-only sidecar stamp; unsafe carriers refuse harvest');
 
   const missingEvents = [];
   const missing = createSnapbackViteLifecycle({
@@ -157,13 +260,40 @@ try {
     missingEvents.filter((event) => event.event === 'dev-identity-handoff-missing').length,
     1,
   );
+  const missingProxy = createSnapbackProxy({
+    base: '/__snapback',
+    mode: 'external',
+    getState: missing.state,
+    getDevIdentityCapability: missing.readDevIdentityCapability,
+  });
+  const missingRelay = await listenProxy(missingProxy);
+  relayServers.push(missingRelay.server);
+  const uncredentialedResponse = await fetch(`${missingRelay.url}/__snapback/query/example`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      [DEV_IDENTITY_HEADER]: 'sbdev_client_cannot_self_supply',
+    },
+    body: '{}',
+  });
+  assert.equal(uncredentialedResponse.status, 200);
+  assert.equal(observedHttpHeaders.at(-1)[DEV_IDENTITY_HEADER], undefined);
   await missing.close();
-  console.log('dev identity relay: external env handoff stamps; absent handoff warns once and remains permissive');
+  console.log('dev identity relay: absent handoff warns once and strips a client-supplied capability');
 } finally {
-  try {
-    await close(relayServer);
-  } catch {
-    // best-effort cleanup
+  if (viteServer) {
+    try {
+      await viteServer.close();
+    } catch {
+      // best-effort cleanup
+    }
+  }
+  for (const relayServer of relayServers) {
+    try {
+      await close(relayServer);
+    } catch {
+      // best-effort cleanup
+    }
   }
   try {
     await close(backend);

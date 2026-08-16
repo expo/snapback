@@ -168,7 +168,8 @@ export function createSnapbackProxy({
         (backendRes) => {
           const responseHeaders = {};
           for (const [name, value] of Object.entries(backendRes.headers)) {
-            if (HOP_BY_HOP.has(name)) continue;
+            const normalizedName = name.toLowerCase();
+            if (HOP_BY_HOP.has(normalizedName) || normalizedName === DEV_IDENTITY_HEADER) continue;
             responseHeaders[name] = value;
           }
           res.writeHead(backendRes.statusCode ?? 502, responseHeaders);

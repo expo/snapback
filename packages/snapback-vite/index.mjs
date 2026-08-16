@@ -10,7 +10,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -54,6 +54,28 @@ export const VIRTUAL_MODULE_ID = 'virtual:snapback/dev';
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+// @ref LLP 0262#d2-carriers-per-shipped-topology — custody sidecars must be
+// inaccessible to both Vite filesystem serving and its public directory.
+const DEV_IDENTITY_DENY_GLOB = '**/*.dev-identity';
+
+function isWithinDirectory(directory, path) {
+  const nested = relative(resolve(directory), resolve(path));
+  return nested === '' || (nested !== '..' && !nested.startsWith(`..${sep}`) && !isAbsolute(nested));
+}
+
+function configuredDevIdentityCarriers({ mode, projectRoot, serverOptions, env }) {
+  const carriers = [];
+  if (mode === 'managed' || mode === 'auto') {
+    const stateRoot = join(projectRoot, '.snapback');
+    const database = resolve(projectRoot, serverOptions.db ?? serverOptions.database ?? join(stateRoot, 'dev.sqlite3'));
+    carriers.push(`${database}.dev-identity`);
+  }
+  const handoff = env.SNAPBACK_DEV_IDENTITY_FILE;
+  if (mode !== 'managed' && typeof handoff === 'string' && handoff.length > 0) {
+    carriers.push(resolve(projectRoot, handoff));
+  }
+  return carriers;
+}
 
 function normalizeRoute(route) {
   const value = route ?? '/__snapback';
@@ -266,6 +288,14 @@ export function snapbackDev(options = {}) {
 
     config(_config, env) {
       command = env.command;
+      if (command !== 'serve' || mode === 'off') return undefined;
+      return {
+        server: {
+          fs: {
+            deny: [DEV_IDENTITY_DENY_GLOB],
+          },
+        },
+      };
     },
 
     configResolved(config) {
@@ -274,6 +304,22 @@ export function snapbackDev(options = {}) {
         verifyGeneratedGraph(resolve(projectRoot, generatedRoot));
       }
       if (command !== 'serve' || mode === 'off') return;
+      const publicDir = config.publicDir;
+      if (publicDir) {
+        const carrier = configuredDevIdentityCarriers({
+          mode,
+          projectRoot,
+          serverOptions,
+          env: options.env ?? process.env,
+        }).find((path) => isWithinDirectory(publicDir, path));
+        if (carrier) {
+          throw diagnosticError(
+            'SNAPBACK_DEV_READY_FILE_INVALID',
+            'the dev-identity capability carrier must not be inside Vite publicDir',
+            { carrier, publicDir: resolve(publicDir) },
+          );
+        }
+      }
       assertLoopbackHost(config.server?.host, {
         allowNonLoopbackHost: options.allowNonLoopbackHost === true,
         channel,
