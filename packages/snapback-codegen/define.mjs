@@ -49,6 +49,11 @@ const isUserIdentifier = (value) => {
   return folded !== '_auth' && !folded.startsWith('_auth_');
 };
 const AUTH_MODES = new Set(['dev', 'sessions']);
+const AUTH_CUSTODY_GRADES = new Set(['durable-required', 'volatile-explicit']);
+export const AUTH_PROGRAM_FIELDS = new Set([
+  'version', 'mechanisms', 'providers', 'assuranceRequirements', 'guestPolicy',
+  'secretReferences', 'verifiedProvisioning', 'custody', 'externalSessionEntry',
+]);
 const AUTH_ASSURANCE_KINDS = new Set([
   'authenticated', 'email_verified', 'phone_verified', 'recent_auth', 'phishing_resistant',
 ]);
@@ -1799,13 +1804,23 @@ export const AUTH_DEFAULT_UNCLAIMED_GUEST_RETENTION_MS = 7 * 24 * 60 * 60 * 1_00
 
 // @ref LLP 0214#21-one-source-declaration — the floor auth program is closed,
 // secret-reference-only, and normalized before it can enter an artifact.
+// @ref LLP 0258#d1-generate-one-non-secret-bootstrap-policy — custody and the
+// advanced external-session seam are authored once here, then consumed only
+// through the normalized auth program.
 export function defineAuth(program) {
   assert(program && typeof program === 'object' && !Array.isArray(program), 'defineAuth expects an object');
-  exactObject(program, 'defineAuth', new Set([
-    'version', 'mechanisms', 'providers', 'assuranceRequirements', 'guestPolicy',
-    'secretReferences', 'verifiedProvisioning',
-  ]), 'SNAPBACK_AUTH_PROGRAM_INVALID');
+  exactObject(program, 'defineAuth', AUTH_PROGRAM_FIELDS, 'SNAPBACK_AUTH_PROGRAM_INVALID');
   assert(program.version === 1, 'defineAuth version must be 1', 'SNAPBACK_AUTH_PROGRAM_VERSION_UNSUPPORTED');
+  assert(
+    program.custody === undefined || AUTH_CUSTODY_GRADES.has(program.custody),
+    'defineAuth custody must be durable-required or volatile-explicit',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  assert(
+    program.externalSessionEntry === undefined || program.externalSessionEntry === true,
+    'defineAuth externalSessionEntry, when present, must be true',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
 
   const mechanisms = {};
   assert(program.mechanisms && typeof program.mechanisms === 'object' && !Array.isArray(program.mechanisms), 'defineAuth mechanisms must be an object');
@@ -1963,6 +1978,8 @@ export function defineAuth(program) {
 
   const normalized = {
     version: 1,
+    custody: program.custody ?? 'durable-required',
+    ...(program.externalSessionEntry === true ? { externalSessionEntry: true } : {}),
     mechanisms,
     ...(program.providers === undefined ? {} : { providers: { ...program.providers } }),
     assuranceRequirements,

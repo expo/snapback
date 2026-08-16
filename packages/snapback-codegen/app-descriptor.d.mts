@@ -1,5 +1,11 @@
 export const APP_DESCRIPTOR_FORMAT: 'snapback.app.v1';
 export const APP_DESCRIPTOR_MAX_BYTES: number;
+export const APPLICATION_AUTH_BOOTSTRAP_FORMAT: 'snapback.application-auth-bootstrap.v1';
+export const APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS: readonly [
+  'password-v1',
+  'email-code-v1',
+  'external-session-explicit-v1',
+];
 export const SURFACE_MAX_PARAMS: 8;
 export const SURFACE_MAX_MEMBERS: 24;
 export const SURFACE_MAX_MEMBER_BINDINGS: 32;
@@ -16,6 +22,15 @@ export interface AppDescriptorValidationProblem {
 export interface PortableAppDescriptorV1 {
   readonly format: 'snapback.app.v1';
   readonly authoringProfile: 'snapback-explicit-v1' | 'snapback-familiar-ts-v1';
+  readonly authBootstrap?: Readonly<{
+    format: 'snapback.application-auth-bootstrap.v1';
+    appId: string;
+    mode: 'sessions';
+    custody: 'durable-required' | 'volatile-explicit';
+    entryMechanisms: readonly ('password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
+    anonymousPublic: 'allowed' | 'refused';
+    lifecycleProtocol: 1;
+  }>;
   readonly identity: Readonly<{
     app: string;
     schema: string;
@@ -55,6 +70,7 @@ export function createAppDescriptorV1(input: Readonly<{
   authoringProfile: PortableAppDescriptorV1['authoringProfile'];
   schema: string;
   functions: string;
+  authBootstrap?: PortableAppDescriptorV1['authBootstrap'];
   api: PortableAppDescriptorV1['api'];
   commands?: PortableAppDescriptorV1['commands'];
   surfaces?: PortableAppDescriptorV1['surfaces'];

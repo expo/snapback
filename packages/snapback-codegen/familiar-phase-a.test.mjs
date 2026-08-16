@@ -15,6 +15,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
 
 import {
+  AUTH_PROGRAM_FIELDS,
   ACTION_SPEC_FIELDS,
   JS_QUERY_SPEC_FIELDS,
   MUTATION_SPEC_FIELDS,
@@ -330,6 +331,7 @@ test('disposition seed covers canonical fields, constructors, methods, and schem
     /^  ([A-Za-z][A-Za-z0-9_]*)\([^\n]*\) \{/gmu,
   )].map((match) => match[1]).filter((name) => name !== 'constructor');
   const cases = [
+    ['auth-program field', AUTH_PROGRAM_FIELDS, FAMILIAR_DISPOSITIONS.authProgramFields],
     ['function field', functionFields, FAMILIAR_DISPOSITIONS.functionSpecFields],
     ['constructor', constructors, FAMILIAR_DISPOSITIONS.constructors],
     ['table-builder method', tableMethods, FAMILIAR_DISPOSITIONS.tableBuilderMethods],

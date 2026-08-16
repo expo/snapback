@@ -345,11 +345,11 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:6978a3c933b83c89",
-          "bundleHash": "sha256:54d26e37593c256c",
-          "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+          "schemaHash": "sha256:a5463d97624946d8",
+          "bundleHash": "sha256:138d09beffa1d3ce",
+          "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
         },
-        "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
+        "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862",
         "sourceSpan": {
           "file": "functions.mjs"
         },
@@ -465,11 +465,11 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:6978a3c933b83c89",
-          "bundleHash": "sha256:54d26e37593c256c",
-          "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+          "schemaHash": "sha256:a5463d97624946d8",
+          "bundleHash": "sha256:138d09beffa1d3ce",
+          "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
         },
-        "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
+        "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862",
         "sourceSpan": {
           "file": "functions.mjs"
         },
@@ -598,11 +598,11 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:6978a3c933b83c89",
-          "bundleHash": "sha256:54d26e37593c256c",
-          "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+          "schemaHash": "sha256:a5463d97624946d8",
+          "bundleHash": "sha256:138d09beffa1d3ce",
+          "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
         },
-        "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
+        "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862",
         "sourceSpan": {
           "file": "functions.mjs"
         },
@@ -690,16 +690,16 @@ export const dataResources = Object.freeze([
             "activation": {
               "schemaVersion": "snapback.v0",
               "appId": "fixtures",
-              "schemaHash": "sha256:6978a3c933b83c89",
-              "bundleHash": "sha256:54d26e37593c256c",
-              "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+              "schemaHash": "sha256:a5463d97624946d8",
+              "bundleHash": "sha256:138d09beffa1d3ce",
+              "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
             },
-            "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
+            "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862"
           },
           "schemaIdentity": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:6978a3c933b83c89"
+            "schemaHash": "sha256:a5463d97624946d8"
           },
           "capabilityClass": "local-executable",
           "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -760,7 +760,7 @@ export const dataResources = Object.freeze([
           ],
           "usesRuntimeNow": true,
           "boundedSkew": null,
-          "operationHash": "sha256:07797aababef5a04044672e75185a66e1361cbb817704eac19c3ff2e5f1b135a"
+          "operationHash": "sha256:45ee049851911ca1cba6e59dd437d1f293e840925868b2cf4a068b36a952bb7c"
         },
         "argumentSchema": {
           "type": "object",
@@ -820,11 +820,11 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:6978a3c933b83c89",
-          "bundleHash": "sha256:54d26e37593c256c",
-          "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+          "schemaHash": "sha256:a5463d97624946d8",
+          "bundleHash": "sha256:138d09beffa1d3ce",
+          "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
         },
-        "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
+        "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862",
         "sourceSpan": {
           "file": "functions.mjs"
         },
@@ -912,16 +912,16 @@ export const dataResources = Object.freeze([
             "activation": {
               "schemaVersion": "snapback.v0",
               "appId": "fixtures",
-              "schemaHash": "sha256:6978a3c933b83c89",
-              "bundleHash": "sha256:54d26e37593c256c",
-              "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+              "schemaHash": "sha256:a5463d97624946d8",
+              "bundleHash": "sha256:138d09beffa1d3ce",
+              "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
             },
-            "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
+            "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862"
           },
           "schemaIdentity": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:6978a3c933b83c89"
+            "schemaHash": "sha256:a5463d97624946d8"
           },
           "capabilityClass": "local-executable",
           "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1022,7 +1022,7 @@ export const dataResources = Object.freeze([
           "mintSites": [],
           "usesRuntimeNow": false,
           "boundedSkew": null,
-          "operationHash": "sha256:6b7c67652c7f3727e881bd884035b7d919552d36d05e437daa23eeec966fd1cf"
+          "operationHash": "sha256:49b2ea8b6dc74cce6b111a26742a9f13a94691d5cc44694fea7952232b436702"
         },
         "argumentSchema": {
           "type": "object",
@@ -1071,11 +1071,11 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:6978a3c933b83c89",
-          "bundleHash": "sha256:54d26e37593c256c",
-          "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+          "schemaHash": "sha256:a5463d97624946d8",
+          "bundleHash": "sha256:138d09beffa1d3ce",
+          "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
         },
-        "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
+        "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862",
         "sourceSpan": {
           "file": "functions.mjs"
         },
@@ -1093,16 +1093,16 @@ export const dataResources = Object.freeze([
             "activation": {
               "schemaVersion": "snapback.v0",
               "appId": "fixtures",
-              "schemaHash": "sha256:6978a3c933b83c89",
-              "bundleHash": "sha256:54d26e37593c256c",
-              "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+              "schemaHash": "sha256:a5463d97624946d8",
+              "bundleHash": "sha256:138d09beffa1d3ce",
+              "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
             },
-            "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
+            "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862"
           },
           "schemaIdentity": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:6978a3c933b83c89"
+            "schemaHash": "sha256:a5463d97624946d8"
           },
           "capabilityClass": "local-executable",
           "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1188,7 +1188,7 @@ export const dataResources = Object.freeze([
           "mintSites": [],
           "usesRuntimeNow": false,
           "boundedSkew": null,
-          "operationHash": "sha256:d72b60ded0db44c57c3a547b5b98dfb39def9304d2e1fa7678829990e455baf0"
+          "operationHash": "sha256:c7a8c802cf88a247170788234f9e829ddbf9af4173f37a0e504e395edcfb794e"
         },
         "argumentSchema": {
           "type": "object",
@@ -1244,7 +1244,7 @@ const __dataError = (code, message) => Object.assign(new TypeError(code + ': ' +
 const __shape = (value) => { if (value === undefined || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'bigint' || (typeof value === 'number' && !Number.isFinite(value))) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'query values must be finite portable JSON'); return value; };
 const __operator = (value) => { if (!value || typeof value !== 'object' || Array.isArray(value)) return { operator: 'eq', values: [__shape(value)] }; const keys = Object.keys(value); const lower = keys.find((key) => key === 'gt' || key === 'gte'); const upper = keys.find((key) => key === 'lt' || key === 'lte'); const singles = new Set(['eq','in','lt','lte','gt','gte']); const operator = keys.length === 1 && singles.has(keys[0]) ? keys[0] : (keys.length === 2 && lower && upper ? lower + '-' + upper : ''); if (!operator) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'predicate object is outside the closed grammar'); const ordered = operator.includes('-') ? operator.split('-') : [operator]; let values = ordered.map((key) => __shape(value[key])); if (operator === 'in') { if (!Array.isArray(values[0]) || values[0].length < 1 || values[0].length > 32) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'in requires 1..32 values'); values = [[...new Map(values[0].map((item) => [JSON.stringify(item), item])).values()]]; } return { operator, values }; };
 const __sameProjection = (authored, canonical) => { if (authored === null || canonical === null) return authored === canonical; if (authored.length !== canonical.length || new Set(authored).size !== authored.length) return false; const admitted = new Set(canonical); return authored.every((field) => admitted.has(field)); };
-const __finish = (state, cursor = null) => { if (!Number.isSafeInteger(state.take) || state.take < 1 || state.take > 200) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'take must be a safe integer in 1..200'); if (state.projection !== null && state.projection.length < 1) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select requires at least one duplicate-free field'); if (state.projection !== null && state.projection.length > 64) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'select exceeds maxProjectionFields 64'); if (state.projection !== null && new Set(state.projection).size !== state.projection.length) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select fields must be duplicate-free'); if (cursor !== null && (typeof cursor !== 'string' || !cursor.startsWith('dc1.') || new TextEncoder().encode(cursor).length > 2048)) throw __dataError('SNAPBACK_DATA_CURSOR_INVALID', 'cursor is not a bounded DataCursorV1'); const byField = new Map(state.filters.map((filter) => [filter.field, filter])); const entry = dataQueryCatalog.find((candidate) => candidate.shape.resource === state.resource && candidate.shape.index === state.index && JSON.stringify(candidate.shape.order) === JSON.stringify(state.order) && candidate.shape.take === state.take && __sameProjection(state.projection, candidate.shape.projection) && candidate.shape.filters.length === state.filters.length && candidate.shape.filters.every((filter) => byField.get(filter.field)?.operator === filter.operator)); if (!entry) throw __dataError('SNAPBACK_DATA_QUERY_NOT_CATALOGUED', 'this dynamic query shape is absent from the active static catalogue'); const args = entry.shape.filters.flatMap(({ field }) => byField.get(field).values); const namedArguments = Object.assign(Object.fromEntries(entry.argumentNames.map((name, index) => [name, args[index]])), cursor === null ? {} : { after: cursor }); const descriptor = { ...entry.envelope, arguments: Object.freeze(args), canonicalArgsDigest: __dataDigest('snapback:data-canonical-args:v1', Object.fromEntries(Object.entries(namedArguments).filter(([name]) => name !== 'after'))), cursor, namedArguments: Object.freeze(namedArguments) }; return Object.freeze(cursor === null ? { ...descriptor, after(next) { return __finish(state, next); } } : descriptor); };
+const __finish = (state, cursor = null) => { if (!Number.isSafeInteger(state.take) || state.take < 1 || state.take > 200) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'take must be a safe integer in 1..200'); if (state.projection !== null && state.projection.length < 1) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select requires at least one duplicate-free field'); if (state.projection !== null && state.projection.length > 64) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'select exceeds maxProjectionFields 64'); if (state.projection !== null && new Set(state.projection).size !== state.projection.length) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select fields must be duplicate-free'); if (cursor !== null && (typeof cursor !== 'string' || !cursor.startsWith('dc1.') || new TextEncoder().encode(cursor).length > 2048)) throw __dataError('SNAPBACK_DATA_CURSOR_INVALID', 'cursor is not a bounded DataCursorV1'); const byField = new Map(state.filters.map((filter) => [filter.field, filter])); const entry = dataQueryCatalog.find((candidate) => candidate.shape.resource === state.resource && candidate.shape.index === state.index && JSON.stringify(candidate.shape.order) === JSON.stringify(state.order) && candidate.shape.take === state.take && __sameProjection(state.projection, candidate.shape.projection) && candidate.shape.filters.length === state.filters.length && candidate.shape.filters.every((filter) => byField.get(filter.field)?.operator === filter.operator)); if (!entry) throw __dataError('SNAPBACK_DATA_QUERY_NOT_CATALOGUED', 'this dynamic query shape is absent from the active static catalogue; Snapback generation scans query shapes only inside the backend source root passed to codegen (conventionally <app>/snapback/); keep the complete literal chain in <backend-root>/data-queries.mjs, regenerate, and consume the generated descriptor from app code'); const args = entry.shape.filters.flatMap(({ field }) => byField.get(field).values); const namedArguments = Object.assign(Object.fromEntries(entry.argumentNames.map((name, index) => [name, args[index]])), cursor === null ? {} : { after: cursor }); const descriptor = { ...entry.envelope, arguments: Object.freeze(args), canonicalArgsDigest: __dataDigest('snapback:data-canonical-args:v1', Object.fromEntries(Object.entries(namedArguments).filter(([name]) => name !== 'after'))), cursor, namedArguments: Object.freeze(namedArguments) }; return Object.freeze(cursor === null ? { ...descriptor, after(next) { return __finish(state, next); } } : descriptor); };
 const __resource = (resource) => Object.freeze({ using(index) { const base = { resource, index, filters: [], projection: null }; const ordered = (state) => Object.freeze({ orderBy(field, direction) { const next = { ...state, order: { field, direction } }; return Object.freeze({ select(fields) { if (!Array.isArray(fields)) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select requires an array'); const selected = { ...next, projection: [...fields] }; return Object.freeze({ take(take) { return __finish({ ...selected, take }); } }); }, take(take) { return __finish({ ...next, take }); } }); } }); return Object.freeze({ where(filters) { if (!filters || typeof filters !== 'object' || Array.isArray(filters)) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'where requires an object'); const entries = Object.entries(filters); if (entries.length < 1) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'where requires at least one field'); if (entries.length > 8) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'where exceeds maxFilterFields 8'); return ordered({ ...base, filters: entries.map(([field, value]) => ({ field, ...__operator(value) })) }); }, orderBy: ordered(base).orderBy }); } });
 const __dataObject = Object.fromEntries([...new Set(dataQueryCatalog.map(({ core }) => core.resource))].map((resource) => [resource, __resource(resource)]));
 export const explainDataQuery = (descriptor) => descriptor?.explain ?? descriptor?.envelope?.explain ?? null;
@@ -1285,11 +1285,11 @@ const __dataTransactionOperations = Object.freeze({
       "expectedGeneration": {
         "schemaVersion": "snapback.v0",
         "appId": "fixtures",
-        "schemaHash": "sha256:6978a3c933b83c89",
-        "bundleHash": "sha256:54d26e37593c256c",
-        "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+        "schemaHash": "sha256:a5463d97624946d8",
+        "bundleHash": "sha256:138d09beffa1d3ce",
+        "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
       },
-      "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
+      "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862",
       "sourceSpan": {
         "file": "functions.mjs"
       },
@@ -1377,16 +1377,16 @@ const __dataTransactionOperations = Object.freeze({
           "activation": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:6978a3c933b83c89",
-            "bundleHash": "sha256:54d26e37593c256c",
-            "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+            "schemaHash": "sha256:a5463d97624946d8",
+            "bundleHash": "sha256:138d09beffa1d3ce",
+            "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
           },
-          "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
+          "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862"
         },
         "schemaIdentity": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:6978a3c933b83c89"
+          "schemaHash": "sha256:a5463d97624946d8"
         },
         "capabilityClass": "local-executable",
         "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1447,7 +1447,7 @@ const __dataTransactionOperations = Object.freeze({
         ],
         "usesRuntimeNow": true,
         "boundedSkew": null,
-        "operationHash": "sha256:07797aababef5a04044672e75185a66e1361cbb817704eac19c3ff2e5f1b135a"
+        "operationHash": "sha256:45ee049851911ca1cba6e59dd437d1f293e840925868b2cf4a068b36a952bb7c"
       },
       "argumentSchema": {
         "type": "object",
@@ -1507,11 +1507,11 @@ const __dataTransactionOperations = Object.freeze({
       "expectedGeneration": {
         "schemaVersion": "snapback.v0",
         "appId": "fixtures",
-        "schemaHash": "sha256:6978a3c933b83c89",
-        "bundleHash": "sha256:54d26e37593c256c",
-        "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+        "schemaHash": "sha256:a5463d97624946d8",
+        "bundleHash": "sha256:138d09beffa1d3ce",
+        "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
       },
-      "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
+      "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862",
       "sourceSpan": {
         "file": "functions.mjs"
       },
@@ -1599,16 +1599,16 @@ const __dataTransactionOperations = Object.freeze({
           "activation": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:6978a3c933b83c89",
-            "bundleHash": "sha256:54d26e37593c256c",
-            "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+            "schemaHash": "sha256:a5463d97624946d8",
+            "bundleHash": "sha256:138d09beffa1d3ce",
+            "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
           },
-          "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
+          "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862"
         },
         "schemaIdentity": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:6978a3c933b83c89"
+          "schemaHash": "sha256:a5463d97624946d8"
         },
         "capabilityClass": "local-executable",
         "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1709,7 +1709,7 @@ const __dataTransactionOperations = Object.freeze({
         "mintSites": [],
         "usesRuntimeNow": false,
         "boundedSkew": null,
-        "operationHash": "sha256:6b7c67652c7f3727e881bd884035b7d919552d36d05e437daa23eeec966fd1cf"
+        "operationHash": "sha256:49b2ea8b6dc74cce6b111a26742a9f13a94691d5cc44694fea7952232b436702"
       },
       "argumentSchema": {
         "type": "object",
@@ -1758,11 +1758,11 @@ const __dataTransactionOperations = Object.freeze({
       "expectedGeneration": {
         "schemaVersion": "snapback.v0",
         "appId": "fixtures",
-        "schemaHash": "sha256:6978a3c933b83c89",
-        "bundleHash": "sha256:54d26e37593c256c",
-        "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+        "schemaHash": "sha256:a5463d97624946d8",
+        "bundleHash": "sha256:138d09beffa1d3ce",
+        "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
       },
-      "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35",
+      "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862",
       "sourceSpan": {
         "file": "functions.mjs"
       },
@@ -1780,16 +1780,16 @@ const __dataTransactionOperations = Object.freeze({
           "activation": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:6978a3c933b83c89",
-            "bundleHash": "sha256:54d26e37593c256c",
-            "inputsHash": "d8897c3156cce565cb5035e533d285e84a3a0dd325e09af585bcdfc67d3777ef"
+            "schemaHash": "sha256:a5463d97624946d8",
+            "bundleHash": "sha256:138d09beffa1d3ce",
+            "inputsHash": "b575cf150627bda905509aa854335e1513d0e898449d90c8ed11fa72fa12bcaa"
           },
-          "authoredSourceHash": "sha256:27c34b5f0669cd2e096985f3ff06b89714a7b8d8b6526d5b1e0685bd66ddbe35"
+          "authoredSourceHash": "sha256:e6bf13027c9275bb66dd949887192826d7f358b7e7c90360f96bbac640f65862"
         },
         "schemaIdentity": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:6978a3c933b83c89"
+          "schemaHash": "sha256:a5463d97624946d8"
         },
         "capabilityClass": "local-executable",
         "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1875,7 +1875,7 @@ const __dataTransactionOperations = Object.freeze({
         "mintSites": [],
         "usesRuntimeNow": false,
         "boundedSkew": null,
-        "operationHash": "sha256:d72b60ded0db44c57c3a547b5b98dfb39def9304d2e1fa7678829990e455baf0"
+        "operationHash": "sha256:c7a8c802cf88a247170788234f9e829ddbf9af4173f37a0e504e395edcfb794e"
       },
       "argumentSchema": {
         "type": "object",

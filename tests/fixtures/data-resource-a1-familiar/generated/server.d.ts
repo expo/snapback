@@ -2,7 +2,7 @@
 import { v as familiarV } from '@expo/snapback-codegen/familiar';
 import type { InferObjectValidatorFields, InferValidator, Validator } from '@expo/snapback-codegen/define';
 import type { FunctionArgs, FunctionReference, FunctionResult, GeneratedActionContext, GeneratedDataModel, GeneratedHandlerSchema, GeneratedIndexNames, GeneratedMutationContext, GeneratedQueryContext, GeneratedReadableTableName, Id, QueryBuilder } from './api';
-export { allow, defineSchema, defineTable } from '@expo/snapback-codegen/familiar';
+export { allow, defineAssetUpload, defineSchema, defineTable } from '@expo/snapback-codegen/familiar';
 export declare const v: Omit<typeof familiarV, 'doc' | 'id'> & {
   doc<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<GeneratedDataModel[Table], { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false>;
   id<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<Id<Table>, { readonly Id: { readonly table: Table } }, false>;

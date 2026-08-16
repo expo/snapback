@@ -10,6 +10,7 @@
     "authoringProfile": {
       "enum": ["snapback-explicit-v1", "snapback-familiar-ts-v1"]
     },
+    "authBootstrap": { "$ref": "#/$defs/applicationAuthBootstrap" },
     "identity": {
       "type": "object",
       "additionalProperties": false,
@@ -52,6 +53,24 @@
     }
   },
   "$defs": {
+    "applicationAuthBootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "appId", "mode", "custody", "entryMechanisms", "anonymousPublic", "lifecycleProtocol"],
+      "properties": {
+        "format": { "const": "snapback.application-auth-bootstrap.v1" },
+        "appId": { "type": "string", "minLength": 1 },
+        "mode": { "const": "sessions" },
+        "custody": { "enum": ["durable-required", "volatile-explicit"] },
+        "entryMechanisms": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["password-v1", "email-code-v1", "external-session-explicit-v1"] }
+        },
+        "anonymousPublic": { "enum": ["allowed", "refused"] },
+        "lifecycleProtocol": { "const": 1 }
+      }
+    },
     "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]+$" },
     "generatedIdentity": {
       "type": "string",

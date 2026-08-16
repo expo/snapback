@@ -720,6 +720,10 @@ export type AuthMechanism =
   | { readonly kind: 'passkey'; readonly provider: string };
 export interface AuthProgramV1 {
   readonly version: 1;
+  /** Client authority custody policy. Omission normalizes to durable-required. */
+  readonly custody?: 'durable-required' | 'volatile-explicit';
+  /** Explicitly admit the advanced external-session entry seam. */
+  readonly externalSessionEntry?: true;
   readonly mechanisms: Readonly<Record<string, AuthMechanism>>;
   readonly providers?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly assuranceRequirements: Readonly<Record<string, { readonly allOf: readonly string[] }>>;
@@ -742,6 +746,7 @@ export interface AuthProgramV1 {
   };
 }
 export declare const AUTH_DEFAULT_UNCLAIMED_GUEST_RETENTION_MS: number;
+export declare const AUTH_PROGRAM_FIELDS: ReadonlySet<string>;
 export declare function defineAuth(program: AuthProgramV1): AuthProgramV1;
 export declare function defineSchema(
   tables: Record<string, unknown>,

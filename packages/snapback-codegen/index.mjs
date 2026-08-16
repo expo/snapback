@@ -187,6 +187,8 @@ import {
   formatCodegenSummary,
 } from './codegen-summary.mjs';
 import {
+  APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS,
+  APPLICATION_AUTH_BOOTSTRAP_FORMAT,
   createAppDescriptorV1,
   serializeAppDescriptorV1,
   SURFACE_MAX_MEMBER_BINDINGS,
@@ -1519,6 +1521,99 @@ function compileAuthProgramReadiness(schemaDef, functionsModule, err) {
     requiredAssuranceProducers,
     deliveryChannels,
     noDeliveryCheck: { enforced: false, satisfied: !deliveryRequired },
+  };
+}
+
+function visibilityAdmitsAnonymousPublic(visibility) {
+  if (visibility?.kind === 'public-read') return true;
+  return visibility?.kind === 'any-of'
+    && Array.isArray(visibility.arms)
+    && visibility.arms.some(visibilityAdmitsAnonymousPublic);
+}
+
+// @ref LLP 0258#d1-generate-one-non-secret-bootstrap-policy — this is a
+// projection of the normalized auth/schema/function program, never a second
+// authored policy. Unsupported normalized facts refuse rather than narrowing.
+function deriveApplicationAuthBootstrapV1({
+  appId,
+  authMode,
+  authoringProfile,
+  authProgram,
+  functions,
+  tables,
+  err,
+}) {
+  if (authMode !== 'sessions') return undefined;
+  let refused = false;
+  const refuse = (message, details) => {
+    refused = true;
+    err(
+      'SNAPBACK_AUTH_PROGRAM_INVALID',
+      'auth',
+      message,
+      details,
+    );
+  };
+  const custody = authProgram?.custody ?? 'durable-required';
+  if (custody !== 'durable-required' && custody !== 'volatile-explicit') {
+    refuse('normalized auth custody cannot be represented by ApplicationAuthBootstrapV1', {
+      custody,
+      allowed: ['durable-required', 'volatile-explicit'],
+    });
+  }
+  if (authoringProfile === FAMILIAR_AUTHORING_PROFILE && custody !== 'durable-required') {
+    refused = true;
+    err(
+      'SNAPBACK_AUTH_PROGRAM_INVALID',
+      'auth',
+      'snapback-familiar-ts-v1 fixes auth custody to durable-required; use the explicit profile for volatile-explicit',
+      { custody, allowed: ['durable-required'] },
+    );
+  }
+  if (authProgram?.externalSessionEntry !== undefined
+    && authProgram.externalSessionEntry !== true) {
+    refuse('normalized externalSessionEntry must be the explicit literal true', {
+      externalSessionEntry: authProgram.externalSessionEntry,
+    });
+  }
+  const admittedEntries = new Set();
+  const mechanisms = authProgram?.mechanisms ?? {};
+  if (!mechanisms || typeof mechanisms !== 'object' || Array.isArray(mechanisms)) {
+    refuse('normalized auth mechanisms must be an object map', {});
+  } else {
+    for (const [name, mechanism] of Object.entries(mechanisms)) {
+      if (mechanism?.kind === 'password') admittedEntries.add('password-v1');
+      else if (mechanism?.kind === 'email-code') admittedEntries.add('email-code-v1');
+      else if (mechanism?.kind === 'guest' || mechanism?.kind === 'passkey') {
+        // Guest principals, recovery infrastructure, and the passkey slot are
+        // deliberately not application entry mechanisms in this policy.
+      } else {
+        refuse('normalized auth mechanism cannot be represented by ApplicationAuthBootstrapV1', {
+          mechanism: name,
+          kind: mechanism?.kind ?? null,
+        });
+      }
+    }
+  }
+  if (authProgram?.externalSessionEntry === true) {
+    admittedEntries.add('external-session-explicit-v1');
+  }
+  if (refused) return null;
+  const operationAllowsAnonymous = (functions ?? []).some((fn) => {
+    const requirement = fn.authRequirement ?? 'optional-user';
+    return requirement === 'public' || requirement === 'optional-user';
+  });
+  const tableAllowsAnonymous = Object.values(tables ?? {})
+    .some((table) => visibilityAdmitsAnonymousPublic(table.visibility));
+  return {
+    format: APPLICATION_AUTH_BOOTSTRAP_FORMAT,
+    appId,
+    mode: 'sessions',
+    custody,
+    entryMechanisms: APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS
+      .filter((entry) => admittedEntries.has(entry)),
+    anonymousPublic: operationAllowsAnonymous || tableAllowsAnonymous ? 'allowed' : 'refused',
+    lifecycleProtocol: 1,
   };
 }
 
@@ -6436,6 +6531,18 @@ async function generateInProcessLocked({
     ...(projections.length > 0 ? { projections } : {}),
     ...(assetUploadIntents.length > 0 ? { assetUploadIntents } : {}),
   };
+  const applicationAuthBootstrap = deriveApplicationAuthBootstrapV1({
+    appId,
+    authMode,
+    authoringProfile,
+    authProgram: schemaDef.authProgram,
+    functions: functionManifest.functions,
+    tables,
+    err,
+  });
+  if (diagnostics.some((d) => d.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
   const handlerRuntimeProfile = buildHandlerRuntimeProfile({
     appId,
     inputsHash,
@@ -6491,6 +6598,7 @@ async function generateInProcessLocked({
         .sort((left, right) => compareCodeUnits(left.code, right.code)),
     },
     authoringProfile,
+    applicationAuthBootstrap,
     ...(normalizedDataResources.length === 0
       ? {}
       : {
@@ -6759,6 +6867,7 @@ async function generateInProcessLocked({
     authoringProfile,
     schema: schemaHash,
     functions: bundleHash,
+    authBootstrap: applicationAuthBootstrap,
     api: generatedReferences.api,
     commands: generatedCommands,
     surfaces: generatedSurfaces,
@@ -6810,6 +6919,7 @@ async function generateInProcessLocked({
     generatedSurfaces,
     clientLifecycleManifest,
     authoringProfile,
+    applicationAuthBootstrap,
     dataResourceWitnesses.length > 0,
   );
   const canonicalApiModule = renderApiModule(
@@ -13800,6 +13910,7 @@ function renderAppTypes(
   surfaces = {},
   clientLifecycleManifest,
   authoringProfile = EXPLICIT_AUTHORING_PROFILE,
+  applicationAuthBootstrap = undefined,
   hasData = false,
 ) {
   const standalone = standaloneDescriptorFunctions(functions);
@@ -13875,9 +13986,23 @@ function renderAppTypes(
       return `  readonly ${JSON.stringify(name)}: SurfaceDescriptor<${paramType}, ${renderSurfaceTypeMap(surface.reads, 'GeneratedApi')}, ${renderSurfaceTypeMap(surface.mutations, 'GeneratedApi')}, ${renderSurfaceTypeMap(surface.commands, 'GeneratedAppCommands', commands)}, ${renderSurfaceTypeMap(surface.presence, 'GeneratedEphemeral')}, ${renderSurfaceTypeMap(surface.assets, 'GeneratedApi')}>;`;
     }),
     '}',
+    ...(applicationAuthBootstrap === undefined ? [] : [
+      'export interface ApplicationAuthBootstrapV1 {',
+      "  readonly format: 'snapback.application-auth-bootstrap.v1';",
+      '  readonly appId: string;',
+      "  readonly mode: 'sessions';",
+      "  readonly custody: 'durable-required' | 'volatile-explicit';",
+      "  readonly entryMechanisms: readonly ('password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];",
+      "  readonly anonymousPublic: 'allowed' | 'refused';",
+      '  readonly lifecycleProtocol: 1;',
+      '}',
+    ]),
     'export interface AppDescriptorV1 {',
     "  readonly format: 'snapback.app.v1';",
     `  readonly authoringProfile: ${JSON.stringify(authoringProfile)};`,
+    ...(applicationAuthBootstrap === undefined
+      ? []
+      : ['  readonly authBootstrap: ApplicationAuthBootstrapV1;']),
     '  readonly identity: Readonly<{ app: string; schema: string; functions: string; descriptor: `sha256:${string}` }>;',
     '  readonly api: Readonly<{',
     '    queries: Readonly<Pick<GeneratedApi, GeneratedAppQueryName>>;',

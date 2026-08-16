@@ -2,6 +2,12 @@ import { createHash } from 'node:crypto';
 
 export const APP_DESCRIPTOR_FORMAT = 'snapback.app.v1';
 export const APP_DESCRIPTOR_MAX_BYTES = 16 * 1024 * 1024;
+export const APPLICATION_AUTH_BOOTSTRAP_FORMAT = 'snapback.application-auth-bootstrap.v1';
+export const APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS = Object.freeze([
+  'password-v1',
+  'email-code-v1',
+  'external-session-explicit-v1',
+]);
 // Existing S1 declaration ceilings, now enforced by both generation and the
 // language-neutral S2 descriptor admission path. LLP 0179 leaves any tighter
 // product-level descriptor-byte/depth budget open.
@@ -12,9 +18,10 @@ export const SURFACE_MAX_SCOPE_RECORD_FIELDS = 8;
 export const SURFACE_MAX_PER_APP = 32;
 
 const GENERATED_IDENTITY = /^(?:sha256:[0-9a-f]+|snapback\.v[0-9]+:[a-z0-9-]+:(?:schema|function):sha256:[0-9a-f]{64})$/u;
-const ROOT_KEYS = [
+const ROOT_REQUIRED_KEYS = [
   'api', 'authoringProfile', 'capabilities', 'commands', 'format', 'identity', 'surfaces',
 ];
+const ROOT_OPTIONAL_KEYS = ['authBootstrap'];
 const AUTHORING_PROFILES = new Set([
   'snapback-explicit-v1',
   'snapback-familiar-ts-v1',
@@ -109,6 +116,13 @@ function exactKeys(value, expected) {
   const wanted = [...expected].sort(compareUtf16);
   return actual.length === wanted.length
     && actual.every((key, index) => key === wanted[index]);
+}
+
+function exactRootKeys(value) {
+  if (!isRecord(value)) return false;
+  const allowed = new Set([...ROOT_REQUIRED_KEYS, ...ROOT_OPTIONAL_KEYS]);
+  return ROOT_REQUIRED_KEYS.every((key) => Object.hasOwn(value, key))
+    && Object.keys(value).every((key) => allowed.has(key));
 }
 
 function problem(code, path, message, details = {}) {
@@ -510,6 +524,52 @@ function validateSurfaceMap(surfaces, commands, problems) {
   }
 }
 
+function validateApplicationAuthBootstrap(bootstrap, appId, problems) {
+  const path = '$.authBootstrap';
+  const keys = [
+    'anonymousPublic', 'appId', 'custody', 'entryMechanisms', 'format',
+    'lifecycleProtocol', 'mode',
+  ];
+  if (!exactKeys(bootstrap, keys)) {
+    problems.push(problem(
+      'SNAPBACK_APP_DESCRIPTOR_SHAPE_INVALID',
+      path,
+      `${path} must be the closed ApplicationAuthBootstrapV1 record`,
+    ));
+    return;
+  }
+  if (bootstrap.format !== APPLICATION_AUTH_BOOTSTRAP_FORMAT
+    || bootstrap.appId !== appId
+    || bootstrap.mode !== 'sessions'
+    || !['durable-required', 'volatile-explicit'].includes(bootstrap.custody)
+    || !['allowed', 'refused'].includes(bootstrap.anonymousPublic)
+    || bootstrap.lifecycleProtocol !== 1) {
+    problems.push(problem(
+      'SNAPBACK_APP_DESCRIPTOR_SHAPE_INVALID',
+      path,
+      `${path} contains an unsupported application auth policy value`,
+      { appId },
+    ));
+  }
+  const entries = bootstrap.entryMechanisms;
+  const validEntries = Array.isArray(entries)
+    && entries.every((entry) => APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS.includes(entry))
+    && new Set(entries).size === entries.length
+    && entries.every((entry, index) => (
+      index === 0
+      || APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS.indexOf(entries[index - 1])
+        < APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS.indexOf(entry)
+    ));
+  if (!validEntries) {
+    problems.push(problem(
+      'SNAPBACK_APP_DESCRIPTOR_SHAPE_INVALID',
+      `${path}.entryMechanisms`,
+      `${path}.entryMechanisms must be a unique list in canonical policy order`,
+      { allowed: APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS },
+    ));
+  }
+}
+
 // This validator is the language-neutral descriptor admission twin used by
 // codegen before the transactional graph publication. It deliberately closes
 // S2's surface grammar and closed command namespace.
@@ -520,12 +580,16 @@ export function validateAppDescriptorV1(candidate, {
   verifyDigest = true,
 } = {}) {
   const problems = [];
-  if (!exactKeys(candidate, ROOT_KEYS)) {
+  if (!exactRootKeys(candidate)) {
     problems.push(problem(
       'SNAPBACK_APP_DESCRIPTOR_SHAPE_INVALID',
       '$',
       'descriptor must be the closed snapback.app.v1 root record',
-      { expectedKeys: ROOT_KEYS, actualKeys: isRecord(candidate) ? Object.keys(candidate) : [] },
+      {
+        requiredKeys: ROOT_REQUIRED_KEYS,
+        optionalKeys: ROOT_OPTIONAL_KEYS,
+        actualKeys: isRecord(candidate) ? Object.keys(candidate) : [],
+      },
     ));
     return problems;
   }
@@ -607,6 +671,24 @@ export function validateAppDescriptorV1(candidate, {
       'capabilities.required must be a unique, strictly sorted string array',
     ));
   }
+  const sessionsRequired = Array.isArray(candidate.capabilities?.required)
+    && candidate.capabilities.required.includes('auth.sessions.v1');
+  if (sessionsRequired && candidate.authBootstrap === undefined) {
+    problems.push(problem(
+      'SNAPBACK_APP_DESCRIPTOR_SHAPE_INVALID',
+      '$.authBootstrap',
+      'sessions-mode descriptors require ApplicationAuthBootstrapV1',
+    ));
+  } else if (!sessionsRequired && candidate.authBootstrap !== undefined) {
+    problems.push(problem(
+      'SNAPBACK_APP_DESCRIPTOR_SHAPE_INVALID',
+      '$.authBootstrap',
+      'non-sessions descriptors must not carry ApplicationAuthBootstrapV1',
+    ));
+  }
+  if (candidate.authBootstrap !== undefined) {
+    validateApplicationAuthBootstrap(candidate.authBootstrap, candidate.identity?.app, problems);
+  }
   let canonical;
   try {
     canonical = canonicalizeAppDescriptorV1(candidate);
@@ -655,6 +737,7 @@ export function createAppDescriptorV1({
   authoringProfile,
   schema,
   functions,
+  authBootstrap,
   api,
   commands = {},
   surfaces = {},
@@ -664,6 +747,7 @@ export function createAppDescriptorV1({
     format: APP_DESCRIPTOR_FORMAT,
     authoringProfile,
     identity: { app, schema, functions, descriptor: '' },
+    ...(authBootstrap === undefined ? {} : { authBootstrap }),
     api,
     commands,
     surfaces,

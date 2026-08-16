@@ -345,9 +345,9 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:f2978879bc503d52",
-          "bundleHash": "sha256:200e1efc34c41c45",
-          "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+          "schemaHash": "sha256:17e85fd21b155bae",
+          "bundleHash": "sha256:4641f51a97d76006",
+          "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
         },
         "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
         "sourceSpan": {
@@ -465,9 +465,9 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:f2978879bc503d52",
-          "bundleHash": "sha256:200e1efc34c41c45",
-          "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+          "schemaHash": "sha256:17e85fd21b155bae",
+          "bundleHash": "sha256:4641f51a97d76006",
+          "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
         },
         "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
         "sourceSpan": {
@@ -598,9 +598,9 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:f2978879bc503d52",
-          "bundleHash": "sha256:200e1efc34c41c45",
-          "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+          "schemaHash": "sha256:17e85fd21b155bae",
+          "bundleHash": "sha256:4641f51a97d76006",
+          "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
         },
         "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
         "sourceSpan": {
@@ -690,16 +690,16 @@ export const dataResources = Object.freeze([
             "activation": {
               "schemaVersion": "snapback.v0",
               "appId": "fixtures",
-              "schemaHash": "sha256:f2978879bc503d52",
-              "bundleHash": "sha256:200e1efc34c41c45",
-              "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+              "schemaHash": "sha256:17e85fd21b155bae",
+              "bundleHash": "sha256:4641f51a97d76006",
+              "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
             },
             "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4"
           },
           "schemaIdentity": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:f2978879bc503d52"
+            "schemaHash": "sha256:17e85fd21b155bae"
           },
           "capabilityClass": "local-executable",
           "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -760,7 +760,7 @@ export const dataResources = Object.freeze([
           ],
           "usesRuntimeNow": true,
           "boundedSkew": null,
-          "operationHash": "sha256:6280b10c0fec697ce2e2c298386f0b5d4cd54cdbb2d85d742905ca347faf46cb"
+          "operationHash": "sha256:bab830fecb85cae92bc987579490baea560aa44e3f7504815c51e37169c22726"
         },
         "argumentSchema": {
           "type": "object",
@@ -820,9 +820,9 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:f2978879bc503d52",
-          "bundleHash": "sha256:200e1efc34c41c45",
-          "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+          "schemaHash": "sha256:17e85fd21b155bae",
+          "bundleHash": "sha256:4641f51a97d76006",
+          "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
         },
         "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
         "sourceSpan": {
@@ -912,16 +912,16 @@ export const dataResources = Object.freeze([
             "activation": {
               "schemaVersion": "snapback.v0",
               "appId": "fixtures",
-              "schemaHash": "sha256:f2978879bc503d52",
-              "bundleHash": "sha256:200e1efc34c41c45",
-              "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+              "schemaHash": "sha256:17e85fd21b155bae",
+              "bundleHash": "sha256:4641f51a97d76006",
+              "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
             },
             "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4"
           },
           "schemaIdentity": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:f2978879bc503d52"
+            "schemaHash": "sha256:17e85fd21b155bae"
           },
           "capabilityClass": "local-executable",
           "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1022,7 +1022,7 @@ export const dataResources = Object.freeze([
           "mintSites": [],
           "usesRuntimeNow": false,
           "boundedSkew": null,
-          "operationHash": "sha256:6466ae75a9aef0b5471e71bdad6d647470970940637deff813c23a4200d47c22"
+          "operationHash": "sha256:86b899b7ff07559234d410f7f84b4f55142c2fe6f8c98ce5c30f3c7fce261803"
         },
         "argumentSchema": {
           "type": "object",
@@ -1071,9 +1071,9 @@ export const dataResources = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:f2978879bc503d52",
-          "bundleHash": "sha256:200e1efc34c41c45",
-          "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+          "schemaHash": "sha256:17e85fd21b155bae",
+          "bundleHash": "sha256:4641f51a97d76006",
+          "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
         },
         "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
         "sourceSpan": {
@@ -1093,16 +1093,16 @@ export const dataResources = Object.freeze([
             "activation": {
               "schemaVersion": "snapback.v0",
               "appId": "fixtures",
-              "schemaHash": "sha256:f2978879bc503d52",
-              "bundleHash": "sha256:200e1efc34c41c45",
-              "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+              "schemaHash": "sha256:17e85fd21b155bae",
+              "bundleHash": "sha256:4641f51a97d76006",
+              "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
             },
             "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4"
           },
           "schemaIdentity": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:f2978879bc503d52"
+            "schemaHash": "sha256:17e85fd21b155bae"
           },
           "capabilityClass": "local-executable",
           "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1188,7 +1188,7 @@ export const dataResources = Object.freeze([
           "mintSites": [],
           "usesRuntimeNow": false,
           "boundedSkew": null,
-          "operationHash": "sha256:b6ab2bf51d1460b98ce6d4ec8fde28b506642748d12910614bc4610bd2ba13e3"
+          "operationHash": "sha256:a02773ae75adf1ec360edacbb841b799975ac01c57431611c30dc1d3265c620a"
         },
         "argumentSchema": {
           "type": "object",
@@ -1349,9 +1349,9 @@ export const dataQueryCatalog = Object.freeze([
       "expectedGeneration": {
         "schemaVersion": "snapback.v0",
         "appId": "fixtures",
-        "schemaHash": "sha256:f2978879bc503d52",
-        "bundleHash": "sha256:200e1efc34c41c45",
-        "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+        "schemaHash": "sha256:17e85fd21b155bae",
+        "bundleHash": "sha256:4641f51a97d76006",
+        "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
       },
       "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
       "sourceSpan": {
@@ -1568,9 +1568,9 @@ export const dataQueryCatalog = Object.freeze([
         "expectedGeneration": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:f2978879bc503d52",
-          "bundleHash": "sha256:200e1efc34c41c45",
-          "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+          "schemaHash": "sha256:17e85fd21b155bae",
+          "bundleHash": "sha256:4641f51a97d76006",
+          "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
         },
         "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
         "sourceSpan": {
@@ -1771,7 +1771,7 @@ const __dataError = (code, message) => Object.assign(new TypeError(code + ': ' +
 const __shape = (value) => { if (value === undefined || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'bigint' || (typeof value === 'number' && !Number.isFinite(value))) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'query values must be finite portable JSON'); return value; };
 const __operator = (value) => { if (!value || typeof value !== 'object' || Array.isArray(value)) return { operator: 'eq', values: [__shape(value)] }; const keys = Object.keys(value); const lower = keys.find((key) => key === 'gt' || key === 'gte'); const upper = keys.find((key) => key === 'lt' || key === 'lte'); const singles = new Set(['eq','in','lt','lte','gt','gte']); const operator = keys.length === 1 && singles.has(keys[0]) ? keys[0] : (keys.length === 2 && lower && upper ? lower + '-' + upper : ''); if (!operator) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'predicate object is outside the closed grammar'); const ordered = operator.includes('-') ? operator.split('-') : [operator]; let values = ordered.map((key) => __shape(value[key])); if (operator === 'in') { if (!Array.isArray(values[0]) || values[0].length < 1 || values[0].length > 32) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'in requires 1..32 values'); values = [[...new Map(values[0].map((item) => [JSON.stringify(item), item])).values()]]; } return { operator, values }; };
 const __sameProjection = (authored, canonical) => { if (authored === null || canonical === null) return authored === canonical; if (authored.length !== canonical.length || new Set(authored).size !== authored.length) return false; const admitted = new Set(canonical); return authored.every((field) => admitted.has(field)); };
-const __finish = (state, cursor = null) => { if (!Number.isSafeInteger(state.take) || state.take < 1 || state.take > 200) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'take must be a safe integer in 1..200'); if (state.projection !== null && state.projection.length < 1) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select requires at least one duplicate-free field'); if (state.projection !== null && state.projection.length > 64) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'select exceeds maxProjectionFields 64'); if (state.projection !== null && new Set(state.projection).size !== state.projection.length) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select fields must be duplicate-free'); if (cursor !== null && (typeof cursor !== 'string' || !cursor.startsWith('dc1.') || new TextEncoder().encode(cursor).length > 2048)) throw __dataError('SNAPBACK_DATA_CURSOR_INVALID', 'cursor is not a bounded DataCursorV1'); const byField = new Map(state.filters.map((filter) => [filter.field, filter])); const entry = dataQueryCatalog.find((candidate) => candidate.shape.resource === state.resource && candidate.shape.index === state.index && JSON.stringify(candidate.shape.order) === JSON.stringify(state.order) && candidate.shape.take === state.take && __sameProjection(state.projection, candidate.shape.projection) && candidate.shape.filters.length === state.filters.length && candidate.shape.filters.every((filter) => byField.get(filter.field)?.operator === filter.operator)); if (!entry) throw __dataError('SNAPBACK_DATA_QUERY_NOT_CATALOGUED', 'this dynamic query shape is absent from the active static catalogue'); const args = entry.shape.filters.flatMap(({ field }) => byField.get(field).values); const namedArguments = Object.assign(Object.fromEntries(entry.argumentNames.map((name, index) => [name, args[index]])), cursor === null ? {} : { after: cursor }); const descriptor = { ...entry.envelope, arguments: Object.freeze(args), canonicalArgsDigest: __dataDigest('snapback:data-canonical-args:v1', Object.fromEntries(Object.entries(namedArguments).filter(([name]) => name !== 'after'))), cursor, namedArguments: Object.freeze(namedArguments) }; return Object.freeze(cursor === null ? { ...descriptor, after(next) { return __finish(state, next); } } : descriptor); };
+const __finish = (state, cursor = null) => { if (!Number.isSafeInteger(state.take) || state.take < 1 || state.take > 200) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'take must be a safe integer in 1..200'); if (state.projection !== null && state.projection.length < 1) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select requires at least one duplicate-free field'); if (state.projection !== null && state.projection.length > 64) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'select exceeds maxProjectionFields 64'); if (state.projection !== null && new Set(state.projection).size !== state.projection.length) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select fields must be duplicate-free'); if (cursor !== null && (typeof cursor !== 'string' || !cursor.startsWith('dc1.') || new TextEncoder().encode(cursor).length > 2048)) throw __dataError('SNAPBACK_DATA_CURSOR_INVALID', 'cursor is not a bounded DataCursorV1'); const byField = new Map(state.filters.map((filter) => [filter.field, filter])); const entry = dataQueryCatalog.find((candidate) => candidate.shape.resource === state.resource && candidate.shape.index === state.index && JSON.stringify(candidate.shape.order) === JSON.stringify(state.order) && candidate.shape.take === state.take && __sameProjection(state.projection, candidate.shape.projection) && candidate.shape.filters.length === state.filters.length && candidate.shape.filters.every((filter) => byField.get(filter.field)?.operator === filter.operator)); if (!entry) throw __dataError('SNAPBACK_DATA_QUERY_NOT_CATALOGUED', 'this dynamic query shape is absent from the active static catalogue; Snapback generation scans query shapes only inside the backend source root passed to codegen (conventionally <app>/snapback/); keep the complete literal chain in <backend-root>/data-queries.mjs, regenerate, and consume the generated descriptor from app code'); const args = entry.shape.filters.flatMap(({ field }) => byField.get(field).values); const namedArguments = Object.assign(Object.fromEntries(entry.argumentNames.map((name, index) => [name, args[index]])), cursor === null ? {} : { after: cursor }); const descriptor = { ...entry.envelope, arguments: Object.freeze(args), canonicalArgsDigest: __dataDigest('snapback:data-canonical-args:v1', Object.fromEntries(Object.entries(namedArguments).filter(([name]) => name !== 'after'))), cursor, namedArguments: Object.freeze(namedArguments) }; return Object.freeze(cursor === null ? { ...descriptor, after(next) { return __finish(state, next); } } : descriptor); };
 const __resource = (resource) => Object.freeze({ using(index) { const base = { resource, index, filters: [], projection: null }; const ordered = (state) => Object.freeze({ orderBy(field, direction) { const next = { ...state, order: { field, direction } }; return Object.freeze({ select(fields) { if (!Array.isArray(fields)) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'select requires an array'); const selected = { ...next, projection: [...fields] }; return Object.freeze({ take(take) { return __finish({ ...selected, take }); } }); }, take(take) { return __finish({ ...next, take }); } }); } }); return Object.freeze({ where(filters) { if (!filters || typeof filters !== 'object' || Array.isArray(filters)) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'where requires an object'); const entries = Object.entries(filters); if (entries.length < 1) throw __dataError('SNAPBACK_DATA_QUERY_SHAPE_INVALID', 'where requires at least one field'); if (entries.length > 8) throw __dataError('SNAPBACK_DATA_QUERY_BOUND_EXCEEDED', 'where exceeds maxFilterFields 8'); return ordered({ ...base, filters: entries.map(([field, value]) => ({ field, ...__operator(value) })) }); }, orderBy: ordered(base).orderBy }); } });
 const __dataObject = Object.fromEntries([...new Set(dataQueryCatalog.map(({ core }) => core.resource))].map((resource) => [resource, __resource(resource)]));
 export const explainDataQuery = (descriptor) => descriptor?.explain ?? descriptor?.envelope?.explain ?? null;
@@ -1812,9 +1812,9 @@ const __dataTransactionOperations = Object.freeze({
       "expectedGeneration": {
         "schemaVersion": "snapback.v0",
         "appId": "fixtures",
-        "schemaHash": "sha256:f2978879bc503d52",
-        "bundleHash": "sha256:200e1efc34c41c45",
-        "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+        "schemaHash": "sha256:17e85fd21b155bae",
+        "bundleHash": "sha256:4641f51a97d76006",
+        "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
       },
       "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
       "sourceSpan": {
@@ -1904,16 +1904,16 @@ const __dataTransactionOperations = Object.freeze({
           "activation": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:f2978879bc503d52",
-            "bundleHash": "sha256:200e1efc34c41c45",
-            "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+            "schemaHash": "sha256:17e85fd21b155bae",
+            "bundleHash": "sha256:4641f51a97d76006",
+            "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
           },
           "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4"
         },
         "schemaIdentity": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:f2978879bc503d52"
+          "schemaHash": "sha256:17e85fd21b155bae"
         },
         "capabilityClass": "local-executable",
         "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -1974,7 +1974,7 @@ const __dataTransactionOperations = Object.freeze({
         ],
         "usesRuntimeNow": true,
         "boundedSkew": null,
-        "operationHash": "sha256:6280b10c0fec697ce2e2c298386f0b5d4cd54cdbb2d85d742905ca347faf46cb"
+        "operationHash": "sha256:bab830fecb85cae92bc987579490baea560aa44e3f7504815c51e37169c22726"
       },
       "argumentSchema": {
         "type": "object",
@@ -2034,9 +2034,9 @@ const __dataTransactionOperations = Object.freeze({
       "expectedGeneration": {
         "schemaVersion": "snapback.v0",
         "appId": "fixtures",
-        "schemaHash": "sha256:f2978879bc503d52",
-        "bundleHash": "sha256:200e1efc34c41c45",
-        "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+        "schemaHash": "sha256:17e85fd21b155bae",
+        "bundleHash": "sha256:4641f51a97d76006",
+        "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
       },
       "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
       "sourceSpan": {
@@ -2126,16 +2126,16 @@ const __dataTransactionOperations = Object.freeze({
           "activation": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:f2978879bc503d52",
-            "bundleHash": "sha256:200e1efc34c41c45",
-            "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+            "schemaHash": "sha256:17e85fd21b155bae",
+            "bundleHash": "sha256:4641f51a97d76006",
+            "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
           },
           "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4"
         },
         "schemaIdentity": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:f2978879bc503d52"
+          "schemaHash": "sha256:17e85fd21b155bae"
         },
         "capabilityClass": "local-executable",
         "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -2236,7 +2236,7 @@ const __dataTransactionOperations = Object.freeze({
         "mintSites": [],
         "usesRuntimeNow": false,
         "boundedSkew": null,
-        "operationHash": "sha256:6466ae75a9aef0b5471e71bdad6d647470970940637deff813c23a4200d47c22"
+        "operationHash": "sha256:86b899b7ff07559234d410f7f84b4f55142c2fe6f8c98ce5c30f3c7fce261803"
       },
       "argumentSchema": {
         "type": "object",
@@ -2285,9 +2285,9 @@ const __dataTransactionOperations = Object.freeze({
       "expectedGeneration": {
         "schemaVersion": "snapback.v0",
         "appId": "fixtures",
-        "schemaHash": "sha256:f2978879bc503d52",
-        "bundleHash": "sha256:200e1efc34c41c45",
-        "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+        "schemaHash": "sha256:17e85fd21b155bae",
+        "bundleHash": "sha256:4641f51a97d76006",
+        "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
       },
       "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4",
       "sourceSpan": {
@@ -2307,16 +2307,16 @@ const __dataTransactionOperations = Object.freeze({
           "activation": {
             "schemaVersion": "snapback.v0",
             "appId": "fixtures",
-            "schemaHash": "sha256:f2978879bc503d52",
-            "bundleHash": "sha256:200e1efc34c41c45",
-            "inputsHash": "c1ff4d20f4822ff209c96fb0c2d9f01181760fc724e1a2699b252ed5761fadf6"
+            "schemaHash": "sha256:17e85fd21b155bae",
+            "bundleHash": "sha256:4641f51a97d76006",
+            "inputsHash": "844ab9b91be6c36b684d6efbd39d2c38a5cc225ed788bff7cc2e4e33a3947c75"
           },
           "authoredSourceHash": "sha256:7cc08abdf1ef18dd24fa4d2983a6c90412e87d19cef26dc9a07e34289ea0d0e4"
         },
         "schemaIdentity": {
           "schemaVersion": "snapback.v0",
           "appId": "fixtures",
-          "schemaHash": "sha256:f2978879bc503d52"
+          "schemaHash": "sha256:17e85fd21b155bae"
         },
         "capabilityClass": "local-executable",
         "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
@@ -2402,7 +2402,7 @@ const __dataTransactionOperations = Object.freeze({
         "mintSites": [],
         "usesRuntimeNow": false,
         "boundedSkew": null,
-        "operationHash": "sha256:b6ab2bf51d1460b98ce6d4ec8fde28b506642748d12910614bc4610bd2ba13e3"
+        "operationHash": "sha256:a02773ae75adf1ec360edacbb841b799975ac01c57431611c30dc1d3265c620a"
       },
       "argumentSchema": {
         "type": "object",

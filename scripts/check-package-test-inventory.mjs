@@ -288,6 +288,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'api-envelope-members.test.mjs',
       'app-descriptor.test.mjs',
       'app-inspection.test.mjs',
+      'application-auth-bootstrap.test.mjs',
       'args-contract-goldens.test.mjs',
       'asset-thumbhash-vector.test.mjs',
       'asset-upload-authoring.test.mjs',
@@ -504,7 +505,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 286,
+  expectedTotal = 287,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -898,6 +899,8 @@ export function checkPackageTestInventories(options = {}) {
 // deterministic authorization-review projection and staleness/diff suite.
 // 285 -> 286 (2026-08-15, LLP 0059 native custody): @expo/snapback-contract
 // gains the first-party SecureStore adapter contract and restart/race suite.
+// 286 -> 287 (2026-08-15, LLP 0258 Phase 0): @expo/snapback-codegen gains the
+// generated application-auth bootstrap policy derivation and identity suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

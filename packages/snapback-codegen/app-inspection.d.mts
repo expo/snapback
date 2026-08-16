@@ -98,6 +98,15 @@ export interface AppInspectionSurfaceV1 {
 
 export interface AppDescriptorInspectionV1 {
   readonly format: 'snapback.app.v1';
+  readonly authBootstrap?: Readonly<{
+    format: 'snapback.application-auth-bootstrap.v1';
+    appId: string;
+    mode: 'sessions';
+    custody: 'durable-required' | 'volatile-explicit';
+    entryMechanisms: readonly ('password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
+    anonymousPublic: 'allowed' | 'refused';
+    lifecycleProtocol: 1;
+  }>;
   readonly identity: Readonly<{
     app: string;
     schema: string;

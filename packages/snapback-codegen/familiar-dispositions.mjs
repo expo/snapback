@@ -16,6 +16,17 @@ const category = (entries) => Object.freeze(Object.fromEntries(
 
 export const FAMILIAR_DISPOSITIONS = Object.freeze({
   schemaVersion: FAMILIAR_DISPOSITION_SCHEMA_VERSION,
+  authProgramFields: category({
+    version: entry(1, 'shared auth extension'),
+    mechanisms: entry(1, 'shared auth extension'),
+    providers: entry(1, 'shared auth extension'),
+    assuranceRequirements: entry(1, 'shared auth extension'),
+    guestPolicy: entry(1, 'shared auth extension'),
+    secretReferences: entry(1, 'shared auth extension'),
+    verifiedProvisioning: entry(1, 'shared auth extension'),
+    custody: entry(2, 'defaults to durable-required; volatile-explicit is refused in the familiar profile'),
+    externalSessionEntry: entry(1, 'shared explicit advanced-session seam'),
+  }),
   functionSpecFields: category({
     args: entry(1, 'args'),
     result: entry(1, 'returns lowering'),

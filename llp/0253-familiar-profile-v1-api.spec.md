@@ -21,6 +21,9 @@ Familiar top-level constructor; `<module>.<export>` names use the shared
 operation grammar and project into both canonical asset intents and the
 Familiar generated API namespace. A real MP4 upload/readback acceptance binds
 the claim).
+**Revised:** 2026-08-15 (LLP 0258 amendment: Familiar auth-program custody is
+the inspectable `durable-required` profile default; the adapter refuses
+`volatile-explicit` and shares the explicit external-session seam.)
 **Revised:** 2026-08-13 (r3: dual delta-review repairs — the S4.3 query
 lowering is a true partition (bounded record arrays pinned to
 `{minItems: 0, maxItems}` as exact translation; record-union and 1-tuple
@@ -50,7 +53,7 @@ r1 2026-08-13. Reviews: r1 + r2-delta artifacts under
 r1 and r2; every r2-delta MATERIAL is addressed in r3.)
 **Related:** LLP 0252, LLP 0237, LLP 0238, LLP 0241, LLP 0242, LLP 0245,
 LLP 0246, LLP 0247, LLP 0248, LLP 0249, LLP 0218, LLP 0225, LLP 0108,
-LLP 0127, LLP 0130, LLP 0037, LLP 0203
+LLP 0127, LLP 0130, LLP 0037, LLP 0203, LLP 0258
 
 ## Summary
 
@@ -901,6 +904,14 @@ disposition 4). `.history()` / `.permissionBacking()` / `.membership()` /
 verbatim; D5 keeps Snapback authority first-class). Schema-level
 `defineSchema` options (`ephemeral`, `auth`, `authProgram`,
 `requiredCapabilities`) — 1 (shared verbatim).
+
+**Auth-program fields:** `version`, `mechanisms`, `providers`,
+`assuranceRequirements`, `guestPolicy`, `secretReferences`, and
+`verifiedProvisioning` are disposition 1 through the shared auth extension.
+`custody` is disposition 2: Familiar supplies `durable-required` and refuses
+`volatile-explicit`. `externalSessionEntry` is disposition 1 through the same
+explicit advanced-session extension. Both profiles then consume the one
+normalized auth-program record; no runtime profile branch is introduced.
 
 ## Status
 

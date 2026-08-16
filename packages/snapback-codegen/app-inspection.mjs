@@ -75,6 +75,9 @@ export function enumerateAppDescriptorV1(descriptor) {
   return {
     format: descriptor.format,
     identity: copy(descriptor.identity),
+    ...(descriptor.authBootstrap === undefined
+      ? {}
+      : { authBootstrap: copy(descriptor.authBootstrap) }),
     capabilities: { required: copy(descriptor.capabilities.required) },
     api,
     commands,

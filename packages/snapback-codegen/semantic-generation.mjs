@@ -558,6 +558,7 @@ export function buildSemanticGenerationInputs({
   schemaFieldSpans,
   generationLog,
   authoringProfile = EXPLICIT_AUTHORING_PROFILE,
+  applicationAuthBootstrap,
   dataSurface,
 }) {
   const graphRecords = [...(handlerRuntimeProfile?.moduleGraph?.records ?? [])]
@@ -582,6 +583,9 @@ export function buildSemanticGenerationInputs({
     // explicit-v1 spelling in semantic identity. Only a non-default source
     // profile adds bytes to the preimage.
     ...(authoringProfile === EXPLICIT_AUTHORING_PROFILE ? {} : { authoringProfile }),
+    // @ref LLP 0258#d1-generate-one-non-secret-bootstrap-policy — the
+    // generated bootstrap policy is an explicit LLP 0241 semantic input.
+    ...(applicationAuthBootstrap === undefined ? {} : { applicationAuthBootstrap }),
     ...(dataSurface === undefined ? {} : { dataSurface }),
     schema: {
       version: schemaManifest?.schemaVersion,

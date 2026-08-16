@@ -12,8 +12,10 @@ commissioned by the author; see §20)
 **Revised:** 2026-08-15 (v0.3 — the 12-byte password minimum remains the
 default; `defineAuth` may declare one app-wide 8–128-byte minimum, enforced at
 first-boot provider construction and named in policy refusals)
+**Revised:** 2026-08-15 (v0.4 — LLP 0258 amendment: `defineAuth` owns the
+application-client custody grade and explicit external-session entry seam)
 **Related:** LLP 0212, LLP 0011, LLP 0151, LLP 0057, LLP 0055, LLP 0036,
-LLP 0045, LLP 0053, LLP 0058, LLP 0215, LLP 0227
+LLP 0045, LLP 0053, LLP 0058, LLP 0215, LLP 0227, LLP 0258
 
 ## Summary
 
@@ -240,6 +242,8 @@ The closed version-1 declaration contains exactly:
 | Field | Required | Meaning |
 | --- | ---: | --- |
 | `version` | yes | Auth-program source version; exactly `1` here |
+| `custody` | no | Application-client authority custody grade; defaults to `durable-required` |
+| `externalSessionEntry` | no | Literal `true` explicitly admits the advanced external-session entry seam |
 | `mechanisms` | yes | Named guest, password, email-code, passkey, or future recognized mechanism instances |
 | `providers` | yes | Named built-in or external provider installations |
 | `assuranceRequirements` | yes | Named conjunctions of assurance kinds; `{}` is valid |
@@ -3396,3 +3400,20 @@ and revokes the user's *other* sessions through a new user-scoped revocation
 operation (LLP 0057's bulk helper is deliberately instance-wide and is not
 reused). Preserving the authority instance id is what lets the client arm adopt
 change through its existing credential-rotation path instead of a fresh login.
+
+## 22. Amendment (2026-08-15): application auth bootstrap inputs
+
+LLP 0258 D1 extends the closed version-1 `defineAuth(...)` program with two
+semantic inputs. `custody` is optional and normalizes to `durable-required`;
+its only other admitted value is the explicitly authored
+`volatile-explicit`. Codegen never infers the weaker grade from target or
+adapter availability. `externalSessionEntry` is optional and, when present,
+must be the literal `true`; it is the sole declaration that admits
+`external-session-explicit-v1` into the generated application bootstrap
+policy.
+
+Both fields enter the existing normalized auth-program record and therefore
+the LLP 0241 semantic-identity path. They do not create another auth
+configuration, carry credentials, or alter the server's per-operation
+authorization authority. Their generated projection and refusal rules are
+owned by LLP 0258 D1.
