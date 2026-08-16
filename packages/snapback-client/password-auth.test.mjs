@@ -23,6 +23,11 @@ const recoveryCodes = Object.freeze(Array.from({ length: 8 }, (_, index) => (
   `sbrv1_${String(index).padStart(2, '0')}${'A'.repeat(25)}`
 )));
 
+const flushMicrotasks = async () => {
+  await Promise.resolve();
+  await Promise.resolve();
+};
+
 const availability = Object.freeze({
   onlineRequestResponse: { available: true, reason: null },
   authScopedLive: {
@@ -202,10 +207,13 @@ test('client.auth is a vocabulary-only projection with exact flat-method contrac
       'subscribeCurrentPrincipal',
     ]);
     assert.deepEqual(fixture.client.auth.currentPrincipal(), { status: 'loading' });
-    let notifications = 0;
+    const notifications = [];
     const unsubscribe = fixture.client.auth.subscribeCurrentPrincipal(() => {
-      notifications += 1;
+      notifications.push(fixture.client.auth.currentPrincipal().status);
     });
+    assert.deepEqual(notifications, [], 'subscribe never notifies synchronously');
+    await flushMicrotasks();
+    assert.deepEqual(notifications, ['loading'], 'subscribe queues exactly one current snapshot');
     fixture.respond('/auth/password/signup', () => (
       Response.json(credential({ codes: recoveryCodes }))
     ));
@@ -220,8 +228,152 @@ test('client.auth is a vocabulary-only projection with exact flat-method contrac
     fixture.respond('/auth/logout', () => new Response(null, { status: 204 }));
     assert.equal(await fixture.client.auth.authLogout(), null);
     assert.equal(fixture.client.auth.currentPrincipal().status, 'anonymous');
-    assert.ok(notifications >= 2);
+    await flushMicrotasks();
+    assert.deepEqual(notifications, [
+      'loading',
+      'anonymous',
+      'loading',
+      'authenticated',
+      'authenticated',
+      'loading',
+      'anonymous',
+    ]);
     unsubscribe();
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('principal notifications defer outside authority commits, dedupe semantic repeats, and stop at close', async (t) => {
+  await t.test('listener reentry is outside the authority fence and each distinct projection notifies once', async () => {
+    const fixture = makeFixture();
+    try {
+      const observations = [];
+      let clearedReentrantly = false;
+      const unsubscribe = fixture.client.auth.subscribeCurrentPrincipal(() => {
+        const status = fixture.client.auth.currentPrincipal().status;
+        observations.push(status);
+        if (status === 'anonymous' && !clearedReentrantly) {
+          clearedReentrantly = true;
+          fixture.client.clearAuthSession();
+        }
+      });
+      assert.deepEqual(observations, []);
+      await flushMicrotasks();
+      assert.deepEqual(observations, ['loading']);
+
+      await fixture.client.auth.authSession();
+      await flushMicrotasks();
+      assert.deepEqual(
+        observations,
+        ['loading', 'anonymous', 'loading'],
+        'reentrant clearing succeeds from the deferred listener',
+      );
+
+      await fixture.client.auth.authSession({ force: true });
+      await flushMicrotasks();
+      const afterDistinctAnonymous = observations.length;
+      await fixture.client.auth.authSession({ force: true });
+      await flushMicrotasks();
+      assert.equal(
+        observations.length,
+        afterDistinctAnonymous,
+        'an identical cold-handshake projection does not double-publish',
+      );
+      unsubscribe();
+    } finally {
+      await fixture.close();
+    }
+  });
+
+  await t.test('a queued initial notification is fenced by close', async () => {
+    const fixture = makeFixture();
+    let notifications = 0;
+    fixture.client.auth.subscribeCurrentPrincipal(() => { notifications += 1; });
+    await fixture.client.closeAuth();
+    await flushMicrotasks();
+    assert.equal(notifications, 0);
+    await fixture.close();
+  });
+});
+
+test('failed credential adoption projects the transition terminal instead of stranding loading', async () => {
+  const fixture = makeFixture();
+  try {
+    await fixture.client.auth.authSession();
+    fixture.client.registerAuthBarrierParticipant({
+      name: 'failing-credential-adoption-resume',
+      resume() {
+        const error = new Error('resume participant refused the successor');
+        error.code = 'SNAPBACK_TEST_RESUME_REFUSED';
+        throw error;
+      },
+    });
+    fixture.respond('/auth/password/signup', () => (
+      Response.json(credential({ codes: recoveryCodes }))
+    ));
+    await assert.rejects(
+      fixture.client.auth.authPasswordSignup({
+        email: 'person@example.com',
+        password: PASSWORD,
+      }),
+      (error) => error?.code === 'SNAPBACK_AUTH_TRANSITION_FAILED'
+        && error?.diagnostic?.details?.phase === 'resume',
+    );
+    const principal = fixture.client.auth.currentPrincipal();
+    assert.equal(principal.status, 'blocked');
+    assert.equal(principal.diagnostic.code, 'SNAPBACK_AUTH_TRANSITION_FAILED');
+    assert.equal(principal.diagnostic.details.phase, 'resume');
+    assert.equal(principal.diagnostic.details.causeCode, 'SNAPBACK_TEST_RESUME_REFUSED');
+    assert.equal(principal.remediations[0].kind, 'repairAuthTransitionParticipant');
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('blocked principals preserve safe cause facts and original remediation without secret bytes', async () => {
+  const fixture = makeFixture();
+  const secret = 'sbs_blocked_projection_secret';
+  try {
+    const failure = new Error('durable custody failed its monotonicity check');
+    failure.code = 'SNAPBACK_AUTH_CUSTODY_CORRUPT';
+    failure.diagnostic = Object.freeze({
+      code: failure.code,
+      message: 'Durable custody failed its monotonicity check.',
+      details: Object.freeze({
+        phase: 'custody-read',
+        causeCode: 'SNAPBACK_AUTH_CUSTODY_REVISION_REWOUND',
+        bearer: secret,
+      }),
+    });
+    failure.remediations = Object.freeze([Object.freeze({
+      kind: 'recoverAuthCustody',
+      riskClass: 'destructive',
+      machineApplicable: false,
+      requiresApproval: true,
+      authorityEffect: 'clears-session',
+      precondition: Object.freeze({
+        causeCode: 'SNAPBACK_AUTH_CUSTODY_REVISION_REWOUND',
+        bearer: secret,
+      }),
+      description: 'Recover the corrupt durable custody record with explicit approval.',
+    })]);
+    fixture.coordinator.synchronize = async () => { throw failure; };
+
+    await assert.rejects(
+      fixture.client.auth.authSession({ force: true }),
+      (error) => error === failure,
+    );
+    const blocked = fixture.client.auth.currentPrincipal();
+    assert.equal(blocked.status, 'blocked');
+    assert.equal(blocked.diagnostic.message, failure.diagnostic.message);
+    assert.deepEqual(blocked.diagnostic.details, {
+      phase: 'custody-read',
+      causeCode: 'SNAPBACK_AUTH_CUSTODY_REVISION_REWOUND',
+    });
+    assert.equal(blocked.remediations[0].kind, 'recoverAuthCustody');
+    assert.equal(blocked.remediations[0].precondition.causeCode, 'SNAPBACK_AUTH_CUSTODY_REVISION_REWOUND');
+    assert.equal(JSON.stringify(blocked).includes(secret), false);
   } finally {
     await fixture.close();
   }

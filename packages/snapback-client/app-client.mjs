@@ -224,7 +224,8 @@ function validateBinding(binding, app, policy) {
     && nonEmptyString(binding.provenance.supervisorGeneration)
     && Number.isFinite(Date.parse(binding.provenance.issuedAt))
     && Number.isFinite(Date.parse(binding.provenance.expiresAt))
-    && Date.parse(binding.provenance.expiresAt) > Date.parse(binding.provenance.issuedAt);
+    && Date.parse(binding.provenance.expiresAt) > Date.parse(binding.provenance.issuedAt)
+    && Date.parse(binding.provenance.expiresAt) > Date.now();
   const releaseProvenance = exactKeys(
     binding.provenance,
     ['buildReceipt', 'environment', 'releaseChannel'],
@@ -657,7 +658,46 @@ function assertCompatibleRebind(owner, candidate) {
       )],
     );
   }
+  // @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client
+  // — today's binding has no LLP 0241 predecessor receipt, so enforce the
+  // available sound subset: stable admission channel, unexpired validation,
+  // non-rewinding provenance, exact generated identities, and retired cuts.
   const nextGeneration = generationIdentity(candidate);
+  if (owner.binding.source !== candidate.binding.source) {
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE',
+      'A live application owner cannot switch binding admission channels during rebind.',
+      { appId: candidate.app.identity.app },
+      [retryBootstrap('SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE')],
+    );
+  }
+  const currentIssuedAt = owner.binding.source === 'supervised-dev'
+    ? Date.parse(owner.binding.provenance.issuedAt)
+    : Number.NaN;
+  const nextIssuedAt = candidate.binding.source === 'supervised-dev'
+    ? Date.parse(candidate.binding.provenance.issuedAt)
+    : Number.NaN;
+  if (
+    owner.binding.source === 'supervised-dev'
+    && candidate.binding.source === 'supervised-dev'
+    && Number.isFinite(currentIssuedAt)
+    && Number.isFinite(nextIssuedAt)
+    && (
+      nextIssuedAt < currentIssuedAt
+      || (
+        nextIssuedAt === currentIssuedAt
+        && JSON.stringify(candidate.binding.provenance)
+          !== JSON.stringify(owner.binding.provenance)
+      )
+    )
+  ) {
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE',
+      'The supervised binding provenance would rewind the live owner watermark.',
+      { appId: candidate.app.identity.app },
+      [retryBootstrap('SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE')],
+    );
+  }
   if (nextGeneration === owner.generationIdentity) {
     owner.app = candidate.app;
     owner.binding = candidate.binding;
@@ -671,12 +711,6 @@ function assertCompatibleRebind(owner, candidate) {
       [retryBootstrap('SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE')],
     );
   }
-  const currentIssuedAt = owner.binding.source === 'supervised-dev'
-    ? Date.parse(owner.binding.provenance.issuedAt)
-    : Number.NaN;
-  const nextIssuedAt = candidate.binding.source === 'supervised-dev'
-    ? Date.parse(candidate.binding.provenance.issuedAt)
-    : Number.NaN;
   if (
     owner.binding.source !== 'supervised-dev'
     || candidate.binding.source !== 'supervised-dev'
@@ -769,7 +803,7 @@ async function enterWith(owner, operation) {
       owner.ownerTransitionInFlight = true;
       let signedOut = false;
       try {
-        await owner.client.auth.authLogout();
+        await owner.client.__authLogoutExpectedCapture(displacedCapture);
         signedOut = true;
         owner.supervisedAdoptionCapture = null;
         owner.authoritySource = 'fresh-anonymous';
@@ -837,13 +871,10 @@ function createFacade(owner, subscriptions) {
     changePassword: (input) => serializeOwner(owner, async () => {
       requirePasswordMechanism(owner);
       const principal = owner.client.auth.currentPrincipal();
-      if (['loading', 'refreshing', 'blocked'].includes(principal.status)) {
-        throw unsettledEntryError(principal.status);
-      }
       if (principal.status !== 'authenticated') {
         throw refusal(
           'SNAPBACK_AUTH_CHANGE_PASSWORD_REQUIRES_AUTHENTICATED',
-          'Changing a password requires the settled authenticated principal.',
+          'Password rotation requires a settled authenticated principal.',
           { principalStatus: principal.status },
           [],
           { operation: 'auth-password-change', effectCommitted: false },

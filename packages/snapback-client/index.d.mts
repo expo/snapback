@@ -563,7 +563,10 @@ export type AuthenticatedCurrentPrincipalSnapshot = Readonly<{
   userId: string;
   sessionId: string;
   sessionClass: 'humanSession' | 'servicePrincipal';
-  provider: string;
+  /** Credential-entry projections carry the issuing provider; a restored
+   * session handshake exposes only provider availability, so this remains
+   * explicitly unknown until issuance is re-witnessed. */
+  provider: string | null;
   authorityInstanceId: string;
   sessionGeneration: number;
   authorizationStreamIncarnation: string;

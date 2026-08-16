@@ -61,6 +61,8 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
+const isoFromNow = (offsetMs) => new Date(Date.now() + offsetMs).toISOString();
+
 function makeApp({
   schema = 'sha256:schema-1',
   functions = 'sha256:functions-1',
@@ -86,8 +88,8 @@ function makeApp({
 
 function makeBinding(app, {
   origin = 'http://127.0.0.1:4711',
-  issuedAt = '2026-08-15T12:00:00.000Z',
-  expiresAt = '2026-08-15T13:00:00.000Z',
+  issuedAt = isoFromNow(-60_000),
+  expiresAt = isoFromNow(60 * 60_000),
   supervisorGeneration = 'supervisor-generation-1',
 } = {}) {
   return Object.freeze({
@@ -312,6 +314,14 @@ test('policy, binding, and durable-custody refusals happen before transport I/O'
       createSnapbackAppClient({ ...optionsFor(app), bearerToken: 'must-not-be-admitted' }),
       (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID',
     );
+    const expiredBinding = makeBinding(app, {
+      issuedAt: isoFromNow(-120_000),
+      expiresAt: isoFromNow(-60_000),
+    });
+    await assert.rejects(
+      createSnapbackAppClient(optionsFor(app, expiredBinding)),
+      (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID',
+    );
     const durable = makeApp({ custody: 'durable-required' });
     await assert.rejects(
       createSnapbackAppClient(optionsFor(durable)),
@@ -371,6 +381,11 @@ test('browser durable custody restores the default record and isolates explicit 
 
     restored = await createSnapbackAppClient(input);
     assert.equal(restored.auth.currentPrincipal().status, 'authenticated');
+    assert.equal(
+      restored.auth.currentPrincipal().provider,
+      null,
+      'restoration does not fabricate the provider availability key as issuance provenance',
+    );
     assert.equal(restored.bootstrapState().authoritySource, 'durable-restored');
     partitioned = await createSnapbackAppClient({
       ...input,
@@ -472,9 +487,10 @@ test('live owners accept proved same-policy successors and refuse conflicts, rot
       functions: 'sha256:functions-2',
       descriptor: 'sha256:descriptor-2',
     });
+    const successorIssuedAt = isoFromNow(60_000);
     const successorBinding = makeBinding(successorApp, {
-      issuedAt: '2026-08-15T12:01:00.000Z',
-      expiresAt: '2026-08-15T13:01:00.000Z',
+      issuedAt: successorIssuedAt,
+      expiresAt: isoFromNow(60 * 60_000),
     });
     successor = await createSnapbackAppClient(optionsFor(successorApp, successorBinding));
     assert.equal(successor.client, first.client);
@@ -486,8 +502,8 @@ test('live owners accept proved same-policy successors and refuse conflicts, rot
       anonymousPublic: 'allowed',
     });
     const rotatedPolicyBinding = makeBinding(rotatedPolicyApp, {
-      issuedAt: '2026-08-15T12:02:00.000Z',
-      expiresAt: '2026-08-15T13:02:00.000Z',
+      issuedAt: isoFromNow(120_000),
+      expiresAt: isoFromNow(60 * 60_000),
     });
     await assert.rejects(
       createSnapbackAppClient(optionsFor(rotatedPolicyApp, rotatedPolicyBinding)),
@@ -495,6 +511,26 @@ test('live owners accept proved same-policy successors and refuse conflicts, rot
     );
     await assert.rejects(
       createSnapbackAppClient(firstOptions),
+      (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE',
+    );
+
+    const ambiguousSameTimeRemint = makeBinding(successorApp, {
+      issuedAt: successorIssuedAt,
+      expiresAt: isoFromNow(2 * 60 * 60_000),
+      supervisorGeneration: 'unordered-same-time-remint',
+    });
+    await assert.rejects(
+      createSnapbackAppClient(optionsFor(successorApp, ambiguousSameTimeRemint)),
+      (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE',
+    );
+
+    const staleSuccessorRemint = makeBinding(successorApp, {
+      issuedAt: isoFromNow(30_000),
+      expiresAt: isoFromNow(60 * 60_000),
+      supervisorGeneration: 'stale-successor-remint',
+    });
+    await assert.rejects(
+      createSnapbackAppClient(optionsFor(successorApp, staleSuccessorRemint)),
       (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE',
     );
   } finally {
@@ -515,6 +551,12 @@ test('entry gating protects authenticated principals while changePassword remain
     await assert.rejects(
       appClient.auth.signInWithPassword({ email: 'person@example.com', password: PASSWORD }),
       (error) => error?.code === 'SNAPBACK_AUTH_ENTRY_UNSETTLED',
+    );
+    await assert.rejects(
+      appClient.auth.changePassword({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD }),
+      (error) => error?.code === 'SNAPBACK_AUTH_CHANGE_PASSWORD_REQUIRES_AUTHENTICATED'
+        && error?.diagnostic?.details?.principalStatus === 'loading'
+        && error?.operation === 'auth-password-change',
     );
     assert.equal(server.requests.length, before);
     await appClient.client.auth.authSession();
@@ -542,6 +584,34 @@ test('entry gating protects authenticated principals while changePassword remain
     });
     assert.equal(changed.session.userId, USER);
     assert.equal(Object.hasOwn(changed, 'token'), false);
+
+    const releasePublication = appClient.client.__withholdCurrentPrincipalPublication();
+    try {
+      await assert.rejects(
+        appClient.auth.changePassword({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD }),
+        (error) => error?.code === 'SNAPBACK_AUTH_CHANGE_PASSWORD_REQUIRES_AUTHENTICATED'
+          && error?.diagnostic?.details?.principalStatus === 'refreshing',
+      );
+    } finally {
+      releasePublication();
+    }
+
+    const custodyFailure = new Error('custody is blocked for rotate-arm test');
+    custodyFailure.code = 'SNAPBACK_AUTH_CUSTODY_CORRUPT';
+    custodyFailure.diagnostic = {
+      code: custodyFailure.code,
+      message: 'Custody is blocked for rotate-arm test.',
+      details: { phase: 'custody-read', causeCode: custodyFailure.code },
+    };
+    appClient.client.clearAuthSession();
+    appClient.client.authCoordinator.synchronize = async () => { throw custodyFailure; };
+    await assert.rejects(appClient.client.auth.authSession({ force: true }), (error) => error === custodyFailure);
+    assert.equal(appClient.auth.currentPrincipal().status, 'blocked');
+    await assert.rejects(
+      appClient.auth.changePassword({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD }),
+      (error) => error?.code === 'SNAPBACK_AUTH_CHANGE_PASSWORD_REQUIRES_AUTHENTICATED'
+        && error?.diagnostic?.details?.principalStatus === 'blocked',
+    );
   } finally {
     await appClient.dispose();
     server.restore();
@@ -579,7 +649,8 @@ test('supervised displacement withholds anonymous exposure and failed issuance t
       });
       unsubscribe();
       assert.equal(result.session.userId, USER);
-      assert.equal(observations[0], 'refreshing');
+      assert.equal(observations[0], 'authenticated', '0238 D3 queues the subscribe-time current snapshot');
+      assert.equal(observations[1], 'refreshing');
       assert.equal(observations.includes('anonymous'), false);
       assert.equal(observations.at(-1), 'authenticated');
       assert.equal(appClient.bootstrapState().authoritySource, 'application-entry');
@@ -695,8 +766,8 @@ test('peer predecessor races surface the typed entry diagnostic and mid-entry re
         descriptor: 'sha256:descriptor-mid-entry',
       });
       const successorBinding = makeBinding(successorApp, {
-        issuedAt: '2026-08-15T12:03:00.000Z',
-        expiresAt: '2026-08-15T13:03:00.000Z',
+        issuedAt: isoFromNow(180_000),
+        expiresAt: isoFromNow(60 * 60_000),
       });
       reminted = await Promise.race([
         createSnapbackAppClient(optionsFor(successorApp, successorBinding)),
@@ -712,6 +783,64 @@ test('peer predecessor races surface the typed entry diagnostic and mid-entry re
       assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
     } finally {
       await reminted?.dispose();
+      await appClient.dispose();
+      server.restore();
+    }
+  });
+
+  await t.test('displacement refuses when a peer replaces the exact supervised capture during logout preparation', async () => {
+    const server = installServer();
+    const app = makeApp();
+    const appClient = await createSnapbackAppClient(optionsFor(app));
+    try {
+      server.respond('/auth/password/signin', () => (
+        Response.json(server.credential({ token: SUPERVISED_BEARER }))
+      ));
+      await appClient.client.auth.authPasswordSignIn({
+        email: 'supervised@example.com',
+        password: PASSWORD,
+      });
+      __recordSupervisedBootstrapAdoptionForTests(appClient);
+
+      const originalAuthSession = appClient.client.authSession.bind(appClient.client);
+      let peerSettled = false;
+      appClient.client.authSession = async (...args) => {
+        if (!peerSettled) {
+          peerSettled = true;
+          const capture = appClient.client.authCoordinator.capture();
+          await appClient.client.authCoordinator.transition(capture, {
+            authority: {
+              kind: 'session',
+              authMode: 'sessions',
+              authorizationStreamIncarnation: INCARNATION,
+              sessionId: PEER_SESSION,
+              userId: PEER_USER,
+            },
+            bearer: PEER_BEARER,
+            refreshAfterMs: Date.now() + 60_000,
+          }, 'peer-displacement-race');
+        }
+        return originalAuthSession(...args);
+      };
+      server.respond('/auth/logout', () => new Response(null, { status: 204 }));
+
+      await assert.rejects(
+        appClient.auth.signInWithPassword({
+          email: 'application@example.com',
+          password: PASSWORD,
+        }),
+        (error) => error?.code === 'SNAPBACK_AUTH_ENTRY_FAILED'
+          && error?.diagnostic?.details?.causeCode === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+          && error?.diagnostic?.details?.principalStatus === 'authenticated',
+      );
+      assert.equal(
+        server.requests.filter(({ path }) => path === '/auth/logout').length,
+        0,
+        'the facade never sends logout for the peer successor',
+      );
+      assert.equal(appClient.client.authCoordinator.authority.userId, PEER_USER);
+      assert.equal(appClient.auth.currentPrincipal().userId, PEER_USER);
+    } finally {
       await appClient.dispose();
       server.restore();
     }

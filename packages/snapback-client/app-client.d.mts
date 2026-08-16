@@ -46,6 +46,10 @@ export type SnapbackAppBindingV1 = Readonly<{
   }>;
   capabilities: Readonly<{ offered: readonly string[] }>;
   provenance:
+    /** A supervised binding is admitted only while unexpired. Within one live
+     * owner, issuedAt is a non-rewinding watermark; generated identities and
+     * the opaque supervisor generation are the currently available successor
+     * facts, pending the full LLP 0241 activation receipt. */
     | Readonly<{ supervisorGeneration: string; issuedAt: string; expiresAt: string }>
     | Readonly<{ environment: string; releaseChannel: string; buildReceipt: string }>;
   integrity:

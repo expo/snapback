@@ -65,6 +65,21 @@ const handshake = {
   authorizedLease: null,
 };
 
+const anonymousHandshake = {
+  ...handshake,
+  authority: {
+    kind: 'anonymous',
+    userId: null,
+    sessionId: null,
+    isAuthenticated: false,
+  },
+  authorityDescriptor: {
+    descriptorVersion: 1,
+    authorityInstanceId: INCARNATION,
+    sessionGeneration: 0,
+  },
+};
+
 const diagnosticResponse = (code, message, status = 409) => new Response(
   JSON.stringify({ diagnostic: { code, message } }),
   {
@@ -80,7 +95,8 @@ const createHarness = ({ unsubscribe = 'success' } = {}) => {
   const fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
     if (path === '/auth/session') {
-      return Response.json(handshake);
+      const authorization = new Headers(init.headers).get('authorization');
+      return Response.json(authorization === null ? anonymousHandshake : handshake);
     }
     if (path === '/connection/open') {
       return Response.json({

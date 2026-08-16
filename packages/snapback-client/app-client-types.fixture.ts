@@ -50,6 +50,9 @@ const binding = {
 async function fixture() {
   const appClient = await createSnapbackAppClient({ app, binding, platform: 'memory' });
   const principal: CurrentPrincipalSnapshot = appClient.auth.currentPrincipal();
+  if (principal.status === 'authenticated') {
+    principal.provider satisfies string | null;
+  }
   void principal;
   const signup = await appClient.auth.signUpWithPassword({ email: 'a@b.c', password: 'password' });
   signup.recoveryCodes satisfies readonly string[];

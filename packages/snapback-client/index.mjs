@@ -1877,6 +1877,17 @@ const credentialPublicProjectionWithRecoveryCodes = (credential) => ({
 
 const LOADING_CURRENT_PRINCIPAL = Object.freeze({ status: 'loading' });
 
+const currentPrincipalSemanticKey = (snapshot) => {
+  const canonicalize = (value) => {
+    if (Array.isArray(value)) return value.map(canonicalize);
+    if (value === null || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.keys(value).sort().map((key) => (
+      [key, canonicalize(value[key])]
+    )));
+  };
+  return JSON.stringify(canonicalize(snapshot));
+};
+
 const currentPrincipalFromSession = (session, credential = null) => {
   if (session.authority.kind === 'anonymous') {
     return Object.freeze({
@@ -1892,7 +1903,7 @@ const currentPrincipalFromSession = (session, credential = null) => {
     userId: session.authority.userId,
     sessionId: session.authority.sessionId,
     sessionClass: session.authority.kind,
-    provider: credentialSession?.provider ?? session.provider.key,
+    provider: credentialSession?.provider ?? null,
     authorityInstanceId: session.authorityDescriptor.authorityInstanceId,
     sessionGeneration: session.authorityDescriptor.sessionGeneration,
     authorizationStreamIncarnation: session.authorizationStreamIncarnation,
@@ -1901,27 +1912,129 @@ const currentPrincipalFromSession = (session, credential = null) => {
   });
 };
 
+const SAFE_DIAGNOSTIC_CODE = /^SNAPBACK_[A-Z0-9_]+$/u;
+const SECRET_BEARING_TEXT = /(?:\bBearer\s+\S+|sbs_[A-Za-z0-9._~-]+|sbrv1_[A-Za-z0-9._~-]+)/u;
+const UNSAFE_FACT_KEY = /(?:bearer|credential|password|recovery|secret|token)/iu;
+
+const safeBlockedString = (value, { diagnosticCode = false } = {}) => (
+  typeof value === 'string'
+  && value.length > 0
+  && value.length <= 512
+  && !SECRET_BEARING_TEXT.test(value)
+  && (!diagnosticCode || SAFE_DIAGNOSTIC_CODE.test(value))
+);
+
+const safeBlockedPrecondition = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return Object.freeze({});
+  const entries = [];
+  for (const [key, fact] of Object.entries(value)) {
+    if (UNSAFE_FACT_KEY.test(key)) continue;
+    if (key === 'code' || key === 'causeCode') {
+      if (safeBlockedString(fact, { diagnosticCode: true })) entries.push([key, fact]);
+      continue;
+    }
+    if (
+      fact === null
+      || typeof fact === 'boolean'
+      || (typeof fact === 'number' && Number.isSafeInteger(fact))
+      || safeBlockedString(fact)
+    ) entries.push([key, fact]);
+  }
+  return Object.freeze(Object.fromEntries(entries));
+};
+
+const safeBlockedRemediation = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (
+    !safeBlockedString(value.kind)
+    || !safeBlockedString(value.riskClass)
+    || typeof value.machineApplicable !== 'boolean'
+    || typeof value.requiresApproval !== 'boolean'
+    || !safeBlockedString(value.authorityEffect)
+    || !safeBlockedString(value.description)
+  ) return null;
+  return Object.freeze({
+    kind: value.kind,
+    riskClass: value.riskClass,
+    machineApplicable: value.machineApplicable,
+    requiresApproval: value.requiresApproval,
+    authorityEffect: value.authorityEffect,
+    precondition: safeBlockedPrecondition(value.precondition),
+    description: value.description,
+  });
+};
+
+const blockedFallbackRemediation = (causeCode, phase) => {
+  if (causeCode === 'SNAPBACK_AUTH_TRANSITION_FAILED') {
+    return Object.freeze({
+      kind: 'repairAuthTransitionParticipant',
+      riskClass: 'mechanical',
+      machineApplicable: false,
+      requiresApproval: false,
+      authorityEffect: 'none',
+      precondition: Object.freeze({ causeCode, ...(phase === null ? {} : { phase }) }),
+      description: 'Repair the named failing auth-transition phase, then retry settlement.',
+    });
+  }
+  if (
+    causeCode === 'SNAPBACK_AUTH_CUSTODY_CORRUPT'
+    || causeCode === 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'
+    || causeCode === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED'
+  ) {
+    return Object.freeze({
+      kind: 'recoverAuthCustody',
+      riskClass: 'destructive',
+      machineApplicable: false,
+      requiresApproval: true,
+      authorityEffect: 'clears-session',
+      precondition: Object.freeze({ causeCode }),
+      description: 'Recover or replace the named fail-closed auth custody record with explicit approval.',
+    });
+  }
+  return Object.freeze({
+    kind: 'retryAuthBootstrap',
+    riskClass: 'mechanical',
+    machineApplicable: true,
+    requiresApproval: false,
+    authorityEffect: 'none',
+    precondition: Object.freeze({ causeCode }),
+    description: 'Retry authentication bootstrap after repairing the named protocol condition.',
+  });
+};
+
 const currentPrincipalBlocked = (error) => {
-  const causeCode = error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_AUTH_HANDSHAKE_INVALID';
+  const observedCode = error?.diagnostic?.code ?? error?.code;
+  const causeCode = safeBlockedString(observedCode, { diagnosticCode: true })
+    ? observedCode
+    : 'SNAPBACK_AUTH_HANDSHAKE_INVALID';
+  const sourceDetails = error?.diagnostic?.details;
+  const phase = safeBlockedString(sourceDetails?.phase) ? sourceDetails.phase : null;
+  const nestedCauseCode = safeBlockedString(sourceDetails?.causeCode, { diagnosticCode: true })
+    ? sourceDetails.causeCode
+    : causeCode;
+  const details = Object.freeze({
+    ...(phase === null ? {} : { phase }),
+    causeCode: nestedCauseCode,
+  });
+  const message = safeBlockedString(error?.diagnostic?.message)
+    ? error.diagnostic.message
+    : 'Authentication custody or authority could not settle.';
   const diagnostic = Object.freeze({
     schemaVersion: 'snapback.client-diagnostic.v1',
     code: causeCode,
     severity: 'error',
-    message: 'Authentication custody or authority could not settle.',
-    details: Object.freeze({ causeCode }),
+    message,
+    details,
   });
+  const originalRemediations = Array.isArray(error?.remediations)
+    ? error.remediations.map(safeBlockedRemediation).filter(Boolean)
+    : [];
   return Object.freeze({
     status: 'blocked',
     diagnostic,
-    remediations: Object.freeze([Object.freeze({
-      kind: 'retryAuthBootstrap',
-      riskClass: 'mechanical',
-      machineApplicable: true,
-      requiresApproval: false,
-      authorityEffect: 'none',
-      precondition: Object.freeze({ causeCode }),
-      description: 'Retry after repairing the named custody or authority condition.',
-    })]),
+    remediations: Object.freeze(originalRemediations.length > 0
+      ? originalRemediations
+      : [blockedFallbackRemediation(causeCode, phase)]),
   });
 };
 
@@ -2676,8 +2789,10 @@ export class SnapbackClient {
     this.__authSessionCapture = null;
     this.__currentPrincipalSnapshot = LOADING_CURRENT_PRINCIPAL;
     this.__currentPrincipalPending = LOADING_CURRENT_PRINCIPAL;
+    this.__currentPrincipalSnapshotKey = currentPrincipalSemanticKey(LOADING_CURRENT_PRINCIPAL);
     this.__currentPrincipalListeners = new Set();
     this.__currentPrincipalPublicationHold = 0;
+    this.__currentPrincipalNotificationsClosed = false;
     this.__authMaterializations = new Set();
     this.__authBarrierParticipants = new Set();
     // Explicit external-bearer custody has no AuthCoordinator to enumerate
@@ -2853,27 +2968,116 @@ export class SnapbackClient {
     if (typeof listener !== 'function') {
       throw new TypeError('subscribeCurrentPrincipal requires a listener function');
     }
-    this.__currentPrincipalListeners.add(listener);
-    return () => { this.__currentPrincipalListeners.delete(listener); };
+    const entry = { listener, active: true, lastDeliveredKey: null };
+    this.__currentPrincipalListeners.add(entry);
+    this.#queueCurrentPrincipalNotification(entry, this.__currentPrincipalSnapshotKey);
+    return () => {
+      if (!entry.active) return;
+      entry.active = false;
+      this.__currentPrincipalListeners.delete(entry);
+    };
+  }
+
+  #queueCurrentPrincipalNotification(entry, semanticKey) {
+    // @ref LLP 0238#d3-one-observable-handle-grammar — the subscribe-time
+    // current snapshot and every later distinct projection share one deferred,
+    // non-reentrant notification queue.
+    queueMicrotask(() => {
+      if (
+        this.__currentPrincipalNotificationsClosed
+        || !entry.active
+        || entry.lastDeliveredKey === semanticKey
+      ) return;
+      entry.lastDeliveredKey = semanticKey;
+      try { entry.listener(); } catch { /* current-principal observation cannot own auth */ }
+    });
   }
 
   #notifyCurrentPrincipal() {
-    for (const listener of [...this.__currentPrincipalListeners]) {
-      try { listener(); } catch { /* current-principal observation cannot own auth */ }
+    const semanticKey = this.__currentPrincipalSnapshotKey;
+    for (const entry of [...this.__currentPrincipalListeners]) {
+      this.#queueCurrentPrincipalNotification(entry, semanticKey);
     }
+  }
+
+  #commitCurrentPrincipalSnapshot(snapshot) {
+    const semanticKey = currentPrincipalSemanticKey(snapshot);
+    if (this.__currentPrincipalSnapshotKey === semanticKey) return;
+    this.__currentPrincipalSnapshot = snapshot;
+    this.__currentPrincipalSnapshotKey = semanticKey;
+    this.#notifyCurrentPrincipal();
   }
 
   #publishCurrentPrincipal(snapshot) {
     this.__currentPrincipalPending = snapshot;
     if (this.__currentPrincipalPublicationHold > 0) return;
-    if (this.__currentPrincipalSnapshot === snapshot) return;
-    this.__currentPrincipalSnapshot = snapshot;
-    this.#notifyCurrentPrincipal();
+    this.#commitCurrentPrincipalSnapshot(snapshot);
   }
 
   #publishCredentialPrincipal(credential, session = this.__authSessionLastSuccessful) {
-    if (!session || !credential?.session) return;
-    this.#publishCurrentPrincipal(currentPrincipalFromSession(session, credential));
+    if (!credential?.session) return;
+    if (session) {
+      this.#publishCurrentPrincipal(currentPrincipalFromSession(session, credential));
+      return;
+    }
+    const authority = this.authCoordinator?.authority ?? null;
+    if (
+      authority?.kind !== 'session'
+      || authority.userId !== credential.session.userId
+      || authority.sessionId !== credential.session.id
+    ) {
+      this.#publishCurrentPrincipal(currentPrincipalBlocked(Object.assign(
+        new Error('settled credential adoption lacks a current session witness'),
+        {
+          code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
+          diagnostic: {
+            code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
+            message: 'Settled credential adoption lacks a current session witness.',
+            details: { phase: 'credential-publication', causeCode: 'SNAPBACK_AUTH_HANDSHAKE_INVALID' },
+          },
+        },
+      )));
+      return;
+    }
+    this.#publishCurrentPrincipal(Object.freeze({
+      status: 'authenticated',
+      userId: credential.session.userId,
+      sessionId: credential.session.id,
+      sessionClass: 'humanSession',
+      provider: credential.session.provider,
+      authorityInstanceId: credential.authorityDescriptor.authorityInstanceId,
+      sessionGeneration: credential.authorityDescriptor.sessionGeneration,
+      authorizationStreamIncarnation: authority.authorizationStreamIncarnation,
+      expiresAt: credential.session.expiresAt,
+      absoluteExpiresAt: credential.session.absoluteExpiresAt,
+    }));
+  }
+
+  #settleCurrentPrincipalAfterAuthFailure(error) {
+    const session = this.__authSessionLastSuccessful;
+    const authority = this.authCoordinator?.authority ?? null;
+    if (
+      session
+      && authority
+      && sameClientAuthority(clientAuthorityFromHandshake(session), authority)
+    ) {
+      this.#publishCurrentPrincipal(currentPrincipalFromSession(session));
+      return;
+    }
+    if (
+      this.__currentPrincipalSnapshot.status !== 'loading'
+      && this.__currentPrincipalSnapshot.status !== 'refreshing'
+    ) return;
+    this.#publishCurrentPrincipal(currentPrincipalBlocked(error));
+  }
+
+  async #transitionCredentialAuthority(capture, successor) {
+    try {
+      return await this.authCoordinator.transition(capture, successor, 'login');
+    } catch (error) {
+      this.#settleCurrentPrincipalAfterAuthFailure(error);
+      throw error;
+    }
   }
 
   // Owner-only composition seam used by createSnapbackAppClient. It gates the
@@ -2883,13 +3087,13 @@ export class SnapbackClient {
     this.__currentPrincipalPublicationHold += 1;
     if (this.__currentPrincipalPublicationHold === 1) {
       this.__currentPrincipalPending = this.__currentPrincipalSnapshot;
-      this.__currentPrincipalSnapshot = this.__currentPrincipalSnapshot.status === 'authenticated'
+      const withheld = this.__currentPrincipalSnapshot.status === 'authenticated'
         ? Object.freeze({
             status: 'refreshing',
             principal: this.__currentPrincipalSnapshot,
           })
         : LOADING_CURRENT_PRINCIPAL;
-      this.#notifyCurrentPrincipal();
+      this.#commitCurrentPrincipalSnapshot(withheld);
     }
     let released = false;
     return () => {
@@ -2898,8 +3102,7 @@ export class SnapbackClient {
       this.__currentPrincipalPublicationHold -= 1;
       if (this.__currentPrincipalPublicationHold === 0) {
         const pending = this.__currentPrincipalPending;
-        this.__currentPrincipalSnapshot = pending;
-        this.#notifyCurrentPrincipal();
+        this.#commitCurrentPrincipalSnapshot(pending);
       }
     };
   }
@@ -3029,8 +3232,9 @@ export class SnapbackClient {
         || code.startsWith(clientAuthPrefix)
         || code === 'SNAPBACK_AUTH_HANDSHAKE_INVALID'
         || code === 'SNAPBACK_AUTH_HANDSHAKE_AUTHORITY_MISMATCH'
+        || code === 'SNAPBACK_AUTH_TRANSITION_FAILED'
       ) {
-        this.#publishCurrentPrincipal(currentPrincipalBlocked(error));
+        this.#settleCurrentPrincipalAfterAuthFailure(error);
       }
       throw error;
     });
@@ -3102,8 +3306,7 @@ export class SnapbackClient {
         this.__authCounterError === null
         && this.__authSessionCacheGeneration === cacheGeneration
       ) {
-        this.__authSessionLastSuccessful = projected;
-        this.__authSessionCapture = null;
+        this.#cacheAuthSession(projected, null, cacheGeneration);
       }
       return projected;
     } catch (error) {
@@ -3296,6 +3499,18 @@ export class SnapbackClient {
       this.__terminalAuthorityHandle = null;
       this.__terminalTransportCut = null;
       this.#clearAuthTerminalFact();
+
+      if (token === null && this.authProtocols.authClient !== null) {
+        try {
+          await this.#authSession(
+            { force: true },
+            EXTERNAL_BEARER_TRANSITION_PERMIT,
+          );
+        } catch (error) {
+          this.#settleCurrentPrincipalAfterAuthFailure(error);
+          failures.push(error);
+        }
+      }
 
       if (token !== null) {
         const resumeEntries = handlesPausedByTransition
@@ -5856,12 +6071,12 @@ export class SnapbackClient {
       }
       throw staleAuthorityError();
     }
-    await this.authCoordinator.transition(currentCapture, {
+    await this.#transitionCredentialAuthority(currentCapture, {
       authority,
       bearer: response.token,
       refreshAfterMs: response.refreshAfter,
       ...(senderConstraint === null ? {} : { senderConstraint }),
-    }, 'login');
+    });
     const projected = credentialPublicProjection(response);
     this.#publishCredentialPrincipal(projected);
     return projected;
@@ -5932,11 +6147,11 @@ export class SnapbackClient {
       }
       throw staleAuthorityError();
     }
-    await this.authCoordinator.transition(currentCapture, {
+    await this.#transitionCredentialAuthority(currentCapture, {
       authority,
       bearer: response.token,
       refreshAfterMs: response.refreshAfter,
-    }, 'login');
+    });
     const projected = recoveryCodes
       ? credentialPublicProjectionWithRecoveryCodes(response)
       : credentialPublicProjection(response);
@@ -6270,12 +6485,27 @@ export class SnapbackClient {
     }
   }
 
-  async authLogout() {
+  authLogout() {
+    return this.#authLogoutExpectedCapture(null);
+  }
+
+  __authLogoutExpectedCapture(expectedCapture) {
+    if (!expectedCapture || typeof expectedCapture !== 'object') {
+      throw new TypeError('expected logout capture must be an authority capture');
+    }
+    return this.#authLogoutExpectedCapture(expectedCapture);
+  }
+
+  async #authLogoutExpectedCapture(expectedCapture) {
     if (!this.authCoordinator) {
       throw new TypeError('authLogout requires AuthCoordinator custody');
     }
     await this.authSession();
-    let capture = this.authCoordinator.capture();
+    if (
+      expectedCapture !== null
+      && !this.authCoordinator.isCurrent(expectedCapture)
+    ) throw staleAuthorityError();
+    let capture = expectedCapture ?? this.authCoordinator.capture();
     const credential = this.authCoordinator.credentialFor(capture);
     const bearer = credential.bearer;
     // @ref LLP 0060#c1-the-v1-custody-claim — exact empty 204 is the only
@@ -6362,6 +6592,9 @@ export class SnapbackClient {
 
   closeAuth() {
     this.__closeAuthPromise ??= (async () => {
+      this.__currentPrincipalNotificationsClosed = true;
+      for (const entry of this.__currentPrincipalListeners) entry.active = false;
+      this.__currentPrincipalListeners.clear();
       let firstError = null;
       try { this.__outboxDrainController?.handle?.stop(); } catch (error) { firstError ??= error; }
       for (const entry of [...this.__optimisticMutationViews]) {

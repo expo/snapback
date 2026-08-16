@@ -60,16 +60,18 @@ const handshakeFor = (bearer) => ({
   },
   provider: { key: 'email-code', available: true },
   transports: ['bearer'],
-  authority: {
-    kind: 'humanSession',
-    userId: USER_IDS[bearer],
-    sessionId: '018f0d90-7b13-7a22-8c33-445566778899',
-    isAuthenticated: true,
-  },
+  authority: bearer === null
+    ? { kind: 'anonymous', userId: null, sessionId: null, isAuthenticated: false }
+    : {
+        kind: 'humanSession',
+        userId: USER_IDS[bearer],
+        sessionId: '018f0d90-7b13-7a22-8c33-445566778899',
+        isAuthenticated: true,
+      },
   authorityDescriptor: {
     descriptorVersion: 1,
     authorityInstanceId: INCARNATION,
-    sessionGeneration: bearer === ALICE ? 1 : 2,
+    sessionGeneration: bearer === null ? 0 : bearer === ALICE ? 1 : 2,
   },
   deploymentIdentity: {
     schemaVersion: 'snapback.v1',
@@ -114,7 +116,7 @@ const createHarness = () => {
     );
     const bearer = (headers.authorization ?? '').replace(/^Bearer /u, '') || null;
     if (path === '/auth/session') {
-      if (!bearer || !USER_IDS[bearer]) {
+      if (bearer && !USER_IDS[bearer]) {
         return diagnosticResponse('SNAPBACK_AUTH_REQUIRED', 'bearer required', 401);
       }
       return Response.json(handshakeFor(bearer));
@@ -196,6 +198,25 @@ const withHarness = async (run) => {
 };
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+// LLP 0258 Phase-1 fix-forward: every successful uncoordinated handshake must
+// publish, and an explicit null bearer must settle the server-witnessed
+// anonymous projection rather than leave the client loading.
+await withHarness(async ({ client }) => {
+  assert.equal(client.auth.currentPrincipal().status, 'loading');
+  await client.auth.authSession();
+  assert.equal(client.auth.currentPrincipal().status, 'authenticated');
+  assert.equal(client.auth.currentPrincipal().userId, USER_IDS[ALICE]);
+  assert.equal(client.auth.currentPrincipal().provider, null);
+
+  await client.replaceBearerToken(MALLORY);
+  await client.auth.authSession();
+  assert.equal(client.auth.currentPrincipal().status, 'authenticated');
+  assert.equal(client.auth.currentPrincipal().userId, USER_IDS[MALLORY]);
+
+  await client.replaceBearerToken(null);
+  assert.equal(client.auth.currentPrincipal().status, 'anonymous');
+});
 
 // --- 1: a→b downgrade settles; the denial is a handle fact; rotate back
 // --- re-subscribes the parked handle (the pre-fix permanent wedge).
