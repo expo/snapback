@@ -66,7 +66,11 @@ import {
   CLOUDFLARE_TARGET_PROFILE,
   strictDeclarationsTargetRefusal,
 } from './target-admission.js';
-import { admitOutboundDestination, isRedirectStatus } from './outbound-destination.js';
+import {
+  admitOutboundDestination,
+  isForbiddenOutboundHeaderName,
+  isRedirectStatus,
+} from './outbound-destination.js';
 // RQS — the Cloudflare arm (LLP 0090 rollout step 4, ENG-25455). The token/
 // digest algebra is the shared packages/snapback-client/rqs.mjs module,
 // re-exported through rqs-host.mjs (never forked); rqs-host adds this arm's
@@ -2908,6 +2912,14 @@ export class Coordinator {
         { expected: 'at most 64 bounded single-line headers', received: 'invalid header shape' },
       );
     }
+    if (headerEntries.some(([name]) => isForbiddenOutboundHeaderName(name))) {
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_INVALID',
+        'open',
+        'ctx.fetchStream refused an authority or hop-by-hop request header',
+        { expected: 'end-to-end non-authority headers', received: 'forbidden header name' },
+      );
+    }
     const body = request.body == null ? null : String(request.body);
     if (
       request.idempotencyKey != null
@@ -2943,6 +2955,14 @@ export class Coordinator {
     // never the host-substituted one, so no resolved value re-enters the
     // isolate; stream refusal details are static and value-free by shape.
     for (const slot of request.secretSlots || []) {
+      if (slot?.placement === 'header' && isForbiddenOutboundHeaderName(slot.name)) {
+        return this.actionStreamFailure(
+          'SNAPBACK_ACTION_STREAM_INVALID',
+          'open',
+          'ctx.fetchStream refused an authority or hop-by-hop secret placement header',
+          { expected: 'an end-to-end non-authority header', received: 'forbidden header name' },
+        );
+      }
       const descriptor = slot && slot.secret;
       const capabilityId = descriptor && descriptor.capabilityId;
       const capability = typeof capabilityId === 'string' && capabilities instanceof Map
@@ -3328,10 +3348,24 @@ export class Coordinator {
     const url = destination.url;
     const headers = {};
     for (const [key, value] of Object.entries(request.headers || {})) {
+      if (isForbiddenOutboundHeaderName(key)) {
+        return {
+          ok: false,
+          code: 'SNAPBACK_HOST_FETCH_DESTINATION_INVALID',
+          message: 'host fetch refused an authority or hop-by-hop request header',
+        };
+      }
       headers[String(key)] = String(value);
     }
     const resolvedValues = [];
     for (const slot of request.secretSlots || []) {
+      if (slot?.placement === 'header' && isForbiddenOutboundHeaderName(slot.name)) {
+        return {
+          ok: false,
+          code: 'SNAPBACK_HOST_FETCH_DESTINATION_INVALID',
+          message: 'host fetch refused an authority or hop-by-hop secret placement header',
+        };
+      }
       const descriptor = slot && slot.secret;
       const capabilityId = descriptor && descriptor.capabilityId;
       const capability = typeof capabilityId === 'string' && capabilities instanceof Map

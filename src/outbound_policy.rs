@@ -192,6 +192,38 @@ pub(crate) fn is_public_ip(ip: IpAddr) -> bool {
     }
 }
 
+/// Caller-authored authority and hop-by-hop headers must never cross the
+/// pinned outbound boundary. Matching is ASCII case-insensitive, like HTTP
+/// field-name matching; the X-Forwarded family is prefix-closed.
+// @ref LLP 0251#canonical-admission-algorithm — caller headers cannot replace
+// the prepared authority or inject transport-owned framing/routing metadata.
+pub(crate) fn is_forbidden_outbound_header_name(name: &str) -> bool {
+    matches_ignore_ascii_case(
+        name,
+        &[
+            "host",
+            ":authority",
+            "transfer-encoding",
+            "content-length",
+            "connection",
+            "keep-alive",
+            "upgrade",
+            "te",
+            "trailer",
+            "proxy-authorization",
+            "forwarded",
+        ],
+    ) || name
+        .get(..12)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("x-forwarded-"))
+}
+
+fn matches_ignore_ascii_case(value: &str, candidates: &[&str]) -> bool {
+    candidates
+        .iter()
+        .any(|candidate| value.eq_ignore_ascii_case(candidate))
+}
+
 fn is_public_v4(ip: Ipv4Addr) -> bool {
     let octets = ip.octets();
     !(ip.is_private()
@@ -215,6 +247,34 @@ fn is_public_v6(ip: Ipv6Addr) -> bool {
         return is_public_v4(mapped);
     }
     let segments = ip.segments();
+    // @ref LLP 0251#canonical-admission-algorithm — transition addresses
+    // inherit the public-address floor of their embedded IPv4 endpoints.
+    // 6to4 routes through the IPv4 address encoded immediately after the
+    // 2002::/16 prefix. A non-public embedded address is not made public by
+    // wrapping it in the transition prefix.
+    if segments[0] == 0x2002 {
+        return is_public_v4(Ipv4Addr::new(
+            (segments[1] >> 8) as u8,
+            segments[1] as u8,
+            (segments[2] >> 8) as u8,
+            segments[2] as u8,
+        ));
+    }
+    // Teredo stores the client IPv4 address ones-complemented in its final
+    // 32 bits and the server IPv4 address directly after its /32 prefix.
+    // Both tunnel endpoints must satisfy the same IPv4 floor.
+    if segments[0] == 0x2001 && segments[1] == 0 {
+        let server = Ipv4Addr::new(
+            (segments[2] >> 8) as u8,
+            segments[2] as u8,
+            (segments[3] >> 8) as u8,
+            segments[3] as u8,
+        );
+        let high = !segments[6];
+        let low = !segments[7];
+        let client = Ipv4Addr::new((high >> 8) as u8, high as u8, (low >> 8) as u8, low as u8);
+        return is_public_v4(server) && is_public_v4(client);
+    }
     !ip.is_loopback()
         && !ip.is_unspecified()
         && !ip.is_multicast()
@@ -222,6 +282,9 @@ fn is_public_v6(ip: Ipv6Addr) -> bool {
         && (segments[0] & 0xfe00) != 0xfc00
         && (segments[0] & 0xffc0) != 0xfe80
         && !(segments[0] == 0x2001 && segments[1] == 0x0db8)
+        // @ref LLP 0251#canonical-admission-algorithm — documentation and
+        // reserved destinations are part of the non-public address floor.
+        && !(segments[0] == 0x3fff && (segments[1] & 0xf000) == 0)
 }
 
 const fn invalid() -> PrepareTargetError {
@@ -293,6 +356,14 @@ mod tests {
             "[fe80::a9fe:a9fe]:443",
             "[fd00:ec2::254]:443",
             "[::ffff:169.254.169.254]:443",
+            "[2002:a00:1::]:443",
+            "[2002:a01:203::1]:443",
+            "[2002:c000:201::]:443",
+            "[2001:0:4136:e378:8000:63bf:f5ff:fffe]:443",
+            "[2001:0:4136:e378:8000:63bf:3fff:fdfe]:443",
+            "[2001:0:c0a8:1::]:443",
+            "[3fff::1]:443",
+            "[3fff:fff::1]:443",
         ] {
             let error = prepared_with(
                 "https://example.test/resource",
@@ -337,6 +408,19 @@ mod tests {
         .expect("public HTTPS target");
         assert_eq!(target.authored_url(), "https://example.test/resource");
 
+        for address in [
+            "[2001:4860:4860::8888]:443",
+            "[2002:808:808::]:443",
+            "[2001:0:4136:e378:8000:63bf:f7f7:f7f7]:443",
+        ] {
+            prepared_with(
+                "https://example.test/resource",
+                HttpTargetPolicy::PublicHttpsOnly,
+                &[address],
+            )
+            .expect("public IPv6 transition target");
+        }
+
         let error = prepared_with(
             "http://example.test/resource",
             HttpTargetPolicy::LocalDevLoopbackHttp,
@@ -344,6 +428,30 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.kind(), PrepareTargetErrorKind::Invalid);
+    }
+
+    #[test]
+    fn authority_and_hop_by_hop_header_names_are_refused_case_insensitively() {
+        for name in [
+            "Host",
+            ":AUTHORITY",
+            "Transfer-Encoding",
+            "content-length",
+            "Connection",
+            "KEEP-ALIVE",
+            "upgrade",
+            "TE",
+            "Trailer",
+            "Proxy-Authorization",
+            "X-Forwarded-For",
+            "x-forwarded-host",
+            "Forwarded",
+        ] {
+            assert!(is_forbidden_outbound_header_name(name), "{name}");
+        }
+        for name in ["Authorization", "Accept", "X-Request-Id", "Forwardedness"] {
+            assert!(!is_forbidden_outbound_header_name(name), "{name}");
+        }
     }
 
     #[test]

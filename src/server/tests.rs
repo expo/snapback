@@ -24185,6 +24185,142 @@ fn both_action_fetch_lanes_refuse_non_public_destinations() {
 }
 
 #[test]
+fn both_action_fetch_lanes_refuse_authority_and_hop_by_hop_headers_before_send() {
+    let listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("bind no-send action-header witness");
+    listener
+        .set_nonblocking(true)
+        .expect("make no-send witness nonblocking");
+    let authored_url = format!("http://{}/must-not-receive", listener.local_addr().unwrap());
+
+    let mut snapback = LocalSnapback::memory().expect("header-policy host state");
+    snapback.load_functions(generation_test_manifest());
+    let state = Arc::new(Mutex::new(snapback));
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state, &staged);
+    host.deadline = Instant::now() + Duration::from_secs(10);
+
+    for name in [
+        "Host",
+        ":AUTHORITY",
+        "Transfer-Encoding",
+        "content-length",
+        "Connection",
+        "KEEP-ALIVE",
+        "upgrade",
+        "TE",
+        "Trailer",
+        "Proxy-Authorization",
+        "X-Forwarded-For",
+        "x-forwarded-host",
+        "Forwarded",
+    ] {
+        let headers = BTreeMap::from([(name.to_owned(), "handler-value".to_owned())]);
+        let buffered = host
+            .host_fetch(HostFetchRequest {
+                url: authored_url.clone(),
+                method: "GET".to_owned(),
+                headers: headers.clone(),
+                body: None,
+                timeout_ms: Some(100),
+                secret_slots: Vec::new(),
+            })
+            .expect_err("buffered forbidden header must fail before send");
+        assert_eq!(
+            buffered.diagnostic.code, "SNAPBACK_HOST_FETCH_INVALID",
+            "{name}"
+        );
+
+        let streamed = host
+            .open_response_stream(ActionStreamRequest {
+                url: authored_url.clone(),
+                method: "GET".to_owned(),
+                headers,
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect_err("streamed forbidden header must fail before send");
+        assert_eq!(
+            streamed.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID",
+            "{name}"
+        );
+    }
+
+    assert!(
+        matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+        "a forbidden handler header must never reach the upstream listener"
+    );
+}
+
+#[test]
+fn both_action_fetch_lanes_forward_ordinary_end_to_end_headers() {
+    let listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("bind ordinary-header fixture");
+    let address = listener.local_addr().expect("ordinary-header address");
+    let upstream = std::thread::spawn(move || {
+        let mut captured = Vec::new();
+        for _ in 0..2 {
+            let (mut socket, _) = listener.accept().expect("accept ordinary-header request");
+            let mut request = [0_u8; 4_096];
+            let read = std::io::Read::read(&mut socket, &mut request)
+                .expect("read ordinary-header request");
+            captured.push(String::from_utf8_lossy(&request[..read]).to_ascii_lowercase());
+            socket
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                .expect("write ordinary-header response");
+        }
+        captured
+    });
+
+    let mut snapback = LocalSnapback::memory().expect("ordinary-header host state");
+    snapback.load_functions(generation_test_manifest());
+    let state = Arc::new(Mutex::new(snapback));
+    let staged = stage_held_action(&state);
+    let mut host = held_action_host(state, &staged);
+    host.deadline = Instant::now() + Duration::from_secs(10);
+    let headers = BTreeMap::from([
+        (
+            "Authorization".to_owned(),
+            "Bearer ordinary-token".to_owned(),
+        ),
+        ("Accept".to_owned(), "application/json".to_owned()),
+        ("X-Custom-Request".to_owned(), "custom-value".to_owned()),
+    ]);
+    let authored_url = format!("http://{address}/ordinary");
+
+    host.host_fetch(HostFetchRequest {
+        url: authored_url.clone(),
+        method: "GET".to_owned(),
+        headers: headers.clone(),
+        body: None,
+        timeout_ms: Some(2_000),
+        secret_slots: Vec::new(),
+    })
+    .expect("buffered ordinary headers pass");
+    let streamed = host
+        .open_response_stream(ActionStreamRequest {
+            url: authored_url,
+            method: "GET".to_owned(),
+            headers,
+            body: None,
+            idempotency_key: None,
+            attempt_token: None,
+            secret_slots: Vec::new(),
+        })
+        .expect("streamed ordinary headers pass");
+    host.cancel_response_stream(&streamed.stream_id)
+        .expect("close ordinary-header stream");
+
+    for request in upstream.join().expect("ordinary-header fixture joins") {
+        assert!(request.contains("authorization: bearer ordinary-token\r\n"));
+        assert!(request.contains("accept: application/json\r\n"));
+        assert!(request.contains("x-custom-request: custom-value\r\n"));
+    }
+}
+
+#[test]
 fn both_action_fetch_lanes_refuse_redirects_and_echo_the_authored_url() {
     let listener =
         std::net::TcpListener::bind("127.0.0.1:0").expect("bind action redirect fixture");

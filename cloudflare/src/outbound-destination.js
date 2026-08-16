@@ -15,9 +15,27 @@ const UTF8_ENCODER = new TextEncoder();
 
 function parseIpv4(hostname) {
   const parts = hostname.split('.');
-  if (parts.length !== 4) return null;
-  const octets = parts.map((part) => (/^(?:0|[1-9][0-9]{0,2})$/.test(part) ? Number(part) : -1));
-  return octets.every((octet) => octet >= 0 && octet <= 255) ? octets : null;
+  if (parts.length < 1 || parts.length > 4 || parts.some((part) => part.length === 0)) return null;
+  const numbers = parts.map((part) => {
+    if (/^0x[0-9a-f]+$/iu.test(part)) return Number.parseInt(part.slice(2), 16);
+    if (/^0[0-7]+$/u.test(part)) return Number.parseInt(part.slice(1), 8);
+    if (/^(?:0|[1-9][0-9]*)$/u.test(part)) return Number.parseInt(part, 10);
+    return Number.NaN;
+  });
+  if (numbers.some((part) => !Number.isSafeInteger(part) || part < 0)) return null;
+  if (numbers.slice(0, -1).some((part) => part > 255)) return null;
+  const finalMaximum = (256 ** (5 - numbers.length)) - 1;
+  if (numbers.at(-1) > finalMaximum) return null;
+  let address = numbers.at(-1);
+  for (let index = 0; index < numbers.length - 1; index += 1) {
+    address += numbers[index] * (256 ** (3 - index));
+  }
+  return [
+    Math.floor(address / (256 ** 3)) % 256,
+    Math.floor(address / (256 ** 2)) % 256,
+    Math.floor(address / 256) % 256,
+    address % 256,
+  ];
 }
 
 function ipv4TailSegments(token) {
@@ -90,13 +108,48 @@ export function isPublicIpv6Literal(hostname) {
     const ipv4 = `${segments[6] >> 8}.${segments[6] & 0xff}.${segments[7] >> 8}.${segments[7] & 0xff}`;
     return isPublicIpv4Literal(ipv4);
   }
+  // @ref LLP 0251#canonical-admission-algorithm — transition addresses
+  // inherit the public-address floor of their embedded IPv4 endpoints.
+  if (segments[0] === 0x2002) {
+    const ipv4 = `${segments[1] >> 8}.${segments[1] & 0xff}.${segments[2] >> 8}.${segments[2] & 0xff}`;
+    return isPublicIpv4Literal(ipv4);
+  }
+  if (segments[0] === 0x2001 && segments[1] === 0) {
+    const serverIpv4 = `${segments[2] >> 8}.${segments[2] & 0xff}.${segments[3] >> 8}.${segments[3] & 0xff}`;
+    const high = (~segments[6]) & 0xffff;
+    const low = (~segments[7]) & 0xffff;
+    const clientIpv4 = `${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`;
+    return isPublicIpv4Literal(serverIpv4) && isPublicIpv4Literal(clientIpv4);
+  }
   const first = segments[0];
   return !(
     (first & 0xe000) !== 0x2000
     || (first & 0xfe00) === 0xfc00
     || (first & 0xffc0) === 0xfe80
     || (first === 0x2001 && segments[1] === 0x0db8)
+    // @ref LLP 0251#canonical-admission-algorithm — documentation and
+    // reserved destinations remain outside the public destination profile.
+    || (first === 0x3fff && (segments[1] & 0xf000) === 0)
   );
+}
+
+// @ref LLP 0251#canonical-admission-algorithm — match the Rust refusal set
+// before platform fetch can derive authority/framing from handler input.
+export function isForbiddenOutboundHeaderName(name) {
+  const normalized = String(name).toLowerCase();
+  return [
+    'host',
+    ':authority',
+    'transfer-encoding',
+    'content-length',
+    'connection',
+    'keep-alive',
+    'upgrade',
+    'te',
+    'trailer',
+    'proxy-authorization',
+    'forwarded',
+  ].includes(normalized) || normalized.startsWith('x-forwarded-');
 }
 
 function normalizedHostname(hostname) {
@@ -146,6 +199,9 @@ export function admitOutboundDestination(urlText) {
   }
   if ((/^\d+(?:\.\d+){3}$/u.test(host) && publicIpv4 === null) || (host.includes(':') && publicIpv6 === null)) {
     return { ok: false, code: 'SNAPBACK_HOST_FETCH_DESTINATION_INVALID', reason: 'invalid-ip-literal' };
+  }
+  if (url.protocol !== 'https:') {
+    return { ok: false, code: 'SNAPBACK_HOST_FETCH_DESTINATION_INVALID', reason: 'unsupported-scheme' };
   }
   return { ok: true, url };
 }

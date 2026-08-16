@@ -25,6 +25,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'action-denial-witness',
   'config-set',
   'cron-utils',
+  'outbound-destination',
   'route-outage-witness-tests',
   'target-admission',
   'deploy-script',
@@ -35,7 +36,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'wire-schema-gate',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 29;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 30;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -153,6 +154,16 @@ export const LOCAL_SUITES = Object.freeze([
     evidence: ['cloudflare cron-utils tests: strict-next arithmetic'],
   },
   {
+    // LLP 0251 destination-floor parity: the JS port classifies the same
+    // literal forms and refuses the same authority/hop-by-hop header names
+    // as the Rust outbound_policy floor.
+    id: 'outbound-destination',
+    file: 'cloudflare/test/outbound-destination.mjs',
+    evidence: [
+      'cloudflare outbound-destination tests: https-only, compact IPv4, IPv6 transition ranges, and header refusal parity passed',
+    ],
+  },
+  {
     // Author decision 2026-08-01 (all-aboard routeEstimate outage
     // fragility, finding 2): the remote directions check may record-and-skip
     // only on a worker-egress-proven ORS outage; this suite pins the
@@ -231,6 +242,7 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['index-scaling.mjs', 'gate'],
   ['measure.mjs', 'benchmark-non-gating'],
   ['measure.remote.mjs', 'remote-credentialed'],
+  ['outbound-destination.mjs', 'gate'],
   ['proof-runtime.mjs', 'helper'],
   ['route-outage-witness.mjs', 'helper'],
   ['route-outage-witness-tests.mjs', 'gate'],

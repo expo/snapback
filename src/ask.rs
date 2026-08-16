@@ -10,6 +10,7 @@ use hmac::{Hmac, Mac as _};
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::Sha256;
+use std::net::IpAddr;
 use std::time::Duration;
 use zeroize::{Zeroize, Zeroizing};
 
@@ -17,6 +18,7 @@ pub(crate) const PROVIDER_KEY_HEADER: &str = "x-snapback-ask-provider-key";
 pub(crate) const FINAL_TOOL_NAME: &str = "snapback_final_answer";
 pub(crate) const RESULT_SCHEMA_RETRY_CAP: u64 = 2;
 const PROVIDER_RESPONSE_MAX_BYTES: usize = 4 * 1024 * 1024;
+const PROVIDER_ENDPOINT_MAX_BYTES: usize = 4_096;
 
 #[derive(Clone, Debug)]
 pub(crate) struct QueryTool {
@@ -30,6 +32,7 @@ pub(crate) struct ProviderConfig {
     pub identity: String,
     pub base_url: String,
     pub model: String,
+    target_policy: crate::outbound_policy::HttpTargetPolicy,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -128,15 +131,27 @@ pub(crate) fn parse_provider(provider: &str, model: &str) -> SnapbackResult<Prov
         )
         .with_details(json!({ "provider": provider, "supported": ["openai-compatible"] })));
     };
-    let uri: axum::http::Uri = base_url.parse().map_err(|_| provider_invalid())?;
-    let scheme = uri.scheme_str();
-    let host = uri.host().unwrap_or_default();
-    let loopback_http =
-        scheme == Some("http") && matches!(host, "127.0.0.1" | "localhost" | "[::1]" | "::1");
-    if (scheme != Some("https") && !loopback_http)
-        || uri.authority().is_none()
-        || uri.path().is_empty()
-        || uri.query().is_some()
+    let parsed = ureq::get(&base_url)
+        .request_url()
+        .map_err(|_| provider_invalid())?;
+    let url = parsed.as_url();
+    let host = parsed.host().trim_start_matches('[').trim_end_matches(']');
+    let literal = host.parse::<IpAddr>().ok();
+    // @ref LLP 0251#consumerprofile-contract — only this crate's unit-test
+    // build can mint Ask's loopback HTTP capability; manifests and runtime
+    // configuration have no switch that enables it in a served binary.
+    let test_loopback_http = cfg!(test)
+        && parsed.scheme() == "http"
+        && literal.is_some_and(|address| address.is_loopback());
+    if (parsed.scheme() != "https" && !test_loopback_http)
+        || host.is_empty()
+        || url.username() != ""
+        || url.password().is_some()
+        || url.fragment().is_some()
+        || url.query().is_some()
+        || literal.is_some_and(|address| {
+            !crate::outbound_policy::is_public_ip(address) && !test_loopback_http
+        })
         || model.is_empty()
     {
         return Err(provider_invalid());
@@ -147,6 +162,11 @@ pub(crate) fn parse_provider(provider: &str, model: &str) -> SnapbackResult<Prov
         identity: provider.to_owned(),
         base_url,
         model: model.to_owned(),
+        target_policy: if test_loopback_http {
+            crate::outbound_policy::HttpTargetPolicy::LocalDevLoopbackHttp
+        } else {
+            crate::outbound_policy::HttpTargetPolicy::PublicHttpsOnly
+        },
     })
 }
 
@@ -213,6 +233,7 @@ pub(crate) async fn chat_completion(
             ));
         }
         let endpoint = format!("{}/chat/completions", config.base_url.trim_end_matches('/'));
+        let target_policy = config.target_policy;
         let body = json!({
             "model": config.model,
             "messages": messages,
@@ -223,12 +244,19 @@ pub(crate) async fn chat_completion(
         let request_bytes = serde_json::to_vec(&body)
             .map_err(|_| upstream_invalid())?
             .len();
-        // The manifest-selected base is the complete v1 allowlist. Following
-        // redirects would silently widen it and could move a bearer credential
-        // to a host the application never declared.
-        let agent = ureq::AgentBuilder::new().redirects(0).build();
+        // @ref LLP 0251#canonical-admission-algorithm — resolve/classify and
+        // pin the exact manifest-selected authority before the caller bearer
+        // materializes; the shared agent also refuses redirects and env proxies.
+        let prepared_target = crate::outbound_policy::prepare_http_target(
+            &endpoint,
+            target_policy,
+            PROVIDER_ENDPOINT_MAX_BYTES,
+        )
+        .map_err(|_| upstream_failed("provider destination refused".to_owned()))?;
+        let agent = crate::outbound_policy::pinned_http_agent(&prepared_target, timeout)
+            .map_err(|_| upstream_failed("provider destination refused".to_owned()))?;
         let response = agent
-            .post(&endpoint)
+            .post(prepared_target.authored_url())
             .timeout(timeout)
             .set("authorization", &format!("Bearer {}", key.as_str()))
             .set("content-type", "application/json")
@@ -407,6 +435,189 @@ use std::io::Read as _;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn serve_one_json(
+        listener: std::net::TcpListener,
+        body: Value,
+    ) -> std::thread::JoinHandle<String> {
+        std::thread::spawn(move || {
+            use std::io::{Read as _, Write as _};
+
+            let (mut socket, _) = listener.accept().expect("accept credentialed request");
+            socket
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("bound credentialed request read");
+            let mut bytes = Vec::new();
+            let mut chunk = [0_u8; 4_096];
+            let (header_end, content_length) = loop {
+                let read = socket.read(&mut chunk).expect("read credentialed request");
+                assert!(read > 0, "credentialed request closed before headers");
+                bytes.extend_from_slice(&chunk[..read]);
+                if let Some(index) = bytes.windows(4).position(|window| window == b"\r\n\r\n") {
+                    let header_end = index + 4;
+                    let headers = std::str::from_utf8(&bytes[..header_end])
+                        .expect("credentialed request headers UTF-8");
+                    let content_length = headers
+                        .lines()
+                        .find_map(|line| {
+                            line.split_once(':').and_then(|(name, value)| {
+                                name.eq_ignore_ascii_case("content-length")
+                                    .then(|| value.trim().parse::<usize>().unwrap())
+                            })
+                        })
+                        .unwrap_or(0);
+                    break (header_end, content_length);
+                }
+            };
+            while bytes.len() < header_end + content_length {
+                let read = socket.read(&mut chunk).expect("read credentialed body");
+                assert!(read > 0, "credentialed request closed before body");
+                bytes.extend_from_slice(&chunk[..read]);
+            }
+            let response = serde_json::to_vec(&body).expect("fixture response JSON");
+            write!(
+                socket,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                response.len()
+            )
+            .expect("write fixture response head");
+            socket
+                .write_all(&response)
+                .expect("write fixture response body");
+            String::from_utf8(bytes).expect("credentialed request UTF-8")
+        })
+    }
+
+    #[test]
+    fn provider_literals_refuse_non_public_addresses_during_parse() {
+        for address in [
+            "169.254.169.254",
+            "10.0.0.1",
+            "172.16.0.1",
+            "192.168.0.1",
+            "[::ffff:169.254.169.254]",
+        ] {
+            let error = parse_provider(
+                &format!("openai-compatible:https://{address}/v1"),
+                "fixture-model",
+            )
+            .expect_err("non-public provider literal must fail at parse time");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_API_ASK_PROVIDER_INVALID");
+        }
+
+        parse_provider(
+            "openai-compatible:https://93.184.216.34/v1",
+            "fixture-model",
+        )
+        .expect("public HTTPS literal remains admissible");
+        parse_provider(
+            "openai-compatible:http://127.0.0.1:43123/v1",
+            "fixture-model",
+        )
+        .expect("unit-test fixture receives the internal loopback capability");
+    }
+
+    #[test]
+    fn ask_and_push_bearers_bypass_environment_proxies() {
+        const CHILD_MARKER: &str = "ASK_PUSH_PROXY_CHILD";
+        const ASK_BEARER: &str = "ask-direct-bearer-sentinel";
+        const PUSH_BEARER: &str = "push-direct-bearer-sentinel";
+
+        if std::env::var_os(CHILD_MARKER).is_some() {
+            let ask_listener =
+                std::net::TcpListener::bind("127.0.0.1:0").expect("bind direct Ask destination");
+            let ask_address = ask_listener.local_addr().expect("Ask destination address");
+            let ask_request = serve_one_json(
+                ask_listener,
+                json!({
+                    "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+                }),
+            );
+            let config = parse_provider(
+                &format!("openai-compatible:http://{ask_address}/v1"),
+                "fixture-model",
+            )
+            .expect("parse direct Ask fixture");
+            tokio::runtime::Runtime::new()
+                .expect("Ask proxy-test runtime")
+                .block_on(chat_completion(
+                    config,
+                    Zeroizing::new(ASK_BEARER.to_owned()),
+                    SecretRedactor::default(),
+                    Vec::new(),
+                    Vec::new(),
+                    32,
+                    Duration::from_secs(2),
+                ))
+                .expect("Ask reaches its pinned direct destination");
+            assert!(
+                ask_request
+                    .join()
+                    .expect("Ask direct fixture joins")
+                    .to_ascii_lowercase()
+                    .contains(&format!("authorization: bearer {ASK_BEARER}\r\n"))
+            );
+
+            let push_listener =
+                std::net::TcpListener::bind("127.0.0.1:0").expect("bind direct Expo destination");
+            let push_address = push_listener
+                .local_addr()
+                .expect("Expo destination address");
+            let push_request = serve_one_json(push_listener, json!({"data": []}));
+            crate::push::post_expo_json(
+                &format!("http://{push_address}/--/api/v2/push/send"),
+                Some(PUSH_BEARER),
+                json!([]),
+                Duration::from_secs(2),
+            )
+            .expect("Expo reaches its pinned direct destination");
+            assert!(
+                push_request
+                    .join()
+                    .expect("Expo direct fixture joins")
+                    .to_ascii_lowercase()
+                    .contains(&format!("authorization: bearer {PUSH_BEARER}\r\n"))
+            );
+            return;
+        }
+
+        let proxy = std::net::TcpListener::bind("127.0.0.1:0")
+            .expect("bind credential-observation proxy witness");
+        let proxy_address = proxy.local_addr().expect("proxy witness address");
+        let proxy_url = format!("http://{proxy_address}");
+        let output = std::process::Command::new(std::env::current_exe().expect("test executable"))
+            .args([
+                "--exact",
+                "ask::tests::ask_and_push_bearers_bypass_environment_proxies",
+                "--nocapture",
+            ])
+            .env(CHILD_MARKER, "1")
+            .env("SNAPBACK_OUTBOUND_ACTIONS", "1")
+            .env("HTTP_PROXY", &proxy_url)
+            .env("HTTPS_PROXY", &proxy_url)
+            .env("ALL_PROXY", &proxy_url)
+            .env("http_proxy", &proxy_url)
+            .env("https_proxy", &proxy_url)
+            .env("all_proxy", &proxy_url)
+            .env("NO_PROXY", "")
+            .env("no_proxy", "")
+            .output()
+            .expect("run isolated Ask/Expo proxy witness");
+        assert!(
+            output.status.success(),
+            "Ask/Expo proxy child failed\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        proxy
+            .set_nonblocking(true)
+            .expect("make proxy witness nonblocking");
+        assert!(
+            matches!(proxy.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+            "an inherited environment proxy observed a credentialed outbound connection"
+        );
+    }
 
     #[test]
     fn result_schema_references_are_request_local() {

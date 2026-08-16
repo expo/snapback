@@ -1521,6 +1521,20 @@ impl IbexActionHost for DetachedActionHost {
                 json!({ "expected": "at most 64 bounded single-line headers", "received": "invalid header shape" }),
             ));
         }
+        // @ref LLP 0251#canonical-admission-algorithm — authority and
+        // hop-by-hop headers are transport-owned and refuse before send.
+        if request
+            .headers
+            .keys()
+            .any(|name| crate::outbound_policy::is_forbidden_outbound_header_name(name))
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "ctx.fetchStream refused an authority or hop-by-hop request header",
+                json!({ "expected": "end-to-end non-authority headers", "received": "forbidden header name" }),
+            ));
+        }
         if request
             .idempotency_key
             .as_ref()
@@ -1794,6 +1808,19 @@ impl IbexActionHost for DetachedActionHost {
             return Err(fetch_error(
                 "SNAPBACK_HOST_FETCH_INVALID",
                 "ctx.fetch headers exceeded the safe shape",
+            ));
+        }
+        // @ref LLP 0251#canonical-admission-algorithm — the pinned
+        // destination owns authority, framing, connection, and forwarding
+        // metadata; handler headers cannot override them.
+        if request
+            .headers
+            .keys()
+            .any(|name| crate::outbound_policy::is_forbidden_outbound_header_name(name))
+        {
+            return Err(fetch_error(
+                "SNAPBACK_HOST_FETCH_INVALID",
+                "ctx.fetch refused an authority or hop-by-hop request header",
             ));
         }
         // @ref LLP 0036#runtime-exposure-d5-d8 — the local profile stages

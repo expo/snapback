@@ -12,6 +12,7 @@ use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::io::Read;
+use std::net::IpAddr;
 use std::sync::OnceLock;
 
 pub use crate::contract_types::PushAudienceReferenceV1;
@@ -158,13 +159,19 @@ pub(crate) fn post_expo_json(
     payload: Value,
     timeout: std::time::Duration,
 ) -> Result<ExpoHttpResponseV1, ExpoHttpUncertaintyV1> {
-    let agent = ureq::AgentBuilder::new()
-        .timeout_connect(timeout)
-        .timeout_read(timeout)
-        .timeout_write(timeout)
-        .build();
+    // @ref LLP 0251#consumerprofile-contract — Expo production is one exact
+    // HTTPS authority. The pre-existing local/test override is admitted only
+    // when it names a literal loopback HTTP authority; neither branch can be
+    // widened by a redirect or inherited proxy.
+    let target_policy =
+        expo_http_target_policy(endpoint).ok_or(ExpoHttpUncertaintyV1::Transport)?;
+    let prepared_target =
+        crate::outbound_policy::prepare_http_target(endpoint, target_policy, 4_096)
+            .map_err(|_| ExpoHttpUncertaintyV1::Transport)?;
+    let agent = crate::outbound_policy::pinned_http_agent(&prepared_target, timeout)
+        .map_err(|_| ExpoHttpUncertaintyV1::Transport)?;
     let mut outbound = agent
-        .post(endpoint)
+        .post(prepared_target.authored_url())
         .set("Content-Type", "application/json")
         .set("Accept", "application/json")
         .timeout(timeout);
@@ -187,6 +194,30 @@ pub(crate) fn post_expo_json(
         return Err(ExpoHttpUncertaintyV1::ResponseTooLarge);
     }
     Ok(ExpoHttpResponseV1 { status, body })
+}
+
+fn expo_http_target_policy(endpoint: &str) -> Option<crate::outbound_policy::HttpTargetPolicy> {
+    let parsed = ureq::get(endpoint).request_url().ok()?;
+    let url = parsed.as_url();
+    if url.username() != "" || url.password().is_some() || url.fragment().is_some() {
+        return None;
+    }
+    let host = parsed.host().trim_start_matches('[').trim_end_matches(']');
+    let port = parsed
+        .port()
+        .unwrap_or(if parsed.scheme() == "https" { 443 } else { 80 });
+    if parsed.scheme() == "https" && host.eq_ignore_ascii_case("exp.host") && port == 443 {
+        return Some(crate::outbound_policy::HttpTargetPolicy::PublicHttpsOnly);
+    }
+    if parsed.scheme() == "http"
+        && host
+            .parse::<IpAddr>()
+            .ok()
+            .is_some_and(|address| address.is_loopback())
+    {
+        return Some(crate::outbound_policy::HttpTargetPolicy::LocalDevLoopbackHttp);
+    }
+    None
 }
 
 pub(crate) fn expo_send_payload(claim: &PushBatchClaimV1, request: &PushSendRequestV1) -> Value {
@@ -3802,6 +3833,30 @@ mod tests {
             retention_ms: 2_592_000_000,
         });
         declaration
+    }
+
+    #[test]
+    fn expo_http_transport_is_exact_authority_or_literal_loopback_fixture_only() {
+        assert_eq!(
+            expo_http_target_policy("https://exp.host/--/api/v2/push/send"),
+            Some(crate::outbound_policy::HttpTargetPolicy::PublicHttpsOnly)
+        );
+        assert_eq!(
+            expo_http_target_policy("https://exp.host:443/--/api/v2/push/getReceipts"),
+            Some(crate::outbound_policy::HttpTargetPolicy::PublicHttpsOnly)
+        );
+        assert_eq!(
+            expo_http_target_policy("http://127.0.0.1:43123/--/api/v2/push/send"),
+            Some(crate::outbound_policy::HttpTargetPolicy::LocalDevLoopbackHttp)
+        );
+        for endpoint in [
+            "https://exp.host.example/--/api/v2/push/send",
+            "https://exp.host:444/--/api/v2/push/send",
+            "https://93.184.216.34/--/api/v2/push/send",
+            "http://10.0.0.1/--/api/v2/push/send",
+        ] {
+            assert_eq!(expo_http_target_policy(endpoint), None, "{endpoint}");
+        }
     }
 
     fn app_membership_schema() -> crate::manifest::SchemaManifest {
