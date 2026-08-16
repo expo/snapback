@@ -374,6 +374,7 @@ const NORMALIZED_DECORATED_OPERATION_FIELD_DECISIONS = Object.freeze({
   sourceSpan: 'exclude:graphRecords',
   handlerForm: 'exclude:behavior',
   implementationHash: 'exclude:behavior',
+  mediaCommandBindings: 'include:mediaCommandBindings',
   argsContractHash: 'include:args',
   argsContract: 'include:args',
   boundedSkew: 'include:boundedSkew',
@@ -446,6 +447,7 @@ function normalizedOperation(operation) {
     writes: operation?.writeSetSummary ?? null,
     effects: operation?.effectCeiling ?? null,
     capabilities: [...(operation?.requiredCapabilities ?? [])].sort(compareCodeUnits),
+    mediaCommandBindings: canonicalClone(operation?.mediaCommandBindings ?? []),
     apiExposure: operation?.apiExposure === undefined && operation?.publicInline !== true
       ? null
       : {

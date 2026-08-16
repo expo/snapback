@@ -479,6 +479,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "addReaction",
         "plan": {
@@ -648,6 +649,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "annotateMessage",
         "plan": null,
@@ -726,6 +728,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "conversationDetails",
         "plan": {
@@ -894,6 +897,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "membershipsForConversation",
         "plan": {
@@ -1045,6 +1049,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "messagesForConversation",
         "plan": {
@@ -1265,6 +1270,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "reactionsForConversation",
         "plan": {
@@ -1437,6 +1443,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "removeReaction",
         "plan": {
@@ -1577,6 +1584,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "sendMessage",
         "plan": {
@@ -1738,6 +1746,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "sendReply",
         "plan": {
@@ -1914,6 +1923,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "sendText",
         "plan": {
@@ -2048,6 +2058,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "users",
         "plan": {
@@ -2163,7 +2174,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:5fe1d93342838e09a79a64019c0dc32a5fc36cb58e9b0abed2cbba420bdfb99c",
+  "normalizedContractId": "sha256:a4f31c78fa57bb5601ca272aa7c5e4e0fcaf7f87ddb5a35c445be77a2ed9382e",
   "normalizedSchemaId": "sha256:bed97d28fb66c74c5364b210881d76130e590c4e52aee2d0917ac22b6f0eae63",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

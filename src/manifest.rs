@@ -577,6 +577,114 @@ pub struct AssetCollectionOperationsManifestV1 {
     pub reorder: Option<String>,
 }
 
+/// Closed codegen-installed binding for one LLP 0239 D3 media command. Every
+/// field is manifest authority; invocation carriers name only its identities
+/// and deterministic item plan.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaCommandBindingV1 {
+    pub format: String,
+    pub identity: String,
+    pub command: MediaCommandIdentityV1,
+    pub target_mutation: MediaCommandTargetMutationV1,
+    pub passthrough_args: Vec<String>,
+    pub media: MediaCommandInputV1,
+    pub parent_result_path: Vec<String>,
+    pub collection: MediaCommandCollectionV1,
+    pub item_identity_plan: MediaCommandItemIdentityPlanV1,
+    pub sharing: AssetCollectionSharingPlanManifestV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_input: Option<MediaCommandPrincipalInputV1>,
+    pub task_profile: MediaCommandTaskProfileV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaCommandIdentityV1 {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaCommandTargetMutationV1 {
+    pub id: String,
+    pub name: String,
+    pub implementation_hash: String,
+    pub args_contract_hash: String,
+    pub result_contract_hash: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaCommandInputV1 {
+    pub input: String,
+    pub intent: String,
+    pub intent_policy_hash: String,
+    pub mutation_arg: String,
+    pub min_items: u8,
+    pub max_items: u8,
+    pub kinds: Vec<MediaKindV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaCommandCollectionV1 {
+    pub name: String,
+    pub generation: String,
+    pub owner_table: String,
+    pub owner_field: String,
+    pub child_table: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaCommandItemIdentityPlanV1 {
+    pub format: String,
+    pub operation: String,
+    pub order: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaCommandPrincipalInputV1 {
+    pub input: String,
+    pub min_items: u8,
+    pub max_items: u8,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaCommandTaskProfileV1 {
+    pub concurrency: u8,
+}
+
+/// Wire carrier. The ordered plan is bound to one client mutation attempt;
+/// the host compares it with the installed binding before handler execution.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaCommandInvocationV1 {
+    pub binding_identity: String,
+    pub command_identity: String,
+    pub attempt_id: String,
+    pub items: Vec<MediaCommandInvocationItemV1>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub principals: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MediaCommandInvocationItemV1 {
+    pub ordinal: u8,
+    pub asset_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ResolvedMediaCommandV1 {
+    pub binding: MediaCommandBindingV1,
+    pub invocation: MediaCommandInvocationV1,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SchemaManifest {
     #[serde(
@@ -2743,6 +2851,7 @@ impl FunctionManifest {
         let mut identities = BTreeMap::<String, (usize, String)>::new();
         let mut sequence_declarations = BTreeMap::<String, SequenceDeclaration>::new();
         for (function_index, function) in self.functions.iter().enumerate() {
+            validate_media_command_binding_shape(function)?;
             if function.stream && function.kind != FunctionKind::Action {
                 return Err(SnapbackError::error(
                     "SNAPBACK_FUNCTION_STREAM_KIND_INVALID",
@@ -3233,6 +3342,255 @@ impl FunctionManifest {
         }
         Ok(())
     }
+
+    /// Pair-time validation closes every binding edge over the exact schema
+    /// artifact that will execute it.
+    pub(crate) fn validate_media_commands_against_schema(
+        &self,
+        schema: &SchemaManifest,
+    ) -> SnapbackResult<()> {
+        let invalid = |message: String| {
+            SnapbackError::error(
+                "SNAPBACK_MEDIA_COMMAND_MANIFEST_INVALID",
+                "media-command",
+                message,
+            )
+        };
+        for function in &self.functions {
+            for binding in &function.media_command_bindings {
+                let collection = schema
+                    .asset_collections
+                    .iter()
+                    .find(|candidate| candidate.name == binding.collection.name)
+                    .ok_or_else(|| {
+                        invalid(format!(
+                            "media command {} names missing collection {}",
+                            binding.command.name, binding.collection.name
+                        ))
+                    })?;
+                if collection.generation != binding.collection.generation
+                    || collection.owner_table != binding.collection.owner_table
+                    || collection.owner_field != binding.collection.owner_field
+                    || collection.child_table != binding.collection.child_table
+                    || collection.intent != binding.media.intent
+                    || collection.max_items < binding.media.max_items
+                    || binding
+                        .media
+                        .kinds
+                        .iter()
+                        .any(|kind| !collection.kinds.contains(kind))
+                    || collection.order != AssetCollectionOrderV1::Manual
+                    || !collection.sharing.ceiling.contains(&binding.sharing)
+                {
+                    return Err(invalid(format!(
+                        "media command {} no longer matches collection {} generation/policy",
+                        binding.command.name, collection.name
+                    )));
+                }
+                let args = function.args_contract.as_ref().ok_or_else(|| {
+                    invalid(format!(
+                        "media command {} target has no argument contract",
+                        binding.command.name
+                    ))
+                })?;
+                let media_arg = args
+                    .fields
+                    .iter()
+                    .find(|field| field.name == binding.media.mutation_arg)
+                    .ok_or_else(|| {
+                        invalid(format!(
+                            "media command {} mapped argument is absent",
+                            binding.command.name
+                        ))
+                    })?;
+                if !media_arg.required
+                    || !matches!(
+                        &media_arg.value,
+                        ResultValueContract::Array { element, max_items }
+                            if *max_items == usize::from(binding.media.max_items)
+                                && matches!(element.as_ref(), ResultValueContract::AssetRef)
+                    )
+                {
+                    return Err(invalid(format!(
+                        "media command {} mapped argument contract is incompatible",
+                        binding.command.name
+                    )));
+                }
+                let ordinary = args
+                    .fields
+                    .iter()
+                    .filter(|field| field.name != binding.media.mutation_arg)
+                    .map(|field| field.name.as_str())
+                    .collect::<BTreeSet<_>>();
+                if ordinary
+                    != binding
+                        .passthrough_args
+                        .iter()
+                        .map(String::as_str)
+                        .collect::<BTreeSet<_>>()
+                {
+                    return Err(invalid(format!(
+                        "media command {} passthrough arguments drifted",
+                        binding.command.name
+                    )));
+                }
+                let mut result = match &function.result_contract {
+                    FunctionResultContract::Value { value } => value,
+                    _ => {
+                        return Err(invalid(format!(
+                            "media command {} target must return one exact value",
+                            binding.command.name
+                        )));
+                    }
+                };
+                for component in &binding.parent_result_path {
+                    let ResultValueContract::Object {
+                        fields,
+                        allow_extra,
+                    } = result
+                    else {
+                        return Err(invalid(format!(
+                            "media command {} parent path leaves the exact object contract",
+                            binding.command.name
+                        )));
+                    };
+                    if *allow_extra {
+                        return Err(invalid(format!(
+                            "media command {} parent path traverses an open object",
+                            binding.command.name
+                        )));
+                    }
+                    result = &fields
+                        .iter()
+                        .find(|field| field.required && field.name == *component)
+                        .ok_or_else(|| {
+                            invalid(format!(
+                                "media command {} parent result path is missing",
+                                binding.command.name
+                            ))
+                        })?
+                        .value;
+                }
+                if !matches!(result, ResultValueContract::Id { table } if table == &collection.owner_table)
+                {
+                    return Err(invalid(format!(
+                        "media command {} parent result is not Id<{}>",
+                        binding.command.name, collection.owner_table
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn validate_media_command_binding_shape(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if function.media_command_bindings.is_empty() {
+        return Ok(());
+    }
+    let invalid = |message: String| {
+        SnapbackError::error(
+            "SNAPBACK_MEDIA_COMMAND_MANIFEST_INVALID",
+            "media-command",
+            message,
+        )
+    };
+    if function.kind != FunctionKind::Mutation
+        || function.effective_auth_requirement() != AuthRequirement::Authenticated
+        || !function
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == TargetCapabilityId::MediaCommandV1.as_str())
+    {
+        return Err(invalid(format!(
+            "function {} carries media bindings outside an authenticated capability-declared mutation",
+            function.name
+        )));
+    }
+    let mut commands = BTreeSet::new();
+    let mut identities = BTreeSet::new();
+    for binding in &function.media_command_bindings {
+        let principal_shape_valid = match (&binding.sharing.plan, &binding.principal_input) {
+            (AssetCollectionSharingPlanV1::Recipients { max_recipients, .. }, Some(input)) => {
+                is_user_identifier(&input.input)
+                    && input.min_items >= 1
+                    && input.min_items <= input.max_items
+                    && input.max_items <= *max_recipients
+                    && input.max_items <= 32
+                    && input.input != binding.media.input
+                    && !binding.passthrough_args.contains(&input.input)
+            }
+            (AssetCollectionSharingPlanV1::Recipients { .. }, None) => false,
+            (_, None) => true,
+            (_, Some(_)) => false,
+        };
+        let shape_valid = binding.format == "snapback.media-command-binding.v1"
+            && sha256_is_well_formed_nonzero(&binding.identity)
+            && commands.insert(binding.command.name.as_str())
+            && identities.insert(binding.identity.as_str())
+            && is_user_identifier(&binding.command.name)
+            && !binding.command.id.is_empty()
+            && binding.target_mutation.id == function.id
+            && binding.target_mutation.name == function.name
+            && function.args_contract_hash.as_deref()
+                == Some(binding.target_mutation.args_contract_hash.as_str())
+            && function.result_contract_hash.as_deref()
+                == Some(binding.target_mutation.result_contract_hash.as_str())
+            && is_user_identifier(&binding.media.input)
+            && is_user_identifier(&binding.media.mutation_arg)
+            && !binding.media.intent.is_empty()
+            && sha256_is_well_formed_nonzero(&binding.media.intent_policy_hash)
+            && binding.media.min_items <= binding.media.max_items
+            && (1..=32).contains(&binding.media.max_items)
+            && !binding.media.kinds.is_empty()
+            && binding.media.kinds.iter().collect::<BTreeSet<_>>().len()
+                == binding.media.kinds.len()
+            && !binding.parent_result_path.is_empty()
+            && binding
+                .parent_result_path
+                .iter()
+                .all(|part| is_user_identifier(part))
+            && binding.item_identity_plan.format == "snapback:asset-collection-item-id:v1"
+            && matches!(
+                binding.item_identity_plan.operation.as_str(),
+                "append" | "replace"
+            )
+            && binding.item_identity_plan.order == "input"
+            && principal_shape_valid
+            && (1..=8).contains(&binding.task_profile.concurrency)
+            && binding
+                .passthrough_args
+                .iter()
+                .all(|name| is_user_identifier(name))
+            && binding
+                .passthrough_args
+                .iter()
+                .collect::<BTreeSet<_>>()
+                .len()
+                == binding.passthrough_args.len();
+        if !shape_valid {
+            return Err(invalid(format!(
+                "function {} carries an invalid or colliding MediaCommandBindingV1",
+                function.name
+            )));
+        }
+        let mut core = serde_json::to_value(binding).map_err(|error| {
+            invalid(format!("media binding could not be canonicalized: {error}"))
+        })?;
+        core.as_object_mut()
+            .expect("media binding serializes to an object")
+            .remove("identity");
+        let canonical = crate::watches::canonical_json(&core)?;
+        let expected =
+            sha256_prefixed(format!("snapback:media-command-binding:v1\n{canonical}").as_bytes());
+        if expected != binding.identity {
+            return Err(invalid(format!(
+                "media command {} binding identity does not match its closed contents",
+                binding.command.name
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_sequence_declarations(function: &FunctionDefinition) -> SnapbackResult<()> {
@@ -8328,6 +8686,13 @@ pub struct FunctionDefinition {
     pub handler_form: Option<String>,
     #[serde(default, rename = "implementationHash", alias = "implementation_hash")]
     pub implementation_hash: Option<String>,
+    #[serde(
+        default,
+        rename = "mediaCommandBindings",
+        alias = "media_command_bindings",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub media_command_bindings: Vec<MediaCommandBindingV1>,
     #[serde(default, rename = "argsContractHash", alias = "args_contract_hash")]
     pub args_contract_hash: Option<String>,
     /// The declared argument contract (LLP 0131): one closed object over the
@@ -8548,6 +8913,7 @@ impl FunctionDefinition {
             source_span: None,
             handler_form: None,
             implementation_hash: None,
+            media_command_bindings: Vec::new(),
             args_contract_hash: None,
             args_contract: None,
             bounded_skew: None,
@@ -9365,6 +9731,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             bundle_entrypoint,
             uses,
             runtime,
+            media_command_bindings: _,
         } = definition;
         PublicFunctionDefinition {
             id,
@@ -10770,6 +11137,15 @@ pub struct MutationSettlement {
 pub struct MutationRequest {
     #[serde(flatten)]
     pub input: HandlerInput,
+    /// Closed generated-command carrier. It belongs only to mutations: query,
+    /// action, live, and host-input envelopes cannot accidentally admit it.
+    #[serde(
+        default,
+        rename = "mediaCommand",
+        alias = "media_command",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub media_command: Option<MediaCommandInvocationV1>,
     /// Additive settle-time trust facts. Every member joins the durable
     /// exactly-once identity before any fresh lane or activation gate.
     ///
@@ -11365,6 +11741,8 @@ pub enum TargetCapabilityId {
     MediaRefProjectionV1,
     #[serde(rename = "assets.media-collection.v1")]
     MediaCollectionV1,
+    #[serde(rename = "assets.media-command.v1")]
+    MediaCommandV1,
     #[serde(rename = "asset_image_finalization_v1")]
     AssetImageFinalizationV1,
     #[serde(rename = "asset_image_pipeline_v1")]
@@ -11385,7 +11763,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 43] = [
+    pub const ALL: [Self; 44] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -11423,6 +11801,7 @@ impl TargetCapabilityId {
         Self::AssetLifecycleV1,
         Self::MediaRefProjectionV1,
         Self::MediaCollectionV1,
+        Self::MediaCommandV1,
         Self::AssetImageFinalizationV1,
         Self::AssetImagePipelineV1,
         Self::AssetReferenceGcV1,
@@ -11470,6 +11849,7 @@ impl TargetCapabilityId {
             Self::AssetLifecycleV1 => "asset_lifecycle_v1",
             Self::MediaRefProjectionV1 => "assets.media-ref-projection.v1",
             Self::MediaCollectionV1 => "assets.media-collection.v1",
+            Self::MediaCommandV1 => "assets.media-command.v1",
             Self::AssetImageFinalizationV1 => "asset_image_finalization_v1",
             Self::AssetVideoFinalizationV1 => "asset_video_finalization_v1",
             Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
@@ -11529,6 +11909,7 @@ impl TargetCapabilityId {
             | Self::AssetLifecycleV1
             | Self::MediaRefProjectionV1
             | Self::MediaCollectionV1
+            | Self::MediaCommandV1
             | Self::AssetImageFinalizationV1
             | Self::AssetVideoFinalizationV1
             | Self::AssetImagePipelineV1
@@ -11881,6 +12262,14 @@ impl TargetCapabilityId {
                     && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
                     && manifest.storage_engine == "sqlite"
             }
+            // @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit
+            Self::MediaCommandV1 => {
+                facts.media_command_v1_registered
+                    && facts.client_mutation_settlement_ledger_registered
+                    && Self::MediaCollectionV1.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                    && manifest.storage_engine == "sqlite"
+            }
             // @ref LLP 0044#capability-facts-and-implementation-slices — the
             // image facts block IS the `asset-image-finalization` fact: the
             // registered implementation plus the declared Enforced ceilings.
@@ -11994,13 +12383,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:83f7da5ff4e8e2b1ab5d51328670236bc751188cd6e47b76e8dd032f3c0fc4b5";
+    "sha256:06a2f713fe70c81da85acca8532edeb842d768715af96f705260ea1bb8604d27";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:b5df8bcdc58b964791f70bb9bfdfd24a633eb4e920edca637b2f2ac1de3860f9";
+    "sha256:24b7f237ce5eeffdfba4b4fc7551b9755df40aba79cb4b3e1b42f2e103ab0686";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -12400,7 +12789,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:07f694358559948208a77acb6ac2f31626f21ff30563da5409a40b3ec1055c26"
+                    "sha256:9905416c8e6666592b38c544e520db56af1243d7a67d006b7beb546ce4c8ce28"
                         .to_owned(),
                 ),
                 (
@@ -12410,7 +12799,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/authorization_acceptance.rs".to_owned(),
-                    "sha256:d11f3d96667aa0f65ab4d92e939346aac7ba9127a87f354c86e551ac77309250"
+                    "sha256:f42194cabdfed5167a75a6f4aad313cd53a965dc5df841423ec5985acca88c64"
                         .to_owned(),
                 ),
                 (
@@ -12435,12 +12824,12 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:1b18ce8994ac50e356642c90cd0b2e60f9896112e3a75d182fc5cf3000e19a3c"
+                    "sha256:1435f0664bb3e9d0de9396e547c1132f7ff6afd683e9dae1d148c8eafb538020"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:0c0ce12c823862a1ee80b33ec5202a8feb8b5ef04411be644798b8b611d83e7e"
+                    "sha256:3b66038c3c86e3f72bdb177b09888e0afa7c034f63f88a9ffb5e4e378f719ef7"
                         .to_owned(),
                 ),
                 (
@@ -12490,7 +12879,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_sender.rs".to_owned(),
-                    "sha256:bc74d2a98ed2bf4e251aae332a6749d682080487c80aba317f1e9fcd572233e3"
+                    "sha256:98a4c79ecb113792a4d9c4898a0a2f476fd0d79d76f8dcb087186b017e114c80"
                         .to_owned(),
                 ),
                 (
@@ -12525,17 +12914,17 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:0e4d9ccfd16cc571bbddebd8435c24aafed3f6813e302fb96ce071a88024dc1f"
+                    "sha256:88c14f542c542dbb75968c1ef99232bed97449f9310c2239645e6bda1dcc2f98"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:656eeb70671986959de3e64417c4e455576326e4faa22f0fabf70a6af9037cf5"
+                    "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d"
                         .to_owned(),
                 ),
                 (
                     "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:96a85673f79cc021bbdfc9ad4db36fdc3b415a60dcf7a29d10d341a2bd5bef0e"
+                    "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996"
                         .to_owned(),
                 ),
                 (
@@ -12545,7 +12934,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:2d646c6d72b44eae4cdcd28943ba0021787310966cf395c3146e3825c4b5c26a"
+                    "sha256:bbc2923abe8616d4c0075f4daa67504dc0af42a2e19466cc37719f2a8a9377be"
                         .to_owned(),
                 ),
                 (
@@ -12557,7 +12946,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:f0c40cb2bef137f5b51d3f6f3db8cdc05e03fb48f91dd46128ce95eb23b33204"
+                "sha256:9a90a958d05b3e126c0a2eaf8454cc0792230622831116c8be6b71384e7e6bbd"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -12613,7 +13002,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/authorization_acceptance.rs".to_owned(),
-                    "sha256:d11f3d96667aa0f65ab4d92e939346aac7ba9127a87f354c86e551ac77309250"
+                    "sha256:f42194cabdfed5167a75a6f4aad313cd53a965dc5df841423ec5985acca88c64"
                         .to_owned(),
                 ),
                 (
@@ -12638,17 +13027,17 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:1b18ce8994ac50e356642c90cd0b2e60f9896112e3a75d182fc5cf3000e19a3c"
+                    "sha256:1435f0664bb3e9d0de9396e547c1132f7ff6afd683e9dae1d148c8eafb538020"
                         .to_owned(),
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:d36c343b30bc437c131c858031910c9aa90c5ae69b35e385f03499edaf644db4"
+                    "sha256:b6d62dfd824ae36fbbcd5ecd8c7444bbe336100f6eb2a650d2a3c13fe38dd90c"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:0c0ce12c823862a1ee80b33ec5202a8feb8b5ef04411be644798b8b611d83e7e"
+                    "sha256:3b66038c3c86e3f72bdb177b09888e0afa7c034f63f88a9ffb5e4e378f719ef7"
                         .to_owned(),
                 ),
                 (
@@ -12698,7 +13087,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_sender.rs".to_owned(),
-                    "sha256:bc74d2a98ed2bf4e251aae332a6749d682080487c80aba317f1e9fcd572233e3"
+                    "sha256:98a4c79ecb113792a4d9c4898a0a2f476fd0d79d76f8dcb087186b017e114c80"
                         .to_owned(),
                 ),
                 (
@@ -12733,17 +13122,17 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:0e4d9ccfd16cc571bbddebd8435c24aafed3f6813e302fb96ce071a88024dc1f"
+                    "sha256:88c14f542c542dbb75968c1ef99232bed97449f9310c2239645e6bda1dcc2f98"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:656eeb70671986959de3e64417c4e455576326e4faa22f0fabf70a6af9037cf5"
+                    "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d"
                         .to_owned(),
                 ),
                 (
                     "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:96a85673f79cc021bbdfc9ad4db36fdc3b415a60dcf7a29d10d341a2bd5bef0e"
+                    "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996"
                         .to_owned(),
                 ),
                 (
@@ -12753,7 +13142,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:2d646c6d72b44eae4cdcd28943ba0021787310966cf395c3146e3825c4b5c26a"
+                    "sha256:bbc2923abe8616d4c0075f4daa67504dc0af42a2e19466cc37719f2a8a9377be"
                         .to_owned(),
                 ),
                 (
@@ -12765,7 +13154,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:f0c40cb2bef137f5b51d3f6f3db8cdc05e03fb48f91dd46128ce95eb23b33204"
+                "sha256:9a90a958d05b3e126c0a2eaf8454cc0792230622831116c8be6b71384e7e6bbd"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -12897,7 +13286,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:07f694358559948208a77acb6ac2f31626f21ff30563da5409a40b3ec1055c26"
+                    "sha256:9905416c8e6666592b38c544e520db56af1243d7a67d006b7beb546ce4c8ce28"
                         .to_owned(),
                 ),
                 (
@@ -12907,7 +13296,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/authorization_acceptance.rs".to_owned(),
-                    "sha256:d11f3d96667aa0f65ab4d92e939346aac7ba9127a87f354c86e551ac77309250"
+                    "sha256:f42194cabdfed5167a75a6f4aad313cd53a965dc5df841423ec5985acca88c64"
                         .to_owned(),
                 ),
                 (
@@ -12932,12 +13321,12 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:1b18ce8994ac50e356642c90cd0b2e60f9896112e3a75d182fc5cf3000e19a3c"
+                    "sha256:1435f0664bb3e9d0de9396e547c1132f7ff6afd683e9dae1d148c8eafb538020"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:0c0ce12c823862a1ee80b33ec5202a8feb8b5ef04411be644798b8b611d83e7e"
+                    "sha256:3b66038c3c86e3f72bdb177b09888e0afa7c034f63f88a9ffb5e4e378f719ef7"
                         .to_owned(),
                 ),
                 (
@@ -12987,7 +13376,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_sender.rs".to_owned(),
-                    "sha256:bc74d2a98ed2bf4e251aae332a6749d682080487c80aba317f1e9fcd572233e3"
+                    "sha256:98a4c79ecb113792a4d9c4898a0a2f476fd0d79d76f8dcb087186b017e114c80"
                         .to_owned(),
                 ),
                 (
@@ -13022,17 +13411,17 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:0e4d9ccfd16cc571bbddebd8435c24aafed3f6813e302fb96ce071a88024dc1f"
+                    "sha256:88c14f542c542dbb75968c1ef99232bed97449f9310c2239645e6bda1dcc2f98"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:656eeb70671986959de3e64417c4e455576326e4faa22f0fabf70a6af9037cf5"
+                    "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d"
                         .to_owned(),
                 ),
                 (
                     "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:96a85673f79cc021bbdfc9ad4db36fdc3b415a60dcf7a29d10d341a2bd5bef0e"
+                    "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996"
                         .to_owned(),
                 ),
                 (
@@ -13042,7 +13431,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:2d646c6d72b44eae4cdcd28943ba0021787310966cf395c3146e3825c4b5c26a"
+                    "sha256:bbc2923abe8616d4c0075f4daa67504dc0af42a2e19466cc37719f2a8a9377be"
                         .to_owned(),
                 ),
                 (
@@ -13054,7 +13443,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:44aef44fa71d1bd0d26898ee572f4142ba36571f388ae5d4daf409fc0e850d45"
+                "sha256:e7bfa43feb323820b0b2da0155acba7948bf72689fce9fa8801d25e40ba0f048"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -13191,6 +13580,7 @@ pub struct TargetCapabilityFacts {
     asset_lifecycle_local_fs_registered: bool,
     media_ref_projection_v1_registered: bool,
     media_collection_v1_registered: bool,
+    media_command_v1_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
     asset_video_finalization_registered: bool,
@@ -13302,6 +13692,7 @@ impl TargetCapabilityFacts {
             asset_lifecycle_local_fs_registered: true,
             media_ref_projection_v1_registered: true,
             media_collection_v1_registered: true,
+            media_command_v1_registered: true,
             asset_image_finalization_registered: true,
             asset_reference_gc_registered: true,
             asset_video_finalization_registered: true,

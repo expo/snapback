@@ -150,7 +150,8 @@
         "boundedSkew",
         "standardPattern",
         "runtime",
-        "plan"
+        "plan",
+        "mediaCommandBindings"
       ],
       "properties": {
         "operationName": { "type": "string" },
@@ -173,7 +174,8 @@
         "boundedSkew": { "type": ["object", "null"] },
         "standardPattern": { "type": ["object", "null"] },
         "runtime": { "type": ["object", "string", "null"] },
-        "plan": { "type": ["object", "null"] }
+        "plan": { "type": ["object", "null"] },
+        "mediaCommandBindings": { "type": "array" }
       }
     },
     "authority": {

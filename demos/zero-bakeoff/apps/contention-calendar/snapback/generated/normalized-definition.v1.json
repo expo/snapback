@@ -182,6 +182,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "clearReservations",
         "plan": null,
@@ -272,6 +273,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "reservationsForSlot",
         "plan": {
@@ -517,6 +519,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "reserve",
         "plan": {
@@ -634,6 +637,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "resourceList",
         "plan": {
@@ -772,6 +776,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "schedule",
         "plan": {
@@ -929,7 +934,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:bdbea8e7f05d1e9a5a94d942df6e62240ce66badd2e2a3b5680e3bececa6e7bb",
+  "normalizedContractId": "sha256:742de0342d7c198811fbc616988ccc624114846cb11343728b61f0aea165bd66",
   "normalizedSchemaId": "sha256:87d969dca43bb6f81925ea78c4916e6999b7ee1852089c52b7160c5129707844",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

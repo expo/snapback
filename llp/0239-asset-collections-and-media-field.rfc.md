@@ -16,7 +16,10 @@ ambiguity, retry, and cancellation semantics; froze collection item identity).
 2026-08-12 (initial Draft synthesized from LLP 0236 P3, P7, P11, and P12).
 2026-08-15 (author rulings during the R3 rollout, recorded in D2/D4: the
 closed sharing-plan grammar ships with the collection rollout, and
-`order: "created"` collections omit `reorder` at generation)
+`order: "created"` collections omit `reorder` at generation).
+2026-08-16 (author rulings during the R4 rollout, recorded in D3/D4: the
+media-command binding carries an explicit required collection operation, and
+the closed direct-recipient principal-input mapping ships with R4)
 **Related:** LLP 0004, LLP 0007, LLP 0044, LLP 0053, LLP 0061, LLP 0110,
 LLP 0131, LLP 0180, LLP 0193, LLP 0208, LLP 0210, LLP 0211, LLP 0220,
 LLP 0235, LLP 0236, LLP 0237, LLP 0238, LLP 0240, LLP 0241, LLP 0242, LLP 0243,
@@ -282,6 +285,16 @@ The single-asset `assets.upload()` and general task primitives remain. This
 command is the paved composition for “upload media and create/update the owning
 record.”
 
+> **Dated ruling — the binding names its collection operation (author,
+> 2026-08-16).** The mapping above binds a collection but did not say which
+> D2 operation commits the items, and `append` versus `replace` diverge
+> observably on update mutations. Ruling: the mapping declares
+> `operation: "append" | "replace"`, required, with no default; `remove` and
+> `reorder` refuse at generation. The command inherits exactly the declared
+> operation's stable-item-id and retention semantics from D2. A missing or
+> invalid operation refuses with a source-attributed
+> `<binding>.mapping.operation` diagnostic.
+
 ### D4. Grants and authority are declarative at the command edge
 
 The command descriptor may select only already-admitted policy operations:
@@ -326,6 +339,19 @@ activation cycle between the RFCs.
 > the declared LLP 0210/0220 grant operations or the named generated
 > derivation function, revalidated at commit time. The as-built descriptor
 > and operation surface are the normative spelling of this ruling.
+
+> **Dated ruling — the command's direct-recipient principal input ships with
+> R4 (author, 2026-08-16).** This section admits direct recipient grants only
+> when the descriptor declares a principal input; the D3 grammar had no such
+> field. Ruling: `defineMediaCommand` gains a closed declared principal-input
+> mapping — a named command input, bounded 1–32 principals, carried as data
+> into the binding with no callback. The host maps the input through the same
+> LLP 0210/0220 owner-authorized grant machinery as the generated collection
+> operations, under full commit-time reauthorization; caller-supplied
+> principals are never authority by assertion. Selecting a direct-recipient
+> plan without the declared input refuses at generation, as does declaring
+> the input without a direct-recipient plan in the ceiling. The as-built
+> spelling is normative.
 
 ### D5. One media projection handles empty, image, video, denial, and refresh
 

@@ -12,7 +12,9 @@ const correctVerb = Object.freeze({
 
 function receivedReferenceKind(reference) {
   if (!reference || typeof reference !== 'object' || Array.isArray(reference)) return 'malformed';
-  if (reference.kind === 'asset-bearing-command.v1') return 'Command';
+  if (reference.kind === 'asset-bearing-command.v1' || reference.kind === 'media-command.v1') {
+    return 'Command';
+  }
   if (Object.hasOwn(correctVerb, reference.kind)) return reference.kind;
   if (!Object.hasOwn(reference, 'kind')) return 'missing';
   return typeof reference.kind === 'string' ? 'unknown' : 'malformed';

@@ -188,6 +188,7 @@ impl LocalDatabase {
                 true,
                 None,
                 None,
+                None,
                 Some(branch_operation),
                 &|| Ok(()),
                 before_commit,
@@ -208,6 +209,7 @@ impl LocalDatabase {
         self.commit_buffered_writes_for_lane(
             input,
             payload,
+            None,
             None,
             CoveredMutationLaneV1::Ordinary,
             Some(branch_operation),

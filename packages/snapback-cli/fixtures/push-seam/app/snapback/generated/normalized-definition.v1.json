@@ -201,6 +201,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "joinAsHost",
         "plan": null,
@@ -271,6 +272,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "leaveHost",
         "plan": null,
@@ -352,6 +354,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "Query",
         "operationName": "pushLedger",
         "plan": {
@@ -872,6 +875,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "Action",
         "operationName": "sendSelected",
         "plan": null,
@@ -968,7 +972,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:a0e66c5b36782b1a4d1fbbd43bfa4079641cf2baae29f53e7ba1c5780c0d4d1d",
+  "normalizedContractId": "sha256:71ae0643c5925132d5f06e0e4f28aee8b868361adc6513a4359490b2187e4835",
   "normalizedSchemaId": "sha256:9051fe314f2cb93a5bbbdc37e6d0882438277a66d0bf0a624c3138ab2f634e6e",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

@@ -18015,7 +18015,11 @@ mod media_collection_acceptance_tests {
         AssetCollectionFieldsManifestV1, AssetCollectionGrantStateV1, AssetCollectionManifestV1,
         AssetCollectionOperationsManifestV1, AssetCollectionOrderV1,
         AssetCollectionSharingManifestV1, AssetCollectionSharingPlanManifestV1,
-        AssetCollectionSharingPlanV1, IndexManifest, TableVisibilityV1,
+        AssetCollectionSharingPlanV1, IndexManifest, MediaCommandBindingV1,
+        MediaCommandCollectionV1, MediaCommandIdentityV1, MediaCommandInputV1,
+        MediaCommandInvocationItemV1, MediaCommandInvocationV1, MediaCommandItemIdentityPlanV1,
+        MediaCommandPrincipalInputV1, MediaCommandTargetMutationV1, MediaCommandTaskProfileV1,
+        ResolvedMediaCommandV1, TableVisibilityV1,
     };
 
     const CHILD: &str = "_snapback_asset_collection_gallery";
@@ -18500,6 +18504,341 @@ mod media_collection_acceptance_tests {
             .iter()
             .map(|value| value.as_str().expect("item id").to_owned())
             .collect()
+    }
+
+    fn media_binding(
+        operation: &str,
+        sharing: AssetCollectionSharingPlanManifestV1,
+        principal_input: Option<MediaCommandPrincipalInputV1>,
+    ) -> MediaCommandBindingV1 {
+        MediaCommandBindingV1 {
+            format: "snapback.media-command-binding.v1".to_owned(),
+            identity: format!("sha256:{}", "b".repeat(64)),
+            command: MediaCommandIdentityV1 {
+                id: "collection-test:sendMedia".to_owned(),
+                name: "sendMedia".to_owned(),
+            },
+            target_mutation: MediaCommandTargetMutationV1 {
+                id: "collection-test:createPost".to_owned(),
+                name: "createPost".to_owned(),
+                implementation_hash: format!("sha256:{}", "c".repeat(64)),
+                args_contract_hash: format!("sha256:{}", "d".repeat(64)),
+                result_contract_hash: format!("sha256:{}", "e".repeat(64)),
+            },
+            passthrough_args: vec!["title".to_owned()],
+            media: MediaCommandInputV1 {
+                input: "media".to_owned(),
+                intent: "collectionUpload".to_owned(),
+                intent_policy_hash: format!("sha256:{}", "f".repeat(64)),
+                mutation_arg: "assetIds".to_owned(),
+                min_items: 0,
+                max_items: 3,
+                kinds: vec![MediaKindV1::Image],
+            },
+            parent_result_path: vec!["_id".to_owned()],
+            collection: MediaCommandCollectionV1 {
+                name: "gallery".to_owned(),
+                generation: GENERATION.to_owned(),
+                owner_table: "posts".to_owned(),
+                owner_field: "ownerId".to_owned(),
+                child_table: CHILD.to_owned(),
+            },
+            item_identity_plan: MediaCommandItemIdentityPlanV1 {
+                format: "snapback:asset-collection-item-id:v1".to_owned(),
+                operation: operation.to_owned(),
+                order: "input".to_owned(),
+            },
+            sharing,
+            principal_input,
+            task_profile: MediaCommandTaskProfileV1 { concurrency: 3 },
+        }
+    }
+
+    fn media_input(
+        binding: MediaCommandBindingV1,
+        assets: &[&str],
+        principals: &[&str],
+    ) -> (HandlerInput, ResolvedMediaCommandV1) {
+        let invocation = MediaCommandInvocationV1 {
+            binding_identity: binding.identity.clone(),
+            command_identity: binding.command.id.clone(),
+            attempt_id: "media-attempt".to_owned(),
+            items: assets
+                .iter()
+                .enumerate()
+                .map(|(ordinal, asset_id)| MediaCommandInvocationItemV1 {
+                    ordinal: ordinal as u8,
+                    asset_id: (*asset_id).to_owned(),
+                })
+                .collect(),
+            principals: principals.iter().map(|value| (*value).to_owned()).collect(),
+        };
+        (
+            HandlerInput {
+                args: json!({ "title": "post", "assetIds": assets }),
+                auth: AuthInput {
+                    principal: Some("alice".to_owned()),
+                    user_id: Some("alice".to_owned()),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            },
+            ResolvedMediaCommandV1 {
+                binding,
+                invocation,
+            },
+        )
+    }
+
+    fn media_parent_plan(owner_replacement: Option<&str>) -> MutationPlan {
+        MutationPlan {
+            steps: owner_replacement
+                .map(|owner| MutationStep::Patch {
+                    table: "posts".to_owned(),
+                    id: ValueExpr::Literal(json!("post-1")),
+                    values: BTreeMap::from([(
+                        "ownerId".to_owned(),
+                        ValueExpr::Literal(json!(owner)),
+                    )]),
+                })
+                .into_iter()
+                .collect(),
+            return_value: Some(ReturnValue::Literal(json!({ "_id": "post-1" }))),
+        }
+    }
+
+    #[test]
+    fn media_command_hostplan_stages_collection_edges_atomically_and_replays_exactly() {
+        let mut db = database("alice");
+        install_asset(
+            &mut db,
+            "asset-a",
+            "alice",
+            crate::assets::AssetAvailability::Ready,
+            MediaKindV1::Image,
+        );
+        let binding = media_binding(
+            "append",
+            AssetCollectionSharingPlanManifestV1 {
+                name: "none".to_owned(),
+                plan: AssetCollectionSharingPlanV1::None,
+            },
+            None,
+        );
+        let (input, media) = media_input(binding, &["asset-a"], &[]);
+        let identity = ClientMutationIdentity::new("media-attempt", "createPost", &input)
+            .with_media_command(&media.invocation);
+        let committed = db
+            .mutation_writes()
+            .execute_media_command_mutation_idempotent_guarded_with_settlement_time(
+                &media_parent_plan(None),
+                &input,
+                &identity,
+                &media,
+                None,
+                || Ok(()),
+            )
+            .expect("media command commits through the ordinary HostPlan transaction");
+        assert_eq!(committed.output.result, json!({ "_id": "post-1" }));
+        let child_count: u64 = db
+            .conn
+            .query_row(&format!("SELECT count(*) FROM {CHILD}"), [], |row| {
+                row.get(0)
+            })
+            .expect("collection count");
+        assert_eq!(child_count, 1);
+        let tx = db.conn.unchecked_transaction().expect("edge probe");
+        assert_eq!(
+            crate::assets::load_edges_for_asset(&tx, "asset-a")
+                .expect("asset edges")
+                .len(),
+            1
+        );
+        tx.rollback().expect("edge probe rollback");
+        let replayed = db
+            .mutation_writes()
+            .execute_media_command_mutation_idempotent_guarded_with_settlement_time(
+                &media_parent_plan(None),
+                &input,
+                &identity,
+                &media,
+                None,
+                || Ok(()),
+            )
+            .expect("same attempt replays");
+        assert_eq!(replayed.output, committed.output);
+        assert!(replayed.changes.is_empty());
+
+        let mut refused = database("alice");
+        install_asset(
+            &mut refused,
+            "asset-a",
+            "alice",
+            crate::assets::AssetAvailability::Ready,
+            MediaKindV1::Image,
+        );
+        let binding = media_binding(
+            "append",
+            AssetCollectionSharingPlanManifestV1 {
+                name: "none".to_owned(),
+                plan: AssetCollectionSharingPlanV1::None,
+            },
+            None,
+        );
+        let (input, media) = media_input(binding, &["asset-a"], &[]);
+        let identity = ClientMutationIdentity::new("media-attempt", "createPost", &input)
+            .with_media_command(&media.invocation);
+        let error = refused
+            .mutation_writes()
+            .execute_media_command_mutation_idempotent_guarded_with_settlement_time(
+                &media_parent_plan(Some("bob")),
+                &input,
+                &identity,
+                &media,
+                None,
+                || Ok(()),
+            )
+            .expect_err("commit-time parent reauthorization refuses the whole transaction");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEDIA_COLLECTION_PARENT_FORBIDDEN"
+        );
+        assert_eq!(
+            refused
+                .query_reads_read()
+                .get("posts", "post-1")
+                .expect("parent read")
+                .expect("parent row")["ownerId"],
+            json!("alice"),
+            "the authored parent write rolled back with collection staging"
+        );
+        let child_count: u64 = refused
+            .conn
+            .query_row(&format!("SELECT count(*) FROM {CHILD}"), [], |row| {
+                row.get(0)
+            })
+            .expect("refused collection count");
+        assert_eq!(child_count, 0);
+        let tx = refused.conn.unchecked_transaction().expect("residue probe");
+        let residue = crate::assets::load_asset(&tx, "asset-a")
+            .expect("load finalized residue")
+            .expect("refused command never deletes finalized bytes");
+        assert_eq!(
+            residue.availability,
+            crate::assets::AssetAvailability::Ready
+        );
+        assert!(
+            crate::assets::load_edges_for_asset(&tx, "asset-a")
+                .expect("residue edges")
+                .is_empty(),
+            "the refused transaction leaves a visible finalized, unattached asset"
+        );
+        tx.rollback().expect("residue probe rollback");
+    }
+
+    #[test]
+    fn media_command_buffered_handler_stages_parent_and_collection_in_one_transaction() {
+        let mut db = database("alice");
+        install_asset(
+            &mut db,
+            "asset-a",
+            "alice",
+            crate::assets::AssetAvailability::Ready,
+            MediaKindV1::Image,
+        );
+        let binding = media_binding(
+            "append",
+            AssetCollectionSharingPlanManifestV1 {
+                name: "none".to_owned(),
+                plan: AssetCollectionSharingPlanV1::None,
+            },
+            None,
+        );
+        let (input, media) = media_input(binding, &["asset-a"], &[]);
+        let identity = ClientMutationIdentity::new("media-attempt", "createPost", &input)
+            .with_media_command(&media.invocation);
+        let payload = BufferedCommitPayload {
+            writes: Vec::new(),
+            sequence_allocations: Vec::new(),
+            membership_plans: Vec::new(),
+            read_dependencies: Vec::new(),
+            result: json!({ "_id": "post-1" }),
+            ctx_ledger: CtxAnswerLedger::default(),
+            job_enqueues: Vec::new(),
+            job_producer: None,
+            asset_admissions: Vec::new(),
+            asset_grant_ops: Vec::new(),
+            media_projection_proof: None,
+            expected_media_projection_binding: None,
+        };
+        let commit = db
+            .mutation_writes()
+            .commit_media_command_buffered_writes_idempotent_guarded(
+                &input,
+                payload,
+                Some(&identity),
+                &media,
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("buffered handler and framework collection share one commit");
+        assert_eq!(commit.output.result, json!({ "_id": "post-1" }));
+        assert_eq!(
+            db.conn
+                .query_row(&format!("SELECT count(*) FROM {CHILD}"), [], |row| row
+                    .get::<_, u64>(0))
+                .expect("buffered collection count"),
+            1
+        );
+    }
+
+    #[test]
+    fn media_command_direct_recipients_share_the_collection_transaction() {
+        let mut db = database_with_schema("alice", sharing_schema());
+        install_asset_with_grants(
+            &mut db,
+            "asset-a",
+            "alice",
+            crate::assets::AssetAvailability::Ready,
+            MediaKindV1::Image,
+            true,
+        );
+        let binding = media_binding(
+            "replace",
+            AssetCollectionSharingPlanManifestV1 {
+                name: "directActive".to_owned(),
+                plan: AssetCollectionSharingPlanV1::Recipients {
+                    state: AssetCollectionGrantStateV1::Active,
+                    max_recipients: 2,
+                },
+            },
+            Some(MediaCommandPrincipalInputV1 {
+                input: "recipients".to_owned(),
+                min_items: 1,
+                max_items: 2,
+            }),
+        );
+        let (input, media) = media_input(binding, &["asset-a"], &["bob", "carol"]);
+        let identity = ClientMutationIdentity::new("media-attempt", "createPost", &input)
+            .with_media_command(&media.invocation);
+        db.mutation_writes()
+            .execute_media_command_mutation_idempotent_guarded_with_settlement_time(
+                &media_parent_plan(None),
+                &input,
+                &identity,
+                &media,
+                None,
+                || Ok(()),
+            )
+            .expect("direct recipient collection commit");
+        let grants = asset_grants(&db);
+        assert_eq!(
+            grants
+                .iter()
+                .map(|grant| grant.principal.as_str())
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from(["bob", "carol"])
+        );
     }
 
     #[test]

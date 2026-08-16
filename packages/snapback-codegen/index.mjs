@@ -1058,6 +1058,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'args_contract_v1',
   'assets.media-ref-projection.v1',
   'assets.media-collection.v1',
+  'assets.media-command.v1',
   'settlement.bounded_skew',
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
@@ -1084,6 +1085,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'asset_lifecycle_v1',
   'assets.media-ref-projection.v1',
   'assets.media-collection.v1',
+  'assets.media-command.v1',
   'asset_reference_gc_v1',
   'asset_video_finalization_v1',
   'bounded_children_v1',
@@ -6315,6 +6317,19 @@ async function generateInProcessLocked({
       }
     }
   }
+  const mediaCommandBindings = installMediaCommandBindings({
+    appId,
+    commandDefs,
+    functionsModule,
+    functions: decoratedFunctionDefinitions,
+    assetUploadIntents,
+    assetCollections,
+    attribution: functionDefinitionAttribution,
+    err,
+  });
+  if (mediaCommandBindings.size > 0) {
+    schemaRequiredCapabilities.push('assets.media-command.v1');
+  }
   // Schema-level reference GC (LLP 0044 §Deletion): admitted only where the
   // target declares the asset_reference_gc_v1 facts, with the app's grace
   // inside the Enforced bounds; enabling it warns about the field classes
@@ -6873,9 +6888,15 @@ async function generateInProcessLocked({
   const generatedCommands = buildGeneratedCommands({
     commandDefs,
     functionsModule,
+    functions: functionManifest.functions,
     generatedReferences,
     err,
   });
+  for (const functionName of new Set(
+    [...mediaCommandBindings.values()].map((binding) => binding.targetMutation.name),
+  )) {
+    delete generatedReferences.api.mutations[functionName];
+  }
   const clientLifecycleManifest = {
     ...buildClientLifecycleManifest({
       appId,
@@ -13721,12 +13742,307 @@ function surfaceLiteralMatchesValidator(value, validator) {
   return value !== undefined;
 }
 
+function installMediaCommandBindings({
+  appId,
+  commandDefs,
+  functionsModule,
+  functions,
+  assetUploadIntents,
+  assetCollections,
+  attribution,
+  err,
+}) {
+  const installed = new Map();
+  const canonical = (value) => canonicalResultJson(value);
+  const authoredFunctions = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'function'));
+  const functionByName = new Map(functions.map((fn) => [fn.name, fn]));
+  const intentByName = new Map(assetUploadIntents.map((intent) => [intent.name, intent]));
+  const collectionByName = new Map(assetCollections.map((collection) => [collection.name, collection]));
+  const sourceFor = (command, path) => definitionAttributionDetails(
+    attribution,
+    [command, ...path.split('.').filter(Boolean)],
+  );
+  const report = (code, command, path, message, remediation, details = {}) => {
+    const source = sourceFor(command, path);
+    err(code, 'media-command', `${command}.${path}: ${message}`, {
+      command,
+      property: path,
+      ...source,
+      ...details,
+      details: { ...(source.details ?? {}), remediation, ...details },
+    });
+  };
+  const validatorAtResultPath = (contract, path) => {
+    let value = contract?.document ?? contract?.value ?? contract;
+    for (const component of path) {
+      if (value?.kind !== 'object') return null;
+      const field = (value.fields ?? []).find((candidate) => candidate.name === component);
+      if (!field?.required) return null;
+      value = field.value;
+    }
+    return value;
+  };
+  const planBody = (plan) => {
+    const { name: _name, ...body } = plan;
+    return body;
+  };
+
+  for (const { exportName: command, def } of commandDefs.filter(({ def }) => def.__kind === 'MediaCommand')) {
+    let valid = true;
+    const refuse = (code, path, message, remediation, details = {}) => {
+      valid = false;
+      report(code, command, path, message, remediation, details);
+    };
+    if (!IDENT.test(command) || RESERVED_WORDS.has(command)) {
+      refuse(
+        'SNAPBACK_MEDIA_COMMAND_INVALID_IDENTIFIER',
+        '',
+        'the exported binding must be a portable identifier',
+        'Rename the command to an ASCII identifier that is not reserved.',
+      );
+    }
+    const mutationMatches = authoredFunctions.filter(([, candidate]) => (
+      candidate.__kind === 'Mutation' && canonical(candidate) === canonical(def.mutation)
+    ));
+    if (mutationMatches.length !== 1) {
+      refuse(
+        mutationMatches.length === 0
+          ? 'SNAPBACK_MEDIA_COMMAND_MUTATION_UNKNOWN'
+          : 'SNAPBACK_MEDIA_COMMAND_MAPPING_AMBIGUOUS',
+        'mutation',
+        'mutation must resolve to exactly one ordinary mutation export',
+        'Pass one directly exported defineMutation/defineJsMutation value.',
+      );
+    }
+    const [mutationName, mutationDef] = mutationMatches[0] ?? [];
+    const target = functionByName.get(mutationName);
+    if (target?.kind !== 'Mutation') {
+      refuse(
+        'SNAPBACK_MEDIA_COMMAND_MUTATION_UNKNOWN',
+        'mutation',
+        'target mutation is absent from the generated function manifest',
+        'Use an admitted ordinary mutation from this functions module.',
+      );
+    }
+    if (target?.authRequirement !== 'authenticated') {
+      refuse(
+        'SNAPBACK_MEDIA_COMMAND_MUTATION_INCOMPATIBLE',
+        'mutation',
+        'media-command targets must require an authenticated principal',
+        'Declare the target mutation with auth: "authenticated".',
+      );
+    }
+    const media = def.media ?? {};
+    if (!IDENT.test(media.input ?? '')) {
+      refuse('SNAPBACK_MEDIA_COMMAND_MEDIA_INVALID', 'media.input', 'input must be a portable identifier', 'Use a portable command input name.');
+    }
+    const intent = typeof media.intent === 'string' ? intentByName.get(media.intent) : null;
+    if (!intent) {
+      refuse('SNAPBACK_MEDIA_COMMAND_INTENT_UNKNOWN', 'media.intent', 'intent must name one generated upload intent', 'Use the exported defineAssetUpload name.');
+    }
+    if (!Number.isSafeInteger(media.minItems) || media.minItems < 0
+      || !Number.isSafeInteger(media.maxItems) || media.maxItems < 1
+      || media.maxItems > 32 || media.minItems > media.maxItems) {
+      refuse('SNAPBACK_MEDIA_COMMAND_MEDIA_INVALID', 'media.maxItems', 'minItems/maxItems must define a bounded 0..32 interval', 'Choose 0 <= minItems <= maxItems <= 32.');
+    }
+    const kinds = Array.isArray(media.kinds) ? [...media.kinds] : [];
+    if (kinds.length === 0 || kinds.length !== new Set(kinds).size
+      || kinds.some((kind) => !ASSET_COLLECTION_KINDS.has(kind))) {
+      refuse('SNAPBACK_MEDIA_COMMAND_MEDIA_INVALID', 'media.kinds', 'kinds must be a non-empty unique media-kind list', 'Use image, video, audio, or file exactly once each.');
+    }
+    const mapping = def.mapping ?? {};
+    const collection = typeof mapping.collection === 'string'
+      ? collectionByName.get(mapping.collection)
+      : null;
+    if (!collection) {
+      refuse('SNAPBACK_MEDIA_COMMAND_COLLECTION_UNKNOWN', 'mapping.collection', 'collection must name one generated assetCollection', 'Use an exported assetCollection binding.');
+    } else {
+      if (collection.intent !== media.intent
+        || collection.maxItems < media.maxItems
+        || kinds.some((kind) => !collection.kinds.includes(kind))) {
+        refuse(
+          'SNAPBACK_MEDIA_COMMAND_COLLECTION_INCOMPATIBLE',
+          'mapping.collection',
+          'collection intent, item ceiling, or media kinds do not admit this command',
+          'Use the same upload intent and a command subset of the collection bounds.',
+        );
+      }
+      if (collection.order !== 'manual') {
+        refuse(
+          'SNAPBACK_MEDIA_COMMAND_COLLECTION_INCOMPATIBLE',
+          'mapping.collection',
+          'v1 media commands require a manual-order collection so input order is preserved',
+          'Declare the target assetCollection with order: "manual".',
+        );
+      }
+    }
+    const operation = mapping.operation;
+    if (operation !== 'append' && operation !== 'replace') {
+      refuse(
+        'SNAPBACK_MEDIA_COMMAND_OPERATION_INVALID',
+        'mapping.operation',
+        'operation must be the explicit collection operation append or replace',
+        'Set mapping.operation to "append" or "replace"; no default is inferred.',
+      );
+    }
+    const passthrough = Array.isArray(mapping.passthrough) ? [...mapping.passthrough] : [];
+    if (passthrough.length !== new Set(passthrough).size
+      || passthrough.some((name) => !IDENT.test(name))) {
+      refuse('SNAPBACK_MEDIA_COMMAND_MAPPING_INVALID', 'mapping.passthrough', 'passthrough must be a unique portable argument-name list', 'List each ordinary mutation argument once.');
+    }
+    const mutationArgs = mutationDef?.args ?? {};
+    const mutationArg = mapping.assetsToMutationArg;
+    const assetArray = mutationArgs[mutationArg];
+    if (!IDENT.test(mutationArg ?? '')
+      || assetArray?.resultKind !== 'array'
+      || assetArray.element?.fieldType?.AssetRef?.upload !== media.intent
+      || assetArray.optional === true
+      || assetArray.resultOptions?.maxItems !== media.maxItems) {
+      refuse(
+        'SNAPBACK_MEDIA_COMMAND_MAPPING_INCOMPATIBLE',
+        'mapping.assetsToMutationArg',
+        'mapped mutation argument must be a required v.array(v.assetRef({ upload: intent })) with the same maxItems',
+        'Make the target argument a required bounded asset-ref array using this command intent.',
+      );
+    }
+    const ordinaryArgs = Object.keys(mutationArgs).filter((name) => name !== mutationArg);
+    if (canonical([...passthrough].sort()) !== canonical([...ordinaryArgs].sort())) {
+      refuse('SNAPBACK_MEDIA_COMMAND_MAPPING_INCOMPATIBLE', 'mapping.passthrough', 'passthrough must name every non-media mutation argument exactly once', 'List the target mutation ordinary arguments and no others.');
+    }
+    for (const name of passthrough) {
+      if (mutationArgs[name]?.fieldType === 'Principal') {
+        refuse('SNAPBACK_MEDIA_COMMAND_AUTHORITY_INPUT_REFUSED', `mapping.passthrough.${name}`, 'a passthrough argument cannot inject an authority principal', 'Derive authority from the authenticated mutation context.');
+      }
+    }
+    if (Object.hasOwn(mutationArgs, media.input) && media.input !== mutationArg) {
+      refuse('SNAPBACK_MEDIA_COMMAND_INPUT_COLLISION', 'media.input', 'media input collides with an ordinary mutation argument', 'Rename the command media input.');
+    }
+    const parentPath = typeof mapping.parentResultPath === 'string'
+      ? mapping.parentResultPath.split('.').filter(Boolean)
+      : [];
+    const parentValue = validatorAtResultPath(target?.resultContract, parentPath);
+    if (parentPath.length === 0 || parentValue?.kind !== 'id'
+      || parentValue.table !== collection?.ownerTable) {
+      refuse(
+        'SNAPBACK_MEDIA_COMMAND_PARENT_RESULT_PATH_INVALID',
+        'mapping.parentResultPath',
+        'parent result path must resolve through required closed object fields to the collection owner Id',
+        'Return the owner row id at a required exact-result path and name that path.',
+      );
+    }
+    const sharing = def.sharing;
+    const sharingMatches = collection?.sharing?.ceiling?.filter((candidate) => (
+      canonical(planBody(candidate)) === canonical(sharing)
+    )) ?? [];
+    if (sharingMatches.length !== 1) {
+      refuse(
+        'SNAPBACK_MEDIA_COMMAND_SHARING_PLAN_INVALID',
+        'sharing',
+        'sharing must select exactly one concrete plan inside the collection ceiling',
+        'Use an assetSharing selector matching one declared collection grant plan.',
+      );
+    }
+    const principalInput = mapping.principals;
+    if (sharing?.kind === 'recipients') {
+      if (!principalInput || typeof principalInput !== 'object' || Array.isArray(principalInput)
+        || !IDENT.test(principalInput.input ?? '')
+        || !Number.isSafeInteger(principalInput.minItems) || principalInput.minItems < 1
+        || !Number.isSafeInteger(principalInput.maxItems)
+        || principalInput.maxItems < principalInput.minItems
+        || principalInput.maxItems > 32
+        || principalInput.maxItems > sharing.maxRecipients) {
+        refuse(
+          'SNAPBACK_MEDIA_COMMAND_PRINCIPAL_INPUT_INVALID',
+          'mapping.principals',
+          'direct-recipient sharing requires one named principal input bounded within the selected plan',
+          'Declare mapping.principals with input and 1 <= minItems <= maxItems <= the plan maxRecipients.',
+        );
+      } else if (principalInput.input === media.input || passthrough.includes(principalInput.input)
+        || Object.hasOwn(mutationArgs, principalInput.input)) {
+        refuse(
+          'SNAPBACK_MEDIA_COMMAND_INPUT_COLLISION',
+          'mapping.principals.input',
+          'principal input collides with a media, passthrough, or mutation argument',
+          'Choose a distinct host-only command input name.',
+        );
+      }
+    } else if (principalInput !== undefined) {
+      refuse(
+        'SNAPBACK_MEDIA_COMMAND_PRINCIPAL_INPUT_INVALID',
+        'mapping.principals',
+        'a principal input is admitted only for a selected direct-recipient plan',
+        'Remove mapping.principals or select an admitted assetSharing.recipients() plan.',
+      );
+    }
+    if (!valid || !target || !collection || !intent) continue;
+    const selectedSharing = { ...structuredClone(sharingMatches[0]) };
+    const bindingCore = {
+      format: 'snapback.media-command-binding.v1',
+      command: { id: `${appId}:${command}`, name: command },
+      targetMutation: {
+        id: target.id,
+        name: target.name,
+        implementationHash: target.implementationHash,
+        argsContractHash: target.argsContractHash,
+        resultContractHash: target.resultContractHash,
+      },
+      passthroughArgs: passthrough,
+      media: {
+        input: media.input,
+        intent: media.intent,
+        intentPolicyHash: intent.intentPolicyHash,
+        mutationArg,
+        minItems: media.minItems,
+        maxItems: media.maxItems,
+        kinds,
+      },
+      parentResultPath: parentPath,
+      collection: {
+        name: collection.name,
+        generation: collection.generation,
+        ownerTable: collection.ownerTable,
+        ownerField: collection.ownerField,
+        childTable: collection.childTable,
+      },
+      itemIdentityPlan: {
+        format: 'snapback:asset-collection-item-id:v1',
+        operation,
+        order: 'input',
+      },
+      sharing: selectedSharing,
+      ...(principalInput === undefined ? {} : { principalInput: { ...principalInput } }),
+      taskProfile: { concurrency: 3 },
+    };
+    const identity = `sha256:${sha256(`snapback:media-command-binding:v1\n${canonical(bindingCore)}`)}`;
+    const binding = { ...bindingCore, identity };
+    target.mediaCommandBindings = [...(target.mediaCommandBindings ?? []), binding];
+    target.requiredCapabilities = [...new Set([
+      ...(target.requiredCapabilities ?? []),
+      'assets.media-command.v1',
+      'assets.media-collection.v1',
+      'assets.media-ref-projection.v1',
+    ])].sort();
+    // Presence moves this function to a distinct implementation-identity
+    // domain; the binding itself includes the pre-binding implementation.
+    target.implementationHash = `sha256:${sha256(
+      `snapback:function-media-command-implementation:v1\n${canonical({
+        implementationHash: target.implementationHash,
+        mediaCommandBindings: target.mediaCommandBindings,
+      })}`,
+    )}`;
+    installed.set(command, binding);
+  }
+  return installed;
+}
+
 // @ref LLP 0180#declaration — generated commands retain
 // the exact small logical descriptor. The enclosing commands map supplies the
 // name; mutation and intent children are existing generated references.
 function buildGeneratedCommands({
   commandDefs,
   functionsModule,
+  functions,
   generatedReferences,
   err,
 }) {
@@ -13744,6 +14060,24 @@ function buildGeneratedCommands({
   );
 
   for (const { exportName: commandName, def } of commandDefs) {
+    if (def.__kind === 'MediaCommand') {
+      const target = functions.find((fn) => (
+        fn.mediaCommandBindings?.some((binding) => binding.command.name === commandName)
+      ));
+      const binding = target?.mediaCommandBindings?.find(
+        (candidate) => candidate.command.name === commandName,
+      );
+      const mutation = generatedReferences.api.mutations[target?.name];
+      if (binding && mutation) {
+        commands[commandName] = {
+          kind: 'media-command.v1',
+          mutation,
+          binding,
+          passthroughArgs: binding.passthroughArgs,
+        };
+      }
+      continue;
+    }
     let valid = true;
     if (!IDENT.test(commandName) || RESERVED_WORDS.has(commandName)) {
       report('SNAPBACK_COMMAND_INVALID_IDENTIFIER', commandName, 'command export name must be a portable identifier');
@@ -14513,7 +14847,10 @@ function buildGeneratedReferences(
 }
 
 function standaloneDescriptorFunctions(functions) {
-  return functions.filter(({ kind }) => kind === 'Query' || kind === 'LiveQuery' || kind === 'Mutation');
+  return functions.filter(({ kind, mediaCommandBindings }) => (
+    (kind === 'Query' || kind === 'LiveQuery' || kind === 'Mutation')
+    && !(Array.isArray(mediaCommandBindings) && mediaCommandBindings.length > 0)
+  ));
 }
 
 function generatedOperationLocal(name) {
@@ -14563,7 +14900,7 @@ function renderAppBindingModule(
     `for (const namespace of [hydratedDescriptor.api.queries, hydratedDescriptor.api.mutations]) { for (const reference of Object.values(namespace)) hydrateFunctionReference(reference); }\n` +
     `for (const group of Object.values(hydratedDescriptor.api.queryGroups)) { for (const query of group.queries) hydrateFunctionReference(query.ref); }\n` +
     `const commandReferences = new Map(Object.values(hydratedDescriptor.commands).map((command) => [JSON.stringify(command), command]));\n` +
-    `for (const command of Object.values(hydratedDescriptor.commands)) { command.mutation = hydratedDescriptor.api.mutations[command.mutation.name]; if (command.asset) command.asset.intent = hydratedDescriptor.api.assets[command.asset.intent.name]; }\n` +
+    `for (const command of Object.values(hydratedDescriptor.commands)) { if (command.kind === 'media-command.v1') hydrateFunctionReference(command.mutation); else command.mutation = hydratedDescriptor.api.mutations[command.mutation.name]; if (command.asset) command.asset.intent = hydratedDescriptor.api.assets[command.asset.intent.name]; }\n` +
     `for (const surface of Object.values(hydratedDescriptor.surfaces)) { for (const member of Object.values(surface.reads)) member.reference = hydratedDescriptor.api.queries[member.reference.name]; for (const member of Object.values(surface.mutations)) member.reference = hydratedDescriptor.api.mutations[member.reference.name]; for (const member of Object.values(surface.commands)) member.reference = commandReferences.get(JSON.stringify(member.reference)); for (const member of Object.values(surface.assets)) member.reference = hydratedDescriptor.api.assets[member.reference.name]; for (const member of Object.values(surface.presence)) member.reference = hydratedDescriptor.api.ephemeral[member.reference.name]; }\n` +
     `/** @type {import('./app.d.ts').GeneratedAppDescriptorV1} */\n` +
     `export const app = deepFreeze(hydratedDescriptor);\n` +
@@ -14664,6 +15001,8 @@ function renderAppTypes(
     'type ReferenceArgs<Reference> = Reference extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;',
     'type ReferenceResult<Reference> = Reference extends { readonly __result?: infer Result } ? Result : unknown;',
     'type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };',
+    'type MediaCommandAssetInput<Input extends string, MinItems extends number> = MinItems extends 0 ? { readonly [Field in Input]?: CommandAssetSource | readonly CommandAssetSource[] } : { readonly [Field in Input]: CommandAssetSource | readonly CommandAssetSource[] };',
+    'type CommandPrincipalInput<Input extends string | never> = [Input] extends [never] ? unknown : { readonly [Field in Input]: readonly Principal[] };',
     'export interface CommandDescriptor<Mutation = unknown, Input extends string | never = never, MutationArg extends string | never = never, Optional extends boolean = false, Intent = unknown> {',
     "  readonly kind: 'asset-bearing-command.v1';",
     "  readonly __snapbackReferenceKind: 'Command';",
@@ -14671,6 +15010,15 @@ function renderAppTypes(
     '  readonly asset: [Input] extends [never] ? null : Readonly<{ input: Input; intent: Intent; mutationArg: MutationArg; optional: Optional }>;',
     '  readonly passthroughArgs: readonly string[];',
     '  readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & CommandAssetInput<Input, Optional>;',
+    '  readonly __result?: ReferenceResult<Mutation>;',
+    '}',
+    'export interface MediaCommandDescriptor<Mutation = unknown, Input extends string = string, MutationArg extends string = string, MinItems extends number = number, MaxItems extends number = number, PrincipalInput extends string | never = never> {',
+    "  readonly kind: 'media-command.v1';",
+    "  readonly __snapbackReferenceKind: 'Command';",
+    '  readonly mutation: Mutation;',
+    '  readonly binding: Readonly<Record<string, unknown>> & Readonly<{ identity: `sha256:${string}`; media: Readonly<{ input: Input; mutationArg: MutationArg; minItems: MinItems; maxItems: MaxItems }>; principalInput?: Readonly<{ input: PrincipalInput; minItems: number; maxItems: number }> }>;',
+    '  readonly passthroughArgs: readonly string[];',
+    '  readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & MediaCommandAssetInput<Input, MinItems> & CommandPrincipalInput<PrincipalInput>;',
     '  readonly __result?: ReferenceResult<Mutation>;',
     '}',
     'export interface GeneratedAppCommands {',
@@ -14682,7 +15030,9 @@ function renderAppTypes(
       )
         .split('\n')
         .map((line) => `  ${line}`),
-      `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`,
+      command.kind === 'media-command.v1'
+        ? `  readonly ${JSON.stringify(name)}: MediaCommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${JSON.stringify(command.binding.media.input)}, ${JSON.stringify(command.binding.media.mutationArg)}, ${command.binding.media.minItems}, ${command.binding.media.maxItems}, ${command.binding.principalInput ? JSON.stringify(command.binding.principalInput.input) : 'never'}>;`
+        : `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`,
     ]),
     '}',
     '/** Surface member call payloads follow strict omission semantics: an optional input the caller omits is omitted from the composed operation payload (never sent as undefined); passing undefined explicitly is refused by the client value gate before any network work. */',
@@ -16856,7 +17206,7 @@ function exportedDefinitionSourceSpans(source) {
 
 const TOP_LEVEL_DEFINITION_BUILDERS = new Set([
   'defineSearchQuery', 'defineVectorQuery', 'defineLiveSearchQuery',
-  'defineEphemeral', 'defineCommand', 'defineSurface', 'defineLiveQuery',
+  'defineEphemeral', 'defineCommand', 'defineMediaCommand', 'defineSurface', 'defineLiveQuery',
   'defineQuery', 'defineJobStatusQuery', 'definePushLedgerQuery',
   'defineBoundedChildrenQuery', 'defineSnapshotBatchQuery',
   'defineRelationalQuery', 'defineMaintainedProjection', 'defineJsLiveQuery',
@@ -17014,6 +17364,19 @@ function definitionAttributionDetails(attribution, definitionPath) {
 
 function inferredDefinitionEvaluationPath(message, attribution) {
   if (!attribution || typeof message !== 'string') return null;
+  const mediaCommandRootField = /defineMediaCommand\(\)(?: has unknown field)?\s*([A-Za-z_][A-Za-z0-9_]*)?/u.exec(message);
+  if (mediaCommandRootField) {
+    const field = mediaCommandRootField[1];
+    const candidates = attribution.definitions
+      .filter(({ exported, builder }) => exported && builder === 'defineMediaCommand')
+      .map(({ binding }) => [binding, ...(field ? [field] : [])])
+      .filter((segments) => {
+        const key = segments.join('.');
+        return attribution.propertySpans.has(key)
+          || [...attribution.propertySpans.keys()].some((candidate) => candidate.startsWith(`${key}.`));
+      });
+    if (candidates.length === 1) return candidates[0];
+  }
   const collectionField = /assetCollection\(\)(?: has unknown field)?\s*([A-Za-z_][A-Za-z0-9_]*)?/u.exec(message);
   if (collectionField) {
     const field = collectionField[1];
@@ -17033,6 +17396,19 @@ function inferredDefinitionEvaluationPath(message, attribution) {
     const candidates = attribution.definitions
       .filter(({ exported, builder }) => exported && builder === 'defineCommand')
       .map(({ binding }) => [binding, 'assets', input, ...(field ? [field] : [])])
+      .filter((segments) => {
+        const key = segments.join('.');
+        return attribution.propertySpans.has(key)
+          || [...attribution.propertySpans.keys()].some((candidate) => candidate.startsWith(`${key}.`));
+      });
+    if (candidates.length === 1) return candidates[0];
+  }
+  const mediaCommandField = /defineMediaCommand\(\) (media|mapping|sharing)(?:\s|\.)([A-Za-z_][A-Za-z0-9_]*)?/u.exec(message);
+  if (mediaCommandField) {
+    const [, group, field] = mediaCommandField;
+    const candidates = attribution.definitions
+      .filter(({ exported, builder }) => exported && builder === 'defineMediaCommand')
+      .map(({ binding }) => [binding, group, ...(field ? [field] : [])])
       .filter((segments) => {
         const key = segments.join('.');
         return attribution.propertySpans.has(key)
@@ -17803,6 +18179,7 @@ function evaluateDefinitionBundles(
           code: DEFINITION_EVALUATION_DIAGNOSTIC_CODES.has(evaluationCode)
               || /^SNAPBACK_CODEGEN_[A-Z0-9_]+$/u.test(evaluationCode ?? '')
               || /^SNAPBACK_MEDIA_COLLECTION_[A-Z0-9_]+$/u.test(evaluationCode ?? '')
+              || /^SNAPBACK_MEDIA_COMMAND_[A-Z0-9_]+$/u.test(evaluationCode ?? '')
             ? evaluationCode
             : 'CODEGEN_MODULE_EVALUATION_FAILED',
           severity: 'error',

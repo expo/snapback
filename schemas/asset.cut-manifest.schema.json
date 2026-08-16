@@ -69,9 +69,58 @@
       ],
       "type": "object"
     },
+    "AssetCutCollectionItemV1": {
+      "additionalProperties": false,
+      "description": "One active framework-owned collection item. Parent-incarnation tokens are\ndeliberately not portable: import rebinds the stable item id to the\ntarget parent's active incarnation after the app-data component exists.",
+      "properties": {
+        "assetId": {
+          "type": "string"
+        },
+        "collection": {
+          "type": "string"
+        },
+        "collectionGeneration": {
+          "type": "string"
+        },
+        "itemId": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/MediaKindV1"
+        },
+        "ordinal": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "parentId": {
+          "type": "string"
+        },
+        "policyGeneration": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "collection",
+        "collectionGeneration",
+        "itemId",
+        "parentId",
+        "assetId",
+        "kind",
+        "policyGeneration",
+        "ordinal"
+      ],
+      "type": "object"
+    },
     "AssetCutQuotaV1": {
       "additionalProperties": false,
       "properties": {
+        "collectionItemCount": {
+          "description": "Active framework-owned collection items carried with the asset cut.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "grantCount": {
           "format": "uint64",
           "minimum": 0,
@@ -391,6 +440,13 @@
       "format": "uint64",
       "minimum": 0,
       "type": "integer"
+    },
+    "collectionItems": {
+      "description": "Active collection records are part of the asset component because they\nare the addressable attachment/authority facts that root these assets.",
+      "items": {
+        "$ref": "#/$defs/AssetCutCollectionItemV1"
+      },
+      "type": "array"
     },
     "cutVersion": {
       "description": "The storage head commit version observed inside the capture\ntransaction — the cut's consistency witness.",

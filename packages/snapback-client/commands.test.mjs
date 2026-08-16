@@ -642,4 +642,344 @@ const noAttachmentFactResidues = [];
   await assert.rejects(task.done, /File\/Blob-like structural source/u);
 }
 
-console.log('commands.test.mjs: command phase/outcome, retry, cancellation, residue, and authority cases passed');
+const mediaMutation = Object.freeze({
+  artifactKind: 'functionReference',
+  kind: 'Mutation',
+  id: 'fixture:createMediaMessage',
+  name: 'createMediaMessage',
+  argumentSchema: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      roomId: { type: 'string' },
+      text: { type: 'string' },
+      assetIds: { type: 'array', items: { type: 'string' }, maxItems: 8 },
+    },
+    required: ['roomId', 'assetIds'],
+  },
+});
+const mediaCommand = Object.freeze({
+  kind: 'media-command.v1',
+  __snapbackReferenceKind: 'Command',
+  mutation: mediaMutation,
+  binding: Object.freeze({
+    format: 'snapback.media-command-binding.v1',
+    identity: 'sha256:media-binding',
+    command: Object.freeze({ id: 'fixture:sendMedia', name: 'sendMedia' }),
+    media: Object.freeze({
+      input: 'media',
+      intent: 'messageMedia',
+      mutationArg: 'assetIds',
+      minItems: 0,
+      maxItems: 8,
+    }),
+    taskProfile: Object.freeze({ concurrency: 3 }),
+  }),
+  passthroughArgs: Object.freeze(['roomId', 'text']),
+});
+
+function mediaAssetSnapshot(status, ordinal, extra = {}) {
+  const ready = status === 'ready';
+  return Object.freeze({
+    assetId: ready ? `asset-${ordinal}` : null,
+    assetRef: ready ? `asset-${ordinal}` : null,
+    attemptId: `upload-${ordinal}`,
+    status,
+    diagnostic: null,
+    bytesTransferred: ready ? 10 : 0,
+    totalBytes: 10,
+    ...extra,
+  });
+}
+
+function controlledMediaAssetTask(ordinal, initial = mediaAssetSnapshot('uploading', ordinal)) {
+  let snapshot = initial;
+  const listeners = new Set();
+  const terminal = deferred();
+  let cancelled = 0;
+  let retryTask = null;
+  const task = {
+    done: terminal.promise,
+    snapshot: () => snapshot,
+    subscribe(listener) {
+      listeners.add(listener);
+      listener(snapshot);
+      return () => listeners.delete(listener);
+    },
+    async cancel() {
+      cancelled += 1;
+      task.publish(mediaAssetSnapshot('cancelled', ordinal));
+      return snapshot;
+    },
+    async retry() {
+      assert(retryTask, 'media retry successor was not installed');
+      return retryTask;
+    },
+    publish(next) {
+      snapshot = next;
+      for (const listener of [...listeners]) listener(snapshot);
+      if (['ready', 'rejected', 'cancelled', 'failed'].includes(snapshot.status)) {
+        terminal.resolve(snapshot);
+      }
+    },
+    setRetry(next) { retryTask = next; },
+    get cancelled() { return cancelled; },
+  };
+  return task;
+}
+
+function mediaFixture({ tasks = [], invokeMutation, current = () => true } = {}) {
+  const calls = [];
+  let nextTask = 0;
+  const client = {
+    captureAuthority: () => Object.freeze({ generation: 1 }),
+    isAuthorityCaptureCurrent: current,
+  };
+  const commands = createCommandClient(client, {
+    assets: {
+      start(options) {
+        calls.push({ kind: 'asset', options });
+        const task = tasks[nextTask];
+        nextTask += 1;
+        if (!task) throw new Error('unexpected media asset start');
+        return task;
+      },
+    },
+    invokeMutation: async (reference, args, options) => {
+      calls.push({ kind: 'mutation', reference, args: { ...args }, options });
+      return invokeMutation?.(reference, args, options) ?? { _id: 'message-1' };
+    },
+  });
+  return { commands, calls };
+}
+
+// Text-only is still the exact command and performs no upload work.
+{
+  const { commands, calls } = mediaFixture();
+  const trace = [];
+  const task = commands.start(mediaCommand, { roomId: 'room-1', text: 'hello' });
+  task.subscribe(() => trace.push(task.snapshot().status));
+  const outcome = await task.done;
+  assert.equal(outcome.kind, 'committed');
+  assert.deepEqual(dedupeConsecutive(trace), ['validating', 'committing', 'committed']);
+  assert.deepEqual(calls.map(({ kind }) => kind), ['mutation']);
+  assert.deepEqual(calls[0].args.assetIds, []);
+  assert.deepEqual(calls[0].options.mediaCommand.items, []);
+}
+
+// The default transport durably queues the closed attempt/item carrier when
+// the client has outbox custody; no-store clients retain ordinary online use.
+{
+  const mutations = [];
+  const client = {
+    captureAuthority: () => Object.freeze({ generation: 1 }),
+    isAuthorityCaptureCurrent: () => true,
+    async mutate(reference, options) {
+      mutations.push({ reference, options });
+      return { result: { _id: 'message-1' } };
+    },
+  };
+  const commands = createCommandClient(client, {
+    assets: { start() { throw new Error('text-only media command must not upload'); } },
+  });
+  const outcome = await commands
+    .start(mediaCommand, { roomId: 'room-1', text: 'hello' })
+    .done;
+  assert.equal(outcome.kind, 'committed');
+  assert.equal(mutations.length, 1);
+  assert.equal(mutations[0].options.queue, 'auto');
+  assert.deepEqual(mutations[0].options.mediaCommand.items, []);
+}
+
+{
+  const recipientCommand = Object.freeze({
+    ...mediaCommand,
+    binding: Object.freeze({
+      ...mediaCommand.binding,
+      principalInput: Object.freeze({ input: 'recipients', minItems: 1, maxItems: 4 }),
+    }),
+  });
+  const { commands, calls } = mediaFixture();
+  const task = commands.start(recipientCommand, {
+    roomId: 'room-1',
+    recipients: ['user-a', 'user-b'],
+  });
+  assert.equal((await task.done).kind, 'committed');
+  assert.deepEqual(calls[0].options.mediaCommand.principals, ['user-a', 'user-b']);
+  const invalid = commands.start(recipientCommand, {
+    roomId: 'room-1',
+    recipients: ['user-a', 'user-a'],
+  });
+  await assert.rejects(invalid.done, /unique principal ids/u);
+}
+
+// One and N items preserve input order, expose progress, and enforce the
+// descriptor's default concurrency bound of three.
+{
+  const tasks = Array.from({ length: 5 }, (_, ordinal) => controlledMediaAssetTask(ordinal));
+  const { commands, calls } = mediaFixture({ tasks });
+  const sources = Array.from({ length: 5 }, () => file);
+  const task = commands.start(mediaCommand, { roomId: 'room-1', media: sources });
+  while (calls.filter(({ kind }) => kind === 'asset').length < 3) await Promise.resolve();
+  assert.equal(calls.filter(({ kind }) => kind === 'asset').length, 3);
+  tasks[0].publish(mediaAssetSnapshot('uploading', 0, { bytesTransferred: 4 }));
+  assert.equal(task.snapshot().progress.bytesTransferred, 4);
+  tasks[0].publish(mediaAssetSnapshot('ready', 0));
+  while (calls.filter(({ kind }) => kind === 'asset').length < 4) await Promise.resolve();
+  tasks[1].publish(mediaAssetSnapshot('ready', 1));
+  while (calls.filter(({ kind }) => kind === 'asset').length < 5) await Promise.resolve();
+  for (let ordinal = 2; ordinal < 5; ordinal += 1) {
+    tasks[ordinal].publish(mediaAssetSnapshot('ready', ordinal));
+  }
+  assert.equal((await task.done).kind, 'committed');
+  const mutationCall = calls.find(({ kind }) => kind === 'mutation');
+  assert.deepEqual(mutationCall.args.assetIds, [
+    'asset-0', 'asset-1', 'asset-2', 'asset-3', 'asset-4',
+  ]);
+  assert.deepEqual(
+    mutationCall.options.mediaCommand.items,
+    Array.from({ length: 5 }, (_, ordinal) => ({ ordinal, assetId: `asset-${ordinal}` })),
+  );
+  assert.equal(task.snapshot().progress.finalizedItems, 5);
+}
+
+{
+  const one = controlledMediaAssetTask(0);
+  const { commands } = mediaFixture({ tasks: [one] });
+  const task = commands.start(mediaCommand, { roomId: 'room-1', media: file });
+  one.publish(mediaAssetSnapshot('ready', 0));
+  assert.equal((await task.done).kind, 'committed');
+  assert.equal(task.snapshot().items.length, 1);
+}
+
+// Authority replacement after upload finalization refuses before the sole
+// application mutation and reports the finalized asset as unresolved residue.
+{
+  let authorityCurrent = true;
+  const ready = controlledMediaAssetTask(0);
+  const { commands, calls } = mediaFixture({
+    tasks: [ready],
+    current: () => authorityCurrent,
+  });
+  const task = commands.start(mediaCommand, { roomId: 'room-1', media: file });
+  authorityCurrent = false;
+  ready.publish(mediaAssetSnapshot('ready', 0));
+  const outcome = await task.done;
+  assert.equal(outcome.kind, 'failed');
+  assert.equal(outcome.diagnostic.code, 'SNAPBACK_MEDIA_COMMAND_AUTHORITY_REPLACED');
+  assert.equal(outcome.residue[0].unattached, 'unknown');
+  assert.equal(calls.some(({ kind }) => kind === 'mutation'), false);
+}
+
+// Upload refusal and partial transfer failure never invoke the mutation; a
+// finalized sibling is reported as explicit, provenance-bearing residue.
+{
+  const refused = controlledMediaAssetTask(0);
+  const { commands, calls } = mediaFixture({ tasks: [refused] });
+  const task = commands.start(mediaCommand, { roomId: 'room-1', media: file });
+  refused.publish(mediaAssetSnapshot('failed', 0, {
+    diagnostic: { code: 'SNAPBACK_ASSET_UPLOAD_REFUSED', message: 'upload refused' },
+  }));
+  const outcome = await task.done;
+  assert.equal(outcome.kind, 'failed');
+  assert.equal(outcome.diagnostic.code, 'SNAPBACK_ASSET_UPLOAD_REFUSED');
+  assert.equal(outcome.residue.length, 0);
+  assert.equal(calls.some(({ kind }) => kind === 'mutation'), false);
+}
+
+{
+  const ready = controlledMediaAssetTask(0);
+  const failed = controlledMediaAssetTask(1);
+  const { commands, calls } = mediaFixture({ tasks: [ready, failed] });
+  const task = commands.start(mediaCommand, { roomId: 'room-1', media: [file, file] });
+  ready.publish(mediaAssetSnapshot('ready', 0));
+  failed.publish(mediaAssetSnapshot('failed', 1, {
+    diagnostic: { code: 'SNAPBACK_ASSET_TRANSFER_FAILED', message: 'transfer failed' },
+  }));
+  const outcome = await task.done;
+  assert.equal(outcome.kind, 'failed');
+  assert.equal(outcome.residue.length, 1);
+  assert.deepEqual(
+    Object.keys(outcome.residue[0]).sort(),
+    ['assetId', 'basis', 'cleanupPolicy', 'cleanupProvenance', 'ordinal', 'unattached'],
+  );
+  assert.equal(outcome.residue[0].assetId, 'asset-0');
+  assert.equal(outcome.residue[0].cleanupProvenance, 'llp0044-policy');
+  assert.equal(calls.some(({ kind }) => kind === 'mutation'), false);
+}
+
+// A proved commit refusal leaves every finalized asset visible as inferred
+// residue; response loss is ambiguous and retry reuses the exact attempt/plan.
+{
+  const tasks = [controlledMediaAssetTask(0), controlledMediaAssetTask(1)];
+  const refusal = Object.assign(new Error('commit refused'), { effectCommitted: false });
+  const { commands } = mediaFixture({
+    tasks,
+    invokeMutation: async () => { throw refusal; },
+  });
+  const task = commands.start(mediaCommand, { roomId: 'room-1', media: [file, file] });
+  tasks.forEach((asset, ordinal) => asset.publish(mediaAssetSnapshot('ready', ordinal)));
+  const outcome = await task.done;
+  assert.equal(outcome.kind, 'failed');
+  assert.deepEqual(outcome.residue.map(({ unattached }) => unattached), ['inferred', 'inferred']);
+}
+
+{
+  const assets = [controlledMediaAssetTask(0), controlledMediaAssetTask(1)];
+  let commits = 0;
+  const { commands, calls } = mediaFixture({
+    tasks: assets,
+    invokeMutation: async () => {
+      commits += 1;
+      if (commits === 1) throw new Error('response lost');
+      return { _id: 'message-reconciled' };
+    },
+  });
+  const first = commands.start(mediaCommand, { roomId: 'room-1', media: [file, file] });
+  assets.forEach((asset, ordinal) => asset.publish(mediaAssetSnapshot('ready', ordinal)));
+  assert.equal((await first.done).kind, 'ambiguous');
+  let predecessorNotifications = 0;
+  first.subscribe(() => { predecessorNotifications += 1; });
+  const beforeRetry = predecessorNotifications;
+  const successor = first.retry();
+  assert.notStrictEqual(successor.done, first.done);
+  assert.equal((await successor.done).kind, 'committed');
+  assert.equal(predecessorNotifications, beforeRetry);
+  const mutations = calls.filter(({ kind }) => kind === 'mutation');
+  assert.equal(mutations.length, 2);
+  assert.equal(mutations[0].options.clientMutationId, mutations[1].options.clientMutationId);
+  assert.deepEqual(mutations[0].options.mediaCommand.items, mutations[1].options.mediaCommand.items);
+  assert.equal(calls.filter(({ kind }) => kind === 'asset').length, 2, 'ready ids are reused');
+}
+
+// Cancellation is phase-aware: before invocation it is cancelled; once the
+// ordinary mutation begins it is conservatively ambiguous.
+{
+  const upload = controlledMediaAssetTask(0);
+  const { commands, calls } = mediaFixture({ tasks: [upload] });
+  const task = commands.start(mediaCommand, { roomId: 'room-1', media: file });
+  while (task.snapshot().status === 'validating') await Promise.resolve();
+  await task.cancel();
+  assert.equal((await task.done).kind, 'cancelled');
+  assert.equal(upload.cancelled, 1);
+  assert.equal(calls.some(({ kind }) => kind === 'mutation'), false);
+}
+
+{
+  const upload = controlledMediaAssetTask(0);
+  const settlement = deferred();
+  const { commands } = mediaFixture({ tasks: [upload], invokeMutation: () => settlement.promise });
+  const task = commands.start(mediaCommand, { roomId: 'room-1', media: file });
+  upload.publish(mediaAssetSnapshot('ready', 0));
+  while (task.snapshot().status !== 'committing') await Promise.resolve();
+  await task.cancel();
+  const outcome = await task.done;
+  assert.equal(outcome.kind, 'ambiguous');
+  assert.equal(outcome.residue[0].unattached, 'unknown');
+  const terminal = task.snapshot();
+  settlement.resolve({ _id: 'late' });
+  await Promise.resolve();
+  assert.strictEqual(task.snapshot(), terminal);
+}
+
+console.log('commands.test.mjs: single/multi command phases, progress, retry, cancellation, residue, and authority cases passed');

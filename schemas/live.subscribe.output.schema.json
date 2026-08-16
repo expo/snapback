@@ -478,7 +478,7 @@
     "QueryOutput": {
       "properties": {
         "cursor": {
-          "description": "Relational continuation cursor (LLP 0080 §2): present exactly when a\n`root-window-v1` page consumed its full `take` of authorized roots.\nOpaque and versioned; presenting it back as the `cursor` argument\nresumes from the last consumed root. Absent for every non-relational\nquery and for terminal pages.",
+          "description": "Opaque continuation cursor. Relational `root-window-v1` uses its\nestablished cursor family; data-lowered list members use DataCursorV1\n(LLP 0255 S3.4/S5.3). It is absent for terminal pages and for every\nquery profile that does not explicitly admit continuation.",
           "type": [
             "string",
             "null"

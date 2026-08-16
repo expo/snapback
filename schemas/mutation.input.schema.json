@@ -144,6 +144,59 @@
       },
       "type": "object"
     },
+    "MediaCommandInvocationItemV1": {
+      "additionalProperties": false,
+      "properties": {
+        "assetId": {
+          "type": "string"
+        },
+        "ordinal": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ordinal",
+        "assetId"
+      ],
+      "type": "object"
+    },
+    "MediaCommandInvocationV1": {
+      "additionalProperties": false,
+      "description": "Wire carrier. The ordered plan is bound to one client mutation attempt;\nthe host compares it with the installed binding before handler execution.",
+      "properties": {
+        "attemptId": {
+          "type": "string"
+        },
+        "bindingIdentity": {
+          "type": "string"
+        },
+        "commandIdentity": {
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/MediaCommandInvocationItemV1"
+          },
+          "type": "array"
+        },
+        "principals": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "bindingIdentity",
+        "commandIdentity",
+        "attemptId",
+        "items"
+      ],
+      "type": "object"
+    },
     "OperationIssuanceV1": {
       "description": "Issuance facts are structurally disjoint across client and host namespaces.\nThe authenticator is represented by its non-secret digest; admission later\nverifies the underlying server-issued artifact before constructing this\nvalue.",
       "oneOf": [
@@ -402,6 +455,17 @@
         }
       ],
       "description": "Optional generated-artifact assertion; sessions targets compare it\natomically with mutation function selection before any receipt/ACK or\nhandler effect. Absent remains unchecked."
+    },
+    "mediaCommand": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MediaCommandInvocationV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Closed generated-command carrier. It belongs only to mutations: query,\naction, live, and host-input envelopes cannot accidentally admit it."
     },
     "operationIssuance": {
       "anyOf": [

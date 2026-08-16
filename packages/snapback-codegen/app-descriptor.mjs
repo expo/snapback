@@ -36,6 +36,7 @@ const SURFACE_KEYS = [
 const SURFACE_MEMBER_KEYS = ['artifactKind', 'bindings', 'inputs', 'reference'];
 const COMMAND_KEYS = ['asset', 'kind', 'mutation', 'passthroughArgs'];
 const COMMAND_ASSET_KEYS = ['input', 'intent', 'mutationArg', 'optional'];
+const MEDIA_COMMAND_KEYS = ['binding', 'kind', 'mutation', 'passthroughArgs'];
 
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -311,6 +312,40 @@ function validateSurfaceMember(
 }
 
 function validateCommandDescriptor(command, path, problems, api = null) {
+  if (command?.kind === 'media-command.v1') {
+    if (!exactKeys(command, MEDIA_COMMAND_KEYS)
+      || !isRecord(command.binding)
+      || command.binding.format !== 'snapback.media-command-binding.v1'
+      || typeof command.binding.identity !== 'string'
+      || !/^sha256:[0-9a-f]{64}$/u.test(command.binding.identity)) {
+      problems.push(problem(
+        'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
+        path,
+        `${path} must be a closed media-command.v1 descriptor with one MediaCommandBindingV1`,
+      ));
+      return;
+    }
+    validateReferenceMap(
+      { mutation: command.mutation },
+      `${path}.mutation`,
+      'functionReference',
+      new Set(['Mutation']),
+      problems,
+    );
+    const passthroughValid = Array.isArray(command.passthroughArgs)
+      && !command.passthroughArgs.some((name) => typeof name !== 'string' || name.length === 0)
+      && new Set(command.passthroughArgs).size === command.passthroughArgs.length;
+    if (!passthroughValid
+      || !samePortableValue(command.passthroughArgs, command.binding.passthroughArgs)
+      || command.mutation?.name !== command.binding.targetMutation?.name) {
+      problems.push(problem(
+        'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
+        path,
+        `${path} must agree with its installed media binding`,
+      ));
+    }
+    return;
+  }
   if (!exactKeys(command, COMMAND_KEYS) || command.kind !== 'asset-bearing-command.v1') {
     problems.push(problem(
       'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',

@@ -9135,6 +9135,7 @@ export class SnapbackClient {
           settlementIdentity: record.settlementIdentity ?? null,
           settlementClaims: record.settlementClaims ?? null,
           boundedSkew: record.boundedSkew ?? null,
+          mediaCommand: record.mediaCommand ?? null,
           operationIssuance: record.operationIssuance ?? null,
           operationCoverageDisposition: record.operationCoverageDisposition ?? null,
           optimisticOperation: record.optimisticOperation ?? null,
@@ -9551,6 +9552,7 @@ export class SnapbackClient {
     optimisticOperation = null,
     authorityDescriptor = null,
     authorityCapture = null,
+    mediaCommand = null,
     // LLP 0129 Phase 0 (LLP 0043 M2): 'auto' queues this intent durably
     // when delivery fails at the transport (connectivity) and the client
     // carries an outbox-capable store; `false` restores fail-loud delivery.
@@ -9665,6 +9667,7 @@ export class SnapbackClient {
     // id atomically with data changes and returns the original result on a
     // duplicate delivery.
     if (clientMutationId) body.clientMutationId = clientMutationId;
+    if (mediaCommand !== null) body.mediaCommand = mediaCommand;
     if (operationIssuance) body.operationIssuance = operationIssuance;
     if (authorityDescriptor) {
       body.authorityDescriptor = requireAuthorityDescriptor(
@@ -9776,6 +9779,7 @@ export class SnapbackClient {
       settlementIdentity,
       settlementClaims,
       boundedSkew,
+      mediaCommand,
       operationIssuance,
       operationCoverageDisposition,
       optimisticOperation,

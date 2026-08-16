@@ -26647,6 +26647,7 @@ async fn invoke_mutation(
         let stage_wire_version = request.wire_version.clone();
         let stage_operation_issuance = request.operation_issuance.clone();
         let stage_settlement = request.settlement.clone();
+        let stage_media_command = request.media_command.clone();
         let stage_authority = authority.clone();
         let facts_mode = authority.active_mode();
         let facts_authority = authority.clone();
@@ -26675,6 +26676,7 @@ async fn invoke_mutation(
                         stage_expected_generation.as_ref(),
                         stage_operation_issuance.clone(),
                         stage_settlement.clone(),
+                        stage_media_command.clone(),
                         stage_wire_version.as_deref(),
                     )?;
                 Ok((preflight, (response_authority_descriptor, staged)))

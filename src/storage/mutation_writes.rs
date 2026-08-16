@@ -41,6 +41,7 @@ impl LocalDatabase {
                 None,
                 None,
                 None,
+                None,
                 &check_live,
                 before_commit,
             )?
@@ -92,6 +93,7 @@ impl LocalDatabase {
             input,
             true,
             Some(identity),
+            None,
             None,
             None,
             &|| Ok(()),
@@ -156,6 +158,7 @@ impl LocalDatabase {
                 input,
                 true,
                 identity,
+                None,
                 policy,
                 None,
                 &check_live,
@@ -215,6 +218,7 @@ impl LocalDatabase {
                 input,
                 true,
                 None,
+                None,
                 policy,
                 None,
                 &check_live,
@@ -248,6 +252,7 @@ impl LocalDatabase {
             input,
             true,
             Some(identity),
+            None,
             policy,
             None,
             &|| Ok(()),
@@ -257,6 +262,68 @@ impl LocalDatabase {
             Ok(execution) => Ok(execution.commit),
             Err(error) => self.replay_after_concurrent_settlement(identity, error),
         }
+    }
+
+    pub(super) fn execute_media_command_mutation_idempotent_guarded_with_settlement_time<
+        G,
+        BeforeCommit,
+    >(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        identity: &ClientMutationIdentity,
+        media_command: &crate::manifest::ResolvedMediaCommandV1,
+        policy: Option<&SettlementTimePolicy>,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(identity),
+        )?;
+        if let Some(commit) = self.replayed_mutation_commit(identity)? {
+            return Ok(commit);
+        }
+        let attempted = self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
+            plan,
+            input,
+            true,
+            Some(identity),
+            Some(media_command),
+            policy,
+            None,
+            &|| Ok(()),
+            before_commit,
+        );
+        match attempted {
+            Ok(execution) => Ok(execution.commit),
+            Err(error) => self.replay_after_concurrent_settlement(identity, error),
+        }
+    }
+
+    pub(super) fn dry_run_media_command_mutation_with_settlement_time(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        media_command: &crate::manifest::ResolvedMediaCommandV1,
+        policy: Option<&SettlementTimePolicy>,
+    ) -> SnapbackResult<MutationPlanExecution> {
+        self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            write_authority::LocalWriterLaneV1::DryRun,
+            plan,
+            input,
+            false,
+            None,
+            Some(media_command),
+            policy,
+            None,
+            &|| Ok(()),
+            || Ok(()),
+        )
     }
 
     fn execute_mutation_plan(
@@ -284,6 +351,7 @@ impl LocalDatabase {
             input,
             apply,
             identity,
+            None,
             settlement_time,
             None,
             &|| Ok(()),
@@ -307,6 +375,7 @@ impl LocalDatabase {
                 ctx_ledger: None,
                 apply: true,
                 identity: None,
+                media_command: None,
                 branch_operation: None,
             },
         )
@@ -331,10 +400,80 @@ impl LocalDatabase {
             input,
             payload,
             identity,
+            None,
             CoveredMutationLaneV1::Ordinary,
             None,
             check_live,
             before_commit,
+        )
+    }
+
+    pub(super) fn commit_media_command_buffered_writes_idempotent_guarded<G, Check, BeforeCommit>(
+        &mut self,
+        input: &HandlerInput,
+        payload: BufferedCommitPayload,
+        identity: Option<&ClientMutationIdentity>,
+        media_command: &crate::manifest::ResolvedMediaCommandV1,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.commit_buffered_writes_for_lane(
+            input,
+            payload,
+            identity,
+            Some(media_command),
+            CoveredMutationLaneV1::Ordinary,
+            None,
+            check_live,
+            before_commit,
+        )
+    }
+
+    pub(super) fn dry_run_media_command_buffered_payload(
+        &mut self,
+        input: &HandlerInput,
+        payload: &BufferedCommitPayload,
+        media_command: &crate::manifest::ResolvedMediaCommandV1,
+    ) -> SnapbackResult<MutationCommit> {
+        let media_projection = match (
+            payload.media_projection_proof.as_ref(),
+            payload.expected_media_projection_binding.as_ref(),
+        ) {
+            (Some(proof), Some(expected)) => {
+                Some(MediaProjectionProofAccess::Borrowed { proof, expected })
+            }
+            (None, None) => None,
+            _ => return Err(media_projection_unprovenanced()),
+        };
+        self.apply_buffered_writes_with_lifecycle_gated(
+            write_authority::LocalWriterLaneV1::DryRun,
+            input,
+            BufferedEffects {
+                writes: payload.writes.clone(),
+                sequence_allocations: payload.sequence_allocations.clone(),
+                membership_plans: payload.membership_plans.clone(),
+                read_dependencies: payload.read_dependencies.clone(),
+                result: payload.result.clone(),
+                job_enqueues: payload.job_enqueues.clone(),
+                job_producer: payload.job_producer.clone(),
+                asset_admissions: payload.asset_admissions.clone(),
+                asset_grant_ops: payload.asset_grant_ops.clone(),
+                media_projection,
+            },
+            BufferedCommitOptions {
+                ctx_ledger: Some(payload.ctx_ledger.clone()),
+                apply: false,
+                identity: None,
+                media_command: Some(media_command),
+                branch_operation: None,
+            },
+            MembershipCommitAuthority::deny(),
+            &|| Ok(()),
+            || Ok(()),
         )
     }
 
@@ -354,6 +493,7 @@ impl LocalDatabase {
             input,
             payload,
             identity,
+            None,
             CoveredMutationLaneV1::HostChild,
             None,
             check_live,
@@ -445,6 +585,7 @@ impl LocalDatabase {
                 ctx_ledger: Some(ctx_ledger),
                 apply: false,
                 identity: None,
+                media_command: None,
                 branch_operation: None,
             },
             MembershipCommitAuthority::deny(),
@@ -646,6 +787,47 @@ impl<'a> MutationWritesKernel<'a> {
             )
     }
 
+    pub(crate) fn execute_media_command_mutation_idempotent_guarded_with_settlement_time<
+        G,
+        BeforeCommit,
+    >(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        identity: &ClientMutationIdentity,
+        media_command: &crate::manifest::ResolvedMediaCommandV1,
+        policy: Option<&SettlementTimePolicy>,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db
+            .execute_media_command_mutation_idempotent_guarded_with_settlement_time(
+                plan,
+                input,
+                identity,
+                media_command,
+                policy,
+                before_commit,
+            )
+    }
+
+    pub(crate) fn dry_run_media_command_mutation_with_settlement_time(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        media_command: &crate::manifest::ResolvedMediaCommandV1,
+        policy: Option<&SettlementTimePolicy>,
+    ) -> SnapbackResult<MutationPlanExecution> {
+        self.db.dry_run_media_command_mutation_with_settlement_time(
+            plan,
+            input,
+            media_command,
+            policy,
+        )
+    }
+
     pub fn commit_buffered_writes(
         &mut self,
         input: &HandlerInput,
@@ -676,6 +858,40 @@ impl<'a> MutationWritesKernel<'a> {
             check_live,
             before_commit,
         )
+    }
+
+    pub(crate) fn commit_media_command_buffered_writes_idempotent_guarded<G, Check, BeforeCommit>(
+        &mut self,
+        input: &HandlerInput,
+        payload: BufferedCommitPayload,
+        identity: Option<&ClientMutationIdentity>,
+        media_command: &crate::manifest::ResolvedMediaCommandV1,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.db
+            .commit_media_command_buffered_writes_idempotent_guarded(
+                input,
+                payload,
+                identity,
+                media_command,
+                check_live,
+                before_commit,
+            )
+    }
+
+    pub(crate) fn dry_run_media_command_buffered_payload(
+        &mut self,
+        input: &HandlerInput,
+        payload: &BufferedCommitPayload,
+        media_command: &crate::manifest::ResolvedMediaCommandV1,
+    ) -> SnapbackResult<MutationCommit> {
+        self.db
+            .dry_run_media_command_buffered_payload(input, payload, media_command)
     }
 
     pub(crate) fn commit_buffered_host_writes_guarded<G, Check, BeforeCommit>(

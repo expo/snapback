@@ -10,6 +10,8 @@ export type CommandAssetSource = CommandBlobSource | CommandPlatformAssetSource;
 type ReferenceArgs<Reference> = Reference extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;
 type ReferenceResult<Reference> = Reference extends { readonly __result?: infer Result } ? Result : unknown;
 type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };
+type MediaCommandAssetInput<Input extends string, MinItems extends number> = MinItems extends 0 ? { readonly [Field in Input]?: CommandAssetSource | readonly CommandAssetSource[] } : { readonly [Field in Input]: CommandAssetSource | readonly CommandAssetSource[] };
+type CommandPrincipalInput<Input extends string | never> = [Input] extends [never] ? unknown : { readonly [Field in Input]: readonly Principal[] };
 export interface CommandDescriptor<Mutation = unknown, Input extends string | never = never, MutationArg extends string | never = never, Optional extends boolean = false, Intent = unknown> {
   readonly kind: 'asset-bearing-command.v1';
   readonly __snapbackReferenceKind: 'Command';
@@ -17,6 +19,15 @@ export interface CommandDescriptor<Mutation = unknown, Input extends string | ne
   readonly asset: [Input] extends [never] ? null : Readonly<{ input: Input; intent: Intent; mutationArg: MutationArg; optional: Optional }>;
   readonly passthroughArgs: readonly string[];
   readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & CommandAssetInput<Input, Optional>;
+  readonly __result?: ReferenceResult<Mutation>;
+}
+export interface MediaCommandDescriptor<Mutation = unknown, Input extends string = string, MutationArg extends string = string, MinItems extends number = number, MaxItems extends number = number, PrincipalInput extends string | never = never> {
+  readonly kind: 'media-command.v1';
+  readonly __snapbackReferenceKind: 'Command';
+  readonly mutation: Mutation;
+  readonly binding: Readonly<Record<string, unknown>> & Readonly<{ identity: `sha256:${string}`; media: Readonly<{ input: Input; mutationArg: MutationArg; minItems: MinItems; maxItems: MaxItems }>; principalInput?: Readonly<{ input: PrincipalInput; minItems: number; maxItems: number }> }>;
+  readonly passthroughArgs: readonly string[];
+  readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & MediaCommandAssetInput<Input, MinItems> & CommandPrincipalInput<PrincipalInput>;
   readonly __result?: ReferenceResult<Mutation>;
 }
 export interface GeneratedAppCommands {

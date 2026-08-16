@@ -584,13 +584,14 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "asset_lifecycle_v1",
             "assets.media-ref-projection.v1",
             "assets.media-collection.v1",
+            "assets.media-command.v1",
             "asset_image_finalization_v1",
             "asset_image_pipeline_v1",
             "asset_reference_gc_v1",
             "asset_video_finalization_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 43);
+    assert_eq!(TargetCapabilityId::ALL.len(), 44);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),

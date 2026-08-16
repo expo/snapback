@@ -10,6 +10,8 @@ export type CommandAssetSource = CommandBlobSource | CommandPlatformAssetSource;
 type ReferenceArgs<Reference> = Reference extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;
 type ReferenceResult<Reference> = Reference extends { readonly __result?: infer Result } ? Result : unknown;
 type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };
+type MediaCommandAssetInput<Input extends string, MinItems extends number> = MinItems extends 0 ? { readonly [Field in Input]?: CommandAssetSource | readonly CommandAssetSource[] } : { readonly [Field in Input]: CommandAssetSource | readonly CommandAssetSource[] };
+type CommandPrincipalInput<Input extends string | never> = [Input] extends [never] ? unknown : { readonly [Field in Input]: readonly Principal[] };
 export interface CommandDescriptor<Mutation = unknown, Input extends string | never = never, MutationArg extends string | never = never, Optional extends boolean = false, Intent = unknown> {
   readonly kind: 'asset-bearing-command.v1';
   readonly __snapbackReferenceKind: 'Command';
@@ -19,6 +21,15 @@ export interface CommandDescriptor<Mutation = unknown, Input extends string | ne
   readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & CommandAssetInput<Input, Optional>;
   readonly __result?: ReferenceResult<Mutation>;
 }
+export interface MediaCommandDescriptor<Mutation = unknown, Input extends string = string, MutationArg extends string = string, MinItems extends number = number, MaxItems extends number = number, PrincipalInput extends string | never = never> {
+  readonly kind: 'media-command.v1';
+  readonly __snapbackReferenceKind: 'Command';
+  readonly mutation: Mutation;
+  readonly binding: Readonly<Record<string, unknown>> & Readonly<{ identity: `sha256:${string}`; media: Readonly<{ input: Input; mutationArg: MutationArg; minItems: MinItems; maxItems: MaxItems }>; principalInput?: Readonly<{ input: PrincipalInput; minItems: number; maxItems: number }> }>;
+  readonly passthroughArgs: readonly string[];
+  readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & MediaCommandAssetInput<Input, MinItems> & CommandPrincipalInput<PrincipalInput>;
+  readonly __result?: ReferenceResult<Mutation>;
+}
 export interface GeneratedAppCommands {
   /**
    * Command reference `app:command:send`.
@@ -26,7 +37,7 @@ export interface GeneratedAppCommands {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: task snapshot is process-local; mutation settlement remains durable Retention: command task is process-local; constituent mutation follows outbox retention.
    * Dispatch/task states: `preparing`, `transferring`, `committing`, `succeeded`, `failed`, `cancelled`, `ambiguous`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:aef796689117e79e464acf6191b14bf0e250bade0a8013c36df2bed5c8c2ea78`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   readonly "send": CommandDescriptor<GeneratedApi["sendMessage"], "image", "image", true, GeneratedApi["messageImageUpload"]>;
 }

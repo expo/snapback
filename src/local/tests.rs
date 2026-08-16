@@ -15,11 +15,11 @@ use super::{
     SearchVisibilityV1, SnapbackError, SnapbackResult, StagedMutationExecution,
     StagedNestedMutation, StagedRecordedMutation, bounded_projection_result_contract,
     enforce_snapshot_batch_cursor_budget, next_secret_read_reset_generation, now_millis,
-    order_field_bounds_from_functions, refuse_unprovenanced_host_plan_authority_creation,
-    reserve_unique_generation, settlement_id_map, snapshot_batch_max_boundary,
-    snapshot_batch_max_plaintext_len, telemetry_correlation,
-    validate_bounded_children_node_schema_references, validate_bounded_children_schema_plan,
-    validate_function_schema_references,
+    order_field_bounds_from_functions, prepare_media_command_invocation,
+    refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
+    settlement_id_map, snapshot_batch_max_boundary, snapshot_batch_max_plaintext_len,
+    telemetry_correlation, validate_bounded_children_node_schema_references,
+    validate_bounded_children_schema_plan, validate_function_schema_references,
 };
 use crate::auth::admission::AdmissionController;
 use crate::auth::crypto::{CryptoError, RandomSource};
@@ -88,6 +88,91 @@ fn connected_client_witnesses_do_not_advance_the_durable_version() {
         before,
         "process-local connectivity observation must not write durable state"
     );
+}
+
+#[test]
+fn media_command_binding_is_required_and_resolved_before_mutation_execution() {
+    let binding: crate::manifest::MediaCommandBindingV1 = serde_json::from_value(json!({
+        "format": "snapback.media-command-binding.v1",
+        "identity": format!("sha256:{}", "a".repeat(64)),
+        "command": { "id": "app:sendMedia", "name": "sendMedia" },
+        "targetMutation": {
+            "id": "fn:createPost",
+            "name": "createPost",
+            "implementationHash": format!("sha256:{}", "b".repeat(64)),
+            "argsContractHash": format!("sha256:{}", "c".repeat(64)),
+            "resultContractHash": format!("sha256:{}", "d".repeat(64))
+        },
+        "passthroughArgs": [],
+        "media": {
+            "input": "media",
+            "intent": "postMedia",
+            "intentPolicyHash": format!("sha256:{}", "e".repeat(64)),
+            "mutationArg": "assetIds",
+            "minItems": 0,
+            "maxItems": 3,
+            "kinds": ["image"]
+        },
+        "parentResultPath": ["_id"],
+        "collection": {
+            "name": "gallery",
+            "generation": format!("sha256:{}", "f".repeat(64)),
+            "ownerTable": "posts",
+            "ownerField": "ownerId",
+            "childTable": "_snapback_asset_collection_gallery"
+        },
+        "itemIdentityPlan": {
+            "format": "snapback:asset-collection-item-id:v1",
+            "operation": "append",
+            "order": "input"
+        },
+        "sharing": { "name": "none", "kind": "none" },
+        "taskProfile": { "concurrency": 3 }
+    }))
+    .expect("closed media binding");
+    let mut unknown = serde_json::to_value(&binding).expect("binding value");
+    unknown
+        .as_object_mut()
+        .expect("binding object")
+        .insert("callback".to_owned(), json!("forbidden"));
+    assert!(
+        serde_json::from_value::<crate::manifest::MediaCommandBindingV1>(unknown).is_err(),
+        "MediaCommandBindingV1 decode is closed"
+    );
+    let mut function = FunctionDefinition::new(
+        "createPost",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            steps: Vec::new(),
+            return_value: None,
+        })),
+    );
+    function.id = "fn:createPost".to_owned();
+    function.media_command_bindings = vec![binding.clone()];
+
+    let error = prepare_media_command_invocation(&function, &HandlerInput::default(), None, None)
+        .expect_err("plain dispatch is command-only");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_MEDIA_COMMAND_BINDING_REQUIRED"
+    );
+
+    let invocation = crate::manifest::MediaCommandInvocationV1 {
+        binding_identity: binding.identity.clone(),
+        command_identity: binding.command.id.clone(),
+        attempt_id: "attempt-1".to_owned(),
+        items: Vec::new(),
+        principals: Vec::new(),
+    };
+    let input = HandlerInput {
+        args: json!({ "assetIds": [] }),
+        ..HandlerInput::default()
+    };
+    let resolved =
+        prepare_media_command_invocation(&function, &input, Some(invocation), Some("attempt-1"))
+            .expect("exact carrier resolves before handler selection")
+            .expect("resolved media command");
+    assert_eq!(resolved.binding.identity, binding.identity);
 }
 
 fn opaque_structured_field_type() -> FieldType {
@@ -11102,6 +11187,7 @@ fn successor_only_publication_gates_blind_mutation_artifact_generation() {
             expected_generation,
             None,
             MutationSettlement::default(),
+            None,
             wire_version,
         )
     }

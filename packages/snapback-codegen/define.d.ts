@@ -960,6 +960,37 @@ export interface AssetBearingCommandSpec {
 /** Closed LLP 0180 command declaration: one ordinary mutation and at most one
  * asset input. Codegen derives the public inputs and validates the mapping. */
 export declare function defineCommand(spec: AssetBearingCommandSpec): unknown;
+export interface MediaCommandSpec {
+  readonly media: Readonly<{
+    readonly input: string;
+    readonly intent: string;
+    readonly minItems: number;
+    readonly maxItems: number;
+    readonly kinds: ReadonlyArray<MediaKind>;
+  }>;
+  readonly mutation: unknown;
+  readonly mapping: Readonly<{
+    readonly passthrough: ReadonlyArray<string>;
+    readonly assetsToMutationArg: string;
+    readonly parentResultPath: string;
+    readonly collection: string;
+    readonly operation: 'append' | 'replace';
+    readonly principals?: Readonly<{
+      readonly input: string;
+      readonly minItems: number;
+      readonly maxItems: number;
+    }>;
+  }>;
+  readonly sharing: AssetCollectionGrantPlan;
+}
+/** Closed LLP 0239 D3 multi-media command declaration. */
+export declare function defineMediaCommand(spec: MediaCommandSpec): unknown;
+export declare const assetSharing: Readonly<{
+  none(): Readonly<{ kind: 'none' }>;
+  ownerOnly(): Readonly<{ kind: 'owner-only' }>;
+  recipients(spec: Readonly<{ state: AssetCollectionGrantState; maxRecipients: number }>): Readonly<{ kind: 'recipients'; state: AssetCollectionGrantState; maxRecipients: number }>;
+  derived(spec: Readonly<{ state: AssetCollectionGrantState; maxRecipients: number; function: string; table: string; parentField: string; principalField: string }>): Readonly<{ kind: 'derived'; state: AssetCollectionGrantState; maxRecipients: number; function: string; table: string; parentField: string; principalField: string }>;
+}>;
 export declare function isCommandDef(value: unknown): boolean;
 export declare function defineCron(jobs: Record<string, unknown>): unknown;
 export declare function defineConfig(entries: Record<string, unknown>): unknown;

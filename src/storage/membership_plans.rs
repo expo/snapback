@@ -199,6 +199,7 @@ impl LocalDatabase {
                 ctx_ledger: None,
                 apply: true,
                 identity: None,
+                media_command: None,
                 branch_operation: None,
             },
             MembershipCommitAuthority::sanctioned(writer),

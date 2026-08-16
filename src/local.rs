@@ -1293,6 +1293,7 @@ pub(crate) struct StagedRecordedMutationCommit {
     settlement: MutationSettlement,
     prepared: PreparedInvocation,
     identity: Option<ClientMutationIdentity>,
+    media_command: Option<crate::manifest::ResolvedMediaCommandV1>,
     settlement_time: Option<SettlementTimePolicy>,
     epoch_scopes: BTreeSet<String>,
     execution: StagedMutationExecution,
@@ -3811,6 +3812,126 @@ fn capability_link_unavailable() -> SnapbackError {
     )
 }
 
+/// Resolve the untrusted invocation carrier to exactly one installed binding
+/// before any mutation handler or HostPlan step can execute.
+/// @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit
+fn prepare_media_command_invocation(
+    function: &FunctionDefinition,
+    input: &HandlerInput,
+    invocation: Option<crate::manifest::MediaCommandInvocationV1>,
+    client_mutation_id: Option<&str>,
+) -> SnapbackResult<Option<crate::manifest::ResolvedMediaCommandV1>> {
+    let Some(invocation) = invocation else {
+        if function.media_command_bindings.is_empty() {
+            return Ok(None);
+        }
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEDIA_COMMAND_BINDING_REQUIRED",
+            "media-command",
+            "this mutation is command-only and requires its exact generated media binding",
+        ));
+    };
+    if function.media_command_bindings.is_empty() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEDIA_COMMAND_BINDING_INVALID",
+            "media-command",
+            "media command carrier targets a mutation with no installed binding",
+        ));
+    }
+    let binding = function
+        .media_command_bindings
+        .iter()
+        .find(|binding| {
+            binding.identity == invocation.binding_identity
+                && binding.command.id == invocation.command_identity
+        })
+        .cloned()
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_MEDIA_COMMAND_BINDING_INVALID",
+                "media-command",
+                "media command carrier does not match an installed binding identity",
+            )
+        })?;
+    let attempt = client_mutation_id.ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_MEDIA_COMMAND_MUTATION_ATTEMPT_REQUIRED",
+            "media-command",
+            "media command commit requires one replay-stable client mutation identity",
+        )
+    })?;
+    if invocation.attempt_id != attempt
+        || invocation.items.len() < usize::from(binding.media.min_items)
+        || invocation.items.len() > usize::from(binding.media.max_items)
+        || invocation
+            .items
+            .iter()
+            .enumerate()
+            .any(|(ordinal, item)| usize::from(item.ordinal) != ordinal || item.asset_id.is_empty())
+        || invocation
+            .items
+            .iter()
+            .map(|item| item.asset_id.as_str())
+            .collect::<BTreeSet<_>>()
+            .len()
+            != invocation.items.len()
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEDIA_COMMAND_ARGUMENT_INVALID",
+            "media-command",
+            "media command attempt/item plan is not the exact bounded input-order plan",
+        ));
+    }
+    let principals_match = match &binding.principal_input {
+        Some(principal_input) => {
+            invocation.principals.len() >= usize::from(principal_input.min_items)
+                && invocation.principals.len() <= usize::from(principal_input.max_items)
+                && invocation
+                    .principals
+                    .iter()
+                    .all(|principal| !principal.is_empty())
+                && invocation
+                    .principals
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<BTreeSet<_>>()
+                    .len()
+                    == invocation.principals.len()
+        }
+        None => invocation.principals.is_empty(),
+    };
+    if !principals_match {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEDIA_COMMAND_ARGUMENT_INVALID",
+            "media-command",
+            "media command principals do not match the binding's exact bounded input",
+        ));
+    }
+    let mapped = input
+        .args
+        .as_object()
+        .and_then(|args| args.get(&binding.media.mutation_arg))
+        .and_then(Value::as_array);
+    let matches_plan = mapped.is_some_and(|asset_ids| {
+        asset_ids.len() == invocation.items.len()
+            && asset_ids
+                .iter()
+                .zip(&invocation.items)
+                .all(|(asset_id, item)| asset_id.as_str() == Some(item.asset_id.as_str()))
+    });
+    if !matches_plan {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEDIA_COMMAND_ARGUMENT_INVALID",
+            "media-command",
+            "mapped mutation asset ids do not match the deterministic command item plan",
+        ));
+    }
+    Ok(Some(crate::manifest::ResolvedMediaCommandV1 {
+        binding,
+        invocation,
+    }))
+}
+
 impl LocalSnapback {
     pub fn memory() -> SnapbackResult<Self> {
         let asset_store_config = AssetStoreConfig::from_env();
@@ -4707,6 +4828,9 @@ impl LocalSnapback {
     ) -> SnapbackResult<DeploymentIdentity> {
         artifacts.schema.validate_artifact()?;
         artifacts.functions.validate_artifact()?;
+        artifacts
+            .functions
+            .validate_media_commands_against_schema(&artifacts.schema)?;
         artifacts
             .schema
             .validate_api_against_functions(&artifacts.functions)?;
@@ -11880,6 +12004,7 @@ impl LocalSnapback {
             operation_issuance,
             settlement,
             None,
+            None,
             false,
         )
     }
@@ -11901,6 +12026,7 @@ impl LocalSnapback {
         expected_generation: Option<&ArtifactGeneration>,
         operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
+        media_command: Option<crate::manifest::MediaCommandInvocationV1>,
         wire_version: Option<&str>,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
@@ -11917,6 +12043,7 @@ impl LocalSnapback {
             expected_generation,
             operation_issuance,
             settlement,
+            media_command,
             wire_version,
             false,
         )
@@ -11935,6 +12062,7 @@ impl LocalSnapback {
         expected_generation: Option<&ArtifactGeneration>,
         operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
+        media_invocation: Option<crate::manifest::MediaCommandInvocationV1>,
         wire_version: Option<&str>,
         allow_host_issuance: bool,
     ) -> SnapbackResult<(
@@ -12007,6 +12135,14 @@ impl LocalSnapback {
             }
             identity
         };
+        let bind_request = |identity: ClientMutationIdentity| {
+            let identity = if let Some(invocation) = media_invocation.as_ref() {
+                identity.with_media_command(invocation)
+            } else {
+                identity
+            };
+            bind_operation(identity)
+        };
         // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
         // A committed settlement is independent of the continued existence
         // of executable code. Re-attest the live authority and the exact
@@ -12022,7 +12158,7 @@ impl LocalSnapback {
             }
             let mut canonical_input = input.clone();
             canonical_input.auth = authority.canonical_auth_input();
-            let identity = bind_operation(ClientMutationIdentity::for_authority_with_settlement(
+            let identity = bind_request(ClientMutationIdentity::for_authority_with_settlement(
                 id.clone(),
                 name.to_owned(),
                 &canonical_input,
@@ -12082,6 +12218,13 @@ impl LocalSnapback {
             negotiated_wire_version,
         )?;
         let function = self.function(name)?.clone();
+        let input = input;
+        let media_command = prepare_media_command_invocation(
+            &function,
+            &input,
+            media_invocation.clone(),
+            client_mutation_id.as_deref(),
+        )?;
         let settlement_time = admitted_settlement_time_policy(&function, &settlement);
         self.validate_expected_generation(&authority, expected_generation)?;
         let prepared = InvocationGate::prepare_function(authority.clone(), &function)?;
@@ -12120,7 +12263,7 @@ impl LocalSnapback {
                 let incarnation = self.db.ensure_authorization_stream_incarnation()?;
                 let expected =
                     descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
-                Some(bind_operation(
+                Some(bind_request(
                     ClientMutationIdentity::for_authority_with_settlement(
                         id,
                         name.to_owned(),
@@ -12204,14 +12347,24 @@ impl LocalSnapback {
                             | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
                                 crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
                             )) => {
-                                let preview = self
-                                    .db
-                                    .mutation_writes()
-                                    .dry_run_mutation_with_settlement_time(
-                                        plan,
-                                        &input,
-                                        settlement_time.as_ref(),
-                                    )?;
+                                let preview = if let Some(media_command) = media_command.as_ref() {
+                                    self.db
+                                        .mutation_writes()
+                                        .dry_run_media_command_mutation_with_settlement_time(
+                                            plan,
+                                            &input,
+                                            media_command,
+                                            settlement_time.as_ref(),
+                                        )?
+                                } else {
+                                    self.db
+                                        .mutation_writes()
+                                        .dry_run_mutation_with_settlement_time(
+                                            plan,
+                                            &input,
+                                            settlement_time.as_ref(),
+                                        )?
+                                };
                                 crate::result_contract::validate_handler_result(
                                     &function,
                                     &preview.commit.output.result,
@@ -12277,24 +12430,33 @@ impl LocalSnapback {
                                     &function,
                                     &payload.result,
                                 )?;
-                                let preview = self
-                                    .db
-                                    .mutation_writes()
-                                    .dry_run_buffered_writes_with_jobs(
-                                        &input,
-                                        payload.writes.clone(),
-                                        payload.sequence_allocations.clone(),
-                                        payload.membership_plans.clone(),
-                                        payload.read_dependencies.clone(),
-                                        payload.result.clone(),
-                                        payload.ctx_ledger.clone(),
-                                        payload.job_enqueues.clone(),
-                                        payload.job_producer.clone(),
-                                        payload.asset_admissions.clone(),
-                                        payload.asset_grant_ops.clone(),
-                                        payload.media_projection_proof.as_ref(),
-                                        payload.expected_media_projection_binding.as_ref(),
-                                    )?;
+                                let preview = if let Some(media_command) = media_command.as_ref() {
+                                    self.db
+                                        .mutation_writes()
+                                        .dry_run_media_command_buffered_payload(
+                                            &input,
+                                            &payload,
+                                            media_command,
+                                        )?
+                                } else {
+                                    self.db
+                                        .mutation_writes()
+                                        .dry_run_buffered_writes_with_jobs(
+                                            &input,
+                                            payload.writes.clone(),
+                                            payload.sequence_allocations.clone(),
+                                            payload.membership_plans.clone(),
+                                            payload.read_dependencies.clone(),
+                                            payload.result.clone(),
+                                            payload.ctx_ledger.clone(),
+                                            payload.job_enqueues.clone(),
+                                            payload.job_producer.clone(),
+                                            payload.asset_admissions.clone(),
+                                            payload.asset_grant_ops.clone(),
+                                            payload.media_projection_proof.as_ref(),
+                                            payload.expected_media_projection_binding.as_ref(),
+                                        )?
+                                };
                                 (
                                     self.authorization_commit_preflight_for_changes(
                                         preview.changes,
@@ -12321,6 +12483,7 @@ impl LocalSnapback {
                                 settlement: settlement.clone(),
                                 prepared,
                                 identity,
+                                media_command,
                                 settlement_time,
                                 epoch_scopes,
                                 execution,
@@ -12410,6 +12573,7 @@ impl LocalSnapback {
             settlement,
             prepared,
             identity,
+            media_command,
             settlement_time,
             epoch_scopes,
             execution,
@@ -12426,6 +12590,19 @@ impl LocalSnapback {
             return Err(error);
         }
         let result = match execution {
+            StagedMutationExecution::HostPlan(plan) if media_command.is_some() => self
+                .db
+                .mutation_writes()
+                .execute_media_command_mutation_idempotent_guarded_with_settlement_time(
+                    &plan,
+                    &input,
+                    identity
+                        .as_ref()
+                        .expect("validated media command carries a mutation identity"),
+                    media_command.as_ref().expect("matched media command"),
+                    settlement_time.as_ref(),
+                    || prepared.effect_guard("media command mutation transaction"),
+                ),
             StagedMutationExecution::HostPlan(plan) => match identity.as_ref() {
                 Some(identity)
                     if matches!(
@@ -12465,6 +12642,17 @@ impl LocalSnapback {
                         || prepared.effect_guard("mutation transaction"),
                     ),
             },
+            StagedMutationExecution::Buffered(payload) if media_command.is_some() => self
+                .db
+                .mutation_writes()
+                .commit_media_command_buffered_writes_idempotent_guarded(
+                    &input,
+                    *payload,
+                    identity.as_ref(),
+                    media_command.as_ref().expect("matched media command"),
+                    || Ok(()),
+                    || prepared.effect_guard("media command ibex transaction"),
+                ),
             StagedMutationExecution::Buffered(payload) => {
                 let payload = *payload;
                 if identity.as_ref().is_some_and(|identity| {
@@ -22662,6 +22850,7 @@ impl LocalSnapback {
             None,
             host_identity.and_then(|identity| identity.operation_issuance),
             MutationSettlement::default(),
+            None,
             None,
             true,
         )

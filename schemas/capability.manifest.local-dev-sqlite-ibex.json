@@ -252,6 +252,7 @@
     "asset_reference_gc_v1": "experimental",
     "asset_video_finalization_v1": "experimental",
     "assets.media-collection.v1": "experimental",
+    "assets.media-command.v1": "experimental",
     "assets.media-ref-projection.v1": "experimental",
     "bounded_batch_reads_v1": "experimental",
     "bounded_children_v1": "experimental",
@@ -545,6 +546,7 @@
     "asset_reference_gc_v1",
     "asset_video_finalization_v1",
     "assets.media-collection.v1",
+    "assets.media-command.v1",
     "assets.media-ref-projection.v1"
   ],
   "supportedQueryForms": [

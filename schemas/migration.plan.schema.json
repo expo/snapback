@@ -928,7 +928,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "Copy a table into a staged successor generation; each destination\nfield is a closed expression over the source row plus constants.",
+          "description": "Copy a table into a staged successor generation. Entries in `fields`\nare closed transforms over the source row plus constants; successor\nfields omitted from the map carry their same-name predecessor value.",
           "properties": {
             "CopyTable": {
               "properties": {

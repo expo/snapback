@@ -148,6 +148,7 @@ pub struct SchemaArtifact {
 ///   codegen boundary, like the codegen-owned app descriptor.
 pub const EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS: &[&str] = &[
     "../packages/snapback-codegen/handler-typescript-profile.schema.json",
+    "normalized-definition.v1.schema.json",
     "cloudflare.deploy-receipt-v1.schema.json",
     "control-catalog-instance.v1.schema.json",
     "control-catalog.v1.schema.json",

@@ -842,6 +842,10 @@
           },
           "type": "array"
         },
+        "dataQueryCatalog": {
+          "items": true,
+          "type": "array"
+        },
         "functions": {
           "items": {
             "$ref": "#/$defs/PublicFunctionDefinition"
@@ -877,6 +881,7 @@
         "schemaVersion",
         "appId",
         "unsupportedDependencyDiagnostics",
+        "dataQueryCatalog",
         "functions",
         "cronJobs",
         "config"

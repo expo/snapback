@@ -411,6 +411,287 @@
       },
       "type": "object"
     },
+    "AssetCollectionFieldsManifestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "assetId": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "ordinal": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": "string"
+        },
+        "parentIncarnation": {
+          "type": "string"
+        },
+        "policyGeneration": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "parentId",
+        "parentIncarnation",
+        "assetId",
+        "kind",
+        "policyGeneration",
+        "ordinal"
+      ],
+      "type": "object"
+    },
+    "AssetCollectionGrantStateV1": {
+      "enum": [
+        "active",
+        "pending"
+      ],
+      "type": "string"
+    },
+    "AssetCollectionManifestV1": {
+      "additionalProperties": false,
+      "description": "Framework-owned zero-to-many media relation. The generated child table is\nstill an ordinary SQLite table for OCC, backup, and live-query purposes;\nthis descriptor is the exclusive authority to mutate it.\n@ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation",
+      "properties": {
+        "childTable": {
+          "type": "string"
+        },
+        "duplicatePolicy": {
+          "type": "string"
+        },
+        "fields": {
+          "$ref": "#/$defs/AssetCollectionFieldsManifestV1"
+        },
+        "format": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "kinds": {
+          "items": {
+            "$ref": "#/$defs/MediaKindV1"
+          },
+          "type": "array"
+        },
+        "maxItems": {
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "operations": {
+          "$ref": "#/$defs/AssetCollectionOperationsManifestV1"
+        },
+        "order": {
+          "$ref": "#/$defs/AssetCollectionOrderV1"
+        },
+        "ownerField": {
+          "type": "string"
+        },
+        "ownerTable": {
+          "type": "string"
+        },
+        "sharing": {
+          "$ref": "#/$defs/AssetCollectionSharingManifestV1"
+        }
+      },
+      "required": [
+        "format",
+        "name",
+        "generation",
+        "ownerTable",
+        "ownerField",
+        "intent",
+        "maxItems",
+        "order",
+        "kinds",
+        "duplicatePolicy",
+        "sharing",
+        "childTable",
+        "fields",
+        "operations"
+      ],
+      "type": "object"
+    },
+    "AssetCollectionOperationsManifestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "append": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "remove": {
+          "type": "string"
+        },
+        "reorder": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "replace": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "query",
+        "append",
+        "replace",
+        "remove"
+      ],
+      "type": "object"
+    },
+    "AssetCollectionOrderV1": {
+      "enum": [
+        "manual",
+        "created"
+      ],
+      "type": "string"
+    },
+    "AssetCollectionSharingManifestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "ceiling": {
+          "items": {
+            "$ref": "#/$defs/AssetCollectionSharingPlanManifestV1"
+          },
+          "type": "array"
+        },
+        "default": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "ceiling",
+        "default"
+      ],
+      "type": "object"
+    },
+    "AssetCollectionSharingPlanManifestV1": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "none",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "owner-only",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "recipients",
+              "type": "string"
+            },
+            "maxRecipients": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "state": {
+              "$ref": "#/$defs/AssetCollectionGrantStateV1"
+            }
+          },
+          "required": [
+            "kind",
+            "state",
+            "maxRecipients"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "function": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "derived",
+              "type": "string"
+            },
+            "maxRecipients": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "parentField": {
+              "type": "string"
+            },
+            "principalField": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/$defs/AssetCollectionGrantStateV1"
+            },
+            "table": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "state",
+            "maxRecipients",
+            "function",
+            "table",
+            "parentField",
+            "principalField"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "inherit-command",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
     "AssetReferenceGcPolicyV1": {
       "additionalProperties": false,
       "description": "The app's reference-GC opt-in: a ready asset with no typed\nreverse-reference edges is reclaimed after this grace period. Codegen\nrefuses a grace outside the target's declared Enforced bounds.",
@@ -3059,6 +3340,12 @@
       "default": "schemaManifest",
       "type": "string"
     },
+    "assetCollections": {
+      "items": {
+        "$ref": "#/$defs/AssetCollectionManifestV1"
+      },
+      "type": "array"
+    },
     "assets": {
       "anyOf": [
         {
@@ -3086,6 +3373,11 @@
         "string",
         "null"
       ]
+    },
+    "dataResources": {
+      "description": "Generated DataResourceV1 witnesses. The generic manifest layer keeps\nthe versioned records opaque; pair activation validates their closed\nshape and hashes together with the function-side query catalogue.",
+      "items": true,
+      "type": "array"
     },
     "ephemeralCollections": {
       "default": [],

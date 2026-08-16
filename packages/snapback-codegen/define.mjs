@@ -2482,6 +2482,75 @@ export function defineCommand(spec) {
   };
 }
 
+// Closed sharing selectors for LLP 0239 media commands. These values select
+// one already-declared collection-ceiling member; they never carry authority
+// supplied by the caller.
+export const assetSharing = Object.freeze({
+  none: () => Object.freeze({ kind: 'none' }),
+  ownerOnly: () => Object.freeze({ kind: 'owner-only' }),
+  recipients: (spec) => {
+    exactObject(spec, 'assetSharing.recipients()', new Set(['state', 'maxRecipients']));
+    return Object.freeze({ kind: 'recipients', ...spec });
+  },
+  derived: (spec) => {
+    exactObject(
+      spec,
+      'assetSharing.derived()',
+      new Set(['state', 'maxRecipients', 'function', 'table', 'parentField', 'principalField']),
+    );
+    return Object.freeze({ kind: 'derived', ...spec });
+  },
+});
+
+// @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit —
+// the authoring value is closed data. Cross-export compatibility and the
+// exact binding identity are established by codegen.
+export function defineMediaCommand(spec) {
+  exactObject(
+    spec,
+    'defineMediaCommand()',
+    new Set(['media', 'mutation', 'mapping', 'sharing']),
+    'SNAPBACK_MEDIA_COMMAND_DECLARATION_INVALID',
+  );
+  exactObject(
+    spec.media,
+    'defineMediaCommand() media',
+    new Set(['input', 'intent', 'minItems', 'maxItems', 'kinds']),
+    'SNAPBACK_MEDIA_COMMAND_DECLARATION_INVALID',
+  );
+  exactObject(
+    spec.mapping,
+    'defineMediaCommand() mapping',
+    new Set(['passthrough', 'assetsToMutationArg', 'parentResultPath', 'collection', 'operation', 'principals']),
+    'SNAPBACK_MEDIA_COMMAND_DECLARATION_INVALID',
+  );
+  if (spec.mapping?.principals !== undefined) {
+    exactObject(
+      spec.mapping.principals,
+      'defineMediaCommand() mapping principals',
+      new Set(['input', 'minItems', 'maxItems']),
+      'SNAPBACK_MEDIA_COMMAND_DECLARATION_INVALID',
+    );
+  }
+  assert(
+    spec.sharing && typeof spec.sharing === 'object' && !Array.isArray(spec.sharing),
+    'defineMediaCommand() sharing must use one assetSharing selector',
+    'SNAPBACK_MEDIA_COMMAND_DECLARATION_INVALID',
+  );
+  return {
+    [COMMAND]: true,
+    __kind: 'MediaCommand',
+    media: { ...spec.media, kinds: Array.isArray(spec.media?.kinds) ? [...spec.media.kinds] : spec.media?.kinds },
+    mutation: spec.mutation ?? null,
+    mapping: {
+      ...spec.mapping,
+      passthrough: Array.isArray(spec.mapping?.passthrough) ? [...spec.mapping.passthrough] : spec.mapping?.passthrough,
+      ...(spec.mapping?.principals === undefined ? {} : { principals: { ...spec.mapping.principals } }),
+    },
+    sharing: { ...spec.sharing },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Generated asset collections
 // ---------------------------------------------------------------------------

@@ -402,6 +402,16 @@ record
 The remaining R4 media command, collection client hook, and guide Paths 2/4
 stay tracked in `issues/20260815-finish-media-happy-path.md`.
 
+2026-08-16 addendum — R4 landed: `defineMediaCommand` (closed
+`MediaCommandBindingV1`, command-only mutation ingress, atomic staging
+through the R3 collection writer, multi-source `CommandTask` with
+ambiguity/retry/residue semantics, and the author-ruled explicit
+`mapping.operation` + direct-recipient principal mapping).
+`assets.media-command.v1` enters experimental (LLP 0134 same-commit act;
+record `tests/acceptance/maturity/media-command-2026-08-16.introduction.json`).
+Remaining: the collection client hook, guide Paths 2/4, and Expo acceptance
+(Scope C of the same ticket).
+
 ## Part II — The plan: parity, then past it
 
 ### II.1 What "surpass" means — a claim ladder

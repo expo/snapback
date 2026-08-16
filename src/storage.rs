@@ -890,6 +890,7 @@ struct BufferedCommitOptions<'a> {
     ctx_ledger: Option<CtxAnswerLedger>,
     apply: bool,
     identity: Option<&'a ClientMutationIdentity>,
+    media_command: Option<&'a crate::manifest::ResolvedMediaCommandV1>,
     branch_operation: Option<&'a crate::fork_promotion::BranchMutationCommitV1>,
 }
 
@@ -1032,6 +1033,26 @@ impl ClientMutationIdentity {
         issuance: crate::commit_envelope::OperationIssuanceV1,
     ) -> Self {
         self.operation_issuance = Some(issuance);
+        self
+    }
+
+    /// Bind the closed generated media-command carrier into the same durable
+    /// collision boundary as args and settlement facts. A response-loss retry
+    /// can therefore recover only the exact attempt/item/principal plan.
+    pub(crate) fn with_media_command(
+        mut self,
+        invocation: &crate::manifest::MediaCommandInvocationV1,
+    ) -> Self {
+        let canonical = canonical_json(json!({
+            "inputFingerprint": self.input_fingerprint,
+            "mediaCommand": invocation,
+        }));
+        let mut digest = Sha256::new();
+        digest.update(b"snapback:client-mutation-media-command:v1\n");
+        digest.update(
+            serde_json::to_vec(&canonical).expect("media-command mutation identity serializes"),
+        );
+        self.input_fingerprint = format!("sha256:{:x}", digest.finalize());
         self
     }
 
@@ -2827,6 +2848,7 @@ impl LocalDatabase {
             identity,
             None,
             None,
+            None,
             check_live,
             before_commit,
         )
@@ -2846,6 +2868,7 @@ impl LocalDatabase {
         input: &HandlerInput,
         apply: bool,
         identity: Option<&ClientMutationIdentity>,
+        media_command: Option<&crate::manifest::ResolvedMediaCommandV1>,
         settlement_time: Option<&SettlementTimePolicy>,
         branch_operation: Option<&crate::fork_promotion::BranchMutationCommitV1>,
         check_live: &Check,
@@ -2977,6 +3000,15 @@ impl LocalDatabase {
                 {
                     return Err(membership_hostplan_write_denied(target));
                 }
+            }
+        }
+        if let Some(media) = media_command {
+            touched_tables.insert(media.binding.collection.owner_table.clone());
+            touched_tables.insert(media.binding.collection.child_table.clone());
+            if let crate::manifest::AssetCollectionSharingPlanV1::Derived { table, .. } =
+                &media.binding.sharing.plan
+            {
+                touched_tables.insert(table.clone());
             }
         }
         // Validate every pre-existing row the plan can read, select, patch, or
@@ -3682,6 +3714,65 @@ impl LocalDatabase {
             }
         }
 
+        let media_result = if media_command.is_some() {
+            Some(if let Some(result) = collection_result.clone() {
+                result
+            } else {
+                match &plan.return_value {
+                    Some(ReturnValue::Literal(value)) => value.clone(),
+                    Some(ReturnValue::Binding(name)) => {
+                        bindings.get(name).cloned().unwrap_or(Value::Null)
+                    }
+                    Some(ReturnValue::Document { table, id }) => {
+                        let table = schema_table(&schema, table)?;
+                        let id = expect_string(
+                            eval_expr(
+                                id,
+                                input,
+                                &bindings,
+                                now_ms,
+                                Some(&next_id),
+                                "plan/return/document/id",
+                            )?,
+                            "document id",
+                        )?;
+                        let mut document = get_document_from_tx(&tx, table, &id, next_version)?
+                            .unwrap_or(Value::Null);
+                        if !document.is_null() {
+                            project_media_fields_on(&tx, table, &mut document)?;
+                        }
+                        document
+                    }
+                    Some(ReturnValue::ChangedCount) | None => json!(changes.len()),
+                    Some(ReturnValue::Expr(expr)) => eval_expr(
+                        expr,
+                        input,
+                        &bindings,
+                        now_ms,
+                        Some(&next_id),
+                        "plan/return/expression",
+                    )?,
+                }
+            })
+        } else {
+            None
+        };
+        if let (Some(media), Some(result)) = (media_command, media_result.as_ref()) {
+            asset_changes.extend(execute_media_command_collection_step(
+                &tx,
+                &schema,
+                media,
+                input,
+                result,
+                identity,
+                next_version,
+                now_ms,
+                &self.order_field_bounds,
+                &mut changes,
+                check_live,
+            )?);
+        }
+
         asset_changes.extend(cascade_asset_collection_parent_deletions(
             &tx,
             &schema,
@@ -3735,7 +3826,9 @@ impl LocalDatabase {
             set_version(&tx, next_version)?;
         }
 
-        let result = if let Some(result) = collection_result {
+        let result = if let Some(result) = media_result {
+            result
+        } else if let Some(result) = collection_result {
             result
         } else {
             match &plan.return_value {
@@ -3931,6 +4024,7 @@ impl LocalDatabase {
         input: &HandlerInput,
         payload: BufferedCommitPayload,
         identity: Option<&ClientMutationIdentity>,
+        media_command: Option<&crate::manifest::ResolvedMediaCommandV1>,
         lane: CoveredMutationLaneV1,
         branch_operation: Option<&crate::fork_promotion::BranchMutationCommitV1>,
         check_live: Check,
@@ -3996,6 +4090,7 @@ impl LocalDatabase {
                 ctx_ledger: Some(ctx_ledger),
                 apply: true,
                 identity,
+                media_command,
                 branch_operation,
             },
             &check_live,
@@ -4127,6 +4222,15 @@ impl LocalDatabase {
                 .flat_map(|authorized| authorized.plan.writes.iter())
                 .map(|write| write.table().to_owned()),
         );
+        if let Some(media) = options.media_command {
+            touched_tables.insert(media.binding.collection.owner_table.clone());
+            touched_tables.insert(media.binding.collection.child_table.clone());
+            if let crate::manifest::AssetCollectionSharingPlanV1::Derived { table, .. } =
+                &media.binding.sharing.plan
+            {
+                touched_tables.insert(table.clone());
+            }
+        }
         // @ref LLP 0003#execution-and-write-semantics — JS ctx.db writes are buffered during handler execution and committed once after completion.
         let schema = self.schema.clone();
         let projections = self.projections.clone();
@@ -4373,13 +4477,30 @@ impl LocalDatabase {
             }
         }
 
-        let mut asset_changes = cascade_asset_collection_parent_deletions(
+        let mut asset_changes = BTreeSet::new();
+        if let Some(media) = options.media_command {
+            asset_changes.extend(execute_media_command_collection_step(
+                &tx,
+                &schema,
+                media,
+                input,
+                &result,
+                options.identity,
+                next_version,
+                now_ms,
+                &self.order_field_bounds,
+                &mut changes,
+                check_live,
+            )?);
+        }
+
+        asset_changes.extend(cascade_asset_collection_parent_deletions(
             &tx,
             &schema,
             &mut changes,
             next_version,
             now_ms,
-        )?;
+        )?);
 
         // Re-evaluate the complete protected-holder invariant only when this
         // transaction changed a protected roster or its resource table. This
@@ -16009,6 +16130,145 @@ where
         json!({ "parentId": parent_id, "itemIds": final_ids }),
         asset_changes,
     ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_media_command_collection_step<Check>(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    media: &crate::manifest::ResolvedMediaCommandV1,
+    input: &HandlerInput,
+    result: &Value,
+    identity: Option<&ClientMutationIdentity>,
+    next_version: u64,
+    now_ms: u64,
+    order_field_bounds: &BTreeMap<(String, String), u64>,
+    changes: &mut Vec<ChangedRow>,
+    check_live: &Check,
+) -> SnapbackResult<BTreeSet<String>>
+where
+    Check: Fn() -> SnapbackResult<()>,
+{
+    let parent_id = media
+        .binding
+        .parent_result_path
+        .iter()
+        .try_fold(result, |value, component| {
+            value.as_object().and_then(|object| object.get(component))
+        })
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_MEDIA_COMMAND_PARENT_RESULT_INVALID",
+                "media-command",
+                "mutation result did not preserve the binding's exact parent id path",
+            )
+        })?
+        .to_owned();
+    let descriptor = schema
+        .asset_collections
+        .iter()
+        .find(|collection| collection.name == media.binding.collection.name)
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_MEDIA_COMMAND_BINDING_INVALID",
+                "media-command",
+                "media command collection is absent from the active schema",
+            )
+        })?;
+    let derivation_tables = descriptor
+        .sharing
+        .ceiling
+        .iter()
+        .filter_map(|selection| match &selection.plan {
+            crate::manifest::AssetCollectionSharingPlanV1::Derived { table, .. } => {
+                Some(table.clone())
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let grant_capable = descriptor.sharing.ceiling.iter().any(|selection| {
+        matches!(
+            selection.plan,
+            crate::manifest::AssetCollectionSharingPlanV1::Recipients { .. }
+                | crate::manifest::AssetCollectionSharingPlanV1::Derived { .. }
+        )
+    });
+    let operation = match media.binding.item_identity_plan.operation.as_str() {
+        "append" => AssetCollectionOperationV1::Append,
+        "replace" => AssetCollectionOperationV1::Replace,
+        _ => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MEDIA_COMMAND_BINDING_INVALID",
+                "media-command",
+                "media command binding names an unsupported collection operation",
+            ));
+        }
+    };
+    let plan = AssetCollectionMutationPlanV1 {
+        collection: media.binding.collection.name.clone(),
+        generation: media.binding.collection.generation.clone(),
+        operation,
+        owner_table: media.binding.collection.owner_table.clone(),
+        owner_field: media.binding.collection.owner_field.clone(),
+        child_table: media.binding.collection.child_table.clone(),
+        parent_id_arg: "parentId".to_owned(),
+        items_arg: "assetIds".to_owned(),
+        max_items: media.binding.media.max_items,
+        order: "manual".to_owned(),
+        intent: media.binding.media.intent.clone(),
+        kinds: media.binding.media.kinds.clone(),
+        duplicate_policy: "refuse.v1".to_owned(),
+        policy_generation: media.binding.collection.generation.clone(),
+        sharing_arg: Some("sharing".to_owned()),
+        default_sharing_plan: descriptor.sharing.default_plan.clone(),
+        sharing_derivation_tables: derivation_tables,
+        sharing_grant_capable: grant_capable,
+    };
+    let mut collection_input = input.clone();
+    let sharing = if media.binding.principal_input.is_some() {
+        json!({
+            "plan": media.binding.sharing.name,
+            "principals": media.invocation.principals,
+        })
+    } else {
+        json!({ "plan": media.binding.sharing.name })
+    };
+    collection_input.args = json!({
+        "parentId": parent_id,
+        "assetIds": media.invocation.items.iter()
+            .map(|item| item.asset_id.as_str())
+            .collect::<Vec<_>>(),
+        "sharing": sharing,
+    });
+    let collection_change_start = changes.len();
+    let plan_ids = RefCell::new(PlanIdSource::new(None));
+    let (_collection_result, changed_assets) = execute_asset_collection_step(
+        tx,
+        schema,
+        &plan,
+        &collection_input,
+        identity,
+        next_version,
+        now_ms,
+        order_field_bounds,
+        &plan_ids,
+        changes,
+        check_live,
+    )?;
+    plan_ids.borrow().ensure_exact_consumption()?;
+    enforce_asset_reference_changes(
+        schema,
+        tx,
+        &changes[collection_change_start..],
+        &crate::assets::AssetCommitAuthority {
+            path: crate::assets::AssetWritePath::HostPlan,
+            principal: input.auth.user_id.as_deref(),
+            admissions: &[],
+        },
+        now_ms,
+    )?;
+    Ok(changed_assets)
 }
 
 #[derive(Clone, Debug)]

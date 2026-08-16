@@ -60,6 +60,24 @@
             "null"
           ]
         },
+        "expected_entry_generation": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "expected_scope_epoch": {
+          "default": null,
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "scope": {
           "additionalProperties": {
             "type": "string"

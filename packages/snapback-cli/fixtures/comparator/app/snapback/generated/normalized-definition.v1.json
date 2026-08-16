@@ -193,6 +193,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "activityRows",
         "plan": {
@@ -317,6 +318,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "liveRows",
         "plan": {
@@ -441,6 +443,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "primaryRows",
         "plan": {
@@ -576,6 +579,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "publishLiveRow",
         "plan": null,
@@ -652,6 +656,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "rejectInvalidWrite",
         "plan": null,
@@ -717,6 +722,7 @@
           "version": "EffectCeilingV1",
           "writes": []
         },
+        "mediaCommandBindings": [],
         "operationKind": "LiveQuery",
         "operationName": "rejectionRows",
         "plan": {
@@ -866,6 +872,7 @@
             }
           ]
         },
+        "mediaCommandBindings": [],
         "operationKind": "Mutation",
         "operationName": "writePrimaryAndActivity",
         "plan": null,
@@ -907,7 +914,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:2f13691ead38177abddc2efcda5f0d4aed0ae48c0d1ace2ae661d33bd40ab6c2",
+  "normalizedContractId": "sha256:fb8c83ce09771ec43c739927d4e4b932e1b3e86c772af97f4f707e64540d874d",
   "normalizedSchemaId": "sha256:a5b108ca58cfa87e328564963f68414ac8943e60082eba7df731cf0bbddf1758",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }
