@@ -10,12 +10,14 @@ use super::{
     LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
     MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation,
     PendingLiveFanout, PendingLiveLane, PendingLiveScheduler, PendingLiveWork, PublicInspect,
-    RetryEpisodeKey, RetryReservationKind, SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER,
-    SearchFieldClassV1, SearchIndexManifestV1, SearchQueryPlanV1, SearchTextFieldV1,
-    SearchVisibilityV1, SnapbackError, SnapbackResult, StagedMutationExecution,
-    StagedNestedMutation, StagedRecordedMutation, bounded_projection_result_contract,
+    QueryInvocation, RetryEpisodeKey, RetryReservationKind, SEARCH_ANALYZER, SEARCH_CAPABILITY,
+    SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1, SearchQueryPlanV1, SearchTextFieldV1,
+    SearchVisibilityV1, SnapbackError, SnapbackResult, StagedMutationExecution, StagedNestedMutation,
+    StagedRecordedMutation,
+    bounded_projection_result_contract,
     enforce_snapshot_batch_cursor_budget, next_secret_read_reset_generation, now_millis,
     order_field_bounds_from_functions, prepare_media_command_invocation,
+    query_invocation_estimated_bytes,
     refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
     settlement_id_map, snapshot_batch_max_boundary, snapshot_batch_max_plaintext_len,
     telemetry_correlation, validate_bounded_children_node_schema_references,
@@ -56,7 +58,7 @@ use crate::runtime::{
     MediaProjectionInvocationScopeV1, StagedMediaProjectionProofV1,
 };
 use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
-use crate::storage::{BufferedWrite, DbRead};
+use crate::storage::{BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead};
 use crate::vector::{
     VECTOR_CAPABILITY, VECTOR_DISTANCE_PROFILE_ID, VECTOR_ORDERING_PROFILE_ID,
     VECTOR_RESULT_PROJECTION, VectorFieldClassV1, VectorIndexManifestV1, VectorMaintenanceLimitsV1,
@@ -1392,6 +1394,48 @@ fn live_evaluation_memo_kill_switch_restores_one_execution_per_subscription() {
             .evaluation_memo
             .entries
             .is_empty()
+    );
+}
+
+#[test]
+fn live_evaluation_memo_estimator_matches_serialized_lengths() {
+    let invocation = QueryInvocation {
+        output: QueryOutput {
+            version: 42,
+            rows: vec![json!({
+                "id": "row-1",
+                "label": "escaped \"quote\" and snowman ☃",
+                "enabled": true,
+            })],
+            cursor: Some("cursor/with spaces".to_owned()),
+        },
+        read_dependencies: vec![CapturedReadDependency {
+            kind: CapturedReadKind::Query,
+            table: Some("items".to_owned()),
+            id: None,
+            version: Some(42),
+            predicate: Some(json!({ "field": "enabled", "eq": true })),
+            rows: vec!["row-1".to_owned()],
+            field: Some("label".to_owned()),
+            value: Some(json!("escaped \"quote\" and snowman ☃")),
+            order: Some(json!({ "field": "label", "direction": "asc" })),
+            limit: Some(10),
+            result_count: Some(1),
+            boundary: Some(json!({ "after": "row-0" })),
+        }],
+    };
+    let serialized_bytes = serde_json::to_vec(&invocation.output)
+        .expect("representative query output serializes")
+        .len()
+        .saturating_add(
+            serde_json::to_vec(&invocation.read_dependencies)
+                .expect("representative read dependencies serialize")
+                .len(),
+        );
+
+    assert_eq!(
+        query_invocation_estimated_bytes(&invocation),
+        serialized_bytes
     );
 }
 

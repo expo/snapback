@@ -3658,13 +3658,31 @@ pub(crate) struct QueryInvocation {
     pub(crate) read_dependencies: Vec<CapturedReadDependency>,
 }
 
+#[derive(Default)]
+struct JsonByteCounter {
+    bytes: usize,
+}
+
+impl std::io::Write for JsonByteCounter {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        self.bytes = self.bytes.saturating_add(buffer.len());
+        Ok(buffer.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn serialized_json_estimated_bytes(value: &impl Serialize) -> usize {
+    let mut counter = JsonByteCounter::default();
+    serde_json::to_writer(&mut counter, value).map_or(usize::MAX, |()| counter.bytes)
+}
+
 fn query_invocation_estimated_bytes(invocation: &QueryInvocation) -> usize {
-    serde_json::to_vec(&invocation.output)
-        .map_or(usize::MAX, |bytes| bytes.len())
-        .saturating_add(
-            serde_json::to_vec(&invocation.read_dependencies)
-                .map_or(usize::MAX, |bytes| bytes.len()),
-        )
+    serialized_json_estimated_bytes(&invocation.output).saturating_add(
+        serialized_json_estimated_bytes(&invocation.read_dependencies),
+    )
 }
 
 /// First phase of an authorized retained snapshot. It crosses the app-lock
