@@ -8,6 +8,7 @@ import {
 } from '@expo/snapback-contract/auth-custody-indexeddb';
 
 import { snapbackDiagnosticError } from './diagnostic-error.mjs';
+import { installDevIdentityCapability } from './dev-identity-capability.mjs';
 import { SnapbackClient } from './index.mjs';
 
 export const DEFAULT_AUTH_STORAGE_PARTITION = 'default';
@@ -1371,7 +1372,12 @@ export async function __createSnapbackAppClientWithBootstrapObserver(input, obse
 // app-client-internal subpath, never from the ordinary client entrypoint.
 export async function __adoptSupervisedBootstrapAuthority(
   appClient,
-  { bearer, binding, refreshAfterMs = Number.MAX_SAFE_INTEGER },
+  {
+    bearer,
+    binding,
+    clientOptions = {},
+    refreshAfterMs = Number.MAX_SAFE_INTEGER,
+  },
 ) {
   const owner = PROJECTION_OWNERS.get(appClient);
   if (!owner) throw new TypeError('expected a live SnapbackAppClient projection');
@@ -1389,6 +1395,10 @@ export async function __adoptSupervisedBootstrapAuthority(
     if (owner.entryInFlight) return Object.freeze({ status: 'dropped' });
     owner.ownerTransitionInFlight = true;
     try {
+      installDevIdentityCapability(
+        owner.client,
+        clientOptions.devIdentityCapability ?? null,
+      );
       let allowSameAuthorityRotation = false;
       if (owner.supervisedAdoptionCapture !== null) {
         try {

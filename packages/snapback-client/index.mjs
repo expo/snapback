@@ -35,6 +35,10 @@ import {
 } from '@expo/snapback-contract/auth-invalidation';
 import { isAgentAuthorityFence } from './agent-authority-brand.mjs';
 import {
+  devIdentityCapabilityFor,
+  installDevIdentityCapability,
+} from './dev-identity-capability.mjs';
+import {
   normalizeArgumentsAgainstContractV1,
   normalizeGeneratedArgumentsV1,
 } from './argument-normalization.mjs';
@@ -2491,13 +2495,7 @@ export class SnapbackClient {
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
-    if (
-      devIdentityCapability !== null
-      && (typeof devIdentityCapability !== 'string' || devIdentityCapability.length === 0)
-    ) {
-      throw new TypeError('devIdentityCapability must be null or a non-empty string');
-    }
-    this.devIdentityCapability = devIdentityCapability;
+    installDevIdentityCapability(this, devIdentityCapability);
     if (typeof __adminDataPlane !== 'boolean') throw new TypeError('__adminDataPlane must be boolean');
     this.__adminDataPlane = __adminDataPlane;
     this.ingressLimits = normalizedIngressLimits(ingressLimits);
@@ -5231,9 +5229,9 @@ export class SnapbackClient {
         // @ref LLP 0262#d2-carriers-per-shipped-topology — this dedicated
         // custody header accompanies only body-installed dev authority and
         // the connection grant that witnesses later identity-bearing frames.
-        ...(this.devIdentityCapability && (
-          path === '/connection/open' || carriesClientAssertedDevIdentity(wireBody)
-        ) ? { [DEV_IDENTITY_HEADER]: this.devIdentityCapability } : {}),
+        ...(!admin && devIdentityCapabilityFor(this) && (
+          path === '/connection/open' || carriesClientAssertedDevIdentity(requestBody)
+        ) ? { [DEV_IDENTITY_HEADER]: devIdentityCapabilityFor(this) } : {}),
       };
       const connectionGrantToken = merged[CONNECTION_TOKEN_HEADER] ?? null;
       if (connectionGrantToken !== null) {

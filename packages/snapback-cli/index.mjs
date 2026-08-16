@@ -3427,7 +3427,8 @@ function removeManagedDatabaseState(database, readyFile = null, applicationReady
     `${database}-wal`,
     `${database}-shm`,
     `${database}.admin-token`,
-    ...(readyFile === null ? [] : [readyFile]),
+    `${database}.dev-identity`,
+    ...(readyFile === null ? [] : [readyFile, `${readyFile}.dev-identity`]),
     ...(applicationReadyFile === null ? [] : [applicationReadyFile]),
   ]) {
     rmSync(path, { force: true });
@@ -3797,7 +3798,7 @@ function resolveDevIdentityCapabilityForCli(descriptor, context) {
   // @ref LLP 0262#d5-rollout-stages — Stage 1 proceeds without custody, but
   // the first capability-less CLI assertion is explicit on operator stderr.
   process.stderr.write(
-    'SNAPBACK_DEV_IDENTITY_REFUSED: no usable dev-identity capability was found'
+    'SNAPBACK_DEV_IDENTITY_ABSENT: no usable dev-identity capability was found'
       + `${expected ? ` at ${expected}` : ''}; continuing without it during Stage 1\n`,
   );
   return null;
@@ -6990,6 +6991,8 @@ export const __test = {
   expectedActivationTargetFromActivation,
   loadGenerated,
   readReadyDescriptor,
+  removeManagedDatabaseState,
+  resolveDevIdentityCapabilityForCli,
   runtimePackages: Object.fromEntries(RUNTIME_PACKAGES),
   runtimeReadinessRoot,
   sourceCheckoutRoot,

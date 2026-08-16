@@ -34,7 +34,7 @@
 
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { createConnection } from 'node:net';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
@@ -66,6 +66,7 @@ import {
 // scheduler variance does not turn a healthy build into a lifecycle failure.
 const DEFAULT_SERVER_STARTUP_TIMEOUT_MS = 90_000;
 export const RUNTIME_RECOVERY_JSON_ENV = 'SNAPBACK_RUNTIME_RECOVERY_JSON';
+const verifiedReadyDescriptors = new Map();
 
 function oneLine(value, fallback) {
   const line = String(value ?? '').split(/\r?\n/u, 1)[0].trim();
@@ -268,10 +269,16 @@ async function startServerWithDeps({
       if (!readiness.ok) verdict = { ok: false, reason: readiness.reason };
     }
     if (verdict.ok && !captureImpersonationCapability && !cronDisabled) {
+      const recoveredDevIdentity = await recoverReusedDevIdentityCapability(
+        requestedBaseUrl,
+        { db, cwd, fetchImpl },
+      );
       console.log(`REUSED snapback server at :${port} (${verdict.detail})`);
       return serverHandle({
         baseUrl: requestedBaseUrl,
         adminToken: env.SNAPBACK_ADMIN_TOKEN ?? process.env.SNAPBACK_ADMIN_TOKEN ?? null,
+        devIdentityCapability: recoveredDevIdentity.capability,
+        devIdentityCapabilityNote: recoveredDevIdentity.note,
         reused: true,
         launch: { rung: 'reused', command: null },
         runtimeRecovery: createRuntimeRecoveryRecord({
@@ -682,7 +689,14 @@ async function launchServerAttempt(plan, {
   child.stderr?.on('data', appendLog);
   child.once('error', (error) => { spawnError = error; });
 
-  const cleanup = () => rmSync(readyDir, { recursive: true, force: true });
+  let registeredBaseUrl = null;
+  const cleanup = () => {
+    if (registeredBaseUrl !== null) {
+      const registered = verifiedReadyDescriptors.get(registeredBaseUrl);
+      if (registered?.readyFile === readyFile) verifiedReadyDescriptors.delete(registeredBaseUrl);
+    }
+    rmSync(readyDir, { recursive: true, force: true });
+  };
   // Death seen at close time is classified against this flag: an exit that
   // lands after any owned teardown began (explicit stop() or the parent-signal
   // owner) is expected; anything earlier is an unexpected post-readiness death.
@@ -752,6 +766,8 @@ async function launchServerAttempt(plan, {
             db,
             cwd,
           );
+          registeredBaseUrl = baseUrl;
+          verifiedReadyDescriptors.set(baseUrl, Object.freeze({ readyFile }));
           armChildWatchdog(watchState, { closeTracker, baseUrl, onUnexpectedExit, logTail: () => log });
           let stopPromise = null;
           return serverHandle({
@@ -842,6 +858,7 @@ function serverHandle({
   startupNonce = null,
   impersonationCapability = null,
   devIdentityCapability = null,
+  devIdentityCapabilityNote = null,
   watch = null,
   identity = null,
   launch = null,
@@ -859,6 +876,7 @@ function serverHandle({
     startupNonce,
     impersonationCapability,
     devIdentityCapability,
+    devIdentityCapabilityNote,
     // Post-readiness watchdog surface. `exit` is null while the owned child is
     // alive (and always null for a reused server, which has no owned child);
     // after the child closes it is { code, signal, expected }. `expected` is
@@ -991,8 +1009,16 @@ function readSpawnedDevIdentityCapability(ready, readyFile, database, cwd) {
   const expected = database === ':memory:'
     ? `${readyFile}.dev-identity`
     : `${resolve(cwd, database)}.dev-identity`;
-  if (realpathSync(advertised) !== realpathSync(expected)) {
+  if (resolve(cwd, advertised) !== resolve(expected)) {
     throw new Error('snapback ready file does not name its dev-identity sidecar on the anchor ladder');
+  }
+  const metadata = lstatSync(expected);
+  if (
+    !metadata.isFile()
+    || metadata.isSymbolicLink()
+    || (metadata.mode & 0o777) !== 0o600
+  ) {
+    throw new Error('snapback dev-identity sidecar must be a regular owner-only (0600) file');
   }
   const capability = readFileSync(expected, 'utf8').trim();
   if (
@@ -1003,6 +1029,47 @@ function readSpawnedDevIdentityCapability(ready, readyFile, database, cwd) {
     throw new Error('snapback dev-identity sidecar is malformed');
   }
   return capability;
+}
+
+async function recoverReusedDevIdentityCapability(baseUrl, { db, cwd, fetchImpl }) {
+  const registered = verifiedReadyDescriptors.get(baseUrl);
+  if (registered === undefined) {
+    return {
+      capability: null,
+      note: 'dev-identity custody is unavailable: no nonce-verified ready descriptor is held for the reused server',
+    };
+  }
+  try {
+    const ready = readReadyDescriptor(registered.readyFile);
+    if (ready === null || ready.serverUrl.replace(/\/$/u, '') !== baseUrl) {
+      throw new Error('the retained ready descriptor no longer names the reused server');
+    }
+    const response = await fetchImpl(`${baseUrl}/health`, {
+      signal: AbortSignal.timeout(750),
+    });
+    if (!response.ok) throw new Error(`health returned HTTP ${response.status}`);
+    const health = await response.json();
+    if (health?.binary?.startupNonce !== ready.startupNonce) {
+      throw new Error('the retained ready descriptor nonce does not match live health');
+    }
+    const capability = readSpawnedDevIdentityCapability(
+      ready,
+      registered.readyFile,
+      db,
+      cwd,
+    );
+    return capability === null
+      ? {
+          capability: null,
+          note: 'dev-identity custody is unavailable: the verified reused descriptor advertises no carrier',
+        }
+      : { capability, note: null };
+  } catch (error) {
+    return {
+      capability: null,
+      note: `dev-identity custody is unavailable: ${oneLine(error?.message, 'carrier recovery failed')}`,
+    };
+  }
 }
 
 function resolveTestAdminToken(env) {

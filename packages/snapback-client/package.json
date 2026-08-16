@@ -38,6 +38,7 @@
     "commands.d.mts",
     "commands.mjs",
     "demand-broker.mjs",
+    "dev-identity-capability.mjs",
     "diagnostic-error.d.mts",
     "diagnostic-error.mjs",
     "diagnostic-codes.d.mts",

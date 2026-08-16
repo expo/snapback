@@ -31,6 +31,7 @@ export function adoptSupervisedBootstrapAuthority(
   input: Readonly<{
     bearer: string;
     binding: SnapbackAppBindingV1;
+    clientOptions?: Readonly<{ devIdentityCapability?: string | null }>;
     refreshAfterMs?: number;
   }>,
 ): Promise<Readonly<{

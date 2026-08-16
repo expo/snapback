@@ -29,8 +29,9 @@ const EXPECTED = {
 writeFileSync(fixture, String.raw`
 const { randomUUID } = require('node:crypto');
 const { spawn } = require('node:child_process');
-const { writeFileSync, renameSync } = require('node:fs');
+const { chmodSync, writeFileSync, renameSync } = require('node:fs');
 const { createServer } = require('node:http');
+const { resolve } = require('node:path');
 // Positional (legacy launchSpec style: <readyFile> [port]) or flag style
 // (real server-arg style: start --ready-file F --port N), so the same fixture
 // can stand in for a prebuilt/configured binary on the LLP 0030 ladder rungs.
@@ -44,6 +45,9 @@ if (process.argv.includes('--ready-file')) {
   readyFile = flag('--ready-file');
   bindPort = Number(flag('--port') || 0);
 }
+const database = process.argv.includes('--db')
+  ? process.argv[process.argv.indexOf('--db') + 1]
+  : null;
 const expected = JSON.parse(process.env.FIXTURE_EXPECTED);
 // Readiness-seam fixture support (LLP 0115 CV-3): a stand-in binary on the
 // configured/prebuilt rungs must answer "runtime-qualify" with the same
@@ -97,8 +101,18 @@ const listen = () => server.listen(bindPort, '127.0.0.1', () => {
     writeFileSync(descriptor.impersonationCapabilityFile, 'sbic_fixture_capability.1234abcd');
   }
   if (process.env.FIXTURE_DEV_IDENTITY === '1') {
-    descriptor.devIdentityCapabilityFile = readyFile + '.dev-identity';
-    writeFileSync(descriptor.devIdentityCapabilityFile, 'sbdev_fixture_capability');
+    descriptor.devIdentityCapabilityFile = database === null
+      ? readyFile + '.dev-identity'
+      : resolve(database) + '.dev-identity';
+    writeFileSync(
+      descriptor.devIdentityCapabilityFile,
+      'sbdev_fixture_capability',
+      { mode: 0o600 },
+    );
+    chmodSync(
+      descriptor.devIdentityCapabilityFile,
+      Number.parseInt(process.env.FIXTURE_DEV_IDENTITY_MODE || '0600', 8),
+    );
   }
   writeFileSync(tmp, JSON.stringify(descriptor));
   renameSync(tmp, readyFile);
@@ -451,6 +465,51 @@ try {
     capabilityServer.clientOptions.devIdentityCapability,
     'sbdev_fixture_capability',
     'harvested custody is passed through the client option, never argv',
+  );
+
+  const fileBackedDatabase = join(scratch, 'file-backed-dev-identity.sqlite3');
+  const fileBackedCapabilityServer = await __startServerForTests({
+    port: 0,
+    cwd: scratch,
+    db: fileBackedDatabase,
+    startupTimeoutMs: 2_000,
+  }, {
+    ...deps,
+    launchSpec: ({ args, cwd, env }) => ({
+      command: process.execPath,
+      args: [fixture, ...args],
+      cwd,
+      env: {
+        ...env,
+        FIXTURE_EXPECTED: JSON.stringify(EXPECTED),
+        FIXTURE_DEV_IDENTITY: '1',
+      },
+    }),
+  });
+  running.push(fileBackedCapabilityServer);
+  assert.equal(
+    fileBackedCapabilityServer.devIdentityCapability,
+    'sbdev_fixture_capability',
+    'a FILE-backed database harvests the descriptor-advertised database sibling',
+  );
+
+  await assert.rejects(
+    __startServerForTests({ port: 0, cwd: scratch, startupTimeoutMs: 2_000 }, {
+      ...deps,
+      launchSpec: ({ args, readyFile, cwd, env }) => ({
+        command: process.execPath,
+        args: [fixture, readyFile, args[args.indexOf('--port') + 1]],
+        cwd,
+        env: {
+          ...env,
+          FIXTURE_EXPECTED: JSON.stringify(EXPECTED),
+          FIXTURE_DEV_IDENTITY: '1',
+          FIXTURE_DEV_IDENTITY_MODE: '0644',
+        },
+      }),
+    }),
+    /regular owner-only \(0600\) file/u,
+    'a permissive dev-identity carrier is rejected before its bearer is read',
   );
 
   const restartPort = Number(new URL(first.baseUrl).port);
@@ -1048,7 +1107,19 @@ try {
     {
       const donor = await __startServerForTests(
         { port: 0, cwd: scratch, startupTimeoutMs: 2_000 },
-        deps,
+        {
+          ...deps,
+          launchSpec: ({ args, readyFile, cwd, env }) => ({
+            command: process.execPath,
+            args: [fixture, readyFile, args[args.indexOf('--port') + 1]],
+            cwd,
+            env: {
+              ...env,
+              FIXTURE_EXPECTED: JSON.stringify(EXPECTED),
+              FIXTURE_DEV_IDENTITY: '1',
+            },
+          }),
+        },
       );
       running.push(donor);
       const donorPort = Number(new URL(donor.baseUrl).port);
@@ -1096,6 +1167,11 @@ try {
         },
       );
       assert.equal(reused.reused, true, 'a receipted, identity-matched server is reused');
+      assert.equal(
+        reused.devIdentityCapability,
+        'sbdev_fixture_capability',
+        'verified reuse re-reads the nonce-bound descriptor-advertised carrier',
+      );
       assert.equal(reused.runtimeRecovery.qualification.probe, 'persisted-receipt');
       assert.match(
         reused.runtimeRecovery.qualification.reason,

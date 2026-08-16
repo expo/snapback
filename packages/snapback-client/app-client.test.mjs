@@ -358,7 +358,14 @@ function installServer({ relayBase = '' } = {}) {
     const authorization = headers.get('authorization');
     const bearer = authorization?.replace(/^Bearer /u, '') ?? null;
     const body = init.body === undefined ? undefined : JSON.parse(init.body);
-    requests.push({ path, rawPath, authorization, body, origin: parsed.origin });
+    requests.push({
+      path,
+      rawPath,
+      authorization,
+      body,
+      devIdentityCapability: headers.get('x-snapback-dev-identity'),
+      origin: parsed.origin,
+    });
     if (path === '/auth/session') {
       return Response.json(handshake(bearer, APP_ID));
     }
@@ -1203,6 +1210,42 @@ test('restored same-principal remints cannot rotate bearer while process-supervi
     await supervised?.dispose();
     await restored?.dispose();
     await seeded?.dispose();
+    server.restore();
+  }
+});
+
+test('supervised adoption installs and rotates private dev-identity custody on the live client', async () => {
+  const server = installServer();
+  const app = makeApp();
+  const appClient = await createSnapbackAppClient(optionsFor(app));
+  const firstCapability = 'sbdev_app_client_first';
+  const rotatedCapability = 'sbdev_app_client_rotated';
+  try {
+    assert.equal((await __adoptSupervisedBootstrapAuthority(appClient, {
+      bearer: SUPERVISED_BEARER,
+      binding: makeBinding(app),
+      clientOptions: { devIdentityCapability: firstCapability },
+    })).status, 'adopted');
+    server.respond('/query/devIdentityProbe', () => Response.json({ rows: [], version: 1 }));
+    await appClient.client.query('devIdentityProbe', { userId: USER });
+    const query = server.requests.findLast(({ path }) => path === '/query/devIdentityProbe');
+    assert.equal(query.devIdentityCapability, firstCapability);
+
+    assert.equal((await __adoptSupervisedBootstrapAuthority(appClient, {
+      bearer: ROTATED_BEARER,
+      binding: makeBinding(app),
+      clientOptions: { devIdentityCapability: rotatedCapability },
+    })).status, 'rebound');
+    server.respond('/connection/open', ({ body }) => Response.json({
+      connectionId: body.connectionId,
+      connectionToken: 'sct_app_client_dev_identity',
+      wireVersion: 'snapback.v1',
+    }));
+    await appClient.client.connectionGrant('app-client-dev-identity');
+    const open = server.requests.findLast(({ path }) => path === '/connection/open');
+    assert.equal(open.devIdentityCapability, rotatedCapability);
+  } finally {
+    await appClient.dispose();
     server.restore();
   }
 });

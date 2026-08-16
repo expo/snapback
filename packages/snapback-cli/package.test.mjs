@@ -298,6 +298,33 @@ try {
     readyFile: capabilityReady,
     database: capabilityDatabase,
   }), null, 'a descriptor cannot redirect file-backed custody off the database sibling');
+  const missingCapabilityDatabase = join(root, 'missing-dev-identity.sqlite3');
+  const missingCapabilityPath = `${missingCapabilityDatabase}.dev-identity`;
+  let absentNotice = '';
+  const originalStderrWrite = process.stderr.write;
+  process.stderr.write = (chunk) => {
+    absentNotice += String(chunk);
+    return true;
+  };
+  try {
+    const missingDescriptor = {
+      database: { mode: 'file', path: missingCapabilityDatabase },
+      devIdentityCapabilityFile: missingCapabilityPath,
+    };
+    assert.equal(__test.resolveDevIdentityCapabilityForCli(missingDescriptor, {
+      database: missingCapabilityDatabase,
+    }), null);
+    assert.equal(__test.resolveDevIdentityCapabilityForCli(missingDescriptor, {
+      database: missingCapabilityDatabase,
+    }), null);
+  } finally {
+    process.stderr.write = originalStderrWrite;
+  }
+  assert.equal(
+    absentNotice,
+    `SNAPBACK_DEV_IDENTITY_ABSENT: no usable dev-identity capability was found at ${missingCapabilityPath}; continuing without it during Stage 1\n`,
+    'the path-bearing Stage-1 absence notice is emitted once per process',
+  );
   assert.deepEqual(__test.devIdentityClientEnvironment(
     { PATH: '/fixture/bin' },
     { devIdentityCapabilityFile: databaseCapabilityFile },
@@ -313,6 +340,28 @@ try {
   ), {
     PATH: '/fixture/bin',
   }, 'older binaries leave spawned client environments unchanged');
+  const freshDatabase = join(root, 'fresh-cleanup.sqlite3');
+  const freshReadyFile = join(root, 'fresh-cleanup.ready.json');
+  const freshApplicationReadyFile = join(root, 'fresh-cleanup.application-ready.json');
+  for (const path of [
+    freshDatabase,
+    `${freshDatabase}.dev-identity`,
+    freshReadyFile,
+    `${freshReadyFile}.dev-identity`,
+    freshApplicationReadyFile,
+  ]) writeFileSync(path, 'fixture');
+  __test.removeManagedDatabaseState(
+    freshDatabase,
+    freshReadyFile,
+    freshApplicationReadyFile,
+  );
+  for (const path of [
+    freshDatabase,
+    `${freshDatabase}.dev-identity`,
+    freshReadyFile,
+    `${freshReadyFile}.dev-identity`,
+    freshApplicationReadyFile,
+  ]) assert.equal(existsSync(path), false, `dev-fresh removes managed state ${path}`);
   assert.equal(__test.runtimeReadinessRoot({
     binary: join(root, 'target', 'release', 'snapback'),
     checkoutRoot: root,

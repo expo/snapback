@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { inspect } from 'node:util';
 import { SEARCH_REQUEST_ARGS_CONTRACT_HASH } from './search-contract.generated.mjs';
 
 import {
@@ -1059,11 +1060,15 @@ assert.equal(appStateListeners.size, 0);
       devIdentityCapability: capability,
       rqsStore: null,
     });
+    assert.equal(Object.keys(devClient).includes('devIdentityCapability'), false);
+    assert.equal(inspect(devClient).includes(capability), false);
+    assert.equal(JSON.stringify(devClient).includes(capability), false);
     await devClient.health();
     await devClient.reset();
+    await devClient.loadSchema({ auth: { user_id: 'admin-shaped-fixture' } });
     await devClient.query('listTodos', { userId: 'user_fixture' });
     await devClient.connectionGrant('dev-identity-open');
-    const [health, admin, query, open] = requests;
+    const [health, admin, adminWithAssertion, query, open] = requests;
     assert.equal(
       new Headers(health.init.headers).get('x-snapback-dev-identity'),
       null,
@@ -1073,6 +1078,11 @@ assert.equal(appStateListeners.size, 0);
       new Headers(admin.init.headers).get('x-snapback-dev-identity'),
       null,
       'admin-token host operations do not carry the dev capability',
+    );
+    assert.equal(
+      new Headers(adminWithAssertion.init.headers).get('x-snapback-dev-identity'),
+      null,
+      'admin host operations never acquire body-based dev-identity stamping',
     );
     assert.equal(
       new Headers(query.init.headers).get('x-snapback-dev-identity'),
@@ -1088,6 +1098,11 @@ assert.equal(appStateListeners.size, 0);
       new Headers(query.init.headers).get('authorization'),
       null,
       'the dev capability never occupies Authorization',
+    );
+    assert.equal(
+      new Headers(open.init.headers).get('authorization'),
+      null,
+      '/connection/open carries no Authorization when the dev capability is configured',
     );
 
     requests.length = 0;
