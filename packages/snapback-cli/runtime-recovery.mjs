@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 export const RUNTIME_RECOVERY_SCHEMA_VERSION = 'snapback.runtime-recovery.v1';
+export const IBEX_CARGO_NOT_FOUND_CODE = 'SNAPBACK_IBEX_CARGO_NOT_FOUND';
 
 function nullableBoolean(value) {
   return typeof value === 'boolean' ? value : null;

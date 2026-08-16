@@ -65,6 +65,29 @@ import {
 // publishes readiness. Keep that cold start bounded, with enough margin that
 // scheduler variance does not turn a healthy build into a lifecycle failure.
 const DEFAULT_SERVER_STARTUP_TIMEOUT_MS = 90_000;
+export const RUNTIME_RECOVERY_JSON_ENV = 'SNAPBACK_RUNTIME_RECOVERY_JSON';
+
+function oneLine(value, fallback) {
+  const line = String(value ?? '').split(/\r?\n/u, 1)[0].trim();
+  return line || fallback;
+}
+
+export function formatRuntimeRecoveryFailure(error, environment = process.env) {
+  const record = error?.runtimeRecovery;
+  if (!record) return null;
+  const repairCommand = record.recovery?.repairCommand;
+  const overrideCommand = record.recovery?.overrideCommand;
+  const lines = [
+    'RUNTIME RECOVERY',
+    `reason: ${oneLine(error?.message, record.reuse?.reason ?? 'server command resolution failed')}`,
+    `repairCommand: ${oneLine(repairCommand, 'unavailable')}`,
+    `overrideCommand: ${oneLine(overrideCommand, 'unavailable')}`,
+  ];
+  if (environment?.[RUNTIME_RECOVERY_JSON_ENV] === '1') {
+    lines.push(`recoveryJson: ${JSON.stringify(record)}`);
+  }
+  return lines.join('\n');
+}
 
 export async function startServer({
   port = 4399,
@@ -122,24 +145,35 @@ export async function startServer({
   // escalation preempts the checkpoint and leaves a -wal sidecar behind.
   stopGraceMs = null,
 } = {}) {
-  return startServerWithDeps({
-    port,
-    db,
-    cwd,
-    env,
-    provenance,
-    binaryProvenance,
-    serverBinary,
-    bindPortExactly,
-    startupArtifacts,
-    restoredFromBackup,
-    trustedCompositionActivation,
-    captureImpersonationCapability,
-    onUnexpectedExit,
-    cronDisabled,
-    startupTimeoutMs,
-    stopGraceMs,
-  }, {});
+  try {
+    return await startServerWithDeps({
+      port,
+      db,
+      cwd,
+      env,
+      provenance,
+      binaryProvenance,
+      serverBinary,
+      bindPortExactly,
+      startupArtifacts,
+      restoredFromBackup,
+      trustedCompositionActivation,
+      captureImpersonationCapability,
+      onUnexpectedExit,
+      cronDisabled,
+      startupTimeoutMs,
+      stopGraceMs,
+    }, {});
+  } catch (error) {
+    const recovery = formatRuntimeRecoveryFailure(error, { ...process.env, ...env });
+    if (recovery === null) throw error;
+    console.error(recovery);
+    // The public launcher is the shared demo entry-point boundary. An
+    // exhausted resolver ladder is terminal here: the internal test seam
+    // still throws for assertions, while demos exit without Node serializing
+    // the attached recovery record a second time.
+    process.exit(1);
+  }
 }
 
 // Narrow dependency seam for the lifecycle regression suite. Production
@@ -369,7 +403,6 @@ async function startServerWithDeps({
             : null,
         });
       }
-      console.error(`RUNTIME RECOVERY: ${JSON.stringify(error.runtimeRecovery)}`);
       throw error;
     }
   }

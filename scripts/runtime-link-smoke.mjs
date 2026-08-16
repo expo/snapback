@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   createRuntimeRecoveryRecord,
+  IBEX_CARGO_NOT_FOUND_CODE,
   inspectRuntimeBinary,
   qualifyRuntimeBinary,
   readCheckoutRuntimeIdentity,
@@ -268,8 +269,11 @@ export async function runRuntimeLinkProbe({
     const combined = `${result.stdout}\n${result.stderr}`;
     if (result.status !== 0) {
       const missingSymbols = extractMissingSymbols(combined);
+      const cargoNotFound = result.spawnError?.code === 'ENOENT'
+        && result.spawnError?.path === cargoCommand;
       let code = 'SNAPBACK_IBEX_CARGO_BUILD_FAILED';
-      if (result.spawnError) code = 'SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED';
+      if (cargoNotFound) code = IBEX_CARGO_NOT_FOUND_CODE;
+      else if (result.spawnError) code = 'SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED';
       else if (result.interruptedSignal) code = 'SNAPBACK_IBEX_RUNTIME_LINK_INTERRUPTED';
       else if (missingSymbols.length > 0) code = 'SNAPBACK_IBEX_RUNTIME_LINK_FAILED';
       else if (result.timedOut) code = 'SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT';
@@ -280,7 +284,10 @@ export async function runRuntimeLinkProbe({
         code,
         severity: 'error',
         subsystem: 'runtime-link',
-        message: result.spawnError
+        message: cargoNotFound
+          ? `the exact-link probe could not find the Cargo command ${JSON.stringify(cargoCommand)}. `
+            + 'Install the Rust toolchain, or put ~/.cargo/bin on PATH.'
+          : result.spawnError
           ? `the exact-link probe could not launch Cargo: ${result.spawnError.message}`
           : result.interruptedSignal
             ? `the exact-link probe was interrupted by ${result.interruptedSignal}`
@@ -294,6 +301,14 @@ export async function runRuntimeLinkProbe({
           status: result.status,
           signal: result.signal,
           stderr: result.stderr.slice(-16_000),
+          spawnError: result.spawnError
+            ? {
+                code: result.spawnError.code ?? null,
+                message: result.spawnError.message,
+                path: result.spawnError.path ?? null,
+                syscall: result.spawnError.syscall ?? null,
+              }
+            : null,
           producerInputs: inputs,
         },
       };

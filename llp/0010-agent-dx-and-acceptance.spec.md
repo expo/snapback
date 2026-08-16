@@ -5,6 +5,9 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-15 (a missing Cargo command now has the actionable
+`SNAPBACK_IBEX_CARGO_NOT_FOUND` host diagnostic; genuine exact-link probe
+driver faults retain `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`).
 **Revised:** 2026-08-12 (runtime-readiness refusal recovery is custody-aware:
 installed package seals name exact-package reinstall and never an in-package
 source script, while contributor checkout repair names the complete clean
@@ -300,6 +303,9 @@ The remaining (non-submodule) bootstrap failure paths carry codes too
   host loader cannot `dlopen` the runtime and its dependencies. The bootstrap
   refuses before Cargo; `scripts/ibex-doctor` reports the same code and loader
   error read-only.
+- `SNAPBACK_IBEX_CARGO_NOT_FOUND` — the exact-link probe could not find the
+  Cargo command it tried to launch. Install the Rust toolchain, or put
+  `~/.cargo/bin` on `PATH`.
 - `SNAPBACK_IBEX_CARGO_BUILD_FAILED` — artifacts verified, but the
   Snapback/vendored-runtime build did not compile (a code error, not a missing
   artifact).

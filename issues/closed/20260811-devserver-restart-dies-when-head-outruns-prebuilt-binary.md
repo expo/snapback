@@ -1,6 +1,6 @@
 # Demo devserver dies on restart when HEAD outruns the prebuilt binary
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -126,3 +126,18 @@ so it should not be the default.
 Expected: a short message saying the prebuilt binary is stale and how to fix
 it. Actual: the prebuilt rejection line, a 120-line recovery record, an
 uncaught `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`, and the same record again.
+
+## Resolution
+
+2026-08-15: Proposed-fix items 1 and 2 landed. A missing Cargo command now
+emits `SNAPBACK_IBEX_CARGO_NOT_FOUND`, while other probe-driver faults retain
+`SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`. Exhausted command resolution now
+prints the reason, repair command, and explicit binary override first; full
+recovery JSON requires `SNAPBACK_RUNTIME_RECOVERY_JSON=1`, and the shared demo
+launcher exits non-zero without exposing the attached error object to Node's
+uncaught-exception serializer.
+
+Proposed-fix item 3 — a new explicit stale-binary reuse affordance — was
+deliberately not taken. `SNAPBACK_SERVER_BINARY` remains the existing explicit
+selection mechanism, and the LLP 0031 server-binary identity gate remains
+unchanged.

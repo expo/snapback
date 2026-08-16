@@ -2,15 +2,15 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:37b20a9e8d70050c8fae6dd0e88c6c5064c3e554e02e04240d481fb7bd3e4454"
+    "sourceDigest": "sha256:0d74c792389ac8f3dcd6cba5a0a196dfce1781101ce187b0d8a8d710c07304d0"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 3212,
+    "codes": 3213,
     "sourceFiles": 455,
-    "emittingSites": 11007,
+    "emittingSites": 11008,
     "httpClassified": 995,
     "guideAnchored": 424
   },
@@ -52728,6 +52728,21 @@
           "file": "src/runtime.rs",
           "line": 6983,
           "column": 29
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_IBEX_CARGO_NOT_FOUND": {
+      "code": "SNAPBACK_IBEX_CARGO_NOT_FOUND",
+      "subsystem": "runtime",
+      "sites": [
+        {
+          "file": "packages/snapback-cli/runtime-recovery.mjs",
+          "line": 6,
+          "column": 43
         }
       ],
       "httpStatus": null,

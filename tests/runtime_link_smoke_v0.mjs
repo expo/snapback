@@ -176,6 +176,51 @@ console.log(JSON.stringify({binary:{
   }
 });
 
+fixtureTest('a missing Cargo command has an actionable host diagnostic', async () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-no-cargo-'));
+  try {
+    writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
+    writeFileSync(join(scratch, 'Cargo.lock'), '');
+    const cargo = join(scratch, 'missing-cargo');
+    const result = await runRuntimeLinkProbe({
+      root: scratch,
+      cargoCommand: cargo,
+      timeoutMs: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.diagnostic.code, 'SNAPBACK_IBEX_CARGO_NOT_FOUND');
+    assert.equal(
+      result.diagnostic.message,
+      `the exact-link probe could not find the Cargo command ${JSON.stringify(cargo)}. `
+        + 'Install the Rust toolchain, or put ~/.cargo/bin on PATH.',
+    );
+    assert.equal(result.diagnostic.details.spawnError.code, 'ENOENT');
+    assert.equal(result.diagnostic.details.spawnError.path, cargo);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+fixtureTest('non-ENOENT Cargo spawn faults retain the probe-driver code', async () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-cargo-fault-'));
+  try {
+    writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
+    writeFileSync(join(scratch, 'Cargo.lock'), '');
+    const cargo = join(scratch, 'unlaunchable-cargo');
+    writeFileSync(cargo, '#!/bin/sh\nexit 0\n');
+    const result = await runRuntimeLinkProbe({
+      root: scratch,
+      cargoCommand: cargo,
+      timeoutMs: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.diagnostic.code, 'SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED');
+    assert.notEqual(result.diagnostic.details.spawnError.code, 'ENOENT');
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 fixtureTest('green state links and launches the newly built binary, then cleans it', async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-green-'));
   try {

@@ -10,7 +10,12 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { __startServerForTests, stopChild } from '../server-process.mjs';
+import {
+  __startServerForTests,
+  formatRuntimeRecoveryFailure,
+  RUNTIME_RECOVERY_JSON_ENV,
+  stopChild,
+} from '../server-process.mjs';
 
 const scratch = mkdtempSync(join(tmpdir(), 'server-process-lifecycle-'));
 const fixture = join(scratch, 'fixture-server.cjs');
@@ -353,6 +358,24 @@ try {
       },
     );
     assert.equal(launchAttempted, false, 'Cargo fallback must be gated by the exact-link probe');
+
+    const failure = new Error(`${typedDiagnostic.code}: ${typedDiagnostic.message}`);
+    failure.runtimeRecovery = typedRecovery;
+    assert.equal(
+      formatRuntimeRecoveryFailure(failure, {}),
+      [
+        'RUNTIME RECOVERY',
+        `reason: ${typedDiagnostic.code}: ${typedDiagnostic.message}`,
+        'repairCommand: scripts/assemble-runtime-package',
+        'overrideCommand: unavailable',
+      ].join('\n'),
+    );
+    const verbose = formatRuntimeRecoveryFailure(
+      failure,
+      { [RUNTIME_RECOVERY_JSON_ENV]: '1' },
+    );
+    assert.match(verbose, /overrideCommand: unavailable\nrecoveryJson: \{"schemaVersion"/u);
+    assert.equal(verbose.match(/RUNTIME RECOVERY/gu)?.length, 1);
   }
 
   // Pin the deliberate port default: a requested port stays a verified-reuse
@@ -968,9 +991,10 @@ try {
       } finally {
         configuredCapture.restore();
       }
-      assert(
+      assert.equal(
         configuredCapture.lines.some((line) => line.includes('RUNTIME RECOVERY')),
-        'the configured refusal prints its runtime-recovery record',
+        false,
+        'the programmatic test seam returns the record without printing it',
       );
     }
 

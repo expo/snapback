@@ -19,7 +19,7 @@ reviewed-authorities-digest: sha256:033149dbcc2ba828df5b217ca605d8292cf790cdb6ae
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,212 stable codes** from 455 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,213 stable codes** from 455 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -1829,6 +1829,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-host-token"></a>`SNAPBACK_HOST_TOKEN` | harness | — | — | `packages/snapback-harness/workerd/handler-server.mjs:440` | 4 |
 | <a id="diagnostic-snapback-http-error"></a>`SNAPBACK_HTTP_ERROR` | admin-client | — | — | `packages/snapback-admin-client/index.mjs:271` | 2 |
 | <a id="diagnostic-snapback-ibex"></a>`SNAPBACK_IBEX` | runtime | — | — | `src/runtime.rs:6983` | 1 |
+| <a id="diagnostic-snapback-ibex-cargo-not-found"></a>`SNAPBACK_IBEX_CARGO_NOT_FOUND` | runtime | — | — | `packages/snapback-cli/runtime-recovery.mjs:6` | 1 |
 | <a id="diagnostic-snapback-ibex-cli-unavailable"></a>`SNAPBACK_IBEX_CLI_UNAVAILABLE` | runtime | — | — | `src/runtime.rs:218` | 1 |
 | <a id="diagnostic-snapback-ibex-functions-loaded"></a>`SNAPBACK_IBEX_FUNCTIONS_LOADED` | runtime | — | — | `src/local.rs:5398` | 4 |
 | <a id="diagnostic-snapback-ibex-global-deny-incomplete"></a>`SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE` | runtime | — | — | `src/runtime.rs:6524` | 1 |
