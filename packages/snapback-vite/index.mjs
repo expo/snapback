@@ -106,36 +106,22 @@ function configuredDevIdentityCarriers({ mode, projectRoot, serverOptions, env }
   return carriers;
 }
 
-function requestFilesystemPath(root, requestUrl) {
-  let pathname;
-  try {
-    pathname = decodeURIComponent(new URL(requestUrl ?? '/', 'http://snapback.invalid').pathname);
-  } catch {
-    return null;
-  }
-  if (pathname.startsWith('/@fs/')) {
-    let fsPath = pathname.slice('/@fs/'.length);
-    if (process.platform === 'win32' && /^\/[A-Za-z]:/u.test(fsPath)) fsPath = fsPath.slice(1);
-    return canonicalFilesystemPath(fsPath);
-  }
-  return canonicalFilesystemPath(resolve(root, `.${pathname}`));
-}
-
-// @ref LLP 0262#d2-carriers-per-shipped-topology — the relay may hold the
-// carrier, but neither ordinary root serving nor /@fs may redistribute it.
-function installCarrierRequestGuard(server, carriers) {
-  if (carriers.length === 0) return;
-  const denied = new Set(carriers.map(canonicalFilesystemPath));
-  server.middlewares.use((req, res, next) => {
-    const requested = requestFilesystemPath(server.config.root, req.url);
-    if (requested === null || !denied.has(requested)) {
-      next();
-      return;
+// @ref LLP 0262#d2-carriers-per-shipped-topology — strict-mode custody is
+// enforced by Vite's own deny matcher. Keep the canonical exact carrier and
+// its configured/root-visible aliases because Vite matches request paths
+// before filesystem symlink canonicalization.
+function carrierDenyPatterns(viteRoot, carriers) {
+  const canonicalRoot = canonicalFilesystemPath(viteRoot);
+  const patterns = new Set();
+  for (const carrier of carriers) {
+    const canonicalCarrier = canonicalFilesystemPath(carrier);
+    patterns.add(canonicalCarrier.replaceAll('\\', '/'));
+    patterns.add(resolve(carrier).replaceAll('\\', '/'));
+    if (isWithinDirectory(canonicalRoot, canonicalCarrier)) {
+      patterns.add(resolve(viteRoot, relative(canonicalRoot, canonicalCarrier)).replaceAll('\\', '/'));
     }
-    res.statusCode = 403;
-    res.setHeader('content-type', 'text/plain; charset=utf-8');
-    res.end('Forbidden\n');
-  });
+  }
+  return [...patterns];
 }
 
 async function assertDevIdentityCarriersDenied(server, carriers) {
@@ -353,6 +339,7 @@ export function snapbackDev(options = {}) {
   let command = 'serve';
   let lifecycle = null;
   let devIdentityStampAllowed = false;
+  let fsChecksDisabledDiagnosticEmitted = false;
   const verifiedGraphRoots = new Map();
   const supervisorGeneration = `vite-relay:${randomUUID()}`;
 
@@ -372,12 +359,12 @@ export function snapbackDev(options = {}) {
         : [...configuredDeny];
       for (const pattern of [
         DEV_IDENTITY_DENY_GLOB,
-        ...configuredDevIdentityCarriers({
+        ...carrierDenyPatterns(projectRoot, configuredDevIdentityCarriers({
           mode,
           projectRoot,
           serverOptions,
           env: options.env ?? process.env,
-        }).map(viteFilesystemPath),
+        })),
       ]) {
         if (!deny.includes(pattern)) deny.push(pattern);
       }
@@ -402,25 +389,31 @@ export function snapbackDev(options = {}) {
         serverOptions,
         env: options.env ?? process.env,
       });
-      const servedRoot = resolve(config.root);
-      const exposedCarrier = config.server?.fs?.strict === false
-        ? carriers.find((carrier) => isWithinDirectory(servedRoot, carrier))
-        : null;
-      if (exposedCarrier) {
+      const fsChecksDisabled = config.server?.fs?.strict === false;
+      devIdentityStampAllowed = !fsChecksDisabled;
+      if (fsChecksDisabled && carriers.length > 0) {
         const error = diagnosticError(
           'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED',
-          'dev-identity relay custody refused because Vite server.fs.strict is false and the capability carrier is inside the served root',
-          { carrier: viteFilesystemPath(exposedCarrier), root: viteFilesystemPath(servedRoot) },
+          'dev-identity relay custody refused because Vite server.fs.strict is false; the carrier file itself may be servable via /@fs while filesystem checks are disabled',
+          {
+            carrier: viteFilesystemPath(carriers[0]),
+            root: viteFilesystemPath(config.root),
+          },
         );
-        channel.emit({
-          event: 'diagnostic',
-          code: error.code,
-          severity: 'error',
-          mode,
-          message: error.message,
-          details: error.diagnostic.details,
-        });
-        throw error;
+        if (!fsChecksDisabledDiagnosticEmitted) {
+          fsChecksDisabledDiagnosticEmitted = true;
+          channel.emit({
+            event: mode === 'managed' || mode === 'auto'
+              ? 'diagnostic'
+              : 'dev-identity-stamping-refused',
+            code: error.code,
+            severity: 'error',
+            mode,
+            message: error.message,
+            details: error.diagnostic.details,
+          });
+        }
+        if (mode === 'managed' || mode === 'auto') throw error;
       }
       const publicDir = config.publicDir;
       if (publicDir) {
@@ -454,7 +447,6 @@ export function snapbackDev(options = {}) {
         serverOptions,
         env: options.env ?? process.env,
       });
-      installCarrierRequestGuard(server, carriers);
       lifecycle = createSnapbackViteLifecycle({
         mode,
         projectRoot,
@@ -469,9 +461,8 @@ export function snapbackDev(options = {}) {
         channel,
       });
       try {
-        await lifecycle.start();
         await assertDevIdentityCarriersDenied(server, carriers);
-        devIdentityStampAllowed = true;
+        await lifecycle.start();
       } catch (error) {
         channel.emit({
           event: 'diagnostic',
@@ -481,7 +472,7 @@ export function snapbackDev(options = {}) {
           message: error?.message ?? String(error),
           ...(error?.diagnostic?.details ? { details: error.diagnostic.details } : {}),
         });
-        await lifecycle.close();
+        await lifecycle?.close();
         throw error;
       }
       const proxy = createSnapbackProxy({
