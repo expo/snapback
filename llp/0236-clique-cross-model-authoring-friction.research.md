@@ -8,7 +8,8 @@ Offline sync, Assets, Memberships, Code generation, Runtime, Packaging,
 Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-15 (adds R7, the cross-lane group-authority
+**Revised:** 2026-08-15 (records the landed take-ceiling generation-time
+refusal, `34d98f489`, in the closed-corrections table). 2026-08-15 (adds R7, the cross-lane group-authority
 expressiveness synthesis: the missing declarative membership/role rule, the
 sanctioned elevated-read and principal-array seams with their landed partial
 corrections, and the cross-control evidence that no evaluated backend supplies
@@ -716,6 +717,7 @@ residual agenda:
 | Familiar scalar query results and structured principal snapshots were rejected | The [schema expressiveness correction](../issues/closed/20260815-familiar-schema-expressiveness-refusals.md) adds exact lowering while preserving migration intent | Rerun the original one-row and receipt/member schema cases from the published package |
 | Explicit descriptors were rejected by Expo admission and a hot-loaded function generation did not remint the supervised binding | [Descriptor parity](../issues/closed/20260815-explicit-descriptor-authoring-profile-rejected-by-expo-admission.md) and [binding remint](../issues/closed/20260815-hot-reload-does-not-remint-supervised-expo-binding.md) are closed under the common profile/generation contracts | Exercise both profiles through the same generation-change acceptance case |
 | Logout could race authority clearing, and repeated short-lived authenticated clients could stall the backend | [Serialized logout](../issues/closed/20260815-logout-races-authority-clearing.md) and [headless auth churn](../issues/closed/20260815-headless-auth-churn-stalls-backend.md) are closed with lifecycle and stress coverage | Preserve them in the package-level Clique replay and long-lived provider test |
+| A literal `take(4096)` was accepted at generation time and only failed as a runtime 400 against the 1024 ceiling (Diary 0078 M3) | The [take-limit correction](../issues/closed/20260815-take-limit-shared-rule-and-generation-refusal.md) makes an over-ceiling literal take a structured generation-time refusal, with the ceilings canonical in `@expo/snapback-contract/limits` and parity-locked at the codegen and runtime enforcement sites | Rerun the Diary 0078 M3 subscription case from the next published closure, which is the first to carry the refusal |
 | Familiar could not name the derived video upload intent | LLP 0253 and the [video-intent correction](../issues/closed/20260815-familiar-video-asset-intent-unaddressable.md) add a same-profile nameable path | Validate real video selection, upload, delivery, and revocation rather than fixture-field reconstruction |
 | Membership-protected resources could require duplicated or impossible handler-side authority reads | The [scoped elevated-read correction](../issues/closed/20260815-owner-visibility-filters-handler-reads-membership-authority-gap.md) supplies the bounded bootstrap/authorization path | Demonstrate the ordinary group pattern, including removal and negative cases, in both profiles |
 | The guide did not provide one end-to-end Familiar journey | The [Familiar guide gap](../issues/closed/20260815-guide-gap-familiar-authoring-profile-page.md) is closed | Refresh the page after the media and membership corrections and test retrieval with a new builder |
