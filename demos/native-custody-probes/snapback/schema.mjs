@@ -20,6 +20,15 @@ const authProgram = defineAuth({
     },
   },
   assuranceRequirements: {},
+  recoveryPolicy: {
+    recoveryCodes: {
+      enabled: true,
+      requiredWhen: 'no-independent-recovery',
+      rotateAfterUse: true,
+      plaintextCustody: 'one-time-response',
+    },
+    lastAuthenticator: 'enforce',
+  },
   guestPolicy: { enabled: false },
   secretReferences: {},
 });
