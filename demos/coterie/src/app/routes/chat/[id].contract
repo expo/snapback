@@ -6,9 +6,11 @@ use CoterieComposer from "../../../ui/composer.contract"
 use CoterieMessageBubble from "../../../ui/message-bubble.contract"
 use listChats from "../../../data/generated/coterie.bindings.ts"
 use listMessages from "../../../data/generated/coterie.bindings.ts"
+use listProviderClaims from "../../../data/generated/coterie.bindings.ts"
 use listSession from "../../../data/generated/coterie.bindings.ts"
 use logout from "../../../data/generated/coterie.bindings.ts"
 use sendMessage from "../../../data/generated/coterie.bindings.ts"
+use setMessageReaction from "../../../data/generated/coterie.bindings.ts"
 
 component CoterieConversationRoute
   props
@@ -17,12 +19,24 @@ component CoterieConversationRoute
   derive chatId = route.params.id
   state messageText = ""
   state messageResetFlip = false
+  state quotedMessageId = null
+  state quotedSenderName = null
+  state quotedBodySnippet = null
+  state reactionPickerMessageId = null
+  state highlightedMessageId = null
 
   query session = listSession({})
   query chats = listChats({})
   query messages = listMessages({ chatId: chatId })
+  query providerClaims = listProviderClaims({})
   mutation logoutMutation = logout
   mutation sendMessageMutation = sendMessage
+  mutation setMessageReactionMutation = setMessageReaction
+
+  derive canSendMessages = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "sendMessage")
+  derive canQuoteMessages = canSendMessages
+  derive canReactToMessages = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "setMessageReaction")
+  derive canLogout = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "logout")
 
   action choosePrimary(next)
     if next == "feed"
@@ -43,18 +57,43 @@ component CoterieConversationRoute
   action setMessageText(value) writes messageText
     messageText = value
 
-  action sendCurrentMessage writes messageText, messageResetFlip mutates sendMessageMutation
-    let result = await sendMessageMutation({ chatId: chatId, body: messageText.trim() })
+  action beginReply(messageId, senderName, body) writes quotedMessageId, quotedSenderName, quotedBodySnippet
+    quotedMessageId = messageId
+    quotedSenderName = senderName
+    quotedBodySnippet = body.length > 96 ? `${body.slice(0, 95)}…` : body
+
+  action cancelReply writes quotedMessageId, quotedSenderName, quotedBodySnippet
+    quotedMessageId = null
+    quotedSenderName = null
+    quotedBodySnippet = null
+
+  action revealQuotedMessage(messageId) writes highlightedMessageId
+    highlightedMessageId = messageId
+
+  action toggleReactionPicker(messageId) writes reactionPickerMessageId
+    reactionPickerMessageId = reactionPickerMessageId == messageId ? null : messageId
+
+  action chooseMessageReaction(messageId, emoji, reactedByMe) writes reactionPickerMessageId mutates setMessageReactionMutation
+    let result = await setMessageReactionMutation({ chatId: chatId, messageId: messageId, emoji: emoji, reacted: !reactedByMe, mutationId: `coterie-reaction-${messageId}-${now()}` })
+    if result.ok
+      reactionPickerMessageId = null
+
+  action sendCurrentMessage writes messageText, messageResetFlip, quotedMessageId, quotedSenderName, quotedBodySnippet mutates sendMessageMutation
+    let result = await sendMessageMutation({ chatId: chatId, body: messageText.trim(), quotedMessageId: quotedMessageId })
     if result.ok
       messageText = ""
       messageResetFlip = !messageResetFlip
+      quotedMessageId = null
+      quotedSenderName = null
+      quotedBodySnippet = null
 
   action signOut mutates logoutMutation
     await logoutMutation({})
 
   contract
     has node testId="coterie-root"
-    has node testId="sm-convo-input"
+    when canSendMessages then has node testId="sm-convo-input"
+    when canSendMessages then has node testId="sm-convo-send"
 
   view
     main width="100%" minHeight="100%" background="#F4F5F7" testId="coterie-root"
@@ -70,7 +109,7 @@ component CoterieConversationRoute
               text "Return to sign in" size=14 color="#4F46E5"
         ready activeSessions
           column width="100%" maxWidth=760 flex=1 minHeight=0 alignSelf="center" background="#FFFFFF" borderWidth=1 borderColor="#E2E4E8" testId="coterie-shell"
-            CoterieAppHeader(selected="chats", select=choosePrimary, logout=signOut)
+            CoterieAppHeader(selected="chats", select=choosePrimary, logout=signOut, canLogout=canLogout)
             async chats
               loading
                 skeleton width="100%" height=72
@@ -98,8 +137,9 @@ component CoterieConversationRoute
                             ready messageRows
                               list width="100%" label=`Messages in ${chat.title}`
                                 each message in messageRows key=message.id
-                                  CoterieMessageBubble(senderName=message.senderName, body=message.body, timestamp=message.createdAt, mine=message.mine, status=message.status, quoteText=message.quoteText, edited=message.edited, deleted=message.deleted, accentColor=chat.accentColor)
-                        CoterieComposer(variant="message", value=messageText, resetFlip=messageResetFlip, change=setMessageText, send=sendCurrentMessage)
+                                  CoterieMessageBubble(id=message.id, senderName=message.senderName, body=message.body, timestamp=message.createdAt, mine=message.mine, status=message.status, quotedMessageId=message.quotedMessageId, quotedSenderName=message.quotedSenderName, quotedBodySnippet=message.quotedBodySnippet, reactions=message.reactions, edited=message.edited, deleted=message.deleted, accentColor=chat.accentColor, canQuote=canQuoteMessages, canReact=canReactToMessages, reactionPickerOpen=reactionPickerMessageId == message.id, highlighted=highlightedMessageId == message.id, reply=beginReply, revealQuoteSource=revealQuotedMessage, toggleReactions=toggleReactionPicker, chooseReaction=chooseMessageReaction)
+                        when canSendMessages
+                          CoterieComposer(variant="message", value=messageText, resetFlip=messageResetFlip, quotedSenderName=quotedSenderName, quotedBodySnippet=quotedBodySnippet, change=setMessageText, send=sendCurrentMessage, cancelQuote=cancelReply)
                 else
                   column gap=12 padding=18
                     text "This conversation isn't available" size=15 weight=600 color="#17191C"

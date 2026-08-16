@@ -1,5 +1,5 @@
 // GENERATED binding module — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie" 6 (inputsHash 2b035e0c69068f02).
+// Source authority: provider-native declaration "coterie" 7 (inputsHash 61fcaaa7b60092b4).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 
 import { createProviderLinks, type ContractDataProvider } from '@exact/contract/runtime';
@@ -86,6 +86,14 @@ export interface Message {
   id: string;
   mine: boolean;
   quoteText: string | null;
+  quotedBodySnippet: string | null;
+  quotedMessageId: string | null;
+  quotedSenderName: string | null;
+  reactions: Array<{
+    count: number;
+    emoji: string;
+    reactedByMe: boolean;
+  }>;
   senderId: string;
   senderName: string;
   status: string;
@@ -123,6 +131,13 @@ export interface ProfilePost {
   replyCount: number;
   repostCount: number;
   repostedByMe: boolean;
+}
+
+/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
+export interface ProviderClaim {
+  kind: string;
+  name: string;
+  token: string;
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
@@ -216,6 +231,11 @@ export type ListProfilesParams = Record<string, never>;
 export type ListProfilesResult = Array<Profile>;
 export type ListProfilesError = never;
 export type ListProfilesReceiptsPosture = 'none';
+
+export type ListProviderClaimsParams = Record<string, never>;
+export type ListProviderClaimsResult = Array<ProviderClaim>;
+export type ListProviderClaimsError = never;
+export type ListProviderClaimsReceiptsPosture = 'none';
 
 export type ListSessionParams = Record<string, never>;
 export type ListSessionResult = Array<Session>;
@@ -352,13 +372,29 @@ export type LogoutReceiptsPosture = 'none';
 export interface SendMessageParams {
   chatId: string;
   body: string;
+  quotedMessageId: string | null;
+}
+export interface SendMessageChatNotFoundError {
+  name: 'ChatNotFoundError';
+  code: 'chat_not_found';
+  message: string;
+}
+export interface SendMessageMessageBodyInvalidError {
+  name: 'MessageBodyInvalidError';
+  code: 'message_body_invalid';
+  message: string;
+}
+export interface SendMessageQuotedMessageInvalidError {
+  name: 'QuotedMessageInvalidError';
+  code: 'quoted_message_invalid';
+  message: string;
 }
 export interface SendMessageSessionRequiredError {
   name: 'SessionRequiredError';
   code: 'session_required';
   message: string;
 }
-export type SendMessageError = SendMessageSessionRequiredError;
+export type SendMessageError = SendMessageChatNotFoundError | SendMessageMessageBodyInvalidError | SendMessageQuotedMessageInvalidError | SendMessageSessionRequiredError;
 export type SendMessageReceiptsPosture = 'none';
 
 export interface SetAvatarParams {
@@ -434,6 +470,36 @@ export interface SetLikeSessionRequiredError {
 }
 export type SetLikeError = SetLikePostNotFoundError | SetLikeSessionRequiredError;
 export type SetLikeReceiptsPosture = 'none';
+
+export interface SetMessageReactionParams {
+  chatId: string;
+  messageId: string;
+  emoji: string;
+  reacted: boolean;
+  mutationId: string;
+}
+export interface SetMessageReactionChatNotFoundError {
+  name: 'ChatNotFoundError';
+  code: 'chat_not_found';
+  message: string;
+}
+export interface SetMessageReactionEmojiInvalidError {
+  name: 'EmojiInvalidError';
+  code: 'emoji_invalid';
+  message: string;
+}
+export interface SetMessageReactionMessageNotFoundError {
+  name: 'MessageNotFoundError';
+  code: 'message_not_found';
+  message: string;
+}
+export interface SetMessageReactionSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type SetMessageReactionError = SetMessageReactionChatNotFoundError | SetMessageReactionEmojiInvalidError | SetMessageReactionMessageNotFoundError | SetMessageReactionSessionRequiredError;
+export type SetMessageReactionReceiptsPosture = 'none';
 
 export interface SetRepostParams {
   postId: string;
@@ -526,6 +592,7 @@ export interface GeneratedProviderLinks {
   listMessages(args: ListMessagesParams): unknown;
   listProfilePosts(args: ListProfilePostsParams): unknown;
   listProfiles(args: ListProfilesParams): unknown;
+  listProviderClaims(args: ListProviderClaimsParams): unknown;
   listSession(args: ListSessionParams): unknown;
   listThread(args: ListThreadParams): unknown;
   searchSocial(args: SearchSocialParams): unknown;
@@ -539,6 +606,7 @@ export interface GeneratedProviderLinks {
   setDisappearing(args: SetDisappearingParams): unknown;
   setFollow(args: SetFollowParams): unknown;
   setLike(args: SetLikeParams): unknown;
+  setMessageReaction(args: SetMessageReactionParams): unknown;
   setRepost(args: SetRepostParams): unknown;
   signup(args: SignupParams): unknown;
 }
@@ -602,7 +670,7 @@ export const listMessages = (() => {
     kind: { value: 'query' },
     name: { value: 'listMessages' },
     descriptorId: { value: 'listMessages' },
-    compatibilityToken: { value: '2' },
+    compatibilityToken: { value: '3' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -627,6 +695,18 @@ export const listProfiles = (() => {
     name: { value: 'listProfiles' },
     descriptorId: { value: 'listProfiles' },
     compatibilityToken: { value: '2' },
+    resultKind: { value: 'list' },
+  });
+  return callable as typeof callable & GeneratedQueryBinding;
+})();
+
+export const listProviderClaims = (() => {
+  const callable = (args: ListProviderClaimsParams): unknown => requireGeneratedProviderLinks().listProviderClaims(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'query' },
+    name: { value: 'listProviderClaims' },
+    descriptorId: { value: 'listProviderClaims' },
+    compatibilityToken: { value: '1' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -778,6 +858,17 @@ export const setLike = (() => {
   return callable as typeof callable & GeneratedMutationBinding;
 })();
 
+export const setMessageReaction = (() => {
+  const callable = (args: SetMessageReactionParams): unknown => requireGeneratedProviderLinks().setMessageReaction(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'setMessageReaction' },
+    writes: { value: ['messages'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
 export const setRepost = (() => {
   const callable = (args: SetRepostParams): unknown => requireGeneratedProviderLinks().setRepost(args);
   Object.defineProperties(callable, {
@@ -802,11 +893,11 @@ export const signup = (() => {
 
 export const bindings = {
   provider: 'coterie',
-  declarationVersion: '6',
+  declarationVersion: '7',
   /** Declaration digest as a runtime value (LLP 0391 §4.2 — the fail-closed configure handshake input). */
-  inputsHash: '2b035e0c69068f02',
-  queries: { listChats, listFeed, listInsights, listMessages, listProfilePosts, listProfiles, listSession, listThread, searchSocial },
-  mutations: { createPost, editProfile, login, logout, sendMessage, setAvatar, setChatAccent, setDisappearing, setFollow, setLike, setRepost, signup },
+  inputsHash: '61fcaaa7b60092b4',
+  queries: { listChats, listFeed, listInsights, listMessages, listProfilePosts, listProfiles, listProviderClaims, listSession, listThread, searchSocial },
+  mutations: { createPost, editProfile, login, logout, sendMessage, setAvatar, setChatAccent, setDisappearing, setFollow, setLike, setMessageReaction, setRepost, signup },
 } as const;
 
 /**

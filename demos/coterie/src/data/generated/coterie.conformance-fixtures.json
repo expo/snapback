@@ -52,7 +52,8 @@
     "sendMessage": {
       "args": {
         "body": "body-example",
-        "chatId": "chatId-example"
+        "chatId": "chatId-example",
+        "quotedMessageId": "quotedMessageId-example"
       },
       "writes": [
         "chats",
@@ -108,6 +109,18 @@
       },
       "writes": [
         "likes"
+      ]
+    },
+    "setMessageReaction": {
+      "args": {
+        "chatId": "chatId-example",
+        "emoji": "emoji-example",
+        "messageId": "messageId-example",
+        "mutationId": "mutationId-example",
+        "reacted": true
+      },
+      "writes": [
+        "messages"
       ]
     },
     "setRepost": {
@@ -218,6 +231,16 @@
           "id": "id-example",
           "mine": true,
           "quoteText": "quoteText-example",
+          "quotedBodySnippet": "quotedBodySnippet-example",
+          "quotedMessageId": "quotedMessageId-example",
+          "quotedSenderName": "quotedSenderName-example",
+          "reactions": [
+            {
+              "count": 1,
+              "emoji": "emoji-example",
+              "reactedByMe": true
+            }
+          ],
           "senderId": "senderId-example",
           "senderName": "senderName-example",
           "status": "status-example"
@@ -265,6 +288,16 @@
           "isMe": true,
           "link": "link-example",
           "location": "location-example"
+        }
+      ]
+    },
+    "listProviderClaims": {
+      "args": {},
+      "exampleResult": [
+        {
+          "kind": "kind-example",
+          "name": "name-example",
+          "token": "token-example"
         }
       ]
     },

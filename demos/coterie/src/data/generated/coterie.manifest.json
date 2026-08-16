@@ -10,7 +10,7 @@
     "serverRunnableQueries": false,
     "subscriptions": true
   },
-  "inputsHash": "2b035e0c69068f02",
+  "inputsHash": "61fcaaa7b60092b4",
   "manifestVersion": 2,
   "mutations": {
     "createPost": {
@@ -130,7 +130,8 @@
     "sendMessage": {
       "argOrder": [
         "chatId",
-        "body"
+        "body",
+        "quotedMessageId"
       ],
       "args": {
         "body": {
@@ -138,6 +139,10 @@
           "shape": "primitive"
         },
         "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "quotedMessageId": {
           "name": "string",
           "shape": "primitive"
         }
@@ -276,6 +281,43 @@
       "serverRunnable": false,
       "writes": [
         "likes"
+      ]
+    },
+    "setMessageReaction": {
+      "argOrder": [
+        "chatId",
+        "messageId",
+        "emoji",
+        "reacted",
+        "mutationId"
+      ],
+      "args": {
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "emoji": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "messageId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "mutationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "reacted": {
+          "name": "boolean",
+          "shape": "primitive"
+        }
+      },
+      "name": "setMessageReaction",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "messages"
       ]
     },
     "setRepost": {
@@ -605,7 +647,7 @@
           "shape": "primitive"
         }
       },
-      "compatibilityToken": "2",
+      "compatibilityToken": "3",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
@@ -650,6 +692,38 @@
             "quoteText": {
               "name": "string",
               "shape": "primitive"
+            },
+            "quotedBodySnippet": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "quotedMessageId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "quotedSenderName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "reactions": {
+              "element": {
+                "fields": {
+                  "count": {
+                    "name": "number",
+                    "shape": "primitive"
+                  },
+                  "emoji": {
+                    "name": "string",
+                    "shape": "primitive"
+                  },
+                  "reactedByMe": {
+                    "name": "boolean",
+                    "shape": "primitive"
+                  }
+                },
+                "shape": "object"
+              },
+              "shape": "array"
             },
             "senderId": {
               "name": "string",
@@ -834,6 +908,42 @@
       },
       "serverRunnable": false,
       "subscription": "initial-snapshot"
+    },
+    "listProviderClaims": {
+      "argOrder": [],
+      "args": {},
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": false,
+      "localRunnable": false,
+      "mode": "snapshot",
+      "name": "listProviderClaims",
+      "reads": [
+        "providerClaims"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "kind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "name": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "token": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "none"
     },
     "listSession": {
       "argOrder": [],

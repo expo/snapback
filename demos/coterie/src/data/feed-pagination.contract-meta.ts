@@ -53,6 +53,8 @@ export default defineContractModule('./feed-pagination.ts', {
       liveHeadRows: 'object[]',
       patches: 'object[]',
       composeText: 'string',
+      composeImageRefs: 'string[]',
+      composeVideoRefs: 'string[]',
       composeResetFlip: 'boolean',
       email: 'string',
       password: 'string',

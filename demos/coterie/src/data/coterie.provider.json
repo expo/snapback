@@ -1,7 +1,7 @@
 {
   "schemaVersion": "provider-declaration.v1",
   "provider": "coterie",
-  "declarationVersion": "6",
+  "declarationVersion": "7",
   "capabilities": {
     "push": true,
     "pollingCadenceMs": null,
@@ -237,7 +237,7 @@
     {
       "name": "listMessages",
       "descriptorId": "listMessages",
-      "compatibilityToken": "2",
+      "compatibilityToken": "3",
       "reads": ["messages"],
       "params": [
         { "name": "chatId", "type": { "kind": "string" }, "nullable": false }
@@ -257,13 +257,54 @@
             { "name": "createdAt", "type": { "kind": "string" }, "nullable": false },
             { "name": "mine", "type": { "kind": "boolean" }, "nullable": false },
             { "name": "status", "type": { "kind": "string" }, "nullable": false },
+            { "name": "quotedMessageId", "type": { "kind": "string" }, "nullable": true },
+            { "name": "quotedSenderName", "type": { "kind": "string" }, "nullable": true },
+            { "name": "quotedBodySnippet", "type": { "kind": "string" }, "nullable": true },
             { "name": "quoteText", "type": { "kind": "string" }, "nullable": true },
+            {
+              "name": "reactions",
+              "type": {
+                "kind": "array",
+                "element": {
+                  "kind": "object",
+                  "fields": [
+                    { "name": "emoji", "type": { "kind": "string" }, "nullable": false },
+                    { "name": "count", "type": { "kind": "number" }, "nullable": false },
+                    { "name": "reactedByMe", "type": { "kind": "boolean" }, "nullable": false }
+                  ]
+                }
+              },
+              "nullable": false
+            },
             { "name": "edited", "type": { "kind": "boolean" }, "nullable": false },
             { "name": "deleted", "type": { "kind": "boolean" }, "nullable": false }
           ]
         }
       },
       "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [],
+      "receipts": "none"
+    },
+    {
+      "name": "listProviderClaims",
+      "descriptorId": "listProviderClaims",
+      "compatibilityToken": "1",
+      "reads": ["providerClaims"],
+      "params": [],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "ProviderClaim",
+          "excessFields": "project",
+          "fields": [
+            { "name": "name", "type": { "kind": "string" }, "nullable": false },
+            { "name": "kind", "type": { "kind": "string" }, "nullable": false },
+            { "name": "token", "type": { "kind": "string" }, "nullable": false }
+          ]
+        }
+      },
+      "liveness": { "mode": "snapshot", "livePush": false, "initialSnapshot": true },
       "errors": [],
       "receipts": "none"
     },
@@ -532,12 +573,35 @@
       "name": "sendMessage",
       "params": [
         { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
-        { "name": "body", "type": { "kind": "string" }, "nullable": false }
+        { "name": "body", "type": { "kind": "string" }, "nullable": false },
+        { "name": "quotedMessageId", "type": { "kind": "string" }, "nullable": true }
       ],
       "writes": ["messages", "chats"],
       "optimistic": false,
       "receipts": "none",
       "errors": [
+        { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "MessageBodyInvalidError", "code": "message_body_invalid", "message": "Message text must contain 1-2000 characters." },
+        { "name": "QuotedMessageInvalidError", "code": "quoted_message_invalid", "message": "Quoted message must exist in this conversation." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
+    },
+    {
+      "name": "setMessageReaction",
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "messageId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "emoji", "type": { "kind": "string" }, "nullable": false },
+        { "name": "reacted", "type": { "kind": "boolean" }, "nullable": false },
+        { "name": "mutationId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["messages"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "EmojiInvalidError", "code": "emoji_invalid", "message": "Reaction must be one emoji grapheme." },
+        { "name": "MessageNotFoundError", "code": "message_not_found", "message": "Message was not found in this conversation." },
         { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
       ]
     },
@@ -588,6 +652,19 @@
       "setFollow": "1",
       "setLike": "1",
       "setRepost": "2"
+    },
+    "coterie.m3CompatibilityTokens": {
+      "listChats": "2",
+      "listMessages": "3",
+      "sendMessage": "3"
+    },
+    "coterie.m4CompatibilityTokens": {
+      "setMessageReaction": "1"
+    },
+    "coterie.m5CompatibilityTokens": {
+      "searchSocial": "2",
+      "setChatAccent": "1",
+      "setDisappearing": "1"
     }
   }
 }

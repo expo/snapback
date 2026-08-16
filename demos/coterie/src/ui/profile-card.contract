@@ -16,28 +16,43 @@ component CoterieProfileCard
     editing: boolean = false
     draftName: string = ""
     draftBio: string = ""
+    avatarOptions = []
+    currentAvatarRef: string = null
+    canEditProfile: boolean = false
+    canFollow: boolean = false
+    canSetAvatar: boolean = false
     changeName: (value) => void
     changeBio: (value) => void
+    pressAvatar: (avatarRef) => void
     pressEdit: (name, bio) => void
     pressSave: () => void
     pressFollow: (profileId, followed) => void
 
   contract
     has node testId="sm-profile"
-    when isMe && !editing then has node testId="sm-profile-edit"
-    when editing then has node testId="sm-profile-save"
-    when !isMe then has node testId="sm-profile-follow"
+    when isMe && !editing && canEditProfile then has node testId="sm-profile-edit"
+    when editing && canEditProfile then has node testId="sm-profile-save"
+    when !isMe && canFollow then has node testId="sm-profile-follow"
+    when isMe && editing && canEditProfile && canSetAvatar then has node testId="sm-profile-avatar-picker"
 
   view
     column width="100%" background="#FFFFFF" padding=18 gap=10 testId="sm-profile"
       row width="100%" align="center" justify="space-between"
         CoterieAvatar(name=displayName, src=avatarUrl, size=72)
-        when isMe && !editing
+        when isMe && !editing && canEditProfile
           button "Edit profile" press=pressEdit(displayName, bio) padding=8 radius=8 borderWidth=1 borderColor="#E2E4E8" background="#FFFFFF" testId="sm-profile-edit"
-        when !isMe
+        when !isMe && canFollow
           button followedByMe ? "Following" : "Follow" press=pressFollow(id, followedByMe) padding=8 radius=8 borderWidth=1 borderColor=followedByMe ? "#E2E4E8" : "#4F46E5" background=followedByMe ? "#FFFFFF" : "#4F46E5" color=followedByMe ? "#17191C" : "#FFFFFF" testId="sm-profile-follow"
-      when editing
+      when editing && canEditProfile
         column gap=10 testId="sm-profile-form"
+          when canSetAvatar
+            column gap=6 testId="sm-profile-avatar-picker"
+              text "Profile photo" size=13 weight=600 color="#17191C"
+              row gap=6 wrap="wrap"
+                each option in avatarOptions key=option.id
+                  button press=pressAvatar(option.value) label=option.label accessibilitySelected=option.value == currentAvatarRef width=96 minHeight=96 padding=7 gap=5 radius=12 borderWidth=2 borderColor=option.value == currentAvatarRef ? "#4F46E5" : "#E2E4E8" background=option.value == currentAvatarRef ? "#EEF2FF" : "#FFFFFF" testId=`sm-profile-avatar-${option.id}`
+                    image src=option.url alt="" width=52 height=52 radius=26 objectFit="cover" testId=`sm-profile-avatar-thumbnail-${option.id}`
+                    text option.value == currentAvatarRef ? `${option.label} · Current` : option.label size=11 weight=600 color="#17191C" align="center"
           FacetInput(value=draftName, label="Display name", change=changeName, testId="sm-profile-field-displayname")
           column gap=6
             text "Bio" size=13 weight=600 color="#17191C"

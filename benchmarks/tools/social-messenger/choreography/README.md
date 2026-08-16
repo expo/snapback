@@ -111,8 +111,9 @@ when the lane does not satisfy them:
   and removal, follow-edge vs viewer-repost disambiguation on Following, and
   reply count/thread projection. Live checks run all three trials.
 - M3: live DM text on `sm-convo-bubble`, typing visibility within 2 seconds
-  and expiry within 5 seconds, plus quoted excerpt and jump behavior. Live
-  checks run best-of-three.
+  and expiry within 5 seconds, plus quoted excerpt and jump behavior through
+  the preferred excerpt-only `sm-convo-quote-preview` selector or its legacy
+  `sm-convo-quote` fallback. Live checks run best-of-three.
 - M4: photo render, video playback, reaction set/replace/remove, edit visibility,
   and delete-for-everyone tombstones across the isolated Alice/Bob contexts.
 - M5: group color/background synchronization to Carol, view-once first/second
@@ -157,12 +158,19 @@ green = suite.pass === true && choreography.pass === true
 
 Segment summaries also emit `nonGreenCause` (`null` when green; otherwise
 `suite-failed` | `choreography-failed` | `required-unimplemented` |
-`instrument`). The field is optional on the `0.3.0-m8` schema (default
-`null`) so older receipts still validate; the emitter always writes it.
-Lanes MUST copy that field into the run record. Do not invent a second
-green label such as "functionally green".
+`instrument`). The field remains optional on the `0.3.1-m8` schema (default
+`null`); the emitter always writes it. Prior `0.3.0-m8` receipts remain
+governed by their matching schema revision. Lanes MUST copy that field into
+the run record. Do not invent a second green label such as "functionally
+green".
 
 M6 and M8 web green are intentionally distinct from their simulator artifacts.
 `simulator.md` remains the native proof contract; each matching status is
 recorded under `choreography.supplementalExternal` and scored as native/O4
 evidence rather than silently making web milestones unreachable.
+
+`0.3.1-m8` prefers the unambiguous `sm-convo-quote-preview` selector for the
+quoted-excerpt jump and retains a count-selected `sm-convo-quote` fallback for
+`0.3.0`-era clients. The fallback is scheduled for removal at the P3 freeze,
+after the frozen Clique kit migrates and bumps its version. `0.3.0-m8` added
+the M8 choreography surfaces.

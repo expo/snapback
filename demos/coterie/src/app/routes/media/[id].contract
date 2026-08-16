@@ -4,6 +4,7 @@ use FacetButton from "@exact/facet-contract/components/button.contract"
 use CoterieComposer from "../../../ui/composer.contract"
 use CoterieFeedCard from "../../../ui/feed-card.contract"
 use createPost from "../../../data/generated/coterie.bindings.ts"
+use listProviderClaims from "../../../data/generated/coterie.bindings.ts"
 use listThread from "../../../data/generated/coterie.bindings.ts"
 use listSession from "../../../data/generated/coterie.bindings.ts"
 use setLike from "../../../data/generated/coterie.bindings.ts"
@@ -19,6 +20,10 @@ component CoterieMediaRoute
 
   query session = listSession({})
   query thread = listThread({ parentId: postId })
+  query providerClaims = listProviderClaims({})
+  derive canCreatePost = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "createPost")
+  derive canLikePosts = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "setLike")
+  derive canRepostPosts = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "setRepost")
   mutation createPostMutation = createPost
   mutation setLikeMutation = setLike
   mutation setRepostMutation = setRepost
@@ -53,8 +58,8 @@ component CoterieMediaRoute
   contract
     has node testId="coterie-root"
     has node testId="sm-media-viewer-close"
-    has node testId="sm-compose-input"
-    has node testId="sm-compose-submit"
+    when canCreatePost then has node testId="sm-compose-input"
+    when canCreatePost then has node testId="sm-compose-submit"
 
   view
     main width="100%" minHeight="100%" background="#F4F5F7" testId="coterie-root"
@@ -95,5 +100,6 @@ component CoterieMediaRoute
                   list width="100%" label="Thread posts"
                     each post in posts key=post.id
                       listitem width="100%"
-                        CoterieFeedCard(id=post.id, postId=post.postId, authorId=post.authorId, authorName=post.authorName, authorHandle=post.authorHandle, avatarUrl=post.avatarUrl, body=post.body, createdAt=post.createdAt, likeCount=post.likeCount, liked=post.likedByMe, repostCount=post.repostCount, reposted=post.repostedByMe, replyCount=post.replyCount, repostedByName=null, mediaUrls=post.mediaUrls, mediaKind=post.mediaKind, pressAuthor=openProfile, pressLike=likePost, pressRepost=repostPost, pressReply=openThread, pressMedia=openMedia)
-            CoterieComposer(variant="reply", value=replyText, resetFlip=replyResetFlip, change=setReplyText, send=publishReply)
+                        CoterieFeedCard(id=post.id, postId=post.postId, authorId=post.authorId, authorName=post.authorName, authorHandle=post.authorHandle, avatarUrl=post.avatarUrl, body=post.body, createdAt=post.createdAt, likeCount=post.likeCount, liked=post.likedByMe, repostCount=post.repostCount, reposted=post.repostedByMe, replyCount=post.replyCount, repostedByName=null, mediaUrls=post.mediaUrls, mediaKind=post.mediaKind, canLike=canLikePosts, canRepost=canRepostPosts, pressAuthor=openProfile, pressLike=likePost, pressRepost=repostPost, pressReply=openThread, pressMedia=openMedia)
+            when canCreatePost
+              CoterieComposer(variant="reply", value=replyText, resetFlip=replyResetFlip, change=setReplyText, send=publishReply)

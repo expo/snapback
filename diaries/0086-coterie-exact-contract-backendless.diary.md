@@ -510,3 +510,72 @@ the client work:
   silently truncating; fixture ensure-ops stay owner-checked but cannot
   be hidden from first-party generated bindings — the adapter lane must
   not map them (recorded so D7 freezing never absorbs seed ops).
+
+## 2026-08-16 — Quoted replies, message reactions, and avatar picker
+
+This slice made the partial-provider seam visible in a useful way. Quoted
+reply and reaction buttons cannot honestly exist in the Snapback M1 lane, even
+though they are present in the one shared Coterie declaration. A new
+`listProviderClaims` query reports operation names and compatibility tokens;
+the Contract routes derive affordance visibility from those rows. Memory
+claims the complete surface it implements, while the Snapback adapter returns
+its existing M1 allow-list and still refuses every unclaimed call loudly. The
+UI never reads provider identity. That felt better than either scattering
+`COTERIE_PROVIDER` checks through presentation code or leaving dead controls:
+an unavailable reply, reaction, or avatar action is simply absent.
+
+The memory provider work was pleasantly direct. `sendMessage` stores an
+optional same-chat quote identity, while `listMessages` resolves the sender
+and a short preview at projection time so a deleted source becomes a safe
+tombstone instead of leaking its old text. Reaction state is stored as one
+actor event and projected as sorted per-emoji counts plus `reactedByMe`.
+`setMessageReaction` is set-state rather than toggle-state, so a repeated
+delivery does not reverse intent or double-count. The starter quote edges copy
+the six quote actions from `starter-m3.log` exactly; that log has no reaction
+actions, so this slice did not invent fixture reactions.
+
+Contract's plain props and leaf-event currying again made the portable UI
+small: the same message component now carries quote previews, reaction chips,
+the choice tray, and compose-with-quote cancellation with the frozen `sm-*`
+selectors. The sharper limitation was avatar input. Contract still has no
+file-input primitive, so Coterie cannot expose the Snapback adapter's real
+upload path from a portable `.contract` form. The honest interim UI is a
+picker over the eight committed persona references. A file-input primitive
+would remove that benchmark-specific vocabulary and let the same screen
+exercise real media selection on web and native.
+
+The post composer reached the same conclusion for media: reusing the M2
+fixture-ref-to-served-URL maps made a small, honest picker much easier than
+pretending Contract had a portable upload control. Reducer-owned selection
+keeps the four-image/one-video rule visible before mutation, while the provider
+still enforces the declared boundary. `listProviderClaims` also made this
+additive control clean—the Snapback M1 lane simply has no attach button, with
+no provider-name branch in the Contract tree.
+
+That picker immediately revisited an earlier lane seam discovery: the v5
+memory provider accepted only Alice and Bob refs while the concurrent v6 lane
+expands `setAvatar@2` to all eight and also invalidates chats. The mismatch is
+recorded in `issues/20260816-coterie-setavatar-seam-mismatch.md`. Structuring
+the vocabulary as one `COTERIE_AVATAR_REFS` constant made the rebase repair a
+one-line string-set change, and the pre-v6 test classifies whichever refs the
+installed provider accepts instead of pretending all eight already work. The
+post-rebase proof must require all eight. This was useful seam friction: the
+provider-neutral declaration and tests exposed divergent `avatarRef` meaning
+before the UI could accidentally encode one lane's private vocabulary.
+
+Compared with React plus Convex or Supabase, the claims query adds explicit
+schema and generated-binding ceremony that a direct hook would often replace
+with a feature flag or backend check. In return, capability visibility is data
+on the same typed seam as the feature itself, adapter refusals can be checked
+against advertised claims, and the presentation layer stays portable. The
+trade remains favorable for this benchmark, where honest interchangeability
+is the point rather than an incidental abstraction.
+
+The v7 dual review caught two concrete client/provider bugs before landing.
+Message actions had been rendered beside their bubble, so the frozen
+choreography's bubble-scoped quote/reaction locators could not reach them; the
+actions, picker anchors, and chips now live inside the bubble, and quoted
+excerpts jump to their source. It also caught a direct-message avatar update
+keyed by membership rather than displayed counterpart: Alice changing her own
+avatar could overwrite the row that displays Bob. The projection now updates
+only rows that display the changed persona and leaves group rows unchanged.

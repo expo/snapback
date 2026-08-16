@@ -1,32 +1,54 @@
+use FacetButton from "@exact/facet-contract/components/button.contract"
+
 component CoterieMessageBubble
   props
+    id: string
     senderName: string
     body: string
     timestamp: string
     mine: boolean = false
     status: string = "sent"
-    quoteText: string = null
+    quotedMessageId: string = null
+    quotedSenderName: string = null
+    quotedBodySnippet: string = null
+    reactions = []
     edited: boolean = false
     deleted: boolean = false
     accentColor: string = "#4F46E5"
+    canQuote: boolean = false
+    canReact: boolean = false
+    reactionPickerOpen: boolean = false
+    highlighted: boolean = false
+    reply: (messageId, senderName, body) => void
+    revealQuoteSource: (messageId) => void
+    toggleReactions: (messageId) => void
+    chooseReaction: (messageId, emoji, reactedByMe) => void
 
-  derive bubbleColor = mine ? "#DDE7FF" : "#F1F2F4"
+  derive bubbleColor = highlighted ? "#FFF7D6" : mine ? "#DDE7FF" : "#F1F2F4"
+  derive reactionChoices = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
+  derive replyBody = deleted ? "This message was deleted" : body
 
   contract
     has node testId="sm-convo-bubble"
     when mine && !deleted then has node testId="sm-convo-receipt"
-    when quoteText then has node testId="sm-convo-quote"
+    when quotedMessageId then has node testId="sm-convo-quote-preview"
+    when canQuote then has node testId="sm-convo-quote"
+    when canReact then has node testId="sm-convo-react"
+    when canReact && reactionPickerOpen then has node testId="sm-convo-reaction"
 
   view
     row width="100%" justify=mine ? "flex-end" : "flex-start" paddingLeft=12 paddingRight=12 paddingTop=3 paddingBottom=3
-      column maxWidth="78%" align=mine ? "flex-end" : "flex-start" gap=3
-        column label=deleted ? "Deleted message" : `Message from ${senderName}` background=bubbleColor radius=18 padding=10 testId="sm-convo-bubble"
+      column maxWidth="78%" align=mine ? "flex-end" : "flex-start" gap=5
+        column label=deleted ? "Deleted message" : highlighted ? `Quoted message from ${senderName}` : `Message from ${senderName}` background=bubbleColor radius=18 padding=10 gap=5 borderWidth=highlighted ? 2 : 0 borderColor=accentColor nativeId=`sm-message-${id}` testId="sm-convo-bubble"
           column gap=4
             when !mine
               text senderName size=13 weight=600 color=accentColor
-            when quoteText
-              column borderLeftWidth=3 borderColor=accentColor paddingLeft=8 testId="sm-convo-quote"
-                text quoteText size=12 color="#6B7280" numberOfLines=2
+            when quotedMessageId
+              // @ref LLP 0266#d3-presentation-port-rule — press drives the portable highlight while href preserves the web fragment jump.
+              link href=`#sm-message-${quotedMessageId}` press=revealQuoteSource(quotedMessageId) label=`Jump to quoted message from ${quotedSenderName}` testId="sm-convo-quote-preview"
+                column borderLeftWidth=3 borderColor=accentColor paddingLeft=8 gap=2
+                  text quotedSenderName size=12 weight=600 color=accentColor numberOfLines=1
+                  text quotedBodySnippet size=12 color="#6B7280" numberOfLines=2
             when deleted
               text "This message was deleted" size=15 color="#6B7280" testId="sm-convo-tombstone"
             else
@@ -37,3 +59,17 @@ component CoterieMessageBubble
               text timestamp size=12 color="#6B7280"
               when mine && !deleted
                 text status == "read" ? "Read" : status == "delivered" ? "Delivered" : "Sent" size=11 color=status == "read" ? "#2F80ED" : "#6B7280" testId="sm-convo-receipt"
+          when canReact && reactions.length > 0
+            row gap=4 wrap="wrap" justify=mine ? "flex-end" : "flex-start"
+              each reaction in reactions key=reaction.emoji
+                button `${reaction.emoji} ${reaction.count}` press=chooseReaction(id, reaction.emoji, reaction.reactedByMe) label=`${reaction.emoji} ${reaction.count}${reaction.reactedByMe ? ", including you" : ""}` accessibilitySelected=reaction.reactedByMe paddingLeft=8 paddingRight=8 paddingTop=4 paddingBottom=4 radius=14 borderWidth=1 borderColor=reaction.reactedByMe ? accentColor : "#E2E4E8" background=reaction.reactedByMe ? "#EEF2FF" : "#FFFFFF" testId="sm-convo-reaction-chip"
+          when canQuote || canReact
+            row gap=4 justify=mine ? "flex-end" : "flex-start"
+              when canQuote
+                FacetButton(label="Reply", variant="ghost", size="sm", press=reply(id, senderName, replyBody), testId="sm-convo-quote")
+              when canReact
+                FacetButton(label="React", variant="ghost", size="sm", press=toggleReactions(id), testId="sm-convo-react")
+          when canReact && reactionPickerOpen
+            row gap=3 padding=4 radius=18 borderWidth=1 borderColor="#E2E4E8" background="#FFFFFF" testId="sm-reaction-picker"
+              each emoji in reactionChoices key=emoji
+                button emoji press=chooseReaction(id, emoji, reactions.some((reaction) => reaction.emoji == emoji && reaction.reactedByMe)) label=`React ${emoji}` accessibilitySelected=reactions.some((reaction) => reaction.emoji == emoji && reaction.reactedByMe) padding=7 radius=14 background=reactions.some((reaction) => reaction.emoji == emoji && reaction.reactedByMe) ? "#EEF2FF" : "#FFFFFF" testId="sm-convo-reaction"

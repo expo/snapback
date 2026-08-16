@@ -7,9 +7,11 @@ import {
   createMemoryAuthCustodyStorage,
 } from '../../../packages/snapback-contract/auth-coordinator.mjs';
 import {
+  COTERIE_SNAPBACK_M1_OPERATIONS,
   coterieSnapbackTestInternals,
   createCoterieSnapbackProvider,
 } from '../src/data/snapback-provider.ts';
+import { coterieSurfaceManifest } from '../src/data/memory-provider.ts';
 
 function diagnostic(code: string, appCode?: string): Error & {
   code: string;
@@ -298,4 +300,75 @@ test('disposed initialization subscriptions receive no late rejection cell', asy
   expect(profileCells).toHaveLength(1);
   expect(profileCells[0]).toMatchObject({ status: 'pending', connection: 'connecting' });
   await provider.close();
+});
+
+test('provider claims are exactly the adapter allow-list and refusal behavior agrees', async () => {
+  const provider = createCoterieSnapbackProvider({
+    baseUrl: 'http://127.0.0.1:1',
+    custody: 'memory',
+  });
+  try {
+    const claimCells: DataCellV2<unknown>[] = [];
+    const claimSubscription = provider.subscribe(
+      'listProviderClaims',
+      {},
+      (cell) => claimCells.push(cell),
+    );
+    expect(claimCells).toHaveLength(1);
+    expect(claimCells[0]).toMatchObject({ status: 'ready' });
+    if (claimCells[0]?.status !== 'ready') throw new Error('Expected provider claims');
+    const claims = claimCells[0].value as Array<{
+      name: string;
+      kind: 'query' | 'mutation';
+      token: string;
+    }>;
+    const expectedNames = [
+      ...COTERIE_SNAPBACK_M1_OPERATIONS.queries,
+      ...COTERIE_SNAPBACK_M1_OPERATIONS.mutations,
+    ].sort();
+    expect(claims.map((claim) => claim.name)).toEqual(expectedNames);
+    expect(claims).toContainEqual({ name: 'listProviderClaims', kind: 'query', token: '1' });
+    claimSubscription.dispose();
+
+    const claimedQueries = new Set(COTERIE_SNAPBACK_M1_OPERATIONS.queries);
+    for (const queryName of Object.keys(coterieSurfaceManifest.queries)) {
+      const cells: DataCellV2<unknown>[] = [];
+      const subscription = provider.subscribe(queryName, {}, (cell) => cells.push(cell));
+      expect(cells).toHaveLength(1);
+      const first = cells[0];
+      if (!first) throw new Error(`No cell delivered for ${queryName}`);
+      if (claimedQueries.has(queryName)) {
+        expect(first.status === 'error' && first.error.name === 'SnapbackMilestoneUnsupportedError')
+          .toBe(false);
+      } else {
+        expect(first).toMatchObject({
+          status: 'error',
+          error: { name: 'SnapbackMilestoneUnsupportedError' },
+        });
+      }
+      subscription.dispose();
+    }
+
+    const claimedMutations = new Set(COTERIE_SNAPBACK_M1_OPERATIONS.mutations);
+    for (const mutationName of Object.keys(coterieSurfaceManifest.mutations)) {
+      const result = await provider.mutate(mutationName, {});
+      if (claimedMutations.has(mutationName)) {
+        expect(result.ok || result.error.name !== 'SnapbackMilestoneUnsupportedError').toBe(true);
+      } else {
+        expect(result).toMatchObject({
+          ok: false,
+          error: { name: 'SnapbackMilestoneUnsupportedError' },
+        });
+      }
+    }
+    expect(await provider.mutate('setChatAccent', {})).toMatchObject({
+      ok: false,
+      error: {
+        name: 'SnapbackMilestoneUnsupportedError',
+        message: 'snapback provider claims M1 plus provider discovery only; setChatAccent arrives with M2/M3/M4/M5 — LLP 0266 D7 (M5)',
+      },
+    });
+  } finally {
+    await provider.close();
+  }
 });

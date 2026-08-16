@@ -3,12 +3,15 @@ use CoterieAppHeader from "../../ui/app-header.contract"
 use CoterieInsightDayRow from "../../ui/insights.contract"
 use CoterieInsightsSummary from "../../ui/insights.contract"
 use listInsights from "../../data/generated/coterie.bindings.ts"
+use listProviderClaims from "../../data/generated/coterie.bindings.ts"
 use listSession from "../../data/generated/coterie.bindings.ts"
 use logout from "../../data/generated/coterie.bindings.ts"
 
 component CoterieInsightsRoute
   query session = listSession({})
   query insights = listInsights({})
+  query providerClaims = listProviderClaims({})
+  derive canLogout = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "logout")
   mutation logoutMutation = logout
 
   action choosePrimary(next)
@@ -45,7 +48,7 @@ component CoterieInsightsRoute
               text "Return to sign in" size=14 color="#4F46E5"
         ready activeSessions
           column width="100%" maxWidth=760 flex=1 minHeight=0 alignSelf="center" background="#FFFFFF" borderWidth=1 borderColor="#E2E4E8" testId="coterie-shell"
-            CoterieAppHeader(selected="profile", select=choosePrimary, logout=signOut)
+            CoterieAppHeader(selected="profile", select=choosePrimary, canLogout=canLogout, logout=signOut)
             scroll flex=1 width="100%" background="#FFFFFF"
               column width="100%" gap=16 padding=18
                 row width="100%" align="center" justify="space-between"

@@ -740,14 +740,14 @@ integrationTest(
         status: 'error',
         error: {
           name: 'SnapbackMilestoneUnsupportedError',
-          message: 'snapback provider claims M1 only; listFeed arrives with M2/M3 — LLP 0266 D7 (M2)',
+          message: 'snapback provider claims M1 plus provider discovery only; listFeed arrives with M2/M3/M4/M5 — LLP 0266 D7 (M2)',
         },
       });
       expect(await authClient.mutate('createPost', { body: 'not yet' })).toMatchObject({
         ok: false,
         error: {
           name: 'SnapbackMilestoneUnsupportedError',
-          message: 'snapback provider claims M1 only; createPost arrives with M2/M3 — LLP 0266 D7 (M2)',
+          message: 'snapback provider claims M1 plus provider discovery only; createPost arrives with M2/M3/M4/M5 — LLP 0266 D7 (M2)',
         },
       });
     } finally {

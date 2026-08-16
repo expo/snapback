@@ -29,7 +29,7 @@ type MutationResult = { ok: true } | { ok: false; error: { message: string } };
 type ProbeLinks = {
   login?: () => Promise<MutationResult> | MutationResult;
   logout?: () => Promise<MutationResult> | MutationResult;
-  createPost?: () => Promise<MutationResult> | MutationResult;
+  createPost?: (args?: Record<string, unknown>) => Promise<MutationResult> | MutationResult;
   setLike?: () => Promise<MutationResult> | MutationResult;
   setRepost?: () => Promise<MutationResult> | MutationResult;
 };
@@ -38,6 +38,43 @@ const routeSource = readFileSync(
   new URL('../src/app/routes/index.contract', import.meta.url),
   'utf8',
 );
+const composerSource = readFileSync(
+  new URL('../src/ui/composer.contract', import.meta.url),
+  'utf8',
+);
+const messageBubbleSource = readFileSync(
+  new URL('../src/ui/message-bubble.contract', import.meta.url),
+  'utf8',
+);
+const conversationRouteSource = readFileSync(
+  new URL('../src/app/routes/chat/[id].contract', import.meta.url),
+  'utf8',
+);
+const choreographySource = readFileSync(
+  new URL(
+    '../../../benchmarks/tools/social-messenger/choreography/choreography.mjs',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const profileCardSource = readFileSync(
+  new URL('../src/ui/profile-card.contract', import.meta.url),
+  'utf8',
+);
+
+function indentedBlock(source: string, marker: string): string {
+  const lines = source.split('\n');
+  const start = lines.findIndex((line) => line.includes(marker));
+  if (start < 0) throw new Error(`missing source marker ${marker}`);
+  const indentation = lines[start]!.match(/^\s*/u)?.[0].length ?? 0;
+  let end = start + 1;
+  while (end < lines.length) {
+    const line = lines[end]!;
+    if (line.trim() && (line.match(/^\s*/u)?.[0].length ?? 0) <= indentation) break;
+    end += 1;
+  }
+  return lines.slice(start, end).join('\n');
+}
 
 function feedRow(id: string, overrides: Partial<FeedItem> = {}): FeedItem {
   return {
@@ -408,6 +445,140 @@ describe('Coterie feed behavior', () => {
     } finally {
       dispose();
     }
+  });
+
+  it('composer media state caps images at four and keeps video mutually exclusive', () => {
+    let state = createCoterieFeedState();
+    const toggle = (mediaRef: string, mediaKind: 'image' | 'video') => {
+      state = reduceCoterieFeedState(state, {
+        kind: 'toggle-compose-media',
+        generation: state.generation,
+        mediaRef,
+        mediaKind,
+      });
+    };
+
+    for (let index = 1; index <= 5; index += 1) {
+      toggle(`media/img-${String(index).padStart(2, '0')}.png`, 'image');
+    }
+    expect(state.composeImageRefs).toEqual([
+      'media/img-01.png',
+      'media/img-02.png',
+      'media/img-03.png',
+      'media/img-04.png',
+    ]);
+    expect(state.composeVideoRefs).toEqual([]);
+
+    state = reduceCoterieFeedState(state, {
+      kind: 'remove-compose-media',
+      generation: state.generation,
+      mediaRef: 'media/img-02.png',
+      mediaKind: 'image',
+    });
+    toggle('media/img-05.png', 'image');
+    expect(state.composeImageRefs).toEqual([
+      'media/img-01.png',
+      'media/img-03.png',
+      'media/img-04.png',
+      'media/img-05.png',
+    ]);
+
+    toggle('media/vid-01.mp4', 'video');
+    expect(state.composeImageRefs).toEqual([]);
+    expect(state.composeVideoRefs).toEqual(['media/vid-01.mp4']);
+
+    toggle('media/img-06.png', 'image');
+    expect(state.composeImageRefs).toEqual(['media/img-06.png']);
+    expect(state.composeVideoRefs).toEqual([]);
+
+    state = reduceCoterieFeedState(state, {
+      kind: 'publish-began',
+      generation: state.generation,
+    });
+    expect(state).toMatchObject({ composeImageRefs: [], composeVideoRefs: [] });
+  });
+
+  it('forwards reducer-selected media refs through the feed createPost mutation', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const { instance, dispose } = createFeedProbe(
+      ['toggleComposeMedia', 'publishPost'],
+      {
+        createPost: (args) => {
+          captured = args;
+          return { ok: true };
+        },
+      },
+    );
+    try {
+      invokeAction(instance, 'toggleComposeMedia', 'media/img-01.png', 'image');
+      invokeAction(instance, 'toggleComposeMedia', 'media/img-02.png', 'image');
+      await invokeAction(instance, 'publishPost');
+      expect(captured).toEqual({
+        body: '',
+        imageRefs: ['media/img-01.png', 'media/img-02.png'],
+        videoRefs: [],
+        parentId: null,
+      });
+    } finally {
+      dispose();
+    }
+  });
+
+  it('gates every feed mutation affordance on claims without provider identity', () => {
+    expect(routeSource).toContain('use listProviderClaims from "../../data/generated/coterie.bindings.ts"');
+    expect(routeSource).toContain(
+      'derive canCreatePost = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "createPost")',
+    );
+    expect(routeSource).toContain('when canCreatePost');
+    expect(routeSource).toContain('canAttach=true');
+    expect(routeSource).toContain('canLike=canLikePosts');
+    expect(routeSource).toContain('canRepost=canRepostPosts');
+    expect(routeSource).not.toContain('COTERIE_PROVIDER');
+    expect(composerSource).toContain('derive supportsMedia = variant == "post" && canAttach');
+    expect(composerSource).toContain(
+      'when supportsMedia then has node testId="sm-compose-attach"',
+    );
+    expect(composerSource).not.toMatch(/sm-convo-(file|attach|media)/);
+  });
+
+  it('keeps frozen message actions, reaction choices, chips, and text inside each bubble', () => {
+    const bubbleBlock = indentedBlock(messageBubbleSource, 'nativeId=`sm-message-${id}`');
+    expect(bubbleBlock).toContain('text body');
+    expect(bubbleBlock.match(/testId="sm-convo-quote"/gu)).toHaveLength(1);
+    expect(bubbleBlock).toContain('testId="sm-convo-quote-preview"');
+    expect(bubbleBlock).toContain('press=revealQuoteSource(quotedMessageId)');
+    expect(bubbleBlock).toContain('when canQuote');
+    expect(bubbleBlock).not.toContain('when canQuote && !quotedMessageId');
+    expect(bubbleBlock).toContain('testId="sm-convo-react"');
+    expect(bubbleBlock).toContain('testId="sm-convo-reaction"');
+    expect(bubbleBlock).toContain('testId="sm-convo-reaction-chip"');
+    expect(bubbleBlock).toContain('href=`#sm-message-${quotedMessageId}`');
+    expect(conversationRouteSource).toContain('state highlightedMessageId = null');
+    expect(conversationRouteSource).toContain(
+      'action revealQuotedMessage(messageId) writes highlightedMessageId',
+    );
+    expect(conversationRouteSource).toContain('highlighted=highlightedMessageId == message.id');
+    expect(choreographySource).toContain(
+      'const quotePreview = testId(aliceReply, "sm-convo-quote-preview");',
+    );
+    expect(choreographySource).toContain(
+      '(await quotePreview.count()) > 0 ? "sm-convo-quote-preview" : "sm-convo-quote";',
+    );
+    expect(choreographySource).toContain(
+      'await testId(aliceReply, quoteJumpSelector).click();',
+    );
+    expect(choreographySource).toContain(
+      'return { note: `quoted-excerpt jump selector: ${quoteJumpSelector}` };',
+    );
+    expect(choreographySource).toContain(
+      'if (!inViewport) throw new Error("quoted-excerpt activation did not jump to the original")',
+    );
+  });
+
+  it('renders avatar choices with a visual and semantic current state', () => {
+    expect(profileCardSource).toContain('accessibilitySelected=option.value == currentAvatarRef');
+    expect(profileCardSource).toContain('image src=option.url');
+    expect(profileCardSource).toContain('option.value == currentAvatarRef ? `${option.label} · Current`');
   });
 
   it('A1 empty current window retains accumulated rows', () => {

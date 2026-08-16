@@ -140,6 +140,8 @@ reduced run M1-M3 before any full-declaration claim:
 - **M1:** accounts, sessions, profiles, avatars.
 - **M2:** posts, feeds, follows, likes, reposts, replies, pagination.
 - **M3:** DMs, groups, membership, messages, typing, receipts, quoted replies.
+- **M4:** message reactions.
+- **M5:** chat search, chat accent, and disappearing-message settings.
 
 Each milestone's operations receive explicit compatibility tokens and are
 frozen before a backend adapter implements them; an adapter claims a milestone
@@ -148,9 +150,9 @@ LLP 0201's observable order, with M7 (polls plus a real message-count
 migration) run last and in a fresh session so migration evidence is not
 contaminated by resident state.
 
-Query tokens live in the core `compatibilityToken` field; M1 mutation tokens
-are frozen in the namespaced `coterie.m1CompatibilityTokens` extension until
-Exact's mutation schema grows a first-class field.
+Query tokens live in the core `compatibilityToken` field; mutation tokens are
+frozen in the corresponding namespaced milestone compatibility-token
+extension until Exact's mutation schema grows a first-class field.
 
 ### D8. Provider selection at boot
 
@@ -193,6 +195,21 @@ evidence bar is: two simultaneous browser contexts proving multi-client live
 behavior, an iOS native bundle plus semantic interaction artifact, a macOS
 run through a compatible Exact host, and an unchanged `sm-*` tree relative
 to Clique. `bun run verify:coterie` remains the fast client/provider gate.
+
+### D11. Claims-driven affordance visibility
+
+The shared declaration exposes `listProviderClaims`, a provider-neutral query
+of claimed operation names, kinds, and compatibility tokens. Presentation code
+uses those claims to gate every mutation affordance, including its inputs and
+submit controls: an affordance bound to an unclaimed mutation is absent, never
+inert or allowed to fail only after a press. Query-driven screens are not
+claims-gated; they continue to subscribe and render their typed loading,
+error, stale, empty, and ready states. Memory claims every operation it
+implements; partial adapters report their qualified allow-list and keep
+refusing every unclaimed operation loudly. No route or `.contract` component
+may observe provider identity to make this decision. This preserves D8's seam
+while permitting milestone-partial adapters to render an honest usable subset
+of the common surface.
 
 ## Acceptance criteria
 
@@ -237,3 +254,8 @@ to Clique. `bun run verify:coterie` remains the fast client/provider gate.
 - 2026-08-16 (slice 1 review): made D8's digest handshake explicit: adapters
   implement one provider-neutral Coterie declaration rather than generating
   provider-specific declarations; clarified D7's mutation-token carrier.
+- 2026-08-16 (quoted replies/reactions/avatar slice): added D11; operation
+  claims, rather than provider identity, make unqualified affordances absent.
+- 2026-08-16 (v7 dual-review fixes): made D11 explicitly cover every mutation
+  affordance while preserving typed query states, and recorded the brief's M4
+  reaction versus M5 search/chat-settings taxonomy in D7.

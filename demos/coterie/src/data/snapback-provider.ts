@@ -26,15 +26,16 @@ import type {
 // their adjacent `.d.ts` declaration, so preserve that generated type here.
 // @ts-expect-error generated Snapback ESM is typed by the adjacent api.d.ts
 import { api as generatedApi } from '../../snapback/generated/api.mjs';
-import { coterieAvatarUrlForRef } from './coterie-fixtures.ts';
+import { coterieAvatarUrlForRef } from './avatar-refs.ts';
 import { coterieSurfaceManifest } from './memory-provider.ts';
+import { coterieProviderClaims } from './provider-claims.ts';
 
 const api = generatedApi as GeneratedApi;
 
 export const COTERIE_SNAPBACK_MILESTONE = 'M1' as const;
 
 export const COTERIE_SNAPBACK_M1_OPERATIONS = Object.freeze({
-  queries: Object.freeze(['listSession', 'listProfiles']),
+  queries: Object.freeze(['listSession', 'listProfiles', 'listProviderClaims']),
   mutations: Object.freeze([
     'signup',
     'login',
@@ -52,13 +53,13 @@ const M2_QUERY_NAMES = new Set([
   'listProfilePosts',
   'listThread',
 ]);
-const M3_QUERY_NAMES = new Set(['listChats', 'listMessages', 'searchSocial']);
+const M3_QUERY_NAMES = new Set(['listChats', 'listMessages']);
 const M2_MUTATION_NAMES = new Set(['createPost', 'setFollow', 'setLike', 'setRepost']);
-const M3_MUTATION_NAMES = new Set([
-  'sendMessage',
-  'setChatAccent',
-  'setDisappearing',
-]);
+const M3_MUTATION_NAMES = new Set(['sendMessage']);
+const M4_MUTATION_NAMES = new Set(['setMessageReaction']);
+const M5_QUERY_NAMES = new Set(['searchSocial']);
+const M5_MUTATION_NAMES = new Set(['setChatAccent', 'setDisappearing']);
+const SNAPBACK_PROVIDER_CLAIMS = coterieProviderClaims(COTERIE_SNAPBACK_M1_OPERATIONS);
 
 const PROFILE_STREAM_TIMEOUT_MS = 10_000;
 const AVATAR_ASSET_CACHE_LIMIT = 32;
@@ -211,17 +212,19 @@ function createCustodyStorage(custody: CoterieSnapbackCustody): SnapbackAuthCust
   return createMemoryAuthCustodyStorage({ state: { custody: {} } });
 }
 
-function milestoneForOperation(name: string): 'M2' | 'M3' | null {
+function milestoneForOperation(name: string): 'M2' | 'M3' | 'M4' | 'M5' | null {
   if (M2_QUERY_NAMES.has(name) || M2_MUTATION_NAMES.has(name)) return 'M2';
   if (M3_QUERY_NAMES.has(name) || M3_MUTATION_NAMES.has(name)) return 'M3';
+  if (M4_MUTATION_NAMES.has(name)) return 'M4';
+  if (M5_QUERY_NAMES.has(name) || M5_MUTATION_NAMES.has(name)) return 'M5';
   return null;
 }
 
 function milestoneRefusal(name: string): NamedProviderError {
-  const milestone = milestoneForOperation(name) ?? 'M2/M3';
+  const milestone = milestoneForOperation(name) ?? 'M2/M3/M4/M5';
   return new NamedProviderError(
     'SnapbackMilestoneUnsupportedError',
-    `snapback provider claims M1 only; ${name} arrives with M2/M3 — LLP 0266 D7 (${milestone})`,
+    `snapback provider claims M1 plus provider discovery only; ${name} arrives with M2/M3/M4/M5 — LLP 0266 D7 (${milestone})`,
   );
 }
 
@@ -643,6 +646,15 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     }
     if (!M1_QUERY_NAMES.has(queryName)) {
       observer({ status: 'error', error: serialized(milestoneRefusal(queryName)) });
+      return { dispose() {} };
+    }
+
+    if (queryName === 'listProviderClaims') {
+      observer({
+        status: 'ready',
+        value: SNAPBACK_PROVIDER_CLAIMS as unknown as T,
+        empty: SNAPBACK_PROVIDER_CLAIMS.length === 0,
+      });
       return { dispose() {} };
     }
 

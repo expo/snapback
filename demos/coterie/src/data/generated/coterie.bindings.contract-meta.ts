@@ -1,5 +1,5 @@
 // GENERATED provider/binding contract-meta — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie" 6 (inputsHash 2b035e0c69068f02).
+// Source authority: provider-native declaration "coterie" 7 (inputsHash 61fcaaa7b60092b4).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 import { defineContractModule, mutation, query, shape } from '@exact/contract/exports';
 
@@ -11,9 +11,10 @@ export default defineContractModule('./coterie.bindings.ts', {
   FeedItem: shape({ fields: { authorHandle: 'string', authorId: 'string', authorName: 'string', avatarUrl: 'string | null', body: 'string', createdAt: 'string', feedSortAt: 'string', id: 'string', likeCount: 'number', likedByMe: 'boolean', mediaKind: 'string | null', mediaUrls: 'string[]', nextCursor: 'string | null', postId: 'string', replyCount: 'number', repostCount: 'number', repostedByHandle: 'string | null', repostedById: 'string | null', repostedByMe: 'boolean', repostedByName: 'string | null' } }),
   InsightDay: shape({ fields: { day: 'string', id: 'string', likesReceived: 'number', posts: 'number', totalFollowers: 'number', totalFollowing: 'number', totalLikesReceived: 'number', totalPosts: 'number', totalRepliesReceived: 'number', totalRepostsReceived: 'number' } }),
   LogoutMutationResult: shape({ fields: { revokedToken: 'string | null' } }),
-  Message: shape({ fields: { body: 'string', chatId: 'string', createdAt: 'string', deleted: 'boolean', edited: 'boolean', id: 'string', mine: 'boolean', quoteText: 'string | null', senderId: 'string', senderName: 'string', status: 'string' } }),
+  Message: shape({ fields: { body: 'string', chatId: 'string', createdAt: 'string', deleted: 'boolean', edited: 'boolean', id: 'string', mine: 'boolean', quoteText: 'string | null', quotedBodySnippet: 'string | null', quotedMessageId: 'string | null', quotedSenderName: 'string | null', reactions: 'object[]', senderId: 'string', senderName: 'string', status: 'string' } }),
   Profile: shape({ fields: { avatarUrl: 'string | null', bio: 'string', displayName: 'string', followedByMe: 'boolean', followers: 'number', following: 'number', handle: 'string', id: 'string', isMe: 'boolean', link: 'string', location: 'string' } }),
   ProfilePost: shape({ fields: { authorHandle: 'string', authorId: 'string', authorName: 'string', avatarUrl: 'string | null', body: 'string', createdAt: 'string', id: 'string', likeCount: 'number', likedByMe: 'boolean', mediaKind: 'string | null', mediaUrls: 'string[]', postId: 'string', replyCount: 'number', repostCount: 'number', repostedByMe: 'boolean' } }),
+  ProviderClaim: shape({ fields: { kind: 'string', name: 'string', token: 'string' } }),
   SearchResult: shape({ fields: { avatarUrl: 'string | null', id: 'string', kind: 'string', subtitle: 'string', title: 'string' } }),
   Session: shape({ fields: { expiresAt: 'string', id: 'string', revokedAt: 'string | null', signedIn: 'boolean', token: 'string', userId: 'string' } }),
   ThreadPost: shape({ fields: { authorHandle: 'string', authorId: 'string', authorName: 'string', avatarUrl: 'string | null', body: 'string', createdAt: 'string', id: 'string', likeCount: 'number', likedByMe: 'boolean', mediaKind: 'string | null', mediaUrls: 'string[]', parentId: 'string | null', postId: 'string', replyCount: 'number', repostCount: 'number', repostedByMe: 'boolean', threadRole: 'string' } }),
@@ -59,6 +60,13 @@ export default defineContractModule('./coterie.bindings.ts', {
     livePush: true,
     initialSnapshot: true,
   }),
+  listProviderClaims: query({
+    reads: ['providerClaims'],
+    result: 'ProviderClaim[]',
+    mode: 'snapshot',
+    livePush: false,
+    initialSnapshot: true,
+  }),
   listSession: query({
     reads: ['sessions'],
     result: 'Session[]',
@@ -101,7 +109,7 @@ export default defineContractModule('./coterie.bindings.ts', {
     invalidates: ['sessionRevocations', 'sessions'],
   }),
   sendMessage: mutation({
-    params: { body: 'string', chatId: 'string' },
+    params: { body: 'string', chatId: 'string', quotedMessageId: 'string | null' },
     effects: ['data:chats', 'data:messages'],
     invalidates: ['chats', 'messages'],
   }),
@@ -129,6 +137,11 @@ export default defineContractModule('./coterie.bindings.ts', {
     params: { liked: 'boolean', mutationId: 'string', postId: 'string' },
     effects: ['data:likes'],
     invalidates: ['likes'],
+  }),
+  setMessageReaction: mutation({
+    params: { chatId: 'string', emoji: 'string', messageId: 'string', mutationId: 'string', reacted: 'boolean' },
+    effects: ['data:messages'],
+    invalidates: ['messages'],
   }),
   setRepost: mutation({
     params: { mutationId: 'string', postId: 'string', reposted: 'boolean' },

@@ -1,6 +1,6 @@
 # coterie data provider
 
-Generated reference (declaration `6`, inputsHash `2b035e0c69068f02`, generatedAt: DETERMINISTIC).
+Generated reference (declaration `7`, inputsHash `61fcaaa7b60092b4`, generatedAt: DETERMINISTIC).
 
 ## Capabilities
 
@@ -54,7 +54,7 @@ Generated reference (declaration `6`, inputsHash `2b035e0c69068f02`, generatedAt
 
 ### `listMessages`
 
-- identity: descriptor `listMessages` @ compatibility token `2`
+- identity: descriptor `listMessages` @ compatibility token `3`
 - params: `chatId: string`
 - result: list of `Message` (excess fields: project)
 - liveness: mode `live`, push yes, initial snapshot yes
@@ -76,6 +76,15 @@ Generated reference (declaration `6`, inputsHash `2b035e0c69068f02`, generatedAt
 - params: (none)
 - result: list of `Profile` (excess fields: project)
 - liveness: mode `live`, push yes, initial snapshot yes
+- receipts: none
+- errors: (none)
+
+### `listProviderClaims`
+
+- identity: descriptor `listProviderClaims` @ compatibility token `1`
+- params: (none)
+- result: list of `ProviderClaim` (excess fields: project)
+- liveness: mode `snapshot`, push no, initial snapshot yes
 - receipts: none
 - errors: (none)
 
@@ -138,7 +147,7 @@ Generated reference (declaration `6`, inputsHash `2b035e0c69068f02`, generatedAt
 
 ### `sendMessage`
 
-- params: `chatId: string`, `body: string`
+- params: `chatId: string`, `body: string`, `quotedMessageId: string?`
 - writes: `chats`, `messages`
 - optimistic: no
 - receipts: none
@@ -178,6 +187,13 @@ Generated reference (declaration `6`, inputsHash `2b035e0c69068f02`, generatedAt
 - optimistic: no
 - receipts: none
 
+### `setMessageReaction`
+
+- params: `chatId: string`, `messageId: string`, `emoji: string`, `reacted: boolean`, `mutationId: string`
+- writes: `messages`
+- optimistic: no
+- receipts: none
+
 ### `setRepost`
 
 - params: `postId: string`, `reposted: boolean`, `mutationId: string`
@@ -198,4 +214,7 @@ Generated reference (declaration `6`, inputsHash `2b035e0c69068f02`, generatedAt
 - `coterie.fixtureProfile`: `"social-messenger-starter-pack"`
 - `coterie.m1CompatibilityTokens`: `{"editProfile":"1","listProfiles":"2","listSession":"2","login":"1","logout":"1","setAvatar":"2","signup":"2"}`
 - `coterie.m2CompatibilityTokens`: `{"createPost":"1","listFeed":"3","listProfilePosts":"1","listProfiles":"2","listThread":"1","setFollow":"1","setLike":"1","setRepost":"2"}`
+- `coterie.m3CompatibilityTokens`: `{"listChats":"2","listMessages":"3","sendMessage":"3"}`
+- `coterie.m4CompatibilityTokens`: `{"setMessageReaction":"1"}`
+- `coterie.m5CompatibilityTokens`: `{"searchSocial":"2","setChatAccent":"1","setDisappearing":"1"}`
 - `coterie.surface`: `"shared Contract binding surface; provider lanes implement this declaration and report additional capabilities separately"`

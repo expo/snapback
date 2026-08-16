@@ -5,37 +5,40 @@ social-messenger workload and stable `sm-*` automation vocabulary while using
 one Contract source tree for web, macOS, and iOS.
 
 The checked-in default remains backendless: the `memory` lane is a deterministic
-process-memory implementation of Coterie's frozen M1 and M2
+process-memory implementation of Coterie's frozen M1, M2, and v7 overlay
 `ContractDataProvider` surface. The optional `snapback` lane supplies the
 frozen M1 account, session, profile, avatar, and multi-client-live behavior
-from the application-owned backend; it still refuses every M2/M3 operation.
+from the application-owned backend; it still refuses every unqualified
+M2/M3/M4/M5 operation. The memory lane implements the wider declaration for
+client evidence, while the partial Snapback lane advertises only the operations
+it has qualified.
 The memory lane makes no durability, server-authority, offline, or multi-client
 claim.
 
 ## Stage-1 surface
 
-The checked-in routes cover sign-in; Following/Global feed and text compose;
+The checked-in routes cover sign-in; Following/Global feed and text/image/video compose;
 likes and attributed repost toggles; parent-plus-direct-reply threads; people
 profiles with reverse-chronological post lists and live follow counts;
-fixture-derived Insights; people/chat search; chats; conversation text send;
-chat accent/disappearing options; and image/video viewing.
+fixture-derived Insights; people/chat search; chats; conversation text send
+with quoted replies and emoji reactions; own-profile avatar selection; chat
+accent/disappearing options; and image/video viewing.
 Navigation carries canonical fixture identities such as `alice`,
 `d-alice-bob`, `g-starter`, and `sp0002`; the viewer returns through the real
 router back stack.
 
 Surfaces staged by LLP 0266 D6 are deliberately absent rather than presented
-as inert controls: sign-up UI and durable sessions; Trending; fixture-media
-selection in the post composer (the provider operation itself supports image
-and video posts, and seeded media renders); message attachments; reactions,
-typing, and live receipts; chat-background upload; new chat/group; account
-settings; profile avatar/handle/location/link editing UI; offline,
+as inert controls: sign-up UI and durable sessions; Trending; message
+attachments; reactions and live receipts on posts; typing and live receipts in
+chat; chat-background upload; new chat/group; account settings; profile
+handle/location/link editing UI; offline,
 multi-client, and server-authoritative behavior. Search is the backendless
 people/chat word-prefix slice, not the brief's complete message/offline search.
 The form defaults to Alice, while the memory provider accepts all eight
 committed starter personas and accounts created through its headless `signup`
 operation.
 
-## Frozen M2 provider surface
+## Inherited frozen M2 provider surface
 
 Declaration version 6 freezes M2 while retaining the already-frozen M1 set.
 Query tokens remain in Exact's core `compatibilityToken` field. Exact's
@@ -112,18 +115,99 @@ resets this state and every local mutation. `listInsights` declares and
 subscribes to all four tables it derives from: posts, follows, likes, and
 reposts.
 
-## Frozen M1 provider surface
+## Quoted replies and message reactions
 
-The M1 account/session/profile/avatar seam remains frozen inside declaration
-version 6:
+Each message exposes `sm-convo-quote` inside its `sm-convo-bubble` when
+`sendMessage` is claimed. Selecting it adds a sender/body preview above the
+composer with a cancel action; the sent row retains the quoted message
+identity, and projection resolves a short tombstone-safe preview so deleted
+source text cannot leak. Pressing that quoted excerpt jumps to its source
+bubble. The six starter quotes mirror
+`benchmarks/fixtures/social-messenger/starter-m3.log` exactly.
+
+When `setMessageReaction` is claimed, `sm-convo-react` opens the six
+`sm-convo-reaction` choices. Aggregated `sm-convo-reaction-chip` controls show
+the per-emoji count and whether the current session reacted. Selecting another
+emoji replaces the current user's reaction; pressing the current user's chip
+sets that emoji to `reacted: false`. Each intent carries a required mutation
+identity: replaying one identity is a no-op even after another reaction, while
+a distinct identity that repeats the current state remains idempotent. The
+shared starter log contains no reaction actions, so
+the deterministic fixture does not invent initial reactions.
+
+## Profile avatar picker
+
+The own-profile edit state shows `sm-profile-avatar-picker` and one
+`sm-profile-avatar-*` choice per committed Alice-through-Henry persona ref
+when `setAvatar` is claimed. Every option renders its thumbnail and exposes an
+accessibility-selected current state. `src/data/avatar-refs.ts` is the sole
+avatar-reference constant module consumed by both picker options and provider
+admission; changing the vocabulary is one table edit. This picker is a
+deliberate interim seam: Contract does not yet expose a portable file-input
+primitive, so the UI cannot drive the Snapback adapter's arbitrary local-file
+upload path directly.
+In the Snapback lane the picker cannot mark the current avatar selected because
+`listProfiles@2` exposes only the server asset `avatarUrl`, not its originating
+`avatarRef`; that shape change is deferred to the next `listProfiles` token.
+
+## Composer media picker
+
+When `createPost` is claimed, the feed composer shows `sm-compose-attach` and
+opens a fixture-media dialog. Its six image choices and one video choice come
+from the same `COTERIE_IMAGE_URLS` and `COTERIE_VIDEO_URLS` maps the memory
+provider validates: mutations receive exact `media/img-*.png` or
+`media/vid-01.mp4` refs, while previews use the corresponding served
+`/assets/fixtures/...` URLs. Selected items remain visible above the composer
+and can each be removed before posting.
+
+Selection mirrors `createPost@1`: up to four distinct images or one video,
+never both. Choosing a video replaces selected images; choosing an image
+replaces the video; a fifth image choice is disabled. Media-only posts are
+allowed because the declared mutation rejects only an empty text-only post.
+The fixture dialog is deliberate rather than an upload simulation: Contract
+still has no portable file-input primitive, matching the profile avatar
+picker's interim design. Providers that do not claim `createPost` render no
+attach affordance, based only on `listProviderClaims@1` and never provider
+identity.
+
+## Claims-gated affordances
+
+`listProviderClaims@1` reports provider-neutral operation names, kinds, and
+compatibility tokens. Routes use those rows—not provider identity—to gate
+every mutation affordance, including post and conversation composer inputs and
+submits, feed like/repost controls, logout, profile edits/follows/avatars,
+message quotes/reactions, and chat settings. An operation the selected adapter
+has not qualified has no affordance at all; it is never rendered as a dead
+button. Query-driven screens remain present and render their typed loading,
+error, stale, empty, and ready states without query-claim gating. Memory
+reports every declaration operation it implements. The
+Snapback adapter derives its claim rows from the same M1 allow-list used by its
+loud `SnapbackMilestoneUnsupportedError` refusal path, and tests require those
+two views to agree.
+
+## Provider surface and v7 overlay
+
+Declaration v7 is the landed v6 M2 declaration plus the additive
+recipe in [`scripts/v7-declaration-delta.md`](./scripts/v7-declaration-delta.md).
+It inherits the frozen M1 account/session/profile/avatar seam:
 
 - `listSession@2` and `listProfiles@2`
 - `signup@2`, `login@1`, `logout@1`, `editProfile@1`, and `setAvatar@2`
 
+Because v6 already declared `listMessages@2` and `sendMessage@2`, v7 bumps both
+to `@3` for their changed quote/error shapes. It introduces
+`listProviderClaims@1` plus `setMessageReaction@1`; the reaction mutation has a
+required mutation ID, and `sendMessage@3` declares empty/over-2,000-character
+body errors. Query tokens live in the core query objects; mutation tokens live
+in the namespaced milestone compatibility-token extensions. The brief's M5
+`searchSocial`, `setChatAccent`, and `setDisappearing` tokens live under
+`coterie.m5CompatibilityTokens`, not the M3 namespace.
+
 Exact's current declaration core carries compatibility tokens on queries but
-not mutations. The complete set above is therefore recorded in the
-`coterie.m1CompatibilityTokens` declaration extension; the two queries also
-carry their tokens in the core query field.
+not mutations. Mutation tokens are therefore recorded in the corresponding
+namespaced `coterie.m1CompatibilityTokens` through
+`coterie.m5CompatibilityTokens` declaration extensions; queries also carry
+their tokens in the core query field.
 
 `src/data/coterie.provider.json` is intentionally provider-neutral. It is the
 one Coterie surface declaration, and generation produces the one
@@ -141,8 +225,14 @@ classes for duplicate handle/email and invalid credentials, and lets
 `setAvatar` attach the eight persona refs from `media/avatar-alice.png` through
 `media/avatar-henry.png`. Both memory and Snapback resolve that same closed
 vocabulary to Coterie's served `/assets/fixtures/avatar-<persona>.png` assets.
-The memory projection also updates live profile, feed, search, and direct-chat
-avatar deliveries. Signup credentials,
+The memory projection also updates live profile, feed, and search avatar
+deliveries. A direct-chat row changes only when it displays that persona: in
+Alice's `d-alice-bob` row Alice's own change leaves Bob's avatar untouched,
+while Bob's change updates it; group-chat rows retain their M2 null-avatar
+semantics. The landed v6 provider accepts all eight picker refs; the
+pre-rebase v5 checkout used to accept only `media/avatar-alice.png` and
+`media/avatar-bob.png`, which is why
+the replay checklist includes an explicit eight-ref proof. Signup credentials,
 active sessions, and revoked tokens exist only for the life of the provider
 process. Logout moves the current token into an in-process revocation ledger;
 restart resets everything. This is deterministic client/provider evidence,
@@ -150,8 +240,10 @@ not durable or server-authoritative auth evidence.
 
 The pre-M2 declaration v5 digest was `df0562a779095d79`; the first M2 v6
 generation was `0614938f8ff02c4e`. The corrected v6 surface in this tree is
-`2b035e0c69068f02`, shared verbatim by both adapters. The Snapback adapter
-implements the same M1 token set. Password signup/sign-in/logout use
+`2b035e0c69068f02`. Replaying the v7 overlay produces the merged declaration
+digest `61fcaaa7b60092b4`.
+The Snapback adapter implements the same M1 token set without changing the
+shared declaration digest. Password signup/sign-in/logout use
 Snapback's built-in password provider and `AuthCoordinator`; the session query
 projects coordinator principal changes, while profiles use the generated
 `getMyProfile`, `ensureMyProfile`, `editProfile`, and streaming `listProfiles`
@@ -161,7 +253,8 @@ Snapback's stream transport with polling fallback disabled. Connection-only
 cells publish socket loss and recovery without counting as profile-data
 revisions.
 
-This adapter claims **M1 only**. Calls to M2/M3 queries or mutations return a
+This adapter claims **M1 plus provider discovery only**. Calls to unqualified
+M2/M3/M4/M5 queries or mutations return a
 `SnapbackMilestoneUnsupportedError` whose message names the operation and LLP
 0266 D7; they never synthesize rows or acknowledge a fake mutation. Snapback's
 error translation is an exact allow-list; prefix families are deliberately not

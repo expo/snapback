@@ -7,11 +7,12 @@ component CoterieAppHeader
     selected: string
     select: (value) => void
     logout: () => void
+    canLogout: boolean = false
 
   contract
     has node testId="coterie-app-header"
     has node testId="coterie-nav"
-    has node testId="sm-settings-logout"
+    when canLogout then has node testId="sm-settings-logout"
 
   view
     column width="100%" background="#FFFFFF" testId="coterie-app-header"
@@ -21,5 +22,6 @@ component CoterieAppHeader
           row align="center" gap=8
             link href="/about" label="About Coterie" testId="coterie-about-link"
               text "About" size=13 color="#4F46E5"
-            FacetButton(label="Log out", variant="ghost", size="sm", press=logout, testId="sm-settings-logout")
+            when canLogout
+              FacetButton(label="Log out", variant="ghost", size="sm", press=logout, testId="sm-settings-logout")
       CoterieNavigation(selected=selected, select=select)

@@ -7,12 +7,13 @@ import {
 } from '@exact/contract/runtime';
 
 import manifestJson from './generated/coterie.manifest.json';
+import { coterieAvatarUrlForRef } from './avatar-refs.ts';
 import {
   COTERIE_IMAGE_URLS,
   COTERIE_VIDEO_URLS,
-  coterieAvatarUrlForRef,
 } from './coterie-fixtures.ts';
 import { queryAcrossTables, withMultiTableQueries } from './multi-table-query-boundary.ts';
+import { allCoterieProviderClaims } from './provider-claims.ts';
 import type {
   Chat,
   FeedItem,
@@ -20,6 +21,7 @@ import type {
   Message,
   Profile,
   ProfilePost,
+  ProviderClaim,
   SearchResult,
   Session,
   ThreadPost,
@@ -90,6 +92,19 @@ interface MemoryAccount {
 interface RevokedSession extends Session {
   revokedAt: string;
   reason: 'logout' | 'replaced';
+}
+
+interface MessageReactionEvent {
+  actorId: string;
+  emoji: string;
+}
+
+interface MemoryMessage extends Message {
+  reactionEvents: MessageReactionEvent[];
+}
+
+interface MemoryChat extends Chat {
+  counterpartId: string | null;
 }
 
 const initialSession: Session[] = [
@@ -332,7 +347,7 @@ const initialReposts: RepostEvent[] = [
   { postId: 'sp0019', actorId: 'bob', createdAt: '2026-01-01T00:01:07Z', mutationId: 'mr-bob-sp0019' },
 ];
 
-const initialChats: Chat[] = [
+const initialChats: MemoryChat[] = [
   {
     id: 'd-alice-bob',
     title: 'Bob Bennett',
@@ -343,6 +358,7 @@ const initialChats: Chat[] = [
     accentColor: '#4F46E5',
     disappearing: 'off',
     avatarUrl: '/assets/fixtures/avatar-bob.png',
+    counterpartId: 'bob',
   },
   {
     id: 'g-starter',
@@ -354,29 +370,30 @@ const initialChats: Chat[] = [
     accentColor: '#0D9488',
     disappearing: 'off',
     avatarUrl: null,
+    counterpartId: null,
   },
 ];
 
 const fixtureMessageRows = [
   ['sm0001', 'd-alice-bob', 'alice', 'Coffee after work?', '2026-01-01T00:01:12Z', null],
-  ['sm0002', 'd-alice-bob', 'bob', 'Yes. Corner place?', '2026-01-01T00:01:13Z', 'Coffee after work?'],
-  ['sm0003', 'd-alice-bob', 'alice', 'Exactly. Six thirty.', '2026-01-01T00:01:14Z', 'Yes. Corner place?'],
+  ['sm0002', 'd-alice-bob', 'bob', 'Yes. Corner place?', '2026-01-01T00:01:13Z', 'sm0001'],
+  ['sm0003', 'd-alice-bob', 'alice', 'Exactly. Six thirty.', '2026-01-01T00:01:14Z', 'sm0002'],
   ['sm0004', 'd-alice-bob', 'bob', 'I will bring the route map.', '2026-01-01T00:01:15Z', null],
   ['sm0005', 'd-alice-bob', 'alice', 'Perfect, see you there.', '2026-01-01T00:01:16Z', null],
-  ['sm0006', 'd-alice-bob', 'bob', 'On my way.', '2026-01-01T00:01:17Z', 'Perfect, see you there.'],
+  ['sm0006', 'd-alice-bob', 'bob', 'On my way.', '2026-01-01T00:01:17Z', 'sm0005'],
   ['sm0007', 'g-starter', 'alice', 'Saturday plan: coffee, lake, then noodles.', '2026-01-01T00:01:18Z', null],
-  ['sm0008', 'g-starter', 'carol', 'Coffee is a definite yes.', '2026-01-01T00:01:19Z', 'Saturday plan: coffee, lake, then noodles.'],
+  ['sm0008', 'g-starter', 'carol', 'Coffee is a definite yes.', '2026-01-01T00:01:19Z', 'sm0007'],
   ['sm0009', 'g-starter', 'dave', 'I can meet everyone at ten.', '2026-01-01T00:01:20Z', null],
   ['sm0010', 'g-starter', 'bob', 'The west trail is dry now.', '2026-01-01T00:01:21Z', null],
-  ['sm0011', 'g-starter', 'alice', 'West trail it is.', '2026-01-01T00:01:22Z', 'The west trail is dry now.'],
+  ['sm0011', 'g-starter', 'alice', 'West trail it is.', '2026-01-01T00:01:22Z', 'sm0010'],
   ['sm0012', 'g-starter', 'carol', 'I will bring snacks.', '2026-01-01T00:01:23Z', null],
   ['sm0013', 'g-starter', 'dave', 'Should I book dinner?', '2026-01-01T00:01:24Z', null],
-  ['sm0014', 'g-starter', 'bob', 'Please do, for four.', '2026-01-01T00:01:25Z', 'Should I book dinner?'],
+  ['sm0014', 'g-starter', 'bob', 'Please do, for four.', '2026-01-01T00:01:25Z', 'sm0013'],
   ['sm0015', 'g-starter', 'alice', 'Locked in. See you Saturday.', '2026-01-01T00:01:26Z', null],
 ] as const;
 
-const initialMessages: Message[] = fixtureMessageRows.map(
-  ([id, chatId, senderId, body, createdAt, quoteText]) => ({
+const initialMessages: MemoryMessage[] = fixtureMessageRows.map(
+  ([id, chatId, senderId, body, createdAt, quotedMessageId]) => ({
     id,
     chatId,
     senderId,
@@ -385,7 +402,12 @@ const initialMessages: Message[] = fixtureMessageRows.map(
     createdAt,
     mine: senderId === VIEWER_ID,
     status: 'sent',
-    quoteText,
+    quotedMessageId,
+    quotedSenderName: null,
+    quotedBodySnippet: null,
+    quoteText: null,
+    reactions: [],
+    reactionEvents: [],
     edited: false,
     deleted: false,
   }),
@@ -426,13 +448,18 @@ const DECLARED_ERROR_CODES = {
   InvalidCredentialsError: 'invalid_credentials',
   LinkInvalidError: 'link_invalid',
   LocationInvalidError: 'location_invalid',
+  ChatNotFoundError: 'chat_not_found',
+  EmojiInvalidError: 'emoji_invalid',
   MediaMixInvalidError: 'media_mix_invalid',
   MediaReferenceInvalidError: 'media_reference_invalid',
+  MessageBodyInvalidError: 'message_body_invalid',
+  MessageNotFoundError: 'message_not_found',
   ParentPostNotFoundError: 'parent_post_not_found',
   PasswordTooShortError: 'password_too_short',
   PostBodyInvalidError: 'post_body_invalid',
   PostNotFoundError: 'post_not_found',
   ProfileNotFoundError: 'profile_not_found',
+  QuotedMessageInvalidError: 'quoted_message_invalid',
   ReplyRepostForbiddenError: 'reply_repost_forbidden',
   SelfFollowInvalidError: 'self_follow_invalid',
   SessionRequiredError: 'session_required',
@@ -513,6 +540,59 @@ function validatedLink(value: unknown): string {
     // Fall through to the one declared rejection below.
   }
   return fail('LinkInvalidError', 'Link must be empty or an HTTP(S) URL.');
+}
+
+function validatedEmoji(value: unknown): string {
+  const emoji = String(value ?? '').normalize('NFC').trim();
+  const graphemes = [
+    ...new Intl.Segmenter('en-US', { granularity: 'grapheme' }).segment(emoji),
+  ];
+  if (
+    graphemes.length !== 1
+    || !/[\p{Extended_Pictographic}\p{Regional_Indicator}\u20E3]/u.test(emoji)
+  ) {
+    fail('EmojiInvalidError', 'Reaction must be one emoji grapheme.');
+  }
+  return emoji;
+}
+
+function quotedBodySnippet(message: MemoryMessage): string {
+  if (message.deleted) return 'This message was deleted';
+  const body = message.body.trim();
+  return body.length > 96 ? `${body.slice(0, 95)}…` : body;
+}
+
+function projectMessages(
+  messages: readonly MemoryMessage[],
+  viewerId: string | null,
+): Message[] {
+  const byId = new Map(messages.map((message) => [message.id, message]));
+  return messages.map((message) => {
+    const quoted = message.quotedMessageId
+      ? byId.get(message.quotedMessageId) ?? null
+      : null;
+    const aggregate = new Map<string, { count: number; reactedByMe: boolean }>();
+    for (const reaction of message.reactionEvents) {
+      const current = aggregate.get(reaction.emoji) ?? { count: 0, reactedByMe: false };
+      aggregate.set(reaction.emoji, {
+        count: current.count + 1,
+        reactedByMe: current.reactedByMe || reaction.actorId === viewerId,
+      });
+    }
+    const { reactionEvents: _reactionEvents, ...row } = message;
+    const snippet = quoted ? quotedBodySnippet(quoted) : null;
+    return {
+      ...row,
+      mine: viewerId !== null && message.senderId === viewerId,
+      quotedSenderName: quoted?.senderName ?? null,
+      quotedBodySnippet: snippet,
+      // Kept for the additive v2 row shape; new UI reads the sender/body pair.
+      quoteText: snippet,
+      reactions: [...aggregate.entries()]
+        .sort(([left], [right]) => left.localeCompare(right, 'en-US'))
+        .map(([emoji, facts]) => ({ emoji, ...facts })),
+    };
+  });
 }
 
 function matchesWordPrefix(text: string, query: string): boolean {
@@ -761,6 +841,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
   let messageSequence = 0;
   let sessionSequence = 0;
   let revocationSequence = 0;
+  const processedReactionMutationIds = new Set<string>();
   let activeViewerId: string | null = VIEWER_ID;
   const boundary = withMultiTableQueries(createContractMockQueryBoundary({
     accounts: cloneRows(initialAccounts),
@@ -797,7 +878,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
           ),
       })),
     );
-    boundary.write<Message>('messages', (rows) =>
+    boundary.write<MemoryMessage>('messages', (rows) =>
       rows.map((message) => ({ ...message, mine: message.senderId === viewerId })),
     );
   };
@@ -889,13 +970,22 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
       listProfiles: (_args, queryBoundary) =>
         queryBoundary.query<Profile>('profiles', (rows) => rows as Profile[], { key: 'profiles' }),
       listChats: (_args, queryBoundary) =>
-        queryBoundary.query<Chat>('chats', (rows) => rows as Chat[], { key: 'chats' }),
+        queryBoundary.query<Chat>(
+          'chats',
+          (rows) => (rows as MemoryChat[]).map(({ counterpartId: _counterpartId, ...chat }) => chat),
+          { key: 'chats' },
+        ),
       listMessages: (args, queryBoundary) =>
         queryBoundary.query<Message>(
           'messages',
-          (rows) => (rows as Message[]).filter((message) => message.chatId === args.chatId),
+          (rows) => projectMessages(
+            (rows as MemoryMessage[]).filter((message) => message.chatId === args.chatId),
+            activeViewerId,
+          ),
           { key: `messages:${String(args.chatId)}` },
         ),
+      listProviderClaims: (_args, _queryBoundary): ProviderClaim[] =>
+        allCoterieProviderClaims(),
       searchSocial: (args, queryBoundary) =>
         queryBoundary.query<SearchResult>(
           'search',
@@ -1177,7 +1267,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
               : profile,
           ),
         );
-        queryBoundary.write<Message>('messages', (rows) =>
+        queryBoundary.write<MemoryMessage>('messages', (rows) =>
           rows.map((message) =>
             message.senderId === viewerId ? { ...message, senderName: displayName } : message,
           ),
@@ -1212,9 +1302,9 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
               : result,
           ),
         );
-        queryBoundary.write<Chat>('chats', (rows) =>
+        queryBoundary.write<MemoryChat>('chats', (rows) =>
           rows.map((chat) =>
-            !chat.isGroup && chat.id.includes(viewerId) ? { ...chat, avatarUrl } : chat,
+            !chat.isGroup && chat.counterpartId === viewerId ? { ...chat, avatarUrl } : chat,
           ),
         );
         return { avatarUrl };
@@ -1222,19 +1312,37 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
       sendMessage: (args, queryBoundary) => {
         const viewerId = requireActiveViewer();
         const body = String(args.body ?? '').trim();
-        if (!body) throw new Error('Message text cannot be empty.');
+        if (Array.from(body).length < 1 || Array.from(body).length > 2000) {
+          fail('MessageBodyInvalidError', 'Message text must contain 1-2000 characters.');
+        }
         const chatId = String(args.chatId);
         const chatExists = (queryBoundary.snapshot('chats') as Chat[]).some(
           (chat) => chat.id === chatId,
         );
-        if (!chatExists) throw new Error(`Unknown conversation ${chatId}`);
+        if (!chatExists) {
+          fail('ChatNotFoundError', 'Conversation was not found.');
+        }
+        const quotedMessageId = args.quotedMessageId === null || args.quotedMessageId === undefined
+          ? null
+          : String(args.quotedMessageId);
+        const quotedMessage = quotedMessageId === null
+          ? null
+          : (queryBoundary.snapshot('messages') as MemoryMessage[]).find(
+              (candidate) => candidate.id === quotedMessageId,
+            ) ?? null;
+        if (quotedMessageId !== null && quotedMessage?.chatId !== chatId) {
+          fail(
+            'QuotedMessageInvalidError',
+            'Quoted message must exist in this conversation.',
+          );
+        }
         const profile = (queryBoundary.snapshot('profiles') as Profile[]).find(
           (row) => row.id === viewerId,
         );
         const createdAt = new Date(
           Date.parse(FIXTURE_NOW) + 60_000 + ++messageSequence * 1000,
         ).toISOString();
-        const message: Message = {
+        const message: MemoryMessage = {
           id: `coterie-local-message-${String(messageSequence).padStart(4, '0')}`,
           chatId,
           senderId: viewerId,
@@ -1243,17 +1351,63 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
           createdAt,
           mine: true,
           status: 'sent',
+          quotedMessageId,
+          quotedSenderName: null,
+          quotedBodySnippet: null,
           quoteText: null,
+          reactions: [],
+          reactionEvents: [],
           edited: false,
           deleted: false,
         };
-        queryBoundary.write<Message>('messages', (rows) => [...rows, message]);
+        queryBoundary.write<MemoryMessage>('messages', (rows) => [...rows, message]);
         queryBoundary.write<Chat>('chats', (rows) =>
           rows.map((chat) =>
             chat.id === chatId ? { ...chat, preview: body, updatedAt: createdAt } : chat,
           ),
         );
         return { id: message.id };
+      },
+      setMessageReaction: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const chatId = String(args.chatId);
+        const chatExists = (queryBoundary.snapshot('chats') as Chat[]).some(
+          (chat) => chat.id === chatId,
+        );
+        if (!chatExists) {
+          fail('ChatNotFoundError', 'Conversation was not found.');
+        }
+        const messageId = String(args.messageId);
+        const message = (queryBoundary.snapshot('messages') as MemoryMessage[]).find(
+          (candidate) => candidate.id === messageId && candidate.chatId === chatId,
+        );
+        if (!message) {
+          fail('MessageNotFoundError', 'Message was not found in this conversation.');
+        }
+        const emoji = validatedEmoji(args.emoji);
+        const reacted = Boolean(args.reacted);
+        const mutationKey = `${viewerId}:${String(args.mutationId)}`;
+        if (processedReactionMutationIds.has(mutationKey)) return;
+        queryBoundary.write<MemoryMessage>('messages', (rows) =>
+          rows.map((candidate) => {
+            if (candidate.id !== messageId) return candidate;
+            const current = candidate.reactionEvents.find(
+              (reaction) => reaction.actorId === viewerId,
+            );
+            if (reacted && current?.emoji === emoji) return candidate;
+            if (!reacted && current?.emoji !== emoji) return candidate;
+            const withoutViewer = candidate.reactionEvents.filter(
+              (reaction) => reaction.actorId !== viewerId,
+            );
+            return {
+              ...candidate,
+              reactionEvents: reacted
+                ? [...withoutViewer, { actorId: viewerId, emoji }]
+                : withoutViewer,
+            };
+          }),
+        );
+        processedReactionMutationIds.add(mutationKey);
       },
       setChatAccent: (args, queryBoundary) => {
         const color = String(args.color);

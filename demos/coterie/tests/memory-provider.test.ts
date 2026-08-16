@@ -6,6 +6,7 @@ import {
 } from '@exact/contract/conformance';
 import type {
   ContractDataProvider,
+  ContractQueryHandle,
   DataMutationResult,
   DataObserver,
 } from '@exact/contract/runtime';
@@ -17,15 +18,22 @@ import {
   type CoterieMemoryHarness,
 } from '../src/data/memory-provider.ts';
 import declarationJson from '../src/data/coterie.provider.json';
+import { COTERIE_AVATAR_REFS } from '../src/data/avatar-refs.ts';
+import { COTERIE_COMPOSER_MEDIA_OPTIONS } from '../src/data/coterie-fixtures.ts';
 import {
   coterieProviderRegistry,
   resolveCoterieProviderName,
 } from '../src/data/provider-factory.ts';
 import {
   configureFromProvider,
+  createPost,
+  listFeed,
   listSession,
+  listThread,
+  sendMessage,
   signup,
 } from '../src/data/generated/coterie.bindings.ts';
+import type { FeedItem, ThreadPost } from '../src/data/generated/coterie.types.ts';
 
 function collectReady<T>(
   provider: ContractDataProvider,
@@ -65,6 +73,16 @@ function readRows<T>(
     throw new Error(`${name} did not synchronously deliver rows`);
   }
   return cell.value as T[];
+}
+
+function readGeneratedRows<T>(handle: ContractQueryHandle<T>): T[] {
+  let latest: readonly T[] | null = null;
+  const subscription = handle.subscribe((rows) => {
+    latest = rows;
+  });
+  subscription.dispose();
+  if (latest === null) throw new Error('generated query did not synchronously deliver rows');
+  return [...latest];
 }
 
 function expectMutationError(
@@ -273,7 +291,7 @@ describe('Coterie backendless provider', () => {
     sessions.dispose();
   });
 
-  it('accepts all eight persona avatar refs and updates profiles, feed rows, and chat delivery', async () => {
+  it('accepts all eight avatar refs and updates only DM rows that display the changed persona', async () => {
     const { provider } = createCoterieMemoryHarness();
     const profiles = collectReady<Array<{ id: string; avatarUrl: string | null }>>(
       provider,
@@ -307,8 +325,28 @@ describe('Coterie backendless provider', () => {
       '/assets/fixtures/avatar-henry.png',
     );
     expect(chats.snapshots.at(-1)?.find((chat) => chat.id === 'd-alice-bob')?.avatarUrl).toBe(
-      '/assets/fixtures/avatar-henry.png',
+      '/assets/fixtures/avatar-bob.png',
     );
+    expect(chats.snapshots.at(-1)?.find((chat) => chat.id === 'g-starter')?.avatarUrl).toBeNull();
+
+    expect(
+      (
+        await provider.mutate('login', {
+          email: 'bob@example.com',
+          password: 'Bob!Clique2026',
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      await provider.mutate('setAvatar', { avatarRef: 'media/avatar-grace.png' }),
+    ).toEqual({
+      ok: true,
+      value: { avatarUrl: '/assets/fixtures/avatar-grace.png' },
+    });
+    expect(chats.snapshots.at(-1)?.find((chat) => chat.id === 'd-alice-bob')?.avatarUrl).toBe(
+      '/assets/fixtures/avatar-grace.png',
+    );
+    expect(chats.snapshots.at(-1)?.find((chat) => chat.id === 'g-starter')?.avatarUrl).toBeNull();
 
     const rejected = await provider.mutate('setAvatar', { avatarRef: 'media/img-01.png' });
     expect(rejected).toMatchObject({
@@ -334,6 +372,20 @@ describe('Coterie backendless provider', () => {
     projection.dispose();
   });
 
+  it('delivers declared send-message body errors through the generated mutation', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const projection = configureFromProvider(provider);
+    for (const body of ['', 'x'.repeat(2001)]) {
+      const result = (await sendMessage({
+        chatId: 'g-starter',
+        body,
+        quotedMessageId: null,
+      })) as DataMutationResult;
+      expectMutationError(result, 'MessageBodyInvalidError');
+    }
+    projection.dispose();
+  });
+
   it('rejects every session-required mutation after logout', async () => {
     const { provider } = createCoterieMemoryHarness();
     expect((await provider.mutate('logout', {})).ok).toBe(true);
@@ -349,6 +401,16 @@ describe('Coterie backendless provider', () => {
       ],
       ['setAvatar', { avatarRef: 'media/avatar-bob.png' }],
       ['sendMessage', { chatId: 'g-starter', body: 'Signed-out message' }],
+      [
+        'setMessageReaction',
+        {
+          chatId: 'g-starter',
+          messageId: 'sm0015',
+          emoji: '👍',
+          reacted: true,
+          mutationId: 'signed-out-reaction',
+        },
+      ],
     ] as const;
 
     for (const [operation, args] of cases) {
@@ -690,8 +752,8 @@ describe('Coterie backendless provider', () => {
     group.dispose();
   });
 
-  it('freezes the complete M2 operation/token set without changing the M1 profile token', () => {
-    expect(declarationJson.declarationVersion).toBe('6');
+  it('retains the complete M2 operation/token set in v7 without changing the M1 profile token', () => {
+    expect(declarationJson.declarationVersion).toBe('7');
     expect(coterieSurfaceManifest.queries.listFeed?.compatibilityToken).toBe('3');
     expect(coterieSurfaceManifest.queries.listThread?.compatibilityToken).toBe('1');
     expect(coterieSurfaceManifest.queries.listProfilePosts?.compatibilityToken).toBe('1');
@@ -710,6 +772,19 @@ describe('Coterie backendless provider', () => {
     });
     expect(declarationJson.extensions['coterie.m1CompatibilityTokens']).toMatchObject({
       setAvatar: '2',
+    });
+    expect(declarationJson.extensions['coterie.m3CompatibilityTokens']).toEqual({
+      listChats: '2',
+      listMessages: '3',
+      sendMessage: '3',
+    });
+    expect(declarationJson.extensions['coterie.m4CompatibilityTokens']).toEqual({
+      setMessageReaction: '1',
+    });
+    expect(declarationJson.extensions['coterie.m5CompatibilityTokens']).toEqual({
+      searchSocial: '2',
+      setChatAccent: '1',
+      setDisappearing: '1',
     });
   });
 
@@ -783,6 +858,77 @@ describe('Coterie backendless provider', () => {
       text.value.id,
     ]);
     expect(profilePosts.some((row) => row.postId === reply.value.id)).toBe(false);
+  });
+
+  it('creates composer media through generated bindings and resolves feed plus media-route rows', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const projection = configureFromProvider(provider);
+    try {
+      const imageRefs = [
+        'media/img-01.png',
+        'media/img-02.png',
+        'media/img-03.png',
+        'media/img-04.png',
+      ];
+      const images = (await createPost({
+        body: '',
+        imageRefs,
+        videoRefs: [],
+        parentId: null,
+      })) as DataMutationResult<{ id: string }>;
+      const video = (await createPost({
+        body: '',
+        imageRefs: [],
+        videoRefs: ['media/vid-01.mp4'],
+        parentId: null,
+      })) as DataMutationResult<{ id: string }>;
+      expect(images.ok).toBe(true);
+      expect(video.ok).toBe(true);
+      if (!images.ok || !images.value || !video.ok || !video.value) {
+        throw new Error('expected generated createPost bindings to return post identities');
+      }
+
+      const feed = readGeneratedRows(
+        listFeed({ mode: 'global', cursor: null }) as ContractQueryHandle<FeedItem>,
+      );
+      expect(feed.find((row) => row.postId === images.value!.id)).toMatchObject({
+        mediaKind: 'images',
+        mediaUrls: [
+          '/assets/fixtures/img-01.png',
+          '/assets/fixtures/img-02.png',
+          '/assets/fixtures/img-03.png',
+          '/assets/fixtures/img-04.png',
+        ],
+      });
+      expect(feed.find((row) => row.postId === video.value!.id)).toMatchObject({
+        mediaKind: 'video',
+        mediaUrls: ['/assets/fixtures/vid-01.mp4'],
+      });
+
+      const imageRouteRows = readGeneratedRows(
+        listThread({ parentId: images.value.id }) as ContractQueryHandle<ThreadPost>,
+      );
+      expect(imageRouteRows[0]).toMatchObject({
+        postId: images.value.id,
+        mediaKind: 'images',
+        mediaUrls: [
+          '/assets/fixtures/img-01.png',
+          '/assets/fixtures/img-02.png',
+          '/assets/fixtures/img-03.png',
+          '/assets/fixtures/img-04.png',
+        ],
+      });
+      const videoRouteRows = readGeneratedRows(
+        listThread({ parentId: video.value.id }) as ContractQueryHandle<ThreadPost>,
+      );
+      expect(videoRouteRows[0]).toMatchObject({
+        postId: video.value.id,
+        mediaKind: 'video',
+        mediaUrls: ['/assets/fixtures/vid-01.mp4'],
+      });
+    } finally {
+      projection.dispose();
+    }
   });
 
   it('delivers every declared M2 validation rejection', async () => {
@@ -1128,5 +1274,278 @@ describe('Coterie backendless provider', () => {
       status: 'error',
       error: { name: 'FeedCursorInvalidError' },
     });
+  });
+
+  it('projects fixture quotes, round-trips quoted sends, and rejects invalid targets', async () => {
+    const { provider, boundary } = createCoterieMemoryHarness();
+    type ProjectedMessage = {
+      id: string;
+      body: string;
+      quotedMessageId: string | null;
+      quotedSenderName: string | null;
+      quotedBodySnippet: string | null;
+    };
+    const dm = collectReady<ProjectedMessage[]>(provider, 'listMessages', {
+      chatId: 'd-alice-bob',
+    });
+    const group = collectReady<ProjectedMessage[]>(provider, 'listMessages', {
+      chatId: 'g-starter',
+    });
+
+    expect(
+      dm.snapshots[0]
+        ?.filter((message) => message.quotedMessageId !== null)
+        .map((message) => [message.id, message.quotedMessageId]),
+    ).toEqual([
+      ['sm0002', 'sm0001'],
+      ['sm0003', 'sm0002'],
+      ['sm0006', 'sm0005'],
+    ]);
+    expect(
+      group.snapshots[0]
+        ?.filter((message) => message.quotedMessageId !== null)
+        .map((message) => [message.id, message.quotedMessageId]),
+    ).toEqual([
+      ['sm0008', 'sm0007'],
+      ['sm0011', 'sm0010'],
+      ['sm0014', 'sm0013'],
+    ]);
+    expect(group.snapshots[0]?.find((message) => message.id === 'sm0014')).toMatchObject({
+      quotedSenderName: 'Dave Diaz',
+      quotedBodySnippet: 'Should I book dinner?',
+    });
+
+    const sent = await provider.mutate('sendMessage', {
+      chatId: 'g-starter',
+      body: 'Replying with an explicit quote.',
+      quotedMessageId: 'sm0013',
+    });
+    expect(sent.ok).toBe(true);
+    expect(group.snapshots.at(-1)?.at(-1)).toMatchObject({
+      body: 'Replying with an explicit quote.',
+      quotedMessageId: 'sm0013',
+      quotedSenderName: 'Dave Diaz',
+      quotedBodySnippet: 'Should I book dinner?',
+    });
+
+    expectMutationError(
+      await provider.mutate('sendMessage', {
+        chatId: 'g-starter',
+        body: 'Unknown quote target',
+        quotedMessageId: 'sm-missing',
+      }),
+      'QuotedMessageInvalidError',
+    );
+    expectMutationError(
+      await provider.mutate('sendMessage', {
+        chatId: 'g-starter',
+        body: 'Foreign quote target',
+        quotedMessageId: 'sm0001',
+      }),
+      'QuotedMessageInvalidError',
+    );
+    expectMutationError(
+      await provider.mutate('sendMessage', {
+        chatId: 'chat-missing',
+        body: 'Unknown conversation',
+        quotedMessageId: null,
+      }),
+      'ChatNotFoundError',
+    );
+
+    boundary.write<Record<string, unknown>>('messages', (rows) =>
+      rows.map((message) =>
+        message.id === 'sm0013'
+          ? { ...message, body: 'Text that must not leak', deleted: true }
+          : message,
+      ),
+    );
+    expect(group.snapshots.at(-1)?.find((message) => message.id === 'sm0014')).toMatchObject({
+      quotedMessageId: 'sm0013',
+      quotedSenderName: 'Dave Diaz',
+      quotedBodySnippet: 'This message was deleted',
+    });
+    expect(group.snapshots.at(-1)?.find((message) => message.id === 'sm0014')?.quotedBodySnippet)
+      .not.toContain('must not leak');
+
+    dm.dispose();
+    group.dispose();
+  });
+
+  it('sets reaction state idempotently, aggregates by emoji, and invalidates messages', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    type Reaction = { emoji: string; count: number; reactedByMe: boolean };
+    const group = collectReady<Array<{ id: string; reactions: Reaction[] }>>(
+      provider,
+      'listMessages',
+      { chatId: 'g-starter' },
+    );
+    const initialDeliveryCount = group.snapshots.length;
+    const intent = {
+      chatId: 'g-starter',
+      messageId: 'sm0015',
+      emoji: '👍',
+      reacted: true,
+      mutationId: 'alice-thumb-up',
+    };
+
+    expect((await provider.mutate('setMessageReaction', intent)).ok).toBe(true);
+    expect((await provider.mutate('setMessageReaction', intent)).ok).toBe(true);
+    expect(group.snapshots.length).toBeGreaterThan(initialDeliveryCount);
+    expect(group.snapshots.at(-1)?.find((message) => message.id === 'sm0015')?.reactions)
+      .toEqual([{ emoji: '👍', count: 1, reactedByMe: true }]);
+
+    expect(
+      (
+        await provider.mutate('login', {
+          email: 'bob@example.com',
+          password: 'Bob!Clique2026',
+        })
+      ).ok,
+    ).toBe(true);
+    expect((await provider.mutate('setMessageReaction', intent)).ok).toBe(true);
+    expect(
+      (
+        await provider.mutate('login', {
+          email: 'alice@example.com',
+          password: 'Alice!Clique2026',
+        })
+      ).ok,
+    ).toBe(true);
+    expect(group.snapshots.at(-1)?.find((message) => message.id === 'sm0015')?.reactions)
+      .toEqual([{ emoji: '👍', count: 2, reactedByMe: true }]);
+
+    expect(
+      (
+        await provider.mutate('setMessageReaction', {
+          ...intent,
+          emoji: '❤️',
+          reacted: true,
+          mutationId: 'alice-heart-set',
+        })
+      ).ok,
+    ).toBe(true);
+    expect(group.snapshots.at(-1)?.find((message) => message.id === 'sm0015')?.reactions)
+      .toEqual([
+        { emoji: '❤️', count: 1, reactedByMe: true },
+        { emoji: '👍', count: 1, reactedByMe: false },
+      ]);
+    expect(
+      (
+        await provider.mutate('setMessageReaction', {
+          ...intent,
+          emoji: '❤️',
+          reacted: true,
+          mutationId: 'alice-heart-same-state',
+        })
+      ).ok,
+    ).toBe(true);
+    expect(group.snapshots.at(-1)?.find((message) => message.id === 'sm0015')?.reactions)
+      .toEqual([
+        { emoji: '❤️', count: 1, reactedByMe: true },
+        { emoji: '👍', count: 1, reactedByMe: false },
+      ]);
+    expect((await provider.mutate('setMessageReaction', intent)).ok).toBe(true);
+    expect(group.snapshots.at(-1)?.find((message) => message.id === 'sm0015')?.reactions)
+      .toEqual([
+        { emoji: '❤️', count: 1, reactedByMe: true },
+        { emoji: '👍', count: 1, reactedByMe: false },
+      ]);
+    expect(
+      (
+        await provider.mutate('setMessageReaction', {
+          ...intent,
+          emoji: '❤️',
+          reacted: false,
+          mutationId: 'alice-heart-clear',
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await provider.mutate('setMessageReaction', {
+          ...intent,
+          emoji: '❤️',
+          reacted: false,
+          mutationId: 'alice-heart-clear',
+        })
+      ).ok,
+    ).toBe(true);
+    expect(group.snapshots.at(-1)?.find((message) => message.id === 'sm0015')?.reactions)
+      .toEqual([{ emoji: '👍', count: 1, reactedByMe: false }]);
+
+    expectMutationError(
+      await provider.mutate('setMessageReaction', {
+        ...intent,
+        messageId: 'sm-missing',
+      }),
+      'MessageNotFoundError',
+    );
+    expectMutationError(
+      await provider.mutate('setMessageReaction', {
+        ...intent,
+        chatId: 'chat-missing',
+      }),
+      'ChatNotFoundError',
+    );
+    expectMutationError(
+      await provider.mutate('setMessageReaction', { ...intent, emoji: 'not emoji' }),
+      'EmojiInvalidError',
+    );
+    group.dispose();
+  });
+
+  it('claims every operation implemented by the memory provider with declared tokens', () => {
+    const { provider } = createCoterieMemoryHarness();
+    const claims = collectReady<Array<{ name: string; kind: string; token: string }>>(
+      provider,
+      'listProviderClaims',
+      {},
+    );
+    const expectedNames = [
+      ...Object.keys(coterieSurfaceManifest.queries),
+      ...Object.keys(coterieSurfaceManifest.mutations),
+    ].sort();
+    expect(claims.snapshots[0]?.map((claim) => claim.name)).toEqual(expectedNames);
+    expect(claims.snapshots[0]).toContainEqual({ name: 'listMessages', kind: 'query', token: '3' });
+    expect(claims.snapshots[0]).toContainEqual({ name: 'sendMessage', kind: 'mutation', token: '3' });
+    expect(claims.snapshots[0]).toContainEqual({
+      name: 'setMessageReaction',
+      kind: 'mutation',
+      token: '1',
+    });
+    claims.dispose();
+  });
+
+  it('accepts every avatar picker ref in the landed eight-persona vocabulary', async () => {
+    const { provider } = createCoterieMemoryHarness();
+
+    expect(COTERIE_AVATAR_REFS).toEqual([
+      'media/avatar-alice.png',
+      'media/avatar-bob.png',
+      'media/avatar-carol.png',
+      'media/avatar-dave.png',
+      'media/avatar-erin.png',
+      'media/avatar-frank.png',
+      'media/avatar-grace.png',
+      'media/avatar-henry.png',
+    ]);
+
+    for (const avatarRef of COTERIE_AVATAR_REFS) {
+      const result = await provider.mutate('setAvatar', { avatarRef });
+      expect(result.ok).toBe(true);
+    }
+  });
+
+  it('offers every provider-accepted composer fixture ref with its served asset path', () => {
+    expect(COTERIE_COMPOSER_MEDIA_OPTIONS).toEqual([
+      { id: 'img-01', label: 'Image 1', kind: 'image', mediaRef: 'media/img-01.png', url: '/assets/fixtures/img-01.png' },
+      { id: 'img-02', label: 'Image 2', kind: 'image', mediaRef: 'media/img-02.png', url: '/assets/fixtures/img-02.png' },
+      { id: 'img-03', label: 'Image 3', kind: 'image', mediaRef: 'media/img-03.png', url: '/assets/fixtures/img-03.png' },
+      { id: 'img-04', label: 'Image 4', kind: 'image', mediaRef: 'media/img-04.png', url: '/assets/fixtures/img-04.png' },
+      { id: 'img-05', label: 'Image 5', kind: 'image', mediaRef: 'media/img-05.png', url: '/assets/fixtures/img-05.png' },
+      { id: 'img-06', label: 'Image 6', kind: 'image', mediaRef: 'media/img-06.png', url: '/assets/fixtures/img-06.png' },
+      { id: 'vid-01', label: 'Video 1', kind: 'video', mediaRef: 'media/vid-01.mp4', url: '/assets/fixtures/vid-01.mp4' },
+    ]);
   });
 });
