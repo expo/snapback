@@ -19,14 +19,14 @@ import {
   useSnapbackMutation,
   useSnapbackQuery,
 } from '@expo/snapback-expo';
-import type { MediaCommandTaskSnapshot, MediaRef } from '@expo/snapback-expo';
+import type { MediaCommandTaskSnapshot } from '@expo/snapback-expo';
 
 import type { MediaPostPersona } from '../personas.mjs';
 import api from '../snapback/generated/api.mjs';
 import { app } from '../snapback/generated/app.mjs';
-import type { GeneratedDataModel, Id } from '../snapback/generated/api.d.ts';
+import type { FunctionResult, GeneratedDataModel, Id } from '../snapback/generated/api.d.ts';
 
-type Profile = GeneratedDataModel['profiles'];
+type Profile = FunctionResult<typeof api.listProfiles>[number];
 type Post = GeneratedDataModel['posts'];
 
 function errorText(error: unknown) {
@@ -42,32 +42,12 @@ function diagnosticMessage(outcome: unknown, fallback: string) {
   return fallback;
 }
 
-// The runtime returns LLP 0244's projected shape. The current generated
-// document model still names the physical asset-id column as string, so keep
-// this boundary defensive until generated query result types project mediaRef.
-function projectedAvatar(value: unknown): MediaRef<'image'> | null {
-  if (typeof value === 'string' && value.length > 0) {
-    return { assetId: value, kind: 'image' };
-  }
-  if (
-    value !== null
-    && typeof value === 'object'
-    && 'assetId' in value
-    && typeof value.assetId === 'string'
-    && 'kind' in value
-    && value.kind === 'image'
-  ) {
-    return { assetId: value.assetId, kind: value.kind };
-  }
-  return null;
-}
-
 function Avatar({ profile, accent, changing }: Readonly<{
   profile: Profile | undefined;
   accent: string;
   changing: boolean;
 }>) {
-  const avatar = useSnapbackMedia(projectedAvatar(profile?.avatar), { widthPx: 240 });
+  const avatar = useSnapbackMedia(profile?.avatar, { widthPx: 240 });
   return (
     <View style={styles.avatarFrame}>
       {avatar.status === 'ready' || avatar.status === 'refreshing' ? (
