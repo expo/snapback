@@ -110,4 +110,51 @@ authorized transition), landed on main as `4cc971ea4`.
 - **Topology:** delta round on the enumerated r2→r3 delta; same
   IN-DELTA/PRE-EXISTING classification duty; capsules cloned from round-2
   lineage with r3 overlaid.
-- **Launch/results:** recorded below.
+- **Round-2 landing:** r3 + round-2 artifacts + journal landed on main as
+  `86b6b6f70`.
+- **Launch (2026-08-15):** delta instructions sha256
+  `2f2a7c33898003286e01a19c09ffae13e17a347723f81c34c8d5e8e4f6de2e32`;
+  codex pid 23581, grok pid 23582 (detached). Identical instructions.
+- **Results:** codex NOT READY — 3 MATERIAL, all IN-DELTA, reviewer states
+  "no PRE-EXISTING material concern." grok NOT READY — 1 MATERIAL,
+  IN-DELTA; its only PRE-EXISTING item is a minor (adapter keying), plus an
+  implementation-note ledger. Both artifacts carry the verbatim bodies.
+
+## Convergence and close-out
+
+- **The loop CONVERGED at round 3 under the LLP 0010 §2 delta rule:** a
+  delta round in which no family reported a MATERIAL concern in
+  pre-existing text. Final verdicts bind to **r3**, sha256
+  `2fb1bd9f96d695e6231836a61ceba07d6a35905d0ba7dfbf9d8ccf460829895b`
+  (capsule lineage: r1 export of `4cc971ea4` → r2 → r3 overlays).
+- **r4 exists and is UNREVIEWED** (the LLP 0010 "remaining in-delta fixes …
+  or the final revision is labeled unreviewed" arm; 0252 precedent): sha256
+  `dc6cb82925da354ca07c996080594b43c77c648c3f3b68553158d58b73841709`,
+  1061 lines. It closes the four round-3 in-delta MATERIALs (initiating-
+  context exposure scoping; anonymous authority-source representability;
+  recoveryPolicy-derived completeness rows; policy-rotation rebind refusal)
+  and the actionable minors; see the target's r4 Revision-history bullet.
+- **Verdict ledger:** r1 — claude/codex/grok all NOT READY (15 MATERIALs).
+  r2 — claude READY (dropped per author rule), codex/grok NOT READY (9
+  MATERIALs, all in-delta). r3 — codex/grok NOT READY (4 MATERIALs, all
+  in-delta; zero pre-existing MATERIAL across families) → converged.
+- **Altitude/disposition notes:** every round-3 minor was either fixed in
+  r4 or is implementation-phase material recorded verbatim in the family
+  artifacts (notably: 0238 state projection during displacement, adapter
+  keying implementation, 0181 `AuthorityAdoptionResult` type change, rule-3
+  timing inside D2 steps 6–8, D9 deferred-mechanism gating — all captured in
+  grok/codex round-3 bodies). None identifies a defective decision.
+- **Escalations to the author (Charlie):**
+  1. **Growth budget exceeded:** entering revision 693 lines → r4 1061
+     lines (+53%, of which ~55 lines are the Revision-history ledger). The
+     ~20% guideline was exhausted at r3; the alternative was leaving
+     reviewer-confirmed MATERIALs open. Proposed disposition: stay
+     `Review`; trim or fold the Revision history into an appendix at
+     acceptance if desired.
+  2. r4 is unreviewed; an optional one-shot delta review of r3→r4 by any
+     family would close that gap cheaply.
+  3. Acceptance remains the author's call (this loop never applies it).
+     The RFC self-gates nothing further: the native-carrier design is
+     decided fail-closed, and per-platform capability flips are
+     evidence-gated by Phase 0 probes.
+- **Status:** document remains **Review**. Loop complete, 2026-08-15.

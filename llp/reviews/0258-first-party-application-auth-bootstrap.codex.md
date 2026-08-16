@@ -128,3 +128,46 @@ Revision r2 makes strong progress: the D2 construction order now fits LLP 0059�
 - D9 should generate the facade return types directly from the shipped client declarations so future recovery and credential methods cannot repeat the D4 drift.
 
 VERDICT: NOT READY
+
+## Round 3 (delta round) — 2026-08-15
+
+- **Reviewer:** codex exec, model gpt-5.6-sol, reasoning effort xhigh, read-only sandbox, blind.
+- **Revision under review (r3):** sha256
+  `2fb1bd9f96d695e6231836a61ceba07d6a35905d0ba7dfbf9d8ccf460829895b`.
+- **Capsule:** round-2-lineage clone with r3 overlaid (no 0258 review
+  artifacts present).
+- **Instructions (delta round):** sha256
+  `2f2a7c33898003286e01a19c09ffae13e17a347723f81c34c8d5e8e4f6de2e32`.
+- **Verdict:** NOT READY (3 MATERIAL, all IN-DELTA; reviewer states no PRE-EXISTING material concern).
+
+### Review body (verbatim)
+
+Revision r3 fixes several important issues: the owner-key terminology now matches LLP 0059, anonymous boot is correctly separated from guest principals, the D4 return types match the shipped client declarations, and the LLP 0181 boot-state amendment is explicit. I found no PRE-EXISTING material concern. Three IN-DELTA coherence gaps remain, however, so r3 is not ready.
+
+1. **MATERIAL — IN-DELTA — D5’s composed displacement cannot provide the claimed cross-context atomic exposure while LLP 0059 remains unchanged.**  
+   LLP 0258 §D5 specifies two ordinary LLP 0059 transitions—supervised session → anonymous, then anonymous → password session—while withholding participant/application exposure across the entire span. Acceptance further requires applications to observe exactly one predecessor→successor exposure. But LLP 0059 §Client custody and `AuthCoordinator` gives each JavaScript context its own coordinator and local participant set; each transition durably settles and broadcasts its successor, after which peer contexts resume independently (§Cross-context ownership; §Transition barrier). Once the first transition settles anonymous, another tab can expose that authority or admit a supervised session before the second transition. A process-local bootstrap owner cannot defer that peer event, and the second issuance can then lose its exact anonymous predecessor.
+
+   Resolution requires either:
+
+   - explicitly limiting the single-exposure guarantee to the initiating context and specifying peer-observable anonymous/stale-race behavior; or
+   - introducing a durable cross-context composite protocol or direct supervised→application transition, with the corresponding LLP 0059/0227 amendment. That is incompatible with Phase 0’s present claim that this is merely owner-level sequencing over unchanged transitions and no added durable protocol state.
+
+2. **MATERIAL — IN-DELTA — anonymous `ready` states have no valid `AuthoritySource`.**  
+   Terminology defines authority source as restored custody, explicit application sign-in, supervised bootstrap, or advanced external adoption (§Terminology). D1 now requires every cold bootstrap to establish fresh server-witnessed anonymous authority and reach `ready`; D5 also produces anonymous authority after sign-out or failed composed issuance. Yet D7 requires every `ready` snapshot to contain `authoritySource: AuthoritySource`. None of the defined sources describes fresh anonymous establishment or explicit sign-out, making the closed snapshot uninhabitable for required flows.
+
+   Define provenance for every settled anonymous path—such as fresh bootstrap, restoration, and explicit sign-out—or make authority source a discriminated field present only where meaningful.
+
+3. **MATERIAL — IN-DELTA — recovery lifecycle surfaces lack a generated policy/completeness source.**  
+   D1 derives the closed `entryMechanisms` list solely from mechanisms/providers and admits only password, email-code, and external-session tags. LLP 0151 §Account lifecycle explicitly classifies recovery codes as infrastructure, not a mechanism, while LLP 0214 keeps their enablement under the separate `recoveryPolicy`. Nevertheless, D4 says recovery consumption joins the facade, D8 requires consumption and rotation as admitted one-time-return boundaries, D9 generates only mechanism→method rows, and Phase 4 requires recovery.
+
+   The shipped declarations confirm both `authRecoveryConsume()` and `authRecoveryRotate()` return `AuthRecoveryCredentialPublicProjectionV1`, but D4 mentions only consumption and provides neither operation with a policy derivation. Add recovery-lifecycle completeness rows derived from `recoveryPolicy`, covering consumption and rotation, their predecessor rules, capabilities, facade methods, and exact return contracts. Do not infer them from the mechanism/provider set.
+
+4. **minor — IN-DELTA — D2 needs an exact rebind-order rule.**  
+   “Successor generation” is the correct criterion, but HMR/remount overlap can deliver a stale binding after its successor. The LLP 0181 amendment should require an LLP 0241-backed successor/current-generation proof and disposition every non-target binding field—especially `descriptorIdentity`, source, capabilities, provenance, and integrity—rather than treating any schema/functions difference as forward rebind.
+
+Implementation-phase notes:
+
+- **minor — IN-DELTA:** Bind D5’s process-local transition record to the exact current authority capture and invalidate it on peer adoption; otherwise a stale “supervised” record could authorize displacement of a later authority.
+- **minor — IN-DELTA:** Test mixed anonymous-access applications to ensure `anonymousPublic` remains a generated posture summary. Per-operation and table visibility must remain the actual authorization authority; the single boolean cannot safely widen or narrow individual operations.
+
+VERDICT: NOT READY

@@ -7,7 +7,7 @@ clients, Custody, Password auth, Code generation, Packaging, Diagnostics,
 Guide, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-15
-**Revised:** 2026-08-15 (r3: super-refine round-2 delta revision — see
+**Revised:** 2026-08-15 (r4: post-convergence fix revision, UNREVIEWED — see
 Revision history)
 **Related:** LLP 0039, LLP 0043, LLP 0053, LLP 0057, LLP 0058, LLP 0059,
 LLP 0060, LLP 0061, LLP 0064, LLP 0077, LLP 0096, LLP 0114, LLP 0151,
@@ -170,9 +170,12 @@ key-value adapter.
 such as LLP 0227 password sign-in, LLP 0057 email-code exchange, or LLP 0096's
 explicit external-session seam. Entry does not define downstream custody.
 
-**Authority source** records how the current ordinary session entered the
-coordinator: restored custody, explicit application sign-in, supervised
-development bootstrap, or advanced external adoption. It is diagnostic
+**Authority source** records how the current settled authority entered the
+coordinator: fresh server-witnessed anonymous establishment (a cold
+bootstrap or the successor of an explicit sign-out), restored custody,
+explicit application sign-in, supervised development bootstrap, or advanced
+external adoption — so every settled state D1/D5 can produce, anonymous
+states included, has exactly one source value. It is diagnostic
 provenance, never authorization, and it is process-lifetime only: the
 durable custody record carries no source field, so every authority that
 enters by restoration reports `restored` regardless of how it was originally
@@ -265,12 +268,22 @@ No bootstrap-policy field can be authored independently of the program or
 disagree with it; a program the policy schema cannot express is a codegen
 refusal, not a silent narrowing.
 
+Two program facts are deliberately excluded from `entryMechanisms`:
+LLP 0214's `guestPolicy` (a guest creates a claimable principal; it does not
+prove control) and the passkey slot (deferred to LLP 0151). Their presence
+in a program neither refuses generation nor appears in the allowlist.
+Recovery codes are likewise not an entry mechanism: they are LLP 0151
+account-lifecycle infrastructure whose generated rows derive from LLP 0214's
+`recoveryPolicy` (D9), never from the mechanism/provider set.
+
 Regardless of `anonymousPublic`, the bootstrap always settles the
 server-witnessed anonymous state and reaches `ready`, so credential-entry
 surfaces are always reachable — LLP 0227 signup/sign-in require a settled
 anonymous coordinator, and a password-only, guest-disabled application must
 be able to render sign-in from a cold start. `anonymousPublic: "refused"`
-refuses anonymous *data* access, not anonymous boot or entry.
+refuses anonymous *data* access, not anonymous boot or entry; per-operation
+posture and table visibility remain the authorization authority, and the
+generated summary can neither widen nor narrow them.
 
 Supervised development entry is deliberately **not** a policy fact.
 Admission of a supervised-development session is anchored on LLP 0181's
@@ -317,13 +330,23 @@ half; it is never carried by `AppBinding` or ambient environment. The
 binding target is a construction *input*, never key material, and its parts
 divide by role:
 
-- **Schema/functions generation identities are rebind inputs.** Construction
-  against a live owner whose target differs only by successor generation
-  identities of the same app/origin/routing resolves as reference-counted
-  reuse: the owner applies the reminted binding through its own
-  supervised-refresh/rebind path (LLP 0181's provider as amended in
-  Phase 0). Ordinary codegen remints, HMR, and Strict Mode remount overlap
-  therefore keep one owner and one coordinator.
+- **Schema/functions generation identities are rebind inputs — but only
+  under a compatible bootstrap policy.** Construction against a live owner
+  whose target differs only by successor generation identities of the same
+  app/origin/routing, with an **unchanged (or LLP 0241-compatible) bootstrap
+  policy semantic identity**, resolves as reference-counted reuse: the owner
+  applies the reminted binding *and* the successor generated application
+  through its own supervised-refresh/rebind path (LLP 0181's provider as
+  amended in Phase 0), which requires an LLP 0241-backed successor proof —
+  a stale binding arriving after its successor is refused, not rebound.
+  Ordinary same-policy codegen remints, HMR, and Strict Mode remount overlap
+  therefore keep one owner and one coordinator. A remint that **rotates the
+  bootstrap policy** (custody grade, sessions posture, admitted mechanisms)
+  is a 0241 authority rotation, and the live owner cannot absorb it by
+  rebinding — its custody adapter and mechanism table were instantiated
+  under the predecessor policy. Such a remint refuses with a typed
+  policy-rotation diagnostic; adopting the successor policy requires
+  disposal and reconstruction under ordinary generation/admission.
 - **App, origin, and routing are conflict inputs.** Constructing for an
   owner key a live owner already holds with a genuinely different
   app/origin/routing refuses with `SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT`
@@ -374,13 +397,15 @@ interface SnapbackAppClient {
 }
 ```
 
-`auth` projects the `client.auth` namespace that LLP 0238 D6 specifies. That
-namespace is a 0238 vocabulary this RFC's Phase 1 implements, not a shipped
-surface — today's client exposes the flat `authPasswordSignup`-family
-methods. This sequencing dependency is explicit, and the landing spot is
-pinned: Phase 1 adds the `client.auth` namespace to the low-level
-`SnapbackClient` exactly as 0238 D6 spells it, and the facade is a
-projection of that namespace, not a second home for it. `dispose` removes process-local resources and
+`auth` is a **composing layer over** the `client.auth` namespace that
+LLP 0238 D6 specifies. That namespace is a 0238 vocabulary this RFC's
+Phase 1 implements, not a shipped surface — today's client exposes the flat
+`authPasswordSignup`-family methods. The landing spot is pinned: Phase 1
+adds `client.auth` to the low-level `SnapbackClient` exactly as 0238 D6
+spells it. The facade delegates method and state contracts to that namespace
+unchanged, and adds only what needs the owner — the D5 owner-serialized
+displacement and entry gating. Owner-dependent behavior lives on the facade,
+never on the low-level client. `dispose` removes process-local resources and
 subscriptions; it does not log out or delete durable custody. Explicit
 `auth.signOut()` owns that authority transition.
 
@@ -425,7 +450,11 @@ from a first-party package. Its normative contract:
   background, extension, and multi-process use refuse with a typed
   diagnostic rather than racing; and
 - it owns its storage format and migrations, validates every read and write,
-  and reports its exact durability/security grade per platform.
+  and reports its exact durability/security grade per platform; and
+- like every first-party adapter (browser included), it addresses records by
+  the full owner key — (canonical app id, storage partition) — so the D2/D5
+  partition remediations are real; an adapter keyed by app id alone does not
+  qualify.
 
 Phase 0's iOS and Android probes validate this design's per-OS evidence
 (LLP 0064 — iOS evidence is not Android evidence); they inform grade
@@ -473,10 +502,13 @@ signup/sign-in adopt the ordinary composed credential response through
 LLP 0227's anonymous-issuance path on the same coordinator; sign-in and
 `changePassword` return the shipped `AuthCredentialPublicProjectionV1` and
 `signOut` returns the shipped logout result exactly as the wrapped methods
-do. `changePassword` is the rotate arm of LLP 0227's closed change union;
-the set arm (step-up proof preserved), reset, and recovery consumption stay
-available on the client surface and join the facade under the same
-exact-contract mapping via D9 rows. D9 generates the facade return types
+do. `changePassword` is the rotate arm of LLP 0227's closed change union —
+authenticated same-authority rotation, not an entry call, so the entry
+refusal below never applies to it; the set arm (step-up proof preserved),
+reset, and the recovery-lifecycle operations (consumption and rotation, both
+returning the one-time recovery projection) stay available on the client
+surface and join the facade under the same exact-contract mapping via D9
+rows. D9 generates the facade return types
 directly from the shipped client declarations, so a facade method cannot
 drift from the contract it wraps. Sign-out uses the existing server logout plus
 coordinator barrier and exposes anonymous state only after participant
@@ -522,16 +554,29 @@ record shows the current session was adopted by supervised bootstrap in this
 process, `signUpWithPassword`/`signInWithPassword` performs one composed,
 owner-driven operation: barrier sign-out of the supervised session to the
 server-witnessed anonymous predecessor, then ordinary anonymous issuance.
-Each step is an unchanged LLP 0059 transition; the composition is owned by
-the bootstrap: the owner serializes entry operations, withholds participant
-and application exposure across the whole span (the same withholding it uses
-during construction), and defers or refuses supervisor adoption events while
-the entry is in flight, so applications observe a single
-predecessor→successor exposure. If issuance fails after the sign-out
-settled, the terminal state is the settled anonymous authority plus the
-typed entry diagnostic — the sign-out is not rolled back, and supervised
-re-admission is not the failure fallback; it may occur only on a subsequent
-supervisor event under rule 3. Because the record is process-local, it is
+Each step is an unchanged LLP 0059 transition — participants recapture
+normally on the intermediate anonymous successor; the composition is owned
+by the bootstrap: the owner serializes entry operations, withholds
+**public application and `currentPrincipal` publication** across the span
+(the same public-release gating it uses during construction; 0238 projects
+`loading`/`refreshing` meanwhile), and refuses or drops supervisor adoption
+events while the entry is in flight, so the application observes a single
+predecessor→successor exposure. That single-exposure guarantee is scoped to
+the **initiating JavaScript context**: peer contexts hold their own LLP 0059
+coordinators and observe the ordinary broadcast sequence of settled
+authorities (supervised → anonymous → session) under unchanged 0059 rules.
+If a peer context transitions the intermediate anonymous predecessor first,
+the second step fails with the ordinary exact-predecessor refusal and the
+initiating owner surfaces the typed entry diagnostic over whatever authority
+0059 settled — no new durable or cross-context protocol exists. The owner's
+process-local record binds to the exact authority capture it transitioned
+and invalidates on any transition it did not perform, so a stale record can
+never authorize displacing a later authority. If issuance fails after the
+sign-out settled, the terminal state is the settled anonymous authority plus
+the typed entry diagnostic — the sign-out is not rolled back, and supervised
+re-admission is not the failure fallback: a remint that arrived mid-entry is
+dropped (rebind facts only, no rule-3 adoption), and re-admission may occur
+only on a subsequent supervisor event under rule 3. Because the record is process-local, it is
 empty after process death: every restored authenticated principal —
 including one originally supervised — is protected as application authority,
 refuses entry, and requires explicit `signOut()` (D4). Ambient developer
@@ -702,7 +747,12 @@ The lifecycle manifest from LLP 0238 gains generated bootstrap rows for:
   derivation from the normalized `defineAuth`/schema auth program — D1);
 - mechanism → client method/hook/target-capability mapping, with each
   method's exact result contract (including the one-time recovery-credential
-  return boundary);
+  return boundary); mechanism rows deferred to a later phase (for example
+  `email-code-v1` before its facade method exists) gate at their own phase,
+  not Phase 1;
+- recovery-lifecycle rows derived from LLP 0214's `recoveryPolicy` (not the
+  mechanism set): consumption and rotation, their predecessor rules, target
+  capabilities, facade methods, and exact return contracts;
 - platform → admitted custody adapter and grade;
 - bootstrap stage/state/diagnostic tables;
 - ordinary versus advanced ownership exclusivity;
@@ -755,8 +805,10 @@ client, contract, Expo, React, codegen, and CLI/runtime support.
    no longer treats a missing ordinary session as failure; `ready` may be
    anonymous), LLP 0214 (`defineAuth` gains the authored custody grade and
    the explicit external-session seam — D1), and LLP 0253 S6.1 (auth hook
-   re-exports). These change the amended surfaces and say so. LLP 0059,
-   LLP 0227, LLP 0238, and LLP 0252 receive cross-references only — their
+   re-exports). The LLP 0214 amendment lands with its LLP 0252 D1 field
+   dispositions (Familiar defaults `durable-required` and can never author a
+   weaker custody grade). These change the amended surfaces and say so.
+   LLP 0059, LLP 0227, and LLP 0238 receive cross-references only — their
    protocols are unchanged (the D5 composed displacement is owner-level
    sequencing over unchanged 0059 transitions, and `AuthCustodyV2` gains no
    field).
@@ -986,3 +1038,24 @@ custody/barrier semantics.
   (signup/consume/rotate) and cited to LLP 0214/0151. Phase 0 names the
   LLP 0214 amendment and confirms `AuthCustodyV2` gains no field. Acceptance
   gained displacement-race and password-only cold-start fixtures.
+- **r4 (2026-08-15, UNREVIEWED):** post-convergence fix revision. The
+  super-refine loop converged at round 3 under the delta rule (no family
+  reported a MATERIAL concern in pre-existing text); r4 closes the four
+  remaining in-delta MATERIALs and actionable minors and is itself
+  unreviewed. D5's single-exposure guarantee scoped to the initiating
+  context with peer-race behavior specified over unchanged LLP 0059
+  broadcast rules; withholding narrowed to public/`currentPrincipal`
+  publication (participants recapture normally); the process-local record
+  binds to the exact authority capture; mid-entry remints during a failed
+  displacement are dropped, not deferred-then-adopted. Authority source
+  gained fresh-anonymous establishment (cold boot and post-sign-out) so
+  every settled state is representable in D7. Recovery lifecycle
+  (consumption + rotation) sourced to LLP 0214 `recoveryPolicy` with its own
+  D9 completeness rows, excluded from `entryMechanisms` along with
+  guest/passkey facts. D2's rebind rule narrowed to policy-compatible
+  successor generations with an LLP 0241 successor proof; policy-rotating
+  remints refuse and require reconstruction. The facade redefined as a
+  composing layer over `client.auth` (owner-dependent behavior never lands
+  on the low-level client); `changePassword` exempted from entry refusals;
+  D3 adapters required to key by the full owner key; the LLP 0214 amendment
+  paired with its LLP 0252 D1 field dispositions.
