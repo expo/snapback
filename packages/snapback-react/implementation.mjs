@@ -106,6 +106,7 @@ const HANDOFF_PENDING = Object.freeze({
   error: null,
   connection: 'connecting',
   freshness: 'unknown',
+  answerClass: 'unknown',
   retention: null,
 });
 
@@ -327,6 +328,7 @@ function pending(connection = 'idle') {
     error: null,
     connection,
     freshness: 'unknown',
+    answerClass: 'unknown',
     retention: null,
   });
 }
@@ -338,6 +340,7 @@ const AUTHENTICATION_REQUIRED_BLOCKED = Object.freeze({
   error: null,
   connection: 'idle',
   freshness: 'unknown',
+  answerClass: 'unknown',
   retention: null,
 });
 
@@ -432,6 +435,7 @@ const SKIPPED = Object.freeze({
   error: null,
   connection: 'idle',
   freshness: 'unknown',
+  answerClass: 'unknown',
   retention: null,
 });
 const SERVER_PENDING = pending();
@@ -570,7 +574,10 @@ function queryStateForConnection(store, connection, detail = {}) {
       error: null,
       connection,
       freshness: snapshot.freshness,
+      answerClass: snapshot.answerClass,
       retention: store.retention,
+      optimisticPresentation:
+        snapshot.optimisticPresentation ?? store.generatedPresentation,
     });
   }
   if (snapshot.status === 'error') {
@@ -857,7 +864,25 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
   const publish = (store, snapshot, generation = store.generation) => {
     if (terminal || generation !== store.generation) return;
-    store.snapshot = snapshot;
+    const presentation = snapshot.optimisticPresentation ?? store.generatedPresentation;
+    const predicted = presentation?.status === 'predicted'
+      || store.optimisticLayers.some((layer) => !layer.failed && !layer.retired);
+    const answerClass = snapshot.answerClass ?? (
+      predicted && snapshot.data !== undefined
+        ? 'optimistic'
+        : presentation?.status === 'pending-without-prediction'
+          ? 'pending-without-prediction'
+        : snapshot.freshness === 'retained'
+          ? 'labeled-retained'
+          : snapshot.freshness === 'current' || snapshot.freshness === 'snapshot'
+            ? 'authoritative'
+            : 'unknown'
+    );
+    store.snapshot = Object.freeze({
+      ...snapshot,
+      answerClass,
+      ...(presentation === undefined ? {} : { optimisticPresentation: presentation }),
+    });
     for (const listener of [...store.listeners.values()]) {
       try { listener(); } catch { /* one consumer cannot starve siblings */ }
     }
@@ -896,7 +921,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
 
   const materializeStore = (store) => {
-    let rows = store.authoritativeData;
+    let rows = store.generatedData ?? store.authoritativeData;
     for (const layer of store.optimisticLayers) {
       if (layer.failed) continue;
       try {
@@ -932,27 +957,45 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   // Channel B retained delivery (LLP 0090 D3 / LLP 0114 freshness axis): a
   // persisted/preloaded frame renders marked 'retained' — status stays
   // 'refreshing', never 'ready' — WITHOUT advancing the authoritative
-  // revision, so optimistic admission still requires a current authoritative
-  // store and no layer retirement can key on a retained frame. Queued-intent
-  // state is the outbox surface (useSnapbackOutbox); the retained frame never
-  // fabricates an overlay for it.
-  const publishRetained = (store, rows, generation = store.generation) => {
+  // revision, so app-authored reducer admission still requires a current
+  // authoritative store and no layer retirement can key on a retained frame.
+  // Generated-IR presentation is admitted by the headless owner and may
+  // reconstruct over retained rows without promoting them to authority.
+  const publishRetained = (
+    store,
+    rows,
+    generation = store.generation,
+    presentedRows = rows,
+  ) => {
     store.authoritativeData = validateQueryRows(store.resultContract, rows);
+    store.generatedData = validateQueryRows(store.resultContract, presentedRows);
     store.freshness = 'retained';
     captureRetention(store);
     publish(store, freezeBootDelivery(store, {
       status: 'refreshing',
-      data: projectQueryRows(store.resultContract, store.authoritativeData),
+      data: projectQueryRows(store.resultContract, store.generatedData),
       error: null,
       connection: normalizeConnection(store.handle?.current?.connection ?? 'connecting'),
       freshness: 'retained',
+      answerClass: store.generatedPresentation?.status === 'predicted'
+        ? 'optimistic'
+        : store.generatedPresentation?.status === 'pending-without-prediction'
+          ? 'pending-without-prediction'
+        : 'labeled-retained',
       retention: store.retention,
+      optimisticPresentation: store.generatedPresentation,
     }), generation);
   };
 
-  const publishAuthoritative = (store, rows, generation = store.generation) => {
+  const publishAuthoritative = (
+    store,
+    rows,
+    generation = store.generation,
+    presentedRows = rows,
+  ) => {
     store.authoritativeRevision += 1;
     store.authoritativeData = validateQueryRows(store.resultContract, rows);
+    store.generatedData = validateQueryRows(store.resultContract, presentedRows);
     store.freshness = 'current';
     captureRetention(store);
     observeOptimisticCreateAuthority(store);
@@ -996,7 +1039,33 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       error: null,
       connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
       freshness: 'current',
+      answerClass: store.generatedPresentation?.status === 'predicted'
+        ? 'optimistic'
+        : store.generatedPresentation?.status === 'pending-without-prediction'
+          ? 'pending-without-prediction'
+        : 'authoritative',
       retention: store.retention,
+      optimisticPresentation: store.generatedPresentation,
+    }), generation);
+  };
+
+  const publishGeneratedPresentation = (store, rows, detail, generation) => {
+    store.generatedPresentation = detail?.optimisticPresentation ?? null;
+    store.generatedData = validateQueryRows(store.resultContract, rows);
+    publish(store, freezeBootDelivery(store, {
+      status: store.freshness === 'retained' ? 'refreshing' : 'ready',
+      data: projectQueryRows(store.resultContract, materializeStore(store)),
+      error: null,
+      connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
+      freshness: store.freshness,
+      answerClass: detail?.optimisticPresentation?.status === 'predicted'
+        ? 'optimistic'
+        : detail?.optimisticPresentation?.status === 'pending-without-prediction'
+          ? 'pending-without-prediction'
+        : detail?.answerClass
+          ?? (store.freshness === 'retained' ? 'labeled-retained' : 'authoritative'),
+      retention: store.retention,
+      optimisticPresentation: detail?.optimisticPresentation ?? null,
     }), generation);
   };
 
@@ -1102,6 +1171,21 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       onUpdate(rows, detail) {
         if (store.blockedPreparedPublication) return;
         clearUnadoptedSubscription(store);
+        if (detail?.optimisticPresentation !== undefined) {
+          store.generatedPresentation = detail.optimisticPresentation;
+        }
+        if (detail?.kind === 'optimistic_projection') {
+          if (store.freshness === 'unknown' && Array.isArray(detail?.authoritativeRows)) {
+            if (detail.freshness === 'retained') {
+              publishRetained(store, detail.authoritativeRows, generation, rows ?? []);
+            } else {
+              publishAuthoritative(store, detail.authoritativeRows, generation, rows ?? []);
+            }
+          } else {
+            publishGeneratedPresentation(store, rows ?? [], detail, generation);
+          }
+          return;
+        }
         if (detail?.kind === 'authorization_denied') {
           // A server-answered authorization denial (0137 A1-Expo f4: e.g. a
           // bearer custody transition to a lesser-privileged successor) is a
@@ -1130,10 +1214,20 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           return;
         }
         if (detail?.freshness === 'retained') {
-          publishRetained(store, rows ?? [], generation);
+          publishRetained(
+            store,
+            detail?.authoritativeRows ?? rows ?? [],
+            generation,
+            rows ?? [],
+          );
           return;
         }
-        publishAuthoritative(store, rows ?? [], generation);
+        publishAuthoritative(
+          store,
+          detail?.authoritativeRows ?? rows ?? [],
+          generation,
+          rows ?? [],
+        );
       },
       onConnectionChange(connection, detail) {
         const normalized = normalizeConnection(connection, detail);
@@ -1159,9 +1253,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         // survival — LLP 0129 Phase 0) must not have them republished as
         // authoritative here.
         if (handle.current.freshness === 'retained') {
-          publishRetained(store, handle.current.rows, generation);
+          publishRetained(
+            store,
+            handle.current.authoritativeRows ?? handle.current.rows,
+            generation,
+            handle.current.rows,
+          );
         } else {
-          publishAuthoritative(store, handle.current.rows, generation);
+          publishAuthoritative(
+            store,
+            handle.current.authoritativeRows ?? handle.current.rows,
+            generation,
+            handle.current.rows,
+          );
         }
         return;
       }
@@ -1268,6 +1372,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
             error: null,
             connection: 'idle',
             freshness: 'snapshot',
+            answerClass: 'authoritative',
             retention: null,
           }),
       consumers: 0,
@@ -1279,6 +1384,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       retry: null,
       resultContract: descriptor.resultContract,
       authoritativeData: readOnlySnapshot?.rows ?? Object.freeze([]),
+      generatedData: readOnlySnapshot?.rows ?? Object.freeze([]),
+      generatedPresentation: null,
       authoritativeRevision: readOnlySnapshot === null ? 0 : 1,
       freshness: readOnlySnapshot === null ? 'unknown' : 'snapshot',
       retention: null,
@@ -1858,7 +1965,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
             'headless client returned queued after queue:false',
           );
         }
-        return dispatchQueuedOutcome(admittedMutation, output, 'withheld');
+        return dispatchQueuedOutcome(
+          admittedMutation,
+          output,
+          output.presentation ?? 'withheld',
+        );
       }
       const result = validateResultContract(
         mutationContract,
@@ -1994,6 +2105,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         clientMutationId: id,
         authorityCapture: capture,
         queue,
+        // The app-authored reducer is the compatibility owner for this call;
+        // do not also install generated projection beneath it.
+        __generatedOptimistic: false,
         ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
       });
       effectCommitted = true;
@@ -3023,6 +3137,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         }
         store.generation += 1;
         store.snapshot = pending('idle');
+        store.generatedData = Object.freeze([]);
+        store.generatedPresentation = null;
         store.freshness = 'unknown';
         store.retention = null;
         // @ref LLP 0107#resync-authority-and-lifecycle — authority
@@ -3203,6 +3319,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           error: state.failure,
           connection: 'error',
           freshness: 'unknown',
+          answerClass: 'unknown',
           retention: null,
         });
         triggerControlledDevelopmentReload(state.failure);

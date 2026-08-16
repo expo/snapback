@@ -284,6 +284,7 @@ async function waitFor(predicate, label, attempts = 400) {
   // new-reference-over-old-binding frame and never the old contract's rows.
   assert.notEqual(timelineState.status, 'error');
   assert.notEqual(timelineState.data?.[0]?.text, 'first');
+  assert.equal(timelineState.answerClass, 'unknown', 'handoff pending carries the public answer axis');
   // The unchanged sibling keeps continuity through the whole handoff.
   assert.equal(aboutState.status, 'ready');
   assert.equal(aboutState.data[0].body, 'about');
@@ -428,6 +429,7 @@ async function waitFor(predicate, label, attempts = 400) {
   await act(async () => { await flush(); });
   assert.equal(latest.status, 'error', 'hooks render the failure, never throw it');
   assert.equal(latest.error.code, 'SNAPBACK_REACT_HMR_REBIND_FAILED');
+  assert.equal(latest.answerClass, 'unknown', 'handoff failure carries the public answer axis');
   assert.equal(provider.inspection().generationHandoff, 'failed');
   console.error = originalConsoleError;
   await act(async () => { renderer.unmount(); });

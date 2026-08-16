@@ -16,6 +16,10 @@
 //   sequence, never a wall clock; drop-and-mark-failed, never retried.
 
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
+import {
+  rewriteGeneratedArgumentIdsV1,
+  settlementIdResolution,
+} from './settlement-id-resolution.mjs';
 
 /// Refusal bounds: exactly-once wins over opportunistic eviction (LLP 0043).
 /// At the cap the store refuses a new record rather than evicting a pending
@@ -186,6 +190,18 @@ export function normalizeOutboxRecordInput(record) {
     }
     optimisticOperation.layerId = id;
   }
+  let generatedMutationTables = null;
+  if (record.generatedMutationTables != null) {
+    if (
+      !Array.isArray(record.generatedMutationTables)
+      || record.generatedMutationTables.some(
+        (table) => typeof table !== 'string' || table.length === 0,
+      )
+    ) {
+      throw invalidOutboxRecord('outbox generated mutation tables must be a string array');
+    }
+    generatedMutationTables = [...new Set(record.generatedMutationTables)].sort();
+  }
   let argsContract = null;
   let argumentSchema = null;
   try {
@@ -242,6 +258,23 @@ export function normalizeOutboxRecordInput(record) {
     // a second persistence authority.
     // @ref LLP 0155#rebase — reload replays remaining operations in sequence.
     optimisticOperation,
+    // Empty means generated/server-only intent whose table effects are not
+    // locally knowable; null distinguishes an older/non-generated record.
+    generatedMutationTables,
+    // Presentation ordering spans the durable and process-local generated
+    // optimistic ledgers. The epoch is deliberately persisted with durable
+    // intent so a later process can distinguish predecessor records from its
+    // own invocations without comparing unrelated durable/ephemeral counters.
+    // These fields are presentation metadata, not replay identity.
+    optimisticProcessEpoch: typeof record.optimisticProcessEpoch === 'string'
+      && REPLAY_OPAQUE_ID.test(record.optimisticProcessEpoch)
+      ? record.optimisticProcessEpoch
+      : null,
+    optimisticInvocationSequence:
+      Number.isSafeInteger(record.optimisticInvocationSequence)
+      && record.optimisticInvocationSequence > 0
+        ? record.optimisticInvocationSequence
+        : null,
     // Client-captured wall-clock at enqueue. A labeled claim for receipts
     // and UI (LLP 0129 ledger row 1, decision 10 taxonomy) — never
     // transmitted as authority and never used for ordering.
@@ -250,9 +283,13 @@ export function normalizeOutboxRecordInput(record) {
 }
 
 const durableReplayIdentity = (record) => {
-  const { capturedNow: _claimOnly, authorityDescriptor, ...identity } = (
-    normalizeOutboxRecordInput(record)
-  );
+  const {
+    capturedNow: _claimOnly,
+    optimisticProcessEpoch: _presentationEpoch,
+    optimisticInvocationSequence: _presentationSequence,
+    authorityDescriptor,
+    ...identity
+  } = normalizeOutboxRecordInput(record);
   // sessionGeneration is retained and transmitted for observability, but the
   // ratified queue axis is the authority instance. Principal scope and the
   // durable custody lineage remain identity inputs so one clientMutationId
@@ -285,15 +322,15 @@ const settlementMintIds = (record) => (settlementMints(record)
     .filter((claimed) => typeof claimed === 'string')
 );
 
-const rewriteStringLeaves = (value, replacements) => {
+const rewriteLegacyStringLeaves = (value, replacements) => {
   if (typeof value === 'string') return replacements.get(value) ?? value;
   if (Array.isArray(value)) {
-    return value.map((item) => rewriteStringLeaves(item, replacements));
+    return value.map((item) => rewriteLegacyStringLeaves(item, replacements));
   }
   if (value !== null && typeof value === 'object') {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [
       key,
-      rewriteStringLeaves(item, replacements),
+      rewriteLegacyStringLeaves(item, replacements),
     ]));
   }
   return value;
@@ -305,65 +342,6 @@ const hasStringLeaf = (value, candidates) => {
   return value !== null
     && typeof value === 'object'
     && Object.values(value).some((item) => hasStringLeaf(item, candidates));
-};
-
-// Resolve only ids attested by this client's own mint ledger. Receipt entries
-// outside that ledger do not gain rewrite authority, and every ambiguity is
-// treated as unmapped. Lane Q needs no rewrite because replay-accept preserves
-// the speculative ids themselves.
-//
-// @ref LLP 0133#divergence-on-settle — leaf rewrite is claim-ledger scoped;
-//   missing, duplicate, conflicting, or colliding map entries fail closed.
-const settlementIdResolution = (record, settlement) => {
-  if (record?.settlementLane !== 're-derive') {
-    return { replacements: new Map(), unresolved: new Set() };
-  }
-  const claimedMints = settlementMints(record);
-  const claimed = settlementMintIds(record);
-  const claimCounts = new Map();
-  for (const id of claimed) claimCounts.set(id, (claimCounts.get(id) ?? 0) + 1);
-  const claimById = new Map(claimedMints
-    .filter((mint) => typeof mint?.claimed === 'string')
-    .map((mint) => [mint.claimed, mint]));
-  const entries = new Map();
-  const receipt = settlement?.receipt?.kind === 'mutation'
-    ? settlement.receipt
-    : settlement?.kind === 'mutation' ? settlement : null;
-  const receiptMap = receipt?.idMap;
-  for (const entry of Array.isArray(receiptMap) ? receiptMap : []) {
-    if (!claimCounts.has(entry?.speculative)) continue;
-    const candidates = entries.get(entry.speculative) ?? [];
-    candidates.push(entry);
-    entries.set(entry.speculative, candidates);
-  }
-  const replacements = new Map();
-  const unresolved = new Set();
-  const authoritativeOwners = new Map();
-  for (const [speculative, count] of claimCounts) {
-    const candidates = entries.get(speculative) ?? [];
-    const entry = candidates.length === 1 ? candidates[0] : null;
-    const claim = claimById.get(speculative);
-    if (
-      count !== 1
-      || entry?.disposition !== 'mapped'
-      || typeof entry?.authoritative !== 'string'
-      || entry?.site !== claim?.site
-      || entry?.occurrence !== claim?.occurrence
-    ) {
-      unresolved.add(speculative);
-      continue;
-    }
-    const prior = authoritativeOwners.get(entry.authoritative);
-    if (prior !== undefined && prior !== speculative) {
-      unresolved.add(prior);
-      unresolved.add(speculative);
-      replacements.delete(prior);
-      continue;
-    }
-    authoritativeOwners.set(entry.authoritative, speculative);
-    replacements.set(speculative, entry.authoritative);
-  }
-  return { replacements, unresolved };
 };
 
 const cascadeFailure = (state, unresolvedIds, afterSequence) => {
@@ -450,7 +428,13 @@ const reconcileSettledMintIds = (state, record, settlement) => {
     records = { ...records };
     for (const candidate of Object.values(records)) {
       if (candidate.status !== 'pending' || candidate.sequence <= record.sequence) continue;
-      const args = rewriteStringLeaves(candidate.args, replacements);
+      const args = candidate.argsContract == null
+        ? rewriteLegacyStringLeaves(candidate.args, replacements)
+        : rewriteGeneratedArgumentIdsV1(
+            candidate.args,
+            candidate.argsContract,
+            replacements,
+          );
       if (canonicalizeClientValueV1(args) === canonicalizeClientValueV1(candidate.args)) continue;
       const rewritten = { ...candidate, args };
       if (outboxRecordBytes(rewritten) > OUTBOX_MAX_RECORD_BYTES) {

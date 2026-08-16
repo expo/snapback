@@ -18,6 +18,10 @@ export interface OutboxRecordInput {
   readonly args: unknown;
   readonly capturedAt?: string;
   readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
+  /** Process epoch used only to merge durable and ephemeral presentation layers. */
+  readonly optimisticProcessEpoch?: string | null;
+  /** Realm-wide generated-mutation invocation order within optimisticProcessEpoch. */
+  readonly optimisticInvocationSequence?: number | null;
   readonly expectedGeneration?: Readonly<{
     schemaVersion: string;
     appId: string;

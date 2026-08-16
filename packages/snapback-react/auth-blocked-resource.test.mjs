@@ -217,7 +217,9 @@ async function assertBlockedStability(mounted, client, expectedAttempts) {
     error: null,
     connection: 'idle',
     freshness: 'unknown',
+    answerClass: 'unknown',
     retention: null,
+    optimisticPresentation: null,
   });
   const flipsAtBlocked = mounted.flips();
   for (let interval = 0; interval < 1_000; interval += 1) {

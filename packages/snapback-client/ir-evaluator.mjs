@@ -370,7 +370,7 @@ const executeBrowserIrPlanV1 = ({
     };
     let changedCount = 0;
 
-    for (const step of steps) {
+    for (const [planStepIndex, step] of steps.entries()) {
       const kinds = Object.keys(step ?? {});
       if (kinds.length !== 1) {
         fail('SNAPBACK_PLAN_INVALID', 'mutation step must name exactly one operation');
@@ -384,7 +384,13 @@ const executeBrowserIrPlanV1 = ({
         if (body.bind_id_as) bindings.set(body.bind_id_as, id);
         const row = { ...evaluateValues(body.values, environment), _id: id };
         rows.push(row);
-        writeSet.push({ operation: 'insert', table: body.table, id, row: cloneTransportValue(row) });
+        writeSet.push({
+          operation: 'insert',
+          table: body.table,
+          planStepIndex,
+          id,
+          row: cloneTransportValue(row),
+        });
         changedCount += 1;
       } else if (kind === 'Patch') {
         if (Object.keys(body.values ?? {}).length === 0) continue;
@@ -397,6 +403,7 @@ const executeBrowserIrPlanV1 = ({
           writeSet.push({
             operation: 'patch',
             table: body.table,
+            planStepIndex,
             id,
             values: cloneTransportValue(values),
             row: cloneTransportValue(rows[index]),
@@ -409,7 +416,7 @@ const executeBrowserIrPlanV1 = ({
         const index = rows.findIndex((row) => row?._id === id);
         if (index !== -1) {
           rows.splice(index, 1);
-          writeSet.push({ operation: 'delete', table: body.table, id });
+          writeSet.push({ operation: 'delete', table: body.table, planStepIndex, id });
           changedCount += 1;
         }
       } else if (kind === 'Get') {
@@ -434,7 +441,12 @@ const executeBrowserIrPlanV1 = ({
         const retained = [];
         for (const row of rows) {
           if (filters.every((filter) => filterMatches(filter, environment, row))) {
-            writeSet.push({ operation: 'delete', table: body.table, id: row?._id ?? null });
+            writeSet.push({
+              operation: 'delete',
+              table: body.table,
+              planStepIndex,
+              id: row?._id ?? null,
+            });
             changedCount += 1;
           } else {
             retained.push(row);
@@ -457,7 +469,13 @@ const executeBrowserIrPlanV1 = ({
           const id = ledger.nextId();
           const row = { ...evaluateValues(body.values, itemEnvironment), _id: id };
           rows.push(row);
-          writeSet.push({ operation: 'insert', table: body.table, id, row: cloneTransportValue(row) });
+          writeSet.push({
+            operation: 'insert',
+            table: body.table,
+            planStepIndex,
+            id,
+            row: cloneTransportValue(row),
+          });
           changedCount += 1;
         }
       } else {

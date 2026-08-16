@@ -26,7 +26,7 @@ export interface OptimisticReplayEntryV1 {
   readonly classification: BrowserIrAdmissionClass;
   readonly code: string;
   readonly predictionChanged: boolean;
-  readonly admission: LocalReadAdmissionOutcomeV1;
+  readonly admission: LocalReadAdmissionOutcomeV1 | null;
   readonly prediction: BrowserIrLocalOutcomeV1 | null;
 }
 
@@ -63,6 +63,7 @@ export interface OptimisticRebaseSnapshotV1 {
 export interface OptimisticRebaseInputV1 {
   readonly authoritativeRows?: Readonly<Record<string, readonly BrowserIrRow[]>>;
   readonly retiredSettlementIdentities?: readonly string[];
+  readonly settlementIdReplacements?: Readonly<Record<string, string>>;
   readonly cause?: string;
 }
 
@@ -103,6 +104,7 @@ export function createOptimisticRebaseEngineV1(input: Readonly<{
       args: unknown;
       ctxLedger: unknown;
       optimisticOperation?: LocalReadOperationV1 | null;
+      generatedMutationTables?: readonly string[] | null;
     }>[]>;
   }>;
   registrationLedger: Readonly<{
@@ -113,4 +115,6 @@ export function createOptimisticRebaseEngineV1(input: Readonly<{
     materializationKey: string;
   }>): LocalReadAnswerV1 | Promise<LocalReadAnswerV1>;
   initialAuthoritativeRows?: Readonly<Record<string, readonly BrowserIrRow[]>>;
+  targetTables?: readonly string[] | null;
+  projectionMode?: 'project' | 'pending-only';
 }>): OptimisticRebaseEngineV1;

@@ -230,7 +230,7 @@ test('M3 gate: locked-card refusal is surfaced and does not corrupt sibling laye
   ]);
 });
 
-test('M3 gate: reload during settlement neither loses nor double-applies a layer', async () => {
+test('engine keeps a restarted bridge until the live-query settlement matcher proves reflection', async () => {
   const store = createMemoryRqsResumeStore();
   const operation = insertOperation('reload-insert');
   await enqueue(store, 'reload-insert', operation);
@@ -272,14 +272,12 @@ test('M3 gate: reload during settlement neither loses nor double-applies a layer
   reloaded.setRows(authoritativeRows);
   const delivery = await reloaded.engine.rebase({
     authoritativeRows: { cards: authoritativeRows },
-    retiredSettlementIdentities: ['reload-insert'],
   });
-  assert.deepEqual(delivery.retiredIdentities.map((entry) => entry.settlementIdentity), [
-    'reload-insert',
-  ]);
-  assert.equal(reloaded.engine.getSnapshot().layers.length, 0);
+  assert.deepEqual(delivery.retiredIdentities, []);
+  assert.equal(reloaded.engine.getSnapshot().layers.length, 1);
   assert.deepEqual(reloaded.engine.getSnapshot().visibleRows.cards.map((row) => row._id), [
     'card-authoritative',
-  ], 'authoritative delivery replaces the base without a duplicate speculative insert');
+    'card-speculative',
+  ], 'the generic engine cannot infer settlement reflection from a colliding canonical row');
   assert.equal((await store.outboxRecords())[0].status, 'settled');
 });

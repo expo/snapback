@@ -3,6 +3,7 @@ import type {
   CurrentPrincipalSnapshot,
   FunctionArgs,
   FunctionResult,
+  GeneratedOptimisticPresentation,
   LiveQueryRef,
   EphemeralScope,
   EphemeralValue,
@@ -131,24 +132,34 @@ export type SnapbackConnection =
   | 'closed'
   | 'error';
 
-/** Channel B freshness axis (LLP 0090 D1 / LLP 0114): 'retained' rows come
- * from persistence/preload and are never presented as settled; 'current'
- * rows are authoritative; 'unknown' means no rows are held; 'snapshot'
- * rows come from a mixed-route read-only child's boot snapshot — they are
- * server-authored and presented as settled ('ready') but never refresh. */
+/** Channel B canonical-base freshness axis (LLP 0090 D1 / LLP 0114):
+ * 'retained' rows come from persistence/preload; 'current' means the base is
+ * current, while `answerClass: 'optimistic'` explicitly marks data with a
+ * private prediction; 'unknown' means no rows are held; 'snapshot' rows come
+ * from a mixed-route read-only child's boot snapshot. */
 export type SnapbackFreshness = 'unknown' | 'retained' | 'current' | 'snapshot';
+export type SnapbackAnswerClass =
+  | 'unknown'
+  | 'labeled-retained'
+  | 'authoritative'
+  | 'optimistic'
+  | 'pending-without-prediction';
 
 /** Refuse-with-clarity retainability fact, surfaced from the headless
  * handle (LLP 0129 Phase 0); null until the subscription is classified. */
 export type SnapbackRetention = LiveQueryRetention;
 
-export type QueryState<Result> =
+export type QueryState<Result> = (
   | Readonly<{ status: 'pending'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
   | Readonly<{ status: 'blocked'; reason: 'authentication-required'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>
   | Readonly<{ status: 'ready'; data: Result; error: null; connection: SnapbackConnection; freshness: 'current' | 'snapshot'; retention: SnapbackRetention | null }>
   | Readonly<{ status: 'refreshing'; data: Result; error: null; connection: SnapbackConnection; freshness: 'retained' | 'current'; retention: SnapbackRetention | null }>
   | Readonly<{ status: 'error'; data: undefined; error: SnapbackDiagnostic; connection: SnapbackConnection; freshness: 'unknown'; retention: SnapbackRetention | null }>
-  | Readonly<{ status: 'skipped'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>;
+  | Readonly<{ status: 'skipped'; data: undefined; error: null; connection: SnapbackConnection; freshness: 'unknown'; retention: null }>
+) & Readonly<{
+  answerClass: SnapbackAnswerClass;
+  optimisticPresentation?: GeneratedOptimisticPresentation | null;
+}>;
 
 export type QueryReference<
   Name extends string = string,

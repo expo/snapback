@@ -4,12 +4,12 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-protected, sync.offline-js-arm-sessions, sync.local-persistent-store, clients.outbox-drain, clients.dev-diagnostics]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, llp/0218-outbox-settlement-contract.rfc.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, packages/snapback-client/protected-query-retention.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/assets.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-client/rqs-resume.test.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-expo/supervised-environment.mjs, demos/browser-local-first/tests/acceptance/browser-public-witness.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0270-local-first-client-defaults.rfc.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/generated-mutation-ir.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, packages/snapback-client/optimistic-rebase.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/protected-query-retention.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/assets.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-client/rqs-resume.test.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-expo/supervised-environment.mjs, demos/browser-local-first/tests/acceptance/browser-public-witness.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs]
 examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, demos/browser-local-first, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs, packages/snapback-react/dev-diagnostics-acceptance.test.mjs, packages/snapback-client/client-diagnostics.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-10
+reviewed: 2026-08-16
 reviewed-authorities-digest: sha256:8247e5bbf4236ef656eecd9f697afa2060fe506b082669a611b15f23af3f7a86
 ---
 
@@ -70,7 +70,7 @@ layer refused.
 
 | Workload shape | Route | Survival rules |
 | --- | --- | --- |
-| Public single-table live query, args-less **or** filtered by explicit `arg(...)` | Platform retention: declare `auth: 'public'` + `authorityIndependent: true` ([opt-in section](#opt-a-live-query-into-cold-retention-rqseligible)) | Persisted per `(query, args)` in the client store; fresh client re-renders it `freshness: 'retained'`, backend unreachable included; subscribe demand is volatile (dispose releases it); a non-empty outbox withholds resume — retained pre-intent render, full resync first |
+| Public single-table live query, args-less **or** filtered by explicit `arg(...)` | Platform retention: declare `auth: 'public'` + `authorityIndependent: true` ([opt-in section](#opt-a-live-query-into-cold-retention-rqseligible)) | Persisted per `(query, args)` in the client store; fresh client re-renders it `freshness: 'retained'`, backend unreachable included; subscribe demand is volatile (dispose releases it); a non-empty outbox withholds resume and reprojects only read-admitted generated operations — full resync first |
 | Public data queried through many argument values, one retained payload wanted | Client-side filter over an args-less (or coarser-keyed) retained query ([viewer-facts section](#retain-public-viewer-facts-by-argument-not-authority)) | Same as platform retention, with one entry instead of one per argument value; derive the per-key fact from canonical rows on the client |
 | Protected generated live query — the natural private-chat shape under sessions | Declare `retainable: true`; the JS and Contract arms use lease-backed custody ([authorized leases](../auth/protecting-data.md#authorized-leases-bound-unreachable-honest-clients)) | Rows render retained only under a valid `AuthorizedLease`; merely offering the lease protocol does not promote non-retainable queries or call its endpoint. Equality with the client deadline is expired, and invalid/mismatched custody is transactionally deleted before exposure. The JS package proves a fresh-client cold handoff; the independent real-process restart witness remains a GAP |
 | Owner-scoped generated relational composite | LLP 0166 materialization store + hydration bridge ([store section](#render-retained-rows-proof-validated-after-relaunch-the-materialization-bridge)) | Proof-revalidated `authoritative`/`retained` relaunch answers; demand comes from registrations — a live handle is an `active` registration reaped at restart, `registerQuery` with `retentionRequest: 'durable'` survives restart |
@@ -248,30 +248,44 @@ proof of the same contracts. The headless witness proves:
   are covered by `packages/snapback-client/outbox-store.test.mjs`; the
   ordered drain itself is proven end-to-end in the browser carrier by the
   browser public witness.)
-- **Lane-L reconciliation substrate, without local execution.** A composing
-  layer may enqueue a synthetic `re-derive` intent with an LLP 0133 mint-claim
-  ledger. The server response's private `idMap` atomically rewrites exact
+- **Generated Lane-L projection and reconciliation.** A generated
+  `local-executable` mutation carries one durable `re-derive` operation and
+  LLP 0133 mint-claim ledger. Active React/Expo/headless query stores derive
+  required reads from owner IR, paint admitted private layers, and replay them
+  in local sequence after restart. Durable records restored from prior
+  processes sort before current-process layers; durable and ephemeral calls in
+  one process share invocation order. Missing reads, `server-only` plans, filtered
+  membership, and cross-table-dependent plans remain queued-only; table-write
+  projection is limited to owner-proved table-complete query coverage. The
+  server response's private `idMap` atomically rewrites exact
   matching string leaves in not-yet-submitted successors; an unmapped or
   rejected mint marks leaf-visible dependents terminally failed with
   `SNAPBACK_SPECULATIVE_ID_UNRESOLVED`, including transitive dependents. The
   actual submission slot rechecks the predecessor fence. Exact copied strings
   rewrite too, while ids embedded in longer strings are not detected — the
   deliberate leaf-equality floor until typed-id declarations graduate it.
-  The external query-store seam passes the same private map to an
-  authoritative-row matcher and otherwise retains its first-delivery-after-
-  confirmation fallback. This is settlement/reconciliation machinery only:
-  the JS arm still runs no local mutation executor, captures no speculative
-  runtime answers, and makes no `Parity` claim.
-- **No `Parity` claim.** This arm runs no local execution, so the queued
-  path is Online-class retention/replay under LLP 0043's proof rule. A
-  relaunch with pending intent still renders the retained rows — marked
-  `retained`, **pre-intent** (the queued writes are not overlaid; there is
-  no local execution to derive them), with `handle.pendingIntentsAtSeed`
-  naming the queued count — while the resume token is withheld: reconnect
-  takes full resync, then ordered replay (LLP 0090's outbox rule and its
-  2026-08-01 rendering note). Render the queued-changes state next to the
-  retained rows from `client.outboxStatus()` (React:
-  `useSnapbackOutbox()`), never by faking the rows themselves.
+  The automatic authoritative-row matcher reuses the same mapping validation:
+  every mint site/occurrence must resolve exactly once, mappings may not
+  collide, and the delivery must completely reflect the observed table's writes
+  at or after the settlement version. Other-table writes are validated through
+  settlement and the complete ID map because a single-table handle cannot
+  reflect them. Canonical mappings rewrite exact reference-valued string leaves
+  in remaining layers before rebase. There is no unrelated-later-delivery fallback.
+  Canonical reflection retires a layer once; rejection removes only its layer
+  and rebases successors. An ACK may delete durable recovery state first, so
+  an installed bridge retains its already-admitted matcher evidence until
+  reflection.
+- **Claim boundary.** A derived layer is presentation, never authority. A
+  projected handle/query reports `answerClass: optimistic`; the canonical
+  base may still report `freshness: current` and remains separately available.
+  Authorization delete, denial, quarantine, and error close the projection. A
+  relaunch keeps the canonical base labeled `retained`, with
+  `handle.pendingIntentsAtSeed` naming queued work; it reprojects only an
+  operation whose local-read admission succeeds and otherwise exposes
+  pending-without-prediction. The resume token remains withheld, so reconnect
+  still takes full resync then ordered replay. Expo uses the React carrier;
+  its restart-replay claim rides that carrier qualification rather than a
+  separate Expo process witness (LLP 0270 rollout wave 2).
 
 ### Keep a queued React mutation pending
 
@@ -355,10 +369,10 @@ pending intent, but a mutation that must queue refuses with
 `SNAPBACK_OUTBOX_NOT_WRITER` ("this context does not hold single-writer
 ownership of the client store; the mutation was not queued") rather than
 silently queueing into a store it does not own. One deliberate degradation
-exists: a generated declarative mutation with the default `queue: 'auto'`
-falls back to ordinary server-delegated dispatch when it hits the non-writer
-refusal (LLP 0155's server-only admission rule) — it does not queue, and it
-does not fail while the server is reachable. Separately, a client whose
+exists: a generated mutation with default `queue: 'auto'` retains its
+generated prediction for the online attempt when it hits the non-writer
+refusal, but makes no durability claim and cannot queue a transport failure.
+Separately, a client whose
 queue custody is unavailable — `offlineQueue: false`, or only the volatile
 memory store — refuses an explicit `queue: true` with
 `SNAPBACK_OFFLINE_QUEUE_DISABLED` before any network dispatch. Run mutations
@@ -506,6 +520,7 @@ decisions key off `answerClass` + `freshness`, never off "bytes exist":
 | --- | --- | --- |
 | `authoritative` (`freshness: current`) | Live, connected, proof-backed | Yes |
 | `authoritative` (`freshness: retained`) | Relaunch answer whose proof and applicable retention custody revalidated (lease-backed for protected relational results; no-lease Arm A for `single_table_v1`) | Yes, marked retained |
+| `optimistic` | A generated or app-authored predictive overlay over the separately labeled canonical base | Yes, only as pending/predictive UI |
 | `labeled-retained` | Rows retained but authority could not be revalidated | Only with an explicit degraded label |
 | `unknown` | Store cannot classify (no proof, no custody) | No — treat as no data |
 | `refused` | Policy or authorization refused the read | No — surface the refusal |
@@ -754,9 +769,9 @@ a complete retained identity: app id, database id, target-profile id, and
 version-stream id. The generated Contract data manifest must claim
 `offlineReplay`, and every mutation exposed by the surface must carry its
 generated declarative plan — plan presence is the replayability predicate.
-Whether an optimistic overlay is derived from that plan is a separate axis:
-a sequence-withheld mutation is replayable with no overlay at all (see the
-withholding rule below).
+Generated `local-executable` plans derive their optimistic operation by
+default. A `server-only`, incomplete-read, or sequence-withheld mutation is
+still replayable with no row overlay (see the withholding rule below).
 
 If any identity or replay proof is missing, queued writes and retention are
 disabled instead of being rebound to a guessed backend. A changed artifact or

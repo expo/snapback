@@ -133,6 +133,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'export-parity.test.mjs',
       'external-store.test.mjs',
       'generated-mutation-ir.test.mjs',
+      'generated-optimistic-default.test.mjs',
       'hosted-browser.test.mjs',
       'hosted-ephemeral.test.mjs',
       'ir-evaluator.test.mjs',
@@ -230,6 +231,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'dev-diagnostics-acceptance.test.mjs',
       'dev-diagnostics.test.mjs',
       'familiar.test.mjs',
+      'generated-optimistic-default.test.mjs',
       'hmr-generation-handoff.test.mjs',
       'lifecycle.test.mjs',
       'offline.test.mjs',
@@ -543,7 +545,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 304,
+  expectedTotal = 306,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -987,6 +989,8 @@ export function checkPackageTestInventories(options = {}) {
 // 302 -> 304 (2026-08-16, LLP 0262 native reader): @expo/snapback-cli gains
 // the native checkout-reader launch-sequencing suite and the
 // snapback-expo-dev-identity module gains its hook-install/rotation suite.
+// 304 -> 306 (2026-08-16, LLP 0270 D3): @expo/snapback-client and
+// @expo/snapback-react gain ordinary generated optimistic-projection suites.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

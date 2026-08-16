@@ -11,6 +11,10 @@
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
 import { evaluateLocalMutationIrV1 } from './ir-evaluator.mjs';
 import { admitLocalMutationReadsV1 } from './local-read-admission.mjs';
+import {
+  rewriteGeneratedArgumentIdsV1,
+  rewriteOptimisticLayerIdsV1,
+} from './settlement-id-resolution.mjs';
 
 export const OPTIMISTIC_REBASE_SNAPSHOT_FORMAT_V1 =
   'snapback.optimistic-rebase-snapshot.v1';
@@ -59,6 +63,75 @@ const prepareSettlementIdentities = (value) => {
     seen.add(identity);
   }
   return identities;
+};
+
+const prepareTargetTables = (value) => {
+  if (value === null || value === undefined) return null;
+  if (
+    !Array.isArray(value)
+    || value.length === 0
+    || value.some((table) => typeof table !== 'string' || table.length === 0)
+  ) throw new TypeError('optimistic rebase targetTables must be a non-empty string array');
+  return new Set(value);
+};
+
+const prepareProjectionMode = (value) => {
+  if (value === undefined || value === null) return 'project';
+  if (value !== 'project' && value !== 'pending-only') {
+    throw new TypeError("optimistic rebase projectionMode must be 'project' or 'pending-only'");
+  }
+  return value;
+};
+
+const operationWriteTables = (operation) => new Set(
+  (operation?.plan?.steps ?? []).flatMap((step) => {
+    if (!plain(step)) return [];
+    for (const kind of ['Insert', 'Patch', 'Delete']) {
+      const table = step[kind]?.table;
+      if (typeof table === 'string' && table.length > 0) return [table];
+    }
+    return [];
+  }),
+);
+
+const operationReadTables = (operation) => new Set(
+  Array.isArray(operation?.declaredReads)
+    ? operation.declaredReads.filter((table) => typeof table === 'string' && table.length > 0)
+    : [],
+);
+
+const recordOrder = (left, right) => {
+  const leftEpoch = left?.__optimisticSequenceEpoch === 'current' ? 1 : 0;
+  const rightEpoch = right?.__optimisticSequenceEpoch === 'current' ? 1 : 0;
+  const leftSequence = leftEpoch === 1
+    && Number.isSafeInteger(left?.__optimisticInvocationSequence)
+    ? left.__optimisticInvocationSequence
+    : left.sequence;
+  const rightSequence = rightEpoch === 1
+    && Number.isSafeInteger(right?.__optimisticInvocationSequence)
+    ? right.__optimisticInvocationSequence
+    : right.sequence;
+  return leftEpoch - rightEpoch
+    || leftSequence - rightSequence
+    || String(left.id).localeCompare(String(right.id));
+};
+
+const privateOrderFields = (record) => ({
+  ...(record?.__optimisticSequenceEpoch === 'current'
+    ? { __optimisticSequenceEpoch: 'current' }
+    : {}),
+  ...(Number.isSafeInteger(record?.__optimisticInvocationSequence)
+    ? { __optimisticInvocationSequence: record.__optimisticInvocationSequence }
+    : {}),
+});
+
+const remapLayer = (layer, operation, argsContract, replacements) => {
+  if (layer === null || replacements.size === 0) return layer;
+  return deepFreeze(rewriteOptimisticLayerIdsV1(layer, {
+    operation,
+    argsContract,
+    replacements,
+  }));
 };
 
 const prepareLayer = (layer) => {
@@ -168,6 +241,7 @@ const publicReplay = ({
   predictionChanged,
   admission,
   prediction,
+  ...privateOrderFields(record),
 });
 
 const replaySignature = ({ disposition, prediction, admission, code }) => canonicalText({
@@ -183,11 +257,17 @@ const replayOne = async ({
   registrationLedger,
   readMaterializationAnswer,
   previousSignatures,
+  targetTables,
+  idReplacements,
 }) => {
   let operation;
   try {
     operation = canonicalClone(record.optimisticOperation);
-    operation.args = canonicalClone(record.args ?? operation.args ?? {});
+    operation.args = rewriteGeneratedArgumentIdsV1(
+      canonicalClone(record.args ?? operation.args ?? {}),
+      record.argsContract,
+      idReplacements,
+    );
     operation.ctxLedger = canonicalClone(record.ctxLedger ?? operation.ctxLedger ?? null);
     operation.layerId = record.id;
   } catch {
@@ -250,6 +330,48 @@ const replayOne = async ({
     };
   }
 
+  const writeTables = operationWriteTables(operation);
+  const crossTableReads = targetTables === null
+    ? []
+    : [...operationReadTables(operation)].filter((table) => !targetTables.has(table));
+  if (
+    targetTables !== null
+    && [...writeTables].some((table) => targetTables.has(table))
+    && crossTableReads.length > 0
+  ) {
+    // A target-table projection cannot replay a later operation against a
+    // prior non-target mutation without owning that other table's complete
+    // authoritative/rebase lifecycle. Degrade the whole dependent operation
+    // instead of evaluating it against an incorrectly filtered store.
+    const admission = deepFreeze({
+      format: 'snapback.local-read-admission.v1',
+      classification: 'refused',
+      code: 'SNAPBACK_OPTIMISTIC_CROSS_TABLE_REPLAY_UNPROVEN',
+      details: { targetTables: [...targetTables].sort(), crossTableReads: crossTableReads.sort() },
+      declaredReads: [...operationReadTables(operation)].sort(),
+      reads: [],
+      failures: [{ code: 'SNAPBACK_OPTIMISTIC_CROSS_TABLE_REPLAY_UNPROVEN' }],
+      admittedRows: null,
+    });
+    const signature = replaySignature({
+      disposition: 'queued-only', admission, prediction: null, code: admission.code,
+    });
+    return {
+      entry: publicReplay({
+        record,
+        admission,
+        prediction: null,
+        disposition: 'queued-only',
+        code: admission.code,
+        predictionChanged: previousSignatures.has(record.id)
+          && previousSignatures.get(record.id) !== signature,
+      }),
+      layer: null,
+      refusal: true,
+      degradation: true,
+    };
+  }
+
   const admission = await admitLocalMutationReadsV1({
     operation,
     registrationLedger,
@@ -258,7 +380,7 @@ const replayOne = async ({
   const initialRows = admission.admittedRows === null
     ? {}
     : applyPrivateOptimisticLayersV1(admission.admittedRows, priorLayers);
-  const prediction = evaluateLocalMutationIrV1({
+  const evaluatedPrediction = evaluateLocalMutationIrV1({
     name: operation.name,
     schema: operation.schema,
     initialRows,
@@ -270,6 +392,15 @@ const replayOne = async ({
     declaredEffectClass: operation.declaredEffectClass,
     readAdmission: admission.classification,
   });
+  const remappedLayer = remapLayer(
+    evaluatedPrediction.layer,
+    operation,
+    record.argsContract,
+    idReplacements,
+  );
+  const prediction = remappedLayer === evaluatedPrediction.layer
+    ? evaluatedPrediction
+    : deepFreeze({ ...evaluatedPrediction, layer: remappedLayer });
   const layer = prediction.layer;
   const disposition = layer === null ? 'queued-only' : 'layered';
   const code = prediction.execution?.status === 'rejected'
@@ -308,6 +439,8 @@ export function createOptimisticRebaseEngineV1({
   registrationLedger,
   readMaterializationAnswer,
   initialAuthoritativeRows = {},
+  targetTables = null,
+  projectionMode = 'project',
 } = {}) {
   if (typeof outboxStore?.outboxRecords !== 'function') {
     throw new TypeError('optimistic rebase requires an outboxRecords store seam');
@@ -318,10 +451,14 @@ export function createOptimisticRebaseEngineV1({
   if (typeof readMaterializationAnswer !== 'function') {
     throw new TypeError('optimistic rebase requires readMaterializationAnswer');
   }
+  const admittedTargetTables = prepareTargetTables(targetTables);
+  const admittedProjectionMode = prepareProjectionMode(projectionMode);
 
   const listeners = new Set();
   const outcomes = [];
   let reflectedSettlementIdentities = new Set();
+  let reflectedIdReplacements = new Map();
+  const layerRewriteMetadata = new Map();
   let snapshot = emptySnapshot(deepFreeze(prepareRows(initialAuthoritativeRows)));
   let closed = false;
   let serialized = Promise.resolve();
@@ -335,6 +472,7 @@ export function createOptimisticRebaseEngineV1({
   const executeRebase = async ({
     authoritativeRows = snapshot.authoritativeRows,
     retiredSettlementIdentities = [],
+    settlementIdReplacements = {},
     cause = 'authoritative-delivery',
   } = {}) => {
     if (closed) {
@@ -358,10 +496,43 @@ export function createOptimisticRebaseEngineV1({
     const newlyReflected = prepareSettlementIdentities(retiredSettlementIdentities);
     const nextReflected = new Set(reflectedSettlementIdentities);
     for (const identity of newlyReflected) nextReflected.add(identity);
+    if (!plain(settlementIdReplacements)) {
+      throw new TypeError('settlementIdReplacements must be a string-to-string object');
+    }
+    const nextIdReplacements = new Map(reflectedIdReplacements);
+    for (const [speculative, authoritative] of Object.entries(settlementIdReplacements)) {
+      if (
+        !SETTLEMENT_ID.test(speculative)
+        || typeof authoritative !== 'string'
+        || !SETTLEMENT_ID.test(authoritative)
+      ) throw new TypeError('settlement id replacement is invalid');
+      const prior = nextIdReplacements.get(speculative);
+      if (prior !== undefined && prior !== authoritative) {
+        throw new TypeError('settlement id replacement conflicts with prior reflection');
+      }
+      nextIdReplacements.set(speculative, authoritative);
+    }
 
     const records = await outboxStore.outboxRecords();
     if (!Array.isArray(records)) throw new TypeError('outboxRecords must return an array');
-    const ordered = [...records].sort((left, right) => left.sequence - right.sequence);
+    const recordsById = new Map(records.map((record) => [record?.id, record]));
+    // Settlement ACK is allowed to remove durable recovery state before the
+    // query that displays the mutation observes canonical reflection. Keep an
+    // already-installed bridging layer as private presentation state until the
+    // real matcher explicitly retires it; the layer remains recomputable data,
+    // never a second durable intent authority.
+    const retainedBridges = snapshot.layers.filter((entry) => (
+      entry.layerStatus === 'bridging'
+      && !recordsById.has(entry.clientMutationId)
+      && !nextReflected.has(entry.clientMutationId)
+    ));
+    const ordered = [
+      ...records.map((record) => ({ kind: 'record', sequence: record.sequence, record })),
+      ...retainedBridges.map((entry) => ({ kind: 'bridge', sequence: entry.sequence, entry })),
+    ].sort((left, right) => recordOrder(
+      left.kind === 'record' ? left.record : left.entry,
+      right.kind === 'record' ? right.record : right.entry,
+    ));
     const previousSignatures = previousPredictionSignatures(snapshot);
     const previousIds = new Set([
       ...snapshot.layers.map((entry) => entry.clientMutationId),
@@ -373,12 +544,94 @@ export function createOptimisticRebaseEngineV1({
     const refusals = [];
     const degradations = [];
     const retiredIdentities = [];
+    for (const identity of newlyReflected) {
+      if (!previousIds.has(identity) || recordsById.has(identity)) continue;
+      const previous = snapshot.layers.find((entry) => entry.clientMutationId === identity);
+      if (previous) retiredIdentities.push(deepFreeze({
+        settlementIdentity: identity,
+        sequence: previous.sequence,
+        reason: 'authoritative-delivery',
+      }));
+    }
 
-    for (const record of ordered) {
+    for (const item of ordered) {
+      if (item.kind === 'bridge') {
+        const metadata = layerRewriteMetadata.get(item.entry.clientMutationId) ?? {};
+        const remappedLayer = remapLayer(
+          item.entry.layer,
+          metadata.operation,
+          metadata.argsContract,
+          nextIdReplacements,
+        );
+        const entry = remappedLayer === item.entry.layer
+          ? item.entry
+          : deepFreeze({
+              ...item.entry,
+              layer: remappedLayer,
+              prediction: item.entry.prediction === null
+                ? null
+                : deepFreeze({ ...item.entry.prediction, layer: remappedLayer }),
+            });
+        layers.push(entry);
+        replayedOperations.push(entry);
+        continue;
+      }
+      const { record } = item;
       if (!plain(record) || typeof record.id !== 'string' || !Number.isSafeInteger(record.sequence)) {
         throw new TypeError('outbox returned an invalid stored record');
       }
-      if (record.optimisticOperation == null) continue;
+      if (!['pending', 'settled'].includes(record.status)) {
+        if (record.status === 'failed' && previousIds.has(record.id)) {
+          retiredIdentities.push(deepFreeze({
+            settlementIdentity: record.id,
+            sequence: record.sequence,
+            reason: 'failed',
+          }));
+        }
+        continue;
+      }
+      if (record.optimisticOperation == null) {
+        const tables = record.generatedMutationTables;
+        const relevant = Array.isArray(tables)
+          && (
+            tables.length === 0
+            || admittedTargetTables === null
+            || tables.some((table) => admittedTargetTables.has(table))
+          );
+        if (relevant) {
+          const entry = deepFreeze({
+            clientMutationId: record.id,
+            layerId: record.id,
+            sequence: record.sequence,
+            outboxStatus: record.status,
+            layerStatus: null,
+            disposition: 'queued-only',
+            classification: 'server-only',
+            code: 'SNAPBACK_GENERATED_IR_SERVER_ONLY',
+            predictionChanged: false,
+            admission: null,
+            prediction: null,
+            ...privateOrderFields(record),
+          });
+          queuedOnly.push(entry);
+          replayedOperations.push(entry);
+          degradations.push(entry);
+        }
+        continue;
+      }
+      layerRewriteMetadata.set(record.id, {
+        operation: record.optimisticOperation,
+        argsContract: record.argsContract,
+      });
+      let writeTables;
+      if (admittedTargetTables !== null) {
+        try {
+          writeTables = operationWriteTables(record.optimisticOperation);
+        } catch {
+          writeTables = new Set();
+        }
+        if (![...writeTables].some((table) => admittedTargetTables.has(table))) continue;
+      }
       if (nextReflected.has(record.id)) {
         if (
           !reflectedSettlementIdentities.has(record.id)
@@ -392,27 +645,29 @@ export function createOptimisticRebaseEngineV1({
         }
         continue;
       }
-      if (record.status === 'failed') {
-        if (previousIds.has(record.id)) {
-          retiredIdentities.push(deepFreeze({
-            settlementIdentity: record.id,
-            sequence: record.sequence,
-            reason: 'failed',
-          }));
-        }
-        continue;
-      }
-      if (!['pending', 'settled'].includes(record.status)) continue;
       const replay = await replayOne({
         record,
         priorLayers: layers.map((entry) => entry.layer),
         registrationLedger,
         readMaterializationAnswer,
         previousSignatures,
+        targetTables: admittedTargetTables,
+        idReplacements: nextIdReplacements,
       });
       replayedOperations.push(replay.entry);
       if (replay.layer === null) queuedOnly.push(replay.entry);
-      else layers.push(deepFreeze({ ...replay.entry, layer: replay.layer }));
+      else if (admittedProjectionMode === 'pending-only') {
+        const entry = publicReplay({
+          record,
+          admission: replay.entry.admission,
+          prediction: null,
+          disposition: 'queued-only',
+          code: 'SNAPBACK_OPTIMISTIC_QUERY_MEMBERSHIP_UNPROVEN',
+          predictionChanged: replay.entry.predictionChanged,
+        });
+        queuedOnly.push(entry);
+        degradations.push(entry);
+      } else layers.push(deepFreeze({ ...replay.entry, layer: replay.layer }));
       if (replay.refusal) refusals.push(replay.entry);
       if (replay.degradation) degradations.push(replay.entry);
     }
@@ -447,6 +702,11 @@ export function createOptimisticRebaseEngineV1({
     // admission/evaluation has completed. No subscriber can observe a torn
     // intermediate stack.
     reflectedSettlementIdentities = nextReflected;
+    reflectedIdReplacements = nextIdReplacements;
+    const retainedLayerIds = new Set(layers.map((entry) => entry.clientMutationId));
+    for (const identity of layerRewriteMetadata.keys()) {
+      if (!retainedLayerIds.has(identity)) layerRewriteMetadata.delete(identity);
+    }
     snapshot = nextSnapshot;
     outcomes.push(outcome);
     if (outcomes.length > OPTIMISTIC_REBASE_OUTCOME_CAP) outcomes.shift();

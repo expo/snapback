@@ -10,6 +10,7 @@ import {
   OPTIMISTIC_REBASE_OUTCOME_CAP,
 } from './optimistic-rebase.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+import { settlementIdResolution } from './settlement-id-resolution.mjs';
 
 class SnapbackClient extends InspectingSnapbackClient {
   constructor(baseUrl, options = {}) {
@@ -194,6 +195,120 @@ test('private layers fold in application order without mutating base or layer', 
   assert.equal(JSON.stringify(layers), beforeLayers);
   assert.equal(Object.isFrozen(visible), true);
   assert.equal(Object.isFrozen(visible.cards[0]), true);
+});
+
+test('target-table replay refuses cross-table-dependent generated plans instead of skipping prerequisites', async () => {
+  const store = createMemoryRqsResumeStore();
+  const crossTableOperation = {
+    name: 'createCardFromLabel',
+    schema: {
+      tables: [
+        ...schema.tables,
+        { name: 'labels', fields: [{ name: 'name' }] },
+      ],
+    },
+    plan: {
+      steps: [
+        {
+          Get: {
+            table: 'labels', id: { Arg: 'labelId' }, bind_as: 'label',
+            else_error: 'LABEL_NOT_FOUND',
+          },
+        },
+        {
+          Insert: {
+            table: 'cards',
+            values: {
+              title: { Field: { base: { Binding: 'label' }, key: 'name' } },
+              position: { Literal: 1 },
+              locked: { Literal: false },
+            },
+            bind_id_as: 'cardId',
+          },
+        },
+      ],
+      return_value: { Binding: 'cardId' },
+    },
+    args: { labelId: 'label-local' },
+    ctxLedger: { version: 1, ids: ['card-local'], now: 1 },
+    layerId: 'cross-table',
+    declaredEffectClass: BROWSER_IR_LOCAL_EFFECT_CLASS,
+    declaredReads: ['labels'],
+    localReadRequirements: [{
+      kind: 'point', table: 'labels', idArg: 'labelId', binding: 'label',
+      requiredFields: ['_id', 'name'],
+    }],
+  };
+  await enqueueOperation(store, 'cross-table', crossTableOperation);
+  const engine = createOptimisticRebaseEngineV1({
+    outboxStore: store,
+    registrationLedger: ledger,
+    readMaterializationAnswer: async () => ({
+      answerClass: 'authoritative', freshness: 'current',
+      value: encoder.encode(JSON.stringify([{ _id: 'label-local', name: 'Local label' }])),
+      materialization: identity,
+    }),
+    initialAuthoritativeRows: { cards: [] },
+    targetTables: ['cards'],
+  });
+
+  await engine.reload({ authoritativeRows: { cards: [] } });
+  const snapshot = engine.getSnapshot();
+  assert.equal(snapshot.layers.length, 0);
+  assert.equal(snapshot.queuedOnly.length, 1);
+  assert.equal(
+    snapshot.queuedOnly[0].code,
+    'SNAPBACK_OPTIMISTIC_CROSS_TABLE_REPLAY_UNPROVEN',
+  );
+  assert.deepEqual(snapshot.visibleRows.cards, []);
+});
+
+test('settlement mapping proof rejects missing, duplicate, colliding, and wrong-occurrence entries', () => {
+  const record = {
+    settlementLane: 're-derive',
+    settlementClaims: {
+      mints: [
+        { claimed: 'spec-a', site: 'site/a', occurrence: 0 },
+        { claimed: 'spec-b', site: 'site/b', occurrence: 1 },
+      ],
+    },
+  };
+  const entry = (speculative, authoritative, site, occurrence) => ({
+    speculative, authoritative, site, occurrence, disposition: 'mapped',
+  });
+  const resolve = (idMap) => settlementIdResolution(record, {
+    receipt: { kind: 'mutation', idMap },
+  });
+
+  const complete = resolve([
+    entry('spec-a', 'auth-a', 'site/a', 0),
+    entry('spec-b', 'auth-b', 'site/b', 1),
+  ]);
+  assert.deepEqual([...complete.replacements], [['spec-a', 'auth-a'], ['spec-b', 'auth-b']]);
+  assert.deepEqual([...complete.unresolved], []);
+
+  const missing = resolve([entry('spec-a', 'auth-a', 'site/a', 0)]);
+  assert.deepEqual([...missing.unresolved], ['spec-b']);
+
+  const duplicate = resolve([
+    entry('spec-a', 'auth-a', 'site/a', 0),
+    entry('spec-a', 'auth-a-duplicate', 'site/a', 0),
+    entry('spec-b', 'auth-b', 'site/b', 1),
+  ]);
+  assert.equal(duplicate.unresolved.has('spec-a'), true);
+
+  const collision = resolve([
+    entry('spec-a', 'auth-collision', 'site/a', 0),
+    entry('spec-b', 'auth-collision', 'site/b', 1),
+  ]);
+  assert.deepEqual([...collision.unresolved].sort(), ['spec-a', 'spec-b']);
+  assert.equal(collision.replacements.size, 0);
+
+  const wrongOccurrence = resolve([
+    entry('spec-a', 'auth-a', 'site/a', 1),
+    entry('spec-b', 'auth-b', 'site/b', 1),
+  ]);
+  assert.equal(wrongOccurrence.unresolved.has('spec-a'), true);
 });
 
 test('a private delete fold removes present rows and ignores missing rows', () => {

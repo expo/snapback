@@ -545,8 +545,8 @@ title: The headless client
 id: clients.headless
 order: 1
 audience: agent-first
-capabilities: [clients.headless, clients.external-store, clients.micro]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+capabilities: [clients.headless, clients.external-store, clients.micro, clients.optimistic-mutation-view]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/generated-mutation-ir.mjs, packages/snapback-client/optimistic-rebase.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
@@ -847,10 +847,44 @@ the existing raw `MutationOutput` with `status: 'settled'` added, so fields
 such as `result`, `version`, and `receipt` remain at top level after narrowing.
 The queued branch appears only when the foreground attempt is relinquished and
 the durable record remains replayable; it carries `status: 'queued'`, the
-durable id and sequence, and `presentation: 'withheld'` because the headless
-arm attempted no optimistic install. It is pending settlement, not success and
-not an error. Narrow on `status`; the former `queued: true` compatibility alias
-was removed after its deprecation window.
+durable id and sequence, and a point-in-time `presentation`. For a generated
+`local-executable` mutation affecting an active generated live query, the
+ordinary path derives and installs the operation from owner IR, so this is
+normally `installed`; incomplete reads or `server-only` IR remain inspectable
+in `handle.optimisticPresentation.queuedOnly` with no fabricated row effect.
+Automatic table-write projection currently requires owner-proved
+table-complete query coverage; filtered or limited membership attaches a
+pending-only view and reports the same `queuedOnly` state rather than guessing.
+A plan that writes the query table but reads another table is withheld with
+`SNAPBACK_OPTIMISTIC_CROSS_TABLE_REPLAY_UNPROVEN`; this version does not skip
+earlier cross-table writes and then project against an invalid store. It is pending settlement, not
+success and not an error. Narrow on `status`; the former `queued: true`
+compatibility alias was removed after its deprecation window.
+
+`liveQuery()` exposes projected `rows`, canonical `authoritativeRows`, and an
+`optimisticPresentation` discriminator (`none | predicted |
+pending-without-prediction`). Durable generated operations reconstruct the
+same provisional presentation after restart and rebase in local sequence order
+over later canonical delivery. Durable records restored from prior processes
+sort before current-process layers; durable and ephemeral calls made in the
+same process share their invocation order. While projected rows are visible,
+`answerClass` is `optimistic` even when the canonical base's `freshness`
+remains `current`; pending intent with no safe row prediction reports
+`pending-without-prediction`, including through pause and reconnect republishes.
+`authoritativeRows` and `authoritativeAnswerClass` expose that canonical fact.
+Prediction never becomes authority.
+
+A settled bridge retires only after a non-retained authoritative delivery both
+reaches its settlement version and completely reflects its writes. Logical-ID
+mapping must match every mint's site and occurrence exactly; missing,
+duplicate, or colliding mappings fail closed. An unrelated later delivery does
+not retire the bridge. A single-table handle requires reflection of every
+write to its observed table; successful settlement and the complete logical-ID
+map cover writes to unobserved tables. Canonical ID mappings also rewrite exact
+string leaves in reference values while surviving layers rebase. Authorization
+delete, denial, quarantine, and error
+boundaries close the automatic view synchronously so a pending read-free
+insert cannot repaint protected rows.
 
 Observe the durable identity separately with
 `mutationStatus(clientMutationId)` or
@@ -1228,11 +1262,12 @@ on demand: `registerQuery`/`releaseQueryRegistration`
 `evaluateLocalResultTransform`
 [evaluates a generated result-transform plan over proof-verified retained rows](../sync/offline-and-retention.md#evaluate-an-owner-reclassified-retained-result),
 and `storePolicyInspection` is the value-free retention/policy inspection for
-one authority partition. `createOptimisticMutationView` is the public
-LLP 0155 rebase view: app code supplies the authoritative rows and every
-private optimistic layer is replayed from the durable outbox in sequence. For
-the generated-insert, typed provisional-identity, logical-mint mapping, and
-ambiguous-retry composition, follow the
+one authority partition. `createOptimisticMutationView` remains the explicit
+compatibility rebase view for hosts that genuinely own a separate
+authoritative-row composition. The ordinary generated `liveQuery()` path
+creates its materialization-scoped view automatically. For the generated-insert
+typed provisional-identity wrapper, logical-mint mapping, and ambiguous-retry
+composition, follow the
 [optimistic-create recipe](../recipes/optimistic-create.md).
 
 Members whose names start with `__` (for example
@@ -1593,7 +1628,7 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react, clients.dev-diagnostics]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, packages/snapback-client/app-client.mjs, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/app-client.mjs, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/generated-optimistic-default.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-react/dev-diagnostics.test.mjs, packages/snapback-react/dev-diagnostics-acceptance.test.mjs]
 status: current
 targets: [local]
@@ -1998,8 +2033,41 @@ const createSettled = useSnapbackSettledMutation(createTodo);
 createSettled({ title: 'settled convenience' }).then((id) => id.toUpperCase());
 ```
 
-For a mutation whose optimistic projection updates a currently authoritative
-live query, declare that projection beside the hook:
+For generated `local-executable` mutations, this ordinary hook is also the
+default optimistic path. The client derives the affected materialization,
+required reads, and operation from generated IR; React (and Expo, which uses
+this same provider carrier) paints it immediately, replays durable layers on
+restart, and rebases them in local sequence order. Query state exposes
+`optimisticPresentation` for `predicted` versus
+`pending-without-prediction`. Missing required reads and `server-only` IR stay
+pending in `optimisticPresentation.queuedOnly` without inventing a row effect.
+The current table-write projector requires owner-proved table-complete query
+coverage; filtered or limited membership gets the same inspectable
+pending-only state until a compatible query-projection evaluator exists.
+Cross-table-dependent plans are withheld with
+`SNAPBACK_OPTIMISTIC_CROSS_TABLE_REPLAY_UNPROVEN` rather than replayed against
+a store missing earlier writes from another table.
+
+Projected query state is explicitly predictive: `answerClass` is `optimistic`
+while the generated layer is visible, even when `freshness: 'current'` still
+describes the canonical base. Consumers that need authority inspect
+`authoritativeRows` or the headless handle's `authoritativeAnswerClass`, not
+the projected `data`. Pending intent without a safe row prediction reports
+`answerClass: 'pending-without-prediction'`; both presentation classes survive
+pause, stale-socket, resume, and reconnect republishes. Durable records restored
+from prior processes precede current-process layers, while durable and ephemeral
+calls within one process retain invocation order. Settlement retirement requires
+complete reflection of the observed table's writes and exact, non-duplicated
+logical-ID mapping for the whole plan; unobserved-table writes rely on that
+settlement record rather than an unavailable handle reflection. Canonical ID
+mappings rewrite reference-valued string leaves in surviving layers. An unrelated
+later snapshot does not retire a layer. Every authorization deletion, denial,
+quarantine, or error closes the automatic projection before React can render
+protected prediction.
+
+An app-authored `optimistic.update`/`isAuthoritative` pair is an explicit
+compatibility escape hatch. When supplied, it owns that call and generated
+projection is not installed underneath it:
 
 ```ts fragment reason="mutation and query fields come from the generated application API"
 const intendedDone = !task.done; // captured from the row this component rendered
@@ -2015,7 +2083,7 @@ const toggleTask = useSnapbackMutation(api.toggleTask, {
 });
 ```
 
-The optimistic layer is installed only over the provider's already-current
+An app-authored layer is installed only over the provider's already-current
 authoritative query store and is validated against the generated result
 contract before network work. Overlapping attempts rebase in invocation order.
 Any rejected mutation call removes that attempt's built-in optimistic layer
@@ -2050,8 +2118,10 @@ site; production builds skip the check.
 
 ## Optimistically create a row the server will name
 
-Use `useSnapbackOptimisticCreate` when one locally executable generated
-`Insert` should appear immediately in the exact provider-owned query store.
+Use `useSnapbackOptimisticCreate` as the explicit typed-entity compatibility
+surface when one locally executable generated `Insert` needs its
+canonical/provisional union and `select` boundary. Ordinary
+`useSnapbackMutation` already paints that insert in the query store.
 The hook returns `{ query, create }`: `query` has the ordinary
 `pending | ready | refreshing | error` state axis, while its ready data is a
 canonical/provisional entity union. The provider owns the durable optimistic
@@ -2371,16 +2441,17 @@ recovery methods are on
 (and its
 [migration-quarantine boundary](../sync/offline-and-retention.md#migration-boundaries-quarantine-dont-fail)).
 Render a queued-changes badge from it next to
-retained rows — the retained rows themselves stay **pre-intent** (this arm
-runs no local execution, so queued writes are never fabricated into the
-frame; LLP 0090 D3's rendering note). A client without the projection seam
+retained rows. The canonical frame remains labeled retained; generated
+pending operations reproject only when local-read admission proves their
+inputs, and otherwise surface `pending-without-prediction`. A client without the projection seam
 refuses with `SNAPBACK_REACT_OUTBOX_UNSUPPORTED` instead of reporting a
 false empty queue. `observeSnapbackOutbox(provider, listener)` is the
 framework-neutral twin for acceptance adapters.
 
-An optimistic mutation projection still requires a **current authoritative**
-store: installing an optimistic layer over a retained-only frame refuses
-with `SNAPBACK_REACT_OPTIMISTIC_STORE_MISSING`.
+An app-authored compatibility reducer still requires a **current
+authoritative** store: installing it over a retained-only frame refuses with
+`SNAPBACK_REACT_OPTIMISTIC_STORE_MISSING`. Generated IR uses the headless
+read-admission result instead of weakening that compatibility rule.
 
 The retained Signal Desk receipt at
 `demos/signal-desk/acceptance/results/react-presence.v1.json` proves two

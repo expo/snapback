@@ -190,12 +190,35 @@ function publicReference(
     ...(definition?.authoredSourceHash === undefined ? {} : {
       authoredSourceHash: definition.authoredSourceHash,
     }),
+    ...(definition?.mutationIr === undefined ? {} : {
+      mutationIr: structuredClone(definition.mutationIr),
+    }),
+    ...(definition?.composition === undefined ? {} : {
+      composition: deepFreeze(structuredClone(definition.composition)),
+    }),
+    ...(definition?.artifacts === undefined ? {} : {
+      artifacts: deepFreeze(structuredClone(definition.artifacts)),
+    }),
+    ...(definition?.localReadCoverage === undefined ? {} : {
+      localReadCoverage: structuredClone(definition.localReadCoverage),
+    }),
+    ...(definition?.materializationAddress === undefined ? {} : {
+      materializationAddress: structuredClone(definition.materializationAddress),
+    }),
+    ...(definition?.authorityPartitionDigest === undefined ? {} : {
+      authorityPartitionDigest: definition.authorityPartitionDigest,
+    }),
     ...(expectedGeneration === null ? {} : { expectedGeneration }),
   };
   for (const field of Object.keys(reference).filter((field) => (
     field !== 'expectedGeneration'
     && field !== 'argsContract'
     && field !== 'argumentSchema'
+    && field !== 'mutationIr'
+    && field !== 'composition'
+    && field !== 'artifacts'
+    && field !== 'localReadCoverage'
+    && field !== 'materializationAddress'
   ))) {
     if (typeof reference[field] !== 'string' || reference[field].length === 0) {
       throw diagnosticError(
@@ -207,6 +230,8 @@ function publicReference(
   }
   return Object.freeze(reference);
 }
+
+const hydratedDescriptorDefinitions = new WeakMap();
 
 function normalizedManifest(input) {
   // @ref LLP 0179#appbinding-seam — AppDescriptor is now the stable client
@@ -222,13 +247,27 @@ function normalizedManifest(input) {
     const descriptor = deepFreeze(structuredClone(input));
     const identity = descriptor.identity;
     const api = descriptor.api;
-    const definitions = [
-      ...Object.values(api?.queries ?? {}),
-      ...Object.values(api?.mutations ?? {}),
+    // The portable descriptor clone is deliberately getter-free and remains
+    // the receipt/hash authority. Codegen may additionally hydrate its exact
+    // function references with non-enumerable runtime artifacts; structuredClone
+    // omits those properties. Keep the original references as the private
+    // preparation carrier so publicReference can explicitly copy the admitted
+    // artifacts into the stored binding without widening the descriptor hash.
+    const hydratedApi = input.api;
+    const hydratedDefinitions = [
+      ...Object.values(hydratedApi?.queries ?? {}),
+      ...Object.values(hydratedApi?.mutations ?? {}),
       // Command-bound media mutations are intentionally absent from the
       // directly callable mutation namespace, but their exact generated
       // reference still participates in deployment admission.
       // @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit
+      ...Object.values(input.commands ?? {})
+        .filter((command) => command?.kind === 'media-command.v1')
+        .map((command) => command.mutation),
+    ];
+    const definitions = [
+      ...Object.values(api?.queries ?? {}),
+      ...Object.values(api?.mutations ?? {}),
       ...Object.values(descriptor.commands ?? {})
         .filter((command) => command?.kind === 'media-command.v1')
         .map((command) => command.mutation),
@@ -272,7 +311,7 @@ function normalizedManifest(input) {
       ids.add(reference.id);
     }
     const first = definitions[0] ?? null;
-    return Object.freeze({
+    const normalized = Object.freeze({
       descriptorMode: true,
       descriptor,
       functions: Object.freeze({
@@ -287,6 +326,10 @@ function normalizedManifest(input) {
       capabilityManifest: null,
       routes: null,
     });
+    hydratedDescriptorDefinitions.set(normalized, new Map(
+      hydratedDefinitions.map((definition) => [definition.id, definition]),
+    ));
+    return normalized;
   }
   const functions = input?.artifactKind === 'functionManifest'
     ? input
@@ -801,8 +844,10 @@ async function prepareReactBindingOnce(
       })
     : null;
   for (const definition of generated.functions.functions) {
+    const hydratedDefinition = hydratedDescriptorDefinitions.get(generated)?.get(definition.id)
+      ?? definition;
     const reference = publicReference(
-      definition,
+      hydratedDefinition,
       generated.functions.appId,
       referenceSchemaVersion,
       generated.descriptorMode

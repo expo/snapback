@@ -197,6 +197,10 @@ import {
   isConnectivityFailureError,
   OUTBOX_QUARANTINE_TOMBSTONE_FORMAT,
 } from './outbox-shared.mjs';
+import {
+  rewriteOptimisticLayerIdsV1,
+  settlementIdResolution,
+} from './settlement-id-resolution.mjs';
 
 // @ref LLP 0162#acceptance — once an operation identity is below the retained
 // outcome horizon, the client must expose unknown outcome and retain durable
@@ -242,6 +246,32 @@ const isUpgradeRequiredRefusal = (error) => {
 };
 
 const STREAM_RESET_RETRY_DELAY_MS = 250;
+
+const OPTIMISTIC_PROCESS_ORDER_KEY = Symbol.for(
+  'expo.snapback-client.optimistic-process-order.v1',
+);
+const optimisticProcessOrder = (() => {
+  const existing = globalThis[OPTIMISTIC_PROCESS_ORDER_KEY];
+  if (
+    existing !== null
+    && typeof existing === 'object'
+    && typeof existing.epoch === 'string'
+    && Number.isSafeInteger(existing.sequence)
+    && existing.sequence >= 0
+  ) return existing;
+  const created = { epoch: createClientMutationId(), sequence: 0 };
+  try {
+    globalThis[OPTIMISTIC_PROCESS_ORDER_KEY] = created;
+  } catch { /* module-local process epoch fallback */ }
+  return created;
+})();
+const nextOptimisticInvocationSequence = () => {
+  if (optimisticProcessOrder.sequence >= Number.MAX_SAFE_INTEGER) {
+    throw new Error('SNAPBACK_OPTIMISTIC_INVOCATION_SEQUENCE_EXHAUSTED');
+  }
+  optimisticProcessOrder.sequence += 1;
+  return optimisticProcessOrder.sequence;
+};
 
 const OUTBOX_DRAIN_RETRY_BASE_MS = 250;
 const OUTBOX_DRAIN_RETRY_MAX_MS = 30_000;
@@ -2725,6 +2755,37 @@ export class SnapbackClient {
       now: __clientDiagnosticsOptions?.now ?? Date.now,
     });
     this.__optimisticMutationViews = new Set();
+    // Carrier-independent presentation ledger for online generated
+    // mutations. Durable queue-capable calls use the outbox instead; this
+    // process-local fallback lets React/Expo and headless paint the
+    // same generated operation without manufacturing restart durability.
+    // @ref LLP 0270#d3-derive-and-attach-optimistic-presentation-by-default
+    this.__ephemeralOptimisticRecords = new Map();
+    this.__optimisticRecordStore = Object.freeze({
+      outboxRecords: async () => {
+        const durable = this.#offlineQueueStore(false);
+        const durableRecords = durable === null ? [] : await durable.outboxRecords();
+        const durableIds = new Set(durableRecords.map((record) => record?.id));
+        return [
+          ...durableRecords.map((record) => ({
+            ...record,
+            __optimisticSequenceEpoch:
+              record.optimisticProcessEpoch === optimisticProcessOrder.epoch
+              && Number.isSafeInteger(record.optimisticInvocationSequence)
+                ? 'current'
+                : 'prior',
+            __optimisticInvocationSequence: record.optimisticInvocationSequence,
+          })),
+          ...[...this.__ephemeralOptimisticRecords.values()]
+            .filter((record) => !durableIds.has(record.id))
+            .map((record) => ({
+              ...record,
+              __optimisticSequenceEpoch: 'current',
+              __optimisticInvocationSequence: record.optimisticInvocationSequence,
+            })),
+        ].map((record) => structuredClone(record));
+      },
+    });
     // @ref LLP 0219#producers-pilot-scoped-detectors — LLP 0218 §4.4 owns the
     // relinquishment trigger and payload; this channel owns delivery. With no
     // injected observer, the P4 seam's default target is this client's own
@@ -6015,6 +6076,123 @@ export class SnapbackClient {
     });
   }
 
+  // Ordinary query handles own one table-scoped view over the same rebase
+  // engine as the compatibility API above. The merged record seam chooses
+  // durable outbox identity whenever available and the bounded ephemeral
+  // ledger otherwise; callers never author a reducer or materialization id.
+  async __createGeneratedOptimisticMaterializationView({
+    authoritativeRows = {},
+    connected = false,
+    materializationIdentity,
+    table,
+    projectionMode = 'project',
+  } = {}) {
+    if (typeof table !== 'string' || table.length === 0) return null;
+    return this.__storeRuntimeInvoke(
+      'createOptimisticMutationView',
+      this.__optimisticRecordStore,
+      {
+        authoritativeRows,
+        connected,
+        materializationIdentity: materializationIdentity ?? null,
+        targetTables: [table],
+        projectionMode,
+      },
+    );
+  }
+
+  async __optimisticMutationDisposition(clientMutationId) {
+    const ephemeral = this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
+    if (ephemeral !== null) {
+      if (ephemeral.status === 'settled') {
+        return Object.freeze({
+          status: 'settled',
+          settlement: structuredClone(ephemeral.settlement),
+          settledAt: ephemeral.settledAt,
+          record: structuredClone(ephemeral),
+        });
+      }
+      if (ephemeral.status === 'failed') {
+        return Object.freeze({
+          status: 'failed',
+          failure: structuredClone(ephemeral.failure),
+          record: structuredClone(ephemeral),
+        });
+      }
+      return Object.freeze({
+        status: 'pending',
+        blockedReason: null,
+        record: structuredClone(ephemeral),
+      });
+    }
+    const disposition = await this.mutationStatus(clientMutationId);
+    let record = null;
+    try {
+      record = (await this.__optimisticRecordStore.outboxRecords())
+        .find((candidate) => candidate?.id === clientMutationId) ?? null;
+    } catch { /* disposition remains inspectable without the private record */ }
+    return Object.freeze({
+      ...disposition,
+      record: record === null ? null : structuredClone(record),
+    });
+  }
+
+  #installEphemeralOptimisticRecord(record, sequence) {
+    const stored = Object.freeze({
+      ...structuredClone(record),
+      sequence,
+      status: 'pending',
+      enqueuedAt: Date.now(),
+    });
+    this.__ephemeralOptimisticRecords.set(stored.id, stored);
+    while (this.__ephemeralOptimisticRecords.size > 256) {
+      const removable = [...this.__ephemeralOptimisticRecords.values()]
+        .find((entry) => entry.status !== 'pending');
+      if (removable === undefined) break;
+      this.__ephemeralOptimisticRecords.delete(removable.id);
+    }
+    this.#notifyOutboxListeners();
+    return stored;
+  }
+
+  #settleEphemeralOptimisticRecord(clientMutationId, settlement) {
+    const record = this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
+    if (record === null) return false;
+    this.__ephemeralOptimisticRecords.set(clientMutationId, Object.freeze({
+      ...record,
+      status: 'settled',
+      settlement: structuredClone(settlement),
+      settledAt: Date.now(),
+    }));
+    this.#notifyOutboxListeners();
+    return true;
+  }
+
+  #failEphemeralOptimisticRecord(clientMutationId, error) {
+    const record = this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
+    if (record === null) return false;
+    this.__ephemeralOptimisticRecords.set(clientMutationId, Object.freeze({
+      ...record,
+      status: 'failed',
+      failure: {
+        code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_MUTATION_REFUSED',
+        message: error?.message ?? String(error),
+      },
+    }));
+    this.#notifyOutboxListeners();
+    return true;
+  }
+
+  #optimisticPresentationDisposition(clientMutationId) {
+    for (const { engine } of this.__optimisticMutationViews) {
+      const snapshot = engine.getSnapshot();
+      if (snapshot.layers.some((entry) => entry.clientMutationId === clientMutationId)) {
+        return 'installed';
+      }
+    }
+    return 'withheld';
+  }
+
   async #refreshOptimisticMutationViews(cause) {
     await Promise.all([...this.__optimisticMutationViews].map(({ engine }) => (
       engine.refresh({ cause })
@@ -6697,6 +6875,7 @@ export class SnapbackClient {
         try { entry.engine.close(); } catch (error) { firstError ??= error; }
         this.__optimisticMutationViews.delete(entry);
       }
+      this.__ephemeralOptimisticRecords.clear();
       for (const controller of this.__authControllers) {
         try { controller.abort(); } catch (error) { firstError ??= error; }
       }
@@ -7899,6 +8078,23 @@ export class SnapbackClient {
     if (typeof clientMutationId !== 'string' || clientMutationId.length === 0) {
       throw new TypeError('mutationStatus requires a client mutation id');
     }
+    const ephemeral = this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
+    if (ephemeral !== null) {
+      if (ephemeral.status === 'settled') {
+        return freezeDeep({
+          status: 'settled',
+          settlement: structuredClone(ephemeral.settlement),
+          settledAt: ephemeral.settledAt,
+        });
+      }
+      if (ephemeral.status === 'failed') {
+        return freezeDeep({
+          status: 'failed',
+          failure: structuredClone(ephemeral.failure),
+        });
+      }
+      return Object.freeze({ status: 'pending', blockedReason: null });
+    }
     let store = null;
     try { store = this.#offlineQueueStore(); } catch { store = null; }
     if (!store || typeof store.outboxRecords !== 'function') {
@@ -8474,13 +8670,16 @@ export class SnapbackClient {
         sequence: stored.sequence,
         ...queuedDiagnostic,
       });
+      if (stored.optimisticOperation != null) {
+        await this.#refreshOptimisticMutationViews('generated-ir-queued');
+      }
       // @ref LLP 0218#41-the-dispatch-union-headless-contract — connectivity
       //   relinquishment, not durable insertion, is the queued dispatch cut.
       return {
         status: 'queued',
         clientMutationId: stored.id,
         sequence: stored.sequence,
-        presentation: 'withheld',
+        presentation: this.#optimisticPresentationDisposition(stored.id),
       };
     } catch (error) {
       this.#recordOutboxDiagnostic({
@@ -10046,6 +10245,9 @@ export class SnapbackClient {
     authorityDescriptor = null,
     authorityCapture = null,
     mediaCommand = null,
+    // Internal facade seam: an explicit app-authored React reducer owns the
+    // presentation for that call. Ordinary callers never set this.
+    __generatedOptimistic = true,
     // LLP 0129 Phase 0 (LLP 0043 M2): 'auto' queues this intent durably
     // when delivery fails at the transport (connectivity) and the client
     // carries an outbox-capable store; `false` restores fail-loud delivery.
@@ -10058,6 +10260,16 @@ export class SnapbackClient {
       diagnosticsChannel: this.__clientDiagnosticsChannel,
     });
     const name = functionName(ref);
+    const generatedReference = ref?.mutationIr?.format === 'snapback.generated-mutation-ir.v1';
+    const generatedPresentationEnabled = generatedReference && __generatedOptimistic === true;
+    if (typeof __generatedOptimistic !== 'boolean') {
+      throw new TypeError('__generatedOptimistic must be boolean');
+    }
+    let optimisticInvocationSequence = null;
+    if (generatedPresentationEnabled) {
+      clientMutationId ??= createClientMutationId();
+      optimisticInvocationSequence = nextOptimisticInvocationSequence();
+    }
     args = argumentsAlreadyNormalized ? args : validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
     const authAdmissionError = authenticatedOneShotAdmissionError(ref, this, 'mutation');
@@ -10088,14 +10300,14 @@ export class SnapbackClient {
     }
     let generatedMutation = null;
     let generatedComposedStore = null;
-    if (ref?.mutationIr?.format === 'snapback.generated-mutation-ir.v1') {
+    if (generatedReference) {
       generatedComposedStore = queue === true
         ? this.#offlineQueueStore(true)
         : queue === 'auto' ? this.#offlineQueueStore(false) : null;
       const prepared = await this.__storeRuntimeInvoke('prepareGeneratedMutation', {
         ref, args, userId, clientMutationId, optimisticOperation, ctxLedger,
         settlementLane, settlementIdentity, settlementClaims, boundedSkew,
-        composeLocalExecution: generatedComposedStore !== null,
+        composeLocalExecution: generatedPresentationEnabled,
       });
       ({
         generatedMutation,
@@ -10276,6 +10488,11 @@ export class SnapbackClient {
       operationIssuance,
       operationCoverageDisposition,
       optimisticOperation,
+      generatedMutationTables: generatedReference
+        ? generatedMutationWriteTables(ref.mutationIr?.plan)
+        : null,
+      optimisticProcessEpoch: optimisticProcessOrder.epoch,
+      optimisticInvocationSequence,
       capturedNow: Date.now(),
       ...(queueAuthority === null ? {} : {
         principalScope: queueAuthority.principalScope,
@@ -10370,11 +10587,14 @@ export class SnapbackClient {
                 });
                 // @ref LLP 0218#41-the-dispatch-union-headless-contract — an
                 //   uncovered range relinquishes foreground dispatch as queued.
+                if (generatedPresentationEnabled) {
+                  await this.#refreshOptimisticMutationViews('generated-ir-queued');
+                }
                 return {
                   status: 'queued',
                   clientMutationId: stored.id,
                   sequence: stored.sequence,
-                  presentation: 'withheld',
+                  presentation: this.#optimisticPresentationDisposition(stored.id),
                   operationCoverageDisposition: 'uncovered-range-exhausted',
                 };
               }
@@ -10414,31 +10634,37 @@ export class SnapbackClient {
         }
         durableOnlineRecord = true;
         this.#notifyOutboxListeners();
-        if (optimisticOperation !== null) {
+        if (generatedPresentationEnabled) {
           await this.#refreshOptimisticMutationViews('generated-ir-enqueued');
         }
       } catch (error) {
         const code = error?.diagnostic?.code ?? error?.code;
         if (
-          generatedMutation === null
+          !generatedPresentationEnabled
           || queue !== 'auto'
           || code !== 'SNAPBACK_OUTBOX_NOT_WRITER'
         ) throw error;
-        // @ref LLP 0155#local-read-admission — server-only is a valid
-        //   degradation: a client without durable outbox custody dispatches
-        //   the generated plan server-delegated instead of refusing.
-        generatedMutation = null;
-        optimisticOperation = null;
-        durableMutationRecord = null;
+        // @ref LLP 0270#d3-derive-and-attach-optimistic-presentation-by-default
+        // A non-writer cannot claim durable replay, but it can retain the
+        // generated operation in the process-local ledger for this
+        // online attempt. Connectivity failure still rejects because no
+        // durable queue accepted custody.
         queueStore = null;
-        delete body.settlementLane;
-        delete body.settlementIdentity;
-        delete body.settlementClaims;
-        delete body.boundedSkew;
-        delete body.ctx_ledger;
-        delete body.operationIssuance;
       }
       }
+    let ephemeralOptimisticRecord = false;
+    if (
+      generatedPresentationEnabled
+      && !durableOnlineRecord
+      && durableMutationRecord !== null
+    ) {
+      this.#installEphemeralOptimisticRecord(
+        durableMutationRecord,
+        optimisticInvocationSequence,
+      );
+      ephemeralOptimisticRecord = true;
+      await this.#refreshOptimisticMutationViews('generated-ir-ephemeral-admitted');
+    }
     let reservationRetryAuthorityCapture = queueAuthority?.capture ?? authorityCapture;
     let reservationRetryExternalBearer = null;
     let reservationRetryExternalTransportGeneration = null;
@@ -10510,9 +10736,13 @@ export class SnapbackClient {
             throw error;
           }
           this.#notifyOutboxListeners();
-          if (optimisticOperation !== null) {
+          if (generatedPresentationEnabled) {
             await this.#refreshOptimisticMutationViews('settlement-confirmed-bridge');
           }
+        }
+        if (ephemeralOptimisticRecord) {
+          this.#settleEphemeralOptimisticRecord(clientMutationId, json);
+          await this.#refreshOptimisticMutationViews('settlement-confirmed-bridge');
         }
         // The response proves the origin ran its piggyback ACK stage.
         await confirmSentAcknowledgements();
@@ -10527,7 +10757,11 @@ export class SnapbackClient {
         // @ref LLP 0218#41-the-dispatch-union-headless-contract — foreground
         //   settlement stays settled even though durable custody was committed first.
         return generatedMutation === null
-          ? { ...json, status: 'settled' }
+          ? {
+            ...json,
+            status: 'settled',
+            ...(generatedPresentationEnabled ? { clientMutationId } : {}),
+          }
           : {
             ...json,
             status: 'settled',
@@ -10706,7 +10940,11 @@ export class SnapbackClient {
               }
             }
           }
-          if (generatedMutation !== null) error.clientMutationId = clientMutationId;
+          if (ephemeralOptimisticRecord) {
+            this.#failEphemeralOptimisticRecord(clientMutationId, error);
+            await this.#refreshOptimisticMutationViews('settlement-refused');
+          }
+          if (generatedPresentationEnabled) error.clientMutationId = clientMutationId;
           throw error;
         }
         if (this.authorityFence) {
@@ -12159,13 +12397,49 @@ export class SnapbackClient {
     let knownRetiredSubscriptionId = null;
     let disposalTask = null;
     let unregisterOutboxBarrierProvider = () => {};
+    let authoritativeRows = [];
+    let presentedRows = [];
+    let optimisticPresentationSnapshot = null;
+    let authoritativeAnswerClass = 'unknown';
 
     const handle = {
       get subscriptionId() {
         return currentSubscriptionId;
       },
       version: 0,
-      rows: [],
+      get rows() {
+        return presentedRows;
+      },
+      set rows(rows) {
+        authoritativeRows = Array.isArray(rows) ? rows : [];
+        presentedRows = authoritativeRows;
+      },
+      get authoritativeRows() {
+        return authoritativeRows;
+      },
+      get optimisticPresentation() {
+        if (optimisticPresentationSnapshot === null) {
+          return Object.freeze({
+            status: 'none',
+            materializationIdentity: null,
+            revision: 0,
+            layers: Object.freeze([]),
+            queuedOnly: Object.freeze([]),
+          });
+        }
+        const layers = optimisticPresentationSnapshot.layers;
+        const queuedOnly = optimisticPresentationSnapshot.queuedOnly;
+        return Object.freeze({
+          status: layers.length > 0
+            ? 'predicted'
+            : queuedOnly.length > 0 ? 'pending-without-prediction' : 'none',
+          materializationIdentity:
+            automaticOptimisticView?.materializationIdentity ?? null,
+          revision: optimisticPresentationSnapshot.revision,
+          layers,
+          queuedOnly,
+        });
+      },
       // Latest RQS resume object ({ token, meta }) for this subscription.
       // Adopted from subscribe outputs and refreshed envelopes per the LLP
       // 0091 §0B.3 transition table; cleared on digest mismatch. (Named
@@ -12180,7 +12454,20 @@ export class SnapbackClient {
       freshness: null,
       // @ref LLP 0166#d4--completeness-honest-local-answers — legacy resume remains
       // labeled-retained until an authoritative wire answer arrives.
-      answerClass: 'unknown',
+      get answerClass() {
+        const status = this.optimisticPresentation.status;
+        return status === 'predicted'
+          ? 'optimistic'
+          : status === 'pending-without-prediction'
+            ? 'pending-without-prediction'
+            : authoritativeAnswerClass;
+      },
+      set answerClass(value) {
+        authoritativeAnswerClass = value;
+      },
+      get authoritativeAnswerClass() {
+        return authoritativeAnswerClass;
+      },
       // Retainability fact (LLP 0129 Phase 0 / LLP 0053's retainability
       // invariant): null until the first subscribe response classifies this
       // subscription; then a frozen {retainable, code, reason, store}
@@ -12216,6 +12503,277 @@ export class SnapbackClient {
       },
     };
 
+    const applicationOnUpdate = onUpdate;
+    const optimisticCoverage = preparedMaterialization?.bridge?.localReadCoverage
+      ?? ref?.localReadCoverage
+      ?? null;
+    // The rebase engine folds table writes, so a query result is a compatible
+    // materialization only when owner IR proves it is the complete table. A
+    // filtered/limited result needs the later query-projection evaluator;
+    // treating a generated insert as a member here would fabricate a row.
+    // @ref LLP 0270#d3-derive-and-attach-optimistic-presentation-by-default
+    //   — attach generated effects only to compatible local materializations.
+    const optimisticTable = typeof optimisticCoverage?.table === 'string'
+      && optimisticCoverage.table.length > 0
+      ? optimisticCoverage.table
+      : generatedQueryProjectionTable(ref);
+    const optimisticProjectionMode = optimisticCoverage?.absence === 'table-complete'
+      ? 'project'
+      : 'pending-only';
+    const optimisticMaterializationIdentity = preparedMaterialization === null
+      || optimisticTable === null
+      ? null
+      : Object.freeze({
+          address: Object.freeze([...preparedMaterialization.bridge.address]),
+          materializationKey: preparedMaterialization.bridge.address[2],
+          planHash: preparedMaterialization.bridge.identities.planHash,
+          resultContractHash: preparedMaterialization.bridge.resultContractHash,
+          authorityPartitionDigest: preparedMaterialization.bridge.authorityPartitionDigest,
+          queryInstanceId: preparedMaterialization.record.queryInstanceId,
+        });
+    let automaticOptimisticView = null;
+    let automaticOptimisticViewOpening = null;
+    let automaticOptimisticViewUnsubscribe = null;
+    let automaticOptimisticViewGeneration = 0;
+    let optimisticPresentationTail = Promise.resolve();
+    let suppressOptimisticViewNotification = false;
+    let authoritativeDeliveryRevision = 0;
+    const bridgingFirstSeenAtRevision = new Map();
+    // ACK GC may remove the durable settlement before this query observes the
+    // canonical write. Retain only this handle's already-admitted matcher
+    // evidence so the private bridge remains both visible and retireable.
+    const bridgingSettlementEvidence = new Map();
+    let lastAuthoritativeDetail = null;
+
+    const closeAutomaticOptimisticView = () => {
+      automaticOptimisticViewGeneration += 1;
+      automaticOptimisticViewUnsubscribe?.();
+      automaticOptimisticViewUnsubscribe = null;
+      automaticOptimisticView?.close();
+      automaticOptimisticView = null;
+      automaticOptimisticViewOpening = null;
+      optimisticPresentationSnapshot = null;
+      bridgingFirstSeenAtRevision.clear();
+      bridgingSettlementEvidence.clear();
+    };
+
+    const publishOptimisticPresentation = (detail) => {
+      const snapshot = automaticOptimisticView?.getSnapshot() ?? null;
+      optimisticPresentationSnapshot = snapshot;
+      presentedRows = optimisticTable === null || optimisticProjectionMode === 'pending-only'
+        ? authoritativeRows
+        : snapshot?.visibleRows?.[optimisticTable] ?? authoritativeRows;
+      if (typeof applicationOnUpdate !== 'function') return;
+      const nextDetail = {
+        ...(detail ?? {}),
+        freshness: detail?.freshness ?? handle.freshness,
+        answerClass: handle.answerClass,
+        authoritativeRows,
+        optimisticPresentation: handle.optimisticPresentation,
+      };
+      deliverIsolated(applicationOnUpdate, presentedRows, nextDetail);
+    };
+
+    const settlementWriteReflection = (layer, record, settlement) => {
+      if (record === null || record === undefined) return null;
+      const { replacements, unresolved } = settlementIdResolution(record, settlement);
+      const claimed = (record.settlementClaims?.mints ?? [])
+        .map((mint) => mint?.claimed)
+        .filter((id) => typeof id === 'string');
+      if (unresolved.size > 0 || replacements.size !== new Set(claimed).size) return null;
+      const remap = (id) => replacements.get(id) ?? id;
+      const same = (left, right) => stableJson(left) === stableJson(right);
+      const remappedLayer = rewriteOptimisticLayerIdsV1(layer?.layer, {
+        operation: record.optimisticOperation,
+        argsContract: record.argsContract,
+        replacements,
+      });
+      const allWrites = remappedLayer?.writes ?? [];
+      if (!Array.isArray(allWrites) || allWrites.length === 0) return null;
+      // This handle can prove reflection only for its observed table. Writes to
+      // other tables are covered by the successful settlement plus the full
+      // logical-mint map above; requiring their rows here makes every valid
+      // multi-table plan immortal on a single-table materialization.
+      const writes = allWrites.filter((write) => write?.table === optimisticTable);
+      if (writes.length === 0) return null;
+      const effects = new Map();
+      for (const write of writes) {
+        if (typeof write.id !== 'string') return null;
+        const authoritativeId = remap(write.id);
+        if (write.operation === 'delete') {
+          effects.set(authoritativeId, null);
+          continue;
+        }
+        const values = write.operation === 'insert' ? write.row : write.values;
+        if (values === null || typeof values !== 'object' || Array.isArray(values)) return null;
+        const prior = effects.get(authoritativeId);
+        effects.set(authoritativeId, {
+          ...(prior && typeof prior === 'object' ? prior : {}),
+          ...values,
+          _id: authoritativeId,
+        });
+      }
+      const reflected = [...effects].every(([authoritativeId, expected]) => {
+        const row = authoritativeRows.find((candidate) => candidate?._id === authoritativeId);
+        if (expected === null) return row === undefined;
+        if (row === undefined) return false;
+        return Object.entries(expected).every(([field, value]) => (
+          Object.hasOwn(row, field) && same(row[field], value)
+        ));
+      });
+      return reflected ? replacements : null;
+    };
+
+    const settlementRetirements = async (snapshot, { authoritativeDelivery }) => {
+      const retired = [];
+      const idReplacements = new Map();
+      for (const layer of snapshot?.layers ?? []) {
+        if (layer.layerStatus !== 'bridging') continue;
+        const identity = layer.clientMutationId;
+        const disposition = await client.__optimisticMutationDisposition(identity);
+        if (disposition.status === 'settled') {
+          bridgingSettlementEvidence.set(identity, Object.freeze({
+            record: disposition.record,
+            settlement: disposition.settlement,
+          }));
+        }
+        const evidence = bridgingSettlementEvidence.get(identity) ?? null;
+        if (evidence === null) continue;
+        const firstSeen = bridgingFirstSeenAtRevision.get(identity);
+        if (firstSeen === undefined) {
+          bridgingFirstSeenAtRevision.set(identity, authoritativeDeliveryRevision);
+        }
+        if (!authoritativeDelivery) continue;
+        const settlement = evidence.settlement ?? {};
+        const settlementVersion = Number.isSafeInteger(settlement.version)
+          ? settlement.version
+          : Number.isSafeInteger(settlement.receipt?.snapshotVersion)
+            ? settlement.receipt.snapshotVersion
+            : null;
+        const deliveryEligible = settlementVersion !== null
+          ? handle.version >= settlementVersion
+          : firstSeen !== undefined && authoritativeDeliveryRevision > firstSeen;
+        const replacements = deliveryEligible
+          ? settlementWriteReflection(layer, evidence.record, settlement)
+          : null;
+        if (replacements !== null) {
+          retired.push(identity);
+          for (const [speculative, authoritative] of replacements) {
+            idReplacements.set(speculative, authoritative);
+          }
+        }
+      }
+      return { retired, idReplacements: Object.fromEntries(idReplacements) };
+    };
+
+    const reconcileAutomaticOptimisticView = async (cause, detail, {
+      authoritativeDelivery = false,
+    } = {}) => {
+      const view = automaticOptimisticView;
+      if (view === null || disposed) {
+        presentedRows = authoritativeRows;
+        publishOptimisticPresentation(detail);
+        return;
+      }
+      if (authoritativeDelivery) authoritativeDeliveryRevision += 1;
+      const snapshot = view.getSnapshot();
+      const retirements = await settlementRetirements(snapshot, {
+        authoritativeDelivery,
+      });
+      suppressOptimisticViewNotification = true;
+      try {
+        await view.rebase({
+          authoritativeRows: { [optimisticTable]: authoritativeRows },
+          retiredSettlementIdentities: retirements.retired,
+          settlementIdReplacements: retirements.idReplacements,
+          connected: connection === 'live' || connection === 'polling',
+          cause,
+        });
+      } finally {
+        suppressOptimisticViewNotification = false;
+      }
+      for (const identity of retirements.retired) {
+        bridgingFirstSeenAtRevision.delete(identity);
+        bridgingSettlementEvidence.delete(identity);
+      }
+      publishOptimisticPresentation(detail);
+    };
+
+    const ensureAutomaticOptimisticView = async () => {
+      if (automaticOptimisticView !== null) return automaticOptimisticView;
+      if (automaticOptimisticViewOpening !== null) return automaticOptimisticViewOpening;
+      if (optimisticTable === null || disposed) return null;
+      const openingGeneration = automaticOptimisticViewGeneration;
+      const opening = client
+        .__createGeneratedOptimisticMaterializationView({
+          authoritativeRows: { [optimisticTable]: authoritativeRows },
+          connected: connection === 'live' || connection === 'polling',
+          materializationIdentity: optimisticMaterializationIdentity,
+          table: optimisticTable,
+          projectionMode: optimisticProjectionMode,
+        })
+        .then((view) => {
+          if (disposed || automaticOptimisticViewGeneration !== openingGeneration) {
+            view?.close();
+            return null;
+          }
+          automaticOptimisticView = view;
+          if (view !== null) {
+            automaticOptimisticViewUnsubscribe = view.subscribe(() => {
+              if (suppressOptimisticViewNotification || disposed) return;
+              optimisticPresentationTail = optimisticPresentationTail
+                .then(() => reconcileAutomaticOptimisticView(
+                  'generated-ir-presentation-transition',
+                  {
+                    ...(lastAuthoritativeDetail ?? {}),
+                    kind: 'optimistic_projection',
+                  },
+                ))
+                .catch(() => {});
+            });
+          }
+          return view;
+        })
+        .finally(() => {
+          if (automaticOptimisticViewOpening === opening) {
+            automaticOptimisticViewOpening = null;
+          }
+        });
+      automaticOptimisticViewOpening = opening;
+      return automaticOptimisticViewOpening;
+    };
+
+    onUpdate = (rows, detail = {}) => {
+      authoritativeRows = Array.isArray(rows) ? rows : [];
+      // Preserve the synchronous liveQuery handle contract: canonical
+      // delivery is readable immediately, while the serialized projection
+      // pass may replace it with rebased rows before notifying the adapter.
+      presentedRows = authoritativeRows;
+      lastAuthoritativeDetail = detail;
+      if (
+        detail?.kind === 'authorization_delete'
+        || detail?.kind === 'authorization_denied'
+        || detail?.kind === 'authorization_quarantine'
+        || detail?.kind === 'authorization_error'
+      ) {
+        closeAutomaticOptimisticView();
+        presentedRows = authoritativeRows;
+        publishOptimisticPresentation(detail);
+        return;
+      }
+      optimisticPresentationTail = optimisticPresentationTail.then(async () => {
+        await ensureAutomaticOptimisticView();
+        await reconcileAutomaticOptimisticView(
+          'authoritative-delivery',
+          detail,
+          { authoritativeDelivery: detail?.freshness !== 'retained' },
+        );
+      }).catch(() => {
+        presentedRows = authoritativeRows;
+        publishOptimisticPresentation(detail);
+      });
+    };
+
     // Move-3 admission reads the active registration's exact current row set,
     // never an unproved rewrite of the durable materialization. The ledger
     // owns the volatile sidecar so release/authority/transport transitions
@@ -12231,7 +12789,7 @@ export class SnapbackClient {
         && !authorizationFaulted
         && !needsResubscribe
         && handle.authorizationDisposition === 'retain'
-        && handle.answerClass === 'authoritative'
+        && authoritativeAnswerClass === 'authoritative'
         && handle.freshness === 'current'
         && currentSubscriptionId !== null
         && (connection === 'live' || connection === 'polling');
@@ -12241,7 +12799,7 @@ export class SnapbackClient {
       }
       try {
         activeRegistration.publishLiveAnswer({
-          rows: handle.rows,
+          rows: authoritativeRows,
           version: handle.version,
           subscriptionId: currentSubscriptionId,
         });
@@ -12356,10 +12914,10 @@ export class SnapbackClient {
         // row set simply refuses to persist).
         if (!held || authorizationFence || authorizationFaulted) return;
         if (handle.freshness !== 'current') return;
-        if (!rowsMatchDigest(handle.rows, held.meta?.contentDigest)) return;
+        if (!rowsMatchDigest(authoritativeRows, held.meta?.contentDigest)) return;
         try {
           await resumeStore.commit(resumeStoreKey, {
-            rows: handle.rows,
+            rows: authoritativeRows,
             meta: held.meta,
             token: held.token,
           });
@@ -12415,13 +12973,12 @@ export class SnapbackClient {
     const seedFromResumeState = async () => {
       let persisted = null;
       // LLP 0090 D3 outbox rule (LLP 0043 milestone boundary), rendering-side
-      // presentation per the D3 dated note (2026-08-01): a relaunching client
-      // with a non-empty mutation outbox never holds or sends a resume token
-      // — reconnect takes the full-resync-then-ordered-replay path — but the
-      // verified retained rows still RENDER, marked 'retained' with the
-      // explicit pending-intent fact below. The rows are pre-intent: no
-      // optimistic overlay of queued writes is derived (no local execution),
-      // and retained display stays under 0043's never-current rule.
+      // presentation per LLP 0270 D3: a relaunching client with a non-empty
+      // mutation outbox never holds or sends a resume token — reconnect takes
+      // the full-resync-then-ordered-replay path — but verified retained rows
+      // still render as the canonical base. Generated operations are replayed
+      // as private presentation only after read admission; neither the layer
+      // nor the retained base is promoted to current authority.
       let pendingIntentsAtSeed = 0;
       if (resumeStore && resumeStoreKey) {
         let entry = null;
@@ -12470,7 +13027,8 @@ export class SnapbackClient {
         winner = persisted ?? preloaded;
       }
       if (!winner || disposed) return;
-      handle.rows = winner.rows;
+      authoritativeRows = winner.rows;
+      presentedRows = authoritativeRows;
       handle.version = winner.resume.meta.version;
       // D3: a non-empty outbox never resumes. With pending intent the handle
       // withholds the token entirely (the fresh subscribe takes the full
@@ -12488,7 +13046,7 @@ export class SnapbackClient {
       seededFromResumeState = winner === persisted;
       seedFrameDelivered = true;
       deliverAuthorityObservation(() => {
-        onUpdate?.(handle.rows, {
+        onUpdate?.(authoritativeRows, {
           version: handle.version,
           kind: 'persisted',
           freshness: 'retained',
@@ -12541,7 +13099,7 @@ export class SnapbackClient {
         queryNamespace,
         resumeStoreKey,
         legacyAdoptionCandidate,
-        handleRows: handle.rows,
+        handleRows: authoritativeRows,
         authorityCapture: sub[AUTHORITY_CAPTURE] ?? null,
       });
       if (result?.adoptedLegacy === true) legacyAdoptionCandidate = null;
@@ -12585,12 +13143,13 @@ export class SnapbackClient {
     });
 
     const commitAuthorizationBoundary = (event) => {
-      const previousRows = handle.rows;
+      const previousRows = authoritativeRows;
       const previousVersion = handle.version;
       const previousDisposition = handle.authorizationDisposition;
       try {
         if (event.kind === 'snapshot') {
-          handle.rows = event.rows;
+          authoritativeRows = event.rows;
+          presentedRows = authoritativeRows;
           handle.version = event.version;
           handle.authorizationDisposition = 'retain';
           // An authorization-fenced snapshot is authoritative whether or not
@@ -12599,7 +13158,8 @@ export class SnapbackClient {
           handle.answerClass = 'authoritative';
           handle.freshness = 'current';
         } else if (event.kind === 'quarantine' || event.kind === 'delete') {
-          handle.rows = [];
+          authoritativeRows = [];
+          presentedRows = authoritativeRows;
           handle.authorizationDisposition = event.kind;
           handle.answerClass = 'unknown';
           handle.freshness = null;
@@ -12608,20 +13168,21 @@ export class SnapbackClient {
         } else {
           throw new TypeError(`unknown query authorization boundary kind: ${event.kind}`);
         }
-        markAuthorityCapture(handle.rows, handleAuthorityCapture);
+        markAuthorityCapture(authoritativeRows, handleAuthorityCapture);
         const detail = {
           version: handle.version,
           kind: `authorization_${event.kind}`,
           authorization: event,
         };
-        const boundaryResult = onAuthorizationBoundary?.(handle.rows, detail);
+        const boundaryResult = onAuthorizationBoundary?.(authoritativeRows, detail);
         if (boundaryResult && typeof boundaryResult.then === 'function') {
           throw new TypeError('onAuthorizationBoundary must commit synchronously');
         }
-        if (event.kind !== 'retain') deliverIsolated(onUpdate, handle.rows, detail);
+        if (event.kind !== 'retain') deliverIsolated(onUpdate, authoritativeRows, detail);
         syncLiveRegistrationAnswer();
       } catch (error) {
-        handle.rows = previousRows;
+        authoritativeRows = previousRows;
+        presentedRows = authoritativeRows;
         handle.version = previousVersion;
         handle.authorizationDisposition = previousDisposition;
         throw error;
@@ -12630,24 +13191,25 @@ export class SnapbackClient {
 
     const reportAuthorizationError = (error) => {
       authorizationFaulted = true;
-      handle.rows = [];
+      authoritativeRows = [];
+      presentedRows = authoritativeRows;
       handle.authorizationDisposition = 'quarantine';
       if (preparedMaterialization) {
         handle.answerClass = 'unknown';
         handle.freshness = null;
       }
-      markAuthorityCapture(handle.rows, handleAuthorityCapture);
+      markAuthorityCapture(authoritativeRows, handleAuthorityCapture);
       const detail = {
         version: handle.version,
         kind: 'authorization_error',
         error,
       };
       try {
-        onAuthorizationBoundary?.(handle.rows, detail);
+        onAuthorizationBoundary?.(authoritativeRows, detail);
       } catch {
         // The handle itself remains blank even if an adapter boundary failed.
       }
-      deliverIsolated(onUpdate, handle.rows, detail);
+      deliverIsolated(onUpdate, authoritativeRows, detail);
       deliverIsolated(onAuthorizationError, error);
       if (!disposed && !paused) setConnection('stale');
     };
@@ -12671,7 +13233,7 @@ export class SnapbackClient {
         authorization: { kind: 'denied', code },
         error,
       };
-      deliverIsolated(onUpdate, handle.rows, detail);
+      deliverIsolated(onUpdate, authoritativeRows, detail);
       emitEvent('authorization-denied', { code });
     };
 
@@ -13286,7 +13848,7 @@ export class SnapbackClient {
           authorizationFence.isRenderable()
           && (
             handle.version !== sub.snapshot.version
-            || JSON.stringify(handle.rows) !== JSON.stringify(sub.snapshot.rows)
+            || JSON.stringify(authoritativeRows) !== JSON.stringify(sub.snapshot.rows)
           )
         ) {
           authorizationFence.applyLiveSnapshot({
@@ -13588,7 +14150,8 @@ export class SnapbackClient {
             reportAuthorizationError(error);
           }
         } else {
-          handle.rows = update.rows;
+          authoritativeRows = update.rows;
+          presentedRows = authoritativeRows;
           handle.version = update.version;
           // T6 (LLP 0091 §0B.3): adopt the refreshed token with the
           // replacement rows it was minted from. A replacement is always
@@ -13602,7 +14165,7 @@ export class SnapbackClient {
           syncLiveRegistrationAnswer();
           schedulePersist();
           deliverAuthorityObservation(() => {
-            onUpdate?.(handle.rows, {
+            onUpdate?.(authoritativeRows, {
               version: handle.version,
               kind: LIVE_DURABLE_KINDS.LIVE_REPLACE,
             });
@@ -13640,7 +14203,7 @@ export class SnapbackClient {
         }
         schedulePersist();
         deliverAuthorityObservation(() => {
-          onUpdate?.(handle.rows, {
+          onUpdate?.(authoritativeRows, {
             version: handle.version,
             kind: LIVE_DURABLE_KINDS.CURRENT_AS_OF,
           });
@@ -13662,7 +14225,7 @@ export class SnapbackClient {
         }
         if (!durableVersionAdvances(handle.version, update.version)) return;
         if (authorizationFaulted) return;
-        const nextRows = applyLiveDeltaById(handle.rows, update.ops);
+        const nextRows = applyLiveDeltaById(authoritativeRows, update.ops);
         if (authorizationFence) {
           try {
             authorizationFence.applyLiveSnapshot({
@@ -13680,7 +14243,8 @@ export class SnapbackClient {
           // verifier refuses the entry instead of resuming from a base the
           // server no longer recognizes.
           void chainStoreWrite(() => resumeStore.markInProgress(resumeStoreKey));
-          handle.rows = nextRows;
+          authoritativeRows = nextRows;
+          presentedRows = authoritativeRows;
           handle.version = update.version;
           // T7/T8 (LLP 0091 §0B.3): verify the post-apply digest against the
           // refreshed token's meta before adopting it. For a rung-2 replay
@@ -13691,7 +14255,7 @@ export class SnapbackClient {
           // client-side rung 3 (fresh subscribe).
           if (update.resume) {
             const digest = update.resume.meta?.contentDigest;
-            if (digest && rowsMatchDigest(handle.rows, digest)) {
+            if (digest && rowsMatchDigest(authoritativeRows, digest)) {
               if (!legacySingleTableAdoption) {
                 handle.rqsResume = update.resume;
                 repairRqsRetentionFromDurable();
@@ -13717,7 +14281,7 @@ export class SnapbackClient {
           syncLiveRegistrationAnswer();
           schedulePersist();
           deliverAuthorityObservation(() => {
-            onUpdate?.(handle.rows, {
+            onUpdate?.(authoritativeRows, {
               version: handle.version,
               kind: LIVE_DURABLE_KINDS.LIVE_DELTA,
             });
@@ -13813,7 +14377,7 @@ export class SnapbackClient {
           // exits and replay deltas. A non-witnessable result (seq1, over
           // cap, digest drift) still resumes — rung 1 and rung 3 remain.
           const membershipWitness = heldResume && legacyAdoptionCandidate === null
-            ? membershipWitnessOfRows(handle.rows, heldResume.meta?.contentDigest)
+            ? membershipWitnessOfRows(authoritativeRows, heldResume.meta?.contentDigest)
             : null;
           const subscribeOptions = {
             connectionId,
@@ -13935,7 +14499,8 @@ export class SnapbackClient {
           if (!sub.authorizationScope) {
             if (sub.snapshot) {
               handle.version = sub.snapshot.version;
-              handle.rows = materializedSnapshot?.rows ?? sub.snapshot.rows;
+              authoritativeRows = materializedSnapshot?.rows ?? sub.snapshot.rows;
+              presentedRows = authoritativeRows;
               // A fresh LiveReplace answer (rung 3 or a plain subscribe) is
               // authoritative (LLP 0090 D1 freshness rule).
               handle.freshness = 'current';
@@ -13944,7 +14509,8 @@ export class SnapbackClient {
               // The ordinary proof already established the exact held rows
               // under the QMK identity. After the one-transaction switch the
               // legacy token is discarded; v1 QMK re-entry is fresh.
-              handle.rows = materializedSnapshot.rows;
+              authoritativeRows = materializedSnapshot.rows;
+              presentedRows = authoritativeRows;
               handle.version = sub.completenessProof.version.commit;
               handle.rqsResume = null;
               handle.freshness = 'current';
@@ -13957,7 +14523,7 @@ export class SnapbackClient {
               pendingResumeConfirmation = seededFromResumeState;
             }
             if (sub.resume && !legacySingleTableAdoption) handle.rqsResume = sub.resume;
-            markAuthorityCapture(handle.rows, handleAuthorityCapture);
+            markAuthorityCapture(authoritativeRows, handleAuthorityCapture);
           }
           return true;
         });
@@ -14092,15 +14658,20 @@ export class SnapbackClient {
       // full-resync barrier — schedule the single-flight outbox drain
       // (LLP 0008 §Mutation Replay: resync first, then ordered replay).
       if (sub.snapshot) client.#scheduleOutboxReplay();
-      // A retained seed frame already reached onUpdate before this
-      // establishment: re-deliver the authoritative rows the same way the
-      // resubscribe path does, so frame-driven consumers observe the
-      // retained -> current transition (identical bytes still change
-      // freshness). Auth-scoped delivery stays with the fence machinery.
-      if (seedFrameDelivered && sub.snapshot && !sub.authorizationScope && !disposed) {
+      // Every fresh snapshot is a new canonical base, including pause/resume
+      // and reconnect. Re-deliver it through the wrapped update owner so
+      // generated layers replay after every subscribeFresh transition rather
+      // than only during first establishment or retained-seed replacement.
+      // Auth-scoped delivery stays with the fence machinery.
+      if (sub.snapshot && !sub.authorizationScope && !disposed) {
         seedFrameDelivered = false;
         deliverAuthorityObservation(() => {
-          onUpdate?.(handle.rows, { version: handle.version, kind: 'snapshot' });
+          onUpdate?.(authoritativeRows, {
+            version: handle.version,
+            kind: 'snapshot',
+            freshness: 'current',
+            answerClass: 'authoritative',
+          });
         });
       }
       return sub;
@@ -14256,9 +14827,6 @@ export class SnapbackClient {
           const demandEpochBefore = resubscribeDemandEpoch;
           await subscribeFresh();
           emitEvent('resubscribed', { reason: attemptReason });
-          deliverAuthorityObservation(() => {
-            onUpdate?.(handle.rows, { version: handle.version, kind: 'snapshot' });
-          });
           settleConnectionAfterSubscribe();
           if (disposed || paused || resubscribeDemandEpoch === demandEpochBefore) return true;
           // A demand landed while that subscribe was in flight: its
@@ -14448,21 +15016,22 @@ export class SnapbackClient {
         clearResubscribeRetry();
         detachStream?.();
         detachStream = null;
-        handle.rows = [];
+        authoritativeRows = [];
+        presentedRows = authoritativeRows;
         handle.freshness = null;
         handle.answerClass = 'unknown';
         handle.authorizationDisposition = 'delete';
         // The custody blank opens a new authority world: a predecessor
         // world's denial fact must not linger into it (0137 A1-Expo f4).
         handle.authorizationDenial = null;
-        markAuthorityCapture(handle.rows, handleAuthorityCapture);
+        markAuthorityCapture(authoritativeRows, handleAuthorityCapture);
         const detail = {
           version: handle.version,
           kind: 'authorization_delete',
           authorization: { kind: 'delete', reason: 'authority_blanked' },
         };
-        try { onAuthorizationBoundary?.(handle.rows, detail); } catch { /* blank remains */ }
-        deliverIsolated(onUpdate, handle.rows, detail);
+        try { onAuthorizationBoundary?.(authoritativeRows, detail); } catch { /* blank remains */ }
+        deliverIsolated(onUpdate, authoritativeRows, detail);
         setConnection('disconnected');
       },
     });
@@ -14533,7 +15102,8 @@ export class SnapbackClient {
       }
       currentSubscriptionId = subscriptionId;
       knownRetiredSubscriptionId = null;
-      handle.rows = Array.isArray(rows) ? rows : [];
+      authoritativeRows = Array.isArray(rows) ? rows : [];
+      presentedRows = authoritativeRows;
       handle.version = typeof version === 'number' ? version : 0;
       // Auth-scoped entries carry `resume: null` in both modes (LLP 0092
       // §0D.1) — the handle simply holds no token, exactly like a fresh
@@ -14546,7 +15116,7 @@ export class SnapbackClient {
       handle.answerClass = 'authoritative';
       schedulePersist();
       deliverAuthorityObservation(() => {
-        onUpdate?.(handle.rows, {
+        onUpdate?.(authoritativeRows, {
           version: handle.version,
           kind: 'registered',
           freshness: 'current',
@@ -14885,6 +15455,7 @@ export class SnapbackClient {
         attempt(() => invalidateSubscribeLifecycle('disposed'));
         attempt(stopFallback);
         attempt(clearResubscribeRetry);
+        attempt(closeAutomaticOptimisticView);
         if (establishTimer) {
           clearTimeout(establishTimer);
           establishTimer = null;
@@ -14937,14 +15508,32 @@ export class SnapbackClient {
       preparedMaterialization,
       userId ?? null,
     );
+    try { await ensureAutomaticOptimisticView(); } catch { /* query remains authoritative-only */ }
     try {
       await establish();
+      await optimisticPresentationTail;
+      // Establishment normally publishes through onUpdate, which already
+      // scheduled the one authoritative rebase above. Do not count that same
+      // delivery twice: a settled bridge retires only after genuinely newer
+      // authority. Hosts with no establishment frame still need one
+      // presentation publication, but it is not an authority delivery.
+      if (lastAuthoritativeDetail === null) {
+        await reconcileAutomaticOptimisticView(
+          'initial-presentation-establishment',
+          {
+            version: handle.version,
+            kind: 'optimistic_projection',
+            freshness: handle.freshness,
+          },
+        );
+      }
       const outboxBarrierProvider = () => resubscribe('outbox-drain-barrier');
       client.__outboxBarrierProviders.add(outboxBarrierProvider);
       unregisterOutboxBarrierProvider = () => {
         client.__outboxBarrierProviders.delete(outboxBarrierProvider);
       };
     } catch (error) {
+      closeAutomaticOptimisticView();
       activeRegistration.release();
       if (isConnectivityFailureError(error)) {
         throw queryOfflineUnavailableError({
@@ -16436,6 +17025,25 @@ function functionName(ref) {
     throw new TypeError(`Snapback function name must match ${OPERATION_NAME_PATTERN}, got ${JSON.stringify(name)}`);
   }
   throw new TypeError(`Snapback function reference must be a string or generated ref, got ${JSON.stringify(ref)}`);
+}
+
+function generatedMutationWriteTables(plan) {
+  const tables = new Set();
+  for (const step of plan?.steps ?? []) {
+    if (step === null || typeof step !== 'object' || Array.isArray(step)) continue;
+    for (const kind of ['Insert', 'Patch', 'Delete']) {
+      const table = step[kind]?.table;
+      if (typeof table === 'string' && table.length > 0) tables.add(table);
+    }
+  }
+  return [...tables].sort();
+}
+
+function generatedQueryProjectionTable(ref) {
+  const nodes = ref?.composition?.normalizedCompositePlan?.nodes;
+  if (!Array.isArray(nodes) || nodes.length !== 1) return null;
+  const table = nodes[0]?.nodePlan?.normalizedPlan?.query?.table;
+  return typeof table === 'string' && table.length > 0 ? table : null;
 }
 
 const EXPECTED_GENERATION_KEYS = Object.freeze([

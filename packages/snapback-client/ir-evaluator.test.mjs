@@ -209,7 +209,7 @@ test('M1 predicts a present-row single Delete', () => {
   assert.equal(outcome.execution.changedCount, 1);
   assert.equal(outcome.execution.result, 1);
   assert.deepEqual(outcome.layer.writes, [
-    { operation: 'delete', table: 'todos', id: 'old' },
+    { operation: 'delete', table: 'todos', planStepIndex: 0, id: 'old' },
   ]);
   assert.deepEqual(outcome.layer.declaredTableRows.todos, []);
 });

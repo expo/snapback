@@ -442,12 +442,16 @@ export interface OptimisticMutationViewSnapshot {
 export interface OptimisticMutationRebaseInput {
     readonly authoritativeRows?: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
     readonly retiredSettlementIdentities?: readonly string[];
+    readonly settlementIdReplacements?: Readonly<Record<string, string>>;
     readonly cause?: string;
     readonly connected?: boolean;
 }
 
 export interface OptimisticMutationView {
   readonly format: 'snapback.optimistic-mutation-view.v1';
+  readonly materializationIdentity?: Readonly<Record<string, unknown>> | null;
+  readonly targetTables?: readonly string[] | null;
+  readonly projectionMode?: 'project' | 'pending-only';
   rebase(input?: OptimisticMutationRebaseInput): Promise<Readonly<Record<string, unknown>>>;
   reload(input?: OptimisticMutationRebaseInput): Promise<Readonly<Record<string, unknown>>>;
   refresh(input?: OptimisticMutationRebaseInput): Promise<Readonly<Record<string, unknown>>>;
@@ -455,6 +459,14 @@ export interface OptimisticMutationView {
   inspection(): Readonly<Record<string, unknown>>;
   subscribe(listener: () => void): () => void;
   close(): void;
+}
+
+export interface GeneratedOptimisticPresentation {
+  readonly status: 'none' | 'predicted' | 'pending-without-prediction';
+  readonly materializationIdentity: Readonly<Record<string, unknown>> | null;
+  readonly revision: number;
+  readonly layers: readonly Readonly<Record<string, unknown>>[];
+  readonly queuedOnly: readonly Readonly<Record<string, unknown>>[];
 }
 
 export interface AuthorityDescriptorV1 {
@@ -792,6 +804,20 @@ export interface LiveQueryHandle<Rows> {
   subscriptionId: string | null;
   version: number;
   rows: Rows;
+  /** Canonical server/retained rows before generated private layers. */
+  readonly authoritativeRows: Rows;
+  /** Inspectable generated prediction or honest pending-without-prediction. */
+  readonly optimisticPresentation: GeneratedOptimisticPresentation;
+  /** Presentation authority axis. `optimistic` means `rows` includes private
+   * prediction even when the canonical base freshness is `current`. */
+  readonly answerClass:
+    | 'unknown'
+    | 'labeled-retained'
+    | 'authoritative'
+    | 'optimistic'
+    | 'pending-without-prediction';
+  /** Canonical base answer class before generated private layers. */
+  readonly authoritativeAnswerClass: 'unknown' | 'labeled-retained' | 'authoritative';
   readonly connection: 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected';
   readonly paused: boolean;
   /** Denial fact; null while the presented authority is not refused. */

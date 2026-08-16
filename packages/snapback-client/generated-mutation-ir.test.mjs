@@ -175,25 +175,33 @@ test('generated mutate owns IR preparation, paints before settlement, and replay
   await relaunchedStore.close();
 });
 
-test('generated mutate degrades to server dispatch without durable outbox composition', async (t) => {
+test('generated mutate derives online projection without durable outbox custody', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
   const args = { title: 'Server delegated', position: 11 };
   const mockedSettlement = { result: 'card_authoritative', version: 1 };
-  const assertPlainBody = (body) => {
+  const assertDerivedBody = (body) => {
     assert.deepEqual(body.args, args);
     assert.deepEqual(body.expectedGeneration, activation);
-    for (const field of [
-      'settlementLane',
-      'settlementIdentity',
-      'settlementClaims',
-      'boundedSkew',
-      'ctx_ledger',
-      'operationIssuance',
-      'optimisticOperation',
-    ]) {
-      assert.equal(Object.hasOwn(body, field), false, `${field} is absent`);
-    }
+    assert.equal(body.settlementLane, 're-derive');
+    assert.deepEqual(body.settlementIdentity, {
+      implementationHash: reference.implementationHash,
+      activation,
+    });
+    assert.equal(body.settlementClaims.mints.length, 1);
+    assert.equal(Object.hasOwn(body, 'ctx_ledger'), false);
+    assert.equal(Object.hasOwn(body, 'optimisticOperation'), false);
+  };
+  const assertDerivedSettlement = (settlement, body) => {
+    assert.deepEqual(settlement, {
+      ...mockedSettlement,
+      status: 'settled',
+      clientMutationId: body.clientMutationId,
+      optimistic: {
+        operationHash: reference.mutationIr.operationHash,
+        settlementIdentity: body.clientMutationId,
+      },
+    });
   };
 
   let calls = 0;
@@ -212,11 +220,9 @@ test('generated mutate degrades to server dispatch without durable outbox compos
   else process.env.SNAPBACK_CLIENT_RQS_STORE = previousStoreSwitch;
   const settlement = await storelessClient.mutate(reference, { args });
   assert.equal(calls, 1, 'store-less generated mutation dispatches');
-  assertPlainBody(requestBody);
-  // LLP 0218 §4.1: the dispatch union stamps the settled discriminant onto
-  // the resolved value; wire fields pass through unchanged.
-  assert.deepEqual(settlement, { ...mockedSettlement, status: 'settled' });
-  assert.equal(Object.hasOwn(settlement, 'optimistic'), false);
+  assertDerivedBody(requestBody);
+  assertDerivedSettlement(settlement, requestBody);
+  assert.equal((await storelessClient.mutationStatus(requestBody.clientMutationId)).status, 'settled');
 
   calls = 0;
   await assert.rejects(
@@ -240,11 +246,9 @@ test('generated mutate degrades to server dispatch without durable outbox compos
     requestBody = JSON.parse(init.body);
     return Response.json(mockedSettlement);
   };
-  assert.deepEqual(
-    await durableClient.mutate(reference, { args, queue: false }),
-    { ...mockedSettlement, status: 'settled' },
-  );
-  assertPlainBody(requestBody);
+  const queueDisabledSettlement = await durableClient.mutate(reference, { args, queue: false });
+  assertDerivedBody(requestBody);
+  assertDerivedSettlement(queueDisabledSettlement, requestBody);
   assert.deepEqual(await durableStore.outboxRecords(), []);
   await durableStore.close();
 
@@ -269,9 +273,8 @@ test('generated mutate degrades to server dispatch without durable outbox compos
     return Response.json(mockedSettlement);
   };
   const custodySettlement = await custodyClient.mutate(reference, { args });
-  assertPlainBody(requestBody);
-  assert.deepEqual(custodySettlement, { ...mockedSettlement, status: 'settled' });
-  assert.equal(Object.hasOwn(custodySettlement, 'optimistic'), false);
+  assertDerivedBody(requestBody);
+  assertDerivedSettlement(custodySettlement, requestBody);
 
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   await assert.rejects(

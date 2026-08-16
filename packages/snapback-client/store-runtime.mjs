@@ -1398,6 +1398,8 @@ export const storeRuntimeMethods = {
     outboxStore,
     initialAuthoritativeRows = {},
     connected = false,
+    targetTables = null,
+    projectionMode = 'project',
   } = {}) {
     const ledger = await this.__registrationLedgerPromise;
     return createOptimisticRebaseEngineV1({
@@ -1408,12 +1410,17 @@ export const storeRuntimeMethods = {
         connected,
       }),
       initialAuthoritativeRows,
+      targetTables,
+      projectionMode,
     });
   },
 
   async createOptimisticMutationView(outboxStore, {
     authoritativeRows = {},
     connected = false,
+    materializationIdentity = null,
+    targetTables = null,
+    projectionMode = 'project',
   } = {}) {
     const ledger = await this.__registrationLedgerPromise;
     let connectedState = connected === true;
@@ -1425,8 +1432,15 @@ export const storeRuntimeMethods = {
         connected: connectedState,
       }),
       initialAuthoritativeRows: authoritativeRows,
+      targetTables,
+      projectionMode,
     });
-    const entry = { engine, setConnected(value) { connectedState = value === true; } };
+    const entry = {
+      engine,
+      materializationIdentity,
+      targetTables: targetTables === null ? null : Object.freeze([...targetTables]),
+      setConnected(value) { connectedState = value === true; },
+    };
     this.__optimisticMutationViews.add(entry);
     let closed = false;
     const prepare = (input = {}) => {
@@ -1436,6 +1450,9 @@ export const storeRuntimeMethods = {
     };
     const view = Object.freeze({
       format: 'snapback.optimistic-mutation-view.v1',
+      materializationIdentity,
+      targetTables: entry.targetTables,
+      projectionMode,
       rebase: (input = {}) => engine.rebase(prepare(input)),
       reload: (input = {}) => engine.reload(prepare(input)),
       refresh: (input = {}) => engine.refresh(prepare(input)),

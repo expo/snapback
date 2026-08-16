@@ -3,8 +3,8 @@ title: The headless client
 id: clients.headless
 order: 1
 audience: agent-first
-capabilities: [clients.headless, clients.external-store, clients.micro]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+capabilities: [clients.headless, clients.external-store, clients.micro, clients.optimistic-mutation-view]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0270-local-first-client-defaults.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/generated-mutation-ir.mjs, packages/snapback-client/optimistic-rebase.mjs, packages/snapback-client/generated-optimistic-default.test.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
@@ -305,10 +305,44 @@ the existing raw `MutationOutput` with `status: 'settled'` added, so fields
 such as `result`, `version`, and `receipt` remain at top level after narrowing.
 The queued branch appears only when the foreground attempt is relinquished and
 the durable record remains replayable; it carries `status: 'queued'`, the
-durable id and sequence, and `presentation: 'withheld'` because the headless
-arm attempted no optimistic install. It is pending settlement, not success and
-not an error. Narrow on `status`; the former `queued: true` compatibility alias
-was removed after its deprecation window.
+durable id and sequence, and a point-in-time `presentation`. For a generated
+`local-executable` mutation affecting an active generated live query, the
+ordinary path derives and installs the operation from owner IR, so this is
+normally `installed`; incomplete reads or `server-only` IR remain inspectable
+in `handle.optimisticPresentation.queuedOnly` with no fabricated row effect.
+Automatic table-write projection currently requires owner-proved
+table-complete query coverage; filtered or limited membership attaches a
+pending-only view and reports the same `queuedOnly` state rather than guessing.
+A plan that writes the query table but reads another table is withheld with
+`SNAPBACK_OPTIMISTIC_CROSS_TABLE_REPLAY_UNPROVEN`; this version does not skip
+earlier cross-table writes and then project against an invalid store. It is pending settlement, not
+success and not an error. Narrow on `status`; the former `queued: true`
+compatibility alias was removed after its deprecation window.
+
+`liveQuery()` exposes projected `rows`, canonical `authoritativeRows`, and an
+`optimisticPresentation` discriminator (`none | predicted |
+pending-without-prediction`). Durable generated operations reconstruct the
+same provisional presentation after restart and rebase in local sequence order
+over later canonical delivery. Durable records restored from prior processes
+sort before current-process layers; durable and ephemeral calls made in the
+same process share their invocation order. While projected rows are visible,
+`answerClass` is `optimistic` even when the canonical base's `freshness`
+remains `current`; pending intent with no safe row prediction reports
+`pending-without-prediction`, including through pause and reconnect republishes.
+`authoritativeRows` and `authoritativeAnswerClass` expose that canonical fact.
+Prediction never becomes authority.
+
+A settled bridge retires only after a non-retained authoritative delivery both
+reaches its settlement version and completely reflects its writes. Logical-ID
+mapping must match every mint's site and occurrence exactly; missing,
+duplicate, or colliding mappings fail closed. An unrelated later delivery does
+not retire the bridge. A single-table handle requires reflection of every
+write to its observed table; successful settlement and the complete logical-ID
+map cover writes to unobserved tables. Canonical ID mappings also rewrite exact
+string leaves in reference values while surviving layers rebase. Authorization
+delete, denial, quarantine, and error
+boundaries close the automatic view synchronously so a pending read-free
+insert cannot repaint protected rows.
 
 Observe the durable identity separately with
 `mutationStatus(clientMutationId)` or
@@ -686,11 +720,12 @@ on demand: `registerQuery`/`releaseQueryRegistration`
 `evaluateLocalResultTransform`
 [evaluates a generated result-transform plan over proof-verified retained rows](../sync/offline-and-retention.md#evaluate-an-owner-reclassified-retained-result),
 and `storePolicyInspection` is the value-free retention/policy inspection for
-one authority partition. `createOptimisticMutationView` is the public
-LLP 0155 rebase view: app code supplies the authoritative rows and every
-private optimistic layer is replayed from the durable outbox in sequence. For
-the generated-insert, typed provisional-identity, logical-mint mapping, and
-ambiguous-retry composition, follow the
+one authority partition. `createOptimisticMutationView` remains the explicit
+compatibility rebase view for hosts that genuinely own a separate
+authoritative-row composition. The ordinary generated `liveQuery()` path
+creates its materialization-scoped view automatically. For the generated-insert
+typed provisional-identity wrapper, logical-mint mapping, and ambiguous-retry
+composition, follow the
 [optimistic-create recipe](../recipes/optimistic-create.md).
 
 Members whose names start with `__` (for example
