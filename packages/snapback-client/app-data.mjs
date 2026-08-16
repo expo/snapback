@@ -178,7 +178,6 @@ export function createExternalSessionAppDataClient(baseUrl, {
     ...options,
     bearerToken,
     authClientProtocol: 1,
-    authInvalidationProtocol: 1,
     authorityDescriptorProtocol: 1,
   });
 }

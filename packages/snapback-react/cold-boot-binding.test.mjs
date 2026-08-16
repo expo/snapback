@@ -192,8 +192,14 @@ const resume = Object.freeze({
   },
 });
 
+const onlineRequests = [];
 const onlineFetch = async (url, init = {}) => {
   const path = new URL(url).pathname;
+  onlineRequests.push({
+    path,
+    headers: new Headers(init.headers),
+    body: init.body === undefined ? null : JSON.parse(init.body),
+  });
   if (path === '/auth/session') return Response.json(handshake);
   if (path === '/inspect') {
     return Response.json({
@@ -253,6 +259,86 @@ try {
   const persisted = await store.load(rqsEntryKey('cells', {}));
   assert.notEqual(persisted, null, 'session 1 persisted the resume entry');
 } finally {
+  globalThis.fetch = originalFetch;
+}
+
+// The real client/provider path inherits the library advertisement without
+// per-app or provider wiring. Keep a socket open long enough for the provider
+// to establish its managed live handle, then inspect the actual subscribe.
+const originalWebSocket = globalThis.WebSocket;
+class ProviderWireWebSocket {
+  constructor() {
+    this.listeners = new Map();
+    this.readyState = 0;
+    queueMicrotask(() => {
+      this.readyState = 1;
+      this.emit('open', {});
+    });
+  }
+
+  addEventListener(type, listener, options = {}) {
+    if (!this.listeners.has(type)) this.listeners.set(type, new Set());
+    this.listeners.get(type).add({ listener, once: options.once === true });
+  }
+
+  emit(type, event) {
+    for (const entry of [...(this.listeners.get(type) ?? [])]) {
+      if (entry.once) this.listeners.get(type).delete(entry);
+      entry.listener(event);
+    }
+  }
+
+  send() {}
+
+  close(code = 1000, reason = '') {
+    if (this.readyState === 3) return;
+    this.readyState = 3;
+    queueMicrotask(() => this.emit('close', { code, reason }));
+  }
+}
+
+globalThis.fetch = onlineFetch;
+globalThis.WebSocket = ProviderWireWebSocket;
+let wireClient = null;
+let wireProvider = null;
+let wireObserver = null;
+try {
+  onlineRequests.length = 0;
+  wireClient = createExternalSessionClient('http://cold-boot-binding.test', {
+    bearerToken: BEARER,
+    rqsStore: createMemoryRqsResumeStore(),
+  });
+  const wireBinding = await wireClient.prepareReactBinding({ generatedManifest });
+  wireProvider = createSnapbackReactProvider(wireBinding, { connectionId: 'provider-wire' });
+  wireObserver = observeSnapbackQueries(
+    wireProvider,
+    { cells: { ref: wireBinding.references.cells, args: {} } },
+    () => {},
+  );
+  await flush();
+  await flush();
+  assert.equal(
+    wireObserver.snapshot().queries.cells.status,
+    'ready',
+    'the real provider live path establishes successfully',
+  );
+  const wireOpen = onlineRequests.find(({ path }) => path === '/connection/open');
+  const wireSubscribe = onlineRequests.find(({ path }) => path === '/live/cells/subscribe');
+  assert.equal(
+    wireOpen?.body?.authInvalidationProtocol,
+    1,
+    'the provider inherits the client open-time invalidation advertisement',
+  );
+  assert.equal(
+    wireSubscribe?.headers.get('x-snapback-auth-invalidation-protocol'),
+    '1',
+    'the provider live subscribe inherits the client invalidation header end to end',
+  );
+} finally {
+  wireObserver?.dispose();
+  await wireProvider?.dispose();
+  await wireClient?.close();
+  globalThis.WebSocket = originalWebSocket;
   globalThis.fetch = originalFetch;
 }
 

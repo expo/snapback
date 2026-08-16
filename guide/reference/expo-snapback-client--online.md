@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:69724212672264a0f3f0e5b2e3aa58e8b21c8d351c79
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:dbe355cae8d64c81e3de61a808287994a513834c03d8e255a949fb3cd504e382`.
+`sha256:9edd29e315d8b773e7dd163f31dc12248d8d97d9be1788e7e72cb931281f4951`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -38,7 +38,7 @@ Symbols: 4 total; 3 runtime values; 1 type-only.
 
 Stable identity: `npm:@expo/snapback-client/online#bindSnapbackAppLifecycle`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2054`
+Source: `packages/snapback-client/index.d.mts:2060`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function bindSnapbackAppLifecycle(
@@ -59,7 +59,7 @@ export function bindSnapbackAppLifecycle(
 
 Stable identity: `npm:@expo/snapback-client/online#createExternalSessionClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2050`
+Source: `packages/snapback-client/index.d.mts:2056`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createExternalSessionClient(
@@ -73,7 +73,7 @@ export function createExternalSessionClient(
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1570`
+Source: `packages/snapback-client/index.d.mts:1576`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -662,7 +662,13 @@ export interface SnapbackClientOptions {
    */
   readonly custody?: 'anonymous-public' | null;
   readonly authClientProtocol?: number | null;
-  readonly authInvalidationProtocol?: number | null;
+  /**
+   * Authorization-invalidation capability advertisement. Defaults to `1`
+   * because SnapbackClient implements the v1 invalidation state machine.
+   * Pass `null` only as an embedded-integration escape hatch for a legacy
+   * server; auth-scoped live work is then intentionally unavailable.
+   */
+  readonly authInvalidationProtocol?: 1 | null;
   readonly authorityDescriptorProtocol?: number | null;
   readonly authorizedLeaseProtocol?: number | null;
   readonly ephemeralAuthorityProtocol?: number | null;

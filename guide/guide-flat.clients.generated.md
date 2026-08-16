@@ -621,7 +621,10 @@ supported-carrier acceptance witness permits the enforce-stage flip.
     // operations receive the server's ordinary anonymous refusal.
     custody = null,
     authClientProtocol = null,
-    authInvalidationProtocol = null,
+    // Capability advertisement, default-on at the implementing library
+    // boundary. Embedded integrations may pass null to remain intentionally
+    // legacy; auth-scoped live work then refuses rather than degrading.
+    authInvalidationProtocol = 1,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
     // LLP 0163 pre-publication carrier. Explicit opt-in only while the Spec
@@ -661,10 +664,15 @@ sender-constrained hosted browser constructor. See
 it directly, and no current hosted target has positive admission; see
 [target honesty](../auth/targets.md).
 
+Authorization-invalidation protocol v1 is a library capability and therefore
+defaults on for every `SnapbackClient` custody arm. Only an embedded integration
+that intentionally targets a legacy server should pass
+`authInvalidationProtocol: null`; sessions-mode auth-scoped live work then
+refuses instead of silently degrading.
+
 CLI and daemon agents use `AgentAuthorityFence`, not the browser
 `AuthCoordinator`. Construct it from the scoped-token mint response plus its
-actor id, then pass it as `agentAuthority` with
-`authInvalidationProtocol: 1`. Replace an expiring token only through
+actor id, then pass it as `agentAuthority`. Replace an expiring token only through
 `replaceAgentCredential(...)`. The client first offers the proposed bearer to
 `GET /auth/session` without changing custody, verifies the exact returned
 service-principal descriptor, and only then begins the transition. A rejected

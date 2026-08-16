@@ -11,7 +11,8 @@ export interface HostedBrowserSnapbackClientOptions {
   /** Required: AuthCoordinator custody handle. */
   readonly authCoordinator: AuthCoordinator;
   readonly authClientProtocol?: number | null;
-  readonly authInvalidationProtocol?: number | null;
+  /** Defaults to v1; null is the legacy embedded-integration opt-out. */
+  readonly authInvalidationProtocol?: 1 | null;
   readonly authorityDescriptorProtocol?: number | null;
   readonly authorizedLeaseProtocol?: number | null;
   readonly clientStoreId?: string;

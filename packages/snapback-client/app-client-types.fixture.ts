@@ -17,6 +17,17 @@ const manualOutboxDrainOptions = {
 } satisfies SnapbackClientOptions;
 void manualOutboxDrainOptions;
 
+const embeddedLegacyAuthInvalidationOptOut = {
+  authInvalidationProtocol: null,
+} satisfies SnapbackClientOptions;
+void embeddedLegacyAuthInvalidationOptOut;
+
+const unsupportedAuthInvalidationVersion = {
+  // @ts-expect-error the client implements and advertises only protocol v1.
+  authInvalidationProtocol: 2,
+} satisfies SnapbackClientOptions;
+void unsupportedAuthInvalidationVersion;
+
 const invalidOutboxDrainOptions = {
   // @ts-expect-error false is not a headless drain policy; use 'manual'.
   outboxDrain: false,

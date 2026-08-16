@@ -1,6 +1,6 @@
 # React provider never sends the auth-invalidation protocol; packed starter live path 400s and blocks the fastpath release
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
@@ -65,3 +65,34 @@ Cold-install `--keep`, then in the kept `partitime-external/react-starter`:
 `rm -rf .snapback && npm run dev`, open the vite origin with Playwright,
 observe the subscribe 400 loop. Receipts and the full probe transcript in
 the session ledger (2026-08-16).
+
+## Resolution (2026-08-16)
+
+The author ruled that authorization-invalidation v1 is a capability of the
+client library, not an application or React-provider option. `SnapbackClient`
+now advertises it by default at the same library boundary that owns the
+auth-client protocol offer. `authInvalidationProtocol: null` remains an
+explicit embedded-integration escape hatch for a legacy server; it removes
+both the connection-open member and live request header, and sessions-mode
+auth-scoped live work then refuses rather than degrading.
+
+The security-relevant promise was verified before changing the default. The
+library independently owns every v1 obligation: stable authorization
+namespaces, invalidation handling on stream and poll deliveries, quarantine
+before publication, snapshot replacement or terminal deletion before ACK,
+per-scope high-water retention, and the authority barrier that synchronously
+blanks memory and wipes the selected durable materialization on principal
+change. No React callback or application cooperation is required.
+
+The React live path now treats protocol/profile negotiation 400s—including
+`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`—as terminal for unchanged
+mounted demand. It publishes the error, records it through the provider's
+existing diagnostics surface, and installs no retry timer; ordinary transport
+and readiness failures retain their bounded retry ladder. Client and React
+wire regressions cover the default offer, explicit opt-out, provider
+inheritance, terminal diagnostic, and absence of a retry loop. The starter
+template needed no wiring change because the behavior is wholly inherited
+from `SnapbackClient`.
+
+Verification evidence and the one ambient React pretest qualification are
+recorded in `report.md`.

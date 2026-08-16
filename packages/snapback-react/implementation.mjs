@@ -429,6 +429,26 @@ function isAnonymousProtectedAuthorizationDenial(client, reference, error) {
     && code === 'SNAPBACK_AUTH_REQUIRED';
 }
 
+// Negotiation/configuration 400s cannot heal under the provider's unchanged
+// subscribe request. This is deliberately narrower than all client errors:
+// readiness 503s and transport failures retain the bounded retry window.
+//
+// @ref LLP 0094#0e--refusal-code-registry-negotiation — exact protocol
+//   refusals require caller repair and must not retry unchanged.
+function isTerminalLiveProtocolRefusal(error) {
+  if (error?.terminalLiveProtocolRefusal === true) return true;
+  const code = error?.diagnostic?.code ?? error?.code;
+  if (typeof code !== 'string' || (error?.status !== undefined && error.status !== 400)) {
+    return false;
+  }
+  return code.endsWith('_CLIENT_UNSUPPORTED')
+    || code.endsWith('_PROTOCOL_UNSUPPORTED')
+    || code.endsWith('_PROTOCOL_MISMATCH')
+    || code === 'SNAPBACK_WIRE_VERSION_REQUIRED'
+    || code === 'SNAPBACK_WIRE_VERSION_MISMATCH'
+    || code === 'SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED';
+}
+
 const SKIPPED = Object.freeze({
   status: 'skipped',
   data: undefined,
@@ -1283,6 +1303,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
     }, (error) => {
       if (store.generation !== generation || store.handle !== handle) return;
+      const terminalProtocolRefusal = isTerminalLiveProtocolRefusal(error);
       store.retry = () => {};
       void loadReactRuntime().then(({ handleSubscribeFailure }) => (
         handleSubscribeFailure([
@@ -1295,6 +1316,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
             store.reference,
             error,
           ) ? AUTHENTICATION_REQUIRED_BLOCKED : null,
+          recordDiagnostic,
+          terminalProtocolRefusal,
         ])
       )).catch((loadError) => {
         recordDiagnostic(loadError);
@@ -1325,6 +1348,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           freshness: 'unknown',
           retention: store.retention,
         }), generation);
+        if (terminalProtocolRefusal) {
+          // Keep a no-op failure-window sentinel while this mounted demand
+          // remains. Render-driven re-subscribe calls must not turn a
+          // terminal negotiation refusal into an immediate retry loop.
+          store.retry = () => {};
+          recordDiagnostic(error);
+          return;
+        }
         let retryHandle = setTimeout(() => {
           retryHandle = null;
           if (store.retry !== cancelRetry) return;

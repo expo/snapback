@@ -202,6 +202,7 @@ export function handleSubscribeFailure(input) {
     store, error, generation, handle, clearUnadoptedSubscription,
     allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
     registryActive, retry, authBlockedSnapshot,
+    recordDiagnostic, terminalProtocolRefusal,
   ] = input;
   if (
     store.retry === null
@@ -232,6 +233,14 @@ export function handleSubscribeFailure(input) {
     freshness: 'unknown',
     retention: store.retention,
   }), generation);
+  if (terminalProtocolRefusal) {
+    // The sentinel blocks startStore for unchanged mounted demand. Releasing
+    // the store clears it, so a deliberate remount after configuration repair
+    // can establish a fresh subscription.
+    store.retry = () => {};
+    recordDiagnostic(error);
+    return;
+  }
   store.retry = scheduleSubscribeRetry({
     store,
     shouldRetry: () => (

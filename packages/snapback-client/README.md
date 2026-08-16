@@ -113,6 +113,18 @@ The binding serializes `pause()` and `resume()`. The transport's application
 heartbeat handles silent socket failure while active; lifecycle signals handle
 OS suspension and foreground re-entry.
 
+## Authorization-invalidation advertisement
+
+`SnapbackClient` advertises authorization-invalidation protocol v1 by default.
+The library owns the complete protocol: auth-scoped live rows are quarantined,
+replaced, or terminally deleted before acknowledgement, and authority changes
+blank the prior principal's materializations without application callbacks.
+
+An embedded integration that intentionally targets a legacy server can opt out
+with `new SnapbackClient(origin, { authInvalidationProtocol: null })`. This is a
+compatibility escape hatch, not a degraded security mode: a sessions server
+will refuse auth-scoped live work while the advertisement is disabled.
+
 ## Hosted browser custody
 
 Use the dedicated entrypoint for an app served by a target that has passed the

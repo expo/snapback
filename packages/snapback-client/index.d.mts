@@ -1145,7 +1145,13 @@ export interface SnapbackClientOptions {
    */
   readonly custody?: 'anonymous-public' | null;
   readonly authClientProtocol?: number | null;
-  readonly authInvalidationProtocol?: number | null;
+  /**
+   * Authorization-invalidation capability advertisement. Defaults to `1`
+   * because SnapbackClient implements the v1 invalidation state machine.
+   * Pass `null` only as an embedded-integration escape hatch for a legacy
+   * server; auth-scoped live work is then intentionally unavailable.
+   */
+  readonly authInvalidationProtocol?: 1 | null;
   readonly authorityDescriptorProtocol?: number | null;
   readonly authorizedLeaseProtocol?: number | null;
   readonly ephemeralAuthorityProtocol?: number | null;

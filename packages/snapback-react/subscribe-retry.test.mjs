@@ -54,7 +54,10 @@ const functions = Object.freeze({
 
 const ROWS = [{ id: 'rec-1' }, { id: 'rec-2' }];
 
-function fakeClient() {
+function fakeClient({
+  failureCode = 'SNAPBACK_CLIENT_DEMAND_REGISTRATION_FAILED',
+  failureStatus = undefined,
+} = {}) {
   const state = {
     attempts: 0,
     failing: true,
@@ -82,10 +85,17 @@ function fakeClient() {
     startLiveQuery(_reference, options) {
       state.attempts += 1;
       if (state.failing) {
-        const error = new Error(
-          'SNAPBACK_CLIENT_DEMAND_REGISTRATION_FAILED: registration-ledger demand recompute failed',
-        );
-        error.code = 'SNAPBACK_CLIENT_DEMAND_REGISTRATION_FAILED';
+        const error = new Error(`${failureCode}: live subscribe refused`);
+        error.code = failureCode;
+        error.diagnostic = Object.freeze({
+          schemaVersion: 'snapback.client-diagnostic.v1',
+          code: failureCode,
+          severity: 'error',
+          subsystem: 'client',
+          message: error.message,
+          details: Object.freeze({}),
+        });
+        if (failureStatus !== undefined) error.status = failureStatus;
         const rejection = Promise.reject(error);
         rejection.catch(() => {});
         return Object.freeze({
@@ -227,6 +237,55 @@ mock.timers.tick(120_000);
 await flush();
 assert.equal(client.state.attempts, attemptsAtRelease, 'idle release cancels the scheduled retry');
 
+// Protocol/profile negotiation 400s are configuration refusals, not
+// transient availability failures. They must render once, enter the
+// provider's diagnostic surface, and remain timer-free until app wiring
+// changes instead of retrying the same subscribe forever.
+const terminalClient = fakeClient({
+  failureCode: 'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
+  failureStatus: 400,
+});
+const terminalBinding = await prepareReactBindingForClient(terminalClient, {
+  generatedManifest: functions,
+});
+const terminalProvider = createSnapbackReactProvider(terminalBinding, {
+  connectionId: 'terminal-protocol-test',
+});
+const terminalDescriptor = terminalProvider.registry.descriptor(records, {});
+let terminalLease = terminalProvider.registry.subscribe(terminalDescriptor, listener);
+await flush();
+
+assert.equal(terminalClient.state.attempts, 1, 'terminal refusal attempts once');
+const terminalSnapshot = terminalProvider.registry.snapshot(terminalDescriptor);
+assert.equal(terminalSnapshot.status, 'error', 'terminal refusal is renderable');
+assert.equal(
+  terminalSnapshot.error?.code,
+  'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
+  'the refusal code survives the provider error projection',
+);
+assert.equal(
+  terminalProvider.inspection().diagnostics.at(-1)?.code,
+  'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
+  'the provider diagnostics surface records the terminal refusal',
+);
+
+for (let render = 0; render < 100; render += 1) {
+  terminalLease = terminalProvider.registry.subscribe(
+    terminalDescriptor,
+    listener,
+    terminalLease,
+  );
+}
+mock.timers.tick(120_000);
+await flush();
+assert.equal(
+  terminalClient.state.attempts,
+  1,
+  'render churn and elapsed time never retry a terminal protocol refusal',
+);
+
+terminalLease.release();
+await terminalProvider.dispose();
 await provider.dispose();
 mock.timers.reset();
 console.log('snapback-react subscribe retry window tests: ok');

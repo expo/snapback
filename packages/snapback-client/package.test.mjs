@@ -156,6 +156,166 @@ assert.deepEqual(externalClient.authProtocols, {
   ephemeralAuthority: null,
   ephemeralExpiry: 1,
 });
+
+// Authorization invalidation is a client-library capability. Every custody
+// arm inherits the default offer, while an explicitly embedded legacy client
+// can suppress both the open-time member and live request header.
+{
+  const protocolOriginalFetch = globalThis.fetch;
+  const protocolRequests = [];
+  const protocolHandshake = (authInvalidation) => ({
+    protocolVersion: 1,
+    serverStartupNonce: `startup-auth-invalidation-${authInvalidation ?? 'legacy'}`,
+    authorizationStreamIncarnation: '018f0d90-7b11-7a22-8c33-445566778899',
+    transitionGeneration: 1,
+    activeMode: 'sessions',
+    desiredMode: 'sessions',
+    modeState: 'settled',
+    appDataAvailability: 'available',
+    quarantineCode: null,
+    clientProtocols: {
+      authClient: 1,
+      authInvalidation,
+      authorityDescriptor: 1,
+      authorizedLease: null,
+    },
+    availability: {
+      onlineRequestResponse: { available: true, reason: null },
+      authScopedLive: {
+        available: authInvalidation === 1,
+        minimumAuthInvalidationProtocol: 1,
+        reason: authInvalidation === 1
+          ? null
+          : 'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
+      },
+      retainedReads: {
+        available: false,
+        minimumAuthInvalidationProtocol: 1,
+        minimumAuthorizedLeaseProtocol: 1,
+        reason: 'SNAPBACK_AUTH_RETAINED_READS_UNAVAILABLE',
+      },
+      queuedReplay: {
+        available: true,
+        minimumAuthorityDescriptorProtocol: 1,
+        reason: null,
+      },
+    },
+    provider: { key: 'email-code', available: true },
+    transports: ['bearer'],
+    authority: {
+      kind: 'humanSession',
+      userId: '018f0d90-7b12-7a22-8c33-445566778899',
+      sessionId: '018f0d90-7b13-7a22-8c33-445566778899',
+      isAuthenticated: true,
+    },
+    authorityDescriptor: {
+      descriptorVersion: 1,
+      authorityInstanceId: '018f0d90-7b11-7a22-8c33-445566778899',
+      sessionGeneration: 1,
+    },
+    deploymentIdentity: {
+      schemaVersion: 'snapback.v1',
+      authMode: 'sessions',
+      appId: '018f0d90-7b14-7a22-8c33-445566778899',
+      schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+      bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+      inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+    },
+    authorizedLease: null,
+  });
+  globalThis.fetch = async (url, init = {}) => {
+    const parsed = new URL(url);
+    const path = parsed.pathname;
+    const optedOut = parsed.hostname === 'legacy-invalidation.test';
+    const headers = new Headers(init.headers);
+    const body = init.body === undefined ? null : JSON.parse(init.body);
+    protocolRequests.push({ host: parsed.hostname, path, headers, body });
+    if (path === '/auth/session') {
+      return Response.json(protocolHandshake(optedOut ? null : 1));
+    }
+    if (path === '/connection/open') {
+      return Response.json({
+        connectionId: optedOut ? 'wire-invalidation-legacy' : 'wire-invalidation-default',
+        connectionToken: optedOut ? 'sct-invalidation-legacy' : 'sct-invalidation-default',
+        authorizationInvalidation: null,
+        wireVersion: 'snapback.v1',
+      });
+    }
+    if (path === '/live/protocolTodos/subscribe') {
+      return Response.json({
+        subscription_id: optedOut ? 'sub-invalidation-legacy' : 'sub-invalidation-default',
+        snapshot: { version: 1, rows: [] },
+        permission_epochs: {},
+      });
+    }
+    throw new Error(`unexpected auth invalidation protocol request: ${path}`);
+  };
+
+  let defaultProtocolClient;
+  let legacyProtocolClient;
+  try {
+    defaultProtocolClient = createExternalSessionClient(
+      'http://default-invalidation.test',
+      { bearerToken: 'sbs_invalidation_default' },
+    );
+    legacyProtocolClient = createExternalSessionClient(
+      'http://legacy-invalidation.test',
+      {
+        bearerToken: 'sbs_invalidation_legacy',
+        authInvalidationProtocol: null,
+      },
+    );
+    const namespace = {
+      clientStoreId: 'package-test-store',
+      queryKey: 'protocolTodos:{}',
+      queryInstanceId: 1,
+    };
+    await defaultProtocolClient.subscribeLive('protocolTodos', {
+      connectionId: 'default-protocol-label',
+      authorizationNamespace: namespace,
+    });
+    await legacyProtocolClient.subscribeLive('protocolTodos', {
+      connectionId: 'legacy-protocol-label',
+      authorizationNamespace: namespace,
+    });
+
+    const defaultOpen = protocolRequests.find((request) => (
+      request.host === 'default-invalidation.test' && request.path === '/connection/open'
+    ));
+    const defaultSubscribe = protocolRequests.find((request) => (
+      request.host === 'default-invalidation.test'
+      && request.path === '/live/protocolTodos/subscribe'
+    ));
+    assert.equal(defaultOpen.body.authInvalidationProtocol, 1);
+    assert.equal(
+      defaultSubscribe.headers.get('x-snapback-auth-invalidation-protocol'),
+      '1',
+      'auth-scoped live subscribes advertise invalidation v1 by default',
+    );
+
+    const legacyOpen = protocolRequests.find((request) => (
+      request.host === 'legacy-invalidation.test' && request.path === '/connection/open'
+    ));
+    const legacySubscribe = protocolRequests.find((request) => (
+      request.host === 'legacy-invalidation.test'
+      && request.path === '/live/protocolTodos/subscribe'
+    ));
+    assert.equal(
+      Object.hasOwn(legacyOpen.body, 'authInvalidationProtocol'),
+      false,
+      'the explicit embedded opt-out removes the open-time advertisement',
+    );
+    assert.equal(
+      legacySubscribe.headers.get('x-snapback-auth-invalidation-protocol'),
+      null,
+      'the explicit embedded opt-out removes the live request advertisement',
+    );
+  } finally {
+    await defaultProtocolClient?.close();
+    await legacyProtocolClient?.close();
+    globalThis.fetch = protocolOriginalFetch;
+  }
+}
 assert.throws(
   () => createExternalSessionClient('http://127.0.0.1:9', { bearerToken: '' }),
   /non-empty bearerToken/,

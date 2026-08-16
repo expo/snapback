@@ -352,6 +352,27 @@ const isRetryableStreamResetRefusal = (error) => (
   && error?.diagnostic?.details?.retryable === true
 );
 
+// Exact protocol/profile offers are client configuration, not server
+// readiness. A 400 from this class cannot change under an unchanged live
+// subscribe, so framework owners must surface it instead of starting a retry
+// loop. Keep readiness/unavailability 503s outside this classification.
+//
+// @ref LLP 0096#22-authlive--auth-scoped-live--invalidation-acknowledge —
+//   invalidation offer refusals require negotiation repair and forbid
+//   unchanged retry.
+const isTerminalLiveProtocolRefusal = (error) => {
+  const code = error?.diagnostic?.code ?? error?.code;
+  if (typeof code !== 'string' || (error?.status !== undefined && error.status !== 400)) {
+    return false;
+  }
+  return code.endsWith('_CLIENT_UNSUPPORTED')
+    || code.endsWith('_PROTOCOL_UNSUPPORTED')
+    || code.endsWith('_PROTOCOL_MISMATCH')
+    || code === 'SNAPBACK_WIRE_VERSION_REQUIRED'
+    || code === 'SNAPBACK_WIRE_VERSION_MISMATCH'
+    || code === 'SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED';
+};
+
 const operationOutcomeFromError = (error) => {
   const outcome = error?.diagnostic?.details?.outcome;
   return outcome === 'committed' || outcome === 'refused' ? outcome : 'unknown';
@@ -2252,7 +2273,6 @@ export function createExternalSessionClient(baseUrl, {
   }
   options.bearerToken = bearerToken;
   options.authClientProtocol = 1;
-  options.authInvalidationProtocol = 1;
   options.authorityDescriptorProtocol = 1;
   return new SnapbackClient(baseUrl, options);
 }
@@ -2493,7 +2513,10 @@ export class SnapbackClient {
     // operations receive the server's ordinary anonymous refusal.
     custody = null,
     authClientProtocol = null,
-    authInvalidationProtocol = null,
+    // Capability advertisement, default-on at the implementing library
+    // boundary. Embedded integrations may pass null to remain intentionally
+    // legacy; auth-scoped live work then refuses rather than degrading.
+    authInvalidationProtocol = 1,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
     // LLP 0163 pre-publication carrier. Explicit opt-in only while the Spec
@@ -5770,6 +5793,10 @@ export class SnapbackClient {
         effectCommitted: diag?.details?.effectCommitted,
         effectMayHaveCommitted: diag?.details?.effectMayHaveCommitted,
       });
+      if (isTerminalLiveProtocolRefusal(error)) {
+        error.retryable = false;
+        error.terminalLiveProtocolRefusal = true;
+      }
       const authorityDisposition = finiteAuthorityDisposition(diag);
       if (authorityDisposition !== null) error.authorityDisposition = authorityDisposition;
       if (json?.receipt) {
