@@ -7,6 +7,11 @@ export function expoSupervisorChildEnvironment(
   env?: Readonly<Record<string, string | undefined>>,
 ): Record<string, string | undefined>;
 
+export function expoBackendDevAuthEnvironment(
+  env: Readonly<Record<string, string | undefined>> | null | undefined,
+  metroPort: number,
+): Record<string, string | undefined>;
+
 export function expoMetroChildEnvironment(options: Readonly<{
   env?: Readonly<Record<string, string | undefined>>;
   bootstrapOrigin: string;

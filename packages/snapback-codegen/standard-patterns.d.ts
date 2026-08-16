@@ -39,6 +39,42 @@ export interface KeysetNames {
 
 export type TrustedDefault = 'now' | 'id';
 
+type LoweredDataResourceV1<
+  Resource extends string,
+  Operation extends string,
+> = Readonly<{
+  definitions: PatternDefinitions<`${Resource}.${Operation}`>;
+  listIndex: string;
+}>;
+
+export declare function lowerDataResourceV1<
+  const Fields extends Record<string, Validator>,
+  const Resource extends string,
+>(options: {
+  table: TableBuilder<Fields>;
+  resource: Resource;
+  visibility: OwnerVisibility<OwnerFieldName<Fields>>;
+  createDefaults?: TrustedDefaults<Fields>;
+  updateDefaults?: TrustedDefaults<Fields>;
+  immutable?: Array<FieldName<Fields>>;
+  listIndex?: string;
+  delivery?: 'live' | 'read';
+}): LoweredDataResourceV1<Resource, keyof CrudNames & string>;
+
+export declare function lowerDataResourceV1<
+  const Fields extends Record<string, Validator>,
+  const Resource extends string,
+>(options: {
+  table: TableBuilder<Fields>;
+  resource: Resource;
+  visibility: Readonly<{ kind: 'public-read' }>;
+  createDefaults?: never;
+  updateDefaults?: never;
+  immutable?: never;
+  listIndex: string;
+  delivery?: 'live' | 'read';
+}): LoweredDataResourceV1<Resource, 'list' | 'get'>;
+
 export declare function defineOwnedCrud<
   const Fields extends Record<string, Validator>,
   const Names extends CrudNames,
