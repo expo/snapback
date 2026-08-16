@@ -8,8 +8,10 @@ export const SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED:
 export type NativeAuthCustodyPlatformGrade = Readonly<{
   os: 'ios' | 'android';
   grade: 'single-runtime';
+  carrier: string;
   mechanism: string;
   moduleVersion: string;
+  storageFormatVersion: number;
 }>;
 
 export type NativeAuthCustodyDiagnostic = Readonly<{
@@ -27,6 +29,11 @@ export interface SnapbackNativeAuthCustodyModule {
     expectedRevision: number | null,
     serializedRecord: string,
   ): Promise<Record<string, unknown>>;
+  /** Debug builds only; Android corrupts the persisted AEAD ciphertext. */
+  corruptCiphertext?(
+    appId: string,
+    storageKey: string,
+  ): Promise<Record<string, unknown>>;
 }
 
 export interface NativeAuthCustodyStorageOptions {
@@ -41,4 +48,10 @@ export function createNativeAuthCustodyStorage(
 ): SnapbackAuthCustodyStorage & {
   readonly ownerKeyCapability: 'owner-key-v1';
   platformGrade(): Promise<NativeAuthCustodyPlatformGrade>;
+  readonly testHooks: Readonly<{
+    corruptCiphertext(ownerKey: Readonly<{
+      appId: string;
+      storagePartition: string;
+    }>): Promise<void>;
+  }>;
 };

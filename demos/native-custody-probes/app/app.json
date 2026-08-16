@@ -7,6 +7,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "plugins": [
+      "@expo/snapback-expo-custody"
+    ],
     "experiments": {
       "onDemandFilesystem": false
     },

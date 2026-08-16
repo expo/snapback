@@ -72,3 +72,33 @@ No Guide gap ticket was filed. The unavailable native carrier and capability
 gate are the explicit subject of LLP 0258 Phase 2 and its research checklist,
 not missing guidance for a supported app-authoring surface. The remote native
 runs and Lane A integration remain the evidence-producing next step.
+
+## Integration entry — 2026-08-16
+
+The native carrier is now installed directly and the earlier unavailable shim
+has collapsed to a one-line package re-export. The advanced
+`environment.resolveAppClientPlatform` injection remained a clean boundary:
+the app client admits `expo-native` only with the full owner-key capability,
+while the ordinary provider resolver still refuses native admission. The
+existing director binding and the probe's explicit application-bootstrap
+requirement already matched that shape, so integration did not need another
+capability workaround.
+
+The most surprising friction was iOS autolinking with Bun `file:` packages.
+Bun represents the installed package files as symlinks, while Expo's fallback
+podspec discovery ignores symlink directory entries. Declaring the custody
+podspec path in `expo-module.config.json` made the link deterministic; a clean
+pod install then included `SnapbackExpoCustody`. Android autolinking did not
+have the same issue and a real Gradle debug compile included the custody
+module.
+
+The carrier's debug hooks now keep destructive probing inside the native
+boundary: Android can corrupt its own authenticated ciphertext, and the
+secondary-process service reaches the same pre-I/O single-runtime gate used by
+ordinary custody calls. This was more setup than a typical React Native auth
+smoke test, but it preserves the evidence quality LLP 0258 requires instead of
+substituting a JavaScript mock for OS behavior.
+
+No Guide gap ticket was filed for this entry. The explicit injection and probe
+hooks remain Phase 2 evidence-only surfaces, and the Bun autolinking issue is
+handled in the package manifest rather than by app-author guidance.

@@ -48,6 +48,7 @@ private sealed interface CustodyState {
   data class AbsentWithDiagnostic(val reason: String) : CustodyState
   data class Present(val record: String, val revision: Long) : CustodyState
   data class Corrupt(val reason: String) : CustodyState
+  data class TestCorruptedCiphertext(val record: String, val revision: Long) : CustodyState
 }
 
 private class CasConflict(val expected: Long?, val actual: Long?) : Exception()
@@ -87,6 +88,11 @@ private object CustodyKeyStore {
       generateKey()
     }
   }
+
+  fun retirePermanentlyInvalidatedAlias() = synchronized(lock) {
+    val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
+    if (keyStore.containsAlias(KEY_ALIAS)) keyStore.deleteEntry(KEY_ALIAS)
+  }
 }
 
 private class CustodySerializer(
@@ -124,15 +130,18 @@ private class CustodySerializer(
         ?: return CustodyState.Corrupt("custody payload has no safe positive revision")
       CustodyState.Present(record, revision)
     } catch (_: AEADBadTagException) {
-      CustodyState.AbsentWithDiagnostic("custody AES-GCM authentication failed")
+      CustodyState.Corrupt("custody AES-GCM authentication failed")
     } catch (_: KeyPermanentlyInvalidatedException) {
+      CustodyKeyStore.retirePermanentlyInvalidatedAlias()
       CustodyState.AbsentWithDiagnostic("Android Keystore key was permanently invalidated")
     } catch (error: Exception) {
       when {
         error.hasCause<AEADBadTagException>() ->
-          CustodyState.AbsentWithDiagnostic("custody AES-GCM authentication failed")
-        error.hasCause<KeyPermanentlyInvalidatedException>() ->
+          CustodyState.Corrupt("custody AES-GCM authentication failed")
+        error.hasCause<KeyPermanentlyInvalidatedException>() -> {
+          CustodyKeyStore.retirePermanentlyInvalidatedAlias()
           CustodyState.AbsentWithDiagnostic("Android Keystore key was permanently invalidated")
+        }
         else -> CustodyState.Corrupt(
           "custody envelope could not be decoded: ${error.javaClass.simpleName}"
         )
@@ -141,12 +150,26 @@ private class CustodySerializer(
   }
 
   override suspend fun writeTo(t: CustodyState, output: OutputStream) {
-    val present = t as? CustodyState.Present
-      ?: throw IllegalStateException("DataStore may persist only a present custody record")
+    val record: String
+    val revision: Long
+    val corruptCiphertext: Boolean
+    when (t) {
+      is CustodyState.Present -> {
+        record = t.record
+        revision = t.revision
+        corruptCiphertext = false
+      }
+      is CustodyState.TestCorruptedCiphertext -> {
+        record = t.record
+        revision = t.revision
+        corruptCiphertext = true
+      }
+      else -> throw IllegalStateException("DataStore may persist only a present custody record")
+    }
     val cipher = Cipher.getInstance("AES/GCM/NoPadding")
     cipher.init(Cipher.ENCRYPT_MODE, CustodyKeyStore.getOrCreateKey(), SecureRandom())
     cipher.updateAAD(aad)
-    val ciphertext = cipher.doFinal(present.record.toByteArray(Charsets.UTF_8))
+    val ciphertext = cipher.doFinal(record.toByteArray(Charsets.UTF_8))
 
     // Verify the AEAD and revision echo before DataStore atomically publishes
     // the serialized bytes.
@@ -158,8 +181,12 @@ private class CustodySerializer(
     )
     verifier.updateAAD(aad)
     val verified = verifier.doFinal(ciphertext).toString(Charsets.UTF_8)
-    if (verified != present.record || recordRevision(verified) != present.revision) {
+    if (verified != record || recordRevision(verified) != revision) {
       throw IllegalStateException("custody AES-GCM read-verify mismatch")
+    }
+
+    if (corruptCiphertext) {
+      ciphertext[ciphertext.lastIndex] = (ciphertext.last().toInt() xor 0x01).toByte()
     }
 
     val envelope = JSONObject()
@@ -206,8 +233,10 @@ class SnapbackExpoCustodyModule : Module() {
         "status" to "ok",
         "os" to "android",
         "grade" to "single-runtime",
+        "carrier" to "android-datastore-keystore",
         "mechanism" to "datastore-keystore-aes-gcm",
-        "moduleVersion" to MODULE_VERSION
+        "moduleVersion" to MODULE_VERSION,
+        "storageFormatVersion" to ENVELOPE_FORMAT_VERSION
       )
     }
 
@@ -226,6 +255,8 @@ class SnapbackExpoCustodyModule : Module() {
           )
           is CustodyState.Present -> mapOf("status" to "ok", "record" to current.record)
           is CustodyState.Corrupt -> corrupt(current.reason)
+          is CustodyState.TestCorruptedCiphertext ->
+            corrupt("custody AES-GCM authentication failed")
         }
       } catch (error: Exception) {
         storageFailure("DataStore read failed: ${error.javaClass.simpleName}")
@@ -246,11 +277,14 @@ class SnapbackExpoCustodyModule : Module() {
 
       try {
         // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — revision comparison and whole-record replacement execute inside DataStore's one native transaction.
+        // @ref LLP 0059#unrecognized-authority-recovery — malformed custody is never an anonymous/fresh recovery arm; only validated settled or clearing records can enter coordinator recovery.
         val updated = storeFor(appId, storageKey).updateData { current ->
           val actualRevision = when (current) {
             CustodyState.Absent, is CustodyState.AbsentWithDiagnostic -> null
             is CustodyState.Present -> current.revision
             is CustodyState.Corrupt -> throw StoredCorruption(current.reason)
+            is CustodyState.TestCorruptedCiphertext ->
+              throw StoredCorruption("custody AES-GCM authentication failed")
           }
           if (actualRevision != expectedRevision) {
             throw CasConflict(expectedRevision, actualRevision)
@@ -282,6 +316,37 @@ class SnapbackExpoCustodyModule : Module() {
         corrupt(corruption.detail)
       } catch (error: Exception) {
         storageFailure("DataStore write failed: ${error.javaClass.simpleName}")
+      }
+    }
+
+    AsyncFunction("corruptCiphertext") Coroutine { appId: String, storageKey: String ->
+      if (!BuildConfig.DEBUG) {
+        return@Coroutine storageFailure("custody corruption test hook requires a debug build")
+      }
+      singleRuntimeRefusal()?.let { return@Coroutine it }
+      if (!validAddress(appId, storageKey)) {
+        return@Coroutine storageFailure("invalid native custody address")
+      }
+      try {
+        val updated = storeFor(appId, storageKey).updateData { current ->
+          when (current) {
+            is CustodyState.Present ->
+              CustodyState.TestCorruptedCiphertext(current.record, current.revision)
+            CustodyState.Absent, is CustodyState.AbsentWithDiagnostic ->
+              throw IllegalStateException("custody corruption target is absent")
+            is CustodyState.Corrupt -> throw StoredCorruption(current.reason)
+            is CustodyState.TestCorruptedCiphertext -> current
+          }
+        }
+        if (updated is CustodyState.TestCorruptedCiphertext) {
+          mapOf("status" to "ok")
+        } else {
+          storageFailure("custody ciphertext corruption was not persisted")
+        }
+      } catch (corruption: StoredCorruption) {
+        corrupt(corruption.detail)
+      } catch (error: Exception) {
+        storageFailure("custody ciphertext corruption failed: ${error.javaClass.simpleName}")
       }
     }
 
@@ -321,22 +386,7 @@ class SnapbackExpoCustodyModule : Module() {
   }
 
   private fun singleRuntimeRefusal(): Map<String, Any?>? {
-    val context = reactContext.applicationContext
-    val processName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-      Application.getProcessName()
-    } else {
-      val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
-      manager?.runningAppProcesses
-        ?.firstOrNull { it.pid == Process.myPid() }
-        ?.processName
-    }
-    if (processName == context.packageName) return null
-    return mapOf(
-      "status" to "single-runtime-refused",
-      "code" to "SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED",
-      "platform" to "android",
-      "process" to processName
-    )
+    return androidSingleRuntimeRefusal(reactContext.applicationContext)
   }
 
   private fun validAddress(appId: String, storageKey: String): Boolean {
@@ -354,4 +404,68 @@ class SnapbackExpoCustodyModule : Module() {
     "code" to "SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED",
     "reason" to reason
   )
+}
+
+private fun resolveAndroidProcessName(context: Context): String? {
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+    try {
+      Application.getProcessName()?.takeIf { it.isNotBlank() }?.let { return it }
+    } catch (_: RuntimeException) {
+      // Fall through to procfs/OEM-compatible discovery.
+    }
+  }
+  try {
+    val raw = File("/proc/self/cmdline").readBytes()
+    val end = raw.indexOf(0).let { if (it < 0) raw.size else it }
+    raw.copyOfRange(0, end).toString(Charsets.UTF_8)
+      .trim()
+      .takeIf { it.isNotEmpty() }
+      ?.let { return it }
+  } catch (_: Exception) {
+    // ActivityManager is the final compatibility fallback below.
+  }
+  return try {
+    val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+    manager?.runningAppProcesses
+      ?.firstOrNull { it.pid == Process.myPid() }
+      ?.processName
+      ?.takeIf { it.isNotBlank() }
+  } catch (_: RuntimeException) {
+    null
+  }
+}
+
+private fun androidSingleRuntimeRefusal(context: Context): Map<String, Any?>? {
+  val processName = resolveAndroidProcessName(context.applicationContext) ?: return null
+  if (processName == context.packageName) return null
+  return mapOf(
+    "status" to "single-runtime-refused",
+    "code" to "SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED",
+    "platform" to "android",
+    "process" to processName
+  )
+}
+
+class NativeCustodyProbeException(
+  val code: String,
+  message: String
+) : IllegalStateException(message)
+
+object NativeCustodyProbeHooks {
+  /** Debug-only entry through the same pre-I/O process gate as module reads. */
+  @JvmStatic
+  fun attemptSecondaryProcessIo(context: Context): String {
+    if (!BuildConfig.DEBUG) {
+      throw NativeCustodyProbeException(
+        "SNAPBACK_AUTH_CUSTODY_TEST_HOOK_UNAVAILABLE",
+        "native custody secondary-process probe requires a debug build"
+      )
+    }
+    val refusal = androidSingleRuntimeRefusal(context)
+      ?: throw NativeCustodyProbeException(
+        "SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_NOT_DETECTED",
+        "secondary-process custody probe resolved the application main runtime"
+      )
+    return refusal["code"] as String
+  }
 }

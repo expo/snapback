@@ -4,6 +4,7 @@ import type {
   SnapbackClient,
   SnapbackDiagnostic,
 } from './index.mjs';
+import type { SnapbackAuthCustodyStorage } from '@expo/snapback-contract/auth-coordinator';
 
 export const DEFAULT_AUTH_STORAGE_PARTITION: 'default';
 
@@ -109,10 +110,23 @@ export type SnapbackAppClientPlatform =
       lockManager?: unknown;
       cryptoObject?: unknown;
       databaseName?: string;
+    }>
+  | Readonly<{
+      kind: 'expo-native';
+      /** Advanced evidence seam only. Ordinary provider resolution does not
+       * construct this shape until the per-OS Phase 2 capability flips. */
+      authCustodyStorage: SnapbackAuthCustodyStorage & Readonly<{
+        ownerKeyCapability: 'owner-key-v1';
+      }>;
+      cryptoObject?: unknown;
     }>;
 
 export type PublicAuthCustodyFacts = Readonly<{
-  carrier: 'indexeddb-web-locks' | 'indexeddb-fenced-lease' | 'memory';
+  carrier:
+    | 'indexeddb-web-locks'
+    | 'indexeddb-fenced-lease'
+    | 'expo-native-injected'
+    | 'memory';
   grade: 'durable' | 'volatile';
   storagePartitionIdentityHash: `sha256:${string}`;
   formatVersion: number;

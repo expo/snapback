@@ -3,7 +3,10 @@ import { webcrypto } from 'node:crypto';
 import { test } from 'node:test';
 
 import { IDBFactory } from 'fake-indexeddb';
-import { AuthCoordinator } from '@expo/snapback-contract/auth-coordinator';
+import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '@expo/snapback-contract/auth-coordinator';
 import { createIndexedDbAuthCustodyStorage } from '@expo/snapback-contract/auth-custody-indexeddb';
 
 import {
@@ -748,6 +751,53 @@ test('raw bootstrap refuses fabricated receipts and local, private, or unspecifi
       );
     }
     assert.equal(server.requests.length, 0);
+  } finally {
+    server.restore();
+  }
+});
+
+test('expo-native admission requires an explicitly injected owner-key-v1 custody adapter', async () => {
+  const server = installServer();
+  const app = makeApp({ custody: 'durable-required' });
+  try {
+    await assert.rejects(
+      createSnapbackAppClient({
+        app,
+        binding: makeBinding(app),
+        platform: { kind: 'expo-native', cryptoObject: webcrypto },
+      }),
+      (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
+    );
+    await assert.rejects(
+      createSnapbackAppClient({
+        app,
+        binding: makeBinding(app),
+        platform: {
+          kind: 'expo-native',
+          authCustodyStorage: {
+            ...createMemoryAuthCustodyStorage(),
+            ownerKeyCapability: 'wrong-owner-key-capability',
+          },
+          cryptoObject: webcrypto,
+        },
+      }),
+      (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
+    );
+    assert.equal(server.requests.length, 0);
+
+    const client = await createSnapbackAppClient({
+      app,
+      binding: makeBinding(app),
+      platform: {
+        kind: 'expo-native',
+        authCustodyStorage: createMemoryAuthCustodyStorage(),
+        cryptoObject: webcrypto,
+      },
+    });
+    assert.equal(client.bootstrapState().status, 'ready');
+    assert.equal(client.bootstrapState().custody.carrier, 'expo-native-injected');
+    assert.equal(client.bootstrapState().custody.grade, 'durable');
+    await client.dispose();
   } finally {
     server.restore();
   }

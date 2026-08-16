@@ -183,6 +183,12 @@ export function createNativeAuthCustodyStorage(options = {}) {
     }
   };
 
+  // This marker is deliberately adapter-instance-local. Calls made through a
+  // second adapter instance still join the shared native-module queue, while
+  // a callback that re-enters this same adapter/key refuses instead of
+  // waiting on its own unresolved tail.
+  const activeOwnershipKeys = new Set();
+
   return Object.freeze({
     ownerKeyCapability: 'owner-key-v1',
 
@@ -193,18 +199,24 @@ export function createNativeAuthCustodyStorage(options = {}) {
         result?.status !== 'ok'
         || (result.os !== 'ios' && result.os !== 'android')
         || result.grade !== 'single-runtime'
+        || typeof result.carrier !== 'string'
+        || result.carrier.length === 0
         || typeof result.mechanism !== 'string'
         || result.mechanism.length === 0
         || typeof result.moduleVersion !== 'string'
         || result.moduleVersion.length === 0
+        || !Number.isSafeInteger(result.storageFormatVersion)
+        || result.storageFormatVersion <= 0
       ) {
         throw nativeFailure(result, 'platformGrade');
       }
       return Object.freeze({
         os: result.os,
         grade: 'single-runtime',
+        carrier: result.carrier,
         mechanism: result.mechanism,
         moduleVersion: result.moduleVersion,
+        storageFormatVersion: result.storageFormatVersion,
       });
     },
 
@@ -213,12 +225,20 @@ export function createNativeAuthCustodyStorage(options = {}) {
         throw new TypeError('ownership operation must be a function');
       }
       const { appId, storageKey } = nativeAddress(ownerKeyInput);
+      if (activeOwnershipKeys.has(storageKey)) {
+        throw createAuthCustodyError(
+          'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
+          'native auth custody ownership is non-reentrant for one owner key',
+          { operation: 'withOwnership', reason: 'same-key-reentrant' },
+        );
+      }
       const nativeModule = assertNativeModule(await resolveNativeModule());
       const lock = lockFor(nativeModule, storageKey);
       const prior = lock.tail;
       let releaseTail;
       lock.tail = new Promise((resolve) => { releaseTail = resolve; });
       await prior;
+      activeOwnershipKeys.add(storageKey);
 
       const readRecord = async () => {
         const result = await callNative(
@@ -245,6 +265,14 @@ export function createNativeAuthCustodyStorage(options = {}) {
         async (expectedRevision, next) => {
           const validatedNext = validateOrdinaryBearerCustody(next, appId);
           const current = await readRecord();
+          const actualRevision = current?.revision ?? null;
+          if (actualRevision !== expectedRevision) {
+            throw createAuthCustodyError(
+              'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
+              'durable custody changed before compare-and-swap',
+              { expectedRevision, actualRevision },
+            );
+          }
           const validated = validateAuthCustodyReplacement(current, validatedNext, appId);
           const serialized = JSON.stringify(validated);
           // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — the JS read is validation/courtesy serialization only; correctness comes from this one native expected-revision CAS call.
@@ -281,8 +309,35 @@ export function createNativeAuthCustodyStorage(options = {}) {
         return await operation(operationOwner);
       } finally {
         owner.release();
+        activeOwnershipKeys.delete(storageKey);
         releaseTail();
       }
     },
+
+    testHooks: Object.freeze({
+      async corruptCiphertext(ownerKeyInput) {
+        if (globalThis.__DEV__ !== true) {
+          throw createAuthCustodyError(
+            'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
+            'native custody test hooks are unavailable outside development builds',
+            { operation: 'corruptCiphertext', reason: 'development-build-required' },
+          );
+        }
+        const { appId, storageKey } = nativeAddress(ownerKeyInput);
+        const nativeModule = assertNativeModule(await resolveNativeModule());
+        if (typeof nativeModule.corruptCiphertext !== 'function') {
+          throw createAuthCustodyError(
+            'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
+            'the native custody module does not provide the Android corruption probe hook',
+            { operation: 'corruptCiphertext', reason: 'native-test-hook-unavailable' },
+          );
+        }
+        const result = await callNative(
+          'corruptCiphertext',
+          () => nativeModule.corruptCiphertext(appId, storageKey),
+        );
+        if (result?.status !== 'ok') throw nativeFailure(result, 'corruptCiphertext');
+      },
+    }),
   });
 }
