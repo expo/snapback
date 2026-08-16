@@ -1923,6 +1923,32 @@ profile; creator-only bootstrap retains its structural carve-out. This closes
 group creation without admitting sequential membership commands or a generic
 batch writer.
 
+**Verified 2026-08-15:** The motivating case is the Clique 0.1.21
+exploratory-sweep finding recorded in Diary
+0081-clique-0121-snapback-simplified: the published
+one-membership-command-per-mutation model could not express atomic multi-seat
+fixture group creation, forcing that lane to downgrade authority to public-read
+handler visibility. This amendment covers that case:
+`bootstrap(resourceValues, initialMembers?)` atomically seats up to 64
+additional transition-checked members, each authorized as an ordinary declared
+`insert` from the creator's bootstrap role. The surface is implemented and
+shipped, not merely specified: `src/runtime.rs` validates the `initialMembers`
+argument and carries the bootstrap-roster tests;
+`packages/snapback-codegen/index.mjs` generates the authoring surface;
+`guide/auth/scoped-roles.md` documents it; and the `auth.scoped-roles` and
+`authority.profile.v1` rows in `guide/capabilities.md` register it. The diary's
+second prong—owner-visibility `ctx.db` reads blocking cross-principal resolution
+of a quoted message—is likewise covered by the explicit `ctx.db.elevated`
+handler-read surface in `guide/auth/protecting-data.md`, whose worked example is
+exactly the quoted-message case. Both surfaces are in the published catalog:
+every `@expo/snapback*` package was published at 0.1.22 on 2026-08-15 (npm
+`time.modified` 2026-08-16T00:34Z), and the published
+`@expo/snapback-codegen@0.1.22` tarball contains the `.authorityProfile(...)`
+facade and the `bootstrap(resourceValues, initialMembers?)` atomic-roster
+signature. There is no residual expressiveness gap from the Diary
+0081-clique-0121-snapback-simplified fixture case and no further amendment is
+needed.
+
 ## Status
 
 **Review** — moved from `Draft` by the author (Charlie, 2026-07-13), who is the only party LLP 0005 permits to make that call. Refined through **sixteen dual-family review rounds** (fresh Claude
