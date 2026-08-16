@@ -74,3 +74,11 @@ revision; the loser stays typed `SNAPBACK_AUTH_REFRESH_SUPERSEDED`; both tabs
 converge automatically on that rotated record; the harness's proof-2
 concurrent-refresh check passes on both engines and the witness receipt goes
 green.
+
+## Claim (2026-08-16, second sitting)
+
+The Phase-1.4 orchestration session (which filed this from its harness
+evidence) is now executing the root-cause and fix, with the harness's
+proof-2 rerun as acceptance; a Firefox (geckodriver) engine arm is being
+added to the same harness in parallel, so the closing witness covers three
+engines. Per the fleet convention this claim yields to landed code.
