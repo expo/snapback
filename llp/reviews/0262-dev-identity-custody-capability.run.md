@@ -95,3 +95,70 @@ the one authorized transition. Convergence produces a recommendation only.
   fronted+unset = full prod semantics.
 - Round 3 of 3 (final in budget) = delta round, all three families (claude
   has not yet returned READY).
+
+## Round 3 (delta round; final in budget)
+
+- Round: 3 of 3. All three families (claude has not yet returned READY).
+- Target revision r3 (sha256 first-16): `48daf98cff73810b` (landed
+  `d82168def`). Capsule: pristine capsule-r2 clone + r3 overlay; tar sha256
+  first-16 `86ae6174bf6cd10b`; one clone per reviewer.
+- Instructions: `review-prompt-r3.md` (7-item enumerated delta,
+  IN-DELTA/PRE-EXISTING duty), sha256 first-16 `1683ed63a3f2455e`.
+- Growth note: r3 is 15,879 bytes, +33% net over the entering revision
+  (11,917) — exceeds the ~20% budget; disclosed for the close-out
+  escalation with a trim-at-acceptance proposal.
+
+### Round 3 interim + author ruling
+
+- Receipts so far: claude READY (first claude READY — family closed out per
+  the author's drop-after-first-READY rule); codex NOT READY (1 MATERIAL
+  in-delta: native gated-leg trust root; 1 MATERIAL pre-existing:
+  SNAPBACK_EXPOSURE invalid-value semantics; 2 implementation-phase).
+  Grok attempt 1 exited without a verdict — recorded as a partial
+  (`r3-grok-attempt1-partial.md`), never counted; relaunched within the
+  launch cap (grok review launches now 4 of 6 permitted).
+- **Author ruling (in-session, 2026-08-16):** on grok receipt, apply the r4
+  fixes for the outstanding MATERIALs and end the loop with r4 as the final
+  revision labeled UNREVIEWED (verdicts bind to r3); no further review
+  rounds. This resolves the round-budget escalation in advance. The growth
+  disclosure (+33% vs ~20% budget) stands, with trim-at-acceptance
+  proposed.
+
+### Round 3 receipt + close-out (2026-08-16)
+
+- Final round-3 receipts, all binding to r3 `48daf98cff73810b`: claude
+  READY; grok READY (counted attempt 2; attempt 1 partial, not counted);
+  codex NOT READY — 1 MATERIAL in-delta (native gated-leg trust root),
+  1 MATERIAL pre-existing (SNAPBACK_EXPOSURE invalid-value semantics),
+  2 implementation-phase.
+- Termination: round budget (3) exhausted with a cross-family split
+  (2 READY / 1 NOT READY) — the pre-existing MATERIAL also precludes
+  delta-rule convergence. Resolved by the in-session author ruling
+  (2026-08-16): apply the r4 fixes and end the loop with no further
+  review rounds.
+- **Final state:** final REVIEWED revision is r3 `48daf98cff73810b`
+  (verdicts above bind to it). r4 `bf05996fd13f223d` is a LATER, UNREVIEWED
+  fix revision addressing both codex MATERIALs (concrete one-shot
+  checkout-nonce native carrier with never-admin-token-on-device and
+  web/tunnel non-redeemability witnesses; closed exposure value set with
+  fail-closed unrecognized-value handling) plus four implementation-phase
+  tightenings (route-specific-admission rephrase, relay re-read past
+  connection-error refresh, db-sibling shutdown unlink, OQ2
+  non-preemption). Document stays at Review; acceptance is the author's
+  call.
+- Disposition ledger: every round-1/2 MATERIAL was fixed in the following
+  revision and re-verified by the round-3 reviews (claude and grok both
+  re-checked the r3 fixes against source; grok's table endorses each).
+  Codex r3 M1/M2 → fixed in r4 (unreviewed). All remaining round-3
+  implementation-phase items are dispositioned in the artifacts and carried
+  into the r4 text where one sentence sufficed (relay re-read, unlink,
+  OQ2 note, admission rephrase) or left to implementation (nonce channel
+  details, count refresh at implementation time).
+- Growth disclosure: r4 is 17,833 bytes, +49.7% net over the entering
+  revision (11,917) against the ~20% budget — grown by reviewer-demanded
+  topology completeness (the D2 matrix and D4 table). Proposed: trim at
+  acceptance (compress Motivation and the revision history) rather than
+  cutting reviewed normative text now.
+- Loop bounds: launches used — claude 3/6, codex 3/6, grok 4/6 (one void);
+  rounds 3/3; no fabricated or reconstructed reviews; all artifacts
+  verbatim.

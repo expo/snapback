@@ -5,7 +5,7 @@
 **Systems:** Auth mode, Server, Security, Developer experience, Local server lifecycle, Demos, Packaged dev loop, CLI
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-15
-**Revised:** 2026-08-15 (r3: round-2 revision — anchor ladder, credential-bootstrap carve-out, Expo topology split, non-disclosing refusal)
+**Revised:** 2026-08-16 (r4: post-loop fix revision, UNREVIEWED — native carrier mechanism, closed exposure value set; final reviewed revision is r3)
 **Related:** LLP 0009, LLP 0010, LLP 0017 (D3 amends its loopback-read default), LLP 0030 (browser-facts fence preserved), LLP 0031, LLP 0036, LLP 0039, LLP 0060, LLP 0168, LLP 0181, LLP 0213, `issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`, `issues/20260811-ios-physical-device-dev-carrier-decision-packet.md`
 
 ## Summary
@@ -76,7 +76,10 @@ sidecar (`captureImpersonationCapability`).
   LLP 0017 documents for the admin token. The resolved path is advertised on
   the ready descriptor exactly as `adminTokenFile`/`impersonationCapabilityFile`
   are, which is what `_kit` harvests. Rotated by overwrite each boot and
-  removed on clean shutdown, so a leftover sidecar means an unclean exit.
+  removed on clean shutdown — an explicit unlink of whichever anchor was
+  used, including the db sibling when no ready file exists (the existing
+  teardown is ready-file-scoped) — so a leftover sidecar means an unclean
+  exit.
   Prod never mints; a sidecar found by a prod boot is a startup refusal
   (rehearsal rule, LLP 0213) whose message names the path — a refusal
   printed to the operator, not served to a network caller.
@@ -84,7 +87,11 @@ sidecar (`captureImpersonationCapability`).
   Wherever the server resolves `ClientAsserted` dev authority from request
   content (`dev_body_authority` / `dev_host_operation_authority` on HTTP,
   dev frames on the socket path), installation requires a verified
-  capability witness. `validate_plaintext_auth_transport` and
+  capability witness. The gate lands on app-plane `ClientAsserted`
+  installation first; whether admin-token-gated host-ops
+  (`function.run`/`auth.mintSession` via `dev_host_operation_authority`)
+  also require it is OQ2 and must not be answered incidentally by the
+  implementation. `validate_plaintext_auth_transport` and
   `permits_dev_body_origin` keep their current jobs and compose; neither is
   the capability check.
 - **Live sockets:** browsers cannot set custom upgrade headers, and dev
@@ -116,9 +123,9 @@ wrong: the Vite virtual module deliberately serves no origin and no secrets.)
 | --- | --- |
 | CLI verbs | Resolve the sidecar on the anchor ladder (admin-token discipline). |
 | `_kit` / harness / headless node clients | Read the ready-descriptor-advertised path at spawn (the existing `captureImpersonationCapability` shape); passed by env or client option, never argv. |
-| Managed Vite loop (LLP 0030) | The relay (`proxy.mjs`) — which terminates every allowlisted app route including `/connection/open` and both WebSocket legs — attaches the header **relay-side**. It overwrites any client-supplied header value and re-reads the sidecar when the backend restarts (per-boot rotation). Browser JS never sees the bearer; no CORS change. A *fronted Vite* stamps for strangers: named residual (OQ1), owned long-term by LLP 0168's carrier decision. |
+| Managed Vite loop (LLP 0030) | The relay (`proxy.mjs`) — which terminates every allowlisted app route including `/connection/open` and both WebSocket legs — attaches the header **relay-side**. It overwrites any client-supplied header value, and re-reads the sidecar on ready-descriptor nonce change or per forwarded request/upgrade — a connection-error-triggered refresh alone misses a same-port backend restart that answers with an auth refusal. Browser JS never sees the bearer; no CORS change. A *fronted Vite* stamps for strangers: named residual (OQ1), owned long-term by LLP 0168's carrier decision. |
 | External/attach Vite mode | Accepts only a URL today. New explicit handoff: `SNAPBACK_DEV_IDENTITY_FILE=<path>` read by the dev-host process. Absent handoff, browser dev identity refuses (generic body; remediation in the dev host's local log). |
-| Packaged Expo loop, native targets (iOS simulator, Android emulator, Android physical via USB `adb reverse`) | The supervised loop is sessions-first (the rendezvous returns an ordinary session). Where a native supervised app additionally asserts dev identity, the capability rides a **gated leg** of the loopback rendezvous (nonce/operator-token discipline, not the bare payload route), is never cached across rotation, and never enters `EXPO_PUBLIC_*`. USB Android preserves loopback via per-serial `adb reverse` and uses the same leg. |
+| Packaged Expo loop, native targets (iOS simulator, Android emulator, Android physical via USB `adb reverse`) | The supervised loop is sessions-first (the rendezvous returns an ordinary session). Where a native supervised app additionally asserts dev identity, the supervisor mints a **one-shot, startup-nonce-bound checkout nonce per selected device** and delivers it through a native-only launch channel unavailable to web or tunneled HTTP (simulator launch environment / per-serial `adb` launch extras on the reversed leg); the app redeems it once at the supervisor for the capability. The admin operator token never reaches a device (that would collapse the D3 plane split); nothing rides the bare CORS-readable bootstrap GET; nothing is cached across rotation; nothing enters `EXPO_PUBLIC_*`. Stage-2 witnesses must prove Expo web and tunneled raw HTTP cannot redeem a checkout nonce. USB Android preserves loopback via per-serial `adb reverse` and uses the same channel. |
 | Packaged Expo loop, **web** target | Supervised web fetches its bootstrap from browser JavaScript, so the bearer MUST NOT ride it. Sessions-based supervised web is unaffected; browser dev-identity assertion for Expo web goes through a relay-stamping front like managed Vite or is refused at enforce — documented, not silent. |
 | Physical iOS; Android over TCP/IP or LAN | **Still refused/unsupported**, unchanged — the carrier decision packet's open question. A launcher that opts into a wide bind hands the capability to the clients it configures and accepts the LAN threat model (OQ1). |
 | Raw `snapback start` + hand-rolled client | Documented: resolve the sidecar (or TTY-disclosed value), send the header. Guide page carries it. |
@@ -154,6 +161,13 @@ feeding the same acceptance rules. Truth table (served instances):
 | --- | --- | --- | --- |
 | exposure unset | bind-derived (today, plus D1 capability requirement) | explicit non-prod: mints, capability required | prod: never mints; sidecar presence refuses |
 | `fronted` | the **resolved profile is `prod`** — full prod semantics (no mint, no dev identity, provisioning table refuses per `NonProd`); the operator must select a profile explicitly | mints — the operator explicitly chose a dev profile behind a declared front; startup prints one exposure warning line | unchanged |
+
+The value set is closed: `fronted` is the only recognized value (OQ4 may
+add `direct`). Empty or unset means unset. Any other nonempty value
+resolves to full `fronted` semantics — the fail-closed direction, mirroring
+`resolve_profile`'s unrecognized-value rule — with one startup warning
+naming the unrecognized value; a typo can only tighten, never restore the
+bind-derived default.
 
 `--allow-insecure-dev-auth` keeps its exact current meaning (dev auth over
 plaintext on a non-loopback **bind**, non-prod only); it neither grants nor
@@ -227,6 +241,14 @@ impersonation harvest today), CLI, Expo supervisor gated leg, guide.
   narrowed to token/console credential; topology matrix with named deputy
   residual; D4 truth table; D5 timing; D6 corrected chokepoints; baseline
   wording corrected.
+- 2026-08-16 r4 (UNREVIEWED — post-loop fix revision per author ruling;
+  final reviewed revision is r3, verdicts claude READY / grok READY / codex
+  NOT READY): concrete native checkout-nonce carrier replacing the
+  underspecified gated-leg phrase (codex r3 M1); closed SNAPBACK_EXPOSURE
+  value set with fail-closed unrecognized-value handling (codex r3 M2);
+  route-specific-admission rephrase of the D3 bootstrap rule; relay re-read
+  strengthened past connection-error refresh; db-sibling shutdown unlink;
+  OQ2 non-preemption note on the gate point.
 - 2026-08-15 r3: round-2 revision — sidecar anchor corrected to the admin
   token's real triad ladder with ready-descriptor advertisement (the DB
   sibling does not exist for `--memory` instances, the kit default);

@@ -133,3 +133,63 @@ r2 fixed the r1 browser-path mistake and scoped the safety claim to what custody
 
 VERDICT: NOT READY
 
+
+## Round 3 (delta) — 2026-08-16 — grok family
+
+**Runtime:** grok -m grok-4.6 --reasoning-effort xhigh --output-format plain --disable-web-search --permission-mode auto --max-turns 200
+**Target revision r3 (sha256 first-16):** 48daf98cff73810b
+**Capsule:** pristine r2 clone + r3 overlay (tar sha256 first-16 86ae6174bf6cd10b)
+**Instructions (sha256 first-16):** 1683ed63a3f2455e
+**Blindness:** structural
+**Note:** attempt 1 exited without a verdict (partial preserved as r3-grok-attempt1-partial.md in the run directory, not counted); this is the counted attempt 2.
+**Verdict: READY**
+
+### Verbatim review
+
+I'll review the r3 RFC against the snapshot source, starting with the document and the custody, admin, and client sites it depends on.The RFC is loaded. Next I’ll check the admin-token ladder, access evaluation, and how dev identity is actually installed today.I’ll now read the access-control and identity-install paths, plus the related LLPs the RFC claims to amend.The r3 text matches the snapshot. The admin-token triad, AdminRead floor, Expo bootstrap split, Vite relay, and prefix registry all check out; the remaining notes are implementation-phase, not defective decisions.
+
+## Concerns
+
+1. **Expo gated-leg checkout must not put the operator token on the device**  
+   **IN-DELTA · implementation-phase**  
+   D2 correctly keeps the bearer off the bare GET `/_snapback/expo/v1/bootstrap` payload (that route is unauthenticated and CORS-readable by Expo web). The only shipped gated leg is POST `/_snapback/expo/v1/control`, which authenticates `x-snapback-operator-token` as the **admin** token and is supervisor/CLI-held (`mintSupervisedOrdinarySession`, `onControl` in `packages/snapback-cli/expo-dev.mjs`). The native JS app does not have that token, and putting `sbat_` on a simulator/device would collapse D3’s plane split. Implement the “nonce/operator-token discipline” as an app-redeemable nonce or a native-only checkout that does **not** require presenting the admin token. CORS already blocks browser POST to the control path (`allow-methods: GET, OPTIONS`).  
+   **Evidence:** `packages/snapback-cli/expo-dev.mjs`, `packages/snapback-expo/supervised-environment.mjs`  
+   **Disposition:** spell the app-facing checkout in the implementation sketch; do not send `sbat_` to the device.
+
+2. **`dev_host_operation_authority` vs OQ2**  
+   **PRE-EXISTING · implementation-phase**  
+   D1 names `dev_host_operation_authority` as a capability gate. That function is the Dev-mode installer for `HostOperationFunctionRun` / `HostOperationMutationDryRun` (`src/server.rs`). OQ2 still asks whether `function.run` / `auth.mintSession` need the capability on top of the admin token. Those writes are already token-gated (`operation_profile_requirement`, host-ops AdminWrite after the AdminRead floor). Treat OQ2 as controlling for admin-plane host-ops; do not silently add the check inside `dev_host_operation_authority` in a way that answers OQ2 by accident.  
+   **Evidence:** `src/server.rs` (`prepare_registered_route_authority`), `src/admin.rs` (`operation_profile_requirement`, `evaluate_access` / host-ops AdminRead floor)  
+   **Disposition:** keep OQ2 open; implement the D1 gate on app-plane `ClientAsserted` installation first.
+
+3. **File-backed, no-ready-file shutdown unlink**  
+   **IN-DELTA · implementation-phase**  
+   Impersonation/secret-read teardown is ready-file-scoped (`remove_impersonation_capability` on the ready target in `src/cli.rs`). The r3 ladder puts a file-backed capability at `<db>.dev-identity`, which can exist with no ready target. “Removed on clean shutdown” needs an explicit unlink on that db sibling, not only the ready-file publisher path.  
+   **Evidence:** `src/cli.rs` (`admin_token_sibling` / `database_path.or(ready_path)`, ready-target teardown), `src/admin.rs` (`resolve_serve_admin_token`)  
+   **Disposition:** implement db-sibling removal on the serve shutdown path; leftover still means unclean exit.
+
+4. **Vite deputy residual is sharpest on the open-time witness**  
+   **PRE-EXISTING · implementation-phase**  
+   OQ1 already owns the fronted-Vite residual. HTTP body identity is still Origin-fenced (`permits_dev_body_origin` only admits loopback origins; `SNAPBACK_DEV_AUTH_ORIGINS` is loopback-only). A stranger browser through ngroked Vite still fails that check. The residual that actually appears after D1 is: relay stamps `/connection/open` → grant is witnessed → identity-bearing live frames (`operation_registry` live-socket `ClientAsserted`) no longer need Origin. That is why OQ1 remains load-bearing even with Origin left in place.  
+   **Evidence:** `src/server.rs` (`permits_dev_body_origin` call, `operation_registry` live ops), `src/admin.rs` (`canonical_loopback_http_origin`), `packages/snapback-vite/proxy.mjs`  
+   **Disposition:** no design change; keep OQ1 as written.
+
+## Overall assessment
+
+The r2 design is sound: bind-derived `ClientAsserted` identity is the live hole (curl and other Origin-less callers skip `permits_dev_body_origin`; served loopback still allows tokenless AdminRead). Custody matches the five existing `owner_only_file` primitives. Gating installation — not transport — is the right chokepoint. Relay-side stamping preserves LLP 0030 (`virtual:snapback/dev` already ships no origin and no secrets). The dedicated header must not be `Authorization` (sessions own it; Dev already rejects `Authorization` on bootstrap). D3’s plane split (dev-identity is not an admin read credential) is correct.
+
+The r3 delta fixes real mismatches with this tree:
+
+| r3 change | Snapshot check |
+| --- | --- |
+| Admin-token triad + ready-descriptor ad | `database_path.or(ready_path)` → `admin_token_sibling`; kit default is `:memory:` + `--memory` + ready-file |
+| Claim-exchange in the D3 carve-out | `POST /_snapback/api/console/claim/exchange` is `AdminRead` and is authorized at the shared `authorize_for_mode` floor **before** the claim-code proof in the handler |
+| Expo native / web / refused split | GET bootstrap is credential-free and CORS-readable; USB Android is already `adb reverse`; physical iOS and TCP/IP adb are already refused |
+| Generic `SNAPBACK_DEV_IDENTITY_REFUSED` | Same collapse-to-one-403 as `ImpersonationCapabilityRegistry::authorize` |
+| Relay overwrite + restart re-read | Proxy already retries on backend restart; it currently forwards client headers verbatim — overwrite is required |
+| D4 `fronted` + unset = full prod | Fail-closed and consistent with `allows_provisioning()` / NonProd |
+
+Open questions stay open and do not embed a bad decision. No unresolved material defect in the document as written.
+
+VERDICT: READY
+

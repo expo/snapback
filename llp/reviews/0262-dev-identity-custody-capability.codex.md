@@ -124,3 +124,46 @@ VERDICT: NOT READY
 Overall, the authority-installation gate, connection-grant witness, relay-side Vite stamping, D4 truth table, and topology-honest deputy residual are sound directions. The claim-exchange deadlock and incomplete/contradictory carrier model are implementation-blocking design defects, however, and the unauthenticated path disclosure needs correction.
 
 VERDICT: NOT READY
+
+## Round 3 (delta) — 2026-08-16 — codex family
+
+**Runtime:** codex exec --skip-git-repo-check -m gpt-5.6-sol -c model_reasoning_effort=xhigh -s read-only
+**Target revision r3 (sha256 first-16):** 48daf98cff73810b
+**Capsule:** pristine r2 clone + r3 overlay (tar sha256 first-16 86ae6174bf6cd10b)
+**Instructions (sha256 first-16):** 1683ed63a3f2455e
+**Blindness:** structural
+**Verdict: NOT READY** (1 MATERIAL in-delta, 1 MATERIAL pre-existing, 2 implementation-phase)
+
+### Verbatim review
+
+1. Native Expo “gated leg” lacks a bootstrap trust root — IN-DELTA; MATERIAL.
+
+   Defective decision: “nonce/operator-token discipline” does not specify how the native app obtains a proof unavailable to Expo web or a tunneled HTTP caller. The existing operator-token route is supervisor-only; giving that token to the app would cross the admin/app-plane boundary. A nonce delivered through the existing public origin or bootstrap route would not prove custody.
+
+   Evidence: `llp/0262-dev-identity-custody-capability.rfc.md` D2; `packages/snapback-cli/expo-dev.mjs` (`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`, unauthenticated bootstrap GET, operator-token control route); `packages/snapback-expo/supervised-environment.mjs`; LLP 0181’s explicit statement that the live bootstrap channel lacks peer authentication.
+
+   Suggested disposition: Specify a concrete, native-only one-shot transfer—bound to startup nonce and selected device/simulator, delivered through an OS/device launch channel unavailable to web—or refuse native dev identity until such a carrier is proven. Tests must demonstrate that Expo web and tunneled raw HTTP cannot redeem it.
+
+2. Invalid `SNAPBACK_EXPOSURE` values have no fail-closed semantics — PRE-EXISTING; MATERIAL.
+
+   Defective decision: D4 defines unset and `fronted`, while OQ4 discusses adding `direct`, but neither defines unknown, misspelled, case-varied, or empty values. Treating an invalid nonempty value as unset would restore bind-derived Dev—including provisioning eligibility—despite an attempted exposure declaration.
+
+   Evidence: `llp/0262-dev-identity-custody-capability.rfc.md` D4 and OQ4; `src/admin.rs` (`resolve_profile` and `profile_resolution_fails_closed_on_unrecognized_values`) establishes the analogous security-sensitive configuration precedent.
+
+   Suggested disposition: Define the final closed value set and require every other nonempty value either to fail startup or resolve to full Prod semantics. Explicitly define whether empty means unset and add typo/case tests.
+
+3. Vite restart rereading cannot rely on connection-error refresh — IN-DELTA; implementation-phase.
+
+   Evidence: `packages/snapback-vite/proxy.mjs` refreshes cached state only after selected connection errors; `packages/snapback-vite/lifecycle.mjs` rereads the ready descriptor during that refresh. A same-port backend restart may accept a request carrying the stale capability and return an authentication refusal without producing a connection error.
+
+   Suggested disposition: Reread per forwarded request/upgrade or detect ready-instance nonce changes before forwarding. Test a same-port restart and avoid retrying mutations after an authenticated backend response.
+
+4. “Credential-bootstrap AdminRead keeps its own proof” overstates approval-request — IN-DELTA; implementation-phase.
+
+   Evidence: `src/admin.rs` shows approval-request is proofless and controlled by local posture, capacity, and rate limits; approval-poll carries a device code, and claim-exchange carries a claim code.
+
+   Suggested disposition: Rephrase the invariant as “credential-bootstrap routes retain their route-specific admission,” explicitly distinguishing the proofless request route from the proof-bearing poll and exchange routes.
+
+Overall, the source supports the main architecture: the current bind-derived profile, centralized served-authority construction, connection grants, admin-token anchor ladder, relay topology, and console credential path all make the proposal feasible. The r3 sidecar, admin-bootstrap, refusal, and browser-separation corrections are coherent, but the native Expo carrier still names a desired property rather than a custody mechanism, and exposure parsing remains security-ambiguous.
+
+VERDICT: NOT READY
