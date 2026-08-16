@@ -7453,6 +7453,12 @@ pub fn single_table_delta_contract_matches_schema(
     plan: &QueryPlan,
     schema: &SchemaManifest,
 ) -> bool {
+    // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut —
+    // Raw changed rows have not crossed the snapshot-pinned media projection
+    // boundary, so they cannot satisfy a media-bearing logical result contract.
+    if result_contract_contains_media(contract) {
+        return false;
+    }
     let FunctionResultContract::Documents { table, document } = contract else {
         return false;
     };
@@ -20161,10 +20167,19 @@ mod media_ref_manifest_tests {
             function.result_contract_hash.as_deref(),
             Some(contract_hash.as_str())
         );
-        assert!(function.required_capabilities.iter().any(|capability| {
-            capability == TargetCapabilityId::MediaRefProjectionV1.as_str()
-        }));
+        assert!(
+            function.required_capabilities.iter().any(|capability| {
+                capability == TargetCapabilityId::MediaRefProjectionV1.as_str()
+            })
+        );
         assert_eq!(rqs_eligible_digest_kind(function), None);
+        let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+            panic!("fixture LiveQuery must use a single-table host query")
+        };
+        assert!(
+            !single_table_delta_contract_matches_schema(&function.result_contract, plan, &schema),
+            "raw-row delta delivery must not bypass media result projection"
+        );
 
         let mut missing_generation = function.clone();
         missing_generation.implementation_hash = None;
@@ -20200,7 +20215,8 @@ mod media_ref_manifest_tests {
             "policy generation rotates source identity"
         );
 
-        let FunctionResultContract::Documents { table, document } = &function.result_contract else {
+        let FunctionResultContract::Documents { table, document } = &function.result_contract
+        else {
             panic!("fixture LiveQuery must return documents")
         };
         let mut action = function.clone();

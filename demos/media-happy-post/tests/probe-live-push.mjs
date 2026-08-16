@@ -31,6 +31,7 @@ await watcher.authPasswordSignIn({ email: persona.email, password: persona.passw
 const emissions = [];
 const live = await watcher.liveQuery(api.listProfiles, {
   connectionId: 'live-push-watcher',
+  transport: 'stream',
   args: {},
   onUpdate: (rows) => {
     emissions.push(JSON.stringify(rows?.[0]?.avatar ?? null));
@@ -52,6 +53,7 @@ const task = commands.start(app.commands.changeAvatar, {
 await task.done.catch(() => {});
 console.log('CHANGE', task.snapshot().status);
 await new Promise((r) => setTimeout(r, 8000));
-console.log('RESULT emissions:', emissions.length, 'last:', emissions.at(-1)?.slice(0, 60));
+const pushed = emissions.length >= 2 && emissions.at(-1) !== emissions[0];
+console.log(pushed ? 'LIVE_PUSH_PASS' : 'LIVE_PUSH_FAIL', 'emissions:', emissions.length, 'last:', emissions.at(-1)?.slice(0, 60));
 await actor.closeAuth();
 await watcher.closeAuth();

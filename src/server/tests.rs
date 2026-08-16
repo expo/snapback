@@ -11932,6 +11932,196 @@ async fn served_http_buffered_mutation_reprojects_stored_media_result() {
     assert_eq!(returned["result"]["image"]["kind"], "image");
 }
 
+/// A media-bearing single-table LiveQuery must re-run its authoritative result
+/// projection after an out-of-band route commit. Publishing a raw-row DK-3
+/// delta would leak the stored asset id in place of the declared `MediaRef`.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+#[tokio::test]
+async fn served_http_media_commit_pushes_projected_live_replace() {
+    let mut asset_id = None;
+    let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
+        let schema: SchemaManifest = serde_json::from_str(include_str!(
+            "../../tests/acceptance/fixtures/media-reprojection/snapback/generated/schema.manifest.json"
+        ))
+        .expect("parse media live-push schema");
+        snapback
+            .apply_schema(schema)
+            .expect("load media live-push schema");
+        let mut functions: FunctionManifest = serde_json::from_str(include_str!(
+            "../../tests/acceptance/fixtures/media-reprojection/snapback/generated/functions.manifest.json"
+        ))
+        .expect("parse media live-push functions");
+
+        // Reuse the generated owner-scoped LiveQuery declaration from the
+        // charter's protected demo, but bind its result contract to this
+        // compact Phase-F fixture's equivalent `profiles.image` field.
+        let live_functions: FunctionManifest = serde_json::from_str(include_str!(
+            "../../demos/media-happy-post/snapback/generated/functions.manifest.json"
+        ))
+        .expect("parse generated media-happy live query");
+        let mut list_profiles = live_functions
+            .functions
+            .iter()
+            .find(|function| function.name == "listProfiles")
+            .expect("generated owner-scoped listProfiles")
+            .clone();
+        let document = functions
+            .functions
+            .iter()
+            .find_map(
+                |function| match (&*function.name, &function.result_contract) {
+                    (
+                        "setProfileImage",
+                        crate::manifest::FunctionResultContract::Document { document, .. },
+                    ) => Some(document.clone()),
+                    _ => None,
+                },
+            )
+            .expect("fixture profile document contract");
+        list_profiles.id = "media-reprojection-fixture:listProfiles".to_owned();
+        list_profiles.result_contract = crate::manifest::FunctionResultContract::Documents {
+            table: "profiles".to_owned(),
+            document,
+        };
+        list_profiles.result_contract_hash = Some(
+            crate::manifest::result_contract_hash(&list_profiles.result_contract)
+                .expect("hash media live result contract"),
+        );
+        functions.functions.push(list_profiles);
+
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            !diagnostics.iter().any(|diagnostic| matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "media live-push fixture loads: {diagnostics:?}",
+        );
+        let uploaded = snapback
+            .asset_host_op(
+                "asset.put",
+                Some(&json!({
+                    "upload": "profileImageUpload",
+                    "bytesBase64": base64::engine::general_purpose::STANDARD
+                        .encode(include_bytes!("../../brand/favicon-16.png")),
+                    "fileName": "live-push-profile.png",
+                    "contentType": "image/png",
+                })),
+                Some("media-live-user"),
+                ServerProfile::Test,
+            )
+            .expect("finalize media live-push asset");
+        asset_id = Some(
+            uploaded["task"]["assetId"]
+                .as_str()
+                .expect("uploaded media live-push asset id")
+                .to_owned(),
+        );
+    });
+    let asset_id = asset_id.expect("media live-push asset captured");
+    let router = app(state.clone());
+    let request = |mutation: &str, attempt: &str, args: Value| {
+        Request::builder()
+            .method("POST")
+            .uri(format!("/mutation/{mutation}"))
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                serde_json::to_vec(&json!({
+                    "args": args,
+                    "auth": { "user_id": "media-live-user" },
+                    "clientMutationId": attempt,
+                    "wireVersion": "snapback.v1",
+                }))
+                .expect("serialize media live-push request"),
+            ))
+            .expect("media live-push request")
+    };
+
+    let created = router
+        .clone()
+        .oneshot(request(
+            "createProfile",
+            "media-live-push-create",
+            json!({ "displayName": "Ada" }),
+        ))
+        .await
+        .expect("create live-push profile response");
+    let created_status = created.status();
+    let created = response_json(created).await;
+    assert_eq!(created_status, StatusCode::OK, "{created}");
+    let profile_id = created["result"]
+        .as_str()
+        .expect("created live-push profile id")
+        .to_owned();
+
+    let connection_id = "media-live-push-connection".to_owned();
+    let subscribed = with_snapback(&state.snapback, {
+        let connection_id = connection_id.clone();
+        move |snapback| {
+            snapback.subscribe_live(
+                "listProfiles",
+                LiveSubscribeInput {
+                    connection_id,
+                    input: HandlerInput {
+                        auth: AuthInput {
+                            user_id: Some("media-live-user".to_owned()),
+                            ..AuthInput::default()
+                        },
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+        }
+    })
+    .await
+    .expect("subscribe to media-bearing profile list");
+    let initial = subscribed.snapshot.expect("initial profile snapshot");
+    assert_eq!(initial.rows.len(), 1);
+    assert_eq!(initial.rows[0]["image"], Value::Null);
+
+    let attached = router
+        .oneshot(request(
+            "setProfileImage",
+            "media-live-push-attach",
+            json!({ "profileId": profile_id, "image": asset_id }),
+        ))
+        .await
+        .expect("attach live-push profile image response");
+    let attached_status = attached.status();
+    let attached = response_json(attached).await;
+    assert_eq!(attached_status, StatusCode::OK, "{attached}");
+
+    let frames = with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .drain_outbox_for_send(&connection_id)
+            .into_iter()
+            .filter_map(|admitted| {
+                let (envelope, _publication) = admitted.into_parts();
+                let crate::ephemeral::RealtimeEnvelope::Durable(message) = envelope else {
+                    return None;
+                };
+                serde_json::from_slice::<crate::live_wire::LiveEnvelope>(&message.payload).ok()
+            })
+            .collect::<Vec<_>>()
+    })
+    .await;
+    assert_eq!(frames.len(), 1, "one row commit produces one live frame");
+    let crate::live_wire::LiveEnvelope::LiveReplace { rows, .. } = &frames[0] else {
+        panic!(
+            "media-bearing raw-row delta must be ineligible: {:?}",
+            frames[0]
+        )
+    };
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["_id"], profile_id);
+    assert_eq!(rows[0]["image"]["assetId"], asset_id);
+    assert_eq!(rows[0]["image"]["kind"], "image");
+}
+
 /// The served mutation route must carry the command's one replay-stable
 /// attempt through the buffered-Ibex authorization preview as well as commit.
 /// @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit
