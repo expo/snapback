@@ -3480,10 +3480,8 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
                 self.ensure_permission_backing_write(&table)?;
-                let owner_field = self.installed_owner_write_field(
-                    &table,
-                    GenericTableWriteFormV1::Insert,
-                )?;
+                let owner_field =
+                    self.installed_owner_write_field(&table, GenericTableWriteFormV1::Insert)?;
                 let values = required_object(&args, "values")?;
                 // @ref LLP 0264#d3-owner-inserts-are-host-stamped — owner
                 // provenance is host-only: even a caller value equal to the
@@ -3528,10 +3526,8 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
                 self.ensure_permission_backing_write(&table)?;
-                let owner_field = self.installed_owner_write_field(
-                    &table,
-                    GenericTableWriteFormV1::Patch,
-                )?;
+                let owner_field =
+                    self.installed_owner_write_field(&table, GenericTableWriteFormV1::Patch)?;
                 let id = required_string(&args, "id")?;
                 let values = required_object(&args, "values")?;
                 if let Some(owner_field) = owner_field
@@ -12348,6 +12344,7 @@ globalThis.__snapbackHandlers = {
 mod direct_human_projection_tests {
     use super::{IbexHostContext, run_ibex_handler_with_context};
     use crate::auth::admission::AdmissionLease;
+    use crate::auth::identity_core::AuthClaimsProjection;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{HandlerInput, IbexModule};
     use crate::storage::{DbRead, LocalDatabase, MembershipWriter};
@@ -12355,7 +12352,9 @@ mod direct_human_projection_tests {
 
     fn run(authority: ResolvedAppAuthority) -> Value {
         let db = LocalDatabase::memory().unwrap();
-        let projection = HandlerAuthProjection::from_authority(&authority, None).unwrap();
+        let claims = matches!(authority, ResolvedAppAuthority::Session { .. })
+            .then(|| AuthClaimsProjection::server_derived(Vec::new(), Vec::new()));
+        let projection = HandlerAuthProjection::from_authority(&authority, claims).unwrap();
         let mut invocation = IbexHostContext::new_with_projection(
             DbRead::Live(&db),
             HandlerInput::default(),

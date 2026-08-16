@@ -1714,12 +1714,9 @@ fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
     auth_runtime_fixture_with(mode, |_| {})
 }
 
-fn dev_identity_capability_fixture() -> (
-    crate::dev_identity::DevIdentityCapabilityRegistry,
-    String,
-) {
-    let (registry, operator) =
-        crate::dev_identity::DevIdentityCapabilityRegistry::generate(
+fn dev_identity_capability_fixture() -> (crate::dev_identity::DevIdentityCapabilityRegistry, String)
+{
+    let (registry, operator) = crate::dev_identity::DevIdentityCapabilityRegistry::generate(
             "dev-identity-http-fixture".to_owned(),
             Some(PathBuf::from("/operator/app.sqlite3.dev-identity")),
             &OsRandom,
@@ -1732,7 +1729,10 @@ fn dev_identity_capability_fixture() -> (
             Ok(())
         })
         .expect("capture developer identity capability");
-    (registry, capability.expect("captured developer identity capability"))
+    (
+        registry,
+        capability.expect("captured developer identity capability"),
+    )
 }
 
 fn auth_runtime_fixture_with(
@@ -2061,7 +2061,7 @@ fn auth_projection_http_fixture(
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -3588,7 +3588,7 @@ fn sessions_activation_server_fixture_with_api_and_password_mode(
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -12229,7 +12229,10 @@ async fn served_http_buffered_media_command_reuses_attempt_for_preview_commit_an
     })
     .await
     .expect("scan served media-command posts");
-    assert_eq!(posts.total, 1, "same attempt must not insert a second parent");
+    assert_eq!(
+        posts.total, 1,
+        "same attempt must not insert a second parent"
+    );
 }
 
 /// A malformed carrier on a function-authenticated hosted route keeps the
@@ -13974,7 +13977,11 @@ async fn dev_client_asserted_capability_verifies_when_present_and_warns_when_abs
             .unwrap()
     };
 
-    let valid = router.clone().oneshot(request(Some(&capability))).await.unwrap();
+    let valid = router
+        .clone()
+        .oneshot(request(Some(&capability)))
+        .await
+        .unwrap();
     assert_eq!(valid.status(), StatusCode::OK);
     assert_eq!(response_json(valid).await["userId"], "user-1");
 
@@ -14015,7 +14022,9 @@ async fn connection_open_binds_only_a_verified_dev_identity_witness() {
     let router = app(state.clone());
     let request = |presented: Option<&str>, body: Value| {
         let mut request = connection_open_request(None, body);
-        request.headers_mut().remove("x-snapback-auth-client-protocol");
+        request
+            .headers_mut()
+            .remove("x-snapback-auth-client-protocol");
         request
             .headers_mut()
             .remove(crate::auth::effective_source::FORWARDED_HEADER);
@@ -14035,7 +14044,10 @@ async fn connection_open_binds_only_a_verified_dev_identity_witness() {
         .unwrap();
     assert_eq!(refused.status(), StatusCode::FORBIDDEN);
     let refused = response_json(refused).await;
-    assert_eq!(refused["diagnostic"]["code"], "SNAPBACK_DEV_IDENTITY_REFUSED");
+    assert_eq!(
+        refused["diagnostic"]["code"],
+        "SNAPBACK_DEV_IDENTITY_REFUSED"
+    );
     assert_eq!(
         refused["diagnostic"]["message"],
         "developer identity capability refused"
@@ -15719,8 +15731,7 @@ async fn host_ops_inspect_projects_recent_invocations_ring() {
         "SNAPBACK_HOST_OP_INPUT_MISSING"
     );
 
-    let mut run_request =
-        host_op(json!({ "operation": "function.run", "function": "missing" }));
+    let mut run_request = host_op(json!({ "operation": "function.run", "function": "missing" }));
     // @ref LLP 0262#rulings-author-2026-08-16 — OQ2 keeps the capability off
     // admin-token-gated host operations; even a malformed app-plane carrier
     // cannot alter `function.run`'s existing authority result.
@@ -15923,7 +15934,7 @@ async fn coordinated_function_run_mutation_conformance_is_bound_to_executing_gen
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
         history: None,
     };
     let manifest = |declared: &str| {
@@ -24875,7 +24886,7 @@ fn jobs_test_state() -> SharedSnapback {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -25163,7 +25174,7 @@ async fn enqueue_validates_callee_args_contract_transactionally() {
                         membership: None,
                         authority_profile: None,
                         asset_sharing: None,
-                        visibility: None,
+                        visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                         history: None,
                     }],
                     ..SchemaManifest::default()
@@ -25443,7 +25454,7 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()

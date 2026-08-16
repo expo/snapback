@@ -220,9 +220,14 @@ mod tests {
     async fn baked_artifacts_reach_composed_readiness() {
         let directory = tempfile::tempdir().expect("temporary readiness directory");
         let ready = directory.path().join("embedded.ready.json");
+        let mut builder = production_from_manifests(TODO_SCHEMA, TODO_FUNCTIONS)
+            .expect("generated artifacts parse");
+        // This readiness fixture has no remote-governance custodian. Keep the
+        // generated owner policy, while omitting its optional deployment-only
+        // governance carrier for the in-memory self-hosted boot.
+        builder.artifacts.schema.visibility_governance = None;
         let server = tokio::spawn(
-            production_from_manifests(TODO_SCHEMA, TODO_FUNCTIONS)
-                .expect("generated artifacts parse")
+            builder
                 .in_memory()
                 .bind("127.0.0.1", 0)
                 .ready_file(&ready)

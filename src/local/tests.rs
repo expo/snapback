@@ -45,11 +45,12 @@ use crate::manifest::{
     FunctionArgsContract, FunctionDefinition, FunctionKind, FunctionManifest,
     FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, IndexManifest,
     MembershipManifest, MembershipPredicate, MembershipResourceRef, MembershipScope,
-    MutationOutput, MutationPlan, MutationSettlement, MutationStep, PermissionScopeExpr,
-    QueryOutput, QueryPlan, ResultObjectFieldContract, ResultValueContract, ReturnValue,
-    SchemaManifest, SchemaRefAuthority, SeedData, SettlementClaimSet, SettlementIdentityClaims,
-    SettlementLane, SettlementMintClaim, SettlementMintObservation, SnapshotBatchPlanV1,
-    TableManifest, ValueExpr, ctx_ledger_version,
+    MutationOutput, MutationPlan, MutationSettlement, MutationStep, OwnerWriteAbsentDispositionV1,
+    OwnerWriteCheckV1, PermissionScopeExpr, QueryOutput, QueryPlan, ResultObjectFieldContract,
+    ResultValueContract, ReturnValue, SchemaManifest, SchemaRefAuthority, SeedData,
+    SettlementClaimSet, SettlementIdentityClaims, SettlementLane, SettlementMintClaim,
+    SettlementMintObservation, SnapshotBatchPlanV1, TableManifest, TableVisibilityV1, ValueExpr,
+    ctx_ledger_version,
 };
 use crate::runtime::{
     ExecutedIbexMutation, MediaProjectionClientMutationIdentityV1,
@@ -941,6 +942,13 @@ fn live_evaluation_memo_prepared_authority_instance_identity_isolates_sharing() 
         .expect("publish sessions-mode scheduler admission");
     let connection = install_test_invalidation(&mut snapback);
     install_live_memo_scheduler(&mut snapback);
+    insert_live_test_session(
+        &mut snapback,
+        "principal-a",
+        "shared-session",
+        "authority-instance-a",
+        70,
+    );
     let mut projections = Vec::new();
     let mut subjects = Vec::new();
     for (connection_id, namespace_instance, authority_instance_id) in [
@@ -989,6 +997,19 @@ fn live_evaluation_memo_prepared_authority_instance_identity_isolates_sharing() 
     }
     assert_eq!(projections[0], projections[1]);
     assert_ne!(subjects[0], subjects[1]);
+    assert_ne!(
+        LocalSnapback::live_evaluation_memo_authority_component(
+            &AuthInput::default(),
+            &projections[0],
+            &subjects[0],
+        ),
+        LocalSnapback::live_evaluation_memo_authority_component(
+            &AuthInput::default(),
+            &projections[1],
+            &subjects[1],
+        ),
+        "the bearer-free authority identity isolates otherwise identical projections",
+    );
     let before = snapback.live_evaluation_stats.clone();
 
     queue_and_flush_live_memo_refresh(&mut snapback);
@@ -1403,6 +1424,13 @@ fn live_evaluation_memo_writeless_authority_fence_retires_departed_holder_orphan
         .expect("publish sessions-mode scheduler admission");
     let connection = install_test_invalidation(&mut snapback);
     install_live_memo_scheduler(&mut snapback);
+    insert_live_test_session(
+        &mut snapback,
+        "memo-fence-user",
+        "memo-fence-session",
+        "memo-fence-authority",
+        43,
+    );
     let authority = InvocationGate::prepare_authority(
         InvocationSource::LiveInitialQuery,
         AuthMode::Sessions,
@@ -2115,6 +2143,8 @@ impl RandomSource for CounterRandom {
 
 #[test]
 fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
+    // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — the mixed
+    // bundle fixture writes an ordinary explicitly public table.
     let schema = SchemaManifest {
         app_id: "mixed-acceptance".to_owned(),
         schema_hash: Some("mixed-schema".to_owned()),
@@ -2135,7 +2165,7 @@ fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -3247,7 +3277,7 @@ fn live_search_skips_disjoint_table_commits_and_reruns_searched_table_commits() 
             permission_fields: None,
             membership: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
             history: None,
         };
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
@@ -5533,9 +5563,18 @@ fn asset_finalize(
 /// owned.photo shares through an owner field; workspace_files.photo shares
 /// through the declared workspace membership probe.
 fn asset_reference_schema() -> SchemaManifest {
+    // @ref LLP 0264#d3-owner-inserts-are-host-stamped — asset-sharing policy
+    // is separate from table write posture. A dedicated rowOwner keeps the
+    // sharing fields as tested application data while every generic parent-row
+    // write adopts central owner enforcement.
     let table = |name: &str,
-                 fields: Vec<crate::manifest::FieldManifest>,
+                 mut fields: Vec<crate::manifest::FieldManifest>,
                  sharing: Option<crate::manifest::AssetSharingManifest>| {
+        fields.push(FieldManifest {
+            name: "rowOwner".to_owned(),
+            field_type: FieldType::Principal,
+            optional: false,
+        });
         crate::manifest::TableManifest {
             name: name.to_owned(),
             fields,
@@ -5549,7 +5588,9 @@ fn asset_reference_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: sharing,
-            visibility: None,
+            visibility: Some(TableVisibilityV1::Owner {
+                field: "rowOwner".to_owned(),
+            }),
             history: None,
         }
     };
@@ -5589,11 +5630,18 @@ fn asset_reference_schema() -> SchemaManifest {
             ),
             TableManifest {
                 name: "workspaces".to_owned(),
-                fields: vec![FieldManifest {
-                    name: "title".to_owned(),
-                    field_type: FieldType::String,
-                    optional: false,
-                }],
+                fields: vec![
+                    FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "rowOwner".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                ],
                 indexes: Vec::new(),
                 syncable: false,
                 permission_backing: false,
@@ -5604,7 +5652,9 @@ fn asset_reference_schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
-                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
+                visibility: Some(TableVisibilityV1::Owner {
+                    field: "rowOwner".to_owned(),
+                }),
                 history: None,
             },
             TableManifest {
@@ -5668,6 +5718,11 @@ fn asset_reference_schema() -> SchemaManifest {
                         optional: false,
                     },
                     asset_field("photo", Some("avatarUpload")),
+                    FieldManifest {
+                        name: "rowOwner".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
                 ],
                 indexes: Vec::new(),
                 syncable: false,
@@ -5682,7 +5737,9 @@ fn asset_reference_schema() -> SchemaManifest {
                     membership: "workspace_members".to_owned(),
                     roles: Some(vec!["viewer".to_owned()]),
                 }),
-                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
+                visibility: Some(TableVisibilityV1::Owner {
+                    field: "rowOwner".to_owned(),
+                }),
                 history: None,
             },
         ],
@@ -6263,6 +6320,11 @@ fn asset_callback_snapback() -> LocalSnapback {
                 optional: true,
             },
             crate::manifest::FieldManifest {
+                name: "rowOwner".to_owned(),
+                field_type: crate::manifest::FieldType::Principal,
+                optional: false,
+            },
+            crate::manifest::FieldManifest {
                 name: "assetId".to_owned(),
                 field_type: crate::manifest::FieldType::String,
                 optional: true,
@@ -6278,7 +6340,9 @@ fn asset_callback_snapback() -> LocalSnapback {
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+            field: "rowOwner".to_owned(),
+        }),
         history: None,
     };
     snapback
@@ -6571,7 +6635,10 @@ fn asset_attachment_authority_cross_owner_refuses_at_commit_boundary() {
         owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Insert {
             table: "posts".to_owned(),
-            values: BTreeMap::from([("photo".to_owned(), ValueExpr::Literal(json!(asset_id)))]),
+            values: BTreeMap::from([
+                ("photo".to_owned(), ValueExpr::Literal(json!(asset_id))),
+                ("rowOwner".to_owned(), ValueExpr::AuthUserId),
+            ]),
             bind_id_as: None,
         }],
         return_value: None,
@@ -6611,7 +6678,10 @@ fn asset_attachment_authority_missing_principal_refuses_at_commit_boundary() {
         owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Insert {
             table: "posts".to_owned(),
-            values: BTreeMap::from([("photo".to_owned(), ValueExpr::Literal(json!(asset_id)))]),
+            values: BTreeMap::from([
+                ("photo".to_owned(), ValueExpr::Literal(json!(asset_id))),
+                ("rowOwner".to_owned(), ValueExpr::AuthUserId),
+            ]),
             bind_id_as: None,
         }],
         return_value: None,
@@ -6621,10 +6691,10 @@ fn asset_attachment_authority_missing_principal_refuses_at_commit_boundary() {
         .mutation_writes()
         .execute_mutation(&plan, &HandlerInput::default())
         .expect_err("a non-seed attachment requires caller authority");
-    assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_USER_MISSING");
     assert_eq!(
         error.diagnostic.message,
-        "attachment requires a caller principal"
+        "handler requested auth.user_id but no user was supplied"
     );
     let row_count = snapback
         .db
@@ -6642,7 +6712,10 @@ fn asset_host_plan_and_seed_derive_admission_from_the_restriction() {
         owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Insert {
             table: table.to_owned(),
-            values: BTreeMap::from([(field.to_owned(), ValueExpr::Literal(json!(asset)))]),
+            values: BTreeMap::from([
+                (field.to_owned(), ValueExpr::Literal(json!(asset))),
+                ("rowOwner".to_owned(), ValueExpr::AuthUserId),
+            ]),
             bind_id_as: None,
         }],
         return_value: None,
@@ -6694,6 +6767,7 @@ fn asset_host_plan_and_seed_derive_admission_from_the_restriction() {
                 vec![serde_json::Map::from_iter([
                     ("title".to_owned(), json!("seeded")),
                     ("photo".to_owned(), json!(asset_id)),
+                    ("rowOwner".to_owned(), json!("user_a")),
                 ])],
             )]),
         })
@@ -6704,10 +6778,10 @@ fn asset_host_plan_and_seed_derive_admission_from_the_restriction() {
         .seed(SeedData {
             tables: BTreeMap::from([(
                 "drafts".to_owned(),
-                vec![serde_json::Map::from_iter([(
-                    "pic".to_owned(),
-                    json!(asset_id),
-                )])],
+                vec![serde_json::Map::from_iter([
+                    ("pic".to_owned(), json!(asset_id)),
+                    ("rowOwner".to_owned(), json!("user_a")),
+                ])],
             )]),
         })
         .expect_err("unrestricted seed refuses");
@@ -7649,6 +7723,8 @@ fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
     functions.asset_upload_intents = vec![asset_shared_intent()];
     let mut snapback = settled_sessions_activation_snapback(schema, functions);
     let descriptor = install_test_invalidation(&mut snapback);
+    insert_live_test_session(&mut snapback, "user_a", "sess-user_a", "inst-user_a", 44);
+    insert_live_test_session(&mut snapback, "user_b", "sess-user_b", "inst-user_b", 47);
 
     // Upload under sealed session authorities — the sessions instance
     // admits no dev authority anywhere in this test.
@@ -8348,6 +8424,7 @@ fn versioned_seed_with_fixture_placeholders_installs_and_refuses_whole() {
                 vec![serde_json::Map::from_iter([
                     ("_id".to_owned(), serde_json::json!("welcome")),
                     ("title".to_owned(), serde_json::json!("Welcome")),
+                    ("rowOwner".to_owned(), serde_json::json!("user_a")),
                     (
                         "photo".to_owned(),
                         serde_json::json!({ "$assetFixture": "welcome-photo" }),
@@ -9020,6 +9097,8 @@ fn asset_finalize_condemned_race_republishes_under_a_fresh_key() {
 }
 
 fn asset_profiles_schema() -> SchemaManifest {
+    // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — this OCC
+    // witness fixture writes an ordinary declared profile table.
     SchemaManifest {
         tables: vec![crate::manifest::TableManifest {
             name: "profiles".to_owned(),
@@ -9038,7 +9117,7 @@ fn asset_profiles_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -11578,7 +11657,7 @@ fn sessions_activation_pair(
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
         history: None,
     }];
     functions.bundle_hash = Some(format!(
@@ -14654,7 +14733,11 @@ fn relational_query_validates_and_invokes_end_to_end() {
                 fields: vec![
                     string("title", false),
                     string("authorSlug", true),
-                    string("ownerId", false),
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
                 ],
                 indexes: vec![IndexManifest {
                     name: "by_owner_title".to_owned(),
@@ -14671,7 +14754,9 @@ fn relational_query_validates_and_invokes_end_to_end() {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
                 history: None,
             },
             TableManifest {
@@ -14679,7 +14764,11 @@ fn relational_query_validates_and_invokes_end_to_end() {
                 fields: vec![
                     string("slug", false),
                     string("name", false),
-                    string("ownerId", false),
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
                 ],
                 indexes: vec![IndexManifest {
                     name: "by_slug".to_owned(),
@@ -14696,7 +14785,9 @@ fn relational_query_validates_and_invokes_end_to_end() {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
                 history: None,
             },
         ],
@@ -14719,9 +14810,13 @@ fn relational_query_validates_and_invokes_end_to_end() {
         }],
         root_filters: Vec::new(),
         root_visibility: vec![owner_filter("ownerId")],
-        root_table_visibility: None,
+        root_table_visibility: Some(TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        }),
         joined_visibility: vec![owner_filter("ownerId")],
-        joined_table_visibility: None,
+        joined_table_visibility: Some(TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        }),
         projection: vec![
             ProjectionLeaf {
                 name: "title".to_owned(),
@@ -14815,7 +14910,11 @@ fn relational_query_validates_and_invokes_end_to_end() {
             fields: vec![
                 string("title", false),
                 string("authorSlug", true),
-                string("ownerId", false),
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::Principal,
+                    optional: false,
+                },
             ],
             indexes: vec![IndexManifest {
                 name: "by_owner_title".to_owned(),
@@ -14832,7 +14931,9 @@ fn relational_query_validates_and_invokes_end_to_end() {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
             history: None,
         },
         TableManifest {
@@ -14840,7 +14941,11 @@ fn relational_query_validates_and_invokes_end_to_end() {
             fields: vec![
                 string("slug", false),
                 string("name", false),
-                string("ownerId", false),
+                FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::Principal,
+                    optional: false,
+                },
             ],
             indexes: vec![IndexManifest {
                 name: "by_slug".to_owned(),
@@ -14857,7 +14962,9 @@ fn relational_query_validates_and_invokes_end_to_end() {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
             history: None,
         },
     ];
@@ -15201,7 +15308,11 @@ fn relational_lanes_share_bytes_and_cursors() {
                 fields: vec![
                     string("title", false),
                     string("authorSlug", true),
-                    string("ownerId", false),
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
                 ],
                 indexes: vec![IndexManifest {
                     name: "by_owner_title".to_owned(),
@@ -15218,16 +15329,14 @@ fn relational_lanes_share_bytes_and_cursors() {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
                 history: None,
             },
             TableManifest {
                 name: "authors".to_owned(),
-                fields: vec![
-                    string("slug", false),
-                    string("name", false),
-                    string("ownerId", false),
-                ],
+                fields: vec![string("slug", false), string("name", false)],
                 indexes: vec![IndexManifest {
                     name: "by_slug".to_owned(),
                     fields: vec!["slug".to_owned()],
@@ -15243,7 +15352,7 @@ fn relational_lanes_share_bytes_and_cursors() {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             },
         ],
@@ -15266,7 +15375,9 @@ fn relational_lanes_share_bytes_and_cursors() {
         }],
         root_filters: Vec::new(),
         root_visibility: vec![owner_filter("ownerId")],
-        root_table_visibility: None,
+        root_table_visibility: Some(TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        }),
         joined_visibility: Vec::new(),
         joined_table_visibility: None,
         projection: vec![ProjectionLeaf {
@@ -15312,9 +15423,7 @@ fn relational_lanes_share_bytes_and_cursors() {
                 ),
                 (
                     "authors".to_owned(),
-                    vec![row(
-                        json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
-                    )],
+                    vec![row(json!({ "slug": "ada", "name": "Ada" }))],
                 ),
             ]),
         })
@@ -15381,7 +15490,11 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
                 fields: vec![
                     string("title", false),
                     string("authorSlug", true),
-                    string("ownerId", false),
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
                 ],
                 indexes: vec![IndexManifest {
                     name: "by_owner_title".to_owned(),
@@ -15398,16 +15511,14 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
                 history: None,
             },
             TableManifest {
                 name: "authors".to_owned(),
-                fields: vec![
-                    string("slug", false),
-                    string("name", false),
-                    string("ownerId", false),
-                ],
+                fields: vec![string("slug", false), string("name", false)],
                 indexes: vec![IndexManifest {
                     name: "by_slug".to_owned(),
                     fields: vec!["slug".to_owned()],
@@ -15423,7 +15534,7 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             },
         ],
@@ -15445,7 +15556,9 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
             op: FilterOp::Eq,
             value: ValueExpr::AuthUserId,
         }],
-        root_table_visibility: None,
+        root_table_visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        }),
         joined_visibility: Vec::new(),
         joined_table_visibility: None,
         projection: vec![ProjectionLeaf {
@@ -15488,7 +15601,7 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
                 &[
                     ("title", ValueExpr::Arg("title".to_owned())),
                     ("authorSlug", ValueExpr::Arg("slug".to_owned())),
-                    ("ownerId", ValueExpr::Literal(json!("user-a"))),
+                    ("ownerId", ValueExpr::AuthUserId),
                 ],
             ),
             insert(
@@ -15497,7 +15610,6 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
                 &[
                     ("slug", ValueExpr::Arg("slug".to_owned())),
                     ("name", ValueExpr::Arg("name".to_owned())),
-                    ("ownerId", ValueExpr::Literal(json!("user-a"))),
                 ],
             ),
         ],
@@ -15536,9 +15648,7 @@ fn relational_live_replaces_on_both_tables_and_never_claims_delta() {
                 ),
                 (
                     "authors".to_owned(),
-                    vec![row(
-                        json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
-                    )],
+                    vec![row(json!({ "slug": "ada", "name": "Ada" }))],
                 ),
             ]),
         })
@@ -15581,6 +15691,10 @@ fn relational_live_replaces_on_both_tables_and_never_claims_delta() {
             "addBook",
             HandlerInput {
                 args: json!({ "title": "beta", "slug": "grace" }),
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
                 ..HandlerInput::default()
             },
         )
@@ -15698,9 +15812,7 @@ fn relational_live_establishment_issues_activation_bound_completeness_proof() {
                 ),
                 (
                     "authors".to_owned(),
-                    vec![row(
-                        json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
-                    )],
+                    vec![row(json!({ "slug": "ada", "name": "Ada" }))],
                 ),
             ]),
         })
@@ -15770,32 +15882,37 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
         field_type,
         optional: false,
     };
-    let table =
-        |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| TableManifest {
-            name: name.to_owned(),
-            fields,
-            indexes,
-            syncable: true,
-            permission_backing: false,
-            permission_fields: None,
-            search_indexes: Vec::new(),
-            vector_indexes: Vec::new(),
-            search_live_limits: None,
-            membership: None,
-            authority_profile: None,
-            asset_sharing: None,
-            visibility: None,
-            history: None,
-        };
+    let table = |name: &str,
+                 fields: Vec<FieldManifest>,
+                 indexes: Vec<IndexManifest>,
+                 visibility: crate::manifest::TableVisibilityV1| TableManifest {
+        name: name.to_owned(),
+        fields,
+        indexes,
+        syncable: true,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: Some(visibility),
+        history: None,
+    };
     let schema = SchemaManifest {
         tables: vec![
             table(
                 "parents",
                 vec![
-                    field("owner", FieldType::String),
+                    field("owner", FieldType::Principal),
                     field("title", FieldType::String),
                 ],
                 Vec::new(),
+                crate::manifest::TableVisibilityV1::Owner {
+                    field: "owner".to_owned(),
+                },
             ),
             table(
                 "children",
@@ -15811,6 +15928,62 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
                         FieldType::RelationIncarnation {
                             foreign_key_field: "parentId".to_owned(),
                             parent_table: "parents".to_owned(),
+                        },
+                    ),
+                    field("position", FieldType::Integer),
+                    field("label", FieldType::String),
+                    field("active", FieldType::Boolean),
+                    field("externalKey", FieldType::String),
+                    field("rowOwner", FieldType::Principal),
+                ],
+                vec![
+                    IndexManifest {
+                        name: "by_parent_boundary".to_owned(),
+                        fields: vec![
+                            "parentId".to_owned(),
+                            "parentIncarnation".to_owned(),
+                            "position".to_owned(),
+                            "label".to_owned(),
+                            "active".to_owned(),
+                        ],
+                        unique: false,
+                        where_applicable: false,
+                    },
+                    IndexManifest {
+                        name: "by_parent_external_key".to_owned(),
+                        fields: vec![
+                            "parentId".to_owned(),
+                            "parentIncarnation".to_owned(),
+                            "externalKey".to_owned(),
+                        ],
+                        unique: true,
+                        where_applicable: false,
+                    },
+                ],
+                crate::manifest::TableVisibilityV1::Owner {
+                    field: "rowOwner".to_owned(),
+                },
+            ),
+            table(
+                "publicParents",
+                vec![field("title", FieldType::String)],
+                Vec::new(),
+                crate::manifest::TableVisibilityV1::PublicRead,
+            ),
+            table(
+                "publicChildren",
+                vec![
+                    field(
+                        "parentId",
+                        FieldType::Id {
+                            table: "publicParents".to_owned(),
+                        },
+                    ),
+                    field(
+                        "parentIncarnation",
+                        FieldType::RelationIncarnation {
+                            foreign_key_field: "parentId".to_owned(),
+                            parent_table: "publicParents".to_owned(),
                         },
                     ),
                     field("position", FieldType::Integer),
@@ -15842,6 +16015,7 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
                         where_applicable: false,
                     },
                 ],
+                crate::manifest::TableVisibilityV1::PublicRead,
             ),
         ],
         ..SchemaManifest::default()
@@ -15866,10 +16040,14 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
         parent_visibility: BoundedParentVisibility::Owner {
             field: "owner".to_owned(),
         },
-        parent_table_visibility: None,
+        parent_table_visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+            field: "owner".to_owned(),
+        }),
         parent_projection: vec![select("_id"), select("title")],
         child_table: "children".to_owned(),
-        child_table_visibility: None,
+        child_table_visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+            field: "rowOwner".to_owned(),
+        }),
         child_foreign_key: "parentId".to_owned(),
         child_relation_incarnation: "parentIncarnation".to_owned(),
         child_index: "by_parent_boundary".to_owned(),
@@ -15888,106 +16066,109 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
             value,
         }
     };
-    let parent_result = crate::manifest::ResultValueContract::Object {
-        fields: vec![
-            result_field(
-                "_id",
-                crate::manifest::ResultValueContract::Id {
-                    table: "parents".to_owned(),
-                },
-            ),
-            result_field(
-                "title",
-                crate::manifest::ResultValueContract::String {
-                    max_bytes: 1_048_576,
-                },
-            ),
-        ],
-        allow_extra: false,
-    };
-    let child_result = crate::manifest::ResultValueContract::Object {
-        fields: vec![
-            result_field(
-                "_id",
-                crate::manifest::ResultValueContract::Id {
-                    table: "children".to_owned(),
-                },
-            ),
-            result_field(
-                "position",
-                crate::manifest::ResultValueContract::Integer {
-                    min: -9_007_199_254_740_991,
-                    max: 9_007_199_254_740_991,
-                },
-            ),
-            result_field(
-                "label",
-                crate::manifest::ResultValueContract::String {
-                    max_bytes: 1_048_576,
-                },
-            ),
-            result_field("active", crate::manifest::ResultValueContract::Boolean),
-            result_field(
-                "externalKey",
-                crate::manifest::ResultValueContract::String {
-                    max_bytes: 1_048_576,
-                },
-            ),
-        ],
-        allow_extra: false,
-    };
-    let bounded_variant =
-        |kind: &str,
-         parent: crate::manifest::ResultValueContract,
-         children_max: usize,
-         continuation: crate::manifest::ResultValueContract| {
-            crate::manifest::ResultValueContract::Object {
-                fields: vec![
-                    result_field(
-                        "kind",
-                        crate::manifest::ResultValueContract::Literal { value: json!(kind) },
-                    ),
-                    result_field("parent", parent),
-                    result_field(
-                        "children",
-                        crate::manifest::ResultValueContract::Array {
-                            element: Box::new(child_result.clone()),
-                            max_items: children_max,
-                        },
-                    ),
-                    result_field("continuation", continuation),
-                ],
-                allow_extra: false,
-            }
-        };
-    let bounded_result = crate::manifest::FunctionResultContract::Records {
-        record: crate::manifest::ResultValueContract::Union {
-            variants: vec![
-                bounded_variant(
-                    "absent",
-                    crate::manifest::ResultValueContract::Null,
-                    0,
-                    crate::manifest::ResultValueContract::Null,
+    let bounded_result_for = |parent_table: &str, child_table: &str| {
+        let parent_result = crate::manifest::ResultValueContract::Object {
+            fields: vec![
+                result_field(
+                    "_id",
+                    crate::manifest::ResultValueContract::Id {
+                        table: parent_table.to_owned(),
+                    },
                 ),
-                bounded_variant(
-                    "visible",
-                    parent_result,
-                    take as usize,
-                    crate::manifest::ResultValueContract::Union {
-                        variants: vec![
-                            crate::manifest::ResultValueContract::Null,
-                            crate::manifest::ResultValueContract::String { max_bytes: 1_024 },
-                        ],
+                result_field(
+                    "title",
+                    crate::manifest::ResultValueContract::String {
+                        max_bytes: 1_048_576,
                     },
                 ),
             ],
-        },
-        rows: Some(crate::manifest::ResultRowsBound {
-            min_items: 1,
-            max_items: 1,
-        }),
+            allow_extra: false,
+        };
+        let child_result = crate::manifest::ResultValueContract::Object {
+            fields: vec![
+                result_field(
+                    "_id",
+                    crate::manifest::ResultValueContract::Id {
+                        table: child_table.to_owned(),
+                    },
+                ),
+                result_field(
+                    "position",
+                    crate::manifest::ResultValueContract::Integer {
+                        min: -9_007_199_254_740_991,
+                        max: 9_007_199_254_740_991,
+                    },
+                ),
+                result_field(
+                    "label",
+                    crate::manifest::ResultValueContract::String {
+                        max_bytes: 1_048_576,
+                    },
+                ),
+                result_field("active", crate::manifest::ResultValueContract::Boolean),
+                result_field(
+                    "externalKey",
+                    crate::manifest::ResultValueContract::String {
+                        max_bytes: 1_048_576,
+                    },
+                ),
+            ],
+            allow_extra: false,
+        };
+        let bounded_variant =
+            |kind: &str,
+             parent: crate::manifest::ResultValueContract,
+             children_max: usize,
+             continuation: crate::manifest::ResultValueContract| {
+                crate::manifest::ResultValueContract::Object {
+                    fields: vec![
+                        result_field(
+                            "kind",
+                            crate::manifest::ResultValueContract::Literal { value: json!(kind) },
+                        ),
+                        result_field("parent", parent),
+                        result_field(
+                            "children",
+                            crate::manifest::ResultValueContract::Array {
+                                element: Box::new(child_result.clone()),
+                                max_items: children_max,
+                            },
+                        ),
+                        result_field("continuation", continuation),
+                    ],
+                    allow_extra: false,
+                }
+            };
+        crate::manifest::FunctionResultContract::Records {
+            record: crate::manifest::ResultValueContract::Union {
+                variants: vec![
+                    bounded_variant(
+                        "absent",
+                        crate::manifest::ResultValueContract::Null,
+                        0,
+                        crate::manifest::ResultValueContract::Null,
+                    ),
+                    bounded_variant(
+                        "visible",
+                        parent_result,
+                        take as usize,
+                        crate::manifest::ResultValueContract::Union {
+                            variants: vec![
+                                crate::manifest::ResultValueContract::Null,
+                                crate::manifest::ResultValueContract::String { max_bytes: 1_024 },
+                            ],
+                        },
+                    ),
+                ],
+            },
+            rows: Some(crate::manifest::ResultRowsBound {
+                min_items: 1,
+                max_items: 1,
+            }),
+        }
     };
     let relation_function = |name: &str, plan: BoundedChildrenQueryPlan| {
+        let bounded_result = bounded_result_for(&plan.parent_table, &plan.child_table);
         let mut function = FunctionDefinition::new(
             name,
             FunctionKind::LiveQuery,
@@ -16012,7 +16193,11 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
     let relation = relation_function("parentChildren", relation_plan.clone());
     let other_relation = relation_function("otherParentChildren", relation_plan.clone());
     let mut public_plan = relation_plan;
+    public_plan.parent_table = "publicParents".to_owned();
+    public_plan.child_table = "publicChildren".to_owned();
     public_plan.parent_visibility = BoundedParentVisibility::PublicRead;
+    public_plan.parent_table_visibility = None;
+    public_plan.child_table_visibility = None;
     let public_relation = relation_function("publicParentChildren", public_plan);
     let insert = FunctionDefinition::new(
         "addChild",
@@ -16030,6 +16215,7 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
                         "externalKey".to_owned(),
                         ValueExpr::Arg("externalKey".to_owned()),
                     ),
+                    ("rowOwner".to_owned(), ValueExpr::AuthUserId),
                 ]),
                 bind_id_as: Some("childId".to_owned()),
             }],
@@ -16041,7 +16227,10 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-                owner_write_checks: Vec::new(),
+                owner_write_checks: vec![OwnerWriteCheckV1 {
+                    step_index: 0,
+                    absent: OwnerWriteAbsentDispositionV1::NoEffect,
+                }],
                 steps: vec![MutationStep::Patch {
                     table: table.to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),
@@ -16059,7 +16248,10 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-                owner_write_checks: Vec::new(),
+                owner_write_checks: vec![OwnerWriteCheckV1 {
+                    step_index: 0,
+                    absent: OwnerWriteAbsentDispositionV1::NoEffect,
+                }],
                 steps: vec![MutationStep::Delete {
                     table: table.to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),
@@ -16682,8 +16874,8 @@ fn seed_snapshot_batch_v2_fixture(snapback: &mut LocalSnapback, foreign_secret: 
                     (
                         "authors".to_owned(),
                         vec![
-                            row(json!({"_id":"author-1","slug":"ada","name":"Ada","ownerId":"user-a"})),
-                            row(json!({"_id":"author-2","slug":"grace","name":"Grace","ownerId":"user-b"})),
+                            row(json!({"_id":"author-1","slug":"ada","name":"Ada"})),
+                            row(json!({"_id":"author-2","slug":"grace","name":"Grace"})),
                         ],
                     ),
                 ]),
@@ -16780,6 +16972,10 @@ fn snapshot_batch_v2_three_node_sealing_resume_and_live_acceptance() {
                     "parentId":"parent-a", "position":5, "label":"live-v2",
                     "active":false, "externalKey":"live-v2"
                 }),
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
                 ..HandlerInput::default()
             },
         )
@@ -16824,7 +17020,7 @@ fn snapshot_batch_v2_relational_root_change_delivers_live_replace() {
                 values: [
                     ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
                     ("authorSlug".to_owned(), ValueExpr::Arg("slug".to_owned())),
-                    ("ownerId".to_owned(), ValueExpr::Literal(json!("user-a"))),
+                    ("ownerId".to_owned(), ValueExpr::AuthUserId),
                 ]
                 .into_iter()
                 .collect(),
@@ -17500,6 +17696,10 @@ fn snapshot_batch_v2_pins_mixed_nodes_across_a_sibling_commit() {
                             "parentId":"parent-a", "position":5, "label":"concurrent-v2",
                             "active":false, "externalKey":"snapshot-v2-concurrent"
                         }),
+                        auth: AuthInput {
+                            user_id: Some("user-a".to_owned()),
+                            ..AuthInput::default()
+                        },
                         ..HandlerInput::default()
                     },
                 )
@@ -17589,8 +17789,8 @@ fn snapshot_batch_v2_all_relational_executor_uses_one_sbsb2_cursor() {
                 (
                     "authors".to_owned(),
                     vec![
-                        json!({"_id":"a1","slug":"ada","name":"Ada","ownerId":"user-a"}),
-                        json!({"_id":"a2","slug":"grace","name":"Grace","ownerId":"user-b"}),
+                        json!({"_id":"a1","slug":"ada","name":"Ada"}),
+                        json!({"_id":"a2","slug":"grace","name":"Grace"}),
                     ]
                     .into_iter()
                     .map(|row| row.as_object().cloned().expect("author row"))
@@ -17983,6 +18183,10 @@ fn snapshot_batch_three_node_cursor_sealing_and_live_acceptance() {
                     "parentId":"parent-a", "position":5, "label":"live",
                     "active":false, "externalKey":"batch-live"
                 }),
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
                 ..HandlerInput::default()
             },
         )
@@ -18151,6 +18355,10 @@ fn snapshot_batch_pins_every_node_to_one_snapshot_across_a_sibling_commit() {
                             "parentId":"parent-a", "position":5, "label":"concurrent",
                             "active":false, "externalKey":"snapshot-concurrent"
                         }),
+                        auth: AuthInput {
+                            user_id: Some("user-a".to_owned()),
+                            ..AuthInput::default()
+                        },
                         ..HandlerInput::default()
                     },
                 )
@@ -18446,59 +18654,89 @@ fn snapshot_batch_budget_pins_scalar_widths_at_6099_and_refuses_6100() {
 }
 
 fn seed_bounded_publication_fixture(snapback: &mut LocalSnapback, foreign_secret: &str) {
-    let row = |value: Value| value.as_object().cloned().expect("seed object");
+    let has_row_owner = snapback
+        .db
+        .schema()
+        .table("children")
+        .is_some_and(|table| table.fields.iter().any(|field| field.name == "rowOwner"));
+    let row = |value: Value| {
+        let mut row = value.as_object().cloned().expect("seed object");
+        if has_row_owner && row.contains_key("parentId") {
+            let owner = if row.get("parentId") == Some(&json!("parent-b")) {
+                "user-b"
+            } else {
+                "user-a"
+            };
+            row.insert("rowOwner".to_owned(), json!(owner));
+        }
+        row
+    };
+    let parent_rows = vec![
+        row(json!({
+            "_id": "parent-a", "owner": "user-a", "title": "visible"
+        })),
+        row(json!({
+            "_id": "parent-b", "owner": "user-b", "title": foreign_secret
+        })),
+        row(json!({
+            "_id": "parent-c", "owner": "user-a", "title": "other visible"
+        })),
+    ];
+    let child_rows = vec![
+        row(json!({
+            "_id": "child-10", "parentId": "parent-a",
+            "position": 10, "label": "é", "active": false,
+            "externalKey": "shared"
+        })),
+        row(json!({
+            "_id": "child-20-a", "parentId": "parent-a",
+            "position": 20, "label": "a", "active": false,
+            "externalKey": "twenty-a"
+        })),
+        row(json!({
+            "_id": "child-20-b", "parentId": "parent-a",
+            "position": 20, "label": "a", "active": true,
+            "externalKey": "twenty-b"
+        })),
+        row(json!({
+            "_id": "child-30", "parentId": "parent-a",
+            "position": 30, "label": "z", "active": false,
+            "externalKey": "thirty"
+        })),
+        row(json!({
+            "_id": "foreign-child", "parentId": "parent-b",
+            "position": 1, "label": foreign_secret, "active": true,
+            "externalKey": "shared"
+        })),
+        row(json!({
+            "_id": "other-visible-child", "parentId": "parent-c",
+            "position": 1, "label": "other", "active": true,
+            "externalKey": "other"
+        })),
+    ];
+    let public_parent_rows = parent_rows
+        .iter()
+        .cloned()
+        .map(|mut row| {
+            row.remove("owner");
+            row
+        })
+        .collect();
+    let public_child_rows = child_rows
+        .iter()
+        .cloned()
+        .map(|mut row| {
+            row.remove("rowOwner");
+            row
+        })
+        .collect();
     snapback
         .seed(crate::manifest::SeedData {
             tables: BTreeMap::from([
-                (
-                    "parents".to_owned(),
-                    vec![
-                        row(json!({
-                            "_id": "parent-a", "owner": "user-a", "title": "visible"
-                        })),
-                        row(json!({
-                            "_id": "parent-b", "owner": "user-b", "title": foreign_secret
-                        })),
-                        row(json!({
-                            "_id": "parent-c", "owner": "user-a", "title": "other visible"
-                        })),
-                    ],
-                ),
-                (
-                    "children".to_owned(),
-                    vec![
-                        row(json!({
-                            "_id": "child-10", "parentId": "parent-a",
-                            "position": 10, "label": "é", "active": false,
-                            "externalKey": "shared"
-                        })),
-                        row(json!({
-                            "_id": "child-20-a", "parentId": "parent-a",
-                            "position": 20, "label": "a", "active": false,
-                            "externalKey": "twenty-a"
-                        })),
-                        row(json!({
-                            "_id": "child-20-b", "parentId": "parent-a",
-                            "position": 20, "label": "a", "active": true,
-                            "externalKey": "twenty-b"
-                        })),
-                        row(json!({
-                            "_id": "child-30", "parentId": "parent-a",
-                            "position": 30, "label": "z", "active": false,
-                            "externalKey": "thirty"
-                        })),
-                        row(json!({
-                            "_id": "foreign-child", "parentId": "parent-b",
-                            "position": 1, "label": foreign_secret, "active": true,
-                            "externalKey": "shared"
-                        })),
-                        row(json!({
-                            "_id": "other-visible-child", "parentId": "parent-c",
-                            "position": 1, "label": "other", "active": true,
-                            "externalKey": "other"
-                        })),
-                    ],
-                ),
+                ("parents".to_owned(), parent_rows),
+                ("children".to_owned(), child_rows),
+                ("publicParents".to_owned(), public_parent_rows),
+                ("publicChildren".to_owned(), public_child_rows),
             ]),
         })
         .expect("seed bounded publication fixture");
@@ -18524,54 +18762,10 @@ fn bounded_input(parent: &str, cursor: Option<&str>) -> HandlerInput {
 // child-table policy; the runtime intersects it with through-parent scope.
 #[test]
 fn bounded_children_and_snapshot_batch_compose_declared_child_visibility() {
-    let (mut schema, mut functions, _) = snapshot_batch_publication_fixture(2, 16);
-    let policy = crate::manifest::TableVisibilityV1::Owner {
-        field: "label".to_owned(),
-    };
-    schema
-        .tables
-        .iter_mut()
-        .find(|table| table.name == "children")
-        .expect("children table")
-        .visibility = Some(policy.clone());
-
-    for function in &mut functions.functions {
-        match &mut function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
-                plan.child_table_visibility = Some(policy.clone());
-                function.authorization_dependence =
-                    vec![crate::manifest::AuthorizationInputDimension::UserId];
-            }
-            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
-                for node in &mut plan.nodes {
-                    node.child_table_visibility = Some(policy.clone());
-                }
-                function.authorization_dependence =
-                    vec![crate::manifest::AuthorizationInputDimension::UserId];
-            }
-            _ => {}
-        }
-    }
-    let batch_index = functions
-        .functions
-        .iter()
-        .position(|function| function.name == "boardView")
-        .expect("snapshot function");
-    let identity = {
-        let function = &functions.functions[batch_index];
-        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) = &function.runtime else {
-            unreachable!("snapshot function plan")
-        };
-        crate::manifest::snapshot_batch_identity_v1(function, plan)
-            .expect("rebuild policy-composed identity")
-    };
-    let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) =
-        &mut functions.functions[batch_index].runtime
-    else {
-        unreachable!("snapshot function plan")
-    };
-    plan.normalized_composite_plan = identity.normalized_composite_plan;
-    plan.plan_hash = identity.plan_hash;
+    let (schema, functions, _) = snapshot_batch_publication_fixture(2, 16);
+    // @ref LLP 0264#d3-owner-inserts-are-host-stamped — rowOwner is a
+    // dedicated host-stamped policy field in the base fixture; label remains
+    // authored test data.
 
     let mut snapback = LocalSnapback::memory().expect("policy-composed bounded store");
     snapback
@@ -18600,6 +18794,10 @@ fn bounded_children_and_snapshot_batch_compose_declared_child_visibility() {
                         "active": false,
                         "externalKey": id,
                     }),
+                    auth: AuthInput {
+                        user_id: Some(label.to_owned()),
+                        ..AuthInput::default()
+                    },
                     ..HandlerInput::default()
                 },
             )
@@ -18615,7 +18813,8 @@ fn bounded_children_and_snapshot_batch_compose_declared_child_visibility() {
         .iter()
         .map(|row| row["label"].as_str().expect("child label"))
         .collect::<Vec<_>>();
-    assert_eq!(bounded_labels, vec!["user-a"]);
+    assert!(bounded_labels.contains(&"user-a"));
+    assert!(!bounded_labels.contains(&"user-b"));
 
     let snapshot = snapback
         .invoke_query("boardView", bounded_input("parent-a", None))
@@ -18631,7 +18830,8 @@ fn bounded_children_and_snapshot_batch_compose_declared_child_visibility() {
             .iter()
             .map(|row| row["label"].as_str().expect("child label"))
             .collect::<Vec<_>>();
-        assert_eq!(labels, vec!["user-a"]);
+        assert!(labels.contains(&"user-a"));
+        assert!(!labels.contains(&"user-b"));
     }
 }
 
@@ -18700,6 +18900,10 @@ fn bounded_children_paired_store_noninterference_and_partitioned_uniqueness() {
                     "parentId": "parent-a", "position": 99, "label": "dup",
                     "active": false, "externalKey": "shared"
                 }),
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
                 ..HandlerInput::default()
             },
         )
@@ -18836,6 +19040,10 @@ fn bounded_children_cursor_concurrency_deletion_and_live_replacement() {
                 name,
                 HandlerInput {
                     args,
+                    auth: AuthInput {
+                        user_id: Some("user-a".to_owned()),
+                        ..AuthInput::default()
+                    },
                     ..HandlerInput::default()
                 },
             )
@@ -18965,8 +19173,8 @@ fn effect_ceiling_subset_check_fails_closed_on_mismatch() {
     let mut add_book = functions.functions[1].clone();
     assert_eq!(add_book.name, "addBook");
 
-    // The exact ceiling the walker would emit for addBook: one insert
-    // into books, no reads, no host ops, no authorization inputs.
+    // The exact ceiling the walker emits for addBook: one insert into books,
+    // no reads or host ops, and the owner insert's host-stamped principal.
     add_book.effect_ceiling = Some(EffectCeiling {
         version: "EffectCeilingV1".to_owned(),
         basis: "static".to_owned(),
@@ -18976,7 +19184,7 @@ fn effect_ceiling_subset_check_fails_closed_on_mismatch() {
             operations: vec!["insert".to_owned()],
         }],
         host_operations: Vec::new(),
-        authorization_inputs: Vec::new(),
+        authorization_inputs: vec!["authUserId".to_owned()],
     });
     let mut snapback = LocalSnapback::memory().expect("memory ceiling fixture");
     snapback
@@ -19005,7 +19213,7 @@ fn effect_ceiling_subset_check_fails_closed_on_mismatch() {
             operations: vec!["insert".to_owned()],
         }],
         host_operations: Vec::new(),
-        authorization_inputs: Vec::new(),
+        authorization_inputs: vec!["authUserId".to_owned()],
     });
     let mut snapback = LocalSnapback::memory().expect("memory fault fixture");
     snapback
@@ -19136,9 +19344,7 @@ fn standard_pattern_cursor_never_crosses_the_app_domain() {
                         ),
                         (
                             "authors".to_owned(),
-                            vec![row(
-                                json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
-                            )],
+                            vec![row(json!({ "slug": "ada", "name": "Ada" }))],
                         ),
                     ]),
                 })
@@ -19191,23 +19397,25 @@ fn projection_fixture(
         field_type: FieldType::String,
         optional,
     };
-    let table =
-        |name: &str, fields: Vec<FieldManifest>, indexes: Vec<IndexManifest>| TableManifest {
-            name: name.to_owned(),
-            fields,
-            indexes,
-            syncable: true,
-            permission_backing: false,
-            permission_fields: None,
-            search_indexes: Vec::new(),
-            vector_indexes: Vec::new(),
-            search_live_limits: None,
-            membership: None,
-            authority_profile: None,
-            asset_sharing: None,
-            visibility: None,
-            history: None,
-        };
+    let table = |name: &str,
+                 fields: Vec<FieldManifest>,
+                 indexes: Vec<IndexManifest>,
+                 visibility: crate::manifest::TableVisibilityV1| TableManifest {
+        name: name.to_owned(),
+        fields,
+        indexes,
+        syncable: true,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: Some(visibility),
+        history: None,
+    };
     let schema = SchemaManifest {
         tables: vec![
             table(
@@ -19216,7 +19424,11 @@ fn projection_fixture(
                     string("title", false),
                     string("slug", false),
                     string("authorSlug", true),
-                    string("ownerId", false),
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
                 ],
                 vec![
                     IndexManifest {
@@ -19232,29 +19444,36 @@ fn projection_fixture(
                         where_applicable: false,
                     },
                 ],
+                crate::manifest::TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                },
             ),
             table(
                 "authors",
-                vec![
-                    string("slug", false),
-                    string("name", false),
-                    string("ownerId", false),
-                ],
+                vec![string("slug", false), string("name", false)],
                 vec![IndexManifest {
                     name: "authors_by_slug".to_owned(),
                     fields: vec!["slug".to_owned()],
                     unique: true,
                     where_applicable: false,
                 }],
+                crate::manifest::TableVisibilityV1::PublicRead,
             ),
             table(
                 "bookSummaries",
                 vec![
                     string("title", false),
                     string("authorName", true),
-                    string("ownerId", false),
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
                 ],
                 Vec::new(),
+                crate::manifest::TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                },
             ),
         ],
         ..SchemaManifest::default()
@@ -19330,17 +19549,13 @@ fn projection_fixture(
                     ("title", arg("title")),
                     ("slug", arg("slug")),
                     ("authorSlug", arg("author")),
-                    ("ownerId", ValueExpr::Literal(json!("user-a"))),
+                    ("ownerId", ValueExpr::AuthUserId),
                 ],
             ),
             insert(
                 "addAuthor",
                 "authors",
-                &[
-                    ("slug", arg("slug")),
-                    ("name", arg("name")),
-                    ("ownerId", ValueExpr::Literal(json!("user-a"))),
-                ],
+                &[("slug", arg("slug")), ("name", arg("name"))],
             ),
             FunctionDefinition::new(
                 "renameAuthor",
@@ -19362,7 +19577,10 @@ fn projection_fixture(
                 "moveBookSlug",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-                    owner_write_checks: Vec::new(),
+                    owner_write_checks: vec![OwnerWriteCheckV1 {
+                        step_index: 0,
+                        absent: OwnerWriteAbsentDispositionV1::NoEffect,
+                    }],
                     steps: vec![MutationStep::Patch {
                         table: "books".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),
@@ -19378,7 +19596,10 @@ fn projection_fixture(
                 "deleteBook",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-                    owner_write_checks: Vec::new(),
+                    owner_write_checks: vec![OwnerWriteCheckV1 {
+                        step_index: 0,
+                        absent: OwnerWriteAbsentDispositionV1::NoEffect,
+                    }],
                     steps: vec![MutationStep::Delete {
                         table: "books".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),
@@ -19509,7 +19730,7 @@ globalThis.__snapbackHandlers = {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -19578,6 +19799,10 @@ fn maintained_projection_engine_end_to_end() {
                 name,
                 HandlerInput {
                     args,
+                    auth: AuthInput {
+                        user_id: Some("user-a".to_owned()),
+                        ..AuthInput::default()
+                    },
                     ..HandlerInput::default()
                 },
             )
@@ -19747,6 +19972,10 @@ fn maintained_projection_engine_end_to_end() {
             "addBook",
             HandlerInput {
                 args: json!({ "title": "gamma", "slug": "s-gamma", "author": "ada" }),
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
                 ..HandlerInput::default()
             },
         )
@@ -19764,6 +19993,10 @@ fn maintained_projection_engine_end_to_end() {
             "moveBookSlug",
             HandlerInput {
                 args: json!({ "id": beta_id, "slug": "s-beta-2" }),
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
                 ..HandlerInput::default()
             },
         )
@@ -19780,7 +20013,9 @@ fn book_id_missing(snapback: &LocalSnapback, slug: &str) -> bool {
         .query_reads_read()
         .query(
             &QueryPlan {
-                table_visibility: None,
+                table_visibility: Some(TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
                 table: "books".to_owned(),
                 filters: vec![FilterExpr {
                     field: "slug".to_owned(),
@@ -19792,7 +20027,13 @@ fn book_id_missing(snapback: &LocalSnapback, slug: &str) -> bool {
                 limit: None,
                 indexed_by: None,
             },
-            &HandlerInput::default(),
+            &HandlerInput {
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            },
         )
         .expect("read books")
         .rows
@@ -19824,9 +20065,7 @@ fn projection_activation_rebuild_materializes_and_republishes() {
                     ),
                     (
                         "authors".to_owned(),
-                        vec![row(
-                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
-                        )],
+                        vec![row(json!({ "slug": "ada", "name": "Ada" }))],
                     ),
                 ]),
             })
@@ -19951,9 +20190,7 @@ fn projection_activation_rebuild_materializes_and_republishes() {
                     ),
                     (
                         "authors".to_owned(),
-                        vec![row(
-                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
-                        )],
+                        vec![row(json!({ "slug": "ada", "name": "Ada" }))],
                     ),
                 ]),
             })
@@ -20012,7 +20249,7 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
                     ),
                     (
                         "authors".to_owned(),
-                        vec![row(json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }))],
+                        vec![row(json!({ "slug": "ada", "name": "Ada" }))],
                     ),
                 ]),
             })
@@ -20050,7 +20287,9 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
         .query_reads_read()
         .query(
             &QueryPlan {
-                table_visibility: None,
+                table_visibility: Some(TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
                 table: "books".to_owned(),
                 filters: vec![FilterExpr {
                     field: "title".to_owned(),
@@ -20062,7 +20301,13 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
                 limit: None,
                 indexed_by: None,
             },
-            &HandlerInput::default(),
+            &HandlerInput {
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            },
         )
         .expect("find beta before retry")
         .rows[0]["_id"]
@@ -20074,14 +20319,23 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
         .mutation_writes()
         .execute_mutation(
             &MutationPlan {
-                owner_write_checks: Vec::new(),
+                owner_write_checks: vec![OwnerWriteCheckV1 {
+                    step_index: 0,
+                    absent: OwnerWriteAbsentDispositionV1::NoEffect,
+                }],
                 steps: vec![MutationStep::Delete {
                     table: "books".to_owned(),
                     id: ValueExpr::Literal(json!(beta_id)),
                 }],
                 return_value: None,
             },
-            &HandlerInput::default(),
+            &HandlerInput {
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            },
         )
         .expect("make the strict projection admissible before retry");
     let retried = snapback.load_functions(functions);
@@ -20176,9 +20430,7 @@ fn generation_activation_reopen_uses_durable_record_and_matching_materialization
             ),
             (
                 "authors".to_owned(),
-                vec![row(
-                    json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
-                )],
+                vec![row(json!({ "slug": "ada", "name": "Ada" }))],
             ),
         ]),
     };
@@ -20335,6 +20587,10 @@ fn identity_binding_seal_refuses_projection_rebuild_and_maintenance() {
             "addBook",
             HandlerInput {
                 args: json!({ "title": "sealed", "slug": "sealed", "author": "ada" }),
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
                 ..HandlerInput::default()
             },
         )
@@ -20404,6 +20660,7 @@ fn oq3_crash_after_projection_materialization_reopens_unpinned_and_retry_converg
     sequence_scopes.name = "sequenceScopes".to_owned();
     sequence_scopes.fields.retain(|field| field.name == "title");
     sequence_scopes.indexes.clear();
+    sequence_scopes.visibility = Some(TableVisibilityV1::PublicRead);
     schema.tables.push(sequence_scopes);
     let mut sequence_function = FunctionDefinition::new(
             "allocateProjectionCrashSequence",
@@ -20444,7 +20701,7 @@ fn oq3_crash_after_projection_materialization_reopens_unpinned_and_retry_converg
                         ),
                         (
                             "authors".to_owned(),
-                            vec![row(json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }))],
+                            vec![row(json!({ "slug": "ada", "name": "Ada" }))],
                         ),
                     ]),
                 })
@@ -20602,7 +20859,10 @@ fn maintained_projection_activation_refusals() {
         "forgeSummary",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+            owner_write_checks: vec![OwnerWriteCheckV1 {
+                step_index: 0,
+                absent: OwnerWriteAbsentDispositionV1::NoEffect,
+            }],
             steps: vec![MutationStep::Insert {
                 table: "bookSummaries".to_owned(),
                 values: BTreeMap::new(),
@@ -20620,11 +20880,15 @@ fn maintained_projection_activation_refusals() {
     // Output read fence: an owner-visible output read without the
     // visibility predicate refuses; with it, it activates.
     let read_plan = |filters: Vec<FilterExpr>| {
-        FunctionDefinition::new(
+        let visibility_composed = !filters.is_empty();
+        let table_visibility = visibility_composed.then(|| TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        });
+        let mut function = FunctionDefinition::new(
             "readSummaries",
             FunctionKind::Query,
             FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
-                table_visibility: None,
+                table_visibility,
                 table: "bookSummaries".to_owned(),
                 filters,
                 membership_filters: Vec::new(),
@@ -20632,13 +20896,18 @@ fn maintained_projection_activation_refusals() {
                 limit: None,
                 indexed_by: None,
             })),
-        )
+        );
+        if visibility_composed {
+            function.authorization_dependence =
+                vec![crate::manifest::AuthorizationInputDimension::UserId];
+        }
+        function
     };
     let mut raw_read = functions.clone();
     raw_read.functions.push(read_plan(Vec::new()));
     let diagnostics = load(&schema, raw_read);
     assert!(
-        has(&diagnostics, "SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED"),
+        has(&diagnostics, "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH"),
         "{diagnostics:?}"
     );
     let mut enforced_read = functions.clone();
@@ -20733,7 +21002,7 @@ fn membership_keyset_artifacts() -> (SchemaManifest, FunctionManifest) {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
             history: None,
         };
     let schema = SchemaManifest {
@@ -21722,6 +21991,8 @@ fn membership_keyset_cursor_witnesses_the_scoped_removal_disclosure() {
 //   the conservative live_replace lane with it, and the capability
 //   artifact records both the conservative delivery and the disabled
 //   authScopeField disjointness-skip refinement.
+// @ref LLP 0264#d3-owner-inserts-are-host-stamped — the positive standard
+// pattern fixture uses the sealed AuthUserId marker and a caller principal.
 #[test]
 fn standard_pattern_live_is_conservative_and_recorded() {
     use crate::manifest::{FieldManifest, FieldType, StandardPatternIdentity, TableManifest};
@@ -21750,13 +22021,17 @@ fn standard_pattern_live_is_conservative_and_recorded() {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
             history: None,
         }],
         ..SchemaManifest::default()
     };
     let lookup_plan = QueryPlan {
-        table_visibility: None,
+        table_visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        }),
         table: "todos".to_owned(),
         filters: vec![
             FilterExpr {
@@ -21785,12 +22060,14 @@ fn standard_pattern_live_is_conservative_and_recorded() {
         profile: "owner.v1".to_owned(),
         membership: None,
     });
+    pattern.authorization_dependence = vec![crate::manifest::AuthorizationInputDimension::UserId];
     install_schema_documents_contract(&mut pattern, &schema, "todos");
     let mut control = FunctionDefinition::new(
         "lookupControl",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(lookup_plan)),
     );
+    control.authorization_dependence = vec![crate::manifest::AuthorizationInputDimension::UserId];
     install_schema_documents_contract(&mut control, &schema, "todos");
     let add = FunctionDefinition::new(
         "addTodo",
@@ -21800,7 +22077,7 @@ fn standard_pattern_live_is_conservative_and_recorded() {
             steps: vec![MutationStep::Insert {
                 table: "todos".to_owned(),
                 values: BTreeMap::from([
-                    ("ownerId".to_owned(), ValueExpr::Literal(json!("user-a"))),
+                    ("ownerId".to_owned(), ValueExpr::AuthUserId),
                     ("slug".to_owned(), ValueExpr::Arg("slug".to_owned())),
                 ]),
                 bind_id_as: None,
@@ -21852,6 +22129,10 @@ fn standard_pattern_live_is_conservative_and_recorded() {
             "addTodo",
             HandlerInput {
                 args: json!({ "slug": "x" }),
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
                 ..HandlerInput::default()
             },
         )
@@ -21907,7 +22188,9 @@ fn cursor_negatives_hold_under_sessions_authorities() {
         value: ValueExpr::AuthUserId,
     };
     let page_plan = |with_cursor: bool| QueryPlan {
-        table_visibility: None,
+        table_visibility: Some(TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        }),
         table: "books".to_owned(),
         filters: if with_cursor {
             vec![
@@ -21943,12 +22226,14 @@ fn cursor_negatives_hold_under_sessions_authorities() {
         FunctionRuntime::HostPlan(HandlerPlan::Query(page_plan(false))),
     );
     first_def.standard_pattern = pattern();
+    first_def.authorization_dependence = vec![crate::manifest::AuthorizationInputDimension::UserId];
     let mut next_def = FunctionDefinition::new(
         "nextBookPage",
         FunctionKind::LiveQuery,
         FunctionRuntime::HostPlan(HandlerPlan::Query(page_plan(true))),
     );
     next_def.standard_pattern = pattern();
+    next_def.authorization_dependence = vec![crate::manifest::AuthorizationInputDimension::UserId];
     functions.functions.push(first_def);
     functions.functions.push(next_def);
 
@@ -21976,9 +22261,7 @@ fn cursor_negatives_hold_under_sessions_authorities() {
                 ),
                 (
                     "authors".to_owned(),
-                    vec![row(
-                        json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
-                    )],
+                    vec![row(json!({ "slug": "ada", "name": "Ada" }))],
                 ),
             ]),
         })
@@ -22645,7 +22928,7 @@ fn reload_schema(hash: &str, include_extra: bool) -> SchemaManifest {
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
         history: None,
     }];
     if include_extra {
@@ -22666,7 +22949,7 @@ fn reload_schema(hash: &str, include_extra: bool) -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
             history: None,
         });
     }
@@ -23724,7 +24007,7 @@ fn lane_settlement_snapback() -> LocalSnapback {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             },
             TableManifest {
@@ -24802,7 +25085,7 @@ fn split_vector_argument_contract_commits_valid_and_refuses_invalid_nested_paylo
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -25397,6 +25680,33 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
     );
 }
 
+// Authority-table fixture setup stays on the specialized auth-catalog path.
+// @ref LLP 0264#d6-authority-tables-and-membershiprole-writes-stay-specialized
+fn insert_live_test_session(
+    snapback: &mut LocalSnapback,
+    user_id: &str,
+    session_id: &str,
+    authority_instance_id: &str,
+    token_byte: u8,
+) {
+    snapback
+        .auth_database_mut()
+        .auth_catalog()
+        .insert_email_session_for_test(
+            user_id,
+            &format!("identity-{session_id}"),
+            session_id,
+            authority_instance_id,
+            &format!("{user_id}@live-fixture.test"),
+            &[token_byte; 32],
+            1,
+            1,
+            4_000_000_000_000,
+            4_000_000_000_000,
+        )
+        .expect("insert live fixture session");
+}
+
 fn live_limit_snapback() -> LocalSnapback {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
     snapback
@@ -25424,12 +25734,16 @@ fn live_limit_snapback() -> LocalSnapback {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()
         })
         .expect("apply live limit schema");
+    snapback
+        .db
+        .activate_current_auth_catalog()
+        .expect("install live-limit auth catalog");
     let list = FunctionDefinition::new(
         "listItems",
         FunctionKind::LiveQuery,
@@ -25487,11 +25801,17 @@ fn live_limit_snapback() -> LocalSnapback {
             return_value: Some(ReturnValue::ChangedCount),
         })),
     );
-    let diagnostics = snapback.load_functions(FunctionManifest {
+    let functions = FunctionManifest {
         bundle_hash: Some("live-limits-functions".to_owned()),
         functions: vec![list, requires_arg, insert, delete],
         ..FunctionManifest::default()
-    });
+    };
+    let installed_schema = snapback.db.schema().clone();
+    snapback
+        .db
+        .reconcile_auth_scope_bases_with_schema(&functions, &installed_schema)
+        .expect("install live-limit function scope bases");
+    let diagnostics = snapback.load_functions(functions);
     assert!(
         diagnostics.is_empty(),
         "unexpected function diagnostics: {diagnostics:?}"
@@ -25981,7 +26301,10 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
         "deleteBook",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+            owner_write_checks: vec![OwnerWriteCheckV1 {
+                step_index: 0,
+                absent: OwnerWriteAbsentDispositionV1::NoEffect,
+            }],
             steps: vec![MutationStep::Delete {
                 table: "books".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -25991,6 +26314,10 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
     ));
     let mut snapback = LocalSnapback::memory().expect("memory shrink fixture");
     snapback.apply_schema(schema).expect("apply shrink schema");
+    snapback
+        .auth_database_mut()
+        .activate_current_auth_catalog()
+        .expect("install shrink fixture auth catalog");
     let diagnostics = snapback.load_functions(functions);
     assert!(
         diagnostics
@@ -26012,6 +26339,10 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
             "addBook",
             HandlerInput {
                 args: json!({ "title": "alpha", "slug": "ada" }),
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
                 ..HandlerInput::default()
             },
         )
@@ -26021,7 +26352,9 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
         .query_reads_read()
         .query(
             &QueryPlan {
-                table_visibility: None,
+                table_visibility: Some(TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
                 table: "books".to_owned(),
                 filters: Vec::new(),
                 membership_filters: Vec::new(),
@@ -26029,7 +26362,13 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
                 limit: None,
                 indexed_by: None,
             },
-            &HandlerInput::default(),
+            &HandlerInput {
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            },
         )
         .expect("read book id")
         .rows[0]["_id"]
@@ -26038,6 +26377,13 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
         .to_owned();
 
     let connection = install_test_invalidation(&mut snapback);
+    insert_live_test_session(
+        &mut snapback,
+        "user-a",
+        "sess-shrink",
+        "authinst-shrink",
+        45,
+    );
     let admission = managed_session_admission();
     let owner_input = HandlerInput {
         auth: AuthInput {
@@ -26049,25 +26395,27 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
     // An owner-visible plan needs a real Session authority under the
     // session-mode admission (the anonymous test default would refuse
     // with AUTH_USER_MISSING).
-    let session_authority = crate::auth::invocation::InvocationGate::prepare_authority(
-        crate::auth::invocation::InvocationSource::LiveInitialQuery,
-        AuthMode::Sessions,
-        crate::contract_types::ServerProfile::Test,
-        1,
-        1,
-        &crate::auth::invocation::WireAuthorityFields::default(),
-        crate::auth::invocation::ResolvedAppAuthority::Session {
-            user_id: "user-a".to_owned(),
-            session_id: "sess-shrink".to_owned(),
-            provider: "test".to_owned(),
-            generation: 1,
-            authority_instance_id: "authinst-shrink".to_owned(),
-            session_not_after_ms: u64::MAX / 2,
-            provider_not_after_ms: None,
-            rehearsal_provenance: None,
-        },
-    )
-    .expect("prepare session authority");
+    let session_authority = |source| {
+        crate::auth::invocation::InvocationGate::prepare_authority(
+            source,
+            AuthMode::Sessions,
+            crate::contract_types::ServerProfile::Test,
+            1,
+            1,
+            &crate::auth::invocation::WireAuthorityFields::default(),
+            crate::auth::invocation::ResolvedAppAuthority::Session {
+                user_id: "user-a".to_owned(),
+                session_id: "sess-shrink".to_owned(),
+                provider: "test".to_owned(),
+                generation: 1,
+                authority_instance_id: "authinst-shrink".to_owned(),
+                session_not_after_ms: u64::MAX / 2,
+                provider_not_after_ms: None,
+                rehearsal_provenance: None,
+            },
+        )
+        .expect("prepare session authority")
+    };
     let subscribed = snapback
         .subscribe_live_prepared_with_invalidation(
             "booksWithAuthors",
@@ -26078,7 +26426,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
                 supersedes: None,
                 resume_from_token: None,
             },
-            session_authority,
+            session_authority(crate::auth::invocation::InvocationSource::LiveInitialQuery),
             LiveInvalidationAdmission {
                 session_mode: true,
                 connection: Some(connection.clone()),
@@ -26093,15 +26441,16 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
     assert!(drain_live_stream_through_test_sink(&mut snapback, "rel-shrink").is_empty());
 
     // The shrinking commit: the only visible root is deleted.
-    invoke_test_session_mutation(
-        &mut snapback,
-        "deleteBook",
-        HandlerInput {
-            args: json!({ "id": book_id }),
-            ..HandlerInput::default()
-        },
-    )
-    .expect("delete the visible book");
+    snapback
+        .invoke_mutation_with_authority(
+            "deleteBook",
+            HandlerInput {
+                args: json!({ "id": book_id }),
+                ..HandlerInput::default()
+            },
+            session_authority(crate::auth::invocation::InvocationSource::HttpMutation),
+        )
+        .expect("delete the visible book");
     let messages =
         project_authorization_frames_through_test_sink(&mut snapback, "rel-shrink", &admission);
     let frame = messages
@@ -27175,7 +27524,7 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         name: "items".to_owned(),
         fields: vec![FieldManifest {
             name: "owner".to_owned(),
-            field_type: FieldType::String,
+            field_type: FieldType::Principal,
             optional: false,
         }],
         indexes: vec![IndexManifest {
@@ -27193,7 +27542,9 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+            field: "owner".to_owned(),
+        }),
         history: None,
     };
 
@@ -27212,7 +27563,7 @@ fn retainable_sessions_snapback() -> LocalSnapback {
             },
             FieldManifest {
                 name: "ownerId".to_owned(),
-                field_type: FieldType::String,
+                field_type: FieldType::Principal,
                 optional: false,
             },
         ],
@@ -27231,7 +27582,9 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+            field: "ownerId".to_owned(),
+        }),
         history: None,
     };
     let authors = TableManifest {
@@ -27244,11 +27597,6 @@ fn retainable_sessions_snapback() -> LocalSnapback {
             },
             FieldManifest {
                 name: "name".to_owned(),
-                field_type: FieldType::String,
-                optional: false,
-            },
-            FieldManifest {
-                name: "ownerId".to_owned(),
                 field_type: FieldType::String,
                 optional: false,
             },
@@ -27268,7 +27616,7 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
         history: None,
     };
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
@@ -27279,11 +27627,17 @@ fn retainable_sessions_snapback() -> LocalSnapback {
             ..SchemaManifest::default()
         })
         .expect("apply lease schema");
+    snapback
+        .db
+        .activate_current_auth_catalog()
+        .expect("install retained-query auth catalog");
     let mut retained = FunctionDefinition::new(
         "listOwned",
         FunctionKind::Query,
         FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
-            table_visibility: None,
+            table_visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+                field: "owner".to_owned(),
+            }),
             table: "items".to_owned(),
             filters: vec![FilterExpr {
                 field: "owner".to_owned(),
@@ -27327,7 +27681,9 @@ fn retainable_sessions_snapback() -> LocalSnapback {
                 op: FilterOp::Eq,
                 value: ValueExpr::AuthUserId,
             }],
-            root_table_visibility: None,
+            root_table_visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
             joined_visibility: Vec::new(),
             joined_table_visibility: None,
             projection: vec![crate::manifest::ProjectionLeaf {
@@ -27395,6 +27751,8 @@ globalThis.__snapbackHandlers = {
         tables: vec![items, books, authors],
         ..SchemaManifest::default()
     };
+    let scope_functions = snapback.served_function_manifest().clone();
+    let scope_schema = sessions_manifest.clone();
     let db = snapback.auth_database_mut();
     db.stage_auth_mode(deployment, sessions_manifest, None)
         .expect("stage sessions mode");
@@ -27402,6 +27760,8 @@ globalThis.__snapbackHandlers = {
         true, true, true, true, true, true, true,
     ))
     .expect("consume sessions mode");
+    db.reconcile_auth_scope_bases_with_schema(&scope_functions, &scope_schema)
+        .expect("install retained-query function scope bases");
     db.activate_current_auth_catalog()
         .expect("activate auth catalog");
     db.auth_catalog()
@@ -29591,17 +29951,24 @@ fn live_unsubscribe_requires_the_exact_connection_grant() {
 fn live_unsubscribe_owner_survives_session_deadline_extension() {
     let mut snapback = live_limit_snapback();
     let connection = install_test_invalidation(&mut snapback);
+    insert_live_test_session(
+        &mut snapback,
+        "live-owner-user",
+        "live-owner-session",
+        "live-owner-authority",
+        46,
+    );
     let owner_fence = crate::ephemeral::ConnectionEffectFence::session(
         "live-owner-incarnation",
         "deadline-owner-grant",
         "live-owner-session",
-        7,
+        1,
     );
     let other_fence = crate::ephemeral::ConnectionEffectFence::session(
         "live-owner-incarnation",
         "deadline-other-grant",
         "live-owner-session",
-        7,
+        1,
     );
     let subscribed = snapback
         .subscribe_live_prepared_with_invalidation(
@@ -29616,7 +29983,7 @@ fn live_unsubscribe_owner_survives_session_deadline_extension() {
             test_live_session_authority(
                 InvocationSource::LiveInitialQuery,
                 "live-owner-user",
-                7,
+                1,
                 10_000,
                 Some(9_000),
             ),
@@ -29639,7 +30006,7 @@ fn live_unsubscribe_owner_survives_session_deadline_extension() {
             test_live_session_authority(
                 InvocationSource::LiveUnsubscribe,
                 "live-owner-user",
-                8,
+                2,
                 20_000,
                 Some(19_000),
             ),
@@ -29650,7 +30017,7 @@ fn live_unsubscribe_owner_survives_session_deadline_extension() {
             test_live_session_authority(
                 InvocationSource::LiveUnsubscribe,
                 "other-live-owner-user",
-                7,
+                1,
                 20_000,
                 Some(19_000),
             ),
@@ -29661,7 +30028,7 @@ fn live_unsubscribe_owner_survives_session_deadline_extension() {
             test_live_session_authority(
                 InvocationSource::LiveUnsubscribe,
                 "live-owner-user",
-                7,
+                1,
                 20_000,
                 Some(19_000),
             ),
@@ -29687,7 +30054,7 @@ fn live_unsubscribe_owner_survives_session_deadline_extension() {
             test_live_session_authority(
                 InvocationSource::LiveUnsubscribe,
                 "live-owner-user",
-                7,
+                1,
                 20_000,
                 Some(19_000),
             ),
@@ -30160,6 +30527,8 @@ fn same_scope_failed_resume_keeps_failure_hint_on_retained_effect_fence() {
 // ------------------------------------------------------------------
 
 fn rqs_schema() -> SchemaManifest {
+    // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — RQS tests
+    // exercise sync mechanics over an explicitly public ordinary table.
     SchemaManifest {
         schema_hash: Some("rqs-schema-v0".to_owned()),
         tables: vec![TableManifest {
@@ -30186,7 +30555,7 @@ fn rqs_schema() -> SchemaManifest {
             membership: None,
             authority_profile: None,
             asset_sharing: None,
-            visibility: None,
+            visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
             history: None,
         }],
         ..SchemaManifest::default()
@@ -32895,7 +33264,9 @@ fn managed_branch_carrier_fixture() -> LocalSnapback {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -32931,46 +33302,42 @@ fn managed_branch_carrier_fixture() -> LocalSnapback {
         })),
     );
     create_owned.auth_requirement = Some(AuthRequirement::Authenticated);
+    let admin_refusal = {
+        use sha2::Digest as _;
+        let code = "ADMIN_ROW_DENIED";
+        let message = "managed branch cannot reach the admin-owned row";
+        let details = json!({ "operation": "mutateAdminOnly" });
+        let digest_bytes = crate::rqs_contract::jcs(&json!({
+            "code": code,
+            "message": message,
+            "details": details,
+        }))
+        .expect("admin owner refusal canonical bytes");
+        OwnerWriteAbsentDispositionV1::Refuse {
+            code: code.to_owned(),
+            message: message.to_owned(),
+            digest: format!("sha256:{:x}", sha2::Sha256::digest(digest_bytes)),
+            details,
+        }
+    };
     let mut mutate_admin = FunctionDefinition::new(
         "mutateAdminOnly",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
-            steps: vec![
-                MutationStep::Get {
-                    table: "records".to_owned(),
-                    id: ValueExpr::Literal(json!("admin-only")),
-                    bind_as: "target".to_owned(),
-                    else_error: Some("ADMIN_ROW_MISSING".to_owned()),
-                },
-                MutationStep::Guard {
-                    cond: ValueExpr::Binary {
-                        op: crate::manifest::BinaryOp::Eq,
-                        left: Box::new(ValueExpr::Field {
-                            base: Box::new(ValueExpr::Binding("target".to_owned())),
-                            key: "ownerId".to_owned(),
-                        }),
-                        right: Box::new(ValueExpr::AuthUserId),
-                    },
-                    else_error: "ADMIN_ROW_DENIED".to_owned(),
-                },
-                MutationStep::Patch {
-                    table: "records".to_owned(),
-                    id: ValueExpr::Literal(json!("admin-only")),
-                    values: BTreeMap::from([(
-                        "value".to_owned(),
-                        ValueExpr::Literal(json!("leaked")),
-                    )]),
-                },
-            ],
+            owner_write_checks: vec![OwnerWriteCheckV1 {
+                step_index: 0,
+                absent: admin_refusal,
+            }],
+            steps: vec![MutationStep::Patch {
+                table: "records".to_owned(),
+                id: ValueExpr::Literal(json!("admin-only")),
+                values: BTreeMap::from([("value".to_owned(), ValueExpr::Literal(json!("leaked")))]),
+            }],
             return_value: Some(ReturnValue::ChangedCount),
         })),
     );
     mutate_admin.auth_requirement = Some(AuthRequirement::Authenticated);
-    mutate_admin.refusals = vec![
-        "ADMIN_ROW_MISSING".to_owned(),
-        "ADMIN_ROW_DENIED".to_owned(),
-    ];
+    mutate_admin.refusals = vec!["ADMIN_ROW_DENIED".to_owned()];
     let attempt_fetch = FunctionDefinition::new(
             "attemptFetch",
             FunctionKind::Action,

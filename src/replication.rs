@@ -2540,7 +2540,8 @@ mod tests {
                     "name": "replication_rows",
                     "fields": [{ "name": "payload", "field_type": "String", "optional": false }],
                     "indexes": [],
-                    "syncable": false
+                    "syncable": false,
+                    "visibility": { "kind": "public-read" }
                 }))
                 .unwrap(),
             ],

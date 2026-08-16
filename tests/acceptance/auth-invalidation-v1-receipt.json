@@ -76,7 +76,7 @@
       "compositeWitness": {
         "authorization": {
           "incarnation": "<authenticated-uuid-v7>",
-          "epoch": 6
+          "epoch": 7
         },
         "data": {
           "versionStream": "<authenticated-version-stream>",
@@ -120,7 +120,7 @@
       "compositeWitness": {
         "authorization": {
           "incarnation": "<authenticated-uuid-v7>",
-          "epoch": 6
+          "epoch": 7
         },
         "data": {
           "versionStream": "<authenticated-version-stream>",
@@ -164,7 +164,7 @@
       "compositeWitness": {
         "authorization": {
           "incarnation": "<authenticated-uuid-v7>",
-          "epoch": 6
+          "epoch": 7
         },
         "data": {
           "versionStream": "<authenticated-version-stream>",
@@ -208,7 +208,7 @@
       "compositeWitness": {
         "authorization": {
           "incarnation": "<authenticated-uuid-v7>",
-          "epoch": 7
+          "epoch": 8
         },
         "data": {
           "versionStream": "<authenticated-version-stream>",
@@ -252,7 +252,7 @@
       "compositeWitness": {
         "authorization": {
           "incarnation": "<authenticated-uuid-v7>",
-          "epoch": 7
+          "epoch": 8
         },
         "data": {
           "versionStream": "<authenticated-version-stream>",
@@ -296,7 +296,7 @@
       "compositeWitness": {
         "authorization": {
           "incarnation": "<authenticated-uuid-v7>",
-          "epoch": 7
+          "epoch": 8
         },
         "data": {
           "versionStream": "<authenticated-version-stream>",
@@ -340,7 +340,7 @@
       "compositeWitness": {
         "authorization": {
           "incarnation": "<authenticated-uuid-v7>",
-          "epoch": 8
+          "epoch": 9
         },
         "data": {
           "versionStream": "<authenticated-version-stream>",
@@ -384,7 +384,7 @@
       "compositeWitness": {
         "authorization": {
           "incarnation": "<authenticated-uuid-v7>",
-          "epoch": 8
+          "epoch": 9
         },
         "data": {
           "versionStream": "<authenticated-version-stream>",
@@ -428,7 +428,7 @@
       "compositeWitness": {
         "authorization": {
           "incarnation": "<authenticated-uuid-v7>",
-          "epoch": 8
+          "epoch": 9
         },
         "data": {
           "versionStream": "<authenticated-version-stream>",
@@ -473,7 +473,7 @@
       "compositeWitness": {
         "authorization": {
           "incarnation": "<authenticated-uuid-v7>",
-          "epoch": 8
+          "epoch": 9
         },
         "data": {
           "versionStream": "<authenticated-version-stream>",

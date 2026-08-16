@@ -716,6 +716,8 @@ mod stored_enum_tests {
     }
 
     fn schema(fields: Vec<FieldManifest>) -> SchemaManifest {
+        // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — enum
+        // storage tests exercise values and migrations on a declared table.
         SchemaManifest {
             tables: vec![TableManifest {
                 name: "items".to_owned(),
@@ -730,7 +732,7 @@ mod stored_enum_tests {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -1328,6 +1330,8 @@ mod stored_structured_value_tests {
     }
 
     fn schema(fields: Vec<FieldManifest>) -> SchemaManifest {
+        // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — structured
+        // value fixtures are ordinary declared rows, not omission fixtures.
         SchemaManifest {
             required_capabilities: vec!["structured_stored_value_v1".to_owned()],
             tables: vec![TableManifest {
@@ -1343,7 +1347,7 @@ mod stored_structured_value_tests {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -1980,6 +1984,8 @@ mod guarded_commit_tests {
 
     fn migration_scan_database() -> LocalDatabase {
         use crate::manifest::IndexManifest;
+        // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — migration
+        // scan rows are an ordinary declared fixture data source.
         let mut db = LocalDatabase::memory().expect("memory database");
         db.schema_seed()
             .apply_schema(SchemaManifest {
@@ -2020,7 +2026,7 @@ mod guarded_commit_tests {
                     membership: None,
                     authority_profile: None,
                     asset_sharing: None,
-                    visibility: None,
+                    visibility: Some(TableVisibilityV1::PublicRead),
                     history: None,
                 }],
                 ..SchemaManifest::default()
@@ -2431,6 +2437,9 @@ mod guarded_commit_tests {
     }
 
     fn schema() -> SchemaManifest {
+        // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — the
+        // guarded-commit corpus preserves its formerly unrestricted fixture
+        // semantics through an explicit public-read declaration.
         SchemaManifest {
             tables: vec![TableManifest {
                 name: "items".to_owned(),
@@ -2461,7 +2470,7 @@ mod guarded_commit_tests {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -2523,7 +2532,7 @@ mod guarded_commit_tests {
                     membership: None,
                     authority_profile: None,
                     asset_sharing: None,
-                    visibility: None,
+                    visibility: Some(TableVisibilityV1::PublicRead),
                     history: None,
                 }],
                 ..SchemaManifest::default()
@@ -2752,7 +2761,7 @@ mod guarded_commit_tests {
         let predecessor_incarnation = first.scope_incarnation;
         db.mutation_writes()
             .commit_buffered_writes(
-                &HandlerInput::default(),
+                &generated_sequence_input("user-1", "delete exhausted scope"),
                 vec![BufferedWrite::Delete {
                     table: "items".to_owned(),
                     id: "scope".to_owned(),
@@ -3045,6 +3054,8 @@ mod guarded_commit_tests {
 
     fn relation_schema() -> SchemaManifest {
         use crate::manifest::IndexManifest;
+        // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — relation,
+        // activity, and sequence tests use declared ordinary fixture tables.
         SchemaManifest {
             tables: vec![
                 TableManifest {
@@ -3052,7 +3063,7 @@ mod guarded_commit_tests {
                     fields: vec![
                         FieldManifest {
                             name: "owner".to_owned(),
-                            field_type: FieldType::String,
+                            field_type: FieldType::Principal,
                             optional: false,
                         },
                         FieldManifest {
@@ -3071,7 +3082,9 @@ mod guarded_commit_tests {
                     membership: None,
                     authority_profile: None,
                     asset_sharing: None,
-                    visibility: None,
+                    visibility: Some(TableVisibilityV1::Owner {
+                        field: "owner".to_owned(),
+                    }),
                     history: None,
                 },
                 TableManifest {
@@ -3102,6 +3115,11 @@ mod guarded_commit_tests {
                             field_type: FieldType::String,
                             optional: false,
                         },
+                        FieldManifest {
+                            name: "rowOwner".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
                     ],
                     indexes: vec![IndexManifest {
                         name: "by_parent_position".to_owned(),
@@ -3122,7 +3140,9 @@ mod guarded_commit_tests {
                     membership: None,
                     authority_profile: None,
                     asset_sharing: None,
-                    visibility: None,
+                    visibility: Some(TableVisibilityV1::Owner {
+                        field: "rowOwner".to_owned(),
+                    }),
                     history: None,
                 },
                 TableManifest {
@@ -3170,6 +3190,11 @@ mod guarded_commit_tests {
                             field_type: FieldType::String,
                             optional: false,
                         },
+                        FieldManifest {
+                            name: "rowOwner".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
                     ],
                     indexes: Vec::new(),
                     syncable: true,
@@ -3181,7 +3206,9 @@ mod guarded_commit_tests {
                     membership: None,
                     authority_profile: None,
                     asset_sharing: None,
-                    visibility: None,
+                    visibility: Some(TableVisibilityV1::Owner {
+                        field: "rowOwner".to_owned(),
+                    }),
                     history: None,
                 },
             ],
@@ -3240,11 +3267,17 @@ mod guarded_commit_tests {
     fn insert_generated_sequence_scope(db: &mut LocalDatabase, owner: &str, title: &str) {
         db.mutation_writes()
             .commit_buffered_writes(
-                &HandlerInput::default(),
+                &HandlerInput {
+                    auth: AuthInput {
+                        user_id: Some(owner.to_owned()),
+                        ..AuthInput::default()
+                    },
+                    ..HandlerInput::default()
+                },
                 vec![BufferedWrite::Insert {
                     table: "parents".to_owned(),
                     id: "parent-1".to_owned(),
-                    values: object(&[("owner", json!(owner)), ("title", json!(title))]),
+                    values: object(&[("title", json!(title))]),
                 }],
                 Vec::new(),
                 Value::Null,
@@ -3306,6 +3339,7 @@ mod guarded_commit_tests {
                         ("actualActor".to_owned(), ValueExpr::AuthActorUserId),
                         ("actorKind".to_owned(), ValueExpr::AuthActivityActorKind),
                         ("mutationDigest".to_owned(), ValueExpr::ClientMutationDigest),
+                        ("rowOwner".to_owned(), ValueExpr::AuthUserId),
                     ]),
                     bind_id_as: Some("activityId".to_owned()),
                 },
@@ -3442,7 +3476,7 @@ mod guarded_commit_tests {
         };
         let error = db
             .mutation_writes()
-            .execute_mutation(&failing, &HandlerInput::default())
+            .execute_mutation(&failing, &generated_sequence_input("user-1", "unused"))
             .expect_err("later app-write refusal rolls the allocation back");
         assert_eq!(
             error.diagnostic.code,
@@ -3812,7 +3846,7 @@ mod guarded_commit_tests {
 
         db.mutation_writes()
             .commit_buffered_writes(
-                &HandlerInput::default(),
+                &generated_sequence_input("user-1", "delete predecessor scope"),
                 vec![BufferedWrite::Delete {
                     table: "parents".to_owned(),
                     id: "parent-1".to_owned(),
@@ -3879,7 +3913,7 @@ mod guarded_commit_tests {
 
         db.mutation_writes()
             .commit_buffered_writes(
-                &HandlerInput::default(),
+                &generated_sequence_input("user-1", "delete predecessor scope"),
                 vec![BufferedWrite::Delete {
                     table: "parents".to_owned(),
                     id: "parent-1".to_owned(),
@@ -4685,6 +4719,7 @@ mod guarded_commit_tests {
                     ("parentId", json!("parent-1")),
                     ("position", json!(1)),
                     ("body", json!("old")),
+                    ("rowOwner", json!("user-1")),
                 ]),
                 1,
                 1_000,
@@ -4752,6 +4787,7 @@ mod guarded_commit_tests {
                     ("parentId", json!(parent_id)),
                     ("position", json!(2)),
                     ("body", json!("refused")),
+                    ("rowOwner", json!("user-1")),
                 ]),
                 3,
                 3_000,
@@ -4784,6 +4820,7 @@ mod guarded_commit_tests {
                     ("parentId", json!("parent-1")),
                     ("position", json!(2)),
                     ("body", json!("new")),
+                    ("rowOwner", json!("user-1")),
                 ]),
                 4,
                 4_000,
@@ -4849,13 +4886,25 @@ mod guarded_commit_tests {
             },
         ] {
             let plan = MutationPlan {
-                owner_write_checks: Vec::new(),
+                owner_write_checks: vec![OwnerWriteCheckV1 {
+                    step_index: 1,
+                    absent: OwnerWriteAbsentDispositionV1::NoEffect,
+                }],
                 steps: vec![stale_relation_assertion(), terminal],
                 return_value: None,
             };
             let error = db
                 .mutation_writes()
-                .execute_mutation(&plan, &HandlerInput::default())
+                .execute_mutation(
+                    &plan,
+                    &HandlerInput {
+                        auth: AuthInput {
+                            user_id: Some("user-1".to_owned()),
+                            ..AuthInput::default()
+                        },
+                        ..HandlerInput::default()
+                    },
+                )
                 .expect_err("stale child cannot be patched or deleted after parent id reuse");
             assert_eq!(error.diagnostic.code, "SNAPBACK_ROW_NOT_FOUND");
         }
@@ -4905,6 +4954,7 @@ mod guarded_commit_tests {
                         ("parentId", json!("parent-a")),
                         ("position", json!(1)),
                         ("body", json!("seed")),
+                        ("rowOwner", json!("user-a")),
                     ])],
                 ),
             ]),
@@ -4934,9 +4984,17 @@ mod guarded_commit_tests {
         };
         assert_eq!(active_stamp(&db, "parent-a"), seed_stamp);
 
+        let user_a = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("user-a".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+
         db.mutation_writes()
             .commit_buffered_writes(
-                &HandlerInput::default(),
+                &user_a,
                 vec![BufferedWrite::Insert {
                     table: "children".to_owned(),
                     id: "buffered-child".to_owned(),
@@ -4962,7 +5020,7 @@ mod guarded_commit_tests {
 
         db.mutation_writes()
             .commit_buffered_writes(
-                &HandlerInput::default(),
+                &user_a,
                 vec![BufferedWrite::Patch {
                     table: "children".to_owned(),
                     id: "buffered-child".to_owned(),
@@ -4986,7 +5044,7 @@ mod guarded_commit_tests {
         let error = db
             .mutation_writes()
             .commit_buffered_writes(
-                &HandlerInput::default(),
+                &user_a,
                 vec![BufferedWrite::Patch {
                     table: "children".to_owned(),
                     id: "buffered-child".to_owned(),
@@ -5159,6 +5217,7 @@ mod guarded_commit_tests {
                         ("actualActor".to_owned(), ValueExpr::AuthActorUserId),
                         ("actorKind".to_owned(), ValueExpr::AuthActivityActorKind),
                         ("mutationDigest".to_owned(), ValueExpr::ClientMutationDigest),
+                        ("rowOwner".to_owned(), ValueExpr::AuthUserId),
                     ]),
                     bind_id_as: Some("activityId".to_owned()),
                 },
@@ -5224,7 +5283,10 @@ mod guarded_commit_tests {
         assert_eq!(counts, (1, 1), "replay appends no duplicate activity");
 
         let no_op = MutationPlan {
-            owner_write_checks: Vec::new(),
+            owner_write_checks: vec![OwnerWriteCheckV1 {
+                step_index: 0,
+                absent: OwnerWriteAbsentDispositionV1::NoEffect,
+            }],
             steps: vec![
                 MutationStep::Patch {
                     table: "children".to_owned(),
@@ -5241,7 +5303,7 @@ mod guarded_commit_tests {
                 },
                 MutationStep::Insert {
                     table: "activity".to_owned(),
-                    values: BTreeMap::new(),
+                    values: BTreeMap::from([("rowOwner".to_owned(), ValueExpr::AuthUserId)]),
                     bind_id_as: None,
                 },
             ],
@@ -5359,6 +5421,7 @@ mod guarded_commit_tests {
                         ("actualActor".to_owned(), ValueExpr::AuthActorUserId),
                         ("actorKind".to_owned(), ValueExpr::AuthActivityActorKind),
                         ("mutationDigest".to_owned(), ValueExpr::ClientMutationDigest),
+                        ("rowOwner".to_owned(), ValueExpr::AuthUserId),
                     ]),
                     bind_id_as: Some("activityId".to_owned()),
                 },
@@ -6113,7 +6176,11 @@ mod guarded_commit_tests {
                     fields: vec![
                         string("title", false),
                         string("authorSlug", true),
-                        string("ownerId", false),
+                        FieldManifest {
+                            name: "ownerId".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
                     ],
                     indexes: vec![crate::manifest::IndexManifest {
                         name: "by_owner_title".to_owned(),
@@ -6130,7 +6197,9 @@ mod guarded_commit_tests {
                     membership: None,
                     authority_profile: None,
                     asset_sharing: None,
-                    visibility: None,
+                    visibility: Some(TableVisibilityV1::Owner {
+                        field: "ownerId".to_owned(),
+                    }),
                     history: None,
                 },
                 TableManifest {
@@ -6138,7 +6207,11 @@ mod guarded_commit_tests {
                     fields: vec![
                         string("slug", false),
                         string("name", false),
-                        string("ownerId", false),
+                        FieldManifest {
+                            name: "ownerId".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
                     ],
                     indexes: vec![crate::manifest::IndexManifest {
                         name: "by_slug".to_owned(),
@@ -6158,7 +6231,9 @@ mod guarded_commit_tests {
                     membership: None,
                     authority_profile: None,
                     asset_sharing: None,
-                    visibility: None,
+                    visibility: Some(TableVisibilityV1::Owner {
+                        field: "ownerId".to_owned(),
+                    }),
                     history: None,
                 },
             ],
@@ -6190,9 +6265,13 @@ mod guarded_commit_tests {
             }],
             root_filters: Vec::new(),
             root_visibility: vec![owner_visibility("ownerId")],
-            root_table_visibility: None,
+            root_table_visibility: Some(TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
             joined_visibility: vec![owner_visibility("ownerId")],
-            joined_table_visibility: None,
+            joined_table_visibility: Some(TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
             projection: vec![
                 ProjectionLeaf {
                     name: "title".to_owned(),

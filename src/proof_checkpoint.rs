@@ -3437,6 +3437,8 @@ mod tests {
     use std::collections::BTreeMap;
 
     fn schema() -> SchemaManifest {
+        // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — checkpoint
+        // tests use an ordinary public fixture, not an undeclared write seam.
         SchemaManifest {
             schema_hash: Some("sha256:proof-checkpoint-test-schema".to_owned()),
             tables: vec![TableManifest {
@@ -3456,7 +3458,7 @@ mod tests {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: Some(crate::manifest::HistoryRetentionManifestV1 {
                     retain_ms: 10_000,
                     max_versions_per_record: 10,

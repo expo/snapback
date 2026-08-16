@@ -5580,6 +5580,8 @@ mod tests {
     }
 
     fn app_row_schema() -> crate::manifest::SchemaManifest {
+        // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — this
+        // ordinary writable fixture declares its pre-existing public posture.
         crate::manifest::SchemaManifest {
             tables: vec![crate::manifest::TableManifest {
                 name: "items".to_owned(),
@@ -5605,7 +5607,7 @@ mod tests {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..crate::manifest::SchemaManifest::default()
