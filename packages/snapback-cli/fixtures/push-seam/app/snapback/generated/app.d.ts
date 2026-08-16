@@ -43,9 +43,19 @@ export interface SurfaceDescriptor<Params = Record<string, never>, Reads = Recor
 }
 export interface GeneratedAppSurfaces {
 }
+export interface ApplicationAuthBootstrapV1 {
+  readonly format: 'snapback.application-auth-bootstrap.v1';
+  readonly appId: string;
+  readonly mode: 'sessions';
+  readonly custody: 'durable-required' | 'volatile-explicit';
+  readonly entryMechanisms: readonly ('password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
+  readonly anonymousPublic: 'allowed' | 'refused';
+  readonly lifecycleProtocol: 1;
+}
 export interface AppDescriptorV1 {
   readonly format: 'snapback.app.v1';
   readonly authoringProfile: "snapback-explicit-v1";
+  readonly authBootstrap: ApplicationAuthBootstrapV1;
   readonly identity: Readonly<{ app: string; schema: string; functions: string; descriptor: `sha256:${string}` }>;
   readonly api: Readonly<{
     queries: Readonly<Pick<GeneratedApi, GeneratedAppQueryName>>;

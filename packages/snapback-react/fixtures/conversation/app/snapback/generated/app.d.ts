@@ -26,7 +26,7 @@ export interface GeneratedAppCommands {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: task snapshot is process-local; mutation settlement remains durable Retention: command task is process-local; constituent mutation follows outbox retention.
    * Dispatch/task states: `preparing`, `transferring`, `committing`, `succeeded`, `failed`, `cancelled`, `ambiguous`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:3060c6a5f9bdddb9396e9b4b1181b742737f47947f6b502c55fac461fe9de014`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:e8069d520d4514066ed6ee4490fe056db897c64861826b6c3072646952747aaf`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   readonly "send": CommandDescriptor<GeneratedApi["sendMessage"], "image", "image", true, GeneratedApi["messageImageUpload"]>;
 }
@@ -53,9 +53,19 @@ export interface SurfaceDescriptor<Params = Record<string, never>, Reads = Recor
 export interface GeneratedAppSurfaces {
   readonly "conversation": SurfaceDescriptor<{ "conversationId": Id<"conversations"> }, { "users": SurfaceMemberDescriptor<GeneratedApi["users"], Record<string, never>>; "details": SurfaceMemberDescriptor<GeneratedApi["conversationDetails"], Record<string, never>>; "memberships": SurfaceMemberDescriptor<GeneratedApi["membershipsForConversation"], Record<string, never>>; "messages": SurfaceMemberDescriptor<GeneratedApi["messagesForConversation"], Record<string, never>>; "reactions": SurfaceMemberDescriptor<GeneratedApi["reactionsForConversation"], Record<string, never>> }, { "annotate": SurfaceMemberDescriptor<GeneratedApi["annotateMessage"], { "messageId": Id<"messages">; "note"?: string; "detailsKind": string; "detailsExtra"?: string }>; "sendText": SurfaceMemberDescriptor<GeneratedApi["sendText"], { "senderId": Id<"users">; "text": string }>; "sendReply": SurfaceMemberDescriptor<GeneratedApi["sendReply"], { "senderId": Id<"users">; "text": string; "replyToId": Id<"messages"> }>; "addReaction": SurfaceMemberDescriptor<GeneratedApi["addReaction"], { "messageId": Id<"messages">; "userId": Id<"users">; "emoji": string }>; "removeReaction": SurfaceMemberDescriptor<GeneratedApi["removeReaction"], { "reactionId": Id<"reactions"> }> }, { "send": SurfaceMemberDescriptor<GeneratedAppCommands["send"], { "body"?: string; "image"?: CommandAssetSource }> }, { "typing": SurfaceMemberDescriptor<GeneratedEphemeral["typing"], Record<string, never>> }, { "image": SurfaceMemberDescriptor<GeneratedApi["messageImageUpload"], Record<string, never>> }>;
 }
+export interface ApplicationAuthBootstrapV1 {
+  readonly format: 'snapback.application-auth-bootstrap.v1';
+  readonly appId: string;
+  readonly mode: 'sessions';
+  readonly custody: 'durable-required' | 'volatile-explicit';
+  readonly entryMechanisms: readonly ('password-v1' | 'email-code-v1' | 'external-session-explicit-v1')[];
+  readonly anonymousPublic: 'allowed' | 'refused';
+  readonly lifecycleProtocol: 1;
+}
 export interface AppDescriptorV1 {
   readonly format: 'snapback.app.v1';
   readonly authoringProfile: "snapback-explicit-v1";
+  readonly authBootstrap: ApplicationAuthBootstrapV1;
   readonly identity: Readonly<{ app: string; schema: string; functions: string; descriptor: `sha256:${string}` }>;
   readonly api: Readonly<{
     queries: Readonly<Pick<GeneratedApi, GeneratedAppQueryName>>;
