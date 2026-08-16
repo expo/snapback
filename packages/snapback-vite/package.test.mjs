@@ -128,7 +128,15 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
 {
   const rendered = renderVirtualModule({
     base: '/__snapback',
-    state: { mode: 'managed', shape: 'managed', ready: true, serverUrl: 'http://127.0.0.1:45123', pid: 4242 },
+    state: {
+      mode: 'managed',
+      shape: 'managed',
+      ready: true,
+      serverUrl: 'http://127.0.0.1:45123',
+      pid: 4242,
+      devIdentityCapability: 'sbdev_virtual_module_must_not_leak',
+      devIdentityCapabilityFile: '/tmp/virtual-module-must-not-leak.dev-identity',
+    },
   });
   assert.match(rendered, /snapbackBasePath = "\/__snapback"/);
   assert.match(rendered, /createSnapbackDevAppBinding/);
@@ -138,6 +146,9 @@ async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {
   assert.ok(!rendered.includes('45123'), 'virtual module must not leak the backend origin');
   assert.ok(!rendered.includes('serverUrl'), 'virtual module must not carry a serverUrl field');
   assert.ok(!rendered.includes('4242'), 'virtual module must not leak the backend pid');
+  assert.ok(!rendered.includes('sbdev_'), 'virtual module must not leak the dev-identity capability');
+  assert.ok(!rendered.includes('devIdentityCapability'), 'virtual module must not carry dev-identity fields');
+  assert.ok(!rendered.includes('dev-identity'), 'virtual module must not leak the dev-identity file path');
   const executableModule = await import(`data:text/javascript;base64,${Buffer.from(renderVirtualModule({
     base: '/__snapback',
     state: { mode: 'managed', shape: 'managed', ready: true },
@@ -328,6 +339,8 @@ try {
   assert.ok(adminTokenValue.length > 0);
   assert.ok(!virtualSource.includes(adminTokenValue), 'no admin token in virtual module');
   assert.ok(!virtualSource.includes('admin-token'), 'no token file path in virtual module');
+  assert.ok(!virtualSource.includes('devIdentityCapability'), 'no dev-identity fields in virtual module');
+  assert.ok(!virtualSource.includes('dev-identity'), 'no dev-identity file path in virtual module');
   assert.ok(!JSON.stringify(virtualModule.snapbackDevState).includes(descriptor.serverUrl), 'no backend origin in dev state');
   console.log('virtual:snapback/dev is sanitized');
 

@@ -8,7 +8,7 @@
 
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 import {
@@ -26,6 +26,59 @@ import {
 export const LIFECYCLE_MODES = Object.freeze(['off', 'external', 'attach', 'managed', 'auto']);
 const RESET_POLICIES = Object.freeze(['if-new', 'always', 'never']);
 const HOST_OPS_SCHEMA_VERSION = 'snapback.v0';
+
+function canonicalFilesystemPath(path) {
+  const absolute = resolve(path);
+  try {
+    return realpathSync.native(absolute);
+  } catch {
+    return absolute;
+  }
+}
+
+function readOwnerOnlyDevIdentityFile(path) {
+  let metadata;
+  try {
+    metadata = lstatSync(path);
+  } catch (cause) {
+    const error = diagnosticError(
+      'SNAPBACK_DEV_READY_FILE_INVALID',
+      `the dev-identity capability file is missing or unreadable: ${path}`,
+      { path },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_READY_FILE_INVALID',
+      `the dev-identity capability file must be an owner-only regular file: ${path}`,
+      { path, observedMode: (metadata.mode & 0o7777).toString(8).padStart(4, '0') },
+    );
+  }
+  const capability = readFileSync(path, 'utf8').trim();
+  if (!capability) {
+    throw diagnosticError('SNAPBACK_DEV_READY_FILE_INVALID', `the dev-identity capability file is empty: ${path}`, { path });
+  }
+  return capability;
+}
+
+// Kept as a small pure seam so relay tests can use fixture descriptors while
+// the server-side descriptor field is landing in parallel.
+export function readManagedDevIdentityCapability({ readyFile, database }) {
+  const descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
+  const advertised = descriptor.devIdentityCapabilityFile;
+  if (typeof advertised !== 'string') return { descriptor, capability: null };
+  const expected = canonicalFilesystemPath(`${database}.dev-identity`);
+  if (canonicalFilesystemPath(advertised) !== expected) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_SERVER_TARGET_MISMATCH',
+      'the readiness descriptor names an unexpected dev-identity capability carrier',
+      { expectedDevIdentityCapabilityFile: expected, observedDevIdentityCapabilityFile: canonicalFilesystemPath(advertised) },
+    );
+  }
+  return { descriptor, capability: readOwnerOnlyDevIdentityFile(expected) };
+}
 
 export function createDiagnosticsChannel({ onEvent = null, logJson = true } = {}) {
   return {
@@ -198,12 +251,19 @@ export function createSnapbackViteLifecycle(options = {}) {
   const readyTimeoutMs = options.readyTimeoutMs ?? 30_000;
   const channel = options.channel ?? createDiagnosticsChannel(options);
   const setup = normalizeSetup(options.setup, projectRoot);
+  const lifecycleEnv = options.env ?? process.env;
+  const devIdentityHandoff = typeof lifecycleEnv.SNAPBACK_DEV_IDENTITY_FILE === 'string'
+    && lifecycleEnv.SNAPBACK_DEV_IDENTITY_FILE.length > 0
+    ? resolve(projectRoot, lifecycleEnv.SNAPBACK_DEV_IDENTITY_FILE)
+    : null;
 
   let child = null;
   let runtime = null;
   let descriptor = null;
   let adminToken = null;
   let closed = false;
+  let missingDevIdentityHandoffWarned = false;
+  let devIdentityReadWarning = null;
   const state = {
     mode,
     shape: null,
@@ -214,6 +274,65 @@ export function createSnapbackViteLifecycle(options = {}) {
   };
 
   const emit = (event) => channel.emit({ mode, ...event });
+
+  function warnMissingDevIdentityHandoff() {
+    if (state.shape === 'managed' || state.shape === 'off' || devIdentityHandoff || missingDevIdentityHandoffWarned) return;
+    missingDevIdentityHandoffWarned = true;
+    emit({
+      event: 'dev-identity-handoff-missing',
+      severity: 'warning',
+      message: 'browser dev identity will require SNAPBACK_DEV_IDENTITY_FILE when capability enforcement is enabled',
+    });
+  }
+
+  function capabilityReadFailed(error) {
+    const code = error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_DEV_READY_FILE_INVALID';
+    const signature = `${code}:${error?.message ?? String(error)}`;
+    if (devIdentityReadWarning === signature) return;
+    devIdentityReadWarning = signature;
+    emit({
+      event: 'diagnostic',
+      code,
+      severity: 'warning',
+      message: error?.message ?? String(error),
+    });
+  }
+
+  // @ref LLP 0262#d2-carriers-per-shipped-topology — managed relays read the
+  //   descriptor and sidecar on every forward, so a startup-nonce rotation on
+  //   the same port cannot be hidden behind connection-error-only refresh.
+  //   Attach/external processes instead receive an explicit custody handoff.
+  function readDevIdentityCapability() {
+    try {
+      if (state.shape !== 'managed') {
+        return devIdentityHandoff ? readOwnerOnlyDevIdentityFile(devIdentityHandoff) : null;
+      }
+      const currentNonce = descriptor?.startupNonce;
+      const resolvedCapability = readManagedDevIdentityCapability({ readyFile, database });
+      const candidate = resolvedCapability.descriptor;
+      const changed = currentNonce !== candidate.startupNonce
+        || state.serverUrl !== candidate.serverUrl
+        || state.pid !== (candidate.pid ?? null);
+      descriptor = candidate;
+      state.serverUrl = candidate.serverUrl;
+      state.pid = candidate.pid ?? null;
+      state.ready = true;
+      if (changed) {
+        emit({
+          event: 'server-target-refreshed',
+          severity: 'note',
+          message: 'relay re-read its backend target and dev-identity capability after descriptor rotation',
+          serverUrl: state.serverUrl,
+          pid: state.pid,
+        });
+      }
+      devIdentityReadWarning = null;
+      return resolvedCapability.capability;
+    } catch (error) {
+      capabilityReadFailed(error);
+      return null;
+    }
+  }
 
   // Attach-shaped bring-up: validate, never mutate without explicit opt-in.
   //
@@ -501,6 +620,7 @@ export function createSnapbackViteLifecycle(options = {}) {
       pid: state.pid,
       ready: state.ready,
     });
+    warnMissingDevIdentityHandoff();
     return publicState();
   }
 
@@ -590,6 +710,7 @@ export function createSnapbackViteLifecycle(options = {}) {
     start,
     close,
     refreshTarget,
+    readDevIdentityCapability,
     state: publicState,
   };
 }

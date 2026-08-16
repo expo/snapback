@@ -315,6 +315,7 @@ export function snapbackDev(options = {}) {
         getState: currentState,
         channel,
         refreshTarget: () => lifecycle.refreshTarget(),
+        getDevIdentityCapability: () => lifecycle.readDevIdentityCapability(),
       });
       server.middlewares.use((req, res, next) => proxy.handleRequest(req, res, next));
       server.httpServer?.on('upgrade', (req, socket, head) => {

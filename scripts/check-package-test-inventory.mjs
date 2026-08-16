@@ -92,7 +92,13 @@ export const PACKAGE_TEST_INVENTORIES = [
     packageDir: 'packages/snapback-vite',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['bun-relay.test.mjs', 'channel-a.test.mjs', 'package.test.mjs', 'rqs-serializer.test.mjs'],
+    expectedFiles: [
+      'bun-relay.test.mjs',
+      'channel-a.test.mjs',
+      'dev-identity-relay.test.mjs',
+      'package.test.mjs',
+      'rqs-serializer.test.mjs',
+    ],
   },
   {
     id: '@expo/snapback-client',
@@ -513,7 +519,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 295,
+  expectedTotal = 296,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -939,6 +945,8 @@ export function checkPackageTestInventories(options = {}) {
 // 294 -> 295 (2026-08-16, LLP 0262 Stage 1 Lane C): @expo/snapback-cli gains
 // the native checkout bootstrap-secrecy, one-shot redemption, web-isolation,
 // and iOS/Android launch-carrier proof.
+// 295 -> 296 (2026-08-16, LLP 0262 Stage 1 Lane B): @expo/snapback-vite gains
+// the managed/external dev-identity relay stamp and secret-fence suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

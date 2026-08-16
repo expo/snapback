@@ -84,6 +84,9 @@ export interface SnapbackViteLifecycle {
   /** Re-resolve the backend target from the ready file; null when no live
    * verified target exists. */
   refreshTarget(): Promise<SnapbackDevLifecycleState | null>;
+  /** Read the current process-custodied relay capability; never projected by
+   * the browser-visible virtual module. */
+  readDevIdentityCapability(): string | null;
   state(): SnapbackDevLifecycleState;
 }
 
@@ -137,4 +140,5 @@ export function createSnapbackProxy(options: {
   readonly getState: () => SnapbackDevLifecycleState;
   readonly channel?: SnapbackDiagnosticsChannel | null;
   readonly refreshTarget?: (() => Promise<SnapbackDevLifecycleState | null>) | null;
+  readonly getDevIdentityCapability?: (() => string | null) | null;
 }): SnapbackDevProxy;

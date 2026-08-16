@@ -11,6 +11,8 @@ import { WebSocket, WebSocketServer } from 'ws';
 
 import { matchAppRoute } from './allowlist.mjs';
 
+const DEV_IDENTITY_HEADER = 'x-snapback-dev-identity';
+
 // Hop-by-hop headers are relay-owned and never forwarded verbatim.
 const HOP_BY_HOP = new Set([
   'connection',
@@ -95,7 +97,14 @@ function relayTarget(url, base) {
 // application error the backend produced.
 const RETRYABLE_CONNECT_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'EHOSTUNREACH']);
 
-export function createSnapbackProxy({ base, mode, getState, channel, refreshTarget = null }) {
+export function createSnapbackProxy({
+  base,
+  mode,
+  getState,
+  channel,
+  refreshTarget = null,
+  getDevIdentityCapability = null,
+}) {
   const emitRefusal = (diagnostic, transport) => {
     channel?.emit({
       event: 'proxy-refused',
@@ -106,6 +115,15 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
       path: diagnostic.details.path,
     });
   };
+
+  // @ref LLP 0262#d2-carriers-per-shipped-topology — the relay owns the
+  //   browser carrier, so every forwarding attempt obtains the current
+  //   capability before resolving the target. The lifecycle reader re-reads
+  //   the sidecar and may advance same-port restart state first.
+  const forwardContext = () => ({
+    devIdentityCapability: getDevIdentityCapability?.() ?? null,
+    state: getState(),
+  });
 
   function handleRequest(req, res, next) {
     const target = relayTarget(req.url ?? '/', base);
@@ -129,14 +147,16 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
     // refused connection can be replayed once against a target re-resolved
     // from the ready file — a `snapback dev` backend restart must not require
     // restarting the client process for the relay to keep serving.
-    const forward = (serverUrl, body, mayRetry) => {
+    const forward = (serverUrl, body, mayRetry, devIdentityCapability) => {
       const upstream = new URL(serverUrl);
       const headers = {};
       for (const [name, value] of Object.entries(req.headers)) {
-        if (HOP_BY_HOP.has(name) || name === 'host') continue;
+        const normalizedName = name.toLowerCase();
+        if (HOP_BY_HOP.has(normalizedName) || normalizedName === 'host' || normalizedName === DEV_IDENTITY_HEADER) continue;
         headers[name] = value;
       }
       headers.host = upstream.host;
+      if (devIdentityCapability) headers[DEV_IDENTITY_HEADER] = devIdentityCapability;
       const proxied = http.request(
         {
           hostname: upstream.hostname,
@@ -159,7 +179,8 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
         if (mayRetry && refreshTarget && RETRYABLE_CONNECT_CODES.has(error.code)) {
           void Promise.resolve(refreshTarget()).then((refreshed) => {
             if (refreshed?.serverUrl) {
-              forward(refreshed.serverUrl, body, false);
+              const context = forwardContext();
+              forward(context.state.serverUrl ?? refreshed.serverUrl, body, false, context.devIdentityCapability);
               return;
             }
             sendJson(res, 502, {
@@ -176,7 +197,10 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
     };
     const chunks = [];
     req.on('data', (chunk) => chunks.push(chunk));
-    req.on('end', () => forward(state.serverUrl, Buffer.concat(chunks), true));
+    req.on('end', () => {
+      const context = forwardContext();
+      forward(context.state.serverUrl ?? state.serverUrl, Buffer.concat(chunks), true, context.devIdentityCapability);
+    });
     req.on('error', () => res.destroy());
     return undefined;
   }
@@ -223,16 +247,18 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
     // Same restart tolerance as handleRequest: one re-resolve-and-reconnect
     // pass before giving up. The browser handshake is not completed until a
     // backend connection succeeds, so retrying never replays consumed data.
-    const connectBackend = (serverUrl, mayRetry) => {
+    const connectBackend = (serverUrl, mayRetry, devIdentityCapability) => {
       const upstream = new URL(serverUrl);
       const wsProtocol = upstream.protocol === 'https:' ? 'wss:' : 'ws:';
       const headers = {};
       for (let index = 0; index < req.rawHeaders.length; index += 2) {
         const name = req.rawHeaders[index].toLowerCase();
         if (HOP_BY_HOP.has(name) || name === 'host'
+          || name === DEV_IDENTITY_HEADER
           || name.startsWith('sec-websocket-')) continue;
         headers[req.rawHeaders[index]] = req.rawHeaders[index + 1];
       }
+      if (devIdentityCapability) headers[DEV_IDENTITY_HEADER] = devIdentityCapability;
       const protocolHeader = req.headers['sec-websocket-protocol'];
       const protocols = typeof protocolHeader === 'string'
         ? protocolHeader.split(',').map((value) => value.trim()).filter(Boolean)
@@ -254,7 +280,14 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
       backend.on('error', (error) => {
         if (mayRetry && refreshTarget && RETRYABLE_CONNECT_CODES.has(error.code)) {
           void Promise.resolve(refreshTarget()).then((refreshed) => {
-            if (refreshed?.serverUrl) connectBackend(refreshed.serverUrl, false);
+            if (refreshed?.serverUrl) {
+              const context = forwardContext();
+              connectBackend(
+                context.state.serverUrl ?? refreshed.serverUrl,
+                false,
+                context.devIdentityCapability,
+              );
+            }
             else socket.destroy();
           });
           return;
@@ -286,7 +319,12 @@ export function createSnapbackProxy({ base, mode, getState, channel, refreshTarg
         });
       });
     };
-    connectBackend(state.serverUrl, true);
+    const context = forwardContext();
+    connectBackend(
+      context.state.serverUrl ?? state.serverUrl,
+      true,
+      context.devIdentityCapability,
+    );
     return true;
   }
 

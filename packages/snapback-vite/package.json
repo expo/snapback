@@ -80,6 +80,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node channel-a.test.mjs && node rqs-serializer.test.mjs && bun bun-relay.test.mjs"
+    "test": "node dev-identity-relay.test.mjs && node package.test.mjs && node channel-a.test.mjs && node rqs-serializer.test.mjs && bun bun-relay.test.mjs"
   }
 }
