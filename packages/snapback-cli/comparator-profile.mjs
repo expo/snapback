@@ -1317,6 +1317,10 @@ async function startLocalComparatorTarget(target, { profile, timeoutMs, signal =
     signal?.throwIfAborted();
     const descriptor = cli.readReadyDescriptor(readyFile);
     const adminToken = cli.managedAdminToken(descriptor, database);
+    const devIdentityCapability = cli.managedDevIdentityCapability(descriptor, {
+      readyFile,
+      database,
+    });
     // Public inspection carries deployment/capability identity. Attaching the
     // admin token here would request the separate bounded secret-read
     // projection, which the comparator neither needs nor has authority to mint.
@@ -1532,7 +1536,10 @@ async function startLocalComparatorTarget(target, { profile, timeoutMs, signal =
       };
     };
     const createDevClient = (identityLabel) => {
-      const client = new SnapbackClient(dev.serverUrl, { adminToken });
+      const client = new SnapbackClient(dev.serverUrl, {
+        adminToken,
+        devIdentityCapability,
+      });
       const withAssertedUser = (options = {}) => ({ ...options, userId: identityLabel });
       return {
         principalId: identityLabel,

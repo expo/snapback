@@ -397,6 +397,7 @@ export interface ReadyDescriptor {
   readonly adminTokenFile?: string;
   readonly startupNonce?: string;
   readonly impersonationCapabilityFile?: string;
+  readonly devIdentityCapabilityFile?: string;
   readonly [key: string]: unknown;
 }
 
@@ -428,6 +429,12 @@ export function native(binary: string, args: readonly string[], options?: {
 /** Read the owner-only admin token the managed server minted beside its
  * database; null when the descriptor declares no carrier. */
 export function managedAdminToken(descriptor: ReadyDescriptor, database: string): string | null;
+
+/** Resolve the owner-only dev-identity capability on the admin-token anchor ladder. */
+export function managedDevIdentityCapability(
+  descriptor: ReadyDescriptor,
+  context: { readonly readyFile: string; readonly database?: string | null },
+): string | null;
 
 /** Observable slice of the managed server child process. */
 export interface ManagedChildProcess {

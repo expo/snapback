@@ -1036,4 +1036,70 @@ assert.equal(appStateListeners.size, 0);
   }
 }
 
+{
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url, init = {}) => {
+    requests.push({ url, init });
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') {
+      const body = JSON.parse(init.body);
+      return Response.json({
+        connectionId: body.connectionId,
+        connectionToken: 'sct_dev_identity_fixture',
+        wireVersion: 'snapback.v1',
+      });
+    }
+    return Response.json({ rows: [], version: 1 });
+  };
+  try {
+    const capability = 'sbdev_package_fixture';
+    const devClient = new SnapbackClient('http://snapback.test', {
+      adminToken: 'admin_package_fixture',
+      devIdentityCapability: capability,
+      rqsStore: null,
+    });
+    await devClient.health();
+    await devClient.reset();
+    await devClient.query('listTodos', { userId: 'user_fixture' });
+    await devClient.connectionGrant('dev-identity-open');
+    const [health, admin, query, open] = requests;
+    assert.equal(
+      new Headers(health.init.headers).get('x-snapback-dev-identity'),
+      null,
+      'ordinary requests without a dev assertion do not carry the capability',
+    );
+    assert.equal(
+      new Headers(admin.init.headers).get('x-snapback-dev-identity'),
+      null,
+      'admin-token host operations do not carry the dev capability',
+    );
+    assert.equal(
+      new Headers(query.init.headers).get('x-snapback-dev-identity'),
+      capability,
+      'body-installed client-asserted identity carries the dedicated header',
+    );
+    assert.equal(
+      new Headers(open.init.headers).get('x-snapback-dev-identity'),
+      capability,
+      '/connection/open carries the capability witness',
+    );
+    assert.equal(
+      new Headers(query.init.headers).get('authorization'),
+      null,
+      'the dev capability never occupies Authorization',
+    );
+
+    requests.length = 0;
+    const legacyClient = new SnapbackClient('http://snapback.test', { rqsStore: null });
+    await legacyClient.query('listTodos', { userId: 'user_fixture' });
+    await legacyClient.connectionGrant('dev-identity-absent');
+    assert(requests.every(({ init }) => (
+      new Headers(init.headers).get('x-snapback-dev-identity') === null
+    )), 'unset capability preserves the legacy header absence');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 console.log('package.test.mjs: packaged client exports are consumable');

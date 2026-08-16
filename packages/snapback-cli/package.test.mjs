@@ -24,6 +24,7 @@ import {
   inspectTarget,
   inspectTargetAdmin,
   listBackups,
+  managedDevIdentityCapability,
   packagedRuntimeReadiness,
   queryControlLogs,
   renderScaffoldAuthoringSkill,
@@ -264,6 +265,54 @@ try {
     'a linked CLI package must recognize its owning Snapback source checkout',
   );
   assert.equal(__test.sourceCheckoutRoot(root), null);
+
+  const capabilityReady = join(root, 'dev-identity.ready.json');
+  const capabilityDatabase = join(root, 'dev-identity.sqlite3');
+  const databaseCapabilityFile = `${capabilityDatabase}.dev-identity`;
+  writeFileSync(databaseCapabilityFile, 'sbdev_database_fixture\n', { mode: 0o600 });
+  assert.equal(managedDevIdentityCapability({
+    database: { mode: 'file', path: capabilityDatabase },
+    devIdentityCapabilityFile: databaseCapabilityFile,
+  }, {
+    readyFile: capabilityReady,
+    database: capabilityDatabase,
+  }), 'sbdev_database_fixture', 'file-backed targets resolve the database sibling');
+
+  const readyCapabilityFile = `${capabilityReady}.dev-identity`;
+  writeFileSync(readyCapabilityFile, 'sbdev_ready_fixture\n', { mode: 0o600 });
+  assert.equal(managedDevIdentityCapability({
+    database: { mode: 'memory', path: null },
+    devIdentityCapabilityFile: readyCapabilityFile,
+  }, {
+    readyFile: capabilityReady,
+  }), 'sbdev_ready_fixture', 'memory targets resolve the ready-file sibling');
+  assert.equal(managedDevIdentityCapability({
+    database: { mode: 'memory', path: null },
+  }, {
+    readyFile: capabilityReady,
+  }), null, 'older descriptors without the field remain compatible');
+  assert.equal(managedDevIdentityCapability({
+    database: { mode: 'file', path: capabilityDatabase },
+    devIdentityCapabilityFile: readyCapabilityFile,
+  }, {
+    readyFile: capabilityReady,
+    database: capabilityDatabase,
+  }), null, 'a descriptor cannot redirect file-backed custody off the database sibling');
+  assert.deepEqual(__test.devIdentityClientEnvironment(
+    { PATH: '/fixture/bin' },
+    { devIdentityCapabilityFile: databaseCapabilityFile },
+    'sbdev_database_fixture',
+  ), {
+    PATH: '/fixture/bin',
+    SNAPBACK_DEV_IDENTITY_FILE: databaseCapabilityFile,
+  }, 'spawned clients receive the custody file path through environment only');
+  assert.deepEqual(__test.devIdentityClientEnvironment(
+    { PATH: '/fixture/bin' },
+    { devIdentityCapabilityFile: databaseCapabilityFile },
+    null,
+  ), {
+    PATH: '/fixture/bin',
+  }, 'older binaries leave spawned client environments unchanged');
   assert.equal(__test.runtimeReadinessRoot({
     binary: join(root, 'target', 'release', 'snapback'),
     checkoutRoot: root,

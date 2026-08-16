@@ -154,6 +154,7 @@ export interface LiveStreamManager {
 
 export interface SnapbackClientOptions {
   adminToken?: string | null;
+  devIdentityCapability?: string | null;
   bearerToken?: string | null;
   authClientProtocol?: number | null;
   authInvalidationProtocol?: number | null;

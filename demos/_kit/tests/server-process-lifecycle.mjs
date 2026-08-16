@@ -96,6 +96,10 @@ const listen = () => server.listen(bindPort, '127.0.0.1', () => {
     descriptor.impersonationCapabilityFile = readyFile + '.impersonation';
     writeFileSync(descriptor.impersonationCapabilityFile, 'sbic_fixture_capability.1234abcd');
   }
+  if (process.env.FIXTURE_DEV_IDENTITY === '1') {
+    descriptor.devIdentityCapabilityFile = readyFile + '.dev-identity';
+    writeFileSync(descriptor.devIdentityCapabilityFile, 'sbdev_fixture_capability');
+  }
   writeFileSync(tmp, JSON.stringify(descriptor));
   renameSync(tmp, readyFile);
 });
@@ -406,6 +410,8 @@ try {
   assert.equal(first.identity.binary.startupNonce, first.startupNonce);
   assert.equal(first.credentials.adminToken, first.adminToken);
   assert.equal(first.clientOptions.adminToken, first.adminToken);
+  assert.equal(first.devIdentityCapability, null, 'older descriptors remain supported');
+  assert.equal(first.clientOptions.devIdentityCapability, null);
   assert.equal(process.env.SNAPBACK_ADMIN_TOKEN, undefined, 'startup does not contaminate global credentials');
 
   const startupCarrier = join(scratch, 'startup-artifacts.json');
@@ -429,6 +435,7 @@ try {
           ...env,
           FIXTURE_EXPECTED: JSON.stringify(EXPECTED),
           FIXTURE_IMPERSONATION: '1',
+          FIXTURE_DEV_IDENTITY: '1',
         },
       };
     },
@@ -439,6 +446,12 @@ try {
     ['--startup-artifacts', startupCarrier],
   );
   assert.equal(capabilityServer.impersonationCapability, 'sbic_fixture_capability.1234abcd');
+  assert.equal(capabilityServer.devIdentityCapability, 'sbdev_fixture_capability');
+  assert.equal(
+    capabilityServer.clientOptions.devIdentityCapability,
+    'sbdev_fixture_capability',
+    'harvested custody is passed through the client option, never argv',
+  );
 
   const restartPort = Number(new URL(first.baseUrl).port);
   let firstUnexpectedExit = null;

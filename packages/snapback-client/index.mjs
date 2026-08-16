@@ -750,6 +750,7 @@ const SENDER_PROTOCOL = 'snapback.sender-constrained.v2';
 const SENDER_ISSUANCE_PROTOCOL = 'snapback.sender-issuance.v2';
 const SENDER_NONCE_TTL_MS = 120_000;
 const CONNECTION_TOKEN_HEADER = 'x-snapback-connection-token';
+const DEV_IDENTITY_HEADER = 'x-snapback-dev-identity';
 const EPHEMERAL_AUTHORITY_INSTANCE_HEADER = 'x-snapback-ephemeral-authority-instance';
 // Module-private capability used only by predecessor T-UNSUB and successor
 // fresh-subscribe work owned by replaceBearerToken(). Public work must wait
@@ -1018,7 +1019,8 @@ const normalizedFieldName = (name) => String(name ?? '')
 
 const sensitiveProtocolField = (name) => {
   const normalized = normalizedFieldName(name);
-  return normalized === 'token'
+  return normalized === 'x_snapback_dev_identity'
+    || normalized === 'token'
     || normalized.endsWith('_token')
     || normalized === 'bearer'
     || normalized.endsWith('_bearer')
@@ -1300,6 +1302,11 @@ const sessionWireBody = (path, body) => {
   }
   return wire;
 };
+
+const carriesClientAssertedDevIdentity = (body) => (
+  typeof body?.auth?.user_id === 'string'
+  || typeof body?.input?.auth?.user_id === 'string'
+);
 
 const authAvailabilityError = (handshake) => {
   if (handshake == null) return null;
@@ -2390,6 +2397,7 @@ function queryOfflineUnavailableError({
 export class SnapbackClient {
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
+    devIdentityCapability = null,
     bearerToken = null,
     // 0137 A4-f6: an explicit anonymous mode so headless consumers (suites,
     // SSR, prerender) can read `auth: 'public'` operations from a sessions
@@ -2483,6 +2491,13 @@ export class SnapbackClient {
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
+    if (
+      devIdentityCapability !== null
+      && (typeof devIdentityCapability !== 'string' || devIdentityCapability.length === 0)
+    ) {
+      throw new TypeError('devIdentityCapability must be null or a non-empty string');
+    }
+    this.devIdentityCapability = devIdentityCapability;
     if (typeof __adminDataPlane !== 'boolean') throw new TypeError('__adminDataPlane must be boolean');
     this.__adminDataPlane = __adminDataPlane;
     this.ingressLimits = normalizedIngressLimits(ingressLimits);
@@ -5213,6 +5228,12 @@ export class SnapbackClient {
             }
           : {}),
         ...(headers ?? {}),
+        // @ref LLP 0262#d2-carriers-per-shipped-topology — this dedicated
+        // custody header accompanies only body-installed dev authority and
+        // the connection grant that witnesses later identity-bearing frames.
+        ...(this.devIdentityCapability && (
+          path === '/connection/open' || carriesClientAssertedDevIdentity(wireBody)
+        ) ? { [DEV_IDENTITY_HEADER]: this.devIdentityCapability } : {}),
       };
       const connectionGrantToken = merged[CONNECTION_TOKEN_HEADER] ?? null;
       if (connectionGrantToken !== null) {

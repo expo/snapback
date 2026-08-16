@@ -4,7 +4,13 @@ import {
   type CurrentPrincipalSnapshot,
   type SnapbackAppBindingV1,
   type SnapbackApplicationDescriptorV1,
+  type SnapbackClientOptions,
 } from './index.mjs';
+
+const devIdentityOptions = {
+  devIdentityCapability: 'sbdev_fixture',
+} satisfies SnapbackClientOptions;
+void devIdentityOptions;
 
 const policy = {
   format: 'snapback.application-auth-bootstrap.v1',

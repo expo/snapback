@@ -672,7 +672,14 @@ export async function doctor(options = {}) {
 
     const apiModule = await import(`${pathToFileURL(join(backendRoot, 'generated', 'api.mjs')).href}?doctor=${Date.now()}`);
     const api = apiModule.default;
-    const client = new SnapbackClient(descriptor.serverUrl, { adminToken });
+    const devIdentityCapability = resolveDevIdentityCapabilityForCli(descriptor, {
+      readyFile,
+      database,
+    });
+    const client = new SnapbackClient(descriptor.serverUrl, {
+      adminToken,
+      devIdentityCapability,
+    });
     const userId = 'user_doctor';
     const before = await client.query(api.listTodos, { userId });
     if (!Array.isArray(before.rows)) {
@@ -3735,6 +3742,76 @@ export function managedAdminToken(descriptor, database) {
   return token;
 }
 
+function expectedDevIdentityCapabilityPath(descriptor, { readyFile, database = null } = {}) {
+  // @ref LLP 0262#d2-carriers-per-shipped-topology — CLI custody follows the
+  // server's database-sibling/ready-file-sibling anchor ladder exactly.
+  if (descriptor?.database?.mode === 'file') {
+    const path = descriptor.database.path ?? database;
+    return typeof path === 'string' && path.length > 0
+      ? `${resolve(path)}.dev-identity`
+      : null;
+  }
+  if (descriptor?.database?.mode === 'memory') {
+    return typeof readyFile === 'string' && readyFile.length > 0
+      ? `${resolve(readyFile)}.dev-identity`
+      : null;
+  }
+  return null;
+}
+
+/** Resolve a descriptor-advertised dev-identity capability on the admin-token
+ * anchor ladder; null keeps Stage 1 compatible with older local binaries. */
+export function managedDevIdentityCapability(descriptor, context = {}) {
+  const declared = descriptor?.devIdentityCapabilityFile;
+  const expected = expectedDevIdentityCapabilityPath(descriptor, context);
+  if (typeof declared !== 'string' || expected === null) return null;
+  if (canonicalFilesystemPath(declared) !== canonicalFilesystemPath(expected)) return null;
+  let metadata;
+  try {
+    metadata = lstatSync(expected);
+  } catch {
+    return null;
+  }
+  if (!metadata.isFile() || metadata.isSymbolicLink() || (metadata.mode & 0o077) !== 0) {
+    return null;
+  }
+  let capability;
+  try {
+    capability = readFileSync(expected, 'utf8').trim();
+  } catch {
+    return null;
+  }
+  return capability.length > 0
+    && capability.length <= 256
+    && /^sbdev_[A-Za-z0-9._~-]+$/u.test(capability)
+    ? capability
+    : null;
+}
+
+let missingDevIdentityCapabilityNoted = false;
+function resolveDevIdentityCapabilityForCli(descriptor, context) {
+  const capability = managedDevIdentityCapability(descriptor, context);
+  if (capability !== null || missingDevIdentityCapabilityNoted) return capability;
+  missingDevIdentityCapabilityNoted = true;
+  const expected = expectedDevIdentityCapabilityPath(descriptor, context);
+  // @ref LLP 0262#d5-rollout-stages — Stage 1 proceeds without custody, but
+  // the first capability-less CLI assertion is explicit on operator stderr.
+  process.stderr.write(
+    'SNAPBACK_DEV_IDENTITY_REFUSED: no usable dev-identity capability was found'
+      + `${expected ? ` at ${expected}` : ''}; continuing without it during Stage 1\n`,
+  );
+  return null;
+}
+
+function devIdentityClientEnvironment(environment, descriptor, capability) {
+  return {
+    ...environment,
+    ...(capability !== null && typeof descriptor?.devIdentityCapabilityFile === 'string'
+      ? { SNAPBACK_DEV_IDENTITY_FILE: descriptor.devIdentityCapabilityFile }
+      : {}),
+  };
+}
+
 export async function waitForReady(path, child, timeoutMs = 15_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -4437,8 +4514,12 @@ export async function runDev(options = {}) {
     }
   };
   let adminToken;
+  let devIdentityCapability;
   try {
     adminToken = managedAdminToken(descriptor, database);
+    devIdentityCapability = generatedAuthMode === 'dev'
+      ? resolveDevIdentityCapabilityForCli(descriptor, { readyFile, database })
+      : null;
     // `/inspect` becomes the bounded administrative projection when an admin
     // credential is attached, and therefore correctly requires a separately
     // minted secret-read lease. Dev attachment needs only liveness and process
@@ -4686,7 +4767,11 @@ export async function runDev(options = {}) {
       // Own process group: the shell-spawned tree (runner, Vite, esbuild)
       // tears down as one unit on close.
       detached: true,
-      env: options.env ?? process.env,
+      env: devIdentityClientEnvironment(
+        options.env ?? process.env,
+        descriptor,
+        devIdentityCapability,
+      ),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     clientProcess = {
@@ -4876,6 +4961,9 @@ export async function runDev(options = {}) {
         );
       }
       adminToken = managedAdminToken(descriptor, database);
+      devIdentityCapability = generatedAuthMode === 'dev'
+        ? resolveDevIdentityCapabilityForCli(descriptor, { readyFile, database })
+        : null;
       if (startupPin) {
         emitDevEvent({
           schemaVersion: 'snapback.dev.v1',
@@ -4990,6 +5078,9 @@ export async function runDev(options = {}) {
       attachExitWatch(child);
       descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
       adminToken = managedAdminToken(descriptor, database);
+      devIdentityCapability = generatedAuthMode === 'dev'
+        ? resolveDevIdentityCapabilityForCli(descriptor, { readyFile, database })
+        : null;
       emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
         ok: true,
@@ -6895,6 +6986,7 @@ export async function runCli(argv, options = {}) {
 }
 
 export const __test = {
+  devIdentityClientEnvironment,
   expectedActivationTargetFromActivation,
   loadGenerated,
   readReadyDescriptor,

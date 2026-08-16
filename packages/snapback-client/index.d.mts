@@ -1107,6 +1107,8 @@ export type EphemeralDeleteSettlement = Readonly<{
 
 export interface SnapbackClientOptions {
   readonly adminToken?: string | null;
+  /** Dev-only custody capability for client-asserted identity requests. */
+  readonly devIdentityCapability?: string | null;
   readonly bearerToken?: string | null;
   /**
    * `'anonymous-public'` sends the auth-client protocol offer with no

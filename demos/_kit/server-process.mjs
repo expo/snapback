@@ -746,6 +746,12 @@ async function launchServerAttempt(plan, {
           const impersonationCapability = captureImpersonationCapability
             ? readSpawnedImpersonationCapability(ready, readyFile)
             : null;
+          const devIdentityCapability = readSpawnedDevIdentityCapability(
+            ready,
+            readyFile,
+            db,
+            cwd,
+          );
           armChildWatchdog(watchState, { closeTracker, baseUrl, onUnexpectedExit, logTail: () => log });
           let stopPromise = null;
           return serverHandle({
@@ -755,6 +761,7 @@ async function launchServerAttempt(plan, {
             reused: false,
             startupNonce: ready.startupNonce,
             impersonationCapability,
+            devIdentityCapability,
             watch: watchState,
             identity,
             launch: { rung: plan.rung, command: launch.command },
@@ -834,13 +841,14 @@ function serverHandle({
   stop,
   startupNonce = null,
   impersonationCapability = null,
+  devIdentityCapability = null,
   watch = null,
   identity = null,
   launch = null,
   runtimeRecovery = null,
   outputTail = null,
 }) {
-  const credentials = Object.freeze({ adminToken });
+  const credentials = Object.freeze({ adminToken, devIdentityCapability });
   return {
     baseUrl,
     pid,
@@ -850,6 +858,7 @@ function serverHandle({
     reused,
     startupNonce,
     impersonationCapability,
+    devIdentityCapability,
     // Post-readiness watchdog surface. `exit` is null while the owned child is
     // alive (and always null for a reused server, which has no owned child);
     // after the child closes it is { code, signal, expected }. `expected` is
@@ -970,6 +979,28 @@ function readSpawnedImpersonationCapability(ready, readyFile) {
     || !/^sbic_[A-Za-z0-9_-]+\.[0-9a-f]{8}$/.test(capability)
   ) {
     throw new Error('snapback impersonation sidecar is malformed');
+  }
+  return capability;
+}
+
+function readSpawnedDevIdentityCapability(ready, readyFile, database, cwd) {
+  const advertised = ready?.devIdentityCapabilityFile;
+  // @ref LLP 0262#d2-carriers-per-shipped-topology — older binaries omit the
+  // descriptor field; Stage 1 kit consumers remain compatible in that case.
+  if (typeof advertised !== 'string') return null;
+  const expected = database === ':memory:'
+    ? `${readyFile}.dev-identity`
+    : `${resolve(cwd, database)}.dev-identity`;
+  if (realpathSync(advertised) !== realpathSync(expected)) {
+    throw new Error('snapback ready file does not name its dev-identity sidecar on the anchor ladder');
+  }
+  const capability = readFileSync(expected, 'utf8').trim();
+  if (
+    capability.length === 0
+    || capability.length > 256
+    || !/^sbdev_[A-Za-z0-9._~-]+$/u.test(capability)
+  ) {
+    throw new Error('snapback dev-identity sidecar is malformed');
   }
   return capability;
 }
