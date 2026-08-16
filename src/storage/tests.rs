@@ -1554,6 +1554,7 @@ mod guarded_commit_tests {
             optional: false,
         });
         let steps = crate::migration::derive_plan_steps(
+            db.schema(),
             &successor,
             &[crate::migration::MigrationIntent::AddRequiredField {
                 table: "scanned".to_owned(),
