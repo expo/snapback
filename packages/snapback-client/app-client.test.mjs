@@ -140,6 +140,19 @@ async function waitFor(check, label, timeoutMs = 2_000) {
   }
 }
 
+function replaceGlobal(name, value) {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
+  Object.defineProperty(globalThis, name, {
+    configurable: true,
+    writable: true,
+    value,
+  });
+  return () => {
+    if (descriptor === undefined) delete globalThis[name];
+    else Object.defineProperty(globalThis, name, descriptor);
+  };
+}
+
 const isoFromNow = (offsetMs) => new Date(Date.now() + offsetMs).toISOString();
 
 function makeApp({
@@ -783,26 +796,114 @@ test('browser app-client peers converge sign-in, user-switch successor, and logo
   }
 });
 
-test('Node construction without BroadcastChannel or localStorage stays mechanism-free', async () => {
+test('browser kind with omitted cross-context keys uses coordinator host defaults', async () => {
   const server = installServer();
-  const app = makeApp();
-  const broadcastDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'BroadcastChannel');
-  const localStorageDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  const app = makeApp({ custody: 'durable-required' });
+  const broadcastHub = new BroadcastHub();
+  const hintBytes = new Map();
+  const restoreBroadcast = replaceGlobal('BroadcastChannel', function FakeBroadcastChannel(name) {
+    return broadcastHub.factory(name);
+  });
+  const restoreLocalStorage = replaceGlobal('localStorage', {
+    setItem(key, value) { hintBytes.set(key, value); },
+  });
   let appClient = null;
   try {
-    Object.defineProperty(globalThis, 'BroadcastChannel', {
-      configurable: true,
-      writable: true,
-      value: undefined,
+    appClient = await createSnapbackAppClient({
+      app,
+      binding: makeBinding(app),
+      platform: {
+        kind: 'browser',
+        indexedDB: new IDBFactory(),
+        lockManager: createSerialLockManager(),
+        cryptoObject: webcrypto,
+        databaseName: 'snapback-app-client-browser-default-wakeup-test',
+      },
     });
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      writable: true,
-      value: undefined,
-    });
-    appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+    assert.equal(
+      [...broadcastHub.channels.values()].reduce((count, channels) => count + channels.size, 0),
+      1,
+      'omitted browser channel option reaches the coordinator default',
+    );
+    server.respond('/auth/password/signin', () => (
+      Response.json(server.credential({ token: APPLICATION_BEARER }))
+    ));
+    await appClient.auth.signInWithPassword({ email: 'person@example.com', password: PASSWORD });
+    assert.ok(hintBytes.size > 0, 'omitted browser hint option reaches the coordinator default');
+    await appClient.dispose();
+    appClient = null;
+    assert.equal(broadcastHub.closeCalls, 1);
+  } finally {
+    await appClient?.dispose();
+    restoreLocalStorage();
+    restoreBroadcast();
+    server.restore();
+  }
+});
+
+test('browser kind explicit null BroadcastChannel disables peer wakeups', async () => {
+  const server = installServer();
+  const app = makeApp({ custody: 'durable-required' });
+  let defaultChannelCalls = 0;
+  const restoreBroadcast = replaceGlobal('BroadcastChannel', function UnexpectedBroadcastChannel() {
+    defaultChannelCalls += 1;
+    return new BroadcastHub().factory('unexpected');
+  });
+  const restoreLocalStorage = replaceGlobal('localStorage', { setItem() {} });
+  const platform = {
+    kind: 'browser',
+    indexedDB: new IDBFactory(),
+    lockManager: createSerialLockManager(),
+    cryptoObject: webcrypto,
+    databaseName: 'snapback-app-client-browser-null-wakeup-test',
+    broadcastChannelFactory: null,
+  };
+  const [{ createSnapbackAppClient: createTabA }, { createSnapbackAppClient: createTabB }] = (
+    await Promise.all([
+      import('./app-client.mjs?null-wakeup-a'),
+      import('./app-client.mjs?null-wakeup-b'),
+    ])
+  );
+  let tabA = null;
+  let tabB = null;
+  try {
+    tabA = await createTabA({ app, binding: makeBinding(app), platform });
+    tabB = await createTabB({ app, binding: makeBinding(app), platform });
+    server.respond('/auth/password/signin', () => (
+      Response.json(server.credential({ token: APPLICATION_BEARER }))
+    ));
+    await tabA.auth.signInWithPassword({ email: 'person@example.com', password: PASSWORD });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    assert.equal(defaultChannelCalls, 0, 'explicit null bypasses the host BroadcastChannel default');
+    assert.equal(tabB.auth.currentPrincipal().status, 'anonymous', 'peer receives no channel wakeup');
+  } finally {
+    await tabA?.dispose();
+    await tabB?.dispose();
+    restoreLocalStorage();
+    restoreBroadcast();
+    server.restore();
+  }
+});
+
+test('browser-kind construction without BroadcastChannel or localStorage stays safe', async () => {
+  const server = installServer();
+  const app = makeApp({ custody: 'durable-required' });
+  const restoreBroadcast = replaceGlobal('BroadcastChannel', undefined);
+  const restoreLocalStorage = replaceGlobal('localStorage', undefined);
+  let appClient = null;
+  try {
+    appClient = await createSnapbackAppClient({
+      app,
+      binding: makeBinding(app),
+      platform: {
+        kind: 'browser',
+        indexedDB: new IDBFactory(),
+        lockManager: createSerialLockManager(),
+        cryptoObject: webcrypto,
+        databaseName: 'snapback-app-client-browser-without-wakeup-globals-test',
+      },
       storagePartition: 'node-without-cross-context-globals',
-    }));
+    });
     assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
     server.respond('/auth/password/signin', () => (
       Response.json(server.credential({ token: APPLICATION_BEARER }))
@@ -813,10 +914,8 @@ test('Node construction without BroadcastChannel or localStorage stays mechanism
     appClient = null;
   } finally {
     await appClient?.dispose();
-    if (broadcastDescriptor === undefined) delete globalThis.BroadcastChannel;
-    else Object.defineProperty(globalThis, 'BroadcastChannel', broadcastDescriptor);
-    if (localStorageDescriptor === undefined) delete globalThis.localStorage;
-    else Object.defineProperty(globalThis, 'localStorage', localStorageDescriptor);
+    restoreLocalStorage();
+    restoreBroadcast();
     server.restore();
   }
 });

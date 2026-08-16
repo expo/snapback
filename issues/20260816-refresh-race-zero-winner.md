@@ -1,4 +1,4 @@
-# Concurrent two-tab refresh race yields zero winners: the winning caller's response is rejected
+# Concurrent two-tab refresh race has no winner and fail-closed blanks both tabs
 
 **Status:** Open
 **Impact:** 3
@@ -24,39 +24,43 @@ requests race at `/auth/refresh`:
 
 - one tab refuses `SNAPBACK_AUTH_REFRESH_SUPERSEDED` — the correct typed
   loser;
-- the other tab — the would-be winner — fails its OWN call with
+- the other tab — the candidate winner — fails its own call with
   `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID`: **zero caller successes**;
-- the durable custody record nevertheless ends on the rotated successor
-  (authority epoch advanced by one, e.g. 7 → 8 in the witnessed run), so
-  the server-side rotation committed;
-- within the automatic observation window one tab remains on the stale
-  pre-rotation principal; an explicit `synchronize()` in each tab converges
-  both onto the rotated authenticated record.
+- the two `/auth/refresh` responses are HTTP 401 and 409; there is no
+  successful refresh response;
+- both tabs converge **automatically** to the same settled anonymous custody
+  record with no bearer (epoch 8/revision 17 in the committed witness);
+- the epoch advance is the session-to-anonymous authority transition, not a
+  bearer rotation — LLP 0059 forbids a refresh rotation from advancing the
+  authority epoch;
+- the optional `manualRecovery` step remains on that same anonymous record;
+  the later authenticated epoch 9 state is a fresh password sign-in under
+  `logoutPreparation.entry`, performed only to prepare the following logout
+  race.
 
 Witness bundle:
 `tests/acceptance/fixtures/browser-lane/browser-auth-bootstrap.2026-08-16.v1.json`
 (`proofs[id=2].details.refresh` on each engine, including manualRecovery
 snapshots).
 
-Both failing callers blank rather than retain unsafe predecessor state,
-which is itself conformant. The defect is that the race has NO winner:
-LLP 0059's transition model expects exactly one caller to succeed and every
-other context to observe that winner. Pre-fix runs showed the same
-SUPERSEDED + CREDENTIAL_RESPONSE_INVALID pair, so this is not a regression
-from the cross-tab wiring fix — the fix isolated it as the one remaining
-non-convergent race.
+The defect is that the gated concurrent refresh race has NO winner and the
+fail-closed outcome logs both users out. LLP 0059 requires exactly one refresh
+caller to succeed with a same-authority, revision-only bearer rotation and the
+loser to refuse superseded. The cross-tab wiring fix is still a positive: all
+four race arms now converge automatically, including this shared anonymous
+blank. Pre-fix runs showed the same SUPERSEDED + CREDENTIAL_RESPONSE_INVALID
+pair, so the wiring fix did not introduce the zero-winner outcome.
 
 ## Hypotheses for the implementer (verify, don't assume)
 
-1. The winner's response admission races the loser-induced cross-context
-   wakeup: the loser's superseded/blank handling broadcasts, the winner's
-   coordinator adopts the hint mid-admission, and the winner's own
-   credential-response commit then fails against mutated local custody.
-2. The server's refresh response under a simultaneously-superseded sibling
-   omits or alters something the client's response validation requires.
-3. A client-side admission ordering bug independent of the broadcast (the
-   pre-fix runs failed the same way with wakeups disabled — which weighs
-   against hypothesis 1 being the whole story).
+1. The 401/409 response pair suggests the candidate winner path fails either
+   server-side or during request admission before any bearer rotation commits.
+   Instrument the refresh handler's admission and commit boundaries to
+   distinguish those cases; the witness supports no narrower claim.
+2. Trace why the caller associated with the 401/409 pair surfaces
+   `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID` rather than a successful
+   credential response. Do not assume a successor credential existed: the
+   witness records no 2xx response and no rotated session custody.
 
 Reproduce with the harness (proof 2 runs in isolation order refresh-first)
 or distill a two-context node test from
@@ -64,7 +68,9 @@ or distill a two-context node test from
 
 ## Exit
 
-Exactly one concurrent refresh caller succeeds; the loser stays typed
-`SNAPBACK_AUTH_REFRESH_SUPERSEDED`; both tabs converge automatically on the
-rotated record; the harness's proof-2 concurrent-refresh check passes on
-both engines and the witness receipt goes green.
+Exactly one concurrent refresh caller succeeds with the same authenticated
+user/session authority, unchanged authority epoch, and an incremented custody
+revision; the loser stays typed `SNAPBACK_AUTH_REFRESH_SUPERSEDED`; both tabs
+converge automatically on that rotated record; the harness's proof-2
+concurrent-refresh check passes on both engines and the witness receipt goes
+green.

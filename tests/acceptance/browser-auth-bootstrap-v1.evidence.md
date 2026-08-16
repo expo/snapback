@@ -1,8 +1,8 @@
 # LLP 0258 Phase 1.4 browser auth-bootstrap evidence
 
 Date: 2026-08-16
-Source commit: `b7f01a693` (worktree base) plus this landing's uncommitted
-app-client cross-tab fix; final recorded run on the control-plane machine
+Source: app-client cross-tab fix `146cd6ade` plus browser harness/evidence
+commit `b7528195c` in this landing; final recorded run on the control-plane machine
 (macOS 26.6.1, arm64) against this worktree's freshly bootstrapped
 `target/debug/snapback`.
 Witness: `fixtures/browser-lane/browser-auth-bootstrap.2026-08-16.v1.json`
@@ -49,7 +49,7 @@ credential and bearer/recovery-token scans pass).
 | # | Proof | Chromium | WebKit |
 | --- | --- | --- | --- |
 | 1 | Reload restoration | PASS | PASS |
-| 2 | Two-tab ownership | **FAIL** (concurrent-refresh check only; 5/6 checks pass) | **FAIL** (same single check) |
+| 2 | Two-tab ownership | **FAIL** (concurrent-refresh check only) | **FAIL** (same single check) |
 | 3 | Strict Mode / remount | PASS | PASS |
 | 4 | Logout / user-switch hygiene | PASS | PASS |
 | 5 | Corruption | PASS | PASS |
@@ -57,21 +57,24 @@ credential and bearer/recovery-token scans pass).
 
 Proof 2 detail after the cross-tab fix, identical on both engines:
 
-- concurrent logout, concurrent sign-in, and concurrent user switch now
-  each produce exactly one caller winner and BOTH tabs converge on the
-  winner's settled state automatically (no manual `synchronize()`), and the
-  one-logical-record check passes — the original convergence defect is
-  cured and held by app-client regression tests.
-- the **concurrent-refresh** check still fails, with a different and now
-  isolated signature: the gated two-tab refresh race yields **zero** caller
-  successes — the loser refuses correctly with
-  `SNAPBACK_AUTH_REFRESH_SUPERSEDED`, but the would-be winner's own call
-  fails `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID`; the durable record
-  nevertheless ends on the rotated successor (next epoch), and both tabs
-  adopt it only after explicit synchronization. Filed as
-  `issues/20260816-refresh-race-zero-winner.md`. The blank-don't-retain
-  behavior of the failing callers is itself conformant; the defect is that
-  no caller wins.
+- The cross-tab fix now converges all four race arms automatically. Concurrent
+  logout, sign-in, and user switch each produce exactly one caller winner and
+  both tabs converge on that winner's settled state; the refresh arm converges
+  both tabs on the same fail-closed blank. No race requires manual
+  `synchronize()` to converge, and the one-logical-record check passes.
+- The **concurrent-refresh** check still fails honestly. Both
+  `/auth/refresh` requests respond non-successfully (HTTP 401 and 409), so
+  there are **zero** successful callers: one returns
+  `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID` and the other returns
+  `SNAPBACK_AUTH_REFRESH_SUPERSEDED`.
+- Both automatic snapshots already agree on settled anonymous custody at the
+  same epoch/revision, with no bearer. The epoch advance is the witnessed
+  session-to-anonymous transition; it is explicitly **not** a bearer rotation,
+  because LLP 0059 requires refresh to preserve the authority epoch. The
+  optional manual-recovery snapshots remain on that same anonymous custody.
+  The later authenticated state in `logoutPreparation.entry` comes from a
+  fresh password sign-in used to prepare the logout race, not from refresh
+  recovery. Filed as `issues/20260816-refresh-race-zero-winner.md`.
 
 ## Skips and nonclaims
 
@@ -92,10 +95,13 @@ in the witness.
   concurrent-refresh product defect.
 - `node --check` for the runner and page: PASS.
 - WebKit adapter mock-lifecycle test mode (session, two windows, concurrent
-  handle routing, reload, window close, session close): PASS.
-- app-client regression suite (two-context convergence, Node construction,
-  dispose/channel-close): 494/494 package tests PASS under volta node
+  handle routing, reload, window close, session close, initialization-failure
+  session cleanup): PASS.
+- targeted app-client regression suite (including omitted/default, explicit-null,
+  and absent browser wakeup mechanisms): 22/22 tests PASS under volta node
   24.18.0.
+- generated symbol-registry check: 50 modules, 1202 symbols, runtime parity
+  exact.
 - `./ref-check --verbose`: PASS.
 - `node scripts/check-inventories.mjs`: inherited guide-manifest failures
   for paths not touched by this lane (missing generated files under

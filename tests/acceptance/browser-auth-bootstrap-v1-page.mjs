@@ -377,11 +377,14 @@ const run = async (operation) => {
 const seedProtected = async (label) => {
   const projection = await boot();
   const principal = publicPrincipal(projection.auth.currentPrincipal());
-  if (principal?.status !== 'authenticated') {
-    throw new Error('protected probe seeding requires an authenticated principal');
+  if (!['anonymous', 'authenticated'].includes(principal?.status)) {
+    throw new Error('protected probe seeding requires a settled principal');
   }
-  state.protectedRows = [Object.freeze({ owner: principal.userId, label })];
-  state.optimisticState = [Object.freeze({ owner: principal.userId, label: `${label}-optimistic` })];
+  const owner = principal.userId
+    ?? principal.authorityInstanceId
+    ?? principal.authorizationStreamIncarnation;
+  state.protectedRows = [Object.freeze({ owner, label })];
+  state.optimisticState = [Object.freeze({ owner, label: `${label}-optimistic` })];
   return currentSnapshot();
 };
 

@@ -54,7 +54,7 @@ const DEFAULT_WITNESS_PATH = join(
   ROOT,
   'tests/acceptance/fixtures/browser-lane/browser-auth-bootstrap.2026-08-16.v1.json',
 );
-const DEFAULT_SERVER_BINARY = '/Users/ccheever/projects/snapback/target/debug/snapback';
+const DEFAULT_SERVER_BINARY = join(ROOT, 'target', 'debug', 'snapback');
 const PROFILE_TEMP_ROOT = process.platform === 'darwin' ? '/tmp' : tmpdir();
 const SAFARIDRIVER_PATH = '/usr/bin/safaridriver';
 const PAGE_GLOBAL = 'snapbackBrowserAuthBootstrap';
@@ -560,15 +560,25 @@ async function createWebDriverSession(baseUrl) {
   }
   const capabilities = created.capabilities ?? {};
   const sessionPath = `/session/${encodeURIComponent(sessionId)}`;
-  await request('POST', `${sessionPath}/timeouts`, {
-    implicit: 0,
-    pageLoad: 60_000,
-    script: 120_000,
-  });
+  let initialHandle;
+  try {
+    await request('POST', `${sessionPath}/timeouts`, {
+      implicit: 0,
+      pageLoad: 60_000,
+      script: 120_000,
+    });
+    const handles = await request('GET', `${sessionPath}/window/handles`);
+    initialHandle = Array.isArray(handles) ? handles[0] ?? null : null;
+    if (initialHandle === null) {
+      fail('SNAPBACK_BROWSER_AUTH_WEBDRIVER_WINDOW_MISSING', 'Safari session opened without a window');
+    }
+  } catch (error) {
+    try { await request('DELETE', sessionPath); } catch { /* best-effort initialization cleanup */ }
+    throw error;
+  }
 
   let queue = Promise.resolve();
   let sessionClosed = false;
-  let initialHandle = null;
   const openHandles = new Set();
   const enqueue = (operation) => {
     const result = queue.then(operation, operation);
@@ -666,12 +676,6 @@ async function createWebDriverSession(baseUrl) {
     );
   };
 
-  const handles = await enqueue(() => command('GET', '/window/handles'));
-  initialHandle = Array.isArray(handles) ? handles[0] ?? null : null;
-  if (initialHandle === null) {
-    fail('SNAPBACK_BROWSER_AUTH_WEBDRIVER_WINDOW_MISSING', 'Safari session opened without a window');
-  }
-
   return {
     capabilities,
     get sessionClosed() { return sessionClosed; },
@@ -730,7 +734,7 @@ async function createWebDriverSession(baseUrl) {
   };
 }
 
-async function launchSafariWebDriver({ executable }) {
+async function launchSafariWebDriverAttempt({ executable }) {
   const port = await reserveLoopbackPort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const child = spawn(executable, ['--port', String(port)], {
@@ -795,6 +799,34 @@ async function launchSafariWebDriver({ executable }) {
   }
 }
 
+const SAFARIDRIVER_START_ATTEMPTS = 3;
+
+function retryableSafariDriverStartup(error) {
+  return error?.code === 'SNAPBACK_BROWSER_AUTH_SAFARIDRIVER_EXITED'
+    || (
+      error?.code === 'SNAPBACK_BROWSER_AUTH_SAFARIDRIVER_START_TIMEOUT'
+      && /address(?: already)? in use|bind|EADDRINUSE/iu.test(error.message)
+    );
+}
+
+async function launchSafariWebDriver({ executable }) {
+  for (let attempt = 1; attempt <= SAFARIDRIVER_START_ATTEMPTS; attempt += 1) {
+    try {
+      return await launchSafariWebDriverAttempt({ executable });
+    } catch (error) {
+      if (!retryableSafariDriverStartup(error)) throw error;
+      if (attempt === SAFARIDRIVER_START_ATTEMPTS) {
+        fail(
+          error.code,
+          `safaridriver startup failed after ${attempt} freshly reserved-port attempts: ${error.message}`,
+          { attempts: attempt, lastFailure: publicError(error) },
+        );
+      }
+    }
+  }
+  throw new Error('unreachable safaridriver startup retry state');
+}
+
 async function runWebDriverMockCheck() {
   const sessionId = 'mock-session';
   const handles = ['mock-window-a'];
@@ -807,7 +839,9 @@ async function runWebDriverMockCheck() {
     reloadCount: 0,
     secondWindowClosed: false,
     sessionClosed: false,
+    initializationFailureCleaned: false,
   };
+  let failInitialization = false;
   let currentHandle = handles[0];
   const mock = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
@@ -823,6 +857,11 @@ async function runWebDriverMockCheck() {
         capabilities: { browserName: 'safari', browserVersion: 'mock-1' },
       };
     } else if (request.method === 'POST' && url.pathname === `/session/${sessionId}/timeouts`) {
+      if (failInitialization) {
+        response.writeHead(500, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ value: { error: 'timeout', message: 'mock init failure' } }));
+        return;
+      }
       value = null;
     } else if (request.method === 'GET' && url.pathname === `/session/${sessionId}/window/handles`) {
       value = [...handles];
@@ -866,6 +905,7 @@ async function runWebDriverMockCheck() {
       value = [...handles];
     } else if (request.method === 'DELETE' && url.pathname === `/session/${sessionId}`) {
       facts.sessionClosed = true;
+      if (failInitialization) facts.initializationFailureCleaned = true;
       value = null;
     } else {
       response.writeHead(404, { 'content-type': 'application/json' });
@@ -905,6 +945,19 @@ async function runWebDriverMockCheck() {
     await pageB.close();
     await pageA.close();
     await client.close();
+    failInitialization = true;
+    let initializationFailure = null;
+    try {
+      await createWebDriverSession(`http://127.0.0.1:${address.port}`);
+    } catch (error) {
+      initializationFailure = error;
+    }
+    if (initializationFailure?.code !== 'SNAPBACK_BROWSER_AUTH_WEBDRIVER_COMMAND_FAILED') {
+      fail(
+        'SNAPBACK_BROWSER_AUTH_WEBDRIVER_MOCK_INIT_FAILURE_MISSING',
+        'mock WebDriver initialization did not fail with the expected typed command diagnostic',
+      );
+    }
   } finally {
     await new Promise((resolveClose, rejectClose) => mock.close(
       (error) => error ? rejectClose(error) : resolveClose(),
@@ -973,6 +1026,44 @@ const protectedEmpty = (snapshot) => (
   snapshot?.protected?.rows?.length === 0
   && snapshot?.protected?.optimistic?.length === 0
 );
+const protectedMaterialized = (snapshot) => (
+  snapshot?.protected?.rows?.length === 1
+  && snapshot?.protected?.optimistic?.length === 1
+);
+const sameSettledAuthority = (left, right) => Boolean(
+  left?.custody?.phase === 'settled'
+  && right?.custody?.phase === 'settled'
+  && left?.capture
+  && right?.capture
+  && left.capture.authorityEpoch === right.capture.authorityEpoch
+  && left.capture.authorityKey === right.capture.authorityKey
+  && left.custody.authorityKind === right.custody.authorityKind
+  && left.custody.userId === right.custody.userId
+  && left.custody.sessionId === right.custody.sessionId
+  && samePrincipal(left.principal, right.principal)
+);
+const sameSettledCustody = (left, right) => (
+  sameSettledAuthority(left, right)
+  && left.capture.custodyRevision === right.capture.custodyRevision
+  && left.custody.revision === right.custody.revision
+);
+const barrierBlankedAfterSeed = (seed, settled) => {
+  if (!protectedMaterialized(seed) || !Array.isArray(settled?.barrierEvents)) return false;
+  const events = settled.barrierEvents.slice(seed.barrierEvents?.length ?? 0);
+  return events.some(({ phase, protectedRows }) => phase === 'blank' && protectedRows === 0)
+    && events.some(({ phase, optimisticState }) => (
+      phase === 'clearMemory' && optimisticState === 0
+    ));
+};
+const barrierEvidenceAfterSeed = (seed, settled) => ({
+  seed: snapshotEvidence(seed),
+  events: (settled?.barrierEvents ?? []).slice(seed?.barrierEvents?.length ?? 0).map((event) => ({
+    phase: event.phase,
+    reason: event.reason,
+    protectedRows: event.protectedRows,
+    optimisticState: event.optimisticState,
+  })),
+});
 
 const snapshotEvidence = (snapshot) => ({
   bootstrap: snapshot?.bootstrap ? {
@@ -1151,7 +1242,7 @@ const witness = {
   source: {
     gitCommit,
     gitDirty,
-    note: 'Executed bytes are pinned below; the requested lane intentionally leaves proof artifacts uncommitted.',
+    note: 'Executed bytes are pinned below; this witness and its proof artifacts are committed with the landing.',
     node: process.version,
     files: await hashFiles(sourceFiles),
     bundle: { sha256: sha256(bundle), bytes: bundle.length },
@@ -1502,24 +1593,78 @@ try {
   const twoTabChecks = [];
   const raceDetails = {};
 
+  const refreshStart = await observePages(pageA, pageB);
+  const refreshPrecondition = refreshStart.every((snapshot) => (
+    snapshot.principal?.status === 'authenticated'
+    && snapshot.custody?.authorityKind === 'session'
+    && snapshot.custody?.bearerPresent === true
+    && captureMatchesCustody(snapshot)
+    && sameSettledCustody(refreshStart[0], snapshot)
+  ));
   const refreshRace = await gatedRace(harness, '/auth/refresh', [
     () => pageA.call('refresh'),
     () => pageB.call('refresh'),
   ]);
   const refreshAuto = await observePages(pageA, pageB);
-  const refreshSuccesses = refreshRace.results.filter(({ ok }) => ok).length;
+  const successfulRefreshes = refreshRace.results.filter(({ ok }) => ok);
+  const failedRefreshes = refreshRace.results.filter(({ ok }) => !ok);
+  const refreshSuccesses = successfulRefreshes.length;
+  const refreshWinner = successfulRefreshes.length === 1 ? successfulRefreshes[0].snapshot : null;
+  const refreshLoserTyped = failedRefreshes.length === 1
+    && failedRefreshes[0].code === 'SNAPBACK_AUTH_REFRESH_SUPERSEDED';
+  const refreshWinnerRotated = refreshPrecondition
+    && refreshWinner?.principal?.status === 'authenticated'
+    && refreshWinner?.custody?.authorityKind === 'session'
+    && refreshWinner?.custody?.bearerPresent === true
+    && refreshWinner?.custody?.revision === refreshStart[0].custody.revision + 1
+    && refreshWinner?.capture?.custodyRevision === refreshWinner.custody.revision
+    && sameSettledAuthority(refreshWinner, refreshStart[0])
+    && captureMatchesCustody(refreshWinner);
+  const refreshProjectionConverged = refreshWinner !== null && refreshAuto.every((snapshot) => (
+    snapshot.principal?.status === 'authenticated'
+    && snapshot.custody?.authorityKind === 'session'
+    && sameSettledCustody(snapshot, refreshWinner)
+  ));
+  const refreshCapturesMatch = refreshAuto.every(captureMatchesCustody);
   const refreshConverged = refreshSuccesses === 1
-    && samePrincipal(refreshAuto[0].principal, refreshAuto[1].principal)
-    && captureMatchesCustody(refreshAuto[0])
-    && captureMatchesCustody(refreshAuto[1]);
+    && refreshWinnerRotated
+    && refreshLoserTyped
+    && refreshProjectionConverged
+    && refreshCapturesMatch;
+  const refreshFailClosedBlank = refreshSuccesses === 0 && refreshAuto.every((snapshot) => (
+    snapshot.principal?.status === 'anonymous'
+    && snapshot.custody?.phase === 'settled'
+    && snapshot.custody?.authorityKind === 'anonymous'
+    && snapshot.custody?.bearerPresent === false
+    && protectedEmpty(snapshot)
+    && captureMatchesCustody(snapshot)
+    && sameSettledCustody(refreshAuto[0], snapshot)
+  ));
+  const refreshFailureNote = (() => {
+    if (refreshConverged) return 'one refresh won, its peer refused superseded, and both tabs converged on the same-authority rotated custody revision';
+    if (refreshSuccesses === 0 && refreshFailClosedBlank) {
+      return 'refresh race had zero caller successes and fail-closed blanked both tabs automatically';
+    }
+    if (refreshSuccesses !== 1) {
+      return `refresh race had ${refreshSuccesses} caller successes and did not produce exactly one winner`;
+    }
+    if (!refreshWinnerRotated || !refreshLoserTyped) {
+      return 'refresh winner/loser capture contract did not prove a same-authority revision-only rotation with a typed superseded loser';
+    }
+    if (!refreshProjectionConverged) {
+      return 'a refresh winner existed but at least one tab retained a stale principal or custody projection';
+    }
+    return 'both tabs projected the refresh winner but at least one local capture mismatched durable custody';
+  })();
   twoTabChecks.push(check(
     'concurrent-refresh',
     refreshConverged,
-    refreshConverged
-      ? 'both tabs converged on the one rotated custody revision'
-      : `refresh race had ${refreshSuccesses} caller successes and left a tab on a stale principal/custody revision`,
+    refreshFailureNote,
   ));
-  raceDetails.refresh = raceEvidence(refreshRace, refreshAuto);
+  raceDetails.refresh = {
+    predecessor: refreshStart.map(snapshotEvidence),
+    ...raceEvidence(refreshRace, refreshAuto),
+  };
   if (!refreshConverged) {
     raceDetails.refresh.manualRecovery = manualRecoveryEvidence(
       await manuallyConverge(pageA, pageB),
@@ -1569,6 +1714,16 @@ try {
     snapshots: logoutStart.map(snapshotEvidence),
   };
 
+  const logoutSeeds = await Promise.all([
+    pageA.call('seedProtected', { label: 'two-tab-logout-a' }),
+    pageB.call('seedProtected', { label: 'two-tab-logout-b' }),
+  ]);
+  const logoutPredecessorMaterialized = logoutSeeds.every(protectedMaterialized);
+  twoTabChecks.push(check(
+    'logout-predecessor-materialized',
+    logoutPredecessorMaterialized,
+    'both tabs exposed one protected row and optimistic layer before the logout race',
+  ));
   const logoutRace = await gatedRace(harness, '/auth/logout', [
     () => pageA.call('signOut'),
     () => pageB.call('signOut'),
@@ -1577,12 +1732,15 @@ try {
   const logoutSuccesses = logoutRace.results.filter(({ ok }) => ok).length;
   const logoutConverged = logoutPrecondition
     && logoutSuccesses === 1
-    && logoutAuto.every((snapshot) => (
-    snapshot.principal?.status === 'anonymous'
-    && snapshot.custody?.authorityKind === 'anonymous'
-    && snapshot.custody?.bearerPresent === false
-    && captureMatchesCustody(snapshot)
-  ));
+    && logoutPredecessorMaterialized
+    && logoutAuto.every((snapshot, index) => (
+      snapshot.principal?.status === 'anonymous'
+      && snapshot.custody?.authorityKind === 'anonymous'
+      && snapshot.custody?.bearerPresent === false
+      && protectedEmpty(snapshot)
+      && captureMatchesCustody(snapshot)
+      && barrierBlankedAfterSeed(logoutSeeds[index], snapshot)
+    ));
   twoTabChecks.push(check(
     'concurrent-logout',
     logoutConverged,
@@ -1590,27 +1748,47 @@ try {
       ? 'one logout won and both tabs converged on one blank settled anonymous record'
       : `logout race had ${logoutSuccesses} caller successes and did not blank/converge both tab projections`,
   ));
-  raceDetails.logout = raceEvidence(logoutRace, logoutAuto);
+  raceDetails.logout = {
+    ...raceEvidence(logoutRace, logoutAuto),
+    predecessorBarriers: logoutAuto.map((snapshot, index) => (
+      barrierEvidenceAfterSeed(logoutSeeds[index], snapshot)
+    )),
+  };
   if (!logoutConverged) {
     raceDetails.logout.manualRecovery = manualRecoveryEvidence(
       await manuallyConverge(pageA, pageB),
     );
   }
 
+  const signinSeeds = await Promise.all([
+    pageA.call('seedProtected', { label: 'two-tab-signin-a' }),
+    pageB.call('seedProtected', { label: 'two-tab-signin-b' }),
+  ]);
+  const signinPredecessorMaterialized = signinSeeds.every(protectedMaterialized);
+  twoTabChecks.push(check(
+    'signin-predecessor-materialized',
+    signinPredecessorMaterialized,
+    'both tabs exposed one protected row and optimistic layer before the sign-in race',
+  ));
   const signinRace = await gatedRace(harness, '/auth/password/signin', [
     () => pageA.call('signIn', credentials.alice),
     () => pageB.call('signIn', credentials.bob),
   ]);
   const signinAuto = await observePages(pageA, pageB);
-  const signinSuccesses = signinRace.results.filter(({ ok }) => ok).length;
-  const signinWinner = settledUser(signinAuto[0]);
+  const successfulSignins = signinRace.results.filter(({ ok }) => ok);
+  const signinSuccesses = successfulSignins.length;
+  const signinWinner = successfulSignins.length === 1 ? successfulSignins[0].snapshot : null;
   const signinConverged = signinSuccesses === 1
-    && signinWinner !== null
-    && signinAuto.every((snapshot) => (
+    && signinPredecessorMaterialized
+    && signinWinner?.principal?.status === 'authenticated'
+    && signinWinner?.custody?.authorityKind === 'session'
+    && captureMatchesCustody(signinWinner)
+    && signinAuto.every((snapshot, index) => (
       snapshot.principal?.status === 'authenticated'
-      && snapshot.principal.userId === signinWinner
-      && settledUser(snapshot) === signinWinner
+      && sameSettledAuthority(snapshot, signinWinner)
+      && protectedEmpty(snapshot)
       && captureMatchesCustody(snapshot)
+      && barrierBlankedAfterSeed(signinSeeds[index], snapshot)
     ));
   twoTabChecks.push(check(
     'concurrent-signin',
@@ -1619,28 +1797,48 @@ try {
       ? 'one sign-in won and both tabs observed its exact settled authority'
       : `sign-in race had ${signinSuccesses} caller successes and did not automatically converge`,
   ));
-  raceDetails.signin = raceEvidence(signinRace, signinAuto);
+  raceDetails.signin = {
+    ...raceEvidence(signinRace, signinAuto),
+    winner: signinWinner ? snapshotEvidence(signinWinner) : null,
+    predecessorBarriers: signinAuto.map((snapshot, index) => (
+      barrierEvidenceAfterSeed(signinSeeds[index], snapshot)
+    )),
+  };
   if (!signinConverged) {
     raceDetails.signin.manualRecovery = manualRecoveryEvidence(
       await manuallyConverge(pageA, pageB),
     );
   }
 
+  const switchSeeds = await Promise.all([
+    pageA.call('seedProtected', { label: 'two-tab-user-switch-a' }),
+    pageB.call('seedProtected', { label: 'two-tab-user-switch-b' }),
+  ]);
+  const switchPredecessorMaterialized = switchSeeds.every(protectedMaterialized);
+  twoTabChecks.push(check(
+    'user-switch-predecessor-materialized',
+    switchPredecessorMaterialized,
+    'both tabs exposed one protected row and optimistic layer before the user-switch race',
+  ));
   const switchRace = await gatedRace(harness, '/auth/logout', [
     () => pageA.call('switchUser', credentials.alice),
     () => pageB.call('switchUser', credentials.bob),
   ]);
   const switchAuto = await observePages(pageA, pageB);
-  const switchSuccesses = switchRace.results.filter(({ ok }) => ok).length;
-  const switchWinner = settledUser(switchAuto[0]);
+  const successfulSwitches = switchRace.results.filter(({ ok }) => ok);
+  const switchSuccesses = successfulSwitches.length;
+  const switchWinner = successfulSwitches.length === 1 ? successfulSwitches[0].snapshot : null;
   const switchConverged = switchSuccesses === 1
-    && switchWinner !== null
-    && switchAuto.every((snapshot) => (
+    && switchPredecessorMaterialized
+    && switchWinner?.principal?.status === 'authenticated'
+    && switchWinner?.custody?.authorityKind === 'session'
+    && captureMatchesCustody(switchWinner)
+    && switchAuto.every((snapshot, index) => (
       snapshot.principal?.status === 'authenticated'
-      && snapshot.principal.userId === switchWinner
-      && settledUser(snapshot) === switchWinner
+      && sameSettledAuthority(snapshot, switchWinner)
       && protectedEmpty(snapshot)
       && captureMatchesCustody(snapshot)
+      && barrierBlankedAfterSeed(switchSeeds[index], snapshot)
     ));
   twoTabChecks.push(check(
     'concurrent-user-switch',
@@ -1649,7 +1847,13 @@ try {
       ? 'one composed user switch won and both tabs exposed only its successor'
       : `user-switch race had ${switchSuccesses} caller successes and did not automatically converge`,
   ));
-  raceDetails.userSwitch = raceEvidence(switchRace, switchAuto);
+  raceDetails.userSwitch = {
+    ...raceEvidence(switchRace, switchAuto),
+    winner: switchWinner ? snapshotEvidence(switchWinner) : null,
+    predecessorBarriers: switchAuto.map((snapshot, index) => (
+      barrierEvidenceAfterSeed(switchSeeds[index], snapshot)
+    )),
+  };
   if (!switchConverged) {
     raceDetails.userSwitch.manualRecovery = manualRecoveryEvidence(
       await manuallyConverge(pageA, pageB),

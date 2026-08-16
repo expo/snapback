@@ -32,7 +32,7 @@
         "version": "Google Chrome 151.0.7922.138"
       },
       "carrier": {
-        "databaseNameHash": "sha256:d9c6790d1fafe28d8cab92bf140d117ae0820e08d8526064f7533b8cfb26b7c1",
+        "databaseNameHash": "sha256:9461eb99fc3eca35b0f1d6015f009b3428d328de6cea1de75e1629a987dc58d8",
         "indexedDb": true,
         "profileTempRoot": "/tmp",
         "webLocks": true
@@ -114,7 +114,7 @@
               },
               "capture": {
                 "authorityEpoch": 3,
-                "authorityKey": "sha256:b2efaa20b539fb7bb77f0bddae7a03826dd94156f4eabf67b1ad5714347b9b43",
+                "authorityKey": "sha256:036a5aa6a9fe3636bdc303eac1cccc21f8eea1cd3013543fbe4def678942b3fe",
                 "custodyRevision": 7
               },
               "custody": {
@@ -125,19 +125,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 7,
-                "sessionId": "ses_01m04y56vjfe9ag1f6wdregvqx",
+                "sessionId": "ses_01m0505f82er5b74kwzxenk4n3",
                 "shape": "record",
-                "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y56vjev7s05z2xws62as0",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m0505f82exj90v0zmacvmqty",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y56vjfe9ag1f6wdregvqx",
+                "sessionId": "ses_01m0505f82er5b74kwzxenk4n3",
                 "status": "authenticated",
-                "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
               },
               "protected": {
                 "optimistic": 0,
@@ -159,7 +159,7 @@
               },
               "capture": {
                 "authorityEpoch": 3,
-                "authorityKey": "sha256:b2efaa20b539fb7bb77f0bddae7a03826dd94156f4eabf67b1ad5714347b9b43",
+                "authorityKey": "sha256:036a5aa6a9fe3636bdc303eac1cccc21f8eea1cd3013543fbe4def678942b3fe",
                 "custodyRevision": 7
               },
               "custody": {
@@ -170,19 +170,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 7,
-                "sessionId": "ses_01m04y56vjfe9ag1f6wdregvqx",
+                "sessionId": "ses_01m0505f82er5b74kwzxenk4n3",
                 "shape": "record",
-                "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y56vjev7s05z2xws62as0",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m0505f82exj90v0zmacvmqty",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y56vjfe9ag1f6wdregvqx",
+                "sessionId": "ses_01m0505f82er5b74kwzxenk4n3",
                 "status": "authenticated",
-                "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
               },
               "protected": {
                 "optimistic": 0,
@@ -201,7 +201,7 @@
           "checks": [
             {
               "name": "concurrent-refresh",
-              "note": "refresh race had 0 caller successes and left a tab on a stale principal/custody revision",
+              "note": "refresh race had zero caller successes and fail-closed blanked both tabs automatically",
               "pass": false
             },
             {
@@ -210,13 +210,28 @@
               "pass": true
             },
             {
+              "name": "logout-predecessor-materialized",
+              "note": "both tabs exposed one protected row and optimistic layer before the logout race",
+              "pass": true
+            },
+            {
               "name": "concurrent-logout",
               "note": "one logout won and both tabs converged on one blank settled anonymous record",
               "pass": true
             },
             {
+              "name": "signin-predecessor-materialized",
+              "note": "both tabs exposed one protected row and optimistic layer before the sign-in race",
+              "pass": true
+            },
+            {
               "name": "concurrent-signin",
               "note": "one sign-in won and both tabs observed its exact settled authority",
+              "pass": true
+            },
+            {
+              "name": "user-switch-predecessor-materialized",
+              "note": "both tabs exposed one protected row and optimistic layer before the user-switch race",
               "pass": true
             },
             {
@@ -248,7 +263,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 10,
-                    "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                     "custodyRevision": 21
                   },
                   "custody": {
@@ -265,8 +280,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -289,7 +304,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 10,
-                    "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                     "custodyRevision": 21
                   },
                   "custody": {
@@ -306,13 +321,185 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "status": "anonymous"
                   },
                   "protected": {
                     "optimistic": 0,
                     "rows": 0
+                  }
+                }
+              ],
+              "predecessorBarriers": [
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "application-entry",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 9,
+                      "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                      "custodyRevision": 19
+                    },
+                    "custody": {
+                      "authorityEpoch": 9,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 19,
+                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "shape": "record",
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "status": "authenticated",
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
+                },
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "durable-restored",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 9,
+                      "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                      "custodyRevision": 19
+                    },
+                    "custody": {
+                      "authorityEpoch": 9,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 19,
+                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "shape": "record",
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "status": "authenticated",
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
                   }
                 }
               ],
@@ -347,7 +534,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 10,
-                      "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                       "custodyRevision": 21
                     },
                     "custody": {
@@ -364,8 +551,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -392,7 +579,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:fee33518666d72f69cacfae0da0159636788c2008f11f63da4391dd94d4928eb",
+                      "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -403,23 +590,23 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                       "shape": "record",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y5eecf5asy62s0pdezs55",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                       "status": "authenticated",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "protected": {
-                      "optimistic": 0,
-                      "rows": 0
+                      "optimistic": 1,
+                      "rows": 1
                     }
                   }
                 }
@@ -444,7 +631,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:fee33518666d72f69cacfae0da0159636788c2008f11f63da4391dd94d4928eb",
+                    "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -455,19 +642,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                     "shape": "record",
-                    "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y5eecf5asy62s0pdezs55",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                     "status": "authenticated",
-                    "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -495,7 +682,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 9,
-                        "authorityKey": "sha256:fee33518666d72f69cacfae0da0159636788c2008f11f63da4391dd94d4928eb",
+                        "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
                         "custodyRevision": 19
                       },
                       "custody": {
@@ -506,19 +693,19 @@
                         "pendingBearerPresent": false,
                         "phase": "settled",
                         "revision": 19,
-                        "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                        "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                         "shape": "record",
-                        "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                        "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "aut_01m04y5eecf5asy62s0pdezs55",
-                        "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                        "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
+                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                         "sessionClass": "humanSession",
                         "sessionGeneration": 1,
-                        "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                        "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                         "status": "authenticated",
-                        "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                        "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                       },
                       "protected": {
                         "optimistic": 0,
@@ -544,7 +731,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 9,
-                        "authorityKey": "sha256:fee33518666d72f69cacfae0da0159636788c2008f11f63da4391dd94d4928eb",
+                        "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
                         "custodyRevision": 19
                       },
                       "custody": {
@@ -555,19 +742,19 @@
                         "pendingBearerPresent": false,
                         "phase": "settled",
                         "revision": 19,
-                        "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                        "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                         "shape": "record",
-                        "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                        "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "aut_01m04y5eecf5asy62s0pdezs55",
-                        "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                        "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
+                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                         "sessionClass": "humanSession",
                         "sessionGeneration": 1,
-                        "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                        "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                         "status": "authenticated",
-                        "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                        "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                       },
                       "protected": {
                         "optimistic": 0,
@@ -592,7 +779,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:fee33518666d72f69cacfae0da0159636788c2008f11f63da4391dd94d4928eb",
+                      "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -603,19 +790,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                       "shape": "record",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y5eecf5asy62s0pdezs55",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                       "status": "authenticated",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -637,7 +824,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:fee33518666d72f69cacfae0da0159636788c2008f11f63da4391dd94d4928eb",
+                      "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -648,19 +835,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                       "shape": "record",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y5eecf5asy62s0pdezs55",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                       "status": "authenticated",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -685,7 +872,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:fee33518666d72f69cacfae0da0159636788c2008f11f63da4391dd94d4928eb",
+                    "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -696,19 +883,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                     "shape": "record",
-                    "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y5eecf5asy62s0pdezs55",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                     "status": "authenticated",
-                    "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -730,7 +917,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:fee33518666d72f69cacfae0da0159636788c2008f11f63da4391dd94d4928eb",
+                    "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -741,19 +928,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                     "shape": "record",
-                    "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y5eecf5asy62s0pdezs55",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y5eece1avb8xdx0apqh8t",
+                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
                     "status": "authenticated",
-                    "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -779,7 +966,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 8,
-                    "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                     "custodyRevision": 17
                   },
                   "custody": {
@@ -796,8 +983,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -820,7 +1007,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 8,
-                    "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                     "custodyRevision": 17
                   },
                   "custody": {
@@ -837,8 +1024,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -867,7 +1054,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 8,
-                        "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                        "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                         "custodyRevision": 17
                       },
                       "custody": {
@@ -884,8 +1071,8 @@
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                        "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                        "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                         "status": "anonymous"
                       },
                       "protected": {
@@ -912,7 +1099,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 8,
-                        "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                        "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                         "custodyRevision": 17
                       },
                       "custody": {
@@ -929,8 +1116,8 @@
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                        "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                        "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                         "status": "anonymous"
                       },
                       "protected": {
@@ -956,7 +1143,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -973,8 +1160,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -997,7 +1184,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -1014,8 +1201,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -1025,6 +1212,98 @@
                   }
                 ]
               },
+              "predecessor": [
+                {
+                  "bootstrap": {
+                    "authoritySource": "application-entry",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 7,
+                    "authorityKey": "sha256:8c9c0c2b698463e464fdeef2e3047dae57bf9ff84ba2ddc609b04c9f67ed20ba",
+                    "custodyRevision": 15
+                  },
+                  "custody": {
+                    "authorityEpoch": 7,
+                    "authorityKind": "session",
+                    "bearerPresent": true,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 15,
+                    "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                    "shape": "record",
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "aut_01m0505jtpfcksgybbdfyxnspd",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "sessionClass": "humanSession",
+                    "sessionGeneration": 1,
+                    "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                    "status": "authenticated",
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                },
+                {
+                  "bootstrap": {
+                    "authoritySource": "durable-restored",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 7,
+                    "authorityKey": "sha256:8c9c0c2b698463e464fdeef2e3047dae57bf9ff84ba2ddc609b04c9f67ed20ba",
+                    "custodyRevision": 15
+                  },
+                  "custody": {
+                    "authorityEpoch": 7,
+                    "authorityKind": "session",
+                    "bearerPresent": true,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 15,
+                    "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                    "shape": "record",
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "aut_01m0505jtpfcksgybbdfyxnspd",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "sessionClass": "humanSession",
+                    "sessionGeneration": 1,
+                    "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                    "status": "authenticated",
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                }
+              ],
               "requests": [
                 {
                   "method": "POST",
@@ -1056,7 +1335,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 7,
-                      "authorityKey": "sha256:8ec3053facbec8ef8e6ad4a013c7901469df51f335f01ccc289d7e97f3a327ab",
+                      "authorityKey": "sha256:8c9c0c2b698463e464fdeef2e3047dae57bf9ff84ba2ddc609b04c9f67ed20ba",
                       "custodyRevision": 15
                     },
                     "custody": {
@@ -1067,19 +1346,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 15,
-                      "sessionId": "ses_01m04y5afyfbv9ehqhzabpv8a9",
+                      "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
                       "shape": "record",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y5afyftjb7e7wzxdr5rhx",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m0505jtpfcksgybbdfyxnspd",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y5afyfbv9ehqhzabpv8a9",
+                      "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
                       "status": "authenticated",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -1105,7 +1384,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -1122,8 +1401,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -1151,7 +1430,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 11,
-                    "authorityKey": "sha256:394677b8944dd436b7cb02c58ce3904c4f375a5bfbb55bcc7e94d8334ca211f7",
+                    "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
                     "custodyRevision": 23
                   },
                   "custody": {
@@ -1162,19 +1441,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 23,
-                    "sessionId": "ses_01m04y5fs2errarry1nhdh920f",
+                    "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
                     "shape": "record",
-                    "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y5fs2f889hnqra1y60r3b",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y5fs2errarry1nhdh920f",
+                    "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
                     "status": "authenticated",
-                    "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -1196,7 +1475,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 11,
-                    "authorityKey": "sha256:394677b8944dd436b7cb02c58ce3904c4f375a5bfbb55bcc7e94d8334ca211f7",
+                    "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
                     "custodyRevision": 23
                   },
                   "custody": {
@@ -1207,19 +1486,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 23,
-                    "sessionId": "ses_01m04y5fs2errarry1nhdh920f",
+                    "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
                     "shape": "record",
-                    "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y5fs2f889hnqra1y60r3b",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y5fs2errarry1nhdh920f",
+                    "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
                     "status": "authenticated",
-                    "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -1227,7 +1506,176 @@
                   }
                 }
               ],
+              "predecessorBarriers": [
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "fresh-anonymous",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 10,
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "custodyRevision": 21
+                    },
+                    "custody": {
+                      "authorityEpoch": 10,
+                      "authorityKind": "anonymous",
+                      "bearerPresent": false,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 21,
+                      "sessionId": null,
+                      "shape": "record",
+                      "userId": null
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "status": "anonymous"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
+                },
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "durable-restored",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 10,
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "custodyRevision": 21
+                    },
+                    "custody": {
+                      "authorityEpoch": 10,
+                      "authorityKind": "anonymous",
+                      "bearerPresent": false,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 21,
+                      "sessionId": null,
+                      "shape": "record",
+                      "userId": null
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "status": "anonymous"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
+                }
+              ],
               "requests": [
+                {
+                  "method": "POST",
+                  "pathname": "/auth/password/signin",
+                  "status": 200
+                },
                 {
                   "method": "POST",
                   "pathname": "/auth/password/signin",
@@ -1253,7 +1701,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 11,
-                      "authorityKey": "sha256:394677b8944dd436b7cb02c58ce3904c4f375a5bfbb55bcc7e94d8334ca211f7",
+                      "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
                       "custodyRevision": 23
                     },
                     "custody": {
@@ -1264,19 +1712,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 23,
-                      "sessionId": "ses_01m04y5fs2errarry1nhdh920f",
+                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
                       "shape": "record",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y5fs2f889hnqra1y60r3b",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y5fs2errarry1nhdh920f",
+                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
                       "status": "authenticated",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -1309,14 +1757,14 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 23,
-                      "sessionId": "ses_01m04y5fs2errarry1nhdh920f",
+                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
                       "shape": "record",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -1325,7 +1773,52 @@
                     }
                   }
                 }
-              ]
+              ],
+              "winner": {
+                "bootstrap": {
+                  "authoritySource": "application-entry",
+                  "custody": {
+                    "carrier": "indexeddb-web-locks",
+                    "formatVersion": 2,
+                    "grade": "durable",
+                    "recoveryAvailable": true,
+                    "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                  },
+                  "diagnosticCode": null,
+                  "status": "ready"
+                },
+                "capture": {
+                  "authorityEpoch": 11,
+                  "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                  "custodyRevision": 23
+                },
+                "custody": {
+                  "authorityEpoch": 11,
+                  "authorityKind": "session",
+                  "bearerPresent": true,
+                  "pendingAuthorityPresent": false,
+                  "pendingBearerPresent": false,
+                  "phase": "settled",
+                  "revision": 23,
+                  "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                  "shape": "record",
+                  "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                },
+                "lastError": null,
+                "principal": {
+                  "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
+                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "sessionClass": "humanSession",
+                  "sessionGeneration": 1,
+                  "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                  "status": "authenticated",
+                  "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                },
+                "protected": {
+                  "optimistic": 0,
+                  "rows": 0
+                }
+              }
             },
             "userSwitch": {
               "automatic": [
@@ -1344,7 +1837,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 13,
-                    "authorityKey": "sha256:d6e54eb4ae56e65b5235f6e597920bccddb9e1648fdcbcf8581eabbe369f8688",
+                    "authorityKey": "sha256:f2a40941b089727c99c85947ff30060111330b87a4a00ea0dc3af8e25e0223b2",
                     "custodyRevision": 27
                   },
                   "custody": {
@@ -1355,19 +1848,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 27,
-                    "sessionId": "ses_01m04y5h4efb4atg8j2htt5pyq",
+                    "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
                     "shape": "record",
-                    "userId": "usr_6bqwyjjgp9v20jwmstbc8pnvq2"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y5h4eef5a88h57mk6byw6",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m0505sgjfr6seqp2asa48c5v",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y5h4efb4atg8j2htt5pyq",
+                    "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
                     "status": "authenticated",
-                    "userId": "usr_6bqwyjjgp9v20jwmstbc8pnvq2"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -1376,7 +1869,7 @@
                 },
                 {
                   "bootstrap": {
-                    "authoritySource": "application-entry",
+                    "authoritySource": "durable-restored",
                     "custody": {
                       "carrier": "indexeddb-web-locks",
                       "formatVersion": 2,
@@ -1389,7 +1882,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 13,
-                    "authorityKey": "sha256:d6e54eb4ae56e65b5235f6e597920bccddb9e1648fdcbcf8581eabbe369f8688",
+                    "authorityKey": "sha256:f2a40941b089727c99c85947ff30060111330b87a4a00ea0dc3af8e25e0223b2",
                     "custodyRevision": 27
                   },
                   "custody": {
@@ -1400,23 +1893,267 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 27,
-                    "sessionId": "ses_01m04y5h4efb4atg8j2htt5pyq",
+                    "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
                     "shape": "record",
-                    "userId": "usr_6bqwyjjgp9v20jwmstbc8pnvq2"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y5h4eef5a88h57mk6byw6",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m0505sgjfr6seqp2asa48c5v",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y5h4efb4atg8j2htt5pyq",
+                    "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
                     "status": "authenticated",
-                    "userId": "usr_6bqwyjjgp9v20jwmstbc8pnvq2"
+                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                   },
                   "protected": {
                     "optimistic": 0,
                     "rows": 0
+                  }
+                }
+              ],
+              "predecessorBarriers": [
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "quiesce",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "application-entry",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 11,
+                      "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                      "custodyRevision": 23
+                    },
+                    "custody": {
+                      "authorityEpoch": 11,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 23,
+                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "shape": "record",
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "status": "authenticated",
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
+                },
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "quiesce",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "durable-restored",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 11,
+                      "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                      "custodyRevision": 23
+                    },
+                    "custody": {
+                      "authorityEpoch": 11,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 23,
+                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "shape": "record",
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "status": "authenticated",
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
                   }
                 }
               ],
@@ -1433,55 +2170,6 @@
                 }
               ],
               "results": [
-                {
-                  "code": "SNAPBACK_AUTH_SESSION_EXPIRED",
-                  "ok": false,
-                  "snapshot": {
-                    "bootstrap": {
-                      "authoritySource": "application-entry",
-                      "custody": {
-                        "carrier": "indexeddb-web-locks",
-                        "formatVersion": 2,
-                        "grade": "durable",
-                        "recoveryAvailable": true,
-                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
-                      },
-                      "diagnosticCode": null,
-                      "status": "ready"
-                    },
-                    "capture": {
-                      "authorityEpoch": 11,
-                      "authorityKey": "sha256:394677b8944dd436b7cb02c58ce3904c4f375a5bfbb55bcc7e94d8334ca211f7",
-                      "custodyRevision": 23
-                    },
-                    "custody": {
-                      "authorityEpoch": 11,
-                      "authorityKind": "session",
-                      "bearerPresent": true,
-                      "pendingAuthorityPresent": false,
-                      "pendingBearerPresent": false,
-                      "phase": "settled",
-                      "revision": 23,
-                      "sessionId": "ses_01m04y5fs2errarry1nhdh920f",
-                      "shape": "record",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
-                    },
-                    "lastError": null,
-                    "principal": {
-                      "authorityInstanceId": "aut_01m04y5fs2f889hnqra1y60r3b",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "sessionClass": "humanSession",
-                      "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y5fs2errarry1nhdh920f",
-                      "status": "authenticated",
-                      "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
-                    },
-                    "protected": {
-                      "optimistic": 0,
-                      "rows": 0
-                    }
-                  }
-                },
                 {
                   "code": null,
                   "ok": true,
@@ -1500,7 +2188,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 13,
-                      "authorityKey": "sha256:d6e54eb4ae56e65b5235f6e597920bccddb9e1648fdcbcf8581eabbe369f8688",
+                      "authorityKey": "sha256:f2a40941b089727c99c85947ff30060111330b87a4a00ea0dc3af8e25e0223b2",
                       "custodyRevision": 27
                     },
                     "custody": {
@@ -1511,30 +2199,124 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 27,
-                      "sessionId": "ses_01m04y5h4efb4atg8j2htt5pyq",
+                      "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
                       "shape": "record",
-                      "userId": "usr_6bqwyjjgp9v20jwmstbc8pnvq2"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y5h4eef5a88h57mk6byw6",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m0505sgjfr6seqp2asa48c5v",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y5h4efb4atg8j2htt5pyq",
+                      "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
                       "status": "authenticated",
-                      "userId": "usr_6bqwyjjgp9v20jwmstbc8pnvq2"
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
                     },
                     "protected": {
                       "optimistic": 0,
                       "rows": 0
                     }
                   }
+                },
+                {
+                  "code": "SNAPBACK_AUTH_SESSION_EXPIRED",
+                  "ok": false,
+                  "snapshot": {
+                    "bootstrap": {
+                      "authoritySource": "durable-restored",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 11,
+                      "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                      "custodyRevision": 23
+                    },
+                    "custody": {
+                      "authorityEpoch": 11,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 23,
+                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "shape": "record",
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "status": "authenticated",
+                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
                 }
-              ]
+              ],
+              "winner": {
+                "bootstrap": {
+                  "authoritySource": "application-entry",
+                  "custody": {
+                    "carrier": "indexeddb-web-locks",
+                    "formatVersion": 2,
+                    "grade": "durable",
+                    "recoveryAvailable": true,
+                    "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                  },
+                  "diagnosticCode": null,
+                  "status": "ready"
+                },
+                "capture": {
+                  "authorityEpoch": 13,
+                  "authorityKey": "sha256:f2a40941b089727c99c85947ff30060111330b87a4a00ea0dc3af8e25e0223b2",
+                  "custodyRevision": 27
+                },
+                "custody": {
+                  "authorityEpoch": 13,
+                  "authorityKind": "session",
+                  "bearerPresent": true,
+                  "pendingAuthorityPresent": false,
+                  "pendingBearerPresent": false,
+                  "phase": "settled",
+                  "revision": 27,
+                  "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
+                  "shape": "record",
+                  "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                },
+                "lastError": null,
+                "principal": {
+                  "authorityInstanceId": "aut_01m0505sgjfr6seqp2asa48c5v",
+                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "sessionClass": "humanSession",
+                  "sessionGeneration": 1,
+                  "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
+                  "status": "authenticated",
+                  "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                },
+                "protected": {
+                  "optimistic": 0,
+                  "rows": 0
+                }
+              }
             }
           },
-          "evidence": "refresh race had 0 caller successes and left a tab on a stale principal/custody revision",
+          "evidence": "refresh race had zero caller successes and fail-closed blanked both tabs automatically",
           "id": "2",
           "name": "two-tab-ownership",
           "outcome": "FAIL"
@@ -1688,7 +2470,7 @@
               },
               "capture": {
                 "authorityEpoch": 4,
-                "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                 "custodyRevision": 9
               },
               "custody": {
@@ -1705,8 +2487,8 @@
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "status": "anonymous"
               },
               "protected": {
@@ -1729,7 +2511,7 @@
               },
               "capture": {
                 "authorityEpoch": 7,
-                "authorityKey": "sha256:8ec3053facbec8ef8e6ad4a013c7901469df51f335f01ccc289d7e97f3a327ab",
+                "authorityKey": "sha256:8c9c0c2b698463e464fdeef2e3047dae57bf9ff84ba2ddc609b04c9f67ed20ba",
                 "custodyRevision": 15
               },
               "custody": {
@@ -1740,19 +2522,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 15,
-                "sessionId": "ses_01m04y5afyfbv9ehqhzabpv8a9",
+                "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
                 "shape": "record",
-                "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y5afyftjb7e7wzxdr5rhx",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m0505jtpfcksgybbdfyxnspd",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y5afyfbv9ehqhzabpv8a9",
+                "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
                 "status": "authenticated",
-                "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
               },
               "protected": {
                 "optimistic": 0,
@@ -1774,7 +2556,7 @@
               },
               "capture": {
                 "authorityEpoch": 5,
-                "authorityKey": "sha256:31a8c108c8ce44d7565d37ba57b525a60f3f863b012884a0968c3a2575719e5d",
+                "authorityKey": "sha256:bad8cea66a69ea2ad9f201ad51973d3957443b6deb5f98cf947aae52c5464328",
                 "custodyRevision": 11
               },
               "custody": {
@@ -1785,19 +2567,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 11,
-                "sessionId": "ses_01m04y5965e308qbx22wjcfq4e",
+                "sessionId": "ses_01m0505hh6esq9fddhgegccqpz",
                 "shape": "record",
-                "userId": "usr_6bqwyjjgp9v20jwmstbc8pnvq2"
+                "userId": "usr_7z9d8mb1bzw0atg0q9nvg4rc5t"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y5965e0z95gvtdnrhhpn3",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m0505hh6esrvjqmk4pp0h5jj",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y5965e308qbx22wjcfq4e",
+                "sessionId": "ses_01m0505hh6esq9fddhgegccqpz",
                 "status": "authenticated",
-                "userId": "usr_6bqwyjjgp9v20jwmstbc8pnvq2"
+                "userId": "usr_7z9d8mb1bzw0atg0q9nvg4rc5t"
               },
               "protected": {
                 "optimistic": 0,
@@ -2005,7 +2787,7 @@
               },
               "capture": {
                 "authorityEpoch": 1,
-                "authorityKey": "sha256:296d52099a657eb4aac7fdba75bd10ffa81e0cdc1ece35c18622383c22633786",
+                "authorityKey": "sha256:0dd9f2efa84852d33f7477f7ddd08c08d27561d28b8cedc985b0ef772635b31c",
                 "custodyRevision": 3
               },
               "custody": {
@@ -2016,19 +2798,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 3,
-                "sessionId": "ses_01m04y5jk4ej38dsvfc3r9re8p",
+                "sessionId": "ses_01m0505txcepevebdxh1b6exzd",
                 "shape": "record",
-                "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y5jk4f3f8m4baq457d8h0",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m0505txce1bb7f7b811bg6bn",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y5jk4ej38dsvfc3r9re8p",
+                "sessionId": "ses_01m0505txcepevebdxh1b6exzd",
                 "status": "authenticated",
-                "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
               },
               "protected": {
                 "optimistic": 0,
@@ -2053,7 +2835,7 @@
                 },
                 "capture": {
                   "authorityEpoch": 0,
-                  "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                  "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                   "custodyRevision": 1
                 },
                 "custody": {
@@ -2070,8 +2852,8 @@
                 },
                 "lastError": null,
                 "principal": {
-                  "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                  "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                  "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                   "status": "anonymous"
                 },
                 "protected": {
@@ -2181,7 +2963,7 @@
               },
               "capture": {
                 "authorityEpoch": 1,
-                "authorityKey": "sha256:296d52099a657eb4aac7fdba75bd10ffa81e0cdc1ece35c18622383c22633786",
+                "authorityKey": "sha256:0dd9f2efa84852d33f7477f7ddd08c08d27561d28b8cedc985b0ef772635b31c",
                 "custodyRevision": 3
               },
               "custody": {
@@ -2192,19 +2974,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 3,
-                "sessionId": "ses_01m04y5jk4ej38dsvfc3r9re8p",
+                "sessionId": "ses_01m0505txcepevebdxh1b6exzd",
                 "shape": "record",
-                "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y5jk4f3f8m4baq457d8h0",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m0505txce1bb7f7b811bg6bn",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y5jk4ej38dsvfc3r9re8p",
+                "sessionId": "ses_01m0505txcepevebdxh1b6exzd",
                 "status": "authenticated",
-                "userId": "usr_624qdhk8a17t7x9chy0xhhtdz7"
+                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
               },
               "protected": {
                 "optimistic": 0,
@@ -2233,7 +3015,7 @@
         "version": "Safari 26.6"
       },
       "carrier": {
-        "databaseNameHash": "sha256:4baeda45bd4bece14590cf70309ad7853fa7e6d0f42b7195235dbc3e59d23803",
+        "databaseNameHash": "sha256:739f2ca8add02a031babaef15906bdb30279310f00513faf8b31e0516d4b96fd",
         "indexedDb": true,
         "webLocks": true
       },
@@ -2313,7 +3095,7 @@
               },
               "capture": {
                 "authorityEpoch": 3,
-                "authorityKey": "sha256:fe0e32faa167ffffe1a256973a4e2519103521c1826884bc3fbc174430f87ce6",
+                "authorityKey": "sha256:9d6e5b78fecde3790ebc629961504303e3d1ac31fc848e75e65aa1534cd2ddbf",
                 "custodyRevision": 7
               },
               "custody": {
@@ -2324,19 +3106,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 7,
-                "sessionId": "ses_01m04y5s9yferr0k5acjrc7caj",
+                "sessionId": "ses_01m0505y5jeg4bdezfxtwfrgj4",
                 "shape": "record",
-                "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y5s9yff7a4f04c59vxef9",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m0505y5jfama5mb56kz71p24",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y5s9yferr0k5acjrc7caj",
+                "sessionId": "ses_01m0505y5jeg4bdezfxtwfrgj4",
                 "status": "authenticated",
-                "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
               },
               "protected": {
                 "optimistic": 0,
@@ -2358,7 +3140,7 @@
               },
               "capture": {
                 "authorityEpoch": 3,
-                "authorityKey": "sha256:fe0e32faa167ffffe1a256973a4e2519103521c1826884bc3fbc174430f87ce6",
+                "authorityKey": "sha256:9d6e5b78fecde3790ebc629961504303e3d1ac31fc848e75e65aa1534cd2ddbf",
                 "custodyRevision": 7
               },
               "custody": {
@@ -2369,19 +3151,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 7,
-                "sessionId": "ses_01m04y5s9yferr0k5acjrc7caj",
+                "sessionId": "ses_01m0505y5jeg4bdezfxtwfrgj4",
                 "shape": "record",
-                "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y5s9yff7a4f04c59vxef9",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m0505y5jfama5mb56kz71p24",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y5s9yferr0k5acjrc7caj",
+                "sessionId": "ses_01m0505y5jeg4bdezfxtwfrgj4",
                 "status": "authenticated",
-                "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
               },
               "protected": {
                 "optimistic": 0,
@@ -2400,7 +3182,7 @@
           "checks": [
             {
               "name": "concurrent-refresh",
-              "note": "refresh race had 0 caller successes and left a tab on a stale principal/custody revision",
+              "note": "refresh race had zero caller successes and fail-closed blanked both tabs automatically",
               "pass": false
             },
             {
@@ -2409,13 +3191,28 @@
               "pass": true
             },
             {
+              "name": "logout-predecessor-materialized",
+              "note": "both tabs exposed one protected row and optimistic layer before the logout race",
+              "pass": true
+            },
+            {
               "name": "concurrent-logout",
               "note": "one logout won and both tabs converged on one blank settled anonymous record",
               "pass": true
             },
             {
+              "name": "signin-predecessor-materialized",
+              "note": "both tabs exposed one protected row and optimistic layer before the sign-in race",
+              "pass": true
+            },
+            {
               "name": "concurrent-signin",
               "note": "one sign-in won and both tabs observed its exact settled authority",
+              "pass": true
+            },
+            {
+              "name": "user-switch-predecessor-materialized",
+              "note": "both tabs exposed one protected row and optimistic layer before the user-switch race",
               "pass": true
             },
             {
@@ -2434,6 +3231,47 @@
               "automatic": [
                 {
                   "bootstrap": {
+                    "authoritySource": "application-entry",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 10,
+                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                    "custodyRevision": 21
+                  },
+                  "custody": {
+                    "authorityEpoch": 10,
+                    "authorityKind": "anonymous",
+                    "bearerPresent": false,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 21,
+                    "sessionId": null,
+                    "shape": "record",
+                    "userId": null
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "status": "anonymous"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                },
+                {
+                  "bootstrap": {
                     "authoritySource": "fresh-anonymous",
                     "custody": {
                       "carrier": "indexeddb-web-locks",
@@ -2447,7 +3285,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 10,
-                    "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                     "custodyRevision": 21
                   },
                   "custody": {
@@ -2464,54 +3302,185 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "status": "anonymous"
                   },
                   "protected": {
                     "optimistic": 0,
                     "rows": 0
                   }
+                }
+              ],
+              "predecessorBarriers": [
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "application-entry",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 9,
+                      "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                      "custodyRevision": 19
+                    },
+                    "custody": {
+                      "authorityEpoch": 9,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 19,
+                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "shape": "record",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "status": "authenticated",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
                 },
                 {
-                  "bootstrap": {
-                    "authoritySource": "durable-restored",
-                    "custody": {
-                      "carrier": "indexeddb-web-locks",
-                      "formatVersion": 2,
-                      "grade": "durable",
-                      "recoveryAvailable": true,
-                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "logout"
                     },
-                    "diagnosticCode": null,
-                    "status": "ready"
-                  },
-                  "capture": {
-                    "authorityEpoch": 10,
-                    "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
-                    "custodyRevision": 21
-                  },
-                  "custody": {
-                    "authorityEpoch": 10,
-                    "authorityKind": "anonymous",
-                    "bearerPresent": false,
-                    "pendingAuthorityPresent": false,
-                    "pendingBearerPresent": false,
-                    "phase": "settled",
-                    "revision": 21,
-                    "sessionId": null,
-                    "shape": "record",
-                    "userId": null
-                  },
-                  "lastError": null,
-                  "principal": {
-                    "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                    "status": "anonymous"
-                  },
-                  "protected": {
-                    "optimistic": 0,
-                    "rows": 0
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "durable-restored",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 9,
+                      "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                      "custodyRevision": 19
+                    },
+                    "custody": {
+                      "authorityEpoch": 9,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 19,
+                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "shape": "record",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "status": "authenticated",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
                   }
                 }
               ],
@@ -2528,6 +3497,55 @@
                 }
               ],
               "results": [
+                {
+                  "code": "SNAPBACK_AUTH_SESSION_EXPIRED",
+                  "ok": false,
+                  "snapshot": {
+                    "bootstrap": {
+                      "authoritySource": "application-entry",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 9,
+                      "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                      "custodyRevision": 19
+                    },
+                    "custody": {
+                      "authorityEpoch": 9,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 19,
+                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "shape": "record",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "status": "authenticated",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
+                },
                 {
                   "code": null,
                   "ok": true,
@@ -2546,7 +3564,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 10,
-                      "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                       "custodyRevision": 21
                     },
                     "custody": {
@@ -2563,58 +3581,9 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "status": "anonymous"
-                    },
-                    "protected": {
-                      "optimistic": 0,
-                      "rows": 0
-                    }
-                  }
-                },
-                {
-                  "code": "SNAPBACK_AUTH_SESSION_EXPIRED",
-                  "ok": false,
-                  "snapshot": {
-                    "bootstrap": {
-                      "authoritySource": "durable-restored",
-                      "custody": {
-                        "carrier": "indexeddb-web-locks",
-                        "formatVersion": 2,
-                        "grade": "durable",
-                        "recoveryAvailable": true,
-                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
-                      },
-                      "diagnosticCode": null,
-                      "status": "ready"
-                    },
-                    "capture": {
-                      "authorityEpoch": 9,
-                      "authorityKey": "sha256:f016f2ca55e9fa5efe526dec7c3bc62e5dec8250f3299875358ba553dc8d8f00",
-                      "custodyRevision": 19
-                    },
-                    "custody": {
-                      "authorityEpoch": 9,
-                      "authorityKind": "session",
-                      "bearerPresent": true,
-                      "pendingAuthorityPresent": false,
-                      "pendingBearerPresent": false,
-                      "phase": "settled",
-                      "revision": 19,
-                      "sessionId": "ses_01m04y610efabt3e3y890qn580",
-                      "shape": "record",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
-                    },
-                    "lastError": null,
-                    "principal": {
-                      "authorityInstanceId": "aut_01m04y610ef0dbp5szpthmg9z0",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "sessionClass": "humanSession",
-                      "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y610efabt3e3y890qn580",
-                      "status": "authenticated",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -2643,7 +3612,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:f016f2ca55e9fa5efe526dec7c3bc62e5dec8250f3299875358ba553dc8d8f00",
+                    "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -2654,19 +3623,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                     "shape": "record",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y610ef0dbp5szpthmg9z0",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                     "status": "authenticated",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -2694,7 +3663,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 9,
-                        "authorityKey": "sha256:f016f2ca55e9fa5efe526dec7c3bc62e5dec8250f3299875358ba553dc8d8f00",
+                        "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
                         "custodyRevision": 19
                       },
                       "custody": {
@@ -2705,19 +3674,19 @@
                         "pendingBearerPresent": false,
                         "phase": "settled",
                         "revision": 19,
-                        "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                        "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                         "shape": "record",
-                        "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                        "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "aut_01m04y610ef0dbp5szpthmg9z0",
-                        "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                        "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
+                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                         "sessionClass": "humanSession",
                         "sessionGeneration": 1,
-                        "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                        "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                         "status": "authenticated",
-                        "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                        "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                       },
                       "protected": {
                         "optimistic": 0,
@@ -2743,7 +3712,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 9,
-                        "authorityKey": "sha256:f016f2ca55e9fa5efe526dec7c3bc62e5dec8250f3299875358ba553dc8d8f00",
+                        "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
                         "custodyRevision": 19
                       },
                       "custody": {
@@ -2754,19 +3723,19 @@
                         "pendingBearerPresent": false,
                         "phase": "settled",
                         "revision": 19,
-                        "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                        "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                         "shape": "record",
-                        "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                        "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "aut_01m04y610ef0dbp5szpthmg9z0",
-                        "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                        "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
+                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                         "sessionClass": "humanSession",
                         "sessionGeneration": 1,
-                        "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                        "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                         "status": "authenticated",
-                        "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                        "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                       },
                       "protected": {
                         "optimistic": 0,
@@ -2791,7 +3760,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:f016f2ca55e9fa5efe526dec7c3bc62e5dec8250f3299875358ba553dc8d8f00",
+                      "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -2802,19 +3771,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                       "shape": "record",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y610ef0dbp5szpthmg9z0",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                       "status": "authenticated",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -2836,7 +3805,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:f016f2ca55e9fa5efe526dec7c3bc62e5dec8250f3299875358ba553dc8d8f00",
+                      "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -2847,19 +3816,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                       "shape": "record",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y610ef0dbp5szpthmg9z0",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                       "status": "authenticated",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -2884,7 +3853,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:f016f2ca55e9fa5efe526dec7c3bc62e5dec8250f3299875358ba553dc8d8f00",
+                    "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -2895,19 +3864,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                     "shape": "record",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y610ef0dbp5szpthmg9z0",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                     "status": "authenticated",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -2929,7 +3898,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:f016f2ca55e9fa5efe526dec7c3bc62e5dec8250f3299875358ba553dc8d8f00",
+                    "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -2940,19 +3909,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                     "shape": "record",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y610ef0dbp5szpthmg9z0",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y610efabt3e3y890qn580",
+                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
                     "status": "authenticated",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -2978,7 +3947,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 8,
-                    "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                     "custodyRevision": 17
                   },
                   "custody": {
@@ -2995,8 +3964,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -3019,7 +3988,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 8,
-                    "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                     "custodyRevision": 17
                   },
                   "custody": {
@@ -3036,8 +4005,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -3066,7 +4035,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 8,
-                        "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                        "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                         "custodyRevision": 17
                       },
                       "custody": {
@@ -3083,8 +4052,8 @@
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                        "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                        "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                         "status": "anonymous"
                       },
                       "protected": {
@@ -3111,7 +4080,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 8,
-                        "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                        "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                         "custodyRevision": 17
                       },
                       "custody": {
@@ -3128,8 +4097,8 @@
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                        "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                        "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                         "status": "anonymous"
                       },
                       "protected": {
@@ -3155,7 +4124,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -3172,8 +4141,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -3196,7 +4165,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -3213,8 +4182,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -3224,6 +4193,98 @@
                   }
                 ]
               },
+              "predecessor": [
+                {
+                  "bootstrap": {
+                    "authoritySource": "application-entry",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 7,
+                    "authorityKey": "sha256:d3ed0d35020530a170d2914ab09afc61d5e3d91581ecd2185fa2a15ec77de841",
+                    "custodyRevision": 15
+                  },
+                  "custody": {
+                    "authorityEpoch": 7,
+                    "authorityKind": "session",
+                    "bearerPresent": true,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 15,
+                    "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                    "shape": "record",
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "aut_01m05061njedqbj560bqff612e",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "sessionClass": "humanSession",
+                    "sessionGeneration": 1,
+                    "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                    "status": "authenticated",
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                },
+                {
+                  "bootstrap": {
+                    "authoritySource": "durable-restored",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 7,
+                    "authorityKey": "sha256:d3ed0d35020530a170d2914ab09afc61d5e3d91581ecd2185fa2a15ec77de841",
+                    "custodyRevision": 15
+                  },
+                  "custody": {
+                    "authorityEpoch": 7,
+                    "authorityKind": "session",
+                    "bearerPresent": true,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 15,
+                    "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                    "shape": "record",
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "aut_01m05061njedqbj560bqff612e",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "sessionClass": "humanSession",
+                    "sessionGeneration": 1,
+                    "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                    "status": "authenticated",
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                }
+              ],
               "requests": [
                 {
                   "method": "POST",
@@ -3238,7 +4299,7 @@
               ],
               "results": [
                 {
-                  "code": "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
+                  "code": "SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID",
                   "ok": false,
                   "snapshot": {
                     "bootstrap": {
@@ -3254,8 +4315,57 @@
                       "status": "ready"
                     },
                     "capture": {
+                      "authorityEpoch": 7,
+                      "authorityKey": "sha256:d3ed0d35020530a170d2914ab09afc61d5e3d91581ecd2185fa2a15ec77de841",
+                      "custodyRevision": 15
+                    },
+                    "custody": {
+                      "authorityEpoch": 7,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 15,
+                      "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                      "shape": "record",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m05061njedqbj560bqff612e",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                      "status": "authenticated",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "protected": {
+                      "optimistic": 0,
+                      "rows": 0
+                    }
+                  }
+                },
+                {
+                  "code": "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
+                  "ok": false,
+                  "snapshot": {
+                    "bootstrap": {
+                      "authoritySource": "durable-restored",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -3272,58 +4382,9 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "status": "anonymous"
-                    },
-                    "protected": {
-                      "optimistic": 0,
-                      "rows": 0
-                    }
-                  }
-                },
-                {
-                  "code": "SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID",
-                  "ok": false,
-                  "snapshot": {
-                    "bootstrap": {
-                      "authoritySource": "durable-restored",
-                      "custody": {
-                        "carrier": "indexeddb-web-locks",
-                        "formatVersion": 2,
-                        "grade": "durable",
-                        "recoveryAvailable": true,
-                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
-                      },
-                      "diagnosticCode": null,
-                      "status": "ready"
-                    },
-                    "capture": {
-                      "authorityEpoch": 7,
-                      "authorityKey": "sha256:f310857ab929c0921f62b7ab70aa6ef859e9d5f40124647bbaa506864a44b388",
-                      "custodyRevision": 15
-                    },
-                    "custody": {
-                      "authorityEpoch": 7,
-                      "authorityKind": "session",
-                      "bearerPresent": true,
-                      "pendingAuthorityPresent": false,
-                      "pendingBearerPresent": false,
-                      "phase": "settled",
-                      "revision": 15,
-                      "sessionId": "ses_01m04y5wzre8er369tb8hbc9rn",
-                      "shape": "record",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
-                    },
-                    "lastError": null,
-                    "principal": {
-                      "authorityInstanceId": "aut_01m04y5wzrfhr8q2tpm45wgyy9",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "sessionClass": "humanSession",
-                      "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y5wzre8er369tb8hbc9rn",
-                      "status": "authenticated",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -3350,7 +4411,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 11,
-                    "authorityKey": "sha256:3bb5bbddac2fcd0c0afaaaeaf32b1196a5f98cc4d25aadd21e5c3015e576fbaa",
+                    "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
                     "custodyRevision": 23
                   },
                   "custody": {
@@ -3361,19 +4422,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 23,
-                    "sessionId": "ses_01m04y62v0fd6b97ky7105f24x",
+                    "sessionId": "ses_01m05069wseths4shhb9mznf5j",
                     "shape": "record",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y62v0fg8ve5vae7ma7nbj",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y62v0fd6b97ky7105f24x",
+                    "sessionId": "ses_01m05069wseths4shhb9mznf5j",
                     "status": "authenticated",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -3382,7 +4443,7 @@
                 },
                 {
                   "bootstrap": {
-                    "authoritySource": "durable-restored",
+                    "authoritySource": "fresh-anonymous",
                     "custody": {
                       "carrier": "indexeddb-web-locks",
                       "formatVersion": 2,
@@ -3395,7 +4456,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 11,
-                    "authorityKey": "sha256:3bb5bbddac2fcd0c0afaaaeaf32b1196a5f98cc4d25aadd21e5c3015e576fbaa",
+                    "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
                     "custodyRevision": 23
                   },
                   "custody": {
@@ -3406,23 +4467,187 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 23,
-                    "sessionId": "ses_01m04y62v0fd6b97ky7105f24x",
+                    "sessionId": "ses_01m05069wseths4shhb9mznf5j",
                     "shape": "record",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y62v0fg8ve5vae7ma7nbj",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y62v0fd6b97ky7105f24x",
+                    "sessionId": "ses_01m05069wseths4shhb9mznf5j",
                     "status": "authenticated",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "protected": {
                     "optimistic": 0,
                     "rows": 0
+                  }
+                }
+              ],
+              "predecessorBarriers": [
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "application-entry",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 10,
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "custodyRevision": 21
+                    },
+                    "custody": {
+                      "authorityEpoch": 10,
+                      "authorityKind": "anonymous",
+                      "bearerPresent": false,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 21,
+                      "sessionId": null,
+                      "shape": "record",
+                      "userId": null
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "status": "anonymous"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
+                },
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "fresh-anonymous",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 10,
+                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "custodyRevision": 21
+                    },
+                    "custody": {
+                      "authorityEpoch": 10,
+                      "authorityKind": "anonymous",
+                      "bearerPresent": false,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 21,
+                      "sessionId": null,
+                      "shape": "record",
+                      "userId": null
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "status": "anonymous"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
                   }
                 }
               ],
@@ -3457,7 +4682,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 11,
-                      "authorityKey": "sha256:3bb5bbddac2fcd0c0afaaaeaf32b1196a5f98cc4d25aadd21e5c3015e576fbaa",
+                      "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
                       "custodyRevision": 23
                     },
                     "custody": {
@@ -3468,19 +4693,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 23,
-                      "sessionId": "ses_01m04y62v0fd6b97ky7105f24x",
+                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
                       "shape": "record",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y62v0fg8ve5vae7ma7nbj",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y62v0fd6b97ky7105f24x",
+                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
                       "status": "authenticated",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -3493,7 +4718,7 @@
                   "ok": false,
                   "snapshot": {
                     "bootstrap": {
-                      "authoritySource": "durable-restored",
+                      "authoritySource": "fresh-anonymous",
                       "custody": {
                         "carrier": "indexeddb-web-locks",
                         "formatVersion": 2,
@@ -3507,29 +4732,74 @@
                     "capture": null,
                     "custody": {
                       "authorityEpoch": 11,
-                      "authorityKind": null,
-                      "bearerPresent": false,
-                      "pendingAuthorityPresent": true,
-                      "pendingBearerPresent": true,
-                      "phase": "clearing",
-                      "revision": 22,
-                      "sessionId": null,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 23,
+                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
                       "shape": "record",
-                      "userId": null
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "status": "anonymous"
                     },
                     "protected": {
-                      "optimistic": 0,
-                      "rows": 0
+                      "optimistic": 1,
+                      "rows": 1
                     }
                   }
                 }
-              ]
+              ],
+              "winner": {
+                "bootstrap": {
+                  "authoritySource": "application-entry",
+                  "custody": {
+                    "carrier": "indexeddb-web-locks",
+                    "formatVersion": 2,
+                    "grade": "durable",
+                    "recoveryAvailable": true,
+                    "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                  },
+                  "diagnosticCode": null,
+                  "status": "ready"
+                },
+                "capture": {
+                  "authorityEpoch": 11,
+                  "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
+                  "custodyRevision": 23
+                },
+                "custody": {
+                  "authorityEpoch": 11,
+                  "authorityKind": "session",
+                  "bearerPresent": true,
+                  "pendingAuthorityPresent": false,
+                  "pendingBearerPresent": false,
+                  "phase": "settled",
+                  "revision": 23,
+                  "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                  "shape": "record",
+                  "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                },
+                "lastError": null,
+                "principal": {
+                  "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
+                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "sessionClass": "humanSession",
+                  "sessionGeneration": 1,
+                  "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                  "status": "authenticated",
+                  "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                },
+                "protected": {
+                  "optimistic": 0,
+                  "rows": 0
+                }
+              }
             },
             "userSwitch": {
               "automatic": [
@@ -3548,7 +4818,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 13,
-                    "authorityKey": "sha256:a342123bd5e7fd1a73d9306ad6e8dbb2b50baf681358daad3dffbea11ae021d4",
+                    "authorityKey": "sha256:dda698d65f7615cdbb3778c765d173e01167ee296e63485a9a0e09b5a1d59293",
                     "custodyRevision": 27
                   },
                   "custody": {
@@ -3559,19 +4829,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 27,
-                    "sessionId": "ses_01m04y64dmea7b1yq4r4jr4nsx",
+                    "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
                     "shape": "record",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y64dmf9yv2v5kmvmwst8y",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m0506byrfcea1mqntgm0j7q9",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y64dmea7b1yq4r4jr4nsx",
+                    "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
                     "status": "authenticated",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -3580,7 +4850,7 @@
                 },
                 {
                   "bootstrap": {
-                    "authoritySource": "durable-restored",
+                    "authoritySource": "fresh-anonymous",
                     "custody": {
                       "carrier": "indexeddb-web-locks",
                       "formatVersion": 2,
@@ -3593,7 +4863,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 13,
-                    "authorityKey": "sha256:a342123bd5e7fd1a73d9306ad6e8dbb2b50baf681358daad3dffbea11ae021d4",
+                    "authorityKey": "sha256:dda698d65f7615cdbb3778c765d173e01167ee296e63485a9a0e09b5a1d59293",
                     "custodyRevision": 27
                   },
                   "custody": {
@@ -3604,23 +4874,267 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 27,
-                    "sessionId": "ses_01m04y64dmea7b1yq4r4jr4nsx",
+                    "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
                     "shape": "record",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m04y64dmf9yv2v5kmvmwst8y",
-                    "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                    "authorityInstanceId": "aut_01m0506byrfcea1mqntgm0j7q9",
+                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m04y64dmea7b1yq4r4jr4nsx",
+                    "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
                     "status": "authenticated",
-                    "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                   },
                   "protected": {
                     "optimistic": 0,
                     "rows": 0
+                  }
+                }
+              ],
+              "predecessorBarriers": [
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "quiesce",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "application-entry",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 11,
+                      "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
+                      "custodyRevision": 23
+                    },
+                    "custody": {
+                      "authorityEpoch": 11,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 23,
+                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                      "shape": "record",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                      "status": "authenticated",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
+                },
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "quiesce",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "fresh-anonymous",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 11,
+                      "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
+                      "custodyRevision": 23
+                    },
+                    "custody": {
+                      "authorityEpoch": 11,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 23,
+                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                      "shape": "record",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                      "status": "authenticated",
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
                   }
                 }
               ],
@@ -3655,7 +5169,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 13,
-                      "authorityKey": "sha256:a342123bd5e7fd1a73d9306ad6e8dbb2b50baf681358daad3dffbea11ae021d4",
+                      "authorityKey": "sha256:dda698d65f7615cdbb3778c765d173e01167ee296e63485a9a0e09b5a1d59293",
                       "custodyRevision": 27
                     },
                     "custody": {
@@ -3666,19 +5180,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 27,
-                      "sessionId": "ses_01m04y64dmea7b1yq4r4jr4nsx",
+                      "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
                       "shape": "record",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y64dmf9yv2v5kmvmwst8y",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m0506byrfcea1mqntgm0j7q9",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y64dmea7b1yq4r4jr4nsx",
+                      "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
                       "status": "authenticated",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -3691,7 +5205,7 @@
                   "ok": false,
                   "snapshot": {
                     "bootstrap": {
-                      "authoritySource": "durable-restored",
+                      "authoritySource": "fresh-anonymous",
                       "custody": {
                         "carrier": "indexeddb-web-locks",
                         "formatVersion": 2,
@@ -3704,41 +5218,86 @@
                     },
                     "capture": {
                       "authorityEpoch": 11,
-                      "authorityKey": "sha256:3bb5bbddac2fcd0c0afaaaeaf32b1196a5f98cc4d25aadd21e5c3015e576fbaa",
+                      "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
                       "custodyRevision": 23
                     },
                     "custody": {
-                      "authorityEpoch": 11,
-                      "authorityKind": "session",
-                      "bearerPresent": true,
+                      "authorityEpoch": 12,
+                      "authorityKind": "anonymous",
+                      "bearerPresent": false,
                       "pendingAuthorityPresent": false,
                       "pendingBearerPresent": false,
                       "phase": "settled",
-                      "revision": 23,
-                      "sessionId": "ses_01m04y62v0fd6b97ky7105f24x",
+                      "revision": 25,
+                      "sessionId": null,
                       "shape": "record",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                      "userId": null
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m04y62v0fg8ve5vae7ma7nbj",
-                      "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                      "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
+                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m04y62v0fd6b97ky7105f24x",
+                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
                       "status": "authenticated",
-                      "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
                     },
                     "protected": {
-                      "optimistic": 0,
-                      "rows": 0
+                      "optimistic": 1,
+                      "rows": 1
                     }
                   }
                 }
-              ]
+              ],
+              "winner": {
+                "bootstrap": {
+                  "authoritySource": "application-entry",
+                  "custody": {
+                    "carrier": "indexeddb-web-locks",
+                    "formatVersion": 2,
+                    "grade": "durable",
+                    "recoveryAvailable": true,
+                    "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                  },
+                  "diagnosticCode": null,
+                  "status": "ready"
+                },
+                "capture": {
+                  "authorityEpoch": 13,
+                  "authorityKey": "sha256:dda698d65f7615cdbb3778c765d173e01167ee296e63485a9a0e09b5a1d59293",
+                  "custodyRevision": 27
+                },
+                "custody": {
+                  "authorityEpoch": 13,
+                  "authorityKind": "session",
+                  "bearerPresent": true,
+                  "pendingAuthorityPresent": false,
+                  "pendingBearerPresent": false,
+                  "phase": "settled",
+                  "revision": 27,
+                  "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
+                  "shape": "record",
+                  "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                },
+                "lastError": null,
+                "principal": {
+                  "authorityInstanceId": "aut_01m0506byrfcea1mqntgm0j7q9",
+                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "sessionClass": "humanSession",
+                  "sessionGeneration": 1,
+                  "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
+                  "status": "authenticated",
+                  "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                },
+                "protected": {
+                  "optimistic": 0,
+                  "rows": 0
+                }
+              }
             }
           },
-          "evidence": "refresh race had 0 caller successes and left a tab on a stale principal/custody revision",
+          "evidence": "refresh race had zero caller successes and fail-closed blanked both tabs automatically",
           "id": "2",
           "name": "two-tab-ownership",
           "outcome": "FAIL"
@@ -3892,7 +5451,7 @@
               },
               "capture": {
                 "authorityEpoch": 4,
-                "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                 "custodyRevision": 9
               },
               "custody": {
@@ -3909,8 +5468,8 @@
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "status": "anonymous"
               },
               "protected": {
@@ -3933,7 +5492,7 @@
               },
               "capture": {
                 "authorityEpoch": 7,
-                "authorityKey": "sha256:f310857ab929c0921f62b7ab70aa6ef859e9d5f40124647bbaa506864a44b388",
+                "authorityKey": "sha256:d3ed0d35020530a170d2914ab09afc61d5e3d91581ecd2185fa2a15ec77de841",
                 "custodyRevision": 15
               },
               "custody": {
@@ -3944,19 +5503,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 15,
-                "sessionId": "ses_01m04y5wzre8er369tb8hbc9rn",
+                "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
                 "shape": "record",
-                "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y5wzrfhr8q2tpm45wgyy9",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m05061njedqbj560bqff612e",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y5wzre8er369tb8hbc9rn",
+                "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
                 "status": "authenticated",
-                "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
               },
               "protected": {
                 "optimistic": 0,
@@ -3978,7 +5537,7 @@
               },
               "capture": {
                 "authorityEpoch": 5,
-                "authorityKey": "sha256:136e2a343de2613a733baf0d418b61897bda066109debc878cf45a64dc68516a",
+                "authorityKey": "sha256:7586f341169ab55a99b9ccb174e655f9547d37e9807003bcfc58134795cf516e",
                 "custodyRevision": 11
               },
               "custody": {
@@ -3989,19 +5548,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 11,
-                "sessionId": "ses_01m04y5vkfe0vbrr610kzegsj0",
+                "sessionId": "ses_01m050609sfjprxdvkgdgvycw1",
                 "shape": "record",
-                "userId": "usr_2ftdfjtpmww4pv1nx62bas5cg4"
+                "userId": "usr_2ydqz3q80vsz5hm79kem0y41dn"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y5vkffq58hc218zn10pfz",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m050609sewybtcef90sshg1j",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y5vkfe0vbrr610kzegsj0",
+                "sessionId": "ses_01m050609sfjprxdvkgdgvycw1",
                 "status": "authenticated",
-                "userId": "usr_2ftdfjtpmww4pv1nx62bas5cg4"
+                "userId": "usr_2ydqz3q80vsz5hm79kem0y41dn"
               },
               "protected": {
                 "optimistic": 0,
@@ -4209,7 +5768,7 @@
               },
               "capture": {
                 "authorityEpoch": 1,
-                "authorityKey": "sha256:338504b220272334d12c5beaaada4b1882a99db5b0777c8b5b43741e92b9721d",
+                "authorityKey": "sha256:2404a426fdea4681aa2d8a426e9df224286123cf3a0b46dd3156aab7f8624901",
                 "custodyRevision": 3
               },
               "custody": {
@@ -4220,19 +5779,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 3,
-                "sessionId": "ses_01m04y667mejg8zn6hje79w75a",
+                "sessionId": "ses_01m0506e41fw7vn12qzn3g2176",
                 "shape": "record",
-                "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y667men3achcsehqmnrah",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m0506e41ffpv32sn59n4aj94",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y667mejg8zn6hje79w75a",
+                "sessionId": "ses_01m0506e41fw7vn12qzn3g2176",
                 "status": "authenticated",
-                "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
               },
               "protected": {
                 "optimistic": 0,
@@ -4257,7 +5816,7 @@
                 },
                 "capture": {
                   "authorityEpoch": 0,
-                  "authorityKey": "sha256:81ffa3e54bb5ee67b13023498c46908ddc574b6c8a9fae79c6d324dcd89cce63",
+                  "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
                   "custodyRevision": 1
                 },
                 "custody": {
@@ -4274,8 +5833,8 @@
                 },
                 "lastError": null,
                 "principal": {
-                  "authorityInstanceId": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
-                  "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                  "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                   "status": "anonymous"
                 },
                 "protected": {
@@ -4385,7 +5944,7 @@
               },
               "capture": {
                 "authorityEpoch": 1,
-                "authorityKey": "sha256:338504b220272334d12c5beaaada4b1882a99db5b0777c8b5b43741e92b9721d",
+                "authorityKey": "sha256:2404a426fdea4681aa2d8a426e9df224286123cf3a0b46dd3156aab7f8624901",
                 "custodyRevision": 3
               },
               "custody": {
@@ -4396,19 +5955,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 3,
-                "sessionId": "ses_01m04y667mejg8zn6hje79w75a",
+                "sessionId": "ses_01m0506e41fw7vn12qzn3g2176",
                 "shape": "record",
-                "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m04y667men3achcsehqmnrah",
-                "authorizationStreamIncarnation": "01a009e2-9100-7fb1-a1f6-5c6556e0f3f3",
+                "authorityInstanceId": "aut_01m0506e41ffpv32sn59n4aj94",
+                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m04y667mejg8zn6hje79w75a",
+                "sessionId": "ses_01m0506e41fw7vn12qzn3g2176",
                 "status": "authenticated",
-                "userId": "usr_7p0njkkb6tekdtnap10gapf57w"
+                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
               },
               "protected": {
                 "optimistic": 0,
@@ -4425,7 +5984,7 @@
       "status": "FAIL"
     }
   ],
-  "finishedAt": "2026-08-16T09:24:35.256Z",
+  "finishedAt": "2026-08-16T09:59:40.455Z",
   "fixture": {
     "authBootstrap": {
       "anonymousPublic": "refused",
@@ -4489,9 +6048,9 @@
   },
   "server": {
     "binary": {
-      "mtimeMs": 1786868893254.228,
+      "mtimeMs": 1786874336382.1257,
       "path": "/Users/ccheever/projects/snapback/.claude/worktrees/sbs0816-w-browser/target/debug/snapback",
-      "sha256": "sha256:7cfe7f40de1da6eae7f1b5057ee1ec1536afceec02a453e7c1c6e19ca1b2a250",
+      "sha256": "sha256:4050f8d4d504eb49f8a034ce700ddb6bafec6ccb11850695ac0927093cac8096",
       "size": 460572232,
       "version": "snapback 0.1.0"
     },
@@ -4499,13 +6058,13 @@
       "identity": {
         "buildProfile": "debug",
         "crateVersion": "0.1.0",
-        "gitCommit": "b7f01a693ececcac0d347ef45338b25ae550eb39",
-        "gitDirty": false,
-        "startupNonce": "01a009e2-911e-7502-ae16-d07304ee1393"
+        "gitCommit": "b7528195ce1f65d05df37089030970eec0633d93",
+        "gitDirty": true,
+        "startupNonce": "01a00a02-b366-70f3-947c-88a52e087b20"
       },
-      "identityVerdict": "pinned-binary-dirty-checkout",
+      "identityVerdict": "unpinned-binary",
       "path": "<run-scratch>/snapback",
-      "sha256": "sha256:7cfe7f40de1da6eae7f1b5057ee1ec1536afceec02a453e7c1c6e19ca1b2a250",
+      "sha256": "sha256:4050f8d4d504eb49f8a034ce700ddb6bafec6ccb11850695ac0927093cac8096",
       "sourceByteIdentical": true,
       "strategy": "qualified-byte-identical-scratch-copy"
     },
@@ -4559,17 +6118,17 @@
   },
   "source": {
     "bundle": {
-      "bytes": 2706331,
-      "sha256": "sha256:5982911a98cfb8ce74413e865dc2783b5e52378159907cb3d8076fc65a6df000"
+      "bytes": 2706421,
+      "sha256": "sha256:8d6b4e7a8a41723957811d7f401d0dec2cd79a596130b905c20c17f1253525ac"
     },
     "files": [
       {
         "path": "tests/acceptance/browser-auth-bootstrap-v1.mjs",
-        "sha256": "sha256:9a0d38d616e098ceec9527315af8aa657c3e1083a43407d29ee91af93c7b3b93"
+        "sha256": "sha256:93671cf3e61266b64cb158c37b1de91797382cd842afa85fdc4ba2d7eb06f14e"
       },
       {
         "path": "tests/acceptance/browser-auth-bootstrap-v1-page.mjs",
-        "sha256": "sha256:18dbd228c5de95041de90106fd7e35a4212736273f9b406ae15f08820e2c713f"
+        "sha256": "sha256:0ae84bf76d5cfc257f34b01703ae7a25bb24bcb47fa9e9a4698dac4ee5f3fa1c"
       },
       {
         "path": "packages/snapback-client/app-client.mjs",
@@ -4588,10 +6147,10 @@
         "sha256": "sha256:fa128e5569ddc5789a224c6ab3a96593cffb25cbaf329bf833644482d2186a48"
       }
     ],
-    "gitCommit": "b7f01a693ececcac0d347ef45338b25ae550eb39",
+    "gitCommit": "b7528195ce1f65d05df37089030970eec0633d93",
     "gitDirty": true,
     "node": "v24.18.0",
-    "note": "Executed bytes are pinned below; the requested lane intentionally leaves proof artifacts uncommitted."
+    "note": "Executed bytes are pinned below; this witness and its proof artifacts are committed with the landing."
   },
-  "startedAt": "2026-08-16T09:23:53.155Z"
+  "startedAt": "2026-08-16T09:58:58.021Z"
 }
