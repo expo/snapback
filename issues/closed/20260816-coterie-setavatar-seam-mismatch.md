@@ -38,3 +38,17 @@ round-1 fix items, with a `setAvatar@2` compatibility-token bump for the
 semantics change; it closes this ticket with the M2 landing SHA. The queued
 v6→v7 UI slice builds the fixture-picker affordance against the 8-ref
 vocabulary afterward.
+
+## Resolution (2026-08-16, M2 landing)
+
+Fixed in the M2 surface-freeze landing per the adopted plan: `setAvatar@2`
+accepts the uniform eight-persona fixture-ref vocabulary identically in
+the memory provider and the Snapback adapter (which resolves refs to the
+fixture assets instead of treating avatarRef as a generic fetchable URL),
+with a consistent served `/assets/fixtures/...` avatarUrl mapping; the
+declaration writes-set now includes `chats`, and a regression test
+observes the listChats delivery with the updated avatarUrl after
+setAvatar. Verified across both dual-review delta rounds (codex + grok,
+finding A6 CONFIRMED FIXED). Probe evidence credit: the reporting
+session's avatar-lane-final.md. The fixture-picker UI conclusion (finding
+3) rides the reporting session's v7 slice.

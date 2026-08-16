@@ -1,6 +1,13 @@
 {
-  "seedVersion": "coterie-m1-v1",
+  "seedVersion": "coterie-m2-v1",
   "tables": {
-    "profiles": []
+    "profiles": [],
+    "posts": [],
+    "postImages": [],
+    "postVideos": [],
+    "feedEvents": [],
+    "follows": [],
+    "likes": [],
+    "reposts": []
   }
 }

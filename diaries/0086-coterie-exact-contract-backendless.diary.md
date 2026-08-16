@@ -369,3 +369,144 @@ loss. Publishing the same projected rows with `stale`/`disconnected` and later
 keeps transport truth observable without turning reconnection into a fake data
 change. The restart test uses the same port and durable database with polling
 disabled, so recovery is stream evidence rather than an eventual refetch.
+
+## 2026-08-16 — M2 surface freeze and backendless social graph
+
+M2 made the provider declaration feel less like setup ceremony and more like
+an actual portability contract. Freezing feed events separately from posts was
+the decisive shape: originals keep their `postId`, reposts gain a distinct
+feed-event `id` and actor attribution, and both paginate through the same
+reverse-chronological keyset. That made the tricky cases executable instead of
+prose—Alice's own repost of an unfollowed Grace post appears in Following while
+Grace's original does not, and unfollowing an actor removes that actor's older
+originals and repost events on the next delivery. Replies remain ordinary post
+rows with `parentId`, but the feed projection excludes them and the thread
+projection returns only direct children chronologically.
+
+The committed fixture log paid off here. Replaying all 24 top-level posts,
+four replies, eight likes, four reposts, 12 follow edges, two-image rows, and
+both videos caught several omissions in the stage-1 shell: it had dropped the
+video posts, collapsed image arrays to one URL, and could not represent repost
+attribution at all. Pagination tests follow all remaining starter personas so
+both Following and Global contain the same 28 feed events; two 20-row keyset
+queries then prove the boundary with no duplicates or gaps without inventing
+non-authoritative filler data. The Contract feed keeps prior pages in local
+view state and advances the query cursor from the virtual list's end-reached
+event, so the same boundary drives actual infinite-scroll accumulation.
+
+Compared with the M1 round, Exact's generated seam still made broad changes
+pleasantly mechanical. Declaration version 6 regenerated bindings, types,
+fixtures, docs, and the digest together; the Contract routes only imported the
+new neutral bindings. The existing `listProfiles@2` row already carried counts
+and viewer follow state, so M2 could reuse that frozen token rather than break
+the M1 adapter just to rename an aggregate. The Snapback adapter now sees the
+new digest and explicitly classifies the new operations as M2 refusals, while
+its M1 implementation and the `.contract` provider boundary stay unchanged.
+
+The rougher Exact details were concrete. Provider list queries have a row-list
+result rather than a typed page envelope, so `listFeed` repeats one opaque
+`nextCursor` on every row in a non-terminal page. That is workable and easy to
+test, but an explicit paginated-result shape would avoid duplicated metadata.
+Mutation compatibility tokens still need milestone-namespaced declaration
+extensions. Naming the `createPost` result row `CreatePostResult` also produced
+the same self-referential generated alias seen around logout in M1; `CreatedPost`
+is the harmless workaround, but the generator should diagnose collisions.
+Finally, the mock query boundary invalidates one anchor table, so changes to
+likes, reposts, follows, or profile projections require an honest no-op write
+to `posts` after updating their real tables. The query reads the real graph and
+event tables—the no-op is only an invalidation bridge—but this is noisier than
+a multi-table dependency-aware mock boundary.
+
+Contract itself handled the M2 presentation additions well. Attributed repost,
+like/repost/reply actions, profile post lists, image grids, and video tags
+remained plain values and callbacks. The existing dynamic `media/[id]` post-
+detail route could grow into the thread screen, preserving its media viewer and
+native route registration instead of adding a parallel destination. The
+compiler's mutation-observability warnings remain broad for intentional cross-
+route writes, but they did not block the build.
+
+The acceptance runner grew without forking its selector authority. In each of
+the two existing boot-state scenarios it now creates a text post and observes
+Global, follows Dave and observes his old originals enter Following, then
+likes and unlikes the created post with both states delivered. The artifact is
+still headless generated-binding evidence; it does not become browser-tree,
+native-host, durability, or multi-client evidence merely because the memory
+provider pushes synchronously in process.
+
+Snapback M2 was not implemented in this entry. This is therefore an
+Exact/Contract plus backendless-provider observation, not a new Snapback
+correctness or ergonomics claim. LLP 0266 D7 and D8 still match reality: one
+provider-neutral declaration is frozen before the adapter slice, the memory
+lane implements it, and the M1-only adapter fails loudly until it qualifies
+the new token set.
+
+## 2026-08-16 — M2 adversarial fix round
+
+The pagination review found an important distinction that the first M2 pass
+blurred: changing the only live query's cursor is not infinite scrolling, it is
+replacing the live window. Coterie now keeps the newest page live and treats
+older cursor pages as snapshots, merging event IDs in the Contract route. A
+small intent overlay keeps likes and reposts correct on rows beyond the first
+20 until a reset/refetch. Tab, post-create, and session actions reset the
+accumulator; returning from the profile follow flow remounts the feed route.
+This is more client state than a Convex-style live paginated query would need,
+but it makes Exact's present row-list boundary honest and testable, including
+duplicate cursors and empty older windows.
+
+The mock provider's single-table subscription primitive was the other source
+of accidental complexity. The previous no-op `posts` writes worked, but they
+made declarations and mutation traces misleading. A memory-adapter wrapper
+now subscribes derived queries to each declared table, so feed, thread,
+profile-post, and Insights deliveries react to their real dependencies.
+`listInsights` consequently declares posts, follows, likes, and reposts, and
+the no-op invalidation writes disappeared. This feels closer to normal query
+dependency tracking in Snapback, Convex, or a database-backed Supabase
+adapter, while staying scoped to Exact's deliberately coarse mock.
+
+Several smaller cuts were worthwhile because they made frozen semantics
+literal. Reposts now reject reply rows with a declared error. Media rows carry
+served `/assets/fixtures/...` URLs rather than source-tree file URLs. Both
+adapters accept the same eight persona avatar refs, and the memory projection
+updates direct-chat avatar delivery as declared. HTTP(S) post-body segments
+use Contract's paved `link` primitive, with no preview-card claim; a mounted
+interaction test presses the `sm-post-link-0` node and observes the external
+href handoff.
+
+The corrected v6 declaration digest changed because these fixes altered the
+declared read/write/error and compatibility-token surface. Snapback remains an
+M1-only adapter and still refuses M2/M3 rather than inheriting an unqualified
+claim. The acceptance addition is similarly narrow: it proves at boot that an
+unfollowed author's original is present in Global and absent from Following.
+
+## 2026-08-16 — Snapback M2 backend lane (recorded separately from the client observations above)
+
+The M2 backend (posts, follow graph, feeds, threads — LLP 0266 D7/D9)
+went through two dual-review rounds. What the build taught, distinct from
+the client work:
+
+- **The brief is the contract, again:** the review round caught a video
+  ceiling pinned to the fixture file's byte size (49,779) where the brief
+  says ≤50 MB — the same taste-vs-contract drift M1 hit on field limits.
+  Upload intents can bound media type and bytes but cannot express
+  H.264/AAC codec facts or the 60-second duration ceiling; M2 video
+  admission is honest about that gap.
+- **The `in()` 500-operand bound is real design pressure:** the guide's
+  builder bound would have thrown for the benchmark's 500-follow probe
+  user. `followingFeed` now chunks actor IDs at ≤499 (cursor takes the
+  500th binding), runs an indexed top-20 per chunk, and merges by the
+  immutable `pageKey` — exact, and provable via an acceptance-only
+  `actorChunkSize` argument forcing a multi-chunk path. But the
+  composition is an opaque plan, not a first-class semi-join whose
+  cost/cursor facts codegen can prove; the guide should teach the pattern
+  or ship a closed helper. Relatedly, the paged-list recipe covers one
+  ordered table — the `feedEvents` normalization and cursor ownership had
+  to be designed from first principles.
+- **Census blind spot (ticketed):** codegen's authorization-review
+  `writePolicyChecks` see only writes lexically inside handlers; the
+  helper-mediated writes in `createPost`, `setFollow`, `setLike`,
+  `setRepost`, and the fixture mutations project zero checks. See
+  `issues/20260816-codegen-authorization-census-helper-writes.md`.
+- Threads refuse at the reply bound with an overflow witness rather than
+  silently truncating; fixture ensure-ops stay owner-checked but cannot
+  be hidden from first-party generated bindings — the adapter lane must
+  not map them (recorded so D7 freezing never absorbs seed ops).
