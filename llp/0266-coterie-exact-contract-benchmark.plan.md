@@ -132,6 +132,68 @@ separate lane:
    from backend/provider measurements and bind claims to scoped qualification
    digests under LLP 0189.
 
+### D7. Milestone-frozen provider surfaces (resolves OQ1)
+
+The provider declaration grows milestone by milestone, targeting Clique's
+reduced run M1-M3 before any full-declaration claim:
+
+- **M1:** accounts, sessions, profiles, avatars.
+- **M2:** posts, feeds, follows, likes, reposts, replies, pagination.
+- **M3:** DMs, groups, membership, messages, typing, receipts, quoted replies.
+
+Each milestone's operations receive explicit compatibility tokens and are
+frozen before a backend adapter implements them; an adapter claims a milestone
+only when it conforms to that frozen token set. M4-M8 follow after M1-M3 in
+LLP 0201's observable order, with M7 (polls plus a real message-count
+migration) run last and in a fresh session so migration evidence is not
+contaminated by resident state.
+
+Query tokens live in the core `compatibilityToken` field; M1 mutation tokens
+are frozen in the namespaced `coterie.m1CompatibilityTokens` extension until
+Exact's mutation schema grows a first-class field.
+
+### D8. Provider selection at boot
+
+One boot-time factory selects the active provider from `COTERIE_PROVIDER`
+(`memory` is the default; `snapback` is the first backend value). Every
+provider implements the same provider-neutral Coterie declaration, exposes the
+manifest generated from that exact declaration, and configures the same
+generated Contract bindings. An adapter must not generate bindings from its own
+provider identity, capability set, or extensions: those bytes intentionally
+change Exact's declaration digest and therefore cannot satisfy the shared
+binding handshake. The shared declaration records the binding surface's common
+guarantees; lane-specific capabilities remain provider qualification evidence.
+Unknown provider values fail loudly at boot. No `.contract` component, route,
+or generated binding may observe which provider is active. Benchmark records
+name the provider lane explicitly: the memory lane measures client/rendering
+baselines, the Snapback lane measures end-to-end backend behavior, additional
+conforming providers measure portability, and Clique remains the React Native/
+Expo comparator.
+
+### D9. Snapback backend placement
+
+The Snapback backend is application-owned under `demos/coterie/snapback/`
+(`schema.mjs`, `functions.mjs`, seed fixtures, `generated/`), authored in
+sessions mode. Its M1 obligations: email/password signup and login, durable
+sessions with logout revocation, server-authorized profile reads and edits,
+avatar upload and attachment, and deterministic installation of the M1
+fixture identities from `benchmarks/fixtures/social-messenger/`. The adapter
+that maps generated Snapback operations onto the frozen declaration lives
+with the app, behind Exact's public `ContractDataProvider` seam; no
+Coterie-private protocol above that seam (unchanged from D4).
+
+### D10. Acceptance harness (direction for OQ2)
+
+Coterie automation stays one parameterized choreography runner that imports
+the frozen `sm-*` ID authority from
+`benchmarks/tools/social-messenger/CONTRACT.md`; the IDs are never forked
+into a Coterie-specific driver. One repository command runs the Coterie
+acceptance flow against the selected provider. Per completed milestone, the
+evidence bar is: two simultaneous browser contexts proving multi-client live
+behavior, an iOS native bundle plus semantic interaction artifact, a macOS
+run through a compatible Exact host, and an unchanged `sm-*` tree relative
+to Clique. `bun run verify:coterie` remains the fast client/provider gate.
+
 ## Acceptance criteria
 
 - `demos/coterie` contains no React-authored application UI and no React Native
@@ -153,13 +215,11 @@ separate lane:
 
 ## Open questions
 
-1. Should Coterie's provider declaration expose the complete M1-M8 domain in
-   the first shell, or grow milestone by milestone while keeping compatibility
-   tokens explicit? This plan favors milestone growth until the first provider
-   lane needs a frozen full declaration.
-2. Should adapted Clique choreography remain one parameterized runner or live
-   as a Coterie-specific driver that imports the same ID authority? Decide when
-   the first real-host automation is added; do not fork the IDs themselves.
+1. ~~Complete M1-M8 domain in the first shell, or milestone growth?~~
+   Resolved 2026-08-16 by D7: milestone-frozen surfaces, M1-M3 first.
+2. ~~One parameterized runner or a Coterie-specific driver?~~ Direction set
+   2026-08-16 by D10: one parameterized runner importing the shared ID
+   authority; revisit only if a real-host automation need contradicts it.
 3. Which backend follows Snapback as the second provider conformance lane?
    Choose for a meaningfully different delivery model, not brand coverage.
 
@@ -170,3 +230,10 @@ separate lane:
 - 2026-08-16: renumbered this plan to LLP 0266 after the prior number
   collided on main; narrowed D5 to the interactions the stage-1 shell actually
   exposes.
+- 2026-08-16 (slice 1): added D7-D10 — milestone-frozen provider surfaces
+  targeting M1-M3 (resolves OQ1), `COTERIE_PROVIDER` boot-time selection,
+  Snapback backend placement under `demos/coterie/snapback/`, and the
+  single parameterized acceptance harness (direction for OQ2).
+- 2026-08-16 (slice 1 review): made D8's digest handshake explicit: adapters
+  implement one provider-neutral Coterie declaration rather than generating
+  provider-specific declarations; clarified D7's mutation-token carrier.

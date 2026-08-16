@@ -4,11 +4,11 @@ use FacetButton from "@exact/facet-contract/components/button.contract"
 use CoterieAppHeader from "../../../ui/app-header.contract"
 use CoterieComposer from "../../../ui/composer.contract"
 use CoterieMessageBubble from "../../../ui/message-bubble.contract"
-use listChats from "../../../data/generated/coterie-memory.bindings.ts"
-use listMessages from "../../../data/generated/coterie-memory.bindings.ts"
-use listSession from "../../../data/generated/coterie-memory.bindings.ts"
-use logout from "../../../data/generated/coterie-memory.bindings.ts"
-use sendMessage from "../../../data/generated/coterie-memory.bindings.ts"
+use listChats from "../../../data/generated/coterie.bindings.ts"
+use listMessages from "../../../data/generated/coterie.bindings.ts"
+use listSession from "../../../data/generated/coterie.bindings.ts"
+use logout from "../../../data/generated/coterie.bindings.ts"
+use sendMessage from "../../../data/generated/coterie.bindings.ts"
 
 component CoterieConversationRoute
   props
@@ -79,23 +79,28 @@ component CoterieConversationRoute
               empty
                 text "Conversation unavailable" size=13 color="#6B7280" padding=16
               ready chatRows
-                each chat in chatRows key=chat.id
-                  when chat.id == chatId
-                    column width="100%" flex=1 minHeight=0
-                      row width="100%" align="center" justify="space-between" padding=12 borderBottomWidth=1 borderColor="#E2E4E8"
-                        FacetButton(label="Back", variant="ghost", size="sm", press=goBack, testId="coterie-conversation-back")
-                        text chat.title size=17 weight=700 color="#17191C"
-                        FacetButton(label="Settings", variant="ghost", size="sm", press=showSettings, testId="sm-convo-settings")
-                      scroll flex=1 width="100%" background="#FFFFFF"
-                        async messages
-                          loading
-                            skeleton width="100%" height=240
-                          error problem
-                            text `${problem}` size=13 color="#DC2626" padding=16 testId="sm-convo-error"
-                          empty
-                            text "Start the conversation" size=13 color="#6B7280" padding=16
-                          ready messageRows
-                            list width="100%" label=`Messages in ${chat.title}`
-                              each message in messageRows key=message.id
-                                CoterieMessageBubble(senderName=message.senderName, body=message.body, timestamp=message.createdAt, mine=message.mine, status=message.status, quoteText=message.quoteText, edited=message.edited, deleted=message.deleted, accentColor=chat.accentColor)
-                      CoterieComposer(variant="message", value=messageText, resetFlip=messageResetFlip, change=setMessageText, send=sendCurrentMessage)
+                when chatRows.some((chat) => chat.id == chatId)
+                  each chat in chatRows key=chat.id
+                    when chat.id == chatId
+                      column width="100%" flex=1 minHeight=0
+                        row width="100%" align="center" justify="space-between" padding=12 borderBottomWidth=1 borderColor="#E2E4E8"
+                          FacetButton(label="Back", variant="ghost", size="sm", press=goBack, testId="coterie-conversation-back")
+                          text chat.title size=17 weight=700 color="#17191C"
+                          FacetButton(label="Settings", variant="ghost", size="sm", press=showSettings, testId="sm-convo-settings")
+                        scroll flex=1 width="100%" background="#FFFFFF"
+                          async messages
+                            loading
+                              skeleton width="100%" height=240
+                            error problem
+                              text `${problem}` size=13 color="#DC2626" padding=16 testId="sm-convo-error"
+                            empty
+                              text "Start the conversation" size=13 color="#6B7280" padding=16
+                            ready messageRows
+                              list width="100%" label=`Messages in ${chat.title}`
+                                each message in messageRows key=message.id
+                                  CoterieMessageBubble(senderName=message.senderName, body=message.body, timestamp=message.createdAt, mine=message.mine, status=message.status, quoteText=message.quoteText, edited=message.edited, deleted=message.deleted, accentColor=chat.accentColor)
+                        CoterieComposer(variant="message", value=messageText, resetFlip=messageResetFlip, change=setMessageText, send=sendCurrentMessage)
+                else
+                  column gap=12 padding=18
+                    text "This conversation isn't available" size=15 weight=600 color="#17191C"
+                    FacetButton(label="Back to conversations", variant="secondary", size="sm", press=goBack, testId="coterie-conversation-not-found-back")

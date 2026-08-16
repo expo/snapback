@@ -1,8 +1,19 @@
 // GENERATED binding module — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie-memory" 2 (inputsHash a42bfa78dc6220e0).
+// Source authority: provider-native declaration "coterie" 4 (inputsHash e55f0d450e11b583).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 
 import { createProviderLinks, type ContractDataProvider } from '@exact/contract/runtime';
+
+/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
+export interface AuthResult {
+  sessionToken: string;
+  userId: string;
+}
+
+/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
+export interface AvatarResult {
+  avatarUrl: string;
+}
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface Chat {
@@ -50,6 +61,11 @@ export interface InsightDay {
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
+export interface LogoutMutationResult {
+  revokedToken: string | null;
+}
+
+/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface Message {
   body: string;
   chatId: string;
@@ -75,6 +91,8 @@ export interface Profile {
   handle: string;
   id: string;
   isMe: boolean;
+  link: string;
+  location: string;
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
@@ -88,8 +106,11 @@ export interface SearchResult {
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface Session {
+  expiresAt: string;
   id: string;
+  revokedAt: string | null;
   signedIn: boolean;
+  token: string;
   userId: string;
 }
 
@@ -137,24 +158,74 @@ export type SearchSocialReceiptsPosture = 'none';
 export interface CreatePostParams {
   body: string;
 }
-export type CreatePostError = never;
+export interface CreatePostSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type CreatePostError = CreatePostSessionRequiredError;
 export type CreatePostReceiptsPosture = 'none';
 
 export interface EditProfileParams {
   displayName: string;
   bio: string;
+  handle: string | null;
+  location: string | null;
+  link: string | null;
 }
-export type EditProfileError = never;
+export interface EditProfileBioInvalidError {
+  name: 'BioInvalidError';
+  code: 'bio_invalid';
+  message: string;
+}
+export interface EditProfileDisplayNameInvalidError {
+  name: 'DisplayNameInvalidError';
+  code: 'display_name_invalid';
+  message: string;
+}
+export interface EditProfileDuplicateHandleError {
+  name: 'DuplicateHandleError';
+  code: 'duplicate_handle';
+  message: string;
+}
+export interface EditProfileHandleInvalidError {
+  name: 'HandleInvalidError';
+  code: 'handle_invalid';
+  message: string;
+}
+export interface EditProfileLinkInvalidError {
+  name: 'LinkInvalidError';
+  code: 'link_invalid';
+  message: string;
+}
+export interface EditProfileLocationInvalidError {
+  name: 'LocationInvalidError';
+  code: 'location_invalid';
+  message: string;
+}
+export interface EditProfileSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type EditProfileError = EditProfileBioInvalidError | EditProfileDisplayNameInvalidError | EditProfileDuplicateHandleError | EditProfileHandleInvalidError | EditProfileLinkInvalidError | EditProfileLocationInvalidError | EditProfileSessionRequiredError;
 export type EditProfileReceiptsPosture = 'none';
 
 export interface LoginParams {
   email: string;
   password: string;
 }
-export type LoginError = never;
+export type LoginResult = AuthResult;
+export interface LoginInvalidCredentialsError {
+  name: 'InvalidCredentialsError';
+  code: 'invalid_credentials';
+  message: string;
+}
+export type LoginError = LoginInvalidCredentialsError;
 export type LoginReceiptsPosture = 'none';
 
 export type LogoutParams = Record<string, never>;
+export type LogoutResult = LogoutMutationResult;
 export type LogoutError = never;
 export type LogoutReceiptsPosture = 'none';
 
@@ -162,8 +233,30 @@ export interface SendMessageParams {
   chatId: string;
   body: string;
 }
-export type SendMessageError = never;
+export interface SendMessageSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type SendMessageError = SendMessageSessionRequiredError;
 export type SendMessageReceiptsPosture = 'none';
+
+export interface SetAvatarParams {
+  avatarRef: string;
+}
+export type SetAvatarResult = AvatarResult;
+export interface SetAvatarAvatarReferenceInvalidError {
+  name: 'AvatarReferenceInvalidError';
+  code: 'avatar_reference_invalid';
+  message: string;
+}
+export interface SetAvatarSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type SetAvatarError = SetAvatarAvatarReferenceInvalidError | SetAvatarSessionRequiredError;
+export type SetAvatarReceiptsPosture = 'none';
 
 export interface SetChatAccentParams {
   chatId: string;
@@ -186,7 +279,12 @@ export interface SetFollowParams {
   following: boolean;
   mutationId: string;
 }
-export type SetFollowError = never;
+export interface SetFollowSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type SetFollowError = SetFollowSessionRequiredError;
 export type SetFollowReceiptsPosture = 'none';
 
 export interface SetLikeParams {
@@ -194,8 +292,53 @@ export interface SetLikeParams {
   liked: boolean;
   mutationId: string;
 }
-export type SetLikeError = never;
+export interface SetLikeSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type SetLikeError = SetLikeSessionRequiredError;
 export type SetLikeReceiptsPosture = 'none';
+
+export interface SignupParams {
+  email: string;
+  password: string;
+  handle: string;
+  displayName: string;
+}
+export type SignupResult = AuthResult;
+export interface SignupDisplayNameInvalidError {
+  name: 'DisplayNameInvalidError';
+  code: 'display_name_invalid';
+  message: string;
+}
+export interface SignupDuplicateEmailError {
+  name: 'DuplicateEmailError';
+  code: 'duplicate_email';
+  message: string;
+}
+export interface SignupDuplicateHandleError {
+  name: 'DuplicateHandleError';
+  code: 'duplicate_handle';
+  message: string;
+}
+export interface SignupEmailInvalidError {
+  name: 'EmailInvalidError';
+  code: 'email_invalid';
+  message: string;
+}
+export interface SignupHandleInvalidError {
+  name: 'HandleInvalidError';
+  code: 'handle_invalid';
+  message: string;
+}
+export interface SignupPasswordTooShortError {
+  name: 'PasswordTooShortError';
+  code: 'password_too_short';
+  message: string;
+}
+export type SignupError = SignupDisplayNameInvalidError | SignupDuplicateEmailError | SignupDuplicateHandleError | SignupEmailInvalidError | SignupHandleInvalidError | SignupPasswordTooShortError;
+export type SignupReceiptsPosture = 'none';
 
 export interface GeneratedQueryBinding {
   readonly kind: 'query';
@@ -226,10 +369,12 @@ export interface GeneratedProviderLinks {
   login(args: LoginParams): unknown;
   logout(args: LogoutParams): unknown;
   sendMessage(args: SendMessageParams): unknown;
+  setAvatar(args: SetAvatarParams): unknown;
   setChatAccent(args: SetChatAccentParams): unknown;
   setDisappearing(args: SetDisappearingParams): unknown;
   setFollow(args: SetFollowParams): unknown;
   setLike(args: SetLikeParams): unknown;
+  signup(args: SignupParams): unknown;
 }
 
 let generatedProviderLinks: GeneratedProviderLinks | null = null;
@@ -244,7 +389,7 @@ export function resetGeneratedProviderLinks(): void {
 
 function requireGeneratedProviderLinks(): GeneratedProviderLinks {
   if (generatedProviderLinks === null) {
-    throw new Error('Generated provider links for coterie-memory are not configured');
+    throw new Error('Generated provider links for coterie are not configured');
   }
   return generatedProviderLinks;
 }
@@ -303,7 +448,7 @@ export const listProfiles = (() => {
     kind: { value: 'query' },
     name: { value: 'listProfiles' },
     descriptorId: { value: 'listProfiles' },
-    compatibilityToken: { value: '1' },
+    compatibilityToken: { value: '2' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -315,7 +460,7 @@ export const listSession = (() => {
     kind: { value: 'query' },
     name: { value: 'listSession' },
     descriptorId: { value: 'listSession' },
-    compatibilityToken: { value: '1' },
+    compatibilityToken: { value: '2' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -349,7 +494,7 @@ export const editProfile = (() => {
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'editProfile' },
-    writes: { value: ['messages', 'posts', 'profiles', 'search'] },
+    writes: { value: ['accounts', 'messages', 'posts', 'profiles', 'search'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -360,7 +505,7 @@ export const login = (() => {
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'login' },
-    writes: { value: ['sessions'] },
+    writes: { value: ['messages', 'posts', 'profiles', 'sessionRevocations', 'sessions'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -371,7 +516,7 @@ export const logout = (() => {
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'logout' },
-    writes: { value: ['sessions'] },
+    writes: { value: ['sessionRevocations', 'sessions'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -383,6 +528,17 @@ export const sendMessage = (() => {
     kind: { value: 'mutation' },
     name: { value: 'sendMessage' },
     writes: { value: ['chats', 'messages'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
+export const setAvatar = (() => {
+  const callable = (args: SetAvatarParams): unknown => requireGeneratedProviderLinks().setAvatar(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'setAvatar' },
+    writes: { value: ['posts', 'profiles', 'search'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -432,13 +588,24 @@ export const setLike = (() => {
   return callable as typeof callable & GeneratedMutationBinding;
 })();
 
+export const signup = (() => {
+  const callable = (args: SignupParams): unknown => requireGeneratedProviderLinks().signup(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'signup' },
+    writes: { value: ['accounts', 'messages', 'posts', 'profiles', 'search', 'sessionRevocations', 'sessions'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
 export const bindings = {
-  provider: 'coterie-memory',
-  declarationVersion: '2',
+  provider: 'coterie',
+  declarationVersion: '4',
   /** Declaration digest as a runtime value (LLP 0391 §4.2 — the fail-closed configure handshake input). */
-  inputsHash: 'a42bfa78dc6220e0',
+  inputsHash: 'e55f0d450e11b583',
   queries: { listChats, listFeed, listInsights, listMessages, listProfiles, listSession, searchSocial },
-  mutations: { createPost, editProfile, login, logout, sendMessage, setChatAccent, setDisappearing, setFollow, setLike },
+  mutations: { createPost, editProfile, login, logout, sendMessage, setAvatar, setChatAccent, setDisappearing, setFollow, setLike, signup },
 } as const;
 
 /**
@@ -451,7 +618,7 @@ export function configureFromProvider(provider: ContractDataProvider): { dispose
   const providerInputsHash = provider.manifest.inputsHash;
   if (providerInputsHash !== bindings.inputsHash) {
     throw new Error(
-      `configureFromProvider(coterie-memory): declaration digest mismatch — generated bindings expect inputsHash "${bindings.inputsHash}" but provider.manifest carries "${String(providerInputsHash)}". Regenerate the generated bindings from the current declaration (fail-closed on every configure, including HMR reconfigure).`,
+      `configureFromProvider(coterie): declaration digest mismatch — generated bindings expect inputsHash "${bindings.inputsHash}" but provider.manifest carries "${String(providerInputsHash)}". Regenerate the generated bindings from the current declaration (fail-closed on every configure, including HMR reconfigure).`,
     );
   }
   const projection = createProviderLinks(provider);

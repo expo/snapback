@@ -10,7 +10,7 @@
     "serverRunnableQueries": false,
     "subscriptions": true
   },
-  "inputsHash": "a42bfa78dc6220e0",
+  "inputsHash": "e55f0d450e11b583",
   "manifestVersion": 2,
   "mutations": {
     "createPost": {
@@ -33,7 +33,10 @@
     "editProfile": {
       "argOrder": [
         "displayName",
-        "bio"
+        "bio",
+        "handle",
+        "location",
+        "link"
       ],
       "args": {
         "bio": {
@@ -43,12 +46,25 @@
         "displayName": {
           "name": "string",
           "shape": "primitive"
+        },
+        "handle": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "link": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "location": {
+          "name": "string",
+          "shape": "primitive"
         }
       },
       "name": "editProfile",
       "optimistic": false,
       "serverRunnable": false,
       "writes": [
+        "accounts",
         "messages",
         "posts",
         "profiles",
@@ -74,6 +90,10 @@
       "optimistic": false,
       "serverRunnable": false,
       "writes": [
+        "messages",
+        "posts",
+        "profiles",
+        "sessionRevocations",
         "sessions"
       ]
     },
@@ -84,6 +104,7 @@
       "optimistic": false,
       "serverRunnable": false,
       "writes": [
+        "sessionRevocations",
         "sessions"
       ]
     },
@@ -108,6 +129,25 @@
       "writes": [
         "chats",
         "messages"
+      ]
+    },
+    "setAvatar": {
+      "argOrder": [
+        "avatarRef"
+      ],
+      "args": {
+        "avatarRef": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "setAvatar",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "posts",
+        "profiles",
+        "search"
       ]
     },
     "setChatAccent": {
@@ -219,9 +259,47 @@
       "writes": [
         "posts"
       ]
+    },
+    "signup": {
+      "argOrder": [
+        "email",
+        "password",
+        "handle",
+        "displayName"
+      ],
+      "args": {
+        "displayName": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "email": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "handle": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "password": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "signup",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "accounts",
+        "messages",
+        "posts",
+        "profiles",
+        "search",
+        "sessionRevocations",
+        "sessions"
+      ]
     }
   },
-  "provider": "coterie-memory",
+  "provider": "coterie",
   "queries": {
     "listChats": {
       "argOrder": [],
@@ -514,7 +592,7 @@
     "listProfiles": {
       "argOrder": [],
       "args": {},
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
@@ -563,6 +641,14 @@
             "isMe": {
               "name": "boolean",
               "shape": "primitive"
+            },
+            "link": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "location": {
+              "name": "string",
+              "shape": "primitive"
             }
           },
           "shape": "object"
@@ -574,7 +660,7 @@
     "listSession": {
       "argOrder": [],
       "args": {},
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
@@ -588,12 +674,24 @@
         "kind": "list",
         "row": {
           "fields": {
+            "expiresAt": {
+              "name": "string",
+              "shape": "primitive"
+            },
             "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "revokedAt": {
               "name": "string",
               "shape": "primitive"
             },
             "signedIn": {
               "name": "boolean",
+              "shape": "primitive"
+            },
+            "token": {
+              "name": "string",
               "shape": "primitive"
             },
             "userId": {

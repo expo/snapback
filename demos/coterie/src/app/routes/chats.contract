@@ -1,9 +1,9 @@
 use navigate from "@exact/router/contract"
 use CoterieAppHeader from "../../ui/app-header.contract"
 use CoterieChatListRow from "../../ui/chat-list-row.contract"
-use listChats from "../../data/generated/coterie-memory.bindings.ts"
-use listSession from "../../data/generated/coterie-memory.bindings.ts"
-use logout from "../../data/generated/coterie-memory.bindings.ts"
+use listChats from "../../data/generated/coterie.bindings.ts"
+use listSession from "../../data/generated/coterie.bindings.ts"
+use logout from "../../data/generated/coterie.bindings.ts"
 
 component CoterieChatsRoute
   query session = listSession({})

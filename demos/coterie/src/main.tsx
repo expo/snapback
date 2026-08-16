@@ -22,14 +22,13 @@ import {
 import { createFileRouter } from '@exact/router/core';
 
 import { appRouteModules } from './app/routes.runtime.web.js';
-import { createCoterieMemoryProvider } from './data/memory-provider.ts';
-import { configureFromProvider } from './data/generated/coterie-memory.bindings.ts';
+import { bootCoterieProvider } from './data/provider-factory.ts';
 
 let disposeApp: (() => void) | null = null;
 
-// @ref LLP 0266#d4-backend-boundary — swap this boot factory, not the
-// Contract routes, when a Snapback or comparison provider is installed.
-const providerProjection = configureFromProvider(createCoterieMemoryProvider());
+// Vite exposes COTERIE_* through vite.config.mjs. Selection happens before
+// the router mounts, so an invalid or unfinished provider fails at boot.
+const providerBoot = bootCoterieProvider(import.meta.env.COTERIE_PROVIDER);
 
 function initialPath(): string {
   // Base-path deployments: the served document's inline bootstrap publishes
@@ -80,7 +79,7 @@ async function mountApp(): Promise<void> {
     detachHistory();
     handle.dispose();
     webHost?.dispose();
-    providerProjection.dispose();
+    providerBoot.dispose();
     reset();
     disposeApp = null;
   };

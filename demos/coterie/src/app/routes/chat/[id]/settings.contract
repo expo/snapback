@@ -2,11 +2,11 @@ use back from "@exact/router/contract"
 use navigate from "@exact/router/contract"
 use FacetButton from "@exact/facet-contract/components/button.contract"
 use CoterieAppHeader from "../../../../ui/app-header.contract"
-use listChats from "../../../../data/generated/coterie-memory.bindings.ts"
-use listSession from "../../../../data/generated/coterie-memory.bindings.ts"
-use logout from "../../../../data/generated/coterie-memory.bindings.ts"
-use setChatAccent from "../../../../data/generated/coterie-memory.bindings.ts"
-use setDisappearing from "../../../../data/generated/coterie-memory.bindings.ts"
+use listChats from "../../../../data/generated/coterie.bindings.ts"
+use listSession from "../../../../data/generated/coterie.bindings.ts"
+use logout from "../../../../data/generated/coterie.bindings.ts"
+use setChatAccent from "../../../../data/generated/coterie.bindings.ts"
+use setDisappearing from "../../../../data/generated/coterie.bindings.ts"
 
 component CoterieChatSettingsRoute
   props
@@ -70,26 +70,31 @@ component CoterieChatSettingsRoute
                 empty
                   text "Chat settings unavailable" size=13 color="#6B7280" padding=16
                 ready chatRows
-                  each chat in chatRows key=chat.id
-                    when chat.id == chatId
-                      column width="100%" gap=18 padding=18
-                        row width="100%" align="center" justify="space-between"
-                          FacetButton(label="Back", variant="ghost", size="sm", press=goBack, testId="coterie-settings-back")
-                          text `${chat.title} settings` size=22 weight=700 color="#17191C"
-                        column gap=8
-                          text "Accent color" size=15 weight=600 color="#17191C"
-                          row gap=8 wrap="wrap"
-                            button "Indigo" press=chooseAccent("#4F46E5") label="Accent color indigo" valueText="#4F46E5" accessibilitySelected=chat.accentColor == "#4F46E5" padding=10 radius=999 background="#4F46E5" color="#FFFFFF" testId="sm-chatsettings-color"
-                            button "Teal" press=chooseAccent("#0D9488") label="Accent color teal" valueText="#0D9488" accessibilitySelected=chat.accentColor == "#0D9488" padding=10 radius=999 background="#0D9488" color="#FFFFFF" testId="sm-chatsettings-color"
-                            button "Coral" press=chooseAccent("#EF6351") label="Accent color coral" valueText="#EF6351" accessibilitySelected=chat.accentColor == "#EF6351" padding=10 radius=999 background="#EF6351" color="#FFFFFF" testId="sm-chatsettings-color"
-                            button "Amber" press=chooseAccent("#D97706") label="Accent color amber" valueText="#D97706" accessibilitySelected=chat.accentColor == "#D97706" padding=10 radius=999 background="#D97706" color="#FFFFFF" testId="sm-chatsettings-color"
-                            button "Violet" press=chooseAccent("#7C3AED") label="Accent color violet" valueText="#7C3AED" accessibilitySelected=chat.accentColor == "#7C3AED" padding=10 radius=999 background="#7C3AED" color="#FFFFFF" testId="sm-chatsettings-color"
-                            button "Emerald" press=chooseAccent("#059669") label="Accent color emerald" valueText="#059669" accessibilitySelected=chat.accentColor == "#059669" padding=10 radius=999 background="#059669" color="#FFFFFF" testId="sm-chatsettings-color"
-                            button "Rose" press=chooseAccent("#E11D48") label="Accent color rose" valueText="#E11D48" accessibilitySelected=chat.accentColor == "#E11D48" padding=10 radius=999 background="#E11D48" color="#FFFFFF" testId="sm-chatsettings-color"
-                            button "Slate" press=chooseAccent("#475569") label="Accent color slate" valueText="#475569" accessibilitySelected=chat.accentColor == "#475569" padding=10 radius=999 background="#475569" color="#FFFFFF" testId="sm-chatsettings-color"
-                        column gap=8
-                          text "Disappearing messages" size=15 weight=600 color="#17191C"
-                          row gap=8
-                            button "Off" press=chooseDisappearing("off") label="Disappearing messages off" valueText="off" accessibilitySelected=chat.disappearing == "off" padding=10 radius=8 borderWidth=1 borderColor=chat.disappearing == "off" ? "#4F46E5" : "#E2E4E8" background=chat.disappearing == "off" ? "#EEF2FF" : "#FFFFFF" testId="sm-chatsettings-disappearing"
-                            button "24 hours" press=chooseDisappearing("24h") label="Disappearing messages 24 hours" valueText="24h" accessibilitySelected=chat.disappearing == "24h" padding=10 radius=8 borderWidth=1 borderColor=chat.disappearing == "24h" ? "#4F46E5" : "#E2E4E8" background=chat.disappearing == "24h" ? "#EEF2FF" : "#FFFFFF" testId="sm-chatsettings-disappearing"
-                            button "7 days" press=chooseDisappearing("7d") label="Disappearing messages 7 days" valueText="7d" accessibilitySelected=chat.disappearing == "7d" padding=10 radius=8 borderWidth=1 borderColor=chat.disappearing == "7d" ? "#4F46E5" : "#E2E4E8" background=chat.disappearing == "7d" ? "#EEF2FF" : "#FFFFFF" testId="sm-chatsettings-disappearing"
+                  when chatRows.some((chat) => chat.id == chatId)
+                    each chat in chatRows key=chat.id
+                      when chat.id == chatId
+                        column width="100%" gap=18 padding=18
+                          row width="100%" align="center" justify="space-between"
+                            FacetButton(label="Back", variant="ghost", size="sm", press=goBack, testId="coterie-settings-back")
+                            text `${chat.title} settings` size=22 weight=700 color="#17191C"
+                          column gap=8
+                            text "Accent color" size=15 weight=600 color="#17191C"
+                            row gap=8 wrap="wrap"
+                              button "Indigo" press=chooseAccent("#4F46E5") label="Accent color indigo" valueText="#4F46E5" accessibilitySelected=chat.accentColor == "#4F46E5" padding=10 radius=999 background="#4F46E5" color="#FFFFFF" testId="sm-chatsettings-color"
+                              button "Teal" press=chooseAccent("#0D9488") label="Accent color teal" valueText="#0D9488" accessibilitySelected=chat.accentColor == "#0D9488" padding=10 radius=999 background="#0D9488" color="#FFFFFF" testId="sm-chatsettings-color"
+                              button "Coral" press=chooseAccent("#EF6351") label="Accent color coral" valueText="#EF6351" accessibilitySelected=chat.accentColor == "#EF6351" padding=10 radius=999 background="#EF6351" color="#FFFFFF" testId="sm-chatsettings-color"
+                              button "Amber" press=chooseAccent("#D97706") label="Accent color amber" valueText="#D97706" accessibilitySelected=chat.accentColor == "#D97706" padding=10 radius=999 background="#D97706" color="#FFFFFF" testId="sm-chatsettings-color"
+                              button "Violet" press=chooseAccent("#7C3AED") label="Accent color violet" valueText="#7C3AED" accessibilitySelected=chat.accentColor == "#7C3AED" padding=10 radius=999 background="#7C3AED" color="#FFFFFF" testId="sm-chatsettings-color"
+                              button "Emerald" press=chooseAccent("#059669") label="Accent color emerald" valueText="#059669" accessibilitySelected=chat.accentColor == "#059669" padding=10 radius=999 background="#059669" color="#FFFFFF" testId="sm-chatsettings-color"
+                              button "Rose" press=chooseAccent("#E11D48") label="Accent color rose" valueText="#E11D48" accessibilitySelected=chat.accentColor == "#E11D48" padding=10 radius=999 background="#E11D48" color="#FFFFFF" testId="sm-chatsettings-color"
+                              button "Slate" press=chooseAccent("#475569") label="Accent color slate" valueText="#475569" accessibilitySelected=chat.accentColor == "#475569" padding=10 radius=999 background="#475569" color="#FFFFFF" testId="sm-chatsettings-color"
+                          column gap=8
+                            text "Disappearing messages" size=15 weight=600 color="#17191C"
+                            row gap=8
+                              button "Off" press=chooseDisappearing("off") label="Disappearing messages off" valueText="off" accessibilitySelected=chat.disappearing == "off" padding=10 radius=8 borderWidth=1 borderColor=chat.disappearing == "off" ? "#4F46E5" : "#E2E4E8" background=chat.disappearing == "off" ? "#EEF2FF" : "#FFFFFF" testId="sm-chatsettings-disappearing"
+                              button "24 hours" press=chooseDisappearing("24h") label="Disappearing messages 24 hours" valueText="24h" accessibilitySelected=chat.disappearing == "24h" padding=10 radius=8 borderWidth=1 borderColor=chat.disappearing == "24h" ? "#4F46E5" : "#E2E4E8" background=chat.disappearing == "24h" ? "#EEF2FF" : "#FFFFFF" testId="sm-chatsettings-disappearing"
+                              button "7 days" press=chooseDisappearing("7d") label="Disappearing messages 7 days" valueText="7d" accessibilitySelected=chat.disappearing == "7d" padding=10 radius=8 borderWidth=1 borderColor=chat.disappearing == "7d" ? "#4F46E5" : "#E2E4E8" background=chat.disappearing == "7d" ? "#EEF2FF" : "#FFFFFF" testId="sm-chatsettings-disappearing"
+                  else
+                    column gap=12 padding=18
+                      text "This conversation isn't available" size=15 weight=600 color="#17191C"
+                      FacetButton(label="Back to conversations", variant="secondary", size="sm", press=goBack, testId="coterie-settings-not-found-back")

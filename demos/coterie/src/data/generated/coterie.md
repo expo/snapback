@@ -1,6 +1,6 @@
-# coterie-memory data provider
+# coterie data provider
 
-Generated reference (declaration `2`, inputsHash `a42bfa78dc6220e0`, generatedAt: DETERMINISTIC).
+Generated reference (declaration `4`, inputsHash `e55f0d450e11b583`, generatedAt: DETERMINISTIC).
 
 ## Capabilities
 
@@ -63,7 +63,7 @@ Generated reference (declaration `2`, inputsHash `a42bfa78dc6220e0`, generatedAt
 
 ### `listProfiles`
 
-- identity: descriptor `listProfiles` @ compatibility token `1`
+- identity: descriptor `listProfiles` @ compatibility token `2`
 - params: (none)
 - result: list of `Profile` (excess fields: project)
 - liveness: mode `live`, push yes, initial snapshot yes
@@ -72,7 +72,7 @@ Generated reference (declaration `2`, inputsHash `a42bfa78dc6220e0`, generatedAt
 
 ### `listSession`
 
-- identity: descriptor `listSession` @ compatibility token `1`
+- identity: descriptor `listSession` @ compatibility token `2`
 - params: (none)
 - result: list of `Session` (excess fields: project)
 - liveness: mode `live`, push yes, initial snapshot yes
@@ -99,22 +99,22 @@ Generated reference (declaration `2`, inputsHash `a42bfa78dc6220e0`, generatedAt
 
 ### `editProfile`
 
-- params: `displayName: string`, `bio: string`
-- writes: `messages`, `posts`, `profiles`, `search`
+- params: `displayName: string`, `bio: string`, `handle: string?`, `location: string?`, `link: string?`
+- writes: `accounts`, `messages`, `posts`, `profiles`, `search`
 - optimistic: no
 - receipts: none
 
 ### `login`
 
 - params: `email: string`, `password: string`
-- writes: `sessions`
+- writes: `messages`, `posts`, `profiles`, `sessionRevocations`, `sessions`
 - optimistic: no
 - receipts: none
 
 ### `logout`
 
 - params: (none)
-- writes: `sessions`
+- writes: `sessionRevocations`, `sessions`
 - optimistic: no
 - receipts: none
 
@@ -122,6 +122,13 @@ Generated reference (declaration `2`, inputsHash `a42bfa78dc6220e0`, generatedAt
 
 - params: `chatId: string`, `body: string`
 - writes: `chats`, `messages`
+- optimistic: no
+- receipts: none
+
+### `setAvatar`
+
+- params: `avatarRef: string`
+- writes: `posts`, `profiles`, `search`
 - optimistic: no
 - receipts: none
 
@@ -153,8 +160,16 @@ Generated reference (declaration `2`, inputsHash `a42bfa78dc6220e0`, generatedAt
 - optimistic: no
 - receipts: none
 
+### `signup`
+
+- params: `email: string`, `password: string`, `handle: string`, `displayName: string`
+- writes: `accounts`, `messages`, `posts`, `profiles`, `search`, `sessionRevocations`, `sessions`
+- optimistic: no
+- receipts: none
+
 ## Provider extensions
 
 - `coterie.fixtureClock`: `"2026-01-01T00:01:30Z"`
 - `coterie.fixtureProfile`: `"social-messenger-starter-pack"`
-- `coterie.persistence`: `"process-memory-only"`
+- `coterie.m1CompatibilityTokens`: `{"editProfile":"1","listProfiles":"2","listSession":"2","login":"1","logout":"1","setAvatar":"1","signup":"1"}`
+- `coterie.surface`: `"shared Contract binding surface; provider lanes implement this declaration and report additional capabilities separately"`

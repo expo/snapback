@@ -1,7 +1,7 @@
 {
   "schemaVersion": "provider-declaration.v1",
-  "provider": "coterie-memory",
-  "declarationVersion": "2",
+  "provider": "coterie",
+  "declarationVersion": "4",
   "capabilities": {
     "push": true,
     "pollingCadenceMs": null,
@@ -25,7 +25,7 @@
     {
       "name": "listSession",
       "descriptorId": "listSession",
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "reads": ["sessions"],
       "params": [],
       "result": {
@@ -37,7 +37,10 @@
           "fields": [
             { "name": "id", "type": { "kind": "string" }, "nullable": false },
             { "name": "userId", "type": { "kind": "string" }, "nullable": false },
-            { "name": "signedIn", "type": { "kind": "boolean" }, "nullable": false }
+            { "name": "signedIn", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "token", "type": { "kind": "string" }, "nullable": false },
+            { "name": "expiresAt", "type": { "kind": "string" }, "nullable": false },
+            { "name": "revokedAt", "type": { "kind": "string" }, "nullable": true }
           ]
         }
       },
@@ -84,7 +87,7 @@
     {
       "name": "listProfiles",
       "descriptorId": "listProfiles",
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "reads": ["profiles"],
       "params": [],
       "result": {
@@ -98,6 +101,8 @@
             { "name": "handle", "type": { "kind": "string" }, "nullable": false },
             { "name": "displayName", "type": { "kind": "string" }, "nullable": false },
             { "name": "bio", "type": { "kind": "string" }, "nullable": false },
+            { "name": "location", "type": { "kind": "string" }, "nullable": false },
+            { "name": "link", "type": { "kind": "string" }, "nullable": false },
             { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true },
             { "name": "followers", "type": { "kind": "number" }, "nullable": false },
             { "name": "following", "type": { "kind": "number" }, "nullable": false },
@@ -232,23 +237,80 @@
   ],
   "mutations": [
     {
+      "name": "signup",
+      "params": [
+        { "name": "email", "type": { "kind": "string" }, "nullable": false },
+        { "name": "password", "type": { "kind": "string" }, "nullable": false },
+        { "name": "handle", "type": { "kind": "string" }, "nullable": false },
+        { "name": "displayName", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["accounts", "sessions", "sessionRevocations", "profiles", "posts", "messages", "search"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "DisplayNameInvalidError", "code": "display_name_invalid", "message": "Display name must contain 1-50 characters." },
+        { "name": "DuplicateEmailError", "code": "duplicate_email", "message": "An account already uses that email." },
+        { "name": "DuplicateHandleError", "code": "duplicate_handle", "message": "An account already uses that handle." },
+        { "name": "EmailInvalidError", "code": "email_invalid", "message": "Enter a valid email address." },
+        { "name": "HandleInvalidError", "code": "handle_invalid", "message": "Handle must be 3-20 lowercase letters, numbers, or underscores." },
+        { "name": "PasswordTooShortError", "code": "password_too_short", "message": "Password must contain at least 8 characters." }
+      ],
+      "result": {
+        "kind": "single",
+        "row": {
+          "kind": "shape",
+          "name": "AuthResult",
+          "excessFields": "project",
+          "fields": [
+            { "name": "userId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "sessionToken", "type": { "kind": "string" }, "nullable": false }
+          ]
+        }
+      }
+    },
+    {
       "name": "login",
       "params": [
         { "name": "email", "type": { "kind": "string" }, "nullable": false },
         { "name": "password", "type": { "kind": "string" }, "nullable": false }
       ],
-      "writes": ["sessions"],
+      "writes": ["sessions", "sessionRevocations", "profiles", "posts", "messages"],
       "optimistic": false,
       "receipts": "none",
-      "errors": []
+      "errors": [
+        { "name": "InvalidCredentialsError", "code": "invalid_credentials", "message": "Email or password is incorrect." }
+      ],
+      "result": {
+        "kind": "single",
+        "row": {
+          "kind": "shape",
+          "name": "AuthResult",
+          "excessFields": "project",
+          "fields": [
+            { "name": "userId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "sessionToken", "type": { "kind": "string" }, "nullable": false }
+          ]
+        }
+      }
     },
     {
       "name": "logout",
       "params": [],
-      "writes": ["sessions"],
+      "writes": ["sessions", "sessionRevocations"],
       "optimistic": false,
       "receipts": "none",
-      "errors": []
+      "errors": [],
+      "result": {
+        "kind": "single",
+        "row": {
+          "kind": "shape",
+          "name": "LogoutMutationResult",
+          "excessFields": "project",
+          "fields": [
+            { "name": "revokedToken", "type": { "kind": "string" }, "nullable": true }
+          ]
+        }
+      }
     },
     {
       "name": "createPost",
@@ -258,7 +320,9 @@
       "writes": ["posts"],
       "optimistic": false,
       "receipts": "none",
-      "errors": []
+      "errors": [
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
     },
     {
       "name": "setLike",
@@ -270,7 +334,9 @@
       "writes": ["posts"],
       "optimistic": false,
       "receipts": "none",
-      "errors": []
+      "errors": [
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
     },
     {
       "name": "setFollow",
@@ -282,18 +348,55 @@
       "writes": ["follows", "profiles", "posts"],
       "optimistic": false,
       "receipts": "none",
-      "errors": []
+      "errors": [
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
     },
     {
       "name": "editProfile",
       "params": [
         { "name": "displayName", "type": { "kind": "string" }, "nullable": false },
-        { "name": "bio", "type": { "kind": "string" }, "nullable": false }
+        { "name": "bio", "type": { "kind": "string" }, "nullable": false },
+        { "name": "handle", "type": { "kind": "string" }, "nullable": true },
+        { "name": "location", "type": { "kind": "string" }, "nullable": true },
+        { "name": "link", "type": { "kind": "string" }, "nullable": true }
       ],
-      "writes": ["profiles", "posts", "messages", "search"],
+      "writes": ["accounts", "profiles", "posts", "messages", "search"],
       "optimistic": false,
       "receipts": "none",
-      "errors": []
+      "errors": [
+        { "name": "BioInvalidError", "code": "bio_invalid", "message": "Bio must contain at most 200 characters." },
+        { "name": "DisplayNameInvalidError", "code": "display_name_invalid", "message": "Display name must contain 1-50 characters." },
+        { "name": "DuplicateHandleError", "code": "duplicate_handle", "message": "An account already uses that handle." },
+        { "name": "HandleInvalidError", "code": "handle_invalid", "message": "Handle must be 3-20 lowercase letters, numbers, or underscores." },
+        { "name": "LinkInvalidError", "code": "link_invalid", "message": "Link must be empty or an HTTP(S) URL." },
+        { "name": "LocationInvalidError", "code": "location_invalid", "message": "Location must contain at most 50 characters." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
+    },
+    {
+      "name": "setAvatar",
+      "params": [
+        { "name": "avatarRef", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["profiles", "posts", "search"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "AvatarReferenceInvalidError", "code": "avatar_reference_invalid", "message": "Avatar reference is invalid or unavailable." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ],
+      "result": {
+        "kind": "single",
+        "row": {
+          "kind": "shape",
+          "name": "AvatarResult",
+          "excessFields": "project",
+          "fields": [
+            { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": false }
+          ]
+        }
+      }
     },
     {
       "name": "sendMessage",
@@ -304,7 +407,9 @@
       "writes": ["messages", "chats"],
       "optimistic": false,
       "receipts": "none",
-      "errors": []
+      "errors": [
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
     },
     {
       "name": "setChatAccent",
@@ -334,6 +439,15 @@
   "extensions": {
     "coterie.fixtureProfile": "social-messenger-starter-pack",
     "coterie.fixtureClock": "2026-01-01T00:01:30Z",
-    "coterie.persistence": "process-memory-only"
+    "coterie.surface": "shared Contract binding surface; provider lanes implement this declaration and report additional capabilities separately",
+    "coterie.m1CompatibilityTokens": {
+      "listSession": "2",
+      "listProfiles": "2",
+      "signup": "1",
+      "login": "1",
+      "logout": "1",
+      "editProfile": "1",
+      "setAvatar": "1"
+    }
   }
 }

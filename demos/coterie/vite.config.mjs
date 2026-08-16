@@ -3,6 +3,9 @@ import { contractVitePlugin } from '@exact/contract/vite-plugin';
 import { exactVitePlugin } from '@exact/devtools';
 
 export default defineConfig({
+  // COTERIE_PROVIDER is a public boot selector, not a secret. This makes the
+  // exact variable named by LLP 0266 D8 available through import.meta.env.
+  envPrefix: ['VITE_', 'COTERIE_'],
   plugins: [
     // Compiles `.contract` modules (enforce: 'pre') before anything else
     // in the graph sees them.

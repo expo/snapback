@@ -15,8 +15,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/chat/[id].contract",
-      "routeGraphDigest": "sha256:fefb0a65cad6189e67b973cf3f89f45466ed65053dbdc5ad4ce5c5129cbb1ac9",
-      "sourceVersion": "sha256:fefb0a65cad6189e67b973cf3f89f45466ed65053dbdc5ad4ce5c5129cbb1ac9",
+      "routeGraphDigest": "sha256:355ac287f0f74278663ed8906e971d2a7147a2f2ab31f08a79e902454bf41ad8",
+      "sourceVersion": "sha256:355ac287f0f74278663ed8906e971d2a7147a2f2ab31f08a79e902454bf41ad8",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -24,8 +24,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/chat/[id]/settings.contract",
-      "routeGraphDigest": "sha256:9874e1f8347ac0859c1b61f8d3f0e8ed710c9b03e4ab9d6070286a64eba51dcc",
-      "sourceVersion": "sha256:9874e1f8347ac0859c1b61f8d3f0e8ed710c9b03e4ab9d6070286a64eba51dcc",
+      "routeGraphDigest": "sha256:05d832fb4f36c734b9fe0443a7f2f184f0e1056bc8d162f46971ac4507018d51",
+      "sourceVersion": "sha256:05d832fb4f36c734b9fe0443a7f2f184f0e1056bc8d162f46971ac4507018d51",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -33,8 +33,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/chats.contract",
-      "routeGraphDigest": "sha256:ffd81ac0f3c06314cd49659a02fb8bfe549e7abe7bcac1e226a2b24890c3d3e4",
-      "sourceVersion": "sha256:ffd81ac0f3c06314cd49659a02fb8bfe549e7abe7bcac1e226a2b24890c3d3e4",
+      "routeGraphDigest": "sha256:8cb085213a34cce98dcff3f247a30e8197d924fe0825c3f6b7666314740d0d4a",
+      "sourceVersion": "sha256:8cb085213a34cce98dcff3f247a30e8197d924fe0825c3f6b7666314740d0d4a",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -42,8 +42,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/index.contract",
-      "routeGraphDigest": "sha256:7f9cea0c88130a833a15710547549d2a5ad7466509264d9d3d258f33687e5950",
-      "sourceVersion": "sha256:7f9cea0c88130a833a15710547549d2a5ad7466509264d9d3d258f33687e5950",
+      "routeGraphDigest": "sha256:0ba588d6ed0397c7589c45a226fa5e30b54f8cb367f6d5808f24457d93805cbc",
+      "sourceVersion": "sha256:0ba588d6ed0397c7589c45a226fa5e30b54f8cb367f6d5808f24457d93805cbc",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -51,8 +51,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/insights.contract",
-      "routeGraphDigest": "sha256:1bebc66fbd1e24b8fc9f229872f4e4677573bf8a416b6377aad280fe45fa84ac",
-      "sourceVersion": "sha256:1bebc66fbd1e24b8fc9f229872f4e4677573bf8a416b6377aad280fe45fa84ac",
+      "routeGraphDigest": "sha256:6201432b3a3607c6987dbe30bdb5e2eda11947326f2ae7220651dfa4a698dc49",
+      "sourceVersion": "sha256:6201432b3a3607c6987dbe30bdb5e2eda11947326f2ae7220651dfa4a698dc49",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -60,8 +60,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/media/[id].contract",
-      "routeGraphDigest": "sha256:16f2ec5c6d3820669df64c0489c0948ff29980bad90e6126507a80c636b4bff9",
-      "sourceVersion": "sha256:16f2ec5c6d3820669df64c0489c0948ff29980bad90e6126507a80c636b4bff9",
+      "routeGraphDigest": "sha256:082d49f0147b669d19d030dad683e137baa95afa32e0f30f59d9622de6d48577",
+      "sourceVersion": "sha256:082d49f0147b669d19d030dad683e137baa95afa32e0f30f59d9622de6d48577",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -69,8 +69,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/profile/[id].contract",
-      "routeGraphDigest": "sha256:794fe540c398efa74ea57df8fd123255bf04554c16b841f548f5d7ea9aea8b2c",
-      "sourceVersion": "sha256:794fe540c398efa74ea57df8fd123255bf04554c16b841f548f5d7ea9aea8b2c",
+      "routeGraphDigest": "sha256:63dde554e6aeea471921acb064ee543400700de423ce11efb70a6f1f94670bbd",
+      "sourceVersion": "sha256:63dde554e6aeea471921acb064ee543400700de423ce11efb70a6f1f94670bbd",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -78,8 +78,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/search.contract",
-      "routeGraphDigest": "sha256:704621d703ade7a745599c78bf42baeef43d768b7d069fba5e4d85147ba9b577",
-      "sourceVersion": "sha256:704621d703ade7a745599c78bf42baeef43d768b7d069fba5e4d85147ba9b577",
+      "routeGraphDigest": "sha256:2c53cf0b4de65592ea3fc7fbb028d6f21e9eb8cd344bc5051563923b764864ca",
+      "sourceVersion": "sha256:2c53cf0b4de65592ea3fc7fbb028d6f21e9eb8cd344bc5051563923b764864ca",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     }

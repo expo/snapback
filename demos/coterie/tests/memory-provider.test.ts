@@ -4,13 +4,27 @@ import {
   assertDataProviderConformance,
   type DataProviderConformanceFixture,
 } from '@exact/contract/conformance';
-import type { ContractDataProvider } from '@exact/contract/runtime';
+import type {
+  ContractDataProvider,
+  DataMutationResult,
+  DataObserver,
+} from '@exact/contract/runtime';
 
 import {
-  coterieMemoryManifest,
+  coterieSurfaceManifest,
   createCoterieMemoryHarness,
+  createCoterieMemoryProvider,
   type CoterieMemoryHarness,
 } from '../src/data/memory-provider.ts';
+import {
+  coterieProviderRegistry,
+  resolveCoterieProviderName,
+} from '../src/data/provider-factory.ts';
+import {
+  configureFromProvider,
+  listSession,
+  signup,
+} from '../src/data/generated/coterie.bindings.ts';
 
 function collectReady<T>(
   provider: ContractDataProvider,
@@ -24,12 +38,32 @@ function collectReady<T>(
   return { snapshots, dispose: () => subscription.dispose() };
 }
 
+function expectMutationError(
+  result: DataMutationResult,
+  name: string,
+): Extract<DataMutationResult, { ok: false }>['error'] {
+  expect(result).toMatchObject({ ok: false, error: { name } });
+  if (result.ok) throw new Error(`Expected ${name}, received a successful mutation`);
+  return result.error;
+}
+
 describe('Coterie backendless provider', () => {
+  it('selects memory by default and fails loudly for unfinished or unknown providers', () => {
+    expect(resolveCoterieProviderName(undefined)).toBe('memory');
+    expect(resolveCoterieProviderName('memory')).toBe('memory');
+    expect(() => resolveCoterieProviderName('other')).toThrow(
+      'Unknown COTERIE_PROVIDER "other"; valid values: memory, snapback',
+    );
+    expect(() => coterieProviderRegistry.snapback()).toThrow(
+      'snapback provider not yet wired; see LLP 0266 D9',
+    );
+  });
+
   it('passes the Exact provider conformance surface it claims', async () => {
     let harness: CoterieMemoryHarness | null = null;
     const fixture: DataProviderConformanceFixture = {
       name: 'coterie-memory',
-      capabilities: coterieMemoryManifest.capabilities,
+      capabilities: coterieSurfaceManifest.capabilities,
       createProvider() {
         harness = createCoterieMemoryHarness();
         return harness.provider;
@@ -57,6 +91,275 @@ describe('Coterie backendless provider', () => {
     expect(report.checks.find((check) => check.id === 'initial-snapshot')?.status).toBe('pass');
     expect(report.checks.find((check) => check.id === 'subscription-update')?.status).toBe('pass');
     expect(report.checks.find((check) => check.id === 'mutation-query-invalidation')?.status).toBe('pass');
+  });
+
+  it('configures a distinct adapter implementation against the shared Coterie surface', () => {
+    const delegate = createCoterieMemoryProvider();
+    const alternateAdapter: ContractDataProvider = {
+      manifest: coterieSurfaceManifest,
+      subscribe<T>(name: string, args: Record<string, unknown>, observer: DataObserver<T>) {
+        return delegate.subscribe(name, args, observer);
+      },
+      mutate<T>(name, args, correlation) {
+        return delegate.mutate<T>(name, args, correlation);
+      },
+    };
+
+    expect(coterieSurfaceManifest.provider).toBe('coterie');
+    expect(alternateAdapter).not.toBe(delegate);
+    expect(() =>
+      configureFromProvider({
+        ...alternateAdapter,
+        manifest: { ...coterieSurfaceManifest, inputsHash: 'provider-specific-digest' },
+      }),
+    ).toThrow('declaration digest mismatch');
+    const projection = configureFromProvider(alternateAdapter);
+    const sessionHandle = listSession({}) as {
+      subscribe(observer: (rows: Array<{ userId: string }>) => void): { dispose(): void };
+    };
+    const deliveries: Array<Array<{ userId: string }>> = [];
+    const subscription = sessionHandle.subscribe((rows) => deliveries.push(rows));
+    expect(deliveries.at(-1)?.[0]?.userId).toBe('alice');
+    subscription.dispose();
+    projection.dispose();
+  });
+
+  it('signs up a deterministic process-memory account and declares duplicate identity errors', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const sessions = collectReady<
+      Array<{ userId: string; token: string; signedIn: boolean; revokedAt: string | null }>
+    >(provider, 'listSession', {});
+    const profiles = collectReady<
+      Array<{ id: string; handle: string; displayName: string; location: string; link: string }>
+    >(provider, 'listProfiles', {});
+
+    const signup = await provider.mutate('signup', {
+      email: 'new.person@example.com',
+      password: 'NewPerson!2026',
+      handle: 'new_person',
+      displayName: 'New Person',
+    });
+    expect(signup).toMatchObject({
+      ok: true,
+      value: {
+        userId: 'local-new_person',
+        sessionToken: 'coterie-memory-session-local-new_person-0001',
+      },
+    });
+    expect(sessions.snapshots.at(-1)?.[0]).toMatchObject({
+      userId: 'local-new_person',
+      signedIn: true,
+      revokedAt: null,
+    });
+    expect(profiles.snapshots.at(-1)?.find((profile) => profile.id === 'local-new_person')).toEqual({
+      id: 'local-new_person',
+      handle: 'new_person',
+      displayName: 'New Person',
+      bio: '',
+      location: '',
+      link: '',
+      avatarUrl: null,
+      followers: 0,
+      following: 0,
+      followedByMe: false,
+      isMe: true,
+    });
+
+    const duplicateEmail = await provider.mutate('signup', {
+      email: 'new.person@example.com',
+      password: 'Another!2026',
+      handle: 'another_person',
+      displayName: 'Another Person',
+    });
+    expect(duplicateEmail).toMatchObject({
+      ok: false,
+      error: { name: 'DuplicateEmailError', message: 'An account already uses that email.' },
+    });
+
+    const duplicateHandle = await provider.mutate('signup', {
+      email: 'unique@example.com',
+      password: 'Another!2026',
+      handle: 'new_person',
+      displayName: 'Another Person',
+    });
+    expect(duplicateHandle).toMatchObject({
+      ok: false,
+      error: { name: 'DuplicateHandleError', message: 'An account already uses that handle.' },
+    });
+
+    const shortPassword = await provider.mutate('signup', {
+      email: 'short@example.com',
+      password: 'short',
+      handle: 'short_password',
+      displayName: 'Short Password',
+    });
+    expect(shortPassword).toMatchObject({
+      ok: false,
+      error: { name: 'PasswordTooShortError' },
+    });
+    sessions.dispose();
+    profiles.dispose();
+  });
+
+  it('declares login failure and keeps logout revocation honest in process memory', async () => {
+    const { provider, boundary } = createCoterieMemoryHarness();
+    const sessions = collectReady<
+      Array<{ userId: string; token: string; signedIn: boolean; revokedAt: string | null }>
+    >(provider, 'listSession', {});
+    const initialToken = sessions.snapshots[0]?.[0]?.token;
+
+    const rejected = await provider.mutate('login', {
+      email: 'alice@example.com',
+      password: 'incorrect-password',
+    });
+    expect(rejected).toMatchObject({
+      ok: false,
+      error: { name: 'InvalidCredentialsError', message: 'Email or password is incorrect.' },
+    });
+    expect(sessions.snapshots.at(-1)?.[0]?.token).toBe(initialToken);
+
+    const login = await provider.mutate('login', {
+      email: 'bob@example.com',
+      password: 'Bob!Clique2026',
+    });
+    expect(login).toMatchObject({ ok: true, value: { userId: 'bob' } });
+    const bobToken = sessions.snapshots.at(-1)?.[0]?.token;
+    expect(bobToken).not.toBe(initialToken);
+    expect(boundary.snapshot('sessionRevocations')).toContainEqual(
+      expect.objectContaining({ token: initialToken, signedIn: false, reason: 'replaced' }),
+    );
+
+    const logout = await provider.mutate('logout', {});
+    expect(logout).toMatchObject({ ok: true, value: { revokedToken: bobToken } });
+    expect(sessions.snapshots.at(-1)).toEqual([]);
+    expect(boundary.snapshot('sessionRevocations')).toContainEqual(
+      expect.objectContaining({ token: bobToken, signedIn: false, reason: 'logout' }),
+    );
+    sessions.dispose();
+  });
+
+  it('attaches only committed fixture avatar references and invalidates profile projections', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const profiles = collectReady<Array<{ id: string; avatarUrl: string | null }>>(
+      provider,
+      'listProfiles',
+      {},
+    );
+    const feed = collectReady<Array<{ authorId: string; avatarUrl: string | null }>>(
+      provider,
+      'listFeed',
+      { mode: 'global' },
+    );
+
+    const attached = await provider.mutate('setAvatar', {
+      avatarRef: 'media/avatar-bob.png',
+    });
+    expect(attached).toEqual({
+      ok: true,
+      value: { avatarUrl: '/assets/fixtures/avatar-bob.png' },
+    });
+    expect(profiles.snapshots.at(-1)?.find((profile) => profile.id === 'alice')?.avatarUrl).toBe(
+      '/assets/fixtures/avatar-bob.png',
+    );
+    expect(feed.snapshots.at(-1)?.find((post) => post.authorId === 'alice')?.avatarUrl).toBe(
+      '/assets/fixtures/avatar-bob.png',
+    );
+
+    const rejected = await provider.mutate('setAvatar', { avatarRef: 'media/img-01.png' });
+    expect(rejected).toMatchObject({
+      ok: false,
+      error: { name: 'AvatarReferenceInvalidError' },
+    });
+    profiles.dispose();
+    feed.dispose();
+  });
+
+  it('delivers declared error names through generated mutations while Exact omits code', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const projection = configureFromProvider(provider);
+    const result = (await signup({
+      email: 'alice@example.com',
+      password: 'Another!2026',
+      handle: 'another_alice',
+      displayName: 'Another Alice',
+    })) as DataMutationResult;
+    const error = expectMutationError(result, 'DuplicateEmailError');
+    expect(error).not.toHaveProperty('code');
+    projection.dispose();
+  });
+
+  it('rejects every session-required mutation after logout', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    expect((await provider.mutate('logout', {})).ok).toBe(true);
+
+    const cases = [
+      ['createPost', { body: 'Signed-out post' }],
+      ['setLike', { postId: 'sp0001', liked: true, mutationId: 'signed-out-like' }],
+      ['setFollow', { userId: 'bob', following: false, mutationId: 'signed-out-follow' }],
+      [
+        'editProfile',
+        { displayName: 'Signed Out', bio: '', handle: null, location: null, link: null },
+      ],
+      ['setAvatar', { avatarRef: 'media/avatar-bob.png' }],
+      ['sendMessage', { chatId: 'g-starter', body: 'Signed-out message' }],
+    ] as const;
+
+    for (const [operation, args] of cases) {
+      expectMutationError(await provider.mutate(operation, args), 'SessionRequiredError');
+    }
+  });
+
+  it('covers the signup and edit-profile invalid-input vocabulary', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const cases = [
+      {
+        operation: 'signup',
+        args: { email: 'invalid', password: 'ValidPass!2026', handle: 'valid_one', displayName: 'Valid One' },
+        error: 'EmailInvalidError',
+      },
+      {
+        operation: 'signup',
+        args: { email: 'valid@example.com', password: 'ValidPass!2026', handle: 'INVALID', displayName: 'Valid One' },
+        error: 'HandleInvalidError',
+      },
+      {
+        operation: 'signup',
+        args: { email: 'valid@example.com', password: 'ValidPass!2026', handle: 'valid_one', displayName: ' '.repeat(2) },
+        error: 'DisplayNameInvalidError',
+      },
+      {
+        operation: 'editProfile',
+        args: { displayName: 'Alice', bio: '', handle: 'INVALID', location: null, link: null },
+        error: 'HandleInvalidError',
+      },
+      {
+        operation: 'editProfile',
+        args: { displayName: ' '.repeat(2), bio: '', handle: null, location: null, link: null },
+        error: 'DisplayNameInvalidError',
+      },
+      {
+        operation: 'editProfile',
+        args: { displayName: 'Alice', bio: 'x'.repeat(201), handle: null, location: null, link: null },
+        error: 'BioInvalidError',
+      },
+      {
+        operation: 'editProfile',
+        args: { displayName: 'Alice', bio: '', handle: null, location: null, link: 'ftp://example.com' },
+        error: 'LinkInvalidError',
+      },
+      {
+        operation: 'editProfile',
+        args: { displayName: 'Alice', bio: '', handle: null, location: 'x'.repeat(51), link: null },
+        error: 'LocationInvalidError',
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      expectMutationError(
+        await provider.mutate(testCase.operation, testCase.args),
+        testCase.error,
+      );
+    }
   });
 
   it('applies the same setLike intent twice without flipping or double-counting', async () => {
@@ -101,12 +404,16 @@ describe('Coterie backendless provider', () => {
 
   it('updates denormalized feed and message author projections after editProfile', async () => {
     const { provider } = createCoterieMemoryHarness();
-    const profiles = collectReady<Array<{ id: string; displayName: string }>>(
-      provider,
-      'listProfiles',
-      {},
-    );
-    const feed = collectReady<Array<{ id: string; authorName: string }>>(
+    const profiles = collectReady<
+      Array<{
+        id: string;
+        displayName: string;
+        handle: string;
+        location: string;
+        link: string;
+      }>
+    >(provider, 'listProfiles', {});
+    const feed = collectReady<Array<{ id: string; authorName: string; authorHandle: string }>>(
       provider,
       'listFeed',
       { mode: 'global' },
@@ -120,13 +427,24 @@ describe('Coterie backendless provider', () => {
     const result = await provider.mutate('editProfile', {
       displayName: 'Alice Fixture Edit',
       bio: 'Edited in the backendless provider.',
+      handle: 'alice_edit',
+      location: 'Alameda, CA',
+      link: 'https://example.com/alice-edit',
     });
     expect(result.ok).toBe(true);
     expect(profiles.snapshots.at(-1)?.find((profile) => profile.id === 'alice')?.displayName).toBe(
       'Alice Fixture Edit',
     );
+    expect(profiles.snapshots.at(-1)?.find((profile) => profile.id === 'alice')).toMatchObject({
+      handle: 'alice_edit',
+      location: 'Alameda, CA',
+      link: 'https://example.com/alice-edit',
+    });
     expect(feed.snapshots.at(-1)?.find((post) => post.id === 'sp0001')?.authorName).toBe(
       'Alice Fixture Edit',
+    );
+    expect(feed.snapshots.at(-1)?.find((post) => post.id === 'sp0001')?.authorHandle).toBe(
+      'alice_edit',
     );
     expect(messages.snapshots.at(-1)?.find((message) => message.id === 'sm0001')?.senderName).toBe(
       'Alice Fixture Edit',

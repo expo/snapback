@@ -11,9 +11,13 @@
     "editProfile": {
       "args": {
         "bio": "bio-example",
-        "displayName": "displayName-example"
+        "displayName": "displayName-example",
+        "handle": "handle-example",
+        "link": "link-example",
+        "location": "location-example"
       },
       "writes": [
+        "accounts",
         "messages",
         "posts",
         "profiles",
@@ -26,12 +30,17 @@
         "password": "password-example"
       },
       "writes": [
+        "messages",
+        "posts",
+        "profiles",
+        "sessionRevocations",
         "sessions"
       ]
     },
     "logout": {
       "args": {},
       "writes": [
+        "sessionRevocations",
         "sessions"
       ]
     },
@@ -43,6 +52,16 @@
       "writes": [
         "chats",
         "messages"
+      ]
+    },
+    "setAvatar": {
+      "args": {
+        "avatarRef": "avatarRef-example"
+      },
+      "writes": [
+        "posts",
+        "profiles",
+        "search"
       ]
     },
     "setChatAccent": {
@@ -86,9 +105,26 @@
       "writes": [
         "posts"
       ]
+    },
+    "signup": {
+      "args": {
+        "displayName": "displayName-example",
+        "email": "email-example",
+        "handle": "handle-example",
+        "password": "password-example"
+      },
+      "writes": [
+        "accounts",
+        "messages",
+        "posts",
+        "profiles",
+        "search",
+        "sessionRevocations",
+        "sessions"
+      ]
     }
   },
-  "provider": "coterie-memory",
+  "provider": "coterie",
   "queries": {
     "listChats": {
       "args": {},
@@ -178,7 +214,9 @@
           "following": 1,
           "handle": "handle-example",
           "id": "id-example",
-          "isMe": true
+          "isMe": true,
+          "link": "link-example",
+          "location": "location-example"
         }
       ]
     },
@@ -186,8 +224,11 @@
       "args": {},
       "exampleResult": [
         {
+          "expiresAt": "expiresAt-example",
           "id": "id-example",
+          "revokedAt": "revokedAt-example",
           "signedIn": true,
+          "token": "token-example",
           "userId": "userId-example"
         }
       ]

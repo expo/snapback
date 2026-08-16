@@ -6,7 +6,7 @@ import {
   type ContractQueryBoundary,
 } from '@exact/contract/runtime';
 
-import manifestJson from './generated/coterie-memory.manifest.json';
+import manifestJson from './generated/coterie.manifest.json';
 import type {
   Chat,
   FeedItem,
@@ -15,12 +15,17 @@ import type {
   Profile,
   SearchResult,
   Session,
-} from './generated/coterie-memory.types.ts';
+} from './generated/coterie.types.ts';
 
-export const coterieMemoryManifest = manifestJson as unknown as ContractDataManifest;
+export const coterieSurfaceManifest = manifestJson as unknown as ContractDataManifest;
 
 const VIEWER_ID = 'alice';
 const FIXTURE_NOW = '2026-01-01T00:01:30.000Z';
+const SESSION_EXPIRES_AT = '2026-01-02T00:01:30.000Z';
+const FIXTURE_AVATAR_URLS = new Map([
+  ['media/avatar-alice.png', '/assets/fixtures/avatar-alice.png'],
+  ['media/avatar-bob.png', '/assets/fixtures/avatar-bob.png'],
+]);
 const ACCENT_COLORS = new Set([
   '#4F46E5',
   '#0D9488',
@@ -45,13 +50,32 @@ interface LikeEvent {
   mutationId: string;
 }
 
+interface MemoryAccount {
+  id: string;
+  email: string;
+  password: string;
+  handle: string;
+}
+
+interface RevokedSession extends Session {
+  revokedAt: string;
+  reason: 'logout' | 'replaced';
+}
+
 interface MemoryFeedItem extends FeedItem {
   authorFollowedByMe: boolean;
   likeEvents: LikeEvent[];
 }
 
 const initialSession: Session[] = [
-  { id: 'session-alice', userId: VIEWER_ID, signedIn: true },
+  {
+    id: 'session-alice-0000',
+    userId: VIEWER_ID,
+    signedIn: true,
+    token: 'coterie-memory-session-alice-0000',
+    expiresAt: SESSION_EXPIRES_AT,
+    revokedAt: null,
+  },
 ];
 
 const initialFollowEdges: FollowEdge[] = [
@@ -75,6 +99,8 @@ const initialProfiles: Profile[] = [
     handle: 'alice',
     displayName: 'Alice Alvarez',
     bio: 'Coffee, cameras, and neighborhood walks.',
+    location: 'Oakland, CA',
+    link: 'https://example.com/alice',
     avatarUrl: '/assets/fixtures/avatar-alice.png',
     followers: 4,
     following: 2,
@@ -86,6 +112,8 @@ const initialProfiles: Profile[] = [
     handle: 'bob',
     displayName: 'Bob Bennett',
     bio: 'Bikes, bread, and tiny software tools.',
+    location: 'Berkeley, CA',
+    link: 'https://example.com/bob',
     avatarUrl: '/assets/fixtures/avatar-bob.png',
     followers: 2,
     following: 2,
@@ -97,6 +125,8 @@ const initialProfiles: Profile[] = [
     handle: 'carol',
     displayName: 'Carol Chen',
     bio: 'Ceramics student and relentless list maker.',
+    location: 'San Francisco, CA',
+    link: 'https://example.com/carol',
     avatarUrl: '/assets/fixtures/avatar-alice.png',
     followers: 1,
     following: 1,
@@ -108,6 +138,8 @@ const initialProfiles: Profile[] = [
     handle: 'dave',
     displayName: 'Dave Diaz',
     bio: 'Live music, trail maps, and spicy noodles.',
+    location: 'Portland, OR',
+    link: 'https://example.com/dave',
     avatarUrl: '/assets/fixtures/avatar-bob.png',
     followers: 1,
     following: 1,
@@ -119,6 +151,8 @@ const initialProfiles: Profile[] = [
     handle: 'erin',
     displayName: 'Erin Evans',
     bio: 'Designing kinder interfaces and growing herbs.',
+    location: 'Seattle, WA',
+    link: 'https://example.com/erin',
     avatarUrl: '/assets/fixtures/avatar-alice.png',
     followers: 1,
     following: 2,
@@ -130,6 +164,8 @@ const initialProfiles: Profile[] = [
     handle: 'frank',
     displayName: 'Frank Flores',
     bio: 'Weekend cook and weekday data wrangler.',
+    location: 'Austin, TX',
+    link: 'https://example.com/frank',
     avatarUrl: '/assets/fixtures/avatar-bob.png',
     followers: 1,
     following: 1,
@@ -141,6 +177,8 @@ const initialProfiles: Profile[] = [
     handle: 'grace',
     displayName: 'Grace Green',
     bio: 'Gardens, graphic novels, and good questions.',
+    location: 'Chicago, IL',
+    link: 'https://example.com/grace',
     avatarUrl: '/assets/fixtures/avatar-alice.png',
     followers: 2,
     following: 1,
@@ -152,6 +190,8 @@ const initialProfiles: Profile[] = [
     handle: 'henry',
     displayName: 'Henry Hall',
     bio: 'History podcasts and pickup basketball.',
+    location: 'Brooklyn, NY',
+    link: 'https://example.com/henry',
     avatarUrl: '/assets/fixtures/avatar-bob.png',
     followers: 0,
     following: 2,
@@ -159,6 +199,24 @@ const initialProfiles: Profile[] = [
     isMe: false,
   },
 ];
+
+const fixturePasswords: Readonly<Record<string, string>> = {
+  alice: 'Alice!Clique2026',
+  bob: 'Bob!Clique2026',
+  carol: 'Carol!Clique2026',
+  dave: 'Dave!Clique2026',
+  erin: 'Erin!Clique2026',
+  frank: 'Frank!Clique2026',
+  grace: 'Grace!Clique2026',
+  henry: 'Henry!Clique2026',
+};
+
+const initialAccounts: MemoryAccount[] = initialProfiles.map((profile) => ({
+  id: profile.id,
+  email: `${profile.handle}@example.com`,
+  password: fixturePasswords[profile.id] ?? '',
+  handle: profile.handle,
+}));
 
 const profileById = new Map(initialProfiles.map((profile) => [profile.id, profile]));
 
@@ -340,6 +398,97 @@ function cloneRows<T>(rows: readonly T[]): T[] {
   return rows.map((row) => ({ ...row }));
 }
 
+const DECLARED_ERROR_CODES = {
+  AvatarReferenceInvalidError: 'avatar_reference_invalid',
+  BioInvalidError: 'bio_invalid',
+  DisplayNameInvalidError: 'display_name_invalid',
+  DuplicateEmailError: 'duplicate_email',
+  DuplicateHandleError: 'duplicate_handle',
+  EmailInvalidError: 'email_invalid',
+  HandleInvalidError: 'handle_invalid',
+  InvalidCredentialsError: 'invalid_credentials',
+  LinkInvalidError: 'link_invalid',
+  LocationInvalidError: 'location_invalid',
+  PasswordTooShortError: 'password_too_short',
+  SessionRequiredError: 'session_required',
+} as const;
+
+type DeclaredErrorName = keyof typeof DECLARED_ERROR_CODES;
+
+function fail(name: DeclaredErrorName, message: string): never {
+  const error = new Error(message) as Error & { code: string };
+  error.name = name;
+  error.code = DECLARED_ERROR_CODES[name];
+  throw error;
+}
+
+function normalizedEmail(value: unknown): string {
+  return String(value ?? '').normalize('NFC').trim().toLocaleLowerCase('en-US');
+}
+
+function validatedEmail(value: unknown): string {
+  const email = normalizedEmail(value);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(email)) {
+    fail('EmailInvalidError', 'Enter a valid email address.');
+  }
+  return email;
+}
+
+function validatedPassword(value: unknown): string {
+  const password = String(value ?? '');
+  if (password.length < 8) {
+    fail('PasswordTooShortError', 'Password must contain at least 8 characters.');
+  }
+  return password;
+}
+
+function validatedHandle(value: unknown): string {
+  const handle = String(value ?? '').normalize('NFC').trim();
+  if (!/^[a-z0-9_]{3,20}$/u.test(handle)) {
+    fail(
+      'HandleInvalidError',
+      'Handle must be 3-20 lowercase letters, numbers, or underscores.',
+    );
+  }
+  return handle;
+}
+
+function validatedDisplayName(value: unknown): string {
+  const displayName = String(value ?? '').normalize('NFC').trim();
+  if (displayName.length < 1 || displayName.length > 50) {
+    fail('DisplayNameInvalidError', 'Display name must contain 1-50 characters.');
+  }
+  return displayName;
+}
+
+function validatedBio(value: unknown): string {
+  const bio = String(value ?? '').normalize('NFC').trim();
+  if (bio.length > 200) {
+    fail('BioInvalidError', 'Bio must contain at most 200 characters.');
+  }
+  return bio;
+}
+
+function validatedLocation(value: unknown): string {
+  const location = String(value ?? '').normalize('NFC').trim();
+  if (location.length > 50) {
+    fail('LocationInvalidError', 'Location must contain at most 50 characters.');
+  }
+  return location;
+}
+
+function validatedLink(value: unknown): string {
+  const link = String(value ?? '').normalize('NFC').trim();
+  if (!link) return '';
+  try {
+    const parsed = new URL(link);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+  } catch {
+    // Fall through to the one declared rejection below.
+  }
+  return fail('LinkInvalidError', 'Link must be empty or an HTTP(S) URL.');
+}
+
 function matchesWordPrefix(text: string, query: string): boolean {
   const needle = query.normalize('NFC').trim().toLocaleLowerCase('en-US');
   if (!needle) return true;
@@ -353,15 +502,16 @@ function matchesWordPrefix(text: string, query: string): boolean {
 function insightRows(
   posts: readonly MemoryFeedItem[],
   follows: readonly FollowEdge[],
+  viewerId: string,
 ): InsightDay[] {
-  const viewerPosts = posts.filter((post) => post.authorId === VIEWER_ID);
+  const viewerPosts = posts.filter((post) => post.authorId === viewerId);
   const totals = {
     totalPosts: viewerPosts.length,
     totalLikesReceived: viewerPosts.reduce((sum, post) => sum + post.likeEvents.length, 0),
     totalRepostsReceived: viewerPosts.reduce((sum, post) => sum + post.repostCount, 0),
     totalRepliesReceived: viewerPosts.reduce((sum, post) => sum + post.replyCount, 0),
-    totalFollowers: follows.filter((edge) => edge.followedId === VIEWER_ID).length,
-    totalFollowing: follows.filter((edge) => edge.followerId === VIEWER_ID).length,
+    totalFollowers: follows.filter((edge) => edge.followedId === viewerId).length,
+    totalFollowing: follows.filter((edge) => edge.followerId === viewerId).length,
   };
   const dayMs = 24 * 60 * 60 * 1000;
   const end = Date.parse(FIXTURE_NOW.slice(0, 10) + 'T00:00:00.000Z');
@@ -397,8 +547,13 @@ export interface CoterieMemoryHarness {
 export function createCoterieMemoryHarness(): CoterieMemoryHarness {
   let postSequence = 0;
   let messageSequence = 0;
+  let sessionSequence = 0;
+  let revocationSequence = 0;
+  let activeViewerId: string | null = VIEWER_ID;
   const boundary = createContractMockQueryBoundary({
+    accounts: cloneRows(initialAccounts),
     sessions: cloneRows(initialSession),
+    sessionRevocations: [],
     profiles: cloneRows(initialProfiles),
     follows: cloneRows(initialFollowEdges),
     posts: cloneRows(initialPosts),
@@ -407,7 +562,78 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
     search: cloneRows(initialSearch),
   });
 
-  const provider = createBoundaryContractDataProvider(coterieMemoryManifest, boundary, {
+  const requireActiveViewer = (): string => {
+    const active = boundary.snapshot('sessions') as Session[];
+    if (!activeViewerId || !active.some((session) => session.userId === activeViewerId)) {
+      fail('SessionRequiredError', 'An active session is required.');
+    }
+    return activeViewerId;
+  };
+
+  const writeViewerProjections = (viewerId: string): void => {
+    const follows = boundary.snapshot('follows') as FollowEdge[];
+    boundary.write<Profile>('profiles', (rows) =>
+      rows.map((profile) => ({
+        ...profile,
+        isMe: profile.id === viewerId,
+        followedByMe:
+          profile.id !== viewerId &&
+          follows.some(
+            (edge) => edge.followerId === viewerId && edge.followedId === profile.id,
+          ),
+      })),
+    );
+    boundary.write<MemoryFeedItem>('posts', (rows) =>
+      rows.map((post) => ({
+        ...post,
+        likedByMe: post.likeEvents.some((event) => event.actorId === viewerId),
+        authorFollowedByMe: follows.some(
+          (edge) => edge.followerId === viewerId && edge.followedId === post.authorId,
+        ),
+      })),
+    );
+    boundary.write<Message>('messages', (rows) =>
+      rows.map((message) => ({ ...message, mine: message.senderId === viewerId })),
+    );
+  };
+
+  const revokeActiveSessions = (reason: RevokedSession['reason']): string | null => {
+    const active = boundary.snapshot('sessions') as Session[];
+    if (active.length === 0) return null;
+    const revokedAt = new Date(
+      Date.parse(FIXTURE_NOW) + ++revocationSequence * 1000,
+    ).toISOString();
+    boundary.write<RevokedSession>('sessionRevocations', (rows) => [
+      ...rows,
+      ...active.map((session) => ({
+        ...session,
+        signedIn: false,
+        revokedAt,
+        reason,
+      })),
+    ]);
+    boundary.write<Session>('sessions', () => []);
+    return active[0]?.token ?? null;
+  };
+
+  const startSession = (userId: string): Session => {
+    revokeActiveSessions('replaced');
+    activeViewerId = userId;
+    const sequence = String(++sessionSequence).padStart(4, '0');
+    const session: Session = {
+      id: `session-${userId}-${sequence}`,
+      userId,
+      signedIn: true,
+      token: `coterie-memory-session-${userId}-${sequence}`,
+      expiresAt: SESSION_EXPIRES_AT,
+      revokedAt: null,
+    };
+    boundary.write<Session>('sessions', () => [session]);
+    writeViewerProjections(userId);
+    return session;
+  };
+
+  const provider = createBoundaryContractDataProvider(coterieSurfaceManifest, boundary, {
     queries: {
       listSession: (_args, queryBoundary) =>
         queryBoundary.query<Session>('sessions', (rows) => rows as Session[], { key: 'session' }),
@@ -419,11 +645,11 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
             if (args.mode !== 'following') return posts;
             const followed = new Set(
               (queryBoundary.snapshot('follows') as FollowEdge[])
-                .filter((edge) => edge.followerId === VIEWER_ID)
+                .filter((edge) => edge.followerId === activeViewerId)
                 .map((edge) => edge.followedId),
             );
             return posts.filter(
-              (post) => post.authorId === VIEWER_ID || followed.has(post.authorId),
+              (post) => post.authorId === activeViewerId || followed.has(post.authorId),
             );
           },
           { key: `feed:${String(args.mode)}` },
@@ -454,35 +680,85 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
             insightRows(
               rows as MemoryFeedItem[],
               queryBoundary.snapshot('follows') as FollowEdge[],
+              activeViewerId ?? VIEWER_ID,
             ),
           { key: 'insights' },
         ),
     },
     mutations: {
-      login: (args, queryBoundary) => {
-        if (
-          String(args.email).toLocaleLowerCase('en-US') !== 'alice@example.com' ||
-          String(args.password) !== 'Alice!Clique2026'
-        ) {
-          throw new Error('The backendless shell accepts the Alice fixture credentials only.');
+      signup: (args, queryBoundary) => {
+        const email = validatedEmail(args.email);
+        const password = validatedPassword(args.password);
+        const handle = validatedHandle(args.handle);
+        const displayName = validatedDisplayName(args.displayName);
+        const accounts = queryBoundary.snapshot('accounts') as MemoryAccount[];
+        if (accounts.some((account) => account.email === email)) {
+          fail('DuplicateEmailError', 'An account already uses that email.');
         }
-        queryBoundary.write<Session>('sessions', () => cloneRows(initialSession));
+        if (accounts.some((account) => account.handle === handle)) {
+          fail('DuplicateHandleError', 'An account already uses that handle.');
+        }
+
+        const userId = `local-${handle}`;
+        const account: MemoryAccount = { id: userId, email, password, handle };
+        const profile: Profile = {
+          id: userId,
+          handle,
+          displayName,
+          bio: '',
+          location: '',
+          link: '',
+          avatarUrl: null,
+          followers: 0,
+          following: 0,
+          followedByMe: false,
+          isMe: true,
+        };
+        queryBoundary.write<MemoryAccount>('accounts', (rows) => [...rows, account]);
+        queryBoundary.write<Profile>('profiles', (rows) => [...rows, profile]);
+        queryBoundary.write<SearchResult>('search', (rows) => [
+          ...rows,
+          {
+            id: userId,
+            kind: 'person',
+            title: displayName,
+            subtitle: `@${handle}`,
+            avatarUrl: null,
+          },
+        ]);
+        const session = startSession(userId);
+        return { userId, sessionToken: session.token };
       },
-      logout: (_args, queryBoundary) => {
-        queryBoundary.write<Session>('sessions', () => []);
+      login: (args, queryBoundary) => {
+        const email = normalizedEmail(args.email);
+        const password = String(args.password ?? '');
+        const account = (queryBoundary.snapshot('accounts') as MemoryAccount[]).find(
+          (candidate) => candidate.email === email && candidate.password === password,
+        );
+        if (!account) {
+          fail('InvalidCredentialsError', 'Email or password is incorrect.');
+        }
+        const session = startSession(account.id);
+        return { userId: account.id, sessionToken: session.token };
+      },
+      logout: () => {
+        const revokedToken = revokeActiveSessions('logout');
+        activeViewerId = null;
+        return { revokedToken };
       },
       createPost: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
         const body = String(args.body ?? '').trim();
         if (!body) throw new Error('Post text cannot be empty.');
         const profile = (queryBoundary.snapshot('profiles') as Profile[]).find(
-          (row) => row.id === VIEWER_ID,
+          (row) => row.id === viewerId,
         );
         const item: MemoryFeedItem = {
           id: `coterie-local-post-${String(++postSequence).padStart(4, '0')}`,
-          authorId: VIEWER_ID,
-          authorName: profile?.displayName ?? 'Alice Alvarez',
-          authorHandle: profile?.handle ?? 'alice',
-          avatarUrl: profile?.avatarUrl ?? '/assets/fixtures/avatar-alice.png',
+          authorId: viewerId,
+          authorName: profile?.displayName ?? viewerId,
+          authorHandle: profile?.handle ?? viewerId,
+          avatarUrl: profile?.avatarUrl ?? null,
           body,
           createdAt: new Date(Date.parse(FIXTURE_NOW) + postSequence * 1000).toISOString(),
           likeCount: 0,
@@ -499,6 +775,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
         return { id: item.id };
       },
       setLike: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
         const liked = Boolean(args.liked);
         queryBoundary.write<MemoryFeedItem>('posts', (rows) =>
           rows.map((post) => {
@@ -507,34 +784,35 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
               ? [
                   ...post.likeEvents,
                   {
-                    actorId: VIEWER_ID,
+                    actorId: viewerId,
                     createdAt: FIXTURE_NOW,
                     mutationId: String(args.mutationId),
                   },
                 ]
-              : post.likeEvents.filter((event) => event.actorId !== VIEWER_ID);
+              : post.likeEvents.filter((event) => event.actorId !== viewerId);
             return { ...post, likedByMe: liked, likeCount: likeEvents.length, likeEvents };
           }),
         );
       },
       setFollow: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
         const userId = String(args.userId);
         const following = Boolean(args.following);
-        if (userId === VIEWER_ID) throw new Error('Self-follow is implicit and cannot be changed.');
+        if (userId === viewerId) throw new Error('Self-follow is implicit and cannot be changed.');
         const edges = queryBoundary.snapshot('follows') as FollowEdge[];
         const wasFollowing = edges.some(
-          (edge) => edge.followerId === VIEWER_ID && edge.followedId === userId,
+          (edge) => edge.followerId === viewerId && edge.followedId === userId,
         );
         queryBoundary.write<FollowEdge>('follows', (rows) => {
           if (wasFollowing === following) return rows;
           if (following) {
             return [
               ...rows,
-              { id: `mf-${VIEWER_ID}-${userId}`, followerId: VIEWER_ID, followedId: userId },
+              { id: `mf-${viewerId}-${userId}`, followerId: viewerId, followedId: userId },
             ];
           }
           return rows.filter(
-            (edge) => !(edge.followerId === VIEWER_ID && edge.followedId === userId),
+            (edge) => !(edge.followerId === viewerId && edge.followedId === userId),
           );
         });
         queryBoundary.write<Profile>('profiles', (rows) =>
@@ -547,7 +825,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
                 followers: profile.followers + (following ? 1 : -1),
               };
             }
-            if (profile.id === VIEWER_ID) {
+            if (profile.id === viewerId) {
               return {
                 ...profile,
                 following: profile.following + (following ? 1 : -1),
@@ -565,33 +843,87 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
         );
       },
       editProfile: (args, queryBoundary) => {
-        const displayName = String(args.displayName).trim();
-        const bio = String(args.bio).trim();
-        if (!displayName) throw new Error('Display name cannot be empty.');
+        const viewerId = requireActiveViewer();
+        const current = (queryBoundary.snapshot('profiles') as Profile[]).find(
+          (profile) => profile.id === viewerId,
+        );
+        if (!current) {
+          fail('SessionRequiredError', 'An active session is required.');
+        }
+        const displayName = validatedDisplayName(args.displayName);
+        const bio = validatedBio(args.bio);
+        const handle = args.handle === null ? current.handle : validatedHandle(args.handle);
+        const location = args.location === null
+          ? current.location
+          : validatedLocation(args.location);
+        const link = args.link === null ? current.link : validatedLink(args.link);
+        const duplicate = (queryBoundary.snapshot('accounts') as MemoryAccount[]).some(
+          (account) => account.id !== viewerId && account.handle === handle,
+        );
+        if (duplicate) {
+          fail('DuplicateHandleError', 'An account already uses that handle.');
+        }
+        queryBoundary.write<MemoryAccount>('accounts', (rows) =>
+          rows.map((account) => (account.id === viewerId ? { ...account, handle } : account)),
+        );
         queryBoundary.write<Profile>('profiles', (rows) =>
           rows.map((profile) =>
-            profile.id === VIEWER_ID ? { ...profile, displayName, bio } : profile,
+            profile.id === viewerId
+              ? { ...profile, displayName, handle, bio, location, link }
+              : profile,
           ),
         );
         queryBoundary.write<MemoryFeedItem>('posts', (rows) =>
           rows.map((post) =>
-            post.authorId === VIEWER_ID ? { ...post, authorName: displayName } : post,
+            post.authorId === viewerId
+              ? { ...post, authorName: displayName, authorHandle: handle }
+              : post,
           ),
         );
         queryBoundary.write<Message>('messages', (rows) =>
           rows.map((message) =>
-            message.senderId === VIEWER_ID ? { ...message, senderName: displayName } : message,
+            message.senderId === viewerId ? { ...message, senderName: displayName } : message,
           ),
         );
         queryBoundary.write<SearchResult>('search', (rows) =>
           rows.map((result) =>
-            result.kind === 'person' && result.id === VIEWER_ID
-              ? { ...result, title: displayName }
+            result.kind === 'person' && result.id === viewerId
+              ? { ...result, title: displayName, subtitle: `@${handle}` }
               : result,
           ),
         );
       },
+      setAvatar: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const avatarRef = String(args.avatarRef ?? '');
+        const avatarUrl = FIXTURE_AVATAR_URLS.get(avatarRef);
+        if (!avatarUrl) {
+          fail(
+            'AvatarReferenceInvalidError',
+            'Avatar reference is invalid or unavailable.',
+          );
+        }
+        queryBoundary.write<Profile>('profiles', (rows) =>
+          rows.map((profile) =>
+            profile.id === viewerId ? { ...profile, avatarUrl } : profile,
+          ),
+        );
+        queryBoundary.write<MemoryFeedItem>('posts', (rows) =>
+          rows.map((post) =>
+            post.authorId === viewerId ? { ...post, avatarUrl } : post,
+          ),
+        );
+        queryBoundary.write<SearchResult>('search', (rows) =>
+          rows.map((result) =>
+            result.kind === 'person' && result.id === viewerId
+              ? { ...result, avatarUrl }
+              : result,
+          ),
+        );
+        return { avatarUrl };
+      },
       sendMessage: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
         const body = String(args.body ?? '').trim();
         if (!body) throw new Error('Message text cannot be empty.');
         const chatId = String(args.chatId);
@@ -600,7 +932,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
         );
         if (!chatExists) throw new Error(`Unknown conversation ${chatId}`);
         const profile = (queryBoundary.snapshot('profiles') as Profile[]).find(
-          (row) => row.id === VIEWER_ID,
+          (row) => row.id === viewerId,
         );
         const createdAt = new Date(
           Date.parse(FIXTURE_NOW) + 60_000 + ++messageSequence * 1000,
@@ -608,8 +940,8 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
         const message: Message = {
           id: `coterie-local-message-${String(messageSequence).padStart(4, '0')}`,
           chatId,
-          senderId: VIEWER_ID,
-          senderName: profile?.displayName ?? 'Alice Alvarez',
+          senderId: viewerId,
+          senderName: profile?.displayName ?? viewerId,
           body,
           createdAt,
           mine: true,

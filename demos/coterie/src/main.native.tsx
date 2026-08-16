@@ -19,8 +19,7 @@ import {
 import { createFileRouter } from '@exact/router/router';
 
 import { appRouteModules } from './app/routes.runtime.native.core.js';
-import { createCoterieMemoryProvider } from './data/memory-provider.ts';
-import { configureFromProvider } from './data/generated/coterie-memory.bindings.ts';
+import { bootCoterieProvider } from './data/provider-factory.ts';
 
 type StarterNativeGlobal = typeof globalThis & {
   __exactHandleLinkHref?: (href: string) => void | Promise<void>;
@@ -34,9 +33,10 @@ type StarterNativeGlobal = typeof globalThis & {
 
 const starterGlobal = globalThis as StarterNativeGlobal;
 
-// @ref LLP 0266#d4-backend-boundary — the same generated Contract bindings
-// accept a different conforming provider without a native-specific UI fork.
-const providerProjection = configureFromProvider(createCoterieMemoryProvider());
+// The current native module pipeline has no documented app-env projection.
+// Keep this as the native build-time selector until that path exists.
+const NATIVE_COTERIE_PROVIDER = 'memory';
+const providerBoot = bootCoterieProvider(NATIVE_COTERIE_PROVIDER);
 
 function getPlatform(): string {
   if (
@@ -93,7 +93,7 @@ async function mountApp(): Promise<void> {
 
   starterGlobal.__exactDisposeApp = () => {
     handle.dispose();
-    providerProjection.dispose();
+    providerBoot.dispose();
     reset();
     starterGlobal.__exactDisposeApp = undefined;
   };

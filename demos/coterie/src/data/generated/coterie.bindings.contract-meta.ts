@@ -1,16 +1,19 @@
 // GENERATED provider/binding contract-meta — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie-memory" 2 (inputsHash a42bfa78dc6220e0).
+// Source authority: provider-native declaration "coterie" 4 (inputsHash e55f0d450e11b583).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 import { defineContractModule, mutation, query, shape } from '@exact/contract/exports';
 
-export default defineContractModule('./coterie-memory.bindings.ts', {
+export default defineContractModule('./coterie.bindings.ts', {
+  AuthResult: shape({ fields: { sessionToken: 'string', userId: 'string' } }),
+  AvatarResult: shape({ fields: { avatarUrl: 'string' } }),
   Chat: shape({ fields: { accentColor: 'string', avatarUrl: 'string | null', disappearing: 'string', id: 'string', isGroup: 'boolean', preview: 'string', title: 'string', unreadCount: 'number', updatedAt: 'string' } }),
   FeedItem: shape({ fields: { authorHandle: 'string', authorId: 'string', authorName: 'string', avatarUrl: 'string | null', body: 'string', createdAt: 'string', id: 'string', likeCount: 'number', likedByMe: 'boolean', mediaKind: 'string | null', mediaUrl: 'string | null', pollQuestion: 'string | null', replyCount: 'number', repostCount: 'number' } }),
   InsightDay: shape({ fields: { day: 'string', id: 'string', likesReceived: 'number', posts: 'number', totalFollowers: 'number', totalFollowing: 'number', totalLikesReceived: 'number', totalPosts: 'number', totalRepliesReceived: 'number', totalRepostsReceived: 'number' } }),
+  LogoutMutationResult: shape({ fields: { revokedToken: 'string | null' } }),
   Message: shape({ fields: { body: 'string', chatId: 'string', createdAt: 'string', deleted: 'boolean', edited: 'boolean', id: 'string', mine: 'boolean', quoteText: 'string | null', senderId: 'string', senderName: 'string', status: 'string' } }),
-  Profile: shape({ fields: { avatarUrl: 'string | null', bio: 'string', displayName: 'string', followedByMe: 'boolean', followers: 'number', following: 'number', handle: 'string', id: 'string', isMe: 'boolean' } }),
+  Profile: shape({ fields: { avatarUrl: 'string | null', bio: 'string', displayName: 'string', followedByMe: 'boolean', followers: 'number', following: 'number', handle: 'string', id: 'string', isMe: 'boolean', link: 'string', location: 'string' } }),
   SearchResult: shape({ fields: { avatarUrl: 'string | null', id: 'string', kind: 'string', subtitle: 'string', title: 'string' } }),
-  Session: shape({ fields: { id: 'string', signedIn: 'boolean', userId: 'string' } }),
+  Session: shape({ fields: { expiresAt: 'string', id: 'string', revokedAt: 'string | null', signedIn: 'boolean', token: 'string', userId: 'string' } }),
   listChats: query({
     reads: ['chats'],
     result: 'Chat[]',
@@ -66,24 +69,29 @@ export default defineContractModule('./coterie-memory.bindings.ts', {
     invalidates: ['posts'],
   }),
   editProfile: mutation({
-    params: { bio: 'string', displayName: 'string' },
-    effects: ['data:messages', 'data:posts', 'data:profiles', 'data:search'],
-    invalidates: ['messages', 'posts', 'profiles', 'search'],
+    params: { bio: 'string', displayName: 'string', handle: 'string | null', link: 'string | null', location: 'string | null' },
+    effects: ['data:accounts', 'data:messages', 'data:posts', 'data:profiles', 'data:search'],
+    invalidates: ['accounts', 'messages', 'posts', 'profiles', 'search'],
   }),
   login: mutation({
     params: { email: 'string', password: 'string' },
-    effects: ['data:sessions'],
-    invalidates: ['sessions'],
+    effects: ['data:messages', 'data:posts', 'data:profiles', 'data:sessionRevocations', 'data:sessions'],
+    invalidates: ['messages', 'posts', 'profiles', 'sessionRevocations', 'sessions'],
   }),
   logout: mutation({
     params: {  },
-    effects: ['data:sessions'],
-    invalidates: ['sessions'],
+    effects: ['data:sessionRevocations', 'data:sessions'],
+    invalidates: ['sessionRevocations', 'sessions'],
   }),
   sendMessage: mutation({
     params: { body: 'string', chatId: 'string' },
     effects: ['data:chats', 'data:messages'],
     invalidates: ['chats', 'messages'],
+  }),
+  setAvatar: mutation({
+    params: { avatarRef: 'string' },
+    effects: ['data:posts', 'data:profiles', 'data:search'],
+    invalidates: ['posts', 'profiles', 'search'],
   }),
   setChatAccent: mutation({
     params: { chatId: 'string', color: 'string', mutationId: 'string' },
@@ -104,5 +112,10 @@ export default defineContractModule('./coterie-memory.bindings.ts', {
     params: { liked: 'boolean', mutationId: 'string', postId: 'string' },
     effects: ['data:posts'],
     invalidates: ['posts'],
+  }),
+  signup: mutation({
+    params: { displayName: 'string', email: 'string', handle: 'string', password: 'string' },
+    effects: ['data:accounts', 'data:messages', 'data:posts', 'data:profiles', 'data:search', 'data:sessionRevocations', 'data:sessions'],
+    invalidates: ['accounts', 'messages', 'posts', 'profiles', 'search', 'sessionRevocations', 'sessions'],
   }),
 });
