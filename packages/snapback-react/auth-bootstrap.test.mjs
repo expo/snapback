@@ -29,6 +29,7 @@ const SCHEMA = `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`;
 const FUNCTIONS = `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`;
 const INPUTS = `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`;
 const DESCRIPTOR = `sha256:${'4'.repeat(64)}`;
+const TEST_NOW = () => Date.parse('2026-08-15T12:30:00.000Z');
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 const app = Object.freeze({
@@ -229,9 +230,23 @@ const appClient = await createSnapbackAppClient({
   app,
   binding,
   platform,
+  now: TEST_NOW,
 });
 const prepared = await preparedBinding();
 appClient.client.prepareReactBinding = async () => prepared;
+
+assert.throws(
+  () => SnapbackProvider({
+    binding: prepared,
+    __appClientProjection: Object.freeze({ client: Object.freeze({}) }),
+  }),
+  (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID',
+  'the internal Expo bridge refuses a projection owned by another client before render',
+);
+assert.doesNotThrow(
+  () => SnapbackProvider({ binding: prepared, __appClientProjection: null }),
+  'legacy bridge callers may still project no app client',
+);
 
 let observed = null;
 let observedAuth = null;
@@ -262,8 +277,16 @@ await act(async () => {
     React.createElement(
       React.Fragment,
       null,
-      React.createElement(SnapbackProvider, { app, binding, platform }, React.createElement(Probe)),
-      React.createElement(SnapbackProvider, { app, binding, platform }, React.createElement(Probe)),
+      React.createElement(
+        SnapbackProvider,
+        { app, binding, platform, now: TEST_NOW },
+        React.createElement(Probe),
+      ),
+      React.createElement(
+        SnapbackProvider,
+        { app, binding, platform, now: TEST_NOW },
+        React.createElement(Probe),
+      ),
     ),
   ));
   await flush();
@@ -273,6 +296,7 @@ const overlapping = await createSnapbackAppClient({
   app,
   binding,
   platform,
+  now: TEST_NOW,
 });
 assert.strictEqual(overlapping.client, appClient.client);
 assert.equal(server.requests.filter(({ path }) => path === '/auth/session').length, 1);
@@ -359,6 +383,7 @@ await act(async () => {
     app,
     binding,
     platform: { kind: 'unsupported-test-platform' },
+    now: TEST_NOW,
     fallback(snapshot) {
       fallbackSnapshot = snapshot;
       return null;

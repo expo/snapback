@@ -359,6 +359,7 @@ export type SnapbackProviderProps = SnapbackProviderSharedProps & (
       binding?: never;
       platform?: never;
       storagePartition?: never;
+      now?: never;
       provider?: never;
     }>
   | Readonly<{
@@ -366,6 +367,8 @@ export type SnapbackProviderProps = SnapbackProviderSharedProps & (
       binding: SnapbackAppBindingV1;
       platform: SnapbackAppClientPlatform;
       storagePartition?: string;
+      /** Injected binding-admission clock; defaults to Date.now. */
+      now?: () => number;
       appClient?: never;
       provider?: never;
     }>
@@ -376,12 +379,16 @@ export type SnapbackProviderProps = SnapbackProviderSharedProps & (
       app?: never;
       platform?: never;
       storagePartition?: never;
+      now?: never;
     }>
 );
 
 export function SnapbackProvider(props: SnapbackProviderProps): any;
 
-/** Exact LLP 0238 current-principal projection from the ordinary app owner. */
+/** Exact LLP 0238 current-principal projection from the ordinary app owner.
+ * Official providers withhold hook consumers until ready. Custom SSR trees
+ * that render this hook must provide a deterministic server snapshot equal to
+ * the first hydration snapshot. */
 export function useSnapbackCurrentPrincipal(): CurrentPrincipalSnapshot;
 
 /** Stable projection of the framework-neutral application's auth facade. */

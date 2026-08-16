@@ -7,6 +7,18 @@ import {
   createSupervisedExpoEnvironment,
 } from './supervised-environment.mjs';
 
+const deferred = () => {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
+const SUPERVISOR_DIAGNOSTIC_BEARER = 'sbs_supervisor_diagnostic_must_not_project';
+
 const app = Object.freeze({
   format: 'snapback.app.v1',
   authoringProfile: 'snapback-explicit-v1',
@@ -64,9 +76,23 @@ const environment = createSupervisedExpoEnvironment({
               code: 'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
               severity: 'error',
               message: 'Sessions auth mode is not settled.',
-              details: {},
+              details: {
+                cause: 'sessions-auth-mode-unavailable',
+                bearer: SUPERVISOR_DIAGNOSTIC_BEARER,
+              },
             },
-            remediations: [],
+            remediations: [{
+              kind: 'settleSessionsMode',
+              riskClass: 'mechanical',
+              machineApplicable: false,
+              requiresApproval: false,
+              authorityEffect: 'none',
+              precondition: {
+                causeCode: 'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
+                bearer: SUPERVISOR_DIAGNOSTIC_BEARER,
+              },
+              description: 'Settle Sessions auth mode, then retry bootstrap.',
+            }],
           },
         };
       },
@@ -83,6 +109,13 @@ const state = await boot.start();
 assert.equal(state.status, 'authority-required');
 assert.equal(state.diagnostic.code, 'SNAPBACK_AUTH_POLICY_UNAVAILABLE');
 assert.equal(state.diagnostic.details.cause, 'sessions-auth-mode-unavailable');
+assert.equal(state.diagnostic.details.bearer, undefined);
+assert.equal(state.remediations[0].precondition.bearer, undefined);
+assert.equal(
+  JSON.stringify(state).includes(SUPERVISOR_DIAGNOSTIC_BEARER),
+  false,
+  'supervisor-originated diagnostic and remediation state cannot publish bearer material',
+);
 assert.equal(requests.length, 1, 'binding and refusal travel in one bootstrap exchange');
 assert.equal(requests[0].url, `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`);
 assert.equal(requests[0].options.cache, 'no-store');
@@ -101,4 +134,76 @@ await assert.rejects(
   (error) => error?.code === 'SNAPBACK_EXPO_BOOTSTRAP_ORIGIN_INVALID',
 );
 
-console.log('supervised-environment.test.mjs: no-prop no-store exchange and explicit Sessions refusal pass');
+const bootstrapCapability = 'auth.application-bootstrap.v1';
+const bootstrapApp = Object.freeze({
+  ...app,
+  authBootstrap: Object.freeze({
+    format: 'snapback.application-auth-bootstrap.v1',
+    appId: app.identity.app,
+    mode: 'sessions',
+    custody: 'volatile-explicit',
+    entryMechanisms: Object.freeze([]),
+    anonymousPublic: 'allowed',
+    lifecycleProtocol: 1,
+  }),
+  capabilities: Object.freeze({ required: Object.freeze([bootstrapCapability]) }),
+});
+const bootstrapBinding = Object.freeze({
+  ...binding,
+  capabilities: Object.freeze({ offered: Object.freeze([bootstrapCapability]) }),
+});
+const constructionEntered = deferred();
+let partialCoordinatorDisposed = false;
+let exchangeFetches = 0;
+const abortingEnvironment = createSupervisedExpoEnvironment({
+  exchangeOrigin: 'http://127.0.0.1:4321',
+  appState: {
+    currentState: 'active',
+    addEventListener() { return { remove() {} }; },
+  },
+  resolveAppClientPlatform: async () => Object.freeze({ kind: 'memory' }),
+  async fetch() {
+    exchangeFetches += 1;
+    return Response.json({
+      format: SUPERVISED_EXCHANGE_FORMAT,
+      correlationId: `abort-correlation-${exchangeFetches}`,
+      binding: bootstrapBinding,
+      authority: {
+        status: 'ready',
+        tokenType: 'Bearer',
+        token: 'sbs_disposal_exchange_secret',
+      },
+    });
+  },
+});
+const abortingBoot = createSnapbackExpoBoot({
+  app: bootstrapApp,
+  environment: abortingEnvironment,
+  now: () => Date.parse('2026-08-05T20:30:00.000Z'),
+  createApplicationClient(input) {
+    constructionEntered.resolve();
+    return new Promise((_resolve, reject) => {
+      input.signal?.addEventListener('abort', () => {
+        partialCoordinatorDisposed = true;
+        reject(input.signal.reason);
+      }, { once: true });
+    });
+  },
+});
+void abortingBoot.start();
+await constructionEntered.promise;
+await Promise.race([
+  abortingBoot.dispose(),
+  new Promise((_, reject) => setTimeout(
+    () => reject(new Error('dispose did not join aborted app-client construction')),
+    250,
+  )),
+]);
+assert.equal(partialCoordinatorDisposed, true, 'mid-custody abort closes its partial coordinator');
+await abortingEnvironment.resolveSupervisedAuthority({
+  binding: bootstrapBinding,
+  signal: new AbortController().signal,
+});
+assert.equal(exchangeFetches, 2, 'aborted construction deletes its retained bearer exchange');
+
+console.log('supervised-environment.test.mjs: no-prop exchange, sanitized refusal, and abort cleanup pass');

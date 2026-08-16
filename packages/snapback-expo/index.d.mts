@@ -245,20 +245,37 @@ export interface SnapbackExpoEnvironmentV1 {
     signal: AbortSignal;
     refresh?: boolean;
   }>): Promise<
-    | Readonly<{ status: 'ready'; bearer: string; refreshAfterMs: number }>
+    | Readonly<{
+        status: 'ready';
+        bearer: string;
+        refreshAfterMs: number;
+        binding: AppBindingV1;
+        admission: AppBindingAdmissionEvidenceV1;
+      }>
     | Readonly<{ status: 'unavailable' }>
     | Readonly<{
         status: 'authority-required';
         diagnostic: SnapbackDiagnostic;
         remediations: readonly TypedRemediation[];
+        binding: AppBindingV1;
+        admission: AppBindingAdmissionEvidenceV1;
       }>
   >;
   refreshAuthority?(input: Readonly<{
     app: AppDescriptorV1Like;
     binding: AppBindingV1;
     signal: AbortSignal;
+    admitBinding(
+      candidate: AppBindingV1,
+      admission: AppBindingAdmissionEvidenceV1,
+    ): Promise<AppBindingV1>;
   }>): Promise<
-    | Readonly<{ status: 'ready'; publicFacts: PublicAuthorityFacts }>
+    | Readonly<{
+        status: 'ready';
+        publicFacts: PublicAuthorityFacts;
+        binding?: AppBindingV1;
+        admission?: AppBindingAdmissionEvidenceV1;
+      }>
     | Readonly<{
         status: 'authority-required';
         diagnostic: SnapbackDiagnostic;
@@ -309,6 +326,8 @@ export function createSnapbackExpoBoot(options: Readonly<{
     app: SnapbackApplicationDescriptorV1;
     binding: SnapbackAppBindingV1;
     platform: SnapbackAppClientPlatform;
+    now?: () => number;
+    signal?: AbortSignal;
   }>, observer: (snapshot: AuthBootstrapSnapshot) => void) => Promise<SnapbackAppClient>;
   adoptSupervisedAuthority?: (
     appClient: SnapbackAppClient,

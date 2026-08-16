@@ -205,16 +205,18 @@ function fakeReactProvider() {
 }
 
 function environmentFor(platform, supervisor) {
+  const currentBinding = () => supervisor.binding ?? binding;
+  const admission = () => ({
+    productionCondition: false,
+    delivery: { channel: 'local-supervised-ipc' },
+  });
   return Object.freeze({
     format: 'snapback.expo-environment.v1',
     appState: appStateSource(),
     resolveAppClientPlatform: async () => platform,
     resolveBinding: async () => ({
-      binding,
-      admission: {
-        productionCondition: false,
-        delivery: { channel: 'local-supervised-ipc' },
-      },
+      binding: currentBinding(),
+      admission: admission(),
     }),
     async resolveSupervisedAuthority({ refresh }) {
       supervisor.events.push(refresh === true ? 'refresh' : 'boot');
@@ -223,6 +225,8 @@ function environmentFor(platform, supervisor) {
         : Object.freeze({
             status: 'ready',
             bearer: supervisor.bearer,
+            binding: currentBinding(),
+            admission: admission(),
             refreshAfterMs: Number.MAX_SAFE_INTEGER,
           });
     },
@@ -344,12 +348,40 @@ assert.equal(anonymousReady.status, 'ready');
 assert.equal(anonymousReady.authoritySource, 'supervised-development');
 assert.equal(anonymousBoot.appClient().auth.currentPrincipal().userId, USER_B);
 assert.deepEqual(anonymousReady.advisories, []);
+
+anonymousSupervisor.bearer = SUPERVISED_REMINT;
+anonymousSupervisor.binding = Object.freeze({
+  ...binding,
+  provenance: Object.freeze({
+    ...binding.provenance,
+    issuedAt: '2026-08-15T10:00:00.000Z',
+    expiresAt: '2026-08-15T11:00:00.000Z',
+  }),
+});
+const bearerBeforeExpiredRemint = anonymousBoot.appClient().client.authCoordinator
+  .credentialFor(anonymousBoot.appClient().client.authCoordinator.capture()).bearer;
+const expiredRemint = await anonymousBoot.refreshAuthority();
+assert.equal(expiredRemint.status, 'ready', 'an inadmissible remint leaves the live ready owner intact');
+assert.equal(
+  anonymousBoot.appClient().client.authCoordinator
+    .credentialFor(anonymousBoot.appClient().client.authCoordinator.capture()).bearer,
+  bearerBeforeExpiredRemint,
+  'binding refusal happens before supervised bearer adoption',
+);
+assert.equal(
+  anonymousSupervisor.diagnostics.at(-1)?.code,
+  'SNAPBACK_APP_BINDING_EXPIRED',
+  'the expired remint reports the existing typed binding refusal',
+);
 await anonymousBoot.dispose();
 
 assert.deepEqual(supervisor.events, ['boot', 'refresh', 'refresh', 'refresh', 'refresh']);
-assert.deepEqual(anonymousSupervisor.events, ['boot']);
+assert.deepEqual(anonymousSupervisor.events, ['boot', 'refresh']);
 assert.deepEqual(supervisor.diagnostics, []);
-assert.deepEqual(anonymousSupervisor.diagnostics, []);
+assert.deepEqual(
+  anonymousSupervisor.diagnostics.map(({ code }) => code),
+  ['SNAPBACK_APP_BINDING_EXPIRED'],
+);
 assert.equal(
   server.requests.some(({ path, bearer }) => (
     path === '/auth/session' && bearer === SUPERVISED_BEARER

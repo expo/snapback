@@ -334,10 +334,11 @@ function preflight(input) {
   const expectedInputKeys = ['app', 'binding', 'platform'];
   if (Object.hasOwn(input, 'storagePartition')) expectedInputKeys.push('storagePartition');
   if (Object.hasOwn(input, 'now')) expectedInputKeys.push('now');
+  if (Object.hasOwn(input, 'signal')) expectedInputKeys.push('signal');
   if (!exactKeys(input, expectedInputKeys)) {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID',
-      'createSnapbackAppClient accepts only app, binding, platform, and optional storagePartition and now.',
+      'createSnapbackAppClient accepts only app, binding, platform, and optional storagePartition, now, and signal.',
       { actualKeys: Object.keys(input).sort() },
     );
   }
@@ -345,6 +346,18 @@ function preflight(input) {
   const now = input.now ?? Date.now;
   if (typeof now !== 'function' || !Number.isFinite(now())) {
     throw new TypeError('createSnapbackAppClient `now` must be a function returning a finite timestamp');
+  }
+  const signal = input.signal ?? null;
+  if (
+    signal !== null
+    && (
+      typeof signal !== 'object'
+      || typeof signal.aborted !== 'boolean'
+      || typeof signal.addEventListener !== 'function'
+      || typeof signal.removeEventListener !== 'function'
+    )
+  ) {
+    throw new TypeError('createSnapbackAppClient `signal` must be an AbortSignal');
   }
   const policy = validateAppPolicy(app);
   validateBinding(binding, app, policy, now);
@@ -367,7 +380,7 @@ function preflight(input) {
       );
     }
   }
-  return Object.freeze({ app, binding, platform, policy, storagePartition });
+  return Object.freeze({ app, binding, platform, policy, storagePartition, signal });
 }
 
 const ownerKey = (appId, storagePartition) => (
@@ -454,9 +467,10 @@ async function resolveCustody(preflighted) {
   });
 }
 
-const safeCauseCode = (error) => error?.diagnostic?.code
-  ?? error?.code
-  ?? 'SNAPBACK_AUTH_BOOTSTRAP_FAILED';
+const safeCauseCode = (error) => {
+  const observed = error?.diagnostic?.code ?? error?.code;
+  return nonEmptyString(observed) ? observed : 'SNAPBACK_AUTH_BOOTSTRAP_FAILED';
+};
 
 function failureSnapshot(error) {
   const causeCode = safeCauseCode(error);
@@ -530,6 +544,44 @@ function replaceSupervisedConflictAdvisory(owner, advisory) {
   ]);
 }
 
+const constructionAbortReason = (signal) => signal?.reason
+  ?? Object.assign(new Error('Application auth bootstrap construction was aborted.'), {
+    name: 'AbortError',
+  });
+
+function throwIfConstructionAborted(signal) {
+  if (signal?.aborted === true) throw constructionAbortReason(signal);
+}
+
+function awaitConstructionBoundary(value, signal, disposeLateValue = null) {
+  if (signal === null) return Promise.resolve(value);
+  if (signal.aborted) return Promise.reject(constructionAbortReason(signal));
+  const pending = Promise.resolve(value);
+  return new Promise((resolve, reject) => {
+    let aborted = false;
+    const onAbort = () => {
+      aborted = true;
+      signal.removeEventListener('abort', onAbort);
+      reject(constructionAbortReason(signal));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    pending.then(
+      (result) => {
+        signal.removeEventListener('abort', onAbort);
+        if (aborted) {
+          try { void Promise.resolve(disposeLateValue?.(result)).catch(() => {}); } catch { /* abort owns outcome */ }
+          return;
+        }
+        resolve(result);
+      },
+      (error) => {
+        signal.removeEventListener('abort', onAbort);
+        if (!aborted) reject(error);
+      },
+    );
+  });
+}
+
 async function constructOwner(preflighted, bootstrapObservers, onOwner) {
   const owner = {
     app: preflighted.app,
@@ -563,11 +615,17 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
     try { observer(owner.snapshot); } catch { /* bootstrap observation cannot own lifecycle */ }
   }
   try {
+    throwIfConstructionAborted(preflighted.signal);
     starting(owner, 'custody');
-    const custody = await resolveCustody(preflighted);
+    const custody = await awaitConstructionBoundary(
+      resolveCustody(preflighted),
+      preflighted.signal,
+      (lateCustody) => lateCustody?.storage?.close?.(),
+    );
     owner.storage = custody.storage;
     owner.custodyFacts = custody.facts;
 
+    throwIfConstructionAborted(preflighted.signal);
     starting(owner, 'authority');
     owner.coordinator = new AuthCoordinator({
       appId: preflighted.app.identity.app,
@@ -577,14 +635,21 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
       hintStorage: null,
     });
 
+    throwIfConstructionAborted(preflighted.signal);
     starting(owner, 'client');
     owner.client = new SnapbackClient(preflighted.binding.target.origin, {
       authCoordinator: owner.coordinator,
       authClientProtocol: 1,
       authorityDescriptorProtocol: 1,
     });
-    const restoredCapture = await owner.coordinator.synchronize();
-    await owner.client.auth.authSession({ force: true });
+    const restoredCapture = await awaitConstructionBoundary(
+      owner.coordinator.synchronize(),
+      preflighted.signal,
+    );
+    await awaitConstructionBoundary(
+      owner.client.auth.authSession({ force: true }),
+      preflighted.signal,
+    );
     owner.authoritySource = restoredCapture === null
       ? 'fresh-anonymous'
       : 'durable-restored';
@@ -1073,8 +1138,18 @@ export async function __adoptSupervisedBootstrapAuthority(
     if (owner.entryInFlight) return Object.freeze({ status: 'dropped' });
     owner.ownerTransitionInFlight = true;
     try {
+      let allowSameAuthorityRotation = false;
+      if (owner.supervisedAdoptionCapture !== null) {
+        try {
+          allowSameAuthorityRotation = exactCapture(
+            owner.supervisedAdoptionCapture,
+            owner.client.captureAuthority(),
+          );
+        } catch { /* an unsettled/peer transition cannot authorize rotation */ }
+      }
       const result = await owner.client.__supervisedBootstrapHandshake(bearer, {
         refreshAfterMs,
+        allowSameAuthorityRotation,
       });
       if (result.status === 'conflict') {
         replaceSupervisedConflictAdvisory(

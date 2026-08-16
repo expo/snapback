@@ -1,5 +1,6 @@
 import type {
   AppBindingV1,
+  AppBindingAdmissionEvidenceV1,
   AppDescriptorV1Like,
   AppStateSource,
   PublicAuthorityFacts,
@@ -13,7 +14,12 @@ export const SUPERVISED_EXCHANGE_FORMAT: 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH: '/_snapback/expo/v1/bootstrap';
 
 export type SupervisedAuthorityRefreshResult =
-  | Readonly<{ status: 'ready'; publicFacts: PublicAuthorityFacts }>
+  | Readonly<{
+      status: 'ready';
+      publicFacts: PublicAuthorityFacts;
+      binding: AppBindingV1;
+      admission: AppBindingAdmissionEvidenceV1;
+    }>
   | Readonly<{
       status: 'authority-required';
       diagnostic: SnapbackDiagnostic;
@@ -40,18 +46,30 @@ export interface SupervisedSnapbackExpoEnvironmentV1 extends SnapbackExpoEnviron
     signal: AbortSignal;
     refresh?: boolean;
   }>): Promise<
-    | Readonly<{ status: 'ready'; bearer: string; refreshAfterMs: number }>
+    | Readonly<{
+        status: 'ready';
+        bearer: string;
+        refreshAfterMs: number;
+        binding: AppBindingV1;
+        admission: AppBindingAdmissionEvidenceV1;
+      }>
     | Readonly<{ status: 'unavailable' }>
     | Readonly<{
         status: 'authority-required';
         diagnostic: SnapbackDiagnostic;
         remediations: readonly TypedRemediation[];
+        binding: AppBindingV1;
+        admission: AppBindingAdmissionEvidenceV1;
       }>
   >;
   refreshAuthority(input: Readonly<{
     app: AppDescriptorV1Like;
     binding: AppBindingV1;
     signal: AbortSignal;
+    admitBinding(
+      candidate: AppBindingV1,
+      admission: AppBindingAdmissionEvidenceV1,
+    ): Promise<AppBindingV1>;
   }>): Promise<SupervisedAuthorityRefreshResult>;
 }
 

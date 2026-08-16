@@ -26,6 +26,10 @@ import {
 } from './app-binding.mjs';
 import { createSupervisedExpoEnvironment } from './supervised-environment.mjs';
 import {
+  sanitizePublicDiagnostic,
+  sanitizePublicRemediations,
+} from './diagnostic-sanitization.mjs';
+import {
   adaptExpoAssetSource,
   expoAssetFetch,
 } from './asset-source.mjs';
@@ -57,8 +61,9 @@ function normalizedDiagnostic(error, correlationId) {
         error?.code ?? 'SNAPBACK_EXPO_BOOT_FAILED',
         error instanceof Error ? error.message : String(error),
       );
-  return diagnostic(base.code, base.message, {
-    ...(base.details ?? {}),
+  return sanitizePublicDiagnostic(base, {
+    fallbackCode: 'SNAPBACK_EXPO_BOOT_FAILED',
+    fallbackMessage: 'Expo application bootstrap failed.',
     correlationId,
   });
 }
@@ -140,7 +145,7 @@ function authorityRequiredState(error, correlationId, remediations = []) {
       ...projected.details,
       cause,
     }),
-    remediations: Object.freeze([...remediations]),
+    remediations: sanitizePublicRemediations(remediations),
   });
 }
 
@@ -155,7 +160,7 @@ function errorState(error, correlationId) {
   return Object.freeze({
     status: unsupportedCodes.has(value.code) ? 'unsupported' : 'error',
     diagnostic: value,
-    remediations: Object.freeze([...(error?.remediations ?? [])]),
+    remediations: sanitizePublicRemediations(error?.remediations),
   });
 }
 
@@ -193,8 +198,56 @@ export function createSnapbackExpoBoot({
   let authorityFacts = null;
   let preparation = null;
   let refreshPromise = null;
+  let cleanupPromise = null;
+  let disposePromise = null;
+  let admittedBindingAdmission = null;
   const listeners = new Set();
   const controller = new AbortController();
+
+  const abortReason = () => controller.signal.reason
+    ?? Object.assign(new Error('Expo application bootstrap was aborted.'), { name: 'AbortError' });
+
+  const awaitBoundary = (value, disposeLateValue = null) => {
+    if (controller.signal.aborted) return Promise.reject(abortReason());
+    const pending = Promise.resolve(value);
+    return new Promise((resolve, reject) => {
+      let aborted = false;
+      const onAbort = () => {
+        aborted = true;
+        controller.signal.removeEventListener('abort', onAbort);
+        reject(abortReason());
+      };
+      controller.signal.addEventListener('abort', onAbort, { once: true });
+      pending.then(
+        (result) => {
+          controller.signal.removeEventListener('abort', onAbort);
+          if (aborted) {
+            try { void Promise.resolve(disposeLateValue?.(result)).catch(() => {}); } catch { /* abort owns outcome */ }
+            return;
+          }
+          resolve(result);
+        },
+        (error) => {
+          controller.signal.removeEventListener('abort', onAbort);
+          if (!aborted) reject(error);
+        },
+      );
+    });
+  };
+
+  const admitBindingCandidate = (candidate, admission = {}, mode = 'resolved') => (
+    admitAppBindingV1(candidate, app, {
+      mode,
+      now: now(),
+      productionCondition:
+        admission.productionCondition ?? productionCondition(),
+      delivery: admission.delivery,
+      generatedReleaseTargets: admission.generatedReleaseTargets,
+      confirmSupervisedIssuance: admission.confirmSupervisedIssuance,
+      verifySignedArtifact: admission.verifySignedArtifact,
+      verifyBuildReceipt: admission.verifyBuildReceipt,
+    })
+  );
 
   const publish = (next) => {
     if (disposed) return;
@@ -204,8 +257,8 @@ export function createSnapbackExpoBoot({
     }
   };
 
-  const cleanup = async () => {
-    lifecycle?.dispose?.();
+  const cleanup = () => cleanupPromise ??= (async () => {
+    try { lifecycle?.dispose?.(); } catch { /* diagnostics are already projected */ }
     lifecycle = null;
     if (reactProvider) {
       try { await reactProvider.dispose(); } catch { /* diagnostics are already projected */ }
@@ -221,7 +274,7 @@ export function createSnapbackExpoBoot({
       try { await applicationClient.dispose(); } catch { /* bootstrap owner retains diagnostics */ }
       applicationClient = null;
     }
-  };
+  })();
 
   const projectApplicationBootstrap = () => {
     // @ref LLP 0258#d7-bootstrap-state-is-construction-truth-not-auth-truth — retain the
@@ -246,11 +299,11 @@ export function createSnapbackExpoBoot({
         error.code = 'SNAPBACK_EXPO_ENVIRONMENT_INVALID';
         throw error;
       }
-      const resolution = await environment.resolveBinding(Object.freeze({
+      const resolution = await awaitBoundary(environment.resolveBinding(Object.freeze({
         app,
         bindingOverride,
         signal: controller.signal,
-      }));
+      })));
       if (!resolution || typeof resolution !== 'object' || !resolution.binding) {
         const error = new Error('binding resolver returned no AppBinding admission candidate');
         error.code = 'SNAPBACK_APP_BINDING_UNAVAILABLE';
@@ -265,32 +318,28 @@ export function createSnapbackExpoBoot({
         throw error;
       }
       const admission = resolution.admission ?? {};
-      admittedBinding = await admitAppBindingV1(resolution.binding, app, {
-        mode: bindingOverride === null ? 'resolved' : 'override',
-        now: now(),
-        productionCondition:
-          admission.productionCondition ?? productionCondition(),
-        delivery: admission.delivery,
-        generatedReleaseTargets: admission.generatedReleaseTargets,
-        confirmSupervisedIssuance: admission.confirmSupervisedIssuance,
-        verifySignedArtifact: admission.verifySignedArtifact,
-        verifyBuildReceipt: admission.verifyBuildReceipt,
-      });
+      admittedBinding = await awaitBoundary(admitBindingCandidate(
+        resolution.binding,
+        admission,
+        bindingOverride === null ? 'resolved' : 'override',
+      ));
+      admittedBindingAdmission = admission;
       if (disposed) return state;
 
       if (firstPartyBootstrapOptIn(app)) {
-        const platform = await resolveAppClientPlatform(environment, app);
-        applicationClient = await createApplicationClient(
+        const platform = await awaitBoundary(resolveAppClientPlatform(environment, app));
+        applicationClient = await awaitBoundary(createApplicationClient(
           {
             app,
             binding: admittedBinding,
             platform,
             now,
+            signal: controller.signal,
           },
           (snapshot) => {
             if (!disposed && snapshot.status !== 'ready') publish(snapshot);
           },
-        );
+        ), (lateAppClient) => lateAppClient?.dispose?.());
         if (disposed) {
           await cleanup();
           return state;
@@ -300,12 +349,12 @@ export function createSnapbackExpoBoot({
           admittedBinding.source === 'supervised-dev'
           && typeof environment.resolveSupervisedAuthority === 'function'
         ) {
-          const supervised = await environment.resolveSupervisedAuthority(Object.freeze({
+          const supervised = await awaitBoundary(environment.resolveSupervisedAuthority(Object.freeze({
             app,
             binding: admittedBinding,
             signal: controller.signal,
             refresh: false,
-          }));
+          })));
           if (disposed) {
             await cleanup();
             return state;
@@ -325,11 +374,11 @@ export function createSnapbackExpoBoot({
             return state;
           }
           if (supervised?.status === 'ready') {
-            await adoptSupervisedAuthority(applicationClient, {
+            await awaitBoundary(adoptSupervisedAuthority(applicationClient, {
               bearer: supervised.bearer,
               binding: admittedBinding,
               refreshAfterMs: supervised.refreshAfterMs,
-            });
+            }));
             if (disposed) {
               await cleanup();
               return state;
@@ -337,12 +386,12 @@ export function createSnapbackExpoBoot({
           }
         }
 
-        const prepared = await applicationClient.client.prepareReactBinding({
+        const prepared = await awaitBoundary(applicationClient.client.prepareReactBinding({
           generatedManifest: app,
           ...(environment.developmentSync === undefined
             ? {}
             : { developmentSync: environment.developmentSync }),
-        });
+        }));
         preparation = Object.freeze({ source: prepared.source ?? 'deployment' });
         if (disposed) return state;
         reactProvider = createProvider(prepared, {
@@ -350,7 +399,7 @@ export function createSnapbackExpoBoot({
           assetSourceAdapter: adaptExpoAssetSource,
         });
         reactProvider.start?.();
-        lifecycleSource = await resolveSnapbackExpoLifecycleSource(environment);
+        lifecycleSource = await awaitBoundary(resolveSnapbackExpoLifecycleSource(environment));
         if (disposed) return state;
         lifecycle = bindLifecycle(lifecycleSource, reactProvider, {
           onError(error) {
@@ -369,11 +418,11 @@ export function createSnapbackExpoBoot({
       publish(Object.freeze({ status: 'starting', stage: 'authority' }));
       let adopted;
       try {
-        adopted = await environment.adoptAuthority(Object.freeze({
+        adopted = await awaitBoundary(environment.adoptAuthority(Object.freeze({
           app,
           binding: admittedBinding,
           signal: controller.signal,
-        }));
+        })), (lateAdoption) => lateAdoption?.dispose?.());
       } catch (error) {
         if (
           error?.authorityRequired === true
@@ -413,12 +462,12 @@ export function createSnapbackExpoBoot({
       }
 
       publish(Object.freeze({ status: 'starting', stage: 'client' }));
-      const prepared = await adopted.client.prepareReactBinding({
+      const prepared = await awaitBoundary(adopted.client.prepareReactBinding({
         generatedManifest: app,
         ...(environment.developmentSync === undefined
           ? {}
           : { developmentSync: environment.developmentSync }),
-      });
+      }));
       preparation = Object.freeze({ source: prepared.source ?? 'deployment' });
       if (disposed) return state;
       reactProvider = createProvider(prepared, {
@@ -429,7 +478,7 @@ export function createSnapbackExpoBoot({
         assetSourceAdapter: adaptExpoAssetSource,
       });
       reactProvider.start?.();
-      lifecycleSource = await resolveSnapbackExpoLifecycleSource(environment);
+      lifecycleSource = await awaitBoundary(resolveSnapbackExpoLifecycleSource(environment));
       if (disposed) return state;
       lifecycle = bindLifecycle(lifecycleSource, reactProvider, {
         onError(error) {
@@ -445,6 +494,7 @@ export function createSnapbackExpoBoot({
       }));
       return state;
     } catch (error) {
+      if (!controller.signal.aborted) controller.abort(error);
       await cleanup();
       if (!disposed) publish(
         firstPartyBootstrapOptIn(app) && error?.bootstrapState
@@ -479,20 +529,48 @@ export function createSnapbackExpoBoot({
             || typeof environment.resolveSupervisedAuthority !== 'function'
           ) return state;
           try {
-            const supervised = await environment.resolveSupervisedAuthority(Object.freeze({
+            const supervised = await awaitBoundary(environment.resolveSupervisedAuthority(Object.freeze({
               app,
               binding: admittedBinding,
               signal: controller.signal,
               refresh: true,
-            }));
+            })));
+            let refreshedBinding = admittedBinding;
+            if (supervised?.status === 'ready' || supervised?.status === 'authority-required') {
+              if (!supervised.binding || typeof supervised.binding !== 'object') {
+                const error = new Error(
+                  'a refreshed supervised authority must carry its AppBinding admission candidate',
+                );
+                error.code = 'SNAPBACK_EXPO_ENVIRONMENT_INVALID';
+                throw error;
+              }
+              refreshedBinding = await awaitBoundary(admitBindingCandidate(
+                supervised.binding,
+                supervised.admission ?? {},
+              ));
+            }
             if (supervised?.status === 'ready') {
-              await adoptSupervisedAuthority(applicationClient, {
+              await awaitBoundary(adoptSupervisedAuthority(applicationClient, {
                 bearer: supervised.bearer,
-                binding: admittedBinding,
+                binding: refreshedBinding,
                 refreshAfterMs: supervised.refreshAfterMs,
-              });
+              }));
+              admittedBinding = refreshedBinding;
+              admittedBindingAdmission = supervised.admission ?? {};
+              admittedBindingFacts = publicBindingFacts(admittedBinding);
             } else if (supervised?.status === 'authority-required') {
-              try { environment.onDiagnostic?.(supervised.diagnostic); } catch { /* observational */ }
+              admittedBinding = refreshedBinding;
+              admittedBindingAdmission = supervised.admission ?? {};
+              admittedBindingFacts = publicBindingFacts(admittedBinding);
+              try {
+                environment.onDiagnostic?.(normalizedDiagnostic(
+                  Object.assign(new Error(supervised.diagnostic?.message), {
+                    code: supervised.diagnostic?.code,
+                    diagnostic: supervised.diagnostic,
+                  }),
+                  correlationId,
+                ));
+              } catch { /* observational */ }
             }
             publish(projectApplicationBootstrap());
           } catch (error) {
@@ -510,6 +588,14 @@ export function createSnapbackExpoBoot({
         const resumeAfterRefresh = reactProvider?.inspection?.().hostPaused !== true;
         publish(Object.freeze({ status: 'starting', stage: 'authority' }));
         try {
+          // Re-admit the current candidate at the refresh clock before even
+          // pausing the live owner. The default supervised environment then
+          // invokes the same callback for the exact remint it fetched before
+          // touching bearer custody.
+          await awaitBoundary(admitBindingCandidate(
+            admittedBinding,
+            admittedBindingAdmission ?? {},
+          ));
           // The headless client's bearer barrier owns live-query handles, while
           // the canonical React provider owns presence rooms and publishers.
           // Quiescing that owner around replacement gives both resource
@@ -517,12 +603,27 @@ export function createSnapbackExpoBoot({
           // second subscription or room model.
           // @ref LLP 0114#provider-construction-and-ownership — authority replacement
           // crosses the existing provider owner and resumes that same owner.
-          await reactProvider?.pause();
-          const replacement = await environment.refreshAuthority(Object.freeze({
+          await awaitBoundary(reactProvider?.pause());
+          let refreshedBinding = null;
+          let refreshedAdmission = null;
+          const replacement = await awaitBoundary(environment.refreshAuthority(Object.freeze({
             app,
             binding: admittedBinding,
             signal: controller.signal,
-          }));
+            async admitBinding(candidate, admission = {}) {
+              const admitted = await awaitBoundary(admitBindingCandidate(candidate, admission));
+              refreshedBinding = admitted;
+              refreshedAdmission = admission;
+              return admitted;
+            },
+          })));
+          if (replacement?.binding && refreshedBinding === null) {
+            refreshedAdmission = replacement.admission ?? {};
+            refreshedBinding = await awaitBoundary(admitBindingCandidate(
+              replacement.binding,
+              refreshedAdmission,
+            ));
+          }
           if (replacement?.status === 'authority-required') {
             const error = new Error(
               replacement.diagnostic?.message ?? 'An ordinary application session is required.',
@@ -540,7 +641,12 @@ export function createSnapbackExpoBoot({
             return state;
           }
           authorityFacts = nextFacts;
-          if (resumeAfterRefresh) await reactProvider?.resume();
+          if (refreshedBinding !== null) {
+            admittedBinding = refreshedBinding;
+            admittedBindingAdmission = refreshedAdmission;
+            admittedBindingFacts = publicBindingFacts(admittedBinding);
+          }
+          if (resumeAfterRefresh) await awaitBoundary(reactProvider?.resume());
           publish(Object.freeze({
             status: 'ready',
             binding: admittedBindingFacts,
@@ -549,6 +655,9 @@ export function createSnapbackExpoBoot({
           }));
           return state;
         } catch (error) {
+          if (resumeAfterRefresh && !controller.signal.aborted) {
+            try { await reactProvider?.resume(); } catch { /* retain the refresh refusal */ }
+          }
           if (
             error?.authorityRequired === true
             || error?.code === 'SNAPBACK_AUTH_POLICY_UNAVAILABLE'
@@ -563,12 +672,17 @@ export function createSnapbackExpoBoot({
     reactProvider: () => reactProvider,
     appClient: () => applicationClient,
     lifecycleSource: () => lifecycleSource,
-    async dispose() {
-      if (disposed) return;
-      disposed = true;
-      controller.abort();
-      listeners.clear();
-      await cleanup();
+    dispose() {
+      return disposePromise ??= (async () => {
+        disposed = true;
+        if (!controller.signal.aborted) controller.abort();
+        listeners.clear();
+        await Promise.allSettled([
+          ...(startPromise === null ? [] : [startPromise]),
+          ...(refreshPromise === null ? [] : [refreshPromise]),
+        ]);
+        await cleanup();
+      })();
     },
   });
 }

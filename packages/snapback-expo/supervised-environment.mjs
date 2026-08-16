@@ -4,6 +4,10 @@ import {
 } from '@expo/snapback-client';
 
 import { createDefaultSupervisedBindingCache } from './supervised-binding-cache.mjs';
+import {
+  sanitizePublicDiagnostic,
+  sanitizePublicRemediations,
+} from './diagnostic-sanitization.mjs';
 
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH = supervisedExchangePath();
@@ -119,20 +123,28 @@ function bindingKey(binding) {
   ].join('\u0000');
 }
 
+const supervisedAdmission = () => Object.freeze({
+  productionCondition: false,
+  delivery: Object.freeze({ channel: 'local-supervised-ipc' }),
+});
+
 function authorityRequired(exchange) {
   const source = exchange?.authority;
   if (source?.status !== 'authority-required') return null;
-  const projected = exactObject(source.diagnostic)
+  const projected = sanitizePublicDiagnostic(exactObject(source.diagnostic)
     ? source.diagnostic
     : diagnostic(
         'SNAPBACK_AUTHORITY_REQUIRED',
         'The supervised runtime did not provide an ordinary application session.',
         { cause: 'ordinary-session-unavailable' },
-      );
+      ), {
+    fallbackCode: 'SNAPBACK_AUTHORITY_REQUIRED',
+    fallbackMessage: 'The supervised runtime did not provide an ordinary application session.',
+  });
   return Object.freeze({
     status: 'authority-required',
     diagnostic: projected,
-    remediations: Object.freeze([...(source.remediations ?? [])]),
+    remediations: sanitizePublicRemediations(source.remediations),
   });
 }
 
@@ -250,6 +262,17 @@ export function createSupervisedExpoEnvironment({
   const offlineFallbacks = new Map();
   let adopted = null;
 
+  const retainExchange = (key, exchange, signal) => {
+    exchanges.set(key, exchange);
+    if (signal?.aborted === true) {
+      if (exchanges.get(key) === exchange) exchanges.delete(key);
+      return;
+    }
+    signal?.addEventListener?.('abort', () => {
+      if (exchanges.get(key) === exchange) exchanges.delete(key);
+    }, { once: true });
+  };
+
   const loadCachedBinding = async (app) => {
     // @ref LLP 0114#offline-binding-receipt-dated-amendment-2026-08-01 — the
     // supervised fallback only gets boot to the existing digest-bound client
@@ -357,13 +380,10 @@ export function createSupervisedExpoEnvironment({
         });
       }
       offlineFallbacks.delete(bindingKey(exchange.binding));
-      exchanges.set(bindingKey(exchange.binding), exchange);
+      retainExchange(bindingKey(exchange.binding), exchange, signal);
       return Object.freeze({
         binding: exchange.binding,
-        admission: Object.freeze({
-          productionCondition: false,
-          delivery: Object.freeze({ channel: 'local-supervised-ipc' }),
-        }),
+        admission: supervisedAdmission(),
       });
     },
     async resolveSupervisedAuthority({ binding, signal, refresh = false }) {
@@ -375,9 +395,11 @@ export function createSupervisedExpoEnvironment({
         // retained state; absence of an ambient mint is not boot failure.
         return Object.freeze({ status: 'unavailable' });
       }
+      const retained = exchanges.get(key);
       const exchange = refresh
         ? await fetchExchange(signal)
-        : exchanges.get(key) ?? await fetchExchange(signal);
+        : retained ?? await fetchExchange(signal);
+      if (retained === exchange) exchanges.delete(key);
       if (bindingKey(exchange.binding) !== key) {
         throw codedError(
           refresh ? 'SNAPBACK_APP_BINDING_EXPIRED' : 'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED',
@@ -386,12 +408,17 @@ export function createSupervisedExpoEnvironment({
             : 'The authority exchange did not match the admitted supervised binding.',
         );
       }
-      exchanges.delete(key);
       const required = authorityRequired(exchange);
-      if (required) return required;
+      if (required) return Object.freeze({
+        ...required,
+        binding: exchange.binding,
+        admission: supervisedAdmission(),
+      });
       return Object.freeze({
         status: 'ready',
         bearer: exchange.authority.token,
+        binding: exchange.binding,
+        admission: supervisedAdmission(),
         // Supervisor events own remint; this explicit custody fact means the
         // borrowed carrier remains current until that next event.
         refreshAfterMs: Number.MAX_SAFE_INTEGER,
@@ -470,7 +497,7 @@ export function createSupervisedExpoEnvironment({
         },
       });
     },
-    async refreshAuthority({ binding, signal }) {
+    async refreshAuthority({ binding, signal, admitBinding }) {
       if (adopted === null || adopted.client === null) {
         throw codedError(
           'SNAPBACK_AUTHORITY_REQUIRED',
@@ -489,6 +516,13 @@ export function createSupervisedExpoEnvironment({
           },
         );
       }
+      if (typeof admitBinding !== 'function') {
+        throw codedError(
+          'SNAPBACK_EXPO_ENVIRONMENT_INVALID',
+          'Supervised authority refresh requires the provider binding-admission callback.',
+        );
+      }
+      const refreshedBinding = await admitBinding(exchange.binding, supervisedAdmission());
       const required = authorityRequired(exchange);
       if (required) {
         if (typeof adopted.client.replaceBearerToken === 'function') {
@@ -511,11 +545,16 @@ export function createSupervisedExpoEnvironment({
         }
         const session = await adopted.client.authSession({ force: true });
         const facts = publicAuthorityFacts(session);
-        adopted.binding = exchange.binding;
+        adopted.binding = refreshedBinding;
         adopted.publicFacts = facts;
         adopted.offline = false;
-        saveCachedBinding(exchange.binding, facts);
-        return Object.freeze({ status: 'ready', publicFacts: facts });
+        saveCachedBinding(refreshedBinding, facts);
+        return Object.freeze({
+          status: 'ready',
+          publicFacts: facts,
+          binding: refreshedBinding,
+          admission: supervisedAdmission(),
+        });
       } catch (error) {
         if (typeof adopted.client.replaceBearerToken === 'function') {
           try { await adopted.client.replaceBearerToken(null); } catch { /* preserve refresh error */ }

@@ -3,6 +3,7 @@ import { webcrypto } from 'node:crypto';
 import { test } from 'node:test';
 
 import { IDBFactory } from 'fake-indexeddb';
+import { AuthCoordinator } from '@expo/snapback-contract/auth-coordinator';
 
 import {
   DEFAULT_AUTH_STORAGE_PARTITION,
@@ -397,6 +398,80 @@ test('browser durable custody restores the default record and isolates explicit 
     await partitioned?.dispose();
     await restored?.dispose();
     await first?.dispose();
+    server.restore();
+  }
+});
+
+test('restored same-principal remints cannot rotate bearer while process-supervised remints can', async () => {
+  const server = installServer();
+  const app = makeApp({ custody: 'durable-required' });
+  const indexedDB = new IDBFactory();
+  const platform = {
+    kind: 'browser',
+    indexedDB,
+    lockManager: { request: (_name, _options, operation) => operation() },
+    cryptoObject: webcrypto,
+    databaseName: 'snapback-app-client-restored-remint-test',
+  };
+  const input = { app, binding: makeBinding(app), platform };
+  let seeded = null;
+  let restored = null;
+  let supervised = null;
+  try {
+    seeded = await createSnapbackAppClient(input);
+    server.respond('/auth/password/signin', () => (
+      Response.json(server.credential({ token: APPLICATION_BEARER }))
+    ));
+    await seeded.auth.signInWithPassword({ email: 'person@example.com', password: PASSWORD });
+    await seeded.dispose();
+    seeded = null;
+
+    restored = await createSnapbackAppClient(input);
+    const restoredCapture = restored.client.authCoordinator.capture();
+    assert.equal(
+      restored.client.authCoordinator.credentialFor(restoredCapture).bearer,
+      APPLICATION_BEARER,
+    );
+    const protectedRemint = await __adoptSupervisedBootstrapAuthority(restored, {
+      bearer: ROTATED_BEARER,
+      binding: input.binding,
+    });
+    assert.equal(protectedRemint.status, 'conflict');
+    assert.equal(
+      restored.client.authCoordinator.credentialFor(
+        restored.client.authCoordinator.capture(),
+      ).bearer,
+      APPLICATION_BEARER,
+      'restored authority keeps its durable bearer even when the remint names the same principal',
+    );
+    assert.deepEqual(
+      restored.bootstrapState().advisories.map(({ diagnostic }) => diagnostic.code),
+      ['SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT'],
+    );
+    await restored.dispose();
+    restored = null;
+
+    supervised = await createSnapbackAppClient(optionsFor(makeApp()));
+    assert.equal((await __adoptSupervisedBootstrapAuthority(supervised, {
+      bearer: SUPERVISED_BEARER,
+      binding: makeBinding(makeApp()),
+    })).status, 'adopted');
+    assert.equal((await __adoptSupervisedBootstrapAuthority(supervised, {
+      bearer: ROTATED_BEARER,
+      binding: makeBinding(makeApp()),
+    })).status, 'rebound');
+    assert.equal(
+      supervised.client.authCoordinator.credentialFor(
+        supervised.client.authCoordinator.capture(),
+      ).bearer,
+      ROTATED_BEARER,
+      'the exact process-local supervised adoption record still authorizes remint rotation',
+    );
+    assert.deepEqual(supervised.bootstrapState().advisories, []);
+  } finally {
+    await supervised?.dispose();
+    await restored?.dispose();
+    await seeded?.dispose();
     server.restore();
   }
 });
@@ -935,6 +1010,41 @@ test('peer predecessor races surface the typed entry diagnostic and mid-entry re
       server.restore();
     }
   });
+});
+
+test('aborting construction during custody synchronization closes its partial coordinator', async () => {
+  const server = installServer();
+  const app = makeApp();
+  const controller = new AbortController();
+  const entered = deferred();
+  const never = deferred();
+  const originalSynchronize = AuthCoordinator.prototype.synchronize;
+  const originalClose = AuthCoordinator.prototype.close;
+  let closed = 0;
+  AuthCoordinator.prototype.synchronize = async function synchronizeUntilAbort() {
+    entered.resolve();
+    return never.promise;
+  };
+  AuthCoordinator.prototype.close = async function closeObservedCoordinator(...args) {
+    closed += 1;
+    return originalClose.apply(this, args);
+  };
+  try {
+    const construction = createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+      signal: controller.signal,
+    }));
+    await entered.promise;
+    controller.abort();
+    await assert.rejects(
+      construction,
+      (error) => error?.name === 'AbortError',
+    );
+    assert.equal(closed, 1, 'the partially constructed AuthCoordinator is closed on abort');
+  } finally {
+    AuthCoordinator.prototype.synchronize = originalSynchronize;
+    AuthCoordinator.prototype.close = originalClose;
+    server.restore();
+  }
 });
 
 console.log('snapback-client application auth bootstrap tests: ok');

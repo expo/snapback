@@ -12,6 +12,8 @@ export function createSnapbackAppClientWithBootstrapObserver(
     binding: SnapbackAppBindingV1;
     platform: SnapbackAppClientPlatform;
     storagePartition?: string;
+    now?: () => number;
+    signal?: AbortSignal;
   }>,
   observer: (snapshot: AuthBootstrapSnapshot) => void,
 ): Promise<SnapbackAppClient>;

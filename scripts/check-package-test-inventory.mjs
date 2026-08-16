@@ -211,6 +211,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'activity-presence.test.mjs',
       'assets.test.mjs',
       'auth-bootstrap.test.mjs',
+      'ssr-hydration.test.mjs',
       'auth-blocked-resource.test.mjs',
       'authorization-denial.test.mjs',
       'binding-development-sync.test.mjs',
@@ -507,7 +508,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 289,
+  expectedTotal = 290,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);

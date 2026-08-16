@@ -3932,7 +3932,7 @@ function reactAuthOwnerRefusal(message, details = {}) {
   return error;
 }
 
-function ordinaryProviderController({ appClient, app, binding, platform, storagePartition }) {
+function ordinaryProviderController({ appClient, app, binding, platform, storagePartition, now }) {
   let generation = 0;
   let retained = appClient;
   let acquisition = null;
@@ -3949,6 +3949,7 @@ function ordinaryProviderController({ appClient, app, binding, platform, storage
         binding,
         platform,
         ...(storagePartition === undefined ? {} : { storagePartition }),
+        ...(now === undefined ? {} : { now }),
       },
       publishConstruction,
     ).then((next) => {
@@ -3999,6 +4000,7 @@ function OrdinarySnapbackProvider({
   binding = null,
   platform = null,
   storagePartition = undefined,
+  now = undefined,
   fallback = null,
   children = null,
   createProvider,
@@ -4012,7 +4014,8 @@ function OrdinarySnapbackProvider({
     binding,
     platform,
     storagePartition,
-  }), [app, appClient, binding, platform, storagePartition]);
+    now,
+  }), [app, appClient, binding, now, platform, storagePartition]);
   const store = useMemo(() => {
     const listeners = new Set();
     let current = Object.freeze({
@@ -4144,8 +4147,28 @@ function providerOwnershipMode({
   return appClient !== null || app !== null ? 'ordinary' : 'advanced';
 }
 
+function assertProjectedAppClientOwnership(props) {
+  const appClient = props.__appClientProjection;
+  if (appClient === null) return;
+  let prepared = null;
+  if (props.provider !== null && props.provider !== undefined) {
+    prepared = assertProvider(props.provider).binding;
+  } else if (props.binding !== null && props.binding !== undefined) {
+    prepared = assertPreparedReactBinding(props.binding);
+  }
+  if (prepared === null) return;
+  const boundClient = preparedReactBindingClient(prepared);
+  if (appClient?.client !== boundClient) {
+    throw reactAuthOwnerRefusal(
+      'The projected app client and prepared React provider must be owned by the same Snapback client.',
+      { ordinary: 'appClientProjection', advanced: 'prepared-provider-client' },
+    );
+  }
+}
+
 export function SnapbackCoreProvider(props) {
   if (props.__appClientProjection !== undefined) {
+    assertProjectedAppClientOwnership(props);
     return React.createElement(
       appClientContext.Provider,
       { value: props.__appClientProjection },
@@ -4164,6 +4187,7 @@ export function SnapbackCoreProvider(props) {
 
 export function SnapbackFullProvider(props) {
   if (props.__appClientProjection !== undefined) {
+    assertProjectedAppClientOwnership(props);
     return React.createElement(
       appClientContext.Provider,
       { value: props.__appClientProjection },
@@ -4204,9 +4228,13 @@ function useSnapbackAppClient() {
   return appClient;
 }
 
-// @ref LLP 0238#d6-current-principal-is-a-first-class-projection — React
-// projects the app client's exact closed principal snapshot; it owns no auth
-// state and introduces no nullable loading shortcut.
+/**
+ * Projects the app client's exact closed principal snapshot. Official
+ * providers withhold hook consumers until client readiness. A custom SSR
+ * ownership tree that renders this hook must keep its server snapshot
+ * deterministic and identical to the first hydration snapshot.
+ * @ref LLP 0238#d6-current-principal-is-a-first-class-projection
+ */
 export function useSnapbackCurrentPrincipal() {
   const auth = useSnapbackAppClient().auth;
   const subscribe = useCallback(

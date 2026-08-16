@@ -1,0 +1,38 @@
+# LLP 0258 React/Expo projection (b186296fd) landed-code review — codex
+
+**Reviewer:** codex exec, gpt-5.6-sol, xhigh, read-only
+**Date:** 2026-08-15
+**Subject:** the landed React/Expo projection at HEAD 2e2c5b65c, seeded with the discarded parallel React lane's defect classes
+**Verdict as received (all findings fixed in the follow-up landing; finding 4/5/6 verified real by the fix lane):**
+
+NOT READY
+
+1. **MATERIAL — protected same-principal remints can replace application/restored credentials.** The same-authority branch rotates the bearer before checking whether the current principal is protected by application/restored custody. The caller then treats `rebound` as supervised success and clears the conflict advisory. [index.mjs:4296](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-client/index.mjs:4296), [app-client.mjs:1053](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-client/app-client.mjs:1053).  
+   **Scenario:** an application-restored session receives a supervised remint for the same user/session; its bearer is silently replaced instead of preserving application custody and publishing `SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT`. Existing tests cover different-principal conflict and remint after supervised adoption, not this protected same-principal case. [provider-auth-bootstrap.test.mjs:306](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/provider-auth-bootstrap.test.mjs:306)
+
+2. **MATERIAL — the internal provider/app-client bridge bypasses ownership validation.** Public props are checked for duplicate ownership, but `__appClientProjection` short-circuits that check and accepts any provider/app-client pair. [implementation.mjs:4113](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-react/implementation.mjs:4113), [implementation.mjs:4148](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-react/implementation.mjs:4148), [provider.mjs:632](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/provider.mjs:632)  
+   **Scenario:** provider B supplies queries while appClient A supplies authentication. A tree without an auth hook runs silently with the dead mismatch; adding the hook later authenticates A rather than failing early with D7’s typed owner-conflict diagnostic.
+
+3. **MATERIAL — authority refresh does not re-admit the refreshed binding.** Initial boot performs full admission with the injected clock, but refresh checks only a narrow key containing descriptor identity, generation, and origin. It omits expiry and other admitted facts. [provider.mjs:267](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/provider.mjs:267), [provider.mjs:472](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/provider.mjs:472), [supervised-environment.mjs:114](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/supervised-environment.mjs:114), [app-binding.mjs:472](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-client/app-binding.mjs:472)  
+   **Scenario:** after the admitted binding expires, a remint carrying the same narrow key is still accepted and can rotate/adopt a bearer. The injected binding-admission clock therefore governs initial boot but not refresh.
+
+4. **MATERIAL — disposal can leave an in-flight coordinator and raw bearer exchange behind.** The default environment stores the complete exchange in a module-singleton map. Provider disposal aborts the environment but neither cancels nor joins `startPromise`; app-client construction has no cancellation signal. [supervised-environment.mjs:249](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/supervised-environment.mjs:249), [supervised-environment.mjs:359](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/supervised-environment.mjs:359), [provider.mjs:281](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/provider.mjs:281), [provider.mjs:566](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/provider.mjs:566)  
+   **Scenario:** unmount or Fast Refresh occurs after exchange acquisition while custody synchronization hangs. `dispose()` returns, but construction continues and the singleton retains the bearer because the later consuming/deleting step is never reached.
+
+5. **MATERIAL — supervisor diagnostics can project secrets into public boot state.** `authorityRequired` accepts supervisor-provided diagnostics and remediations, while normalization preserves arbitrary `details`; no redaction enforces D8. [supervised-environment.mjs:122](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/supervised-environment.mjs:122), [provider.mjs:52](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/provider.mjs:52), [provider.mjs:132](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-expo/provider.mjs:132)  
+   **Scenario:** a supervisor includes `details.bearer` or a token-bearing remediation precondition for debugging. The value becomes visible through the boot-state hook/fallback and can be logged by application code.
+
+6. **MATERIAL — the landed React regression test is currently red.** Its binding has a fixed one-hour validity window on 2026-08-15, but the test constructs the client without injecting `now`. [auth-bootstrap.test.mjs:65](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-react/auth-bootstrap.test.mjs:65), [auth-bootstrap.test.mjs:226](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-react/auth-bootstrap.test.mjs:226)  
+   **Scenario:** running the test at current HEAD fails with `SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID`. It passes only when `Date.now` is artificially pinned inside the declared window.
+
+7. **MINOR — SSR uses a live server snapshot and has no hydration test.** The hook passes the same app-client snapshot reader as both client and server snapshot; no serialized hydration-stable value exists. [implementation.mjs:4211](/Users/ccheever/projects/snapback/.claude/worktrees/auth-rfix/packages/snapback-react/implementation.mjs:4211)  
+   **Scenario:** the internal projection bridge server-renders with an authenticated client but hydrates with a fresh loading client, producing differing initial snapshots. The tests use `react-test-renderer`; none calls `renderToString`, `hydrate`, or `hydrateRoot`.
+
+Classes found **CLEAN**:
+
+- **3:** no hook-level cache omits ownership mode; hooks derive directly from the current app-client context.
+- **4:** snapshot identity, deferred publication, cleanup, client-swap resubscription, and `clearAuthSession` custody blanking are correctly implemented.
+- **6:** the amended boot union distinguishes custody stages, blocked/ready states, preparation, advisories, anonymous readiness, and unsettled authority-required.
+- **7:** the legacy non-opted-in `adoptAuthority` path remains gated and behaviorally unchanged.
+
+Verification: app-client, Expo bootstrap, Expo provider, and supervised-environment tests passed. The React auth-bootstrap test failed directly as described above and passed with its clock pinned. The worktree remained unchanged.

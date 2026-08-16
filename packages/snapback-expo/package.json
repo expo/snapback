@@ -28,6 +28,7 @@
     "app.plugin.js",
     "config-plugin.cjs",
     "config-plugin.d.mts",
+    "diagnostic-sanitization.mjs",
     "index.d.mts",
     "index.mjs",
     "lifecycle-source.mjs",

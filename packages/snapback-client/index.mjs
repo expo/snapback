@@ -4215,7 +4215,10 @@ export class SnapbackClient {
   // before the existing coordinator transition/barrier owns publication.
   async __supervisedBootstrapHandshake(
     bearer,
-    { refreshAfterMs = Number.MAX_SAFE_INTEGER } = {},
+    {
+      refreshAfterMs = Number.MAX_SAFE_INTEGER,
+      allowSameAuthorityRotation = false,
+    } = {},
   ) {
     if (!this.authCoordinator) {
       throw new TypeError('supervised bootstrap requires AuthCoordinator custody');
@@ -4242,6 +4245,9 @@ export class SnapbackClient {
     const current = this.authCoordinator.credentialFor(currentCapture);
     if (current.authority.kind === 'session') {
       if (sameClientAuthority(current.authority, observed)) {
+        if (!allowSameAuthorityRotation) {
+          return Object.freeze({ status: 'conflict', session });
+        }
         const rotated = await this.authCoordinator.compareAndRotateBearer(currentCapture, {
           bearer,
           refreshAfterMs,

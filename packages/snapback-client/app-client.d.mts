@@ -138,4 +138,7 @@ export function createSnapbackAppClient(input: Readonly<{
    * defaults to Date.now. Supervised hosts with a controlled clock (the
    * Expo boot) pass theirs so admission and boot agree on time. */
   now?: () => number;
+  /** Cancels in-flight bootstrap construction and disposes any partially
+   * constructed custody/coordinator/client owners. */
+  signal?: AbortSignal;
 }>): Promise<SnapbackAppClient>;
