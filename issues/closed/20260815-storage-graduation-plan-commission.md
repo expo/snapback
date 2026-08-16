@@ -25,3 +25,15 @@ explicit graduation path to Postgres/cells — not winning raw-Postgres
 workloads at raw Postgres.
 
 Related: LLP 0128, LLP 0198, LLP 0265 (championship contract), LLP 0209.
+
+---
+
+**Resolved 2026-08-16.** The author commissioned authoring ahead of the
+demand trigger in the 2026-08-16 orchestration session (this closure is the
+repository record of that request). The Plan is
+`llp/0269-storage-graduation.plan.md` (Draft, v0.2), authored by Codex
+gpt-5.6-sol xhigh and taken through a dual-family review loop (codex + grok,
+round 1 both NOT READY, delta round converged; artifacts in
+`llp/reviews/0269-storage-graduation.*`). Execution remains demand-gated per
+the Plan §0 — the triggers are unchanged from this ticket. Acceptance is the
+author's call.
