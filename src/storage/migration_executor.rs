@@ -3668,7 +3668,23 @@ impl LocalDatabase {
                 last_id = Some(id.clone());
                 let mut bindings = BTreeMap::new();
                 bindings.insert("row".to_owned(), row.clone());
-                let mut produced = Map::new();
+                // `CopyTable.fields` is the closed transform map. Same-name
+                // successor fields outside it are carried from the predecessor
+                // without running a migration transform (or its test-only
+                // semantic-drift hook).
+                //
+                // @ref LLP 0081#3-typed-migration-steps — a named conversion
+                // transforms only its declared destination while the staged
+                // generation preserves unaffected successor fields.
+                let mut produced = successor_table
+                    .fields
+                    .iter()
+                    .filter_map(|field| {
+                        row.get(&field.name)
+                            .cloned()
+                            .map(|value| (field.name.clone(), value))
+                    })
+                    .collect::<Map<_, _>>();
                 let mut content_changed = false;
                 for (dest_field, expr) in fields {
                     let value = eval_expr(
@@ -4440,14 +4456,25 @@ fn run_data_proof(
                         }
                         let mut bindings = BTreeMap::new();
                         bindings.insert("row".to_owned(), row.clone());
-                        let mut produced = serde_json::Map::new();
+                        let mut produced = successor_table
+                            .fields
+                            .iter()
+                            .filter_map(|field| {
+                                row.get(&field.name)
+                                    .filter(|value| !value.is_null())
+                                    .cloned()
+                                    .map(|value| (field.name.clone(), value))
+                            })
+                            .collect::<serde_json::Map<_, _>>();
                         let mut content_changed = false;
                         for (dest, expr) in fields.iter() {
                             let value = migration_expected_oracle(expr, &input.args, &bindings)?;
                             if row.get(dest).cloned().unwrap_or(Value::Null) != value {
                                 content_changed = true;
                             }
-                            if !value.is_null() {
+                            if value.is_null() {
+                                produced.remove(dest);
+                            } else {
                                 produced.insert(dest.clone(), value);
                             }
                         }
@@ -5681,7 +5708,7 @@ mod tests {
             field_type: FieldType::String,
             backfill: ValueExpr::Arg("noteDefault".to_owned()),
         }];
-        let steps = derive_plan_steps(successor, &intents).expect("derive steps");
+        let steps = derive_plan_steps(predecessor, successor, &intents).expect("derive steps");
         let body = MigrationPlanBody {
             schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
             app: "test-app".to_owned(),
@@ -5754,11 +5781,18 @@ mod tests {
         let contract_hash = crate::manifest::stored_structured_contract_hash(&contract).unwrap();
         let table_with = |field_type| TableManifest {
             name: "migrationRows".to_owned(),
-            fields: vec![FieldManifest {
-                name: "payload".to_owned(),
-                field_type,
-                optional: false,
-            }],
+            fields: vec![
+                FieldManifest {
+                    name: "payload".to_owned(),
+                    field_type,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
             indexes: Vec::new(),
             syncable: false,
             permission_backing: false,
@@ -5793,6 +5827,7 @@ mod tests {
                     json!({
                         "_id": "json-row",
                         "payload": { "n": 8.0, "label": "copied" },
+                        "title": "untouched",
                     })
                     .as_object()
                     .cloned()
@@ -5803,6 +5838,7 @@ mod tests {
         .expect("JSON predecessor row");
 
         let steps = derive_plan_steps(
+            &predecessor,
             &successor,
             &[MigrationIntent::ConvertJsonToStructured {
                 table: "migrationRows".to_owned(),
@@ -5847,21 +5883,33 @@ mod tests {
         let plan = MigrationPlanArtifactV1::seal(body).expect("seal conversion plan");
         let approval = approval_for(&plan, now_millis());
         let (_, resolved) = audience();
-        let receipt = db
-            .migrate_apply(MigrationApplyRequest {
-                artifact: &plan,
-                approval: &approval,
-                successor_schema: &successor,
-                audience: &resolved,
-                now_ms: now_millis(),
-                rehearsal: None,
-            })
-            .expect("apply JSON-to-structured conversion");
+        install_migration_execution_value_hook(|field, value| {
+            if field == "title" {
+                json!("wrongly-rewritten")
+            } else {
+                value
+            }
+        });
+        let apply_result = db.migrate_apply(MigrationApplyRequest {
+            artifact: &plan,
+            approval: &approval,
+            successor_schema: &successor,
+            audience: &resolved,
+            now_ms: now_millis(),
+            rehearsal: None,
+        });
+        clear_migration_execution_value_hook();
+        let receipt = apply_result.expect("apply JSON-to-structured conversion");
         assert_eq!(receipt.state.kind(), "released");
         assert_eq!(db.schema(), &successor);
         assert_eq!(
             db.get("migrationRows", "json-row").unwrap().unwrap()["payload"],
             json!({ "label": "copied", "n": 8 }),
+        );
+        assert_eq!(
+            db.get("migrationRows", "json-row").unwrap().unwrap()["title"],
+            json!("untouched"),
+            "an unrelated successor field must not enter the named conversion transform map",
         );
         let raw: String = db
             .conn
@@ -7067,7 +7115,7 @@ mod tests {
                 field_type: FieldType::String,
                 optional: true,
             });
-            let steps = derive_plan_steps(&wider, &intents).expect("derive");
+            let steps = derive_plan_steps(&successor, &wider, &intents).expect("derive");
             let mut body = fixture_plan(&successor, &wider, default_ceilings()).body;
             body.steps = steps;
             body.predecessor_schema_hash = schema_identity(&successor).expect("id");
@@ -7198,7 +7246,8 @@ mod tests {
                 ("note".to_owned(), ValueExpr::Arg("noteDefault".to_owned())),
             ]),
         }];
-        let mut steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+        let mut steps =
+            derive_plan_steps(&predecessor, &successor, &intents).expect("derive steps");
         for record in &mut steps {
             if matches!(record.step, MigrationStep::CopyTable { .. }) {
                 record.verification = vec![

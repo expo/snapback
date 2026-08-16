@@ -10412,7 +10412,7 @@ fn publication_refuses_a_function_set_that_does_not_bind_the_successor() {
             field: "extra".to_owned(),
         }],
     );
-    let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+    let steps = derive_plan_steps(&predecessor, &successor, &intents).expect("derive steps");
     let identity = |schema: &SchemaManifest| {
         crate::storage::migration_executor::schema_identity(schema).expect("identity")
     };
@@ -10665,7 +10665,7 @@ fn compatibility_posture_ordering_is_proven_not_declared() {
     };
     let sealed = |snapback: &LocalSnapback, posture: CompatibilityPosture| {
         let intents = derive_intents(&predecessor, &successor).expect("derive intents");
-        let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+        let steps = derive_plan_steps(&predecessor, &successor, &intents).expect("derive steps");
         MigrationPlanArtifactV1::seal(MigrationPlanBody {
             schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
             app: snapback.migrate_app_id(),
@@ -10876,7 +10876,7 @@ fn restore_derived_rehearsal_gates_production_apply() {
     };
     let sealed = |snapback: &LocalSnapback| {
         let intents = derive_intents(&predecessor, &successor).expect("derive intents");
-        let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+        let steps = derive_plan_steps(&predecessor, &successor, &intents).expect("derive steps");
         MigrationPlanArtifactV1::seal(MigrationPlanBody {
             schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
             app: snapback.migrate_app_id(),

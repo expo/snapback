@@ -1,6 +1,6 @@
 # `ConvertJsonToStructured` does not require a Json predecessor and identity-copies every field
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 4
@@ -44,3 +44,21 @@ the whole-table field map with unconstrained identity.
   `plan_invalid`.
 - Unrelated successor fields are not rewritten as a side effect of
   naming one Json field.
+
+## Resolution (2026-08-15)
+
+`src/migration.rs` now plans `ConvertJsonToStructured` against both manifests,
+requires an exact Json predecessor and Structured successor, and emits only the
+named field in the `CopyTable` transform map. `src/storage/migration_executor.rs`
+carries omitted same-name successor fields without invoking the transform hook;
+the planner call sites were updated to pass the predecessor manifest. LLP 0081
+records the tightened reviewed-intent semantics.
+
+Planner tests cover Json→Structured success plus Structured→Structured and
+String→Structured `SNAPBACK_MIGRATION_PLAN_INVALID` refusals. The end-to-end
+executor test applies the reviewed conversion and proves an unrelated successor
+field cannot be rewritten through the named transform. Evidence:
+
+```text
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 2650 filtered out; finished in 1.49s
+```

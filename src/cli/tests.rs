@@ -5453,7 +5453,7 @@ fn migrate_rehearse_verb_matches_the_library_path() {
             .apply_schema(predecessor.clone())
             .expect("apply schema");
         let intents = derive_intents(&predecessor, &successor).expect("derive intents");
-        let steps = derive_plan_steps(&successor, &intents).expect("derive steps");
+        let steps = derive_plan_steps(&predecessor, &successor, &intents).expect("derive steps");
         let artifact = MigrationPlanArtifactV1::seal(MigrationPlanBody {
             schema_version: MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
             app: isolated.migrate_app_id(),
