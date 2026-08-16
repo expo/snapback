@@ -144,6 +144,7 @@
       "src/telemetry_contract.rs",
       "src/value_expr.rs",
       "src/vector/types.rs",
+      "src/visibility_governance.rs",
       "src/watches.rs",
       "src/wire_fixtures.rs",
       "src/wire_version.rs"
@@ -331,6 +332,8 @@
       "src/cli/migration.rs",
       "src/cli/tests.rs",
       "src/control_catalog.rs",
+      "src/dev_identity.rs",
+      "src/elevated_read_trace.rs",
       "src/guide.rs",
       "src/guide_mcp.rs",
       "src/guide_reference.rs",

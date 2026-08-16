@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v2",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 239,
-  "edgeCount": 1764,
+  "moduleCount": 242,
+  "edgeCount": 1793,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -237,6 +237,12 @@
       "fromOwner": "transport-adapters",
       "to": "src/data_patch.rs",
       "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/admin.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/dev_identity.rs",
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/admin.rs",
@@ -505,7 +511,19 @@
     {
       "from": "src/assets_cut.rs",
       "fromOwner": "background-services",
+      "to": "src/contract_types.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/assets_cut.rs",
+      "fromOwner": "background-services",
       "to": "src/diagnostic.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/assets_cut.rs",
+      "fromOwner": "background-services",
+      "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
@@ -895,6 +913,12 @@
     {
       "from": "src/auth/identity_core.rs",
       "fromOwner": "shared-contract-types-leaf",
+      "to": "src/contract_types.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/auth/identity_core.rs",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -932,6 +956,12 @@
       "from": "src/auth/invocation.rs",
       "fromOwner": "sync-realtime-engine",
       "to": "src/auth/descriptor.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/auth/invocation.rs",
+      "fromOwner": "sync-realtime-engine",
+      "to": "src/auth/identity_core.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
@@ -2095,6 +2125,12 @@
     {
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/dev_identity.rs",
+      "toOwner": "transport-adapters"
+    },
+    {
+      "from": "src/cli.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -2527,6 +2563,12 @@
     {
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/dev_identity.rs",
+      "toOwner": "transport-adapters"
+    },
+    {
+      "from": "src/cli/tests.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -2828,6 +2870,24 @@
       "from": "src/deploy.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/rqs_contract.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/dev_identity.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/auth/crypto.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/dev_identity.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/diagnostic.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/dev_identity.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/owner_only_file.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
@@ -3607,6 +3667,12 @@
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
+      "to": "src/auth/identity_core.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/local.rs",
+      "fromOwner": "unassigned",
       "to": "src/auth/invalidation.rs",
       "toOwner": "sync-realtime-engine"
     },
@@ -4081,6 +4147,12 @@
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
+      "to": "src/visibility_governance.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/local.rs",
+      "fromOwner": "unassigned",
       "to": "src/warm_vm.rs",
       "toOwner": "background-services"
     },
@@ -4387,6 +4459,12 @@
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
+      "to": "src/conformance.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/local/tests.rs",
+      "fromOwner": "unassigned",
       "to": "src/contract_types.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -4639,6 +4717,12 @@
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
+      "to": "src/visibility_governance.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/local/tests.rs",
+      "fromOwner": "unassigned",
       "to": "src/wire_version.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -4754,6 +4838,18 @@
       "from": "src/manifest.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/vector/types.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/manifest.rs",
+      "fromOwner": "shared-contract-types-leaf",
+      "to": "src/visibility_governance.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/manifest.rs",
+      "fromOwner": "shared-contract-types-leaf",
+      "to": "src/watches.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
@@ -5295,6 +5391,12 @@
       "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/runtime.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/elevated_read_trace.rs",
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/runtime.rs",
@@ -6187,6 +6289,12 @@
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/conformance.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/server.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/connected_clients.rs",
       "toOwner": "sync-realtime-engine"
     },
@@ -6207,6 +6315,12 @@
       "fromOwner": "transport-adapters",
       "to": "src/data_patch.rs",
       "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/server.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/dev_identity.rs",
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server.rs",
@@ -6775,6 +6889,12 @@
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/auth/identity_core.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/server/tests.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/invalidation.rs",
       "toOwner": "sync-realtime-engine"
     },
@@ -6879,6 +6999,12 @@
       "fromOwner": "transport-adapters",
       "to": "src/deploy.rs",
       "toOwner": "generation-activation-coordinator"
+    },
+    {
+      "from": "src/server/tests.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/dev_identity.rs",
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server/tests.rs",
@@ -7004,6 +7130,12 @@
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/server/api_error.rs",
+      "toOwner": "transport-adapters"
+    },
+    {
+      "from": "src/server/tests.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/server/effects.rs",
       "toOwner": "transport-adapters"
     },
     {
@@ -7215,6 +7347,12 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/assets.rs",
       "toOwner": "background-services"
+    },
+    {
+      "from": "src/storage.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/auth/identity_core.rs",
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage.rs",
@@ -8060,6 +8198,12 @@
       "from": "src/storage/auth_identity.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/storage/auth_catalog_ops.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/auth_identity.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/auth_rehearsal.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
@@ -9157,6 +9301,12 @@
     {
       "from": "src/storage/membership_reads.rs",
       "fromOwner": "storage-migration-kernel",
+      "to": "src/membership_rules.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/storage/membership_reads.rs",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -9285,6 +9435,12 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/jobs.rs",
       "toOwner": "background-services"
+    },
+    {
+      "from": "src/storage/mutation_writes.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/manifest.rs",
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/mutation_writes.rs",
@@ -9579,6 +9735,12 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/stream_attempt.rs",
       "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/storage/tests.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/assets_cut.rs",
+      "toOwner": "background-services"
     },
     {
       "from": "src/storage/tests.rs",
@@ -10493,6 +10655,18 @@
       "toOwner": "shared-contract-types-leaf"
     },
     {
+      "from": "src/visibility_governance.rs",
+      "fromOwner": "shared-contract-types-leaf",
+      "to": "src/diagnostic.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/visibility_governance.rs",
+      "fromOwner": "shared-contract-types-leaf",
+      "to": "src/manifest.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
       "from": "src/watches.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/diagnostic.rs",
@@ -10589,7 +10763,7 @@
       "toOwner": "transport-adapters"
     }
   ],
-  "frozenForbiddenEdgeCount": 344,
+  "frozenForbiddenEdgeCount": 346,
   "frozenForbiddenEdges": [
     {
       "fingerprint": "src/admin_secret_read.rs (transport-adapters) → src/local.rs (unassigned)"
@@ -11112,6 +11286,17 @@
       }
     },
     {
+      "fingerprint": "src/local.rs (unassigned) → src/visibility_governance.rs (shared-contract-types-leaf)",
+      "attribution": {
+        "disposition": "time-bounded-waiver",
+        "observationRevision": "a509921612e3d86a1d445f7c64d80bc7ec148c67",
+        "worklist": "issues/20260816-main-red-unmanifested-modules-elevated-read-visibility-gov.md",
+        "provenance": "visibility_governance landed unmanifested (LLP 0234); assigning it to shared-contract-types-leaf freezes this pre-existing god-file import as a bounded LLP 0225 §2 drainage waiver, inverted when src/local.rs drains its activation-validation call to the generation-activation-coordinator.",
+        "inversionOwner": "generation-activation-coordinator",
+        "deadline": "2026-09-15"
+      }
+    },
+    {
       "fingerprint": "src/local.rs (unassigned) → src/warm_vm.rs (background-services)"
     },
     {
@@ -11511,6 +11696,17 @@
         "observationRevision": "eefe4e446",
         "worklist": "issues/20260809-0199-ownership-ratchet-worklist.md",
         "provenance": "Visible only to the upgraded module-relative and transitive re-export analyzer in the 2026-08-10 main landings merged at the LLP 0225 §5 enforcement landing."
+      }
+    },
+    {
+      "fingerprint": "src/local/tests.rs (unassigned) → src/visibility_governance.rs (shared-contract-types-leaf)",
+      "attribution": {
+        "disposition": "time-bounded-waiver",
+        "observationRevision": "a509921612e3d86a1d445f7c64d80bc7ec148c67",
+        "worklist": "issues/20260816-main-red-unmanifested-modules-elevated-read-visibility-gov.md",
+        "provenance": "visibility_governance landed unmanifested (LLP 0234); assigning it to shared-contract-types-leaf freezes this pre-existing god-file import as a bounded LLP 0225 §2 drainage waiver, inverted when src/local.rs drains its activation-validation call to the generation-activation-coordinator.",
+        "inversionOwner": "generation-activation-coordinator",
+        "deadline": "2026-09-15"
       }
     },
     {
