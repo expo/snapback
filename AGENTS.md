@@ -132,8 +132,12 @@ and does not duplicate a still-open signature. The complete
 suite runs every two hours on the `com.snapback.drift-backstop` launchd
 schedule; install or refresh it with `scripts/install-drift-backstop-schedule`.
 (That backstop covers the frozen-record drift registry only; it is not the
-LLP 0189 D-1 complete battery, which is the scheduled complete canonical
-proof inventory of LLP 0175 D2.3.)
+LLP 0189 D-1 complete battery. The separate six-hour
+`com.snapback.local-proof-backstop` launchd schedule runs the complete
+canonical proof inventory of LLP 0175 D2.3 and durably commits/pushes D-1
+signature-ticket state; install or refresh it with
+`scripts/install-local-proof-backstop-schedule`. GitHub's scheduled complete
+workflow remains report-only.
 
 The skills sync (and therefore the checkout/merge hooks) initializes only the
 small `vendor/llp` and `vendor/ccheever-skills` submodules. It deliberately does

@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# @ref LLP 0189#decision — the local scheduled complete battery owns durable
+# D-1 ticket state; GitHub's read-only complete run is a report-only twin.
+battery_home="${SNAPBACK_LOCAL_PROOF_BACKSTOP_HOME:-${HOME}/.snapback-local-proof-backstop}"
+config_file="$battery_home/config"
+default_source="/Users/ccheever/projects/snapback"
+mkdir -p "$battery_home"
+
+battery_source="${SNAPBACK_LOCAL_PROOF_BACKSTOP_SOURCE:-}"
+if [ -z "$battery_source" ] && [ -f "$config_file" ]; then
+  IFS= read -r battery_source < "$config_file" || true
+fi
+battery_source="${battery_source:-$default_source}"
+battery_repo="$battery_home/repo"
+
+if ! git -C "$battery_source" rev-parse --show-toplevel >/dev/null 2>&1; then
+  printf '[snapback-local-proof-schedule] source is not a Git checkout: %s\n' \
+    "$battery_source" >&2
+  exit 2
+fi
+origin_url="$(git -C "$battery_source" remote get-url origin)"
+
+if [ ! -d "$battery_repo/.git" ]; then
+  printf '[snapback-local-proof-schedule] cloning %s into %s\n' \
+    "$battery_source" "$battery_repo"
+  git clone "$battery_source" "$battery_repo"
+  git -C "$battery_repo" remote set-url origin "$origin_url"
+fi
+
+if ! git -C "$battery_repo" diff --quiet \
+  || ! git -C "$battery_repo" diff --cached --quiet; then
+  printf '[snapback-local-proof-schedule] REFUSED: dedicated clone has dirty tracked files: %s\n' \
+    "$battery_repo" >&2
+  git -C "$battery_repo" status --short --untracked-files=no >&2
+  exit 2
+fi
+
+git -C "$battery_repo" fetch origin
+git -C "$battery_repo" checkout -B snapback-local-proof-backstop origin/main
+
+pin_node_path() {
+  local repo="$1"
+  local pinned running volta_bin resolved
+  pinned="$(tr -d '[:space:]' < "$repo/.node-version")"
+  running="$(node -v 2>/dev/null || true)"
+  if [ "${running#v}" = "$pinned" ]; then
+    return
+  fi
+  volta_bin="${HOME}/.volta/tools/image/node/$pinned/bin"
+  if [ -x "$volta_bin/node" ]; then
+    PATH="$volta_bin:$PATH"
+    export PATH
+    return
+  fi
+  if command -v volta >/dev/null 2>&1; then
+    resolved="$(volta run --node "$pinned" sh -c 'command -v node' 2>/dev/null || true)"
+    if [ -n "$resolved" ] && [ -x "$resolved" ]; then
+      PATH="$(dirname "$resolved"):$PATH"
+      export PATH
+      return
+    fi
+  fi
+  printf '[snapback-local-proof-schedule] REFUSED: pinned Node %s is unavailable (ambient %s)\n' \
+    "$pinned" "${running:-unavailable}" >&2
+  exit 2
+}
+
+pin_node_path "$battery_repo"
+
+if ! command -v bun >/dev/null 2>&1; then
+  printf '[snapback-local-proof-schedule] REFUSED: bun is unavailable\n' >&2
+  exit 2
+fi
+(cd "$battery_repo" && bun install --frozen-lockfile)
+
+export SNAPBACK_IBEX_CHECKOUT="${SNAPBACK_IBEX_CHECKOUT:-$battery_source/vendor/ibex}"
+if [ -d "$battery_source/../exact" ]; then
+  export SNAPBACK_EXACT_ROOT="${SNAPBACK_EXACT_ROOT:-$battery_source/../exact}"
+fi
+"$battery_repo/scripts/bootstrap-ibex-runtime"
+
+results_path="$battery_repo/target/proof/local-proof-results.jsonl"
+proof_status=0
+(
+  cd "$battery_repo"
+  env \
+    SNAPBACK_PROOF_KEEP_GOING=1 \
+    SNAPBACK_PROOF_RESULTS="$results_path" \
+    SNAPBACK_VERIFY_EXACT=1 \
+    scripts/verify-local-proof --complete
+) || proof_status=$?
+
+head_revision="$(git -C "$battery_repo" rev-parse HEAD)"
+run_id="local.$(date -u +%Y%m%dT%H%M%SZ).${head_revision:0:12}"
+battery_status=0
+(
+  cd "$battery_repo"
+  node scripts/drift-prone-gates.mjs battery \
+    --head HEAD \
+    --results "$results_path" \
+    --run-id "$run_id"
+) || battery_status=$?
+
+issue_changes="$(git -C "$battery_repo" status --porcelain --untracked-files=all -- issues)"
+if [ -n "$issue_changes" ]; then
+  git -C "$battery_repo" add -A -- issues
+  git -C "$battery_repo" \
+    -c user.name='Snapback local-proof backstop' \
+    -c user.email='noreply@openai.com' \
+    commit \
+    -m 'chore(backstop): update complete-battery ticket state' \
+    -m 'Co-Authored-By: OpenAI Codex <noreply@openai.com>'
+
+  pushed=0
+  for attempt in 1 2 3; do
+    printf '[snapback-local-proof-schedule] push attempt %s of 3\n' "$attempt"
+    git -C "$battery_repo" fetch origin
+    if ! git -C "$battery_repo" rebase origin/main; then
+      git -C "$battery_repo" rebase --abort >/dev/null 2>&1 || true
+      printf '[snapback-local-proof-schedule] rebase attempt %s failed; retrying\n' \
+        "$attempt" >&2
+      continue
+    fi
+    if git -C "$battery_repo" push origin HEAD:main; then
+      pushed=1
+      break
+    fi
+    printf '[snapback-local-proof-schedule] push attempt %s raced main; retrying\n' \
+      "$attempt" >&2
+  done
+  if [ "$pushed" -ne 1 ]; then
+    printf '[snapback-local-proof-schedule] ERROR: could not push battery ticket commit after 3 attempts\n' >&2
+    exit 2
+  fi
+fi
+
+if [ "$battery_status" -ne 0 ]; then
+  exit "$battery_status"
+fi
+exit "$proof_status"

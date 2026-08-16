@@ -25,10 +25,15 @@ import {
   selectDriftProneGates,
 } from '../scripts/select-local-proof.mjs';
 import {
+  batteryFailureSignature,
+  parseBatteryResults,
   printRefusal,
+  runBatteryBackstop,
+  runBatteryReport,
   runBackstop,
   runPrePush,
   runRegisteredGateAtRevision,
+  standingBatteryClaims,
 } from '../scripts/drift-prone-gates.mjs';
 
 // Every probe below is committed in a disposable clone before Git invokes the
@@ -39,6 +44,7 @@ import {
 // compatibility bypass, tiering, and the authoritative scheduled backstop.
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const PROOF_RUNNER = join(ROOT, 'scripts', 'lib', 'proof-runner.sh');
 const IMPLEMENTATION_FILES = [
   '.githooks/pre-push',
   'issues/closed/20260811-record-inventory-guide.md',
@@ -1300,6 +1306,249 @@ test('backstop keys distinct reds by signature and updates an unchanged observat
   assert.match(second.body, /\*\*Attribution:\*\* `first-parent-signature-epoch`/u);
   assert.ok(second.body.includes(`**Last observed:** \`${revisions[1]}\``));
   assert.match(runs[2].output, /not filing a duplicate; updated its last observation/u);
+});
+
+function captureDeclarationOrderBatteryFixture(scratch, context) {
+  const resultsPath = join(scratch, 'declaration-order-results.jsonl');
+  const seen = new Set();
+  const declarationOrder = context.calls.flatMap(({ gateId }) => {
+    if (seen.has(gateId)) return [];
+    seen.add(gateId);
+    return [gateId];
+  });
+  const script = [
+    'set -euo pipefail',
+    `source ${JSON.stringify(PROOF_RUNNER)}`,
+    `proof_runner_init local-proof ${JSON.stringify(resultsPath)} 1 0`,
+    ...declarationOrder.map((gateId) => (
+      `proof_not_selected ${gateId} 'host-conditioned fixture capture'`
+    )),
+    'proof_runner_finish',
+  ].join('\n');
+  const run = spawnSync('/bin/bash', ['-c', script], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}`);
+  return { declarationOrder, resultsPath };
+}
+
+test('complete battery accepts a real proof-runner JSONL capture in declaration order', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-battery-declaration-order-'));
+  try {
+    const context = loadSelectionContext();
+    const { declarationOrder, resultsPath } = captureDeclarationOrderBatteryFixture(
+      scratch,
+      context,
+    );
+    assert.equal(declarationOrder[0], 'ref-check');
+    assert.equal(context.inventory.canonicalGates[0], 'action-fetch-fence-fixtures');
+    assert.deepEqual(new Set(declarationOrder), new Set(context.inventory.canonicalGates));
+    assert.equal(runBatteryReport({ resultsPath, root: scratch, context }), 0);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('complete battery inventory rejects duplicate and missing gate ids independently of order', () => {
+  const record = {
+    blockedBy: [],
+    command: 'true',
+    durationMs: 0,
+    endedAtMs: 1,
+    exitCode: 0,
+    failureSignature: null,
+    gateId: 'only-gate',
+    prerequisites: [],
+    proofId: 'local-proof',
+    schemaVersion: 'snapback.proof-gate-result.v2',
+    startedAtMs: 1,
+    state: 'PASS',
+  };
+  assert.throws(
+    () => parseBatteryResults(`${JSON.stringify(record)}\n${JSON.stringify(record)}\n`),
+    /battery result repeats gate only-gate/u,
+  );
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-battery-missing-gate-'));
+  try {
+    const resultsPath = join(scratch, 'results.jsonl');
+    writeFileSync(resultsPath, `${JSON.stringify(record)}\n`);
+    assert.throws(
+      () => runBatteryReport({
+        resultsPath,
+        root: scratch,
+        context: { inventory: { canonicalGates: ['only-gate', 'missing-gate'] } },
+      }),
+      /missing: missing-gate/u,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('standing battery claims are discovered from every on-disk publication anchor', () => {
+  const claims = standingBatteryClaims();
+  assert.deepEqual(
+    claims.map(({ id }) => id).sort(),
+    ['agent_safe_derived_deployment_fork_v1', 'single_table_v1'],
+  );
+  assert.equal(
+    claims.find(({ id }) => id === 'single_table_v1')?.recordPath,
+    'src/local-persistent-store-publication.anchor.v1.json',
+  );
+});
+
+// @ref LLP 0189#decision — D-1 tickets are keyed by normalized root failure,
+// maintain independent streak/open state, skip BLOCKED dependents, and expose
+// claim relevance without turning an unrelated battery red into a withdrawal.
+test('complete battery tickets track signatures, claims, streaks, closure, and reopening independently', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-battery-ticket-'));
+  const repo = join(scratch, 'repo');
+  mkdirSync(repo);
+  try {
+    git(repo, ['init', '--quiet']);
+    git(repo, ['config', 'user.name', 'Snapback battery fixture']);
+    git(repo, ['config', 'user.email', 'snapback-battery@example.invalid']);
+    writeFileSync(join(repo, 'README.md'), 'battery fixture\n');
+    const head = commitAll(repo, 'test: battery fixture');
+    const context = {
+      inventory: { canonicalGates: ['dependent-gate', 'root-gate'] },
+    };
+    const resultsPath = join(repo, 'target', 'proof', 'results.jsonl');
+    mkdirSync(dirname(resultsPath), { recursive: true });
+    const issuesDir = 'issues/battery-fixture';
+    const env = { ...process.env, SNAPBACK_BATTERY_TICKET_DATE: '2026-08-15' };
+    const claims = [{
+      id: 'published_fixture_v1',
+      recordPath: 'src/published-fixture.anchor.json',
+      relevantGates: new Set(['root-gate']),
+    }];
+    const signatureA = batteryFailureSignature({
+      gateId: 'root-gate',
+      exitCode: 7,
+      stdout: '',
+      stderr: `root failure at ${repo} after 12ms\n`,
+      normalizationPaths: [repo],
+    });
+    assert.equal(signatureA, batteryFailureSignature({
+      gateId: 'root-gate',
+      exitCode: 7,
+      stdout: '',
+      stderr: `root failure at ${repo} after 93ms\n`,
+      normalizationPaths: [repo],
+    }));
+    assert.equal(batteryFailureSignature({
+      gateId: 'root-gate',
+      exitCode: 7,
+      stdout: '  duration_ms: 1.25\n# duration_ms 82.5\n',
+      stderr: 'same TAP failure\n',
+      normalizationPaths: [repo],
+    }), batteryFailureSignature({
+      gateId: 'root-gate',
+      exitCode: 7,
+      stdout: '  duration_ms: 93.75\n# duration_ms 104.125\n',
+      stderr: 'same TAP failure\n',
+      normalizationPaths: [repo],
+    }));
+    const signatureB = batteryFailureSignature({
+      gateId: 'root-gate',
+      exitCode: 7,
+      stdout: '',
+      stderr: 'a distinct root cause\n',
+      normalizationPaths: [repo],
+    });
+    const result = (gateId, state, signature = null) => ({
+      blockedBy: state === 'BLOCKED' ? ['root-gate'] : [],
+      command: `node ${gateId}.mjs`,
+      durationMs: 1,
+      endedAtMs: 2,
+      exitCode: state === 'FAIL' ? 7 : state === 'PASS' ? 0 : null,
+      failureSignature: state === 'FAIL' ? signature : null,
+      gateId,
+      prerequisites: gateId === 'dependent-gate' ? ['root-gate'] : [],
+      proofId: 'local-proof',
+      schemaVersion: 'snapback.proof-gate-result.v2',
+      startedAtMs: 1,
+      state,
+    });
+    const writeResults = (rootState, signature = null) => {
+      const dependentState = rootState === 'PASS' ? 'PASS'
+        : rootState === 'NOT_SELECTED' ? 'NOT_SELECTED' : 'BLOCKED';
+      writeFileSync(resultsPath, [
+        result('root-gate', rootState, signature),
+        result('dependent-gate', dependentState),
+      ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+    };
+    const runBattery = (runId) => runBatteryBackstop({
+      head,
+      resultsPath,
+      runId,
+      issuesDir,
+      root: repo,
+      context,
+      env,
+      claims,
+    });
+    const openTickets = () => readdirSync(join(repo, issuesDir))
+      .filter((name) => name.endsWith('.md')).sort();
+    const closedTickets = () => readdirSync(join(repo, issuesDir, 'closed'))
+      .filter((name) => name.endsWith('.md')).sort();
+
+    writeResults('FAIL', signatureA);
+    assert.equal(runBattery('run-1'), 1);
+    assert.equal(runBattery('run-1'), 1, 'retrying one run id is idempotent');
+    assert.equal(openTickets().length, 1);
+    let body = readFileSync(join(repo, issuesDir, openTickets()[0]), 'utf8');
+    assert.match(body, /\*\*Consecutive red runs:\*\* `1`/u);
+    assert.match(body, /`published_fixture_v1` — `src\/published-fixture\.anchor\.json`/u);
+    assert.doesNotMatch(body, /dependent-gate/u);
+
+    assert.equal(runBattery('run-2'), 1);
+    body = readFileSync(join(repo, issuesDir, openTickets()[0]), 'utf8');
+    assert.match(body, /\*\*Consecutive red runs:\*\* `2`/u);
+
+    writeResults('FAIL', signatureB);
+    assert.equal(runBattery('run-3'), 1);
+    assert.equal(openTickets().length, 1);
+    assert.equal(closedTickets().length, 1);
+    assert.match(openTickets()[0], new RegExp(signatureB.slice(-64, -48), 'u'));
+
+    writeResults('BLOCKED');
+    assert.equal(runBattery('run-4'), 1);
+    body = readFileSync(join(repo, issuesDir, openTickets()[0]), 'utf8');
+    assert.match(body, /\*\*Consecutive red runs:\*\* `0`/u);
+    assert.equal(openTickets().length, 1, 'BLOCKED neither files nor closes a root ticket');
+
+    writeResults('NOT_SELECTED');
+    assert.equal(runBattery('run-4b'), 0);
+    body = readFileSync(join(repo, issuesDir, openTickets()[0]), 'utf8');
+    assert.match(body, /\*\*Consecutive red runs:\*\* `0`/u);
+    assert.equal(openTickets().length, 1, 'NOT_SELECTED neither files nor closes a ticket');
+
+    writeResults('FAIL', signatureB);
+    for (const runId of ['run-5', 'run-6', 'run-7', 'run-8']) assert.equal(runBattery(runId), 1);
+    body = readFileSync(join(repo, issuesDir, openTickets()[0]), 'utf8');
+    assert.match(body, /\*\*Consecutive red runs:\*\* `4`/u);
+    assert.match(body, /\*\*Escalation:\*\* `AUTHOR_ESCALATION_REQUIRED`/u);
+    assert.match(body, /## Author escalation/u);
+
+    writeResults('PASS');
+    assert.equal(runBattery('run-9'), 0);
+    assert.equal(openTickets().length, 0);
+    assert.equal(closedTickets().length, 2);
+
+    writeResults('FAIL', signatureB);
+    assert.equal(runBattery('run-10'), 1);
+    assert.equal(openTickets().length, 1, 'a closed signature reopens its one ticket');
+    assert.equal(closedTickets().length, 1);
+    body = readFileSync(join(repo, issuesDir, openTickets()[0]), 'utf8');
+    assert.match(body, /\*\*Reopened by battery run:\*\* `run-10`/u);
+    assert.match(body, /\*\*Consecutive red runs:\*\* `1`/u);
+    assert.match(body, /\*\*Escalation:\*\* `pending \(1\/4\)`/u);
+    assert.doesNotMatch(body, /## Author escalation/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 test('backstop adopts a legacy gate-only ticket in place', () => {

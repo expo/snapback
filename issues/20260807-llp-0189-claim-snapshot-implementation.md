@@ -9,7 +9,7 @@
 LLP 0189 (Accepted 2026-08-07) rules that claims are snapshots with scoped
 qualification digests, the scheduled complete battery is the authoritative
 verdict, and landing/promotion gates reference the battery rather than
-complete proofs at exact commits. Three mechanical pieces implement it:
+complete proofs at exact commits. Four mechanical pieces implement it:
 
 1. **Digest scoping in the publication oracle (D-4).**
    `scripts/check-agent-safe-publication.mjs` (and the v2 digest machinery it
@@ -40,7 +40,7 @@ complete proofs at exact commits. Three mechanical pieces implement it:
    wave-shared files should not have invalidated the claim once scoping
    lands.
 
-3. **Battery-red ticket automation (D-1).** Extend the
+3. **Battery-red ticket automation (D-1) — SHIPPED 2026-08-16.** Extend the
    `scripts/drift-prone-gates.mjs backstop` pattern to the scheduled complete
    proof: each root failure files one idempotent
    `issues/YYYYMMDD-battery-<gate>-<signature-slug>.md` ticket, keyed on the
@@ -54,16 +54,15 @@ complete proofs at exact commits. Three mechanical pieces implement it:
    runs escalates to the author. Dependent `BLOCKED` results do not file
    tickets.
 
-4. **Capability-maturity validator re-scope (amended LLP 0134).** The
-   2026-08-07 LLP 0189 amendments to LLP 0134 relax the
-   `candidateParentSha == candidateSourceSha` constraint (parent may differ
-   when the intervening range is clear of the id's D-4 scoped surface, and
-   the receipt names the range and the check that cleared it), scope E2 to
-   the id's own corpus plus the D-6 battery reference, and scope E4(a)'s
-   `ref-check` to the claim surface. `scripts/capability-maturity.mjs` and
-   the A5 transition check must follow; until they do, promotions
-   mechanically still meet the stricter pre-amendment form (which remains
-   sufficient, just not necessary).
+4. **Capability-maturity validator re-scope — SPLIT 2026-08-16.** E2's own-
+   corpus binding across the closed supporting target-profile population,
+   E4(a)'s exact claim-surface audit/ref-check binding, and A5's actual-parent
+   and staged-tree checks are implemented. Promotion still requires
+   `candidateParentSha == candidateSourceSha ==` the transition's actual sole
+   parent. The D-4 range relaxation is deferred to
+   `issues/20260816-llp0134-d4-range-relaxation-needs-sound-derivation.md`;
+   prior-receipt derivation, conditional range evidence, and the D-6 promotion
+   receipt field were removed with that unsound path.
 
 The derived-fork requalification consumes piece 1+2 (its digest re-scope) and
 should be the first user; do not close this ticket until that requalification
@@ -231,3 +230,157 @@ the real policy at HEAD passes. The gate-selection pin covers all four paths,
 closing Fable F-1. The storage claim's qualification-C transform, the fork
 chain's own frozen bindings, and both live records' `withheld` state remain
 unchanged.
+
+## 2026-08-15 implementation record — pieces 3 and 4
+
+Piece 3 now extends the frozen-record backstop pattern to structured complete-
+battery results. Complete runs retain a normalized root-failure signature in
+the gate JSONL. The battery projector files
+`issues/YYYYMMDD-battery-<gate>-<signature-slug>.md`, never files a dependent
+`BLOCKED` result, and keeps each signature's open/closed state and consecutive-
+run streak independent. A determinate pass closes the signature, recurrence
+reopens its one ticket, and the fourth consecutive red marks author escalation.
+Ticket claim links are derived from each standing publication record's D-4
+scope through the checked local-proof group/dependency map. Scheduled and
+on-demand GitHub workflow runs invoke a report-only projector: their read-only,
+throwaway checkout cannot own durable ticket state. The separate six-hour local
+`com.snapback.local-proof-backstop` schedule runs the complete inventory in a
+dedicated clone, invokes the mutating projector, commits open/closed/streak
+changes under `issues/`, rebases, and pushes them to `main`, following the
+existing frozen-record backstop's durable publisher shape.
+
+Piece 4 updates `scripts/capability-maturity.mjs` to the 2026-08-07 LLP 0134
+amendment. Promotion receipts now bind a D-4 claim scope, own-corpus E2 records,
+the freshest D-6 battery reference, and an E4(a) candidate audit whose
+`ref-check` scope exactly matches the claim. `candidateSourceSha` remains the
+qualification revision while `candidateParentSha` may advance: the receipt
+must name the exact range and a staged scoped-surface check, the validator
+recomputes the range diff and refuses any claim-scoped path, and A5 compares
+the transition's sole parent to `candidateParentSha` while preserving exact
+source pins for candidate evidence. Introduction and demotion pin semantics are
+unchanged.
+
+This ticket remains **Open**. Pieces 1–4 are implemented, but closure is still
+gated on
+`issues/20260807-derived-fork-publication-wave-drift-requalification.md`
+surviving one subsequent wave landing without qualification rotation. That
+derived-fork requalification hold is the only recorded closure residue here.
+
+## 2026-08-15 pieces 3 and 4 review-fix round
+
+The initial NOT READY reviews were verified against the implementation and
+their reported fixes landed in this worktree. Complete-battery projection is now
+order-insensitive over an exact duplicate-free gate-id set, accepts
+host-conditioned `NOT_SELECTED`, and normalizes TAP timing/temp-path noise.
+The GitHub workflow is report-only; a separate six-hour local publisher owns
+durable ticket commits. Reopen/reset removes stale author escalation, and
+standing claims are discovered from the complete on-disk publication-anchor
+registry, including `single_table_v1`.
+
+The first maturity repair added a generic five-path D-4 authority floor before
+trusting a receipt's scope, shared codegen's closed target-profile population,
+required every supporting profile, and resolved each unrelated-red reference
+to an open signature-keyed battery ticket at the candidate parent. That floor
+closed only the reported `README.md`/`src/manifest.rs` probe; it was not a
+complete per-capability surface. The delta review correctly retained one
+MATERIAL: a floor-only receipt could still omit runtime modules, semantic
+checkers, conformance inputs, and capability manifests. LLP 0134's staged-audit
+wording did match the advanced-parent validator, apart from the residual
+diagnostic wording corrected below.
+
+## 2026-08-16 final targeted D-4 scope closure
+
+The range validator now derives a code-owned required scope for every promoted
+id and requires the receipt's `claimScope` to be a superset, with the generic
+five-path floor retained only as an additional minimum. Sources are ordered by
+the capability's own authority:
+
+- an earlier maturity D-4 promotion record supplies its accepted `claimScope`;
+- a published agent-safe capability supplies its checked publication
+  anchor/receipt and `implementationScope`; and
+- otherwise a code-owned capability scope-source registry entry locates the
+  source-owned publication/manifest record, runtime-module maps,
+  conformance/acceptance paths, and semantic checkers. The shared closed target-
+  profile definition and every capability-manifest input that drives E2 are
+  added to every successfully derived surface.
+
+The relation/activity pair is the first registry-backed entry. Its required
+surface is derived from
+`src/local-relation-activity-publication.v1.json` (including `src/local.rs`
+and the schema-source modules), its conformance receipt/vectors/checker, the
+maturity semantic checker, and both E2 capability manifests. A receipt that
+names only the five generic paths now refuses and lists the omitted runtime and
+conformance paths. A complete derived scope accepts. If any capability in an
+advanced atomic set has no derivable surface, the range relaxation refuses with
+`MATURITY_CANDIDATE_SCOPE_UNDERIVED`; equality of `candidateSourceSha` and
+`candidateParentSha` remains the fail-closed pre-amendment path. The staged-
+locator diagnostic now says it binds `candidateSourceSha`, matching the field
+actually checked.
+
+The full drift, proof-runner, capability-maturity, and CI-workflow reruns and
+their verbatim results are recorded in `LANE_REPORT.md` under **Final targeted
+D-4 closure**.
+
+## 2026-08-16 fix round 3 — transition-bound latest-effective prior scopes
+
+The remaining Codex round-3 MATERIAL is closed. A prior maturity promotion
+receipt now contributes D-4 derivation authority only when its exact committed
+bytes were introduced by a sole-parent commit whose maturity projection
+actually promoted the receipt's exact capability set and whose parent matches
+`candidateParentSha`. A schema-valid receipt added without that transition is
+an orphan: it is ignored as a derivation source, so it cannot bootstrap an
+underived capability or hide an intervening runtime change.
+
+Selection is per capability and ancestry-latest. Older promotion scopes are no
+longer unioned into the required surface. A fresh named-author narrowing is
+honored only when every id has a genuine prior claim and the new receipt is
+itself byte-bound to another actual promotion transition; this implements LLP
+0189 D-3 without allowing an orphan or first promotion to self-authorize. The
+independent agent-safe and code-owned capability-registry minima continue to
+apply.
+
+The regressions reproduce the four-step orphan-bootstrap attack and require the
+real promotion to refuse with `MATURITY_CANDIDATE_SCOPE_UNDERIVED`. A separate
+three-promotion history proves a genuine broad claim can be narrowed through a
+transition-bound re-scope and that a later promotion derives only the narrow
+latest-effective scope, without resurrecting the older broad path. The prior
+complete-derived, floor-only omission, underived equal-pin, and candidate-drift
+cases remain in the same suite. The four requested suite reruns and verbatim
+results are recorded in `LANE_REPORT.md` under **Fix round 3**.
+
+## 2026-08-16 lane split — piece 3 shipped, D-4 range deferred
+
+This section supersedes the piece-4 completion claims in the dated records
+above; those entries remain as review history.
+
+Piece 3 is **SHIPPED**. Complete-battery root failures have signature-keyed
+ticket automation, independent streak/open state, four-run escalation,
+claim cross-references, report-only GitHub projection, and a six-hour local
+durable publisher. Its implementation and tests remain unchanged by this
+split.
+
+Piece 4 retains only the parts that do not depend on range authority:
+
+- E2 promotion evidence binds exactly the promoted capability set, a green
+  own-corpus run at `candidateSourceSha`, and exactly every supporting member
+  of codegen's closed target-profile population.
+- E4(a)'s candidate audit and its `./ref-check --verbose` result exact-match
+  the receipt's declared claim surface at that same candidate revision.
+- A5 still derives the changed capability set from the transition, requires
+  both equal candidate pins to match the actual sole parent, checks the exact
+  promotion record/citation, and recomputes the landed staged-tree digest.
+- `packages/snapback-codegen/target-profiles.mjs` remains as a standalone
+  codegen artifact: codegen builds its own target map from it, while E2 reads
+  the same closed population. It grants no range authority.
+
+The D-4 range relaxation is **DEFERRED** to
+`issues/20260816-llp0134-d4-range-relaxation-needs-sound-derivation.md` after
+four review cycles found floor-only self-narrowing, orphan non-transition
+promotion authority, and equal-pin promote/demote/re-promote bootstrapping.
+The validator again hard-refuses unequal promotion pins. All prior-receipt,
+derived-id, fresh-rescope, code-owned range derivation, conditional
+`candidateRange`, and D-6 promotion-receipt machinery has been removed.
+
+This ticket remains **Open** on two residues: the new D-4 range-design ticket,
+and the existing derived-fork requalification requirement in
+`issues/20260807-derived-fork-publication-wave-drift-requalification.md`.

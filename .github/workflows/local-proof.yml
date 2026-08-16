@@ -217,6 +217,22 @@ jobs:
           fi
           scripts/verify-local-proof --selection-receipt "$SNAPBACK_PROOF_SELECTION_RESULTS"
 
+      # @ref LLP 0189#decision — GitHub's read-only checkout reports the
+      # complete-battery verdict. The local scheduled backstop owns durable
+      # signature-ticket mutation and commits that state to the repository.
+      - name: Report complete-battery verdict
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          SNAPBACK_PROOF_RESULTS: ${{ github.workspace }}/target/proof/local-proof-results.jsonl
+        run: |
+          set -euo pipefail
+          test -s "$SNAPBACK_PROOF_RESULTS" || {
+            echo 'SNAPBACK_BATTERY_RESULTS_MISSING: complete proof emitted no structured results' >&2
+            exit 2
+          }
+          node scripts/drift-prone-gates.mjs battery-report \
+            --results "$SNAPBACK_PROOF_RESULTS"
+
       # @ref LLP 0175#d5--make-test-economics-part-of-the-inventory — retain
       # every named gate's duration and PASS/FAIL/BLOCKED state even on red.
       - name: Upload local-proof gate timings

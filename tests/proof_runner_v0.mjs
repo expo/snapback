@@ -8,7 +8,7 @@ import test from 'node:test';
 const root = resolve(import.meta.dirname, '..');
 const runner = join(root, 'scripts', 'lib', 'proof-runner.sh');
 
-function fixture(body, { keepGoing = 1, selectedCount = null } = {}) {
+function fixture(body, { keepGoing = 1, selectedCount = null, captureSignatures = false } = {}) {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-proof-runner-'));
   const receipt = join(scratch, 'results.jsonl');
   const marker = join(scratch, 'dependent-ran');
@@ -22,7 +22,11 @@ proof_runner_finish
   const result = spawnSync('/bin/bash', ['-c', script], {
     cwd: root,
     encoding: 'utf8',
-    env: { ...process.env, FIXTURE_MARKER: marker },
+    env: {
+      ...process.env,
+      FIXTURE_MARKER: marker,
+      SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES: captureSignatures ? '1' : '0',
+    },
   });
   const records = existsSync(receipt)
     ? readFileSync(receipt, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse)
@@ -42,6 +46,23 @@ proof_gate never-reached -- /bin/bash -c 'touch "$FIXTURE_MARKER"'
       run.records.map(({ gateId, state, exitCode }) => [gateId, state, exitCode]),
       [['producer', 'FAIL', 23]],
     );
+  } finally {
+    rmSync(run.scratch, { recursive: true, force: true });
+  }
+});
+
+test('complete-proof capture emits normalized distinct root-failure signatures', () => {
+  const run = fixture(`
+proof_gate first -- /bin/bash -c 'printf "failure at /tmp/one\\n  duration_ms: 1.25\\n# duration_ms 12.5\\n" >&2; exit 7'
+proof_gate same-normalized -- /bin/bash -c 'printf "failure at /tmp/two\\n  duration_ms: 93.75\\n# duration_ms 99.5\\n" >&2; exit 7'
+proof_gate distinct -- /bin/bash -c 'printf "another root cause\\n" >&2; exit 7'
+`, { captureSignatures: true });
+  try {
+    assert.equal(run.result.status, 1, run.result.stderr);
+    assert.match(run.records[0].failureSignature, /^sha256:[0-9a-f]{64}$/u);
+    assert.equal(run.records[1].failureSignature, run.records[0].failureSignature);
+    assert.notEqual(run.records[2].failureSignature, run.records[0].failureSignature);
+    assert(run.records.every(({ schemaVersion }) => schemaVersion === 'snapback.proof-gate-result.v2'));
   } finally {
     rmSync(run.scratch, { recursive: true, force: true });
   }

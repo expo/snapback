@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/install-local-proof-backstop-schedule [--status | --uninstall | --help]
+
+With no option, install or refresh the six-hour macOS complete-battery schedule.
+EOF
+}
+
+mode=install
+case "${1:-}" in
+  '') ;;
+  --status) mode=status ;;
+  --uninstall) mode=uninstall ;;
+  --help|-h) usage; exit 0 ;;
+  *)
+    printf '[snapback-local-proof] error: unknown argument: %s\n' "$1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+[ "$#" -le 1 ] || { usage >&2; exit 2; }
+
+if [ "$(uname -s)" != "Darwin" ]; then
+  printf '[snapback-local-proof] REFUSED: the complete-battery schedule requires macOS launchd (host: %s)\n' \
+    "$(uname -s)" >&2
+  exit 2
+fi
+
+# @ref LLP 0189#decision — install the durable local D-1 battery publisher
+# without changing the invoking checkout.
+repo_root="$(cd "$(dirname "$0")/.." && pwd -P)"
+battery_source="${SNAPBACK_LOCAL_PROOF_BACKSTOP_SOURCE:-$repo_root}"
+launch_agents="$HOME/Library/LaunchAgents"
+plist="$launch_agents/com.snapback.local-proof-backstop.plist"
+template="$repo_root/scripts/launchd/com.snapback.local-proof-backstop.plist.template"
+battery_home="${SNAPBACK_LOCAL_PROOF_BACKSTOP_HOME:-$HOME/.snapback-local-proof-backstop}"
+config_file="$battery_home/config"
+log_file="$HOME/Library/Logs/snapback-local-proof-backstop.log"
+service="gui/$(id -u)/com.snapback.local-proof-backstop"
+
+if [ "$mode" = "status" ]; then
+  if launchctl print "$service"; then
+    exit 0
+  fi
+  printf '[snapback-local-proof] schedule is not loaded: %s\n' "$service" >&2
+  exit 1
+fi
+
+if [ "$mode" = "uninstall" ]; then
+  launchctl bootout "$service" 2>/dev/null || true
+  rm -f "$plist" "$config_file"
+  printf 'Uninstalled %s (logs retained at %s)\n' "$service" "$log_file"
+  exit 0
+fi
+
+mkdir -p "$launch_agents" "$HOME/Library/Logs" "$battery_home"
+
+escape_sed_replacement() {
+  printf '%s' "$1" | sed 's/[&|\\]/\\&/g'
+}
+
+escaped_repo="$(escape_sed_replacement "$repo_root")"
+escaped_source="$(escape_sed_replacement "$battery_source")"
+escaped_home="$(escape_sed_replacement "$HOME")"
+temporary_plist="$(mktemp "${TMPDIR:-/tmp}/com.snapback.local-proof-backstop.XXXXXX")"
+trap 'rm -f "$temporary_plist"' EXIT
+
+sed \
+  -e "s|__SNAPBACK_REPO__|$escaped_repo|g" \
+  -e "s|__SNAPBACK_LOCAL_PROOF_BACKSTOP_SOURCE__|$escaped_source|g" \
+  -e "s|__HOME__|$escaped_home|g" \
+  "$template" > "$temporary_plist"
+install -m 0644 "$temporary_plist" "$plist"
+
+temporary_config="$(mktemp "${TMPDIR:-/tmp}/snapback-local-proof-backstop-config.XXXXXX")"
+printf '%s\n' "$battery_source" > "$temporary_config"
+install -m 0644 "$temporary_config" "$config_file"
+rm -f "$temporary_config"
+
+launchctl bootout "$service" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "$plist"
+
+printf 'Installed %s\n' "$service"
+printf 'Manual run: launchctl kickstart %s\n' "$service"
+printf 'Log: %s\n' "$log_file"

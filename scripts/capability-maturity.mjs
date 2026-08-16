@@ -8,11 +8,15 @@ import {
 } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
+import {
+  TARGET_PROFILE_DEFINITIONS,
+  TARGET_PROFILE_IDS,
+} from '../packages/snapback-codegen/target-profiles.mjs';
+
 // @ref LLP 0134#2-the-promotion-evidence-bar — maturity evidence is retained
-// as closed canonical JSON, with digest-bound locators and cell-complete soak
-// populations rather than prose assertions.
-// @ref LLP 0134#4-the-promotion-act — candidate-parent and staged-tree binding
-// make the audited tree, not elapsed time or branch intent, the promotion fact.
+// as closed canonical JSON; E2 and E4(a) bind the promoted claim's own scope.
+// @ref LLP 0134#4-the-promotion-act — the qualification revision is exactly
+// the promotion commit's sole parent; staged-tree evidence binds that act.
 
 export const MATURITY_RECORD_SUFFIXES = Object.freeze([
   '.introduction.json',
@@ -66,6 +70,9 @@ const GIT_SHA = /^[0-9a-f]{40,64}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UTC_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
+const CLAIM_SCOPE_SCHEMA = 'snapback.maturity-claim-scope.v1';
+const OWN_CORPUS_SCHEMA = 'snapback.maturity-own-corpus-run.v1';
+const CLAIM_AUDIT_SCHEMA = 'snapback.maturity-claim-audit.v1';
 
 export class MaturityValidationError extends Error {
   constructor(code, message) {
@@ -258,6 +265,128 @@ function validateLocatorList(values, label, context, options = {}) {
   return values.map((value, index) => validateLocator(value, `${label}[${index}]`, context, options));
 }
 
+function parseLocatorJson(locator, label, context, options = {}) {
+  validateLocator(locator, label, context, options);
+  const sourceSha = options.staged ? context.recordCommit : locator.sourceSha;
+  try {
+    return JSON.parse(bytesAt(context.repoRoot, sourceSha, locator.path));
+  } catch (error) {
+    if (error instanceof MaturityValidationError) throw error;
+    fail('MATURITY_EVIDENCE_JSON_INVALID', `${label} is not JSON: ${error.message}`);
+  }
+}
+
+function validateClaimScope(scope, label = 'claimScope') {
+  exactKeys(scope, ['schemaVersion', 'roots', 'files'], [], label);
+  if (scope.schemaVersion !== CLAIM_SCOPE_SCHEMA) {
+    fail('MATURITY_SCHEMA_INVALID', `${label}.schemaVersion must be ${CLAIM_SCOPE_SCHEMA}`);
+  }
+  for (const key of ['roots', 'files']) {
+    if (!Array.isArray(scope[key])) fail('MATURITY_SCHEMA_INVALID', `${label}.${key} must be an array`);
+    for (const [index, path] of scope[key].entries()) {
+      safeRepoPath(path, `${label}.${key}[${index}]`);
+      if (path.endsWith('/') || path.split('/').some((segment) => segment === '' || segment === '.')) {
+        fail('MATURITY_SCHEMA_INVALID', `${label}.${key}[${index}] is not a normalized repo path`);
+      }
+    }
+    const sorted = [...scope[key]].sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)));
+    if (new Set(scope[key]).size !== scope[key].length
+      || canonicalJson(sorted) !== canonicalJson(scope[key])) {
+      fail('MATURITY_SCHEMA_INVALID', `${label}.${key} must be bytewise sorted and unique`);
+    }
+  }
+  if (scope.roots.length + scope.files.length === 0) {
+    fail('MATURITY_SCHEMA_INVALID', `${label} must name a claim-relevant surface`);
+  }
+  return scope;
+}
+
+function claimScopeDigest(scope) {
+  return sha256(Buffer.from(canonicalJson(scope)));
+}
+
+function validateTargetProfileId(value, label) {
+  nonEmptyString(value, label, ID);
+  if (!TARGET_PROFILE_IDS.includes(value)) {
+    fail(
+      'MATURITY_TARGET_PROFILE_INVALID',
+      `${label} ${value} is outside codegen TARGET_PROFILES`,
+    );
+  }
+  return value;
+}
+
+function supportingTargetProfiles(promotion, context) {
+  const supporting = [];
+  for (const profile of TARGET_PROFILE_DEFINITIONS) {
+    const path = `schemas/${profile.capabilityManifest}`;
+    let manifest;
+    try {
+      manifest = JSON.parse(bytesAt(
+        context.repoRoot,
+        promotion.candidateSourceSha,
+        path,
+      ));
+    } catch (error) {
+      if (error instanceof MaturityValidationError) throw error;
+      fail('MATURITY_TARGET_PROFILE_INVALID', `${path} is not valid JSON: ${error.message}`);
+    }
+    if (manifest?.artifactKind !== 'capabilityManifest'
+      || manifest.targetProfileId !== profile.id
+      || !Array.isArray(manifest.capabilityGaps)
+      || !manifest.capabilityGaps.every((id) => typeof id === 'string')) {
+      fail('MATURITY_TARGET_PROFILE_INVALID', `${path} does not define ${profile.id}`);
+    }
+    if (promotion.capabilityIds.every((id) => !manifest.capabilityGaps.includes(id))) {
+      supporting.push(profile.id);
+    }
+  }
+  return supporting.sort();
+}
+
+function validateOwnCorpusEvidence(locator, promotion, context, scopeDigest, index) {
+  if (locator.sourceSha !== promotion.candidateSourceSha) {
+    fail('MATURITY_CORPUS_SCOPE_INVALID', `corpusRunRefs[${index}] must bind candidateSourceSha`);
+  }
+  const evidence = parseLocatorJson(locator, `corpusRunRefs[${index}]`, context);
+  exactKeys(evidence, [
+    'schemaVersion', 'capabilityIds', 'targetProfileId', 'status', 'claimScopeSha256',
+  ], [], `corpusRunRefs[${index}] evidence`);
+  if (evidence.schemaVersion !== OWN_CORPUS_SCHEMA
+    || evidence.status !== 'green'
+    || canonicalJson(evidence.capabilityIds) !== canonicalJson(promotion.capabilityIds)
+    || evidence.claimScopeSha256 !== scopeDigest) {
+    fail('MATURITY_CORPUS_SCOPE_INVALID', `corpusRunRefs[${index}] does not bind the id's own D-4 scope`);
+  }
+  capabilityIds(evidence.capabilityIds, `corpusRunRefs[${index}].capabilityIds`);
+  return validateTargetProfileId(
+    evidence.targetProfileId,
+    `corpusRunRefs[${index}].targetProfileId`,
+  );
+}
+
+function validateCandidateAuditEvidence(locator, promotion, context, scope) {
+  if (locator.sourceSha !== promotion.candidateSourceSha) {
+    fail('MATURITY_CLAIM_AUDIT_SCOPE_INVALID', 'candidate claim audit must bind candidateSourceSha');
+  }
+  const evidence = parseLocatorJson(locator, 'claimAuditRefs[0]', context);
+  exactKeys(evidence, [
+    'schemaVersion', 'capabilityIds', 'status', 'claimScope', 'refCheck',
+  ], [], 'candidate claim audit evidence');
+  exactKeys(evidence.refCheck, ['command', 'status', 'scope'], [], 'candidate claim audit refCheck');
+  if (evidence.schemaVersion !== CLAIM_AUDIT_SCHEMA
+    || evidence.status !== 'green'
+    || canonicalJson(evidence.capabilityIds) !== canonicalJson(promotion.capabilityIds)
+    || canonicalJson(evidence.claimScope) !== canonicalJson(scope)
+    || evidence.refCheck.command !== './ref-check --verbose'
+    || evidence.refCheck.status !== 'green'
+    || canonicalJson(evidence.refCheck.scope) !== canonicalJson(scope)) {
+    fail('MATURITY_CLAIM_AUDIT_SCOPE_INVALID', 'candidate audit/ref-check must bind the id claim surface');
+  }
+  validateClaimScope(evidence.claimScope, 'candidate claim audit claimScope');
+  validateClaimScope(evidence.refCheck.scope, 'candidate claim audit refCheck.scope');
+}
+
 function validateCarrierDigest(value, label, context) {
   exactKeys(value, ['path', 'sha256'], [], label);
   safeRepoPath(value.path, `${label}.path`);
@@ -289,13 +418,20 @@ function utcDays(start, end) {
 function validatePopulation(value, label) {
   exactKeys(value, ['localProfileIds', 'hostedDeployments'], [], label);
   sortedUniqueStrings(value.localProfileIds, `${label}.localProfileIds`);
+  value.localProfileIds.forEach((profileId, index) => validateTargetProfileId(
+    profileId,
+    `${label}.localProfileIds[${index}]`,
+  ));
   if (!Array.isArray(value.hostedDeployments)) {
     fail('MATURITY_SCHEMA_INVALID', `${label}.hostedDeployments must be an array`);
   }
   const seen = new Set();
   for (const [index, hosted] of value.hostedDeployments.entries()) {
     exactKeys(hosted, ['targetProfileId', 'deploymentIdentity'], [], `${label}.hostedDeployments[${index}]`);
-    nonEmptyString(hosted.targetProfileId, `${label}.hostedDeployments[${index}].targetProfileId`, ID);
+    validateTargetProfileId(
+      hosted.targetProfileId,
+      `${label}.hostedDeployments[${index}].targetProfileId`,
+    );
     nonEmptyString(hosted.deploymentIdentity, `${label}.hostedDeployments[${index}].deploymentIdentity`, ID);
     const key = `${hosted.targetProfileId}\0${hosted.deploymentIdentity}`;
     if (seen.has(key)) fail('MATURITY_SCHEMA_INVALID', `${label}.hostedDeployments contains a duplicate`);
@@ -326,6 +462,7 @@ function validateObservation(record, context) {
   if (record.schemaVersion !== 1) fail('MATURITY_SCHEMA_INVALID', 'observation schemaVersion must be 1');
   capabilityIds(record.capabilityIds);
   nonEmptyString(record.targetProfileId, 'targetProfileId', ID);
+  validateTargetProfileId(record.targetProfileId, 'targetProfileId');
   nonEmptyString(record.dateUtc, 'dateUtc', DATE);
   nonEmptyString(record.headSha, 'headSha', GIT_SHA);
   nonEmptyString(record.suiteProducer, 'suiteProducer', ID);
@@ -493,7 +630,8 @@ function validatePromotion(record, context, recordsByPath) {
   exactKeys(record, [
     'schemaVersion', 'route', 'capabilityIds', 'fromMaturity', 'toMaturity',
     'governingLlp', 'governingStatusAtPromotion', 'candidateSourceSha',
-    'candidateParentSha', 'reviewJournalRefs', 'corpusRunRefs', 'claimAuditRefs',
+    'candidateParentSha', 'claimScope', 'reviewJournalRefs',
+    'corpusRunRefs', 'claimAuditRefs',
     'stagedTreeManifestSha256', 'consumerArmRefs', 'supportEvidenceRefs',
     'authorAdjudication', 'promotionDate',
   ], ['soakEvidence'], 'MaturityPromotionReceiptV1');
@@ -510,13 +648,30 @@ function validatePromotion(record, context, recordsByPath) {
   if (record.candidateSourceSha !== record.candidateParentSha) {
     fail('MATURITY_CANDIDATE_PIN_MISMATCH', 'candidateSourceSha must equal candidateParentSha');
   }
+  const claimScope = validateClaimScope(record.claimScope);
+  const scopeDigest = claimScopeDigest(claimScope);
   const locatorContext = { ...context, candidateSourceSha: record.candidateSourceSha };
   validateLocatorList(record.reviewJournalRefs, 'reviewJournalRefs', locatorContext);
-  validateLocatorList(record.corpusRunRefs, 'corpusRunRefs', locatorContext);
+  if (!Array.isArray(record.corpusRunRefs) || record.corpusRunRefs.length === 0) {
+    fail('MATURITY_SCHEMA_INVALID', 'corpusRunRefs must be a non-empty array');
+  }
+  const corpusProfiles = record.corpusRunRefs.map((locator, index) =>
+    validateOwnCorpusEvidence(locator, record, locatorContext, scopeDigest, index));
+  if (new Set(corpusProfiles).size !== corpusProfiles.length) {
+    fail('MATURITY_CORPUS_SCOPE_INVALID', 'corpusRunRefs repeat a target profile');
+  }
+  const expectedCorpusProfiles = supportingTargetProfiles(record, locatorContext);
+  const actualCorpusProfiles = [...corpusProfiles].sort();
+  if (canonicalJson(actualCorpusProfiles) !== canonicalJson(expectedCorpusProfiles)) {
+    fail(
+      'MATURITY_CORPUS_PROFILE_POPULATION_INVALID',
+      `corpusRunRefs profiles ${actualCorpusProfiles.join(',') || '(none)'} do not equal supporting TARGET_PROFILES ${expectedCorpusProfiles.join(',') || '(none)'}`,
+    );
+  }
   if (!Array.isArray(record.claimAuditRefs) || record.claimAuditRefs.length !== 2) {
     fail('MATURITY_SCHEMA_INVALID', 'claimAuditRefs must contain candidate and promotion-tree audits');
   }
-  validateLocator(record.claimAuditRefs[0], 'claimAuditRefs[0]', locatorContext);
+  validateCandidateAuditEvidence(record.claimAuditRefs[0], record, locatorContext, claimScope);
   validateLocator(record.claimAuditRefs[1], 'claimAuditRefs[1]', locatorContext, { staged: true });
   nonEmptyString(record.stagedTreeManifestSha256, 'stagedTreeManifestSha256', SHA256);
   validateLocatorList(record.consumerArmRefs, 'consumerArmRefs', locatorContext);

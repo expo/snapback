@@ -35,7 +35,9 @@ import { fileURLToPath } from 'node:url';
 
 import {
   loadSelectionContext,
+  selectChangedPaths,
   selectDriftProneGates,
+  selectGate,
 } from './select-local-proof.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -53,6 +55,28 @@ const TICKET_REQUEST_LOCK_WAIT = new Int32Array(new SharedArrayBuffer(4));
 const TICKET_REQUEST_STALE_LOCK_MS = 60_000;
 const DEFAULT_TICKET_DATE = () => new Date().toISOString().slice(0, 10);
 const INFRASTRUCTURE_TICKET_THRESHOLD = 3;
+// @ref LLP 0189#decision — D-1 keys complete-battery repair state on each
+// normalized root-failure signature and excludes BLOCKED dependents.
+const BATTERY_ESCALATION_THRESHOLD = 4;
+const BATTERY_RESULT_SCHEMA = 'snapback.proof-gate-result.v2';
+const BATTERY_TICKET_DATE_ENV = 'SNAPBACK_BATTERY_TICKET_DATE';
+const LEGACY_CLAIM_SCOPE = Object.freeze({
+  roots: Object.freeze([
+    'src',
+    'packages/snapback-codegen',
+    'packages/snapback-contract',
+    'tests',
+  ]),
+  files: Object.freeze([
+    '.gitmodules',
+    'Cargo.lock',
+    'Cargo.toml',
+    'build.rs',
+    'scripts/check-agent-safe-publication.mjs',
+    'scripts/generated-artifact-policy.mjs',
+    'vendor/ibex',
+  ]),
+});
 const INFRASTRUCTURE_OUTPUT = /^(?:Error \[(?:ERR_MODULE_NOT_FOUND|MODULE_NOT_FOUND)\]: Cannot find (?:package|module)[^\r\n]*|Error: Cannot find module[^\r\n]*|error: couldn't read [^\r\n]*: No such file or directory(?: \(os error \d+\))?|fatal: this operation must be run in a work tree|\[(?:snapback-bootstrap|runtime-link-smoke|ibex-doctor)\] (?:error: |ERROR )?SNAPBACK_(?:CAPABILITY_IBEX|IBEX)_[A-Z0-9_]+[^\r\n]*)$/mu;
 const RUNNER_CONTROLLED_OUTPUT = /^(?:fatal: this operation must be run in a work tree|\[(?:snapback-bootstrap|runtime-link-smoke|ibex-doctor)\] (?:error: |ERROR )?SNAPBACK_(?:CAPABILITY_IBEX_HERMES_MISSING|IBEX_(?:HERMES_DOWNLOAD_FAILED|HERMES_ARTIFACTS_UNUSABLE|HOST_UNSUPPORTED|SUBMODULE_INIT_FAILED|RUNTIME_LINK_INTERRUPTED|RUNTIME_LINK_PROBE_FAILED))[^\r\n]*)$/u;
 // Git exports these repository-local variables to hooks. They must not leak
@@ -191,6 +215,45 @@ async function main() {
     const issuesDir = option(args, '--issues-dir') ?? 'issues';
     assertNoUnknownOptions(args, ['--head', '--gate', '--issues-dir']);
     process.exitCode = runBackstop({ head, gate, issuesDir });
+    return;
+  }
+  if (command === 'battery') {
+    const head = option(args, '--head') ?? 'HEAD';
+    const resultsPath = option(args, '--results', { required: true });
+    const runId = option(args, '--run-id', { required: true });
+    const issuesDir = option(args, '--issues-dir') ?? 'issues';
+    assertNoUnknownOptions(args, ['--head', '--results', '--run-id', '--issues-dir']);
+    process.exitCode = runBatteryBackstop({ head, resultsPath, runId, issuesDir });
+    return;
+  }
+  if (command === 'battery-report') {
+    const resultsPath = option(args, '--results', { required: true });
+    assertNoUnknownOptions(args, ['--results']);
+    process.exitCode = runBatteryReport({ resultsPath });
+    return;
+  }
+  if (command === 'battery-check') {
+    const head = option(args, '--head') ?? 'HEAD';
+    assertNoUnknownOptions(args, ['--head']);
+    process.exitCode = runBatteryCheck({ head });
+    return;
+  }
+  if (command === 'failure-signature') {
+    const gateId = option(args, '--gate', { required: true });
+    const exitCode = Number(option(args, '--exit-code', { required: true }));
+    const stdoutPath = option(args, '--stdout', { required: true });
+    const stderrPath = option(args, '--stderr', { required: true });
+    const normalizationRoot = option(args, '--normalization-root') ?? ROOT;
+    assertNoUnknownOptions(args, [
+      '--gate', '--exit-code', '--stdout', '--stderr', '--normalization-root',
+    ]);
+    process.stdout.write(`${batteryFailureSignature({
+      gateId,
+      exitCode,
+      stdout: readFileSync(stdoutPath, 'utf8'),
+      stderr: readFileSync(stderrPath, 'utf8'),
+      normalizationPaths: [normalizationRoot],
+    })}\n`);
     return;
   }
   usage();
@@ -1110,6 +1173,31 @@ function backstopFailureSignature(execution, evidence = failureEvidence(executio
   });
 }
 
+export function batteryFailureSignature({
+  gateId,
+  exitCode,
+  stdout,
+  stderr,
+  normalizationPaths = [],
+}) {
+  if (typeof gateId !== 'string' || !/^[a-z0-9-]+$/u.test(gateId)) {
+    fail(`invalid battery gate id ${gateId}`);
+  }
+  if (!Number.isSafeInteger(exitCode) || exitCode <= 0) {
+    fail(`invalid battery exit code ${exitCode}`);
+  }
+  return backstopFailureSignature({
+    phase: 'check',
+    status: exitCode,
+    signal: null,
+    failureKind: 'content',
+    infrastructureReason: null,
+    stdout,
+    stderr,
+    normalizationPaths,
+  });
+}
+
 function contradictionEvidence({ closureDigest, first, second }) {
   const corroboration = [
     {
@@ -1352,6 +1440,18 @@ function normalizeFailureText(value, paths = []) {
     .replace(/[0-9a-f]{40}/gu, '<sha>')
     .replace(/[^\s'"`]*\.snapback-drift-worktree-[^/\s:'"`]+/gu, '<worktree>')
     .replace(/\/var\/folders\/[^\s'"`]+/gu, '<temp-path>')
+    .replace(/(?:\/private)?\/tmp\/[^\s'"`]+/gu, '<temp-path>')
+    .replace(/\/var\/tmp\/[^\s'"`]+/gu, '<temp-path>')
+    .replace(
+      /\b((?:temp(?:orary)?(?:dir|directory)?|tmpdir)\s*[:=]\s*)[^\s,'"`}]+/giu,
+      '$1<temp-path>',
+    )
+    // Node's TAP reporter emits both YAML `duration_ms: N` fields and the
+    // aggregate `# duration_ms N` line. Some harnesses retain a one-line
+    // `timings` object instead. None identifies the root cause.
+    .replace(/\b(duration_ms\s*:?\s*)\d+(?:\.\d+)?(?:e[+-]?\d+)?/giu, '$1<duration>')
+    .replace(/\b(durationMs\s*[:=]\s*)\d+(?:\.\d+)?(?:e[+-]?\d+)?/gu, '$1<duration>')
+    .replace(/\b(timings?\s*[:=]\s*)(?:\{[^\n}]*\}|\[[^\n\]]*\]|[^\n]+)/giu, '$1<timings>')
     .replace(/\b\d+(?:\.\d+)?m?s\b/gu, '<duration>')
     .replace(/\b(pid|process id)\s*[=:]?\s*\d+\b/giu, '$1 <pid>')
     .replace(/\bport\s*[=:]?\s*\d{1,5}\b/giu, 'port <port>')
@@ -1605,6 +1705,545 @@ function semanticPathDigestFact(path, seen = new Set()) {
   } finally {
     seen.delete(resolved);
   }
+}
+
+function validateBatteryResult(value, index) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    fail(`battery result ${index} must be an object`);
+  }
+  const requiredKeys = [
+    'schemaVersion', 'proofId', 'gateId', 'state', 'startedAtMs', 'endedAtMs',
+    'durationMs', 'exitCode', 'prerequisites', 'blockedBy', 'command',
+    'failureSignature',
+  ];
+  const actualKeys = Object.keys(value).sort();
+  if (JSON.stringify(actualKeys) !== JSON.stringify([...requiredKeys].sort())) {
+    fail(`battery result ${index} does not match ${BATTERY_RESULT_SCHEMA}`);
+  }
+  if (value.schemaVersion !== BATTERY_RESULT_SCHEMA || value.proofId !== 'local-proof') {
+    fail(`battery result ${index} has the wrong schema or proof id`);
+  }
+  if (typeof value.gateId !== 'string' || !/^[a-z0-9-]+$/u.test(value.gateId)) {
+    fail(`battery result ${index} has an invalid gate id`);
+  }
+  if (!['PASS', 'FAIL', 'BLOCKED', 'NOT_SELECTED'].includes(value.state)) {
+    fail(`battery result ${index} has an invalid state`);
+  }
+  for (const key of ['startedAtMs', 'endedAtMs', 'durationMs']) {
+    if (!Number.isSafeInteger(value[key]) || value[key] < 0) {
+      fail(`battery result ${index} has invalid ${key}`);
+    }
+  }
+  if (!Array.isArray(value.prerequisites)
+    || !value.prerequisites.every((entry) => typeof entry === 'string')
+    || !Array.isArray(value.blockedBy)
+    || !value.blockedBy.every((entry) => typeof entry === 'string')
+    || typeof value.command !== 'string') {
+    fail(`battery result ${index} has invalid dependency or command fields`);
+  }
+  if (value.state === 'FAIL') {
+    if (!Number.isSafeInteger(value.exitCode) || value.exitCode <= 0
+      || typeof value.failureSignature !== 'string'
+      || !/^sha256:[0-9a-f]{64}$/u.test(value.failureSignature)) {
+      fail(`battery root failure ${value.gateId} lacks a normalized signature`);
+    }
+  } else if (value.exitCode !== (value.state === 'PASS' ? 0 : null)
+    || value.failureSignature !== null) {
+    fail(`battery non-root result ${value.gateId} carries root-failure evidence`);
+  }
+  if (value.state === 'BLOCKED' && value.blockedBy.length === 0) {
+    fail(`battery BLOCKED result ${value.gateId} does not name a prerequisite`);
+  }
+  return value;
+}
+
+export function parseBatteryResults(source) {
+  if (typeof source !== 'string') fail('battery result source must be text');
+  const records = source.split(/\r?\n/u).filter((line) => line.trim() !== '').map((line, index) => {
+    let value;
+    try {
+      value = JSON.parse(line);
+    } catch (error) {
+      fail(`battery result ${index} is not JSON: ${error.message}`);
+    }
+    return validateBatteryResult(value, index);
+  });
+  if (records.length === 0) fail('battery result source is empty');
+  const seen = new Set();
+  for (const record of records) {
+    if (seen.has(record.gateId)) fail(`battery result repeats gate ${record.gateId}`);
+    seen.add(record.gateId);
+  }
+  return records;
+}
+
+function validateClaimScope(scope, label) {
+  if (!scope || typeof scope !== 'object' || Array.isArray(scope)) fail(`${label} is invalid`);
+  const roots = scope.roots;
+  const files = scope.files;
+  if (!Array.isArray(roots) || !Array.isArray(files) || roots.length + files.length === 0) {
+    fail(`${label} must carry roots or files`);
+  }
+  for (const [key, values] of [['roots', roots], ['files', files]]) {
+    const sorted = [...values].sort();
+    if (!values.every((path) => typeof path === 'string'
+      && path !== ''
+      && !path.includes('\\')
+      && path.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..')
+      && isRepositoryRelative(path))
+      || new Set(values).size !== values.length
+      || JSON.stringify(values) !== JSON.stringify(sorted)) {
+      fail(`${label}.${key} must be sorted unique repository paths`);
+    }
+  }
+  return { roots: [...roots], files: [...files] };
+}
+
+function pathsInClaimScope(root, revision, scope) {
+  const authorities = [...new Set([...scope.roots, ...scope.files])];
+  const committedPaths = gitPaths(root, [
+    'ls-tree', '-r', '--name-only', '-z', revision, '--', ...authorities,
+  ]);
+  return [...new Set([...scope.files, ...committedPaths])].sort();
+}
+
+function relevantGatesForClaim(root, revision, scope, context) {
+  const direct = new Set();
+  for (const path of pathsInClaimScope(root, revision, scope)) {
+    const selection = selectChangedPaths([path], context);
+    for (const classification of selection.classifications) {
+      for (const group of classification.groups) {
+        for (const gateId of context.policy.groups[group].gates) direct.add(gateId);
+      }
+    }
+  }
+  const relevant = new Set();
+  for (const gateId of direct) {
+    for (const selected of selectGate(gateId, context)) relevant.add(selected);
+  }
+  return relevant;
+}
+
+function jsonAtRevision(root, revision, path, label) {
+  try {
+    return JSON.parse(git(root, ['show', `${revision}:${path}`]));
+  } catch (error) {
+    fail(`could not read ${label} ${path}: ${error?.message ?? error}`);
+  }
+}
+
+function publicationAnchorPaths(root, revision) {
+  return gitPaths(root, [
+    'ls-tree', '-r', '--name-only', '-z', revision, '--', 'src',
+  ]).filter((path) => /publication\.anchor(?:\.v\d+)?\.json$/u.test(path));
+}
+
+function publicationCarrierForAnchor(root, revision, anchorPath, anchor) {
+  if (!/^sha256:[0-9a-f]{64}$/u.test(anchor.carrierSha256 ?? '')) {
+    fail(`published claim anchor ${anchorPath} lacks a carrier digest`);
+  }
+  const candidates = gitPaths(root, [
+    'ls-tree', '-r', '--name-only', '-z', revision, '--', 'src',
+  ]).filter((path) => path.includes('publication')
+    && path.endsWith('.json')
+    && !path.includes('.anchor.'));
+  const matches = candidates.flatMap((path) => {
+    const bytes = git(root, ['show', `${revision}:${path}`]);
+    return digestText(bytes) === anchor.carrierSha256 ? [{ path, bytes }] : [];
+  });
+  if (matches.length !== 1) {
+    fail(`published claim anchor ${anchorPath} resolves ${matches.length} carriers`);
+  }
+  let value;
+  try {
+    value = JSON.parse(matches[0].bytes);
+  } catch (error) {
+    fail(`claim carrier ${matches[0].path} is not JSON: ${error.message}`);
+  }
+  const carrierIds = value.capabilityId ? [value.capabilityId] : value.capabilityIds;
+  if (!Array.isArray(carrierIds) || !carrierIds.includes(anchor.capabilityId)) {
+    fail(`claim carrier ${matches[0].path} does not contain ${anchor.capabilityId}`);
+  }
+  return { path: matches[0].path, value };
+}
+
+function publicationReceiptForCarrier(root, revision, capabilityId, carrier) {
+  if (!carrier.implementationTreeSha256) return null;
+  if (!/^sha256:[0-9a-f]{64}$/u.test(carrier.qualificationReceiptSha256 ?? '')) {
+    fail(`claim carrier ${capabilityId} lacks a qualification receipt digest`);
+  }
+  const candidates = gitPaths(root, [
+    'ls-tree', '-r', '--name-only', '-z', revision, '--', 'tests/acceptance',
+  ]).filter((path) => path.endsWith('.json'));
+  const matches = candidates.flatMap((path) => {
+    const bytes = git(root, ['show', `${revision}:${path}`]);
+    return digestText(bytes) === carrier.qualificationReceiptSha256 ? [{ path, bytes }] : [];
+  });
+  if (matches.length !== 1) {
+    fail(`claim carrier ${capabilityId} resolves ${matches.length} qualification receipts`);
+  }
+  let value;
+  try {
+    value = JSON.parse(matches[0].bytes);
+  } catch (error) {
+    fail(`claim receipt ${matches[0].path} is not JSON: ${error.message}`);
+  }
+  if (value.capabilityId !== capabilityId) {
+    fail(`claim receipt ${matches[0].path} has invalid identity`);
+  }
+  return { path: matches[0].path, value };
+}
+
+function legacyPublicationScope(root, revision, anchorPath, carrierPath, carrier) {
+  const files = new Set([anchorPath, carrierPath]);
+  for (const [key, value] of Object.entries(carrier)) {
+    if (!key.endsWith('SourceSha256') || !value || typeof value !== 'object'
+      || Array.isArray(value)) continue;
+    for (const path of Object.keys(value)) files.add(path);
+  }
+  const conformancePath = carrierPath
+    .replace(/^src\/local-/u, 'tests/conformance/local-')
+    .replace(/\.publication\.v(\d+)\.json$/u, '-publication-v$1.mjs');
+  const committed = new Set(gitPaths(root, [
+    'ls-tree', '-r', '--name-only', '-z', revision, '--', conformancePath,
+  ]));
+  if (committed.has(conformancePath)) files.add(conformancePath);
+  return validateClaimScope({ roots: [], files: [...files].sort() }, 'legacy publication D-4 scope');
+}
+
+export function standingBatteryClaims({
+  root = ROOT,
+  revision = resolveCommit(root, 'HEAD'),
+  context = loadSelectionContext(),
+} = {}) {
+  const claims = [];
+  for (const anchorPath of publicationAnchorPaths(root, revision)) {
+    const anchor = jsonAtRevision(root, revision, anchorPath, 'claim anchor');
+    if (anchor?.schemaVersion !== 'snapback.local-capability-publication-anchor.v1'
+      || typeof anchor.capabilityId !== 'string'
+      || !['published', 'withheld'].includes(anchor.state)) {
+      fail(`claim anchor ${anchorPath} has invalid identity or state`);
+    }
+    if (anchor.state !== 'published') continue;
+    const carrier = publicationCarrierForAnchor(root, revision, anchorPath, anchor);
+    const receipt = publicationReceiptForCarrier(
+      root,
+      revision,
+      anchor.capabilityId,
+      carrier.value,
+    );
+    const scope = validateClaimScope(
+      receipt?.value.implementationScope
+        ?? (carrier.value.implementationTreeSha256
+          ? LEGACY_CLAIM_SCOPE
+          : legacyPublicationScope(root, revision, anchorPath, carrier.path, carrier.value)),
+      `${anchor.capabilityId} D-4 scope`,
+    );
+    claims.push({
+      id: anchor.capabilityId,
+      recordPath: anchorPath,
+      scope,
+      relevantGates: relevantGatesForClaim(root, revision, scope, context),
+    });
+  }
+  return claims;
+}
+
+function batteryTicketMarker(gateId) {
+  return `**Battery gate:** \`${gateId}\``;
+}
+
+function batterySignatureMarker(signature) {
+  return `**Failure signature:** \`${signature}\``;
+}
+
+function batteryTicketsForGate(ticketRoot, gateId) {
+  if (!existsSync(ticketRoot)) return [];
+  const marker = batteryTicketMarker(gateId);
+  return readdirSync(ticketRoot).sort().flatMap((name) => {
+    const path = join(ticketRoot, name);
+    if (!name.endsWith('.md') || !lstatSync(path).isFile()) return [];
+    return readFileSync(path, 'utf8').includes(marker) ? [path] : [];
+  });
+}
+
+function findBatteryTicket(ticketRoot, gateId, signature) {
+  const signatureMarker = batterySignatureMarker(signature);
+  for (const directory of [ticketRoot, join(ticketRoot, 'closed')]) {
+    for (const path of batteryTicketsForGate(directory, gateId)) {
+      if (readFileSync(path, 'utf8').includes(signatureMarker)) return path;
+    }
+  }
+  return null;
+}
+
+function ticketConsecutiveRuns(body) {
+  const match = body.match(/^\*\*Consecutive red runs:\*\* `(\d+)`$/mu);
+  return match ? Number(match[1]) : 0;
+}
+
+function replaceTicketLine(body, label, value) {
+  const line = `**${label}:** ${value}`;
+  const pattern = new RegExp(`^\\*\\*${label}:\\*\\* .*?$`, 'mu');
+  if (pattern.test(body)) return body.replace(pattern, line);
+  return body.replace(/^(\*\*Status:\*\* .*?)$/mu, `$1\n${line}`);
+}
+
+function removeTicketSection(body, heading) {
+  const lines = body.split('\n');
+  const start = lines.findIndex((line) => line === `## ${heading}`);
+  if (start === -1) return body;
+  let end = start + 1;
+  while (end < lines.length && !lines[end].startsWith('## ')) end += 1;
+  let removalStart = start;
+  while (removalStart > 0 && lines[removalStart - 1] === '') removalStart -= 1;
+  lines.splice(removalStart, end - removalStart);
+  return `${lines.join('\n').replace(/\n+$/u, '')}\n`;
+}
+
+function updateBatteryTicketObservation(path, { runId, headRevision }) {
+  let body = readFileSync(path, 'utf8');
+  const lastProcessed = body.match(/^\*\*Last processed run:\*\* `([^`]+)`$/mu)?.[1] ?? null;
+  if (lastProcessed === runId) return ticketConsecutiveRuns(body);
+  const consecutive = ticketConsecutiveRuns(body) + 1;
+  body = replaceTicketLine(body, 'Last observed run', `\`${runId}\``);
+  body = replaceTicketLine(body, 'Last processed run', `\`${runId}\``);
+  body = replaceTicketLine(body, 'Last observed revision', `\`${headRevision}\``);
+  body = replaceTicketLine(body, 'Consecutive red runs', `\`${consecutive}\``);
+  body = replaceTicketLine(
+    body,
+    'Escalation',
+    consecutive >= BATTERY_ESCALATION_THRESHOLD
+      ? '`AUTHOR_ESCALATION_REQUIRED`'
+      : `\`pending (${consecutive}/${BATTERY_ESCALATION_THRESHOLD})\``,
+  );
+  if (consecutive >= BATTERY_ESCALATION_THRESHOLD
+    && !body.includes('## Author escalation')) {
+    body += `\n## Author escalation\n\nThis root-failure signature remained red for ${consecutive} consecutive scheduled\nbattery runs. Escalate to the author (Charlie Cheever) before the next run.\n`;
+  }
+  writeFileSync(path, body);
+  return consecutive;
+}
+
+function resetBatteryTicketStreak(path, { runId }) {
+  let body = readFileSync(path, 'utf8');
+  const lastProcessed = body.match(/^\*\*Last processed run:\*\* `([^`]+)`$/mu)?.[1] ?? null;
+  if (lastProcessed === runId) return;
+  body = replaceTicketLine(body, 'Last processed run', `\`${runId}\``);
+  body = replaceTicketLine(body, 'Consecutive red runs', '`0`');
+  body = replaceTicketLine(body, 'Escalation', '`pending (0/4)`');
+  body = removeTicketSection(body, 'Author escalation');
+  writeFileSync(path, body);
+}
+
+function closeBatteryTicket(path, { runId, headRevision, reason, ticketRoot }) {
+  let body = readFileSync(path, 'utf8');
+  body = replaceTicketLine(body, 'Status', 'Closed');
+  body = replaceTicketLine(body, 'Last processed run', `\`${runId}\``);
+  body = replaceTicketLine(body, 'Closed at revision', `\`${headRevision}\``);
+  body = replaceTicketLine(body, 'Closure', reason);
+  writeFileSync(path, body);
+  const closedRoot = join(ticketRoot, 'closed');
+  mkdirSync(closedRoot, { recursive: true });
+  const target = join(closedRoot, path.slice(path.lastIndexOf(sep) + 1));
+  if (existsSync(target)) fail(`battery ticket close collision at ${relative(ROOT, target)}`);
+  renameSync(path, target);
+  return target;
+}
+
+function reopenBatteryTicket(path, { ticketRoot, runId }) {
+  const target = join(ticketRoot, path.slice(path.lastIndexOf(sep) + 1));
+  if (existsSync(target)) fail(`battery ticket reopen collision at ${relative(ROOT, target)}`);
+  let body = readFileSync(path, 'utf8');
+  body = replaceTicketLine(body, 'Status', 'Open');
+  body = replaceTicketLine(body, 'Consecutive red runs', '`0`');
+  body = replaceTicketLine(body, 'Escalation', '`pending (0/4)`');
+  body = replaceTicketLine(body, 'Reopened by battery run', `\`${runId}\``);
+  body = removeTicketSection(body, 'Author escalation');
+  writeFileSync(path, body);
+  renameSync(path, target);
+  return target;
+}
+
+function fileBatteryTicket({
+  root,
+  ticketRoot,
+  gateId,
+  signature,
+  command,
+  exitCode,
+  runId,
+  headRevision,
+  claims,
+  date,
+}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(date)) fail(`invalid ticket date ${date}`);
+  const signatureSlug = signature.replace(/^sha256:/u, '').slice(0, 16);
+  const compactDate = date.replaceAll('-', '');
+  const path = join(ticketRoot, `${compactDate}-battery-${gateId}-${signatureSlug}.md`);
+  if (existsSync(path)) fail(`battery ticket signature collision at ${relative(root, path)}`);
+  const claimLines = claims.length === 0
+    ? '- None.'
+    : claims.map(({ id, recordPath }) => `- \`${id}\` — \`${recordPath}\``).join('\n');
+  const body = `# complete battery red: ${gateId}\n\n**Status:** Open\n**Impact:** 5\n**Urgency:** 5\n**Ease:** 4\n**Confidence:** 5\n**Systems:** Testing, CI\n**Date:** ${date}\n**Battery gate:** \`${gateId}\`\n**Failure signature:** \`${signature}\`\n**First observed run:** \`${runId}\`\n**Last observed run:** \`${runId}\`\n**Last processed run:** \`${runId}\`\n**Detected at revision:** \`${headRevision}\`\n**Last observed revision:** \`${headRevision}\`\n**Consecutive red runs:** \`1\`\n**Escalation:** \`pending (1/${BATTERY_ESCALATION_THRESHOLD})\`\n**Related:** LLP 0189 D-1, LLP 0175 D2.3\n\n## Summary\n\nThe scheduled complete canonical battery reported \`${gateId}\` as a root\nfailure (exit ${exitCode}). This ticket is keyed by gate plus the normalized\nroot-failure signature and remains idempotent while open. Dependent \`BLOCKED\`\nresults do not create tickets.\n\n## Standing claim cross-references\n\n${claimLines}\n\nThese are the standing published claims whose recorded LLP 0189 D-4 scope\nderives \`${gateId}\` as claim-relevant for this battery revision.\n\n## Reproduce and repair\n\n\`\`\`sh\n${command}\n\`\`\`\n\nFix forward, rerun the complete battery, and let the next determinate pass close\nthis signature. Four consecutive red observations require author escalation.\n`;
+  writeFileSync(path, body);
+  return path;
+}
+
+export function runBatteryCheck({
+  head = 'HEAD',
+  root = ROOT,
+  context = loadSelectionContext(),
+} = {}) {
+  const revision = resolveCommit(root, head);
+  const claims = standingBatteryClaims({ root, revision, context });
+  console.log(
+    `[snapback-battery-backstop] CHECK PASS ${context.inventory.canonicalGates.length} gate(s), `
+      + `${claims.length} standing published claim(s) at ${revision}`,
+  );
+  return 0;
+}
+
+function validateCompleteBatteryInventory(records, expected) {
+  const actual = new Set(records.map(({ gateId }) => gateId));
+  const expectedSet = new Set(expected);
+  const missing = expected.filter((gateId) => !actual.has(gateId));
+  const unexpected = [...actual].filter((gateId) => !expectedSet.has(gateId)).sort();
+  if (missing.length > 0 || unexpected.length > 0) {
+    fail(
+      'battery results do not cover the complete canonical gate inventory'
+      + `${missing.length > 0 ? `; missing: ${missing.join(',')}` : ''}`
+      + `${unexpected.length > 0 ? `; unexpected: ${unexpected.join(',')}` : ''}`,
+    );
+  }
+}
+
+function readCompleteBatteryResults({ root, resultsPath, context }) {
+  const resolvedResults = resolve(root, resultsPath);
+  if (resolvedResults === resolve(root) || !resolvedResults.startsWith(`${resolve(root)}${sep}`)) {
+    fail(`battery results escape repository: ${resultsPath}`);
+  }
+  const records = parseBatteryResults(readFileSync(resolvedResults, 'utf8'));
+  validateCompleteBatteryInventory(records, context.inventory.canonicalGates);
+  return records;
+}
+
+export function runBatteryReport({
+  resultsPath,
+  root = ROOT,
+  context = loadSelectionContext(),
+} = {}) {
+  const records = readCompleteBatteryResults({ root, resultsPath, context });
+  const counts = Object.fromEntries(
+    ['PASS', 'FAIL', 'BLOCKED', 'NOT_SELECTED'].map((state) => [
+      state,
+      records.filter((record) => record.state === state).length,
+    ]),
+  );
+  const red = counts.FAIL > 0 || counts.BLOCKED > 0;
+  console[red ? 'error' : 'log'](
+    `[snapback-battery-report] ${red ? 'RED' : 'GREEN'} `
+      + `${counts.PASS} passed, ${counts.FAIL} root failure(s), `
+      + `${counts.BLOCKED} blocked, ${counts.NOT_SELECTED} host-conditioned not selected`,
+  );
+  return red ? 1 : 0;
+}
+
+export function runBatteryBackstop({
+  head = 'HEAD',
+  resultsPath,
+  runId,
+  issuesDir = 'issues',
+  root = ROOT,
+  context = loadSelectionContext(),
+  env = process.env,
+  claims = null,
+}) {
+  if (typeof runId !== 'string' || !/^[A-Za-z0-9._:-]+$/u.test(runId)) {
+    fail(`invalid battery run id ${runId}`);
+  }
+  const revision = resolveCommit(root, head);
+  const records = readCompleteBatteryResults({ root, resultsPath, context });
+
+  const ticketRoot = safeIssuesRoot(root, issuesDir);
+  mkdirSync(ticketRoot, { recursive: true });
+  const standingClaims = claims ?? standingBatteryClaims({ root, revision, context });
+  let batteryRed = false;
+  for (const record of records) {
+    const openForGate = () => batteryTicketsForGate(ticketRoot, record.gateId);
+    if (record.state === 'PASS') {
+      for (const path of openForGate()) {
+        const closed = closeBatteryTicket(path, {
+          runId,
+          headRevision: revision,
+          reason: '`determinate PASS`',
+          ticketRoot,
+        });
+        console.log(`[snapback-battery-backstop] CLOSED ${relative(root, closed)}`);
+      }
+      continue;
+    }
+    if (record.state === 'BLOCKED') {
+      batteryRed = true;
+      for (const path of openForGate()) resetBatteryTicketStreak(path, { runId });
+      console.log(
+        `[snapback-battery-backstop] BLOCKED ${record.gateId} by ${record.blockedBy.join(',')}; no ticket filed`,
+      );
+      continue;
+    }
+    if (record.state === 'NOT_SELECTED') {
+      for (const path of openForGate()) resetBatteryTicketStreak(path, { runId });
+      console.log(
+        `[snapback-battery-backstop] NOT_SELECTED ${record.gateId}; `
+          + 'host-conditioned absence breaks the red streak and files no ticket',
+      );
+      continue;
+    }
+
+    batteryRed = true;
+    for (const path of openForGate()) {
+      if (!readFileSync(path, 'utf8').includes(batterySignatureMarker(record.failureSignature))) {
+        const closed = closeBatteryTicket(path, {
+          runId,
+          headRevision: revision,
+          reason: '`signature absent from determinate FAIL`',
+          ticketRoot,
+        });
+        console.log(`[snapback-battery-backstop] CLOSED ${relative(root, closed)}`);
+      }
+    }
+    let ticket = findBatteryTicket(ticketRoot, record.gateId, record.failureSignature);
+    if (ticket && dirname(ticket) === join(ticketRoot, 'closed')) {
+      ticket = reopenBatteryTicket(ticket, { ticketRoot, runId });
+      console.error(`[snapback-battery-backstop] REOPENED ${relative(root, ticket)}`);
+    }
+    if (ticket) {
+      const consecutive = updateBatteryTicketObservation(ticket, {
+        runId,
+        headRevision: revision,
+      });
+      console.error(
+        `[snapback-battery-backstop] RETAINED ${relative(root, ticket)}; `
+          + `consecutive=${consecutive}`,
+      );
+      continue;
+    }
+    const claimRefs = standingClaims.filter(({ relevantGates }) => relevantGates.has(record.gateId));
+    ticket = fileBatteryTicket({
+      root,
+      ticketRoot,
+      gateId: record.gateId,
+      signature: record.failureSignature,
+      command: record.command,
+      exitCode: record.exitCode,
+      runId,
+      headRevision: revision,
+      claims: claimRefs,
+      date: env[BATTERY_TICKET_DATE_ENV] ?? DEFAULT_TICKET_DATE(),
+    });
+    console.error(`[snapback-battery-backstop] FILED ${relative(root, ticket)}`);
+  }
+  return batteryRed ? 1 : 0;
 }
 
 export function runBackstop({
@@ -2829,6 +3468,9 @@ function infrastructureFail(message) {
 function usage() {
   throw new Error(
     'usage: drift-prone-gates.mjs pre-push --remote NAME | '
-      + 'backstop [--head REV] [--gate ID[,ID...]] [--issues-dir PATH]',
+      + 'backstop [--head REV] [--gate ID[,ID...]] [--issues-dir PATH] | '
+      + 'battery --results PATH --run-id ID [--head REV] [--issues-dir PATH] | '
+      + 'battery-report --results PATH | '
+      + 'battery-check [--head REV]',
   );
 }

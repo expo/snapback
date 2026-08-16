@@ -2,14 +2,14 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:110c53ded1d83c74cfa67a6a87ff8ecfb056b94cbcdda3ef515f63cd1492a151"
+    "sourceDigest": "sha256:6ecefde627909678894c8df63ebc2a01bb38f2fd5a33408faef33a7e5a663edc"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
     "codes": 3329,
-    "sourceFiles": 457,
+    "sourceFiles": 458,
     "emittingSites": 11294,
     "httpClassified": 1019,
     "guideAnchored": 407

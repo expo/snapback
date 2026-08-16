@@ -132,6 +132,11 @@ fi
 # shellcheck source=scripts/lib/proof-runner.sh
 source "$ROOT/scripts/lib/proof-runner.sh"
 PROOF_RESULTS="${SNAPBACK_PROOF_RESULTS:-$ROOT/target/proof/local-proof-results.jsonl}"
+# @ref LLP 0189#decision — D-1 signatures belong to the authoritative
+# complete cadence; affected landing receipts do not pay the capture cost.
+if [ "$PROOF_CADENCE" = "complete" ]; then
+    export SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES=1
+fi
 PROOF_SELECTED_COUNT="$(awk 'NF { count += 1 } END { print count + 0 }' "$PROOF_SELECTED_GATES")"
 proof_runner_init local-proof "$PROOF_RESULTS" "$KEEP_GOING" "$PROOF_SELECTED_COUNT"
 

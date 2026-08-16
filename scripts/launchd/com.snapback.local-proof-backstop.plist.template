@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.snapback.local-proof-backstop</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__SNAPBACK_REPO__/scripts/local-proof-backstop-runner</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>21600</integer>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/snapback-local-proof-backstop.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/snapback-local-proof-backstop.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>SNAPBACK_LOCAL_PROOF_BACKSTOP_SOURCE</key>
+    <string>__SNAPBACK_LOCAL_PROOF_BACKSTOP_SOURCE__</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:__HOME__/.volta/bin:__HOME__/.bun/bin:__HOME__/.cargo/bin</string>
+  </dict>
+</dict>
+</plist>

@@ -102,7 +102,7 @@ proof_json_csv_array() {
 
 proof_record() {
     local gate_id="$1" state="$2" started="$3" ended="$4" exit_code="$5"
-    local prerequisites="$6" blocked_by="$7" command="$8"
+    local prerequisites="$6" blocked_by="$7" command="$8" failure_signature="${9:-}"
     PROOF_GATE_IDS+=("$gate_id")
     PROOF_GATE_STATES+=("$state")
     PROOF_GATE_COMMANDS+=("$command")
@@ -110,15 +110,77 @@ proof_record() {
     PROOF_GATE_BLOCKED_BY+=("$blocked_by")
     PROOF_GATE_EXIT_CODES+=("$exit_code")
     local exit_json="null"
+    local signature_json="null"
     [ -z "$exit_code" ] || exit_json="$exit_code"
-    printf '{"schemaVersion":"snapback.proof-gate-result.v1","proofId":%s,"gateId":%s,"state":%s,"startedAtMs":%s,"endedAtMs":%s,"durationMs":%s,"exitCode":%s,"prerequisites":%s,"blockedBy":%s,"command":%s}\n' \
+    [ -z "$failure_signature" ] || signature_json="$(proof_json_quote "$failure_signature")"
+    printf '{"schemaVersion":"snapback.proof-gate-result.v2","proofId":%s,"gateId":%s,"state":%s,"startedAtMs":%s,"endedAtMs":%s,"durationMs":%s,"exitCode":%s,"prerequisites":%s,"blockedBy":%s,"command":%s,"failureSignature":%s}\n' \
         "$(proof_json_quote "$PROOF_ID")" \
         "$(proof_json_quote "$gate_id")" \
         "$(proof_json_quote "$state")" \
         "$started" "$ended" "$((ended - started))" "$exit_json" \
         "$(proof_json_csv_array "$prerequisites")" \
         "$(proof_json_csv_array "$blocked_by")" \
-        "$(proof_json_quote "$command")" >> "$PROOF_RESULTS_PATH"
+        "$(proof_json_quote "$command")" "$signature_json" >> "$PROOF_RESULTS_PATH"
+}
+
+# @ref LLP 0189#decision — D-1 ticket identity comes from retained,
+# normalized root-failure output; complete runs must keep output live too.
+proof_execute_gate() {
+    local gate_id="$1" capture_dir="" stdout_fifo="" stderr_fifo=""
+    local stdout_file="" stderr_file="" stdout_tee_pid="" stderr_tee_pid=""
+    local command_status=0 signature_status=0 stdout_tee_status=0 stderr_tee_status=0
+    shift
+    PROOF_GATE_LAST_FAILURE_SIGNATURE=""
+    if [ "${SNAPBACK_PROOF_CAPTURE_FAILURE_SIGNATURES:-0}" != "1" ]; then
+        "$@"
+        return $?
+    fi
+
+    capture_dir="$(mktemp -d "${TMPDIR:-/tmp}/snapback-proof-gate.XXXXXX")" || {
+        printf '[snapback-proof] could not create failure-capture directory for gate %s\n' \
+            "$gate_id" >&2
+        return 2
+    }
+    stdout_fifo="$capture_dir/stdout.fifo"
+    stderr_fifo="$capture_dir/stderr.fifo"
+    stdout_file="$capture_dir/stdout.log"
+    stderr_file="$capture_dir/stderr.log"
+    if ! mkfifo "$stdout_fifo" "$stderr_fifo"; then
+        rm -rf -- "$capture_dir"
+        printf '[snapback-proof] could not create failure-capture pipes for gate %s\n' \
+            "$gate_id" >&2
+        return 2
+    fi
+    tee "$stdout_file" < "$stdout_fifo" &
+    stdout_tee_pid=$!
+    tee "$stderr_file" < "$stderr_fifo" >&2 &
+    stderr_tee_pid=$!
+    if "$@" > "$stdout_fifo" 2> "$stderr_fifo"; then
+        command_status=0
+    else
+        command_status=$?
+    fi
+    wait "$stdout_tee_pid" || stdout_tee_status=$?
+    wait "$stderr_tee_pid" || stderr_tee_status=$?
+    if [ "$command_status" -ne 0 ]; then
+        PROOF_GATE_LAST_FAILURE_SIGNATURE="$(node \
+            "$PROOF_RUNNER_ROOT/scripts/drift-prone-gates.mjs" failure-signature \
+            --gate "$gate_id" \
+            --exit-code "$command_status" \
+            --stdout "$stdout_file" \
+            --stderr "$stderr_file" \
+            --normalization-root "$PROOF_RUNNER_ROOT")" || signature_status=$?
+    fi
+    rm -rf -- "$capture_dir"
+    if [ "$stdout_tee_status" -ne 0 ] || [ "$stderr_tee_status" -ne 0 ] \
+        || [ "$signature_status" -ne 0 ] || {
+        [ "$command_status" -ne 0 ] && [ -z "$PROOF_GATE_LAST_FAILURE_SIGNATURE" ];
+    }; then
+        printf '[snapback-proof] could not normalize root-failure output for gate %s\n' \
+            "$gate_id" >&2
+        return 2
+    fi
+    return "$command_status"
 }
 
 proof_validate_gate_id() {
@@ -142,6 +204,7 @@ proof_gate() {
     fi
     local gate_id="$1" prerequisites="" prerequisite="" prerequisite_index=""
     local blocked_by="" state="" command="" started="" ended="" gate_status=0
+    local failure_signature=""
     shift
     if [ "${1:-}" = "--requires" ]; then
         prerequisites="${2:-}"
@@ -203,7 +266,7 @@ proof_gate() {
         "$PROOF_SELECTED_INDEX" "$PROOF_SELECTED_COUNT" "$gate_id"
     printf ' %q' "$@"
     printf '\n'
-    if "$@"; then
+    if proof_execute_gate "$gate_id" "$@"; then
         ended="$(proof_now_ms)"
         proof_record "$gate_id" PASS "$started" "$ended" 0 \
             "$prerequisites" "" "$command"
@@ -211,9 +274,10 @@ proof_gate() {
         return 0
     else
         gate_status=$?
+        failure_signature="$PROOF_GATE_LAST_FAILURE_SIGNATURE"
         ended="$(proof_now_ms)"
         proof_record "$gate_id" FAIL "$started" "$ended" "$gate_status" \
-            "$prerequisites" "" "$command"
+            "$prerequisites" "" "$command" "$failure_signature"
         printf '\n[snapback-verify] FAIL %s (exit %d, %d ms): %s\n' \
             "$gate_id" "$gate_status" "$((ended - started))" "$command"
         if [ "$PROOF_KEEP_GOING" = "1" ]; then

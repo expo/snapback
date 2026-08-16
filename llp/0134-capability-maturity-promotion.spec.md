@@ -5,14 +5,20 @@
 **Systems:** Capability publication, Application data API, Relational queries, Code generation, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-07 (LLP 0189 cadence re-scope: the §4 "no tolerated
-drift" re-declaration rule is superseded — candidates bind their
-qualification commit and re-declare only on claim-relevant scoped-surface
-change; E2 splits into the id's own corpus at the candidate revision plus
-the D-6 battery reference; E4(a)'s `ref-check` is claim-surface-scoped;
-the §6 fast path routes through D-1 tickets and the D-3 demotion window;
-E6's defect corpus counts only claim-relevant D-1 tickets. Validator
-updates ride the LLP 0189 implementation ticket).
+**Revised:** 2026-08-16 (lane split after four review cycles: D-4 promotion
+across a source-to-parent range is deferred to
+`issues/20260816-llp0134-d4-range-relaxation-needs-sound-derivation.md`;
+promotion retains the exact-pin rule. The independently sound amendment parts
+ship: E2 binds the id's own corpus across codegen's closed supporting-profile
+population, E4(a) binds the candidate audit and `ref-check` to the declared
+claim surface, and A5 binds both equal pins to the transition's actual sole
+parent and verifies the landed tree.)
+2026-08-07 (LLP 0189 cadence integration: E2 is scoped to the id's own corpus
+at the candidate revision; E4(a)'s `ref-check` is claim-surface-scoped; the §6
+fast path routes through D-1 tickets and the D-3 demotion window; E6's defect
+corpus counts only claim-relevant D-1 tickets. Complete-battery automation is
+the scheduled system-health backstop, not authority to advance a promotion
+past its exact candidate pin.)
 2026-08-03 (experimental-introduction correction: registration is
 now an explicit `unregistered` → `experimental` act with a closed
 `MaturityIntroductionRecordV1`, same-commit records for every future id, and
@@ -299,10 +305,9 @@ missing or vacuous item refuses the promotion; there is no partial credit.
   support predicate is true; that scoped rerun is not inheritable from an
   older revision. Corpus rows unrelated to the promoted id are carried by
   the scheduled complete battery instead (LLP 0189 D-6, 2026-08-07
-  re-scope): the receipt references the most recent eligible battery green
-  on the id's claim-relevant gates, with unrelated reds ticketed and named
-  in the receipt rather than blocking. GAP rows on non-supporting targets
-  are honest GAPs, not breadth.
+  re-scope): unrelated root reds are ticketed by that scheduled automation
+  and do not substitute for or widen the id's own candidate corpus. GAP rows
+  on non-supporting targets are honest GAPs, not breadth.
 - **E3 — Adversarial fixtures.** The corpus's negative rows rerun green in
   the same run: refusal properties, fail-closed diagnostics, isolation and
   existence-secrecy negatives, and — mandatory — the id's
@@ -322,7 +327,7 @@ missing or vacuous item refuses the promotion; there is no partial credit.
   --verbose` is green on the id's claim-relevant surface (LLP 0189 D-4
   scope — registries, the id's generated artifacts and guide rows, its
   governing document); whole-repo `ref-check` health is carried by the
-  scheduled battery reference (LLP 0189 D-6), so an unrelated annotation
+  scheduled battery (LLP 0189 D-6), so an unrelated annotation
   landing elsewhere in the tree does not invalidate the candidate. (b) The promotion-tree audit, on the staged
   promotion tree — the exact tree the promotion commit will carry:
   every authoritative registry, guide, and document statement reflects
@@ -557,20 +562,14 @@ whose `src/manifest.rs` lacks the exact citation marker.
 
 The promotion commit lands as a sole-parent commit: no merge commit, no
 stacked promotions, exactly one maturity transition per `parent..HEAD`
-range (A5). Drift handling is re-scoped by LLP 0189 (2026-08-07,
-superseding this Spec's original "no tolerated drift" rule): the candidate
-binds `candidateSourceSha` as its qualification commit, and `main`
-advancing past that revision before the landing does not by itself
-invalidate the candidate or force re-witnessing. Re-declaration at a new
-head is required only when a claim-relevant change — the promoted id's
-LLP 0189 D-4 scoped surface — lands between `candidateSourceSha` and the
-promotion parent without requalification. The receipt records the actual
-parent as `candidateParentSha`; when it differs from
-`candidateSourceSha`, the receipt names the intervening range and the
-scoped-surface check that cleared it. A5's transition check compares
-`candidateParentSha` against the commit's actual parent, so the receipt
-never needs to name its own commit. (Validator updates for this re-scope
-ride `issues/20260807-llp-0189-claim-snapshot-implementation.md`.)
+range (A5). The candidate binds `candidateSourceSha` as its qualification
+commit, and `candidateParentSha` is constrained equal to it and to the
+promotion commit's actual sole parent. If `main` advances after qualification,
+the candidate must be re-declared and its candidate evidence re-emitted at the
+new parent. Advancing across a commit range is deferred design work; a receipt
+scope or earlier receipt cannot waive this exact-pin rule. A5 compares both
+pins against the actual parent, so the receipt never needs to name its own
+commit.
 
 `MaturityPromotionReceiptV1` is a closed canonical-JSON document:
 
@@ -585,7 +584,8 @@ ride `issues/20260807-llp-0189-claim-snapshot-implementation.md`.)
   governingStatusAtPromotion,
   candidateSourceSha,
   candidateParentSha,       // == candidateSourceSha == the promotion
-                            //   commit's sole parent
+                            //   commit's actual sole parent
+  claimScope,               // LLP 0189 D-4 roots/files for this id
   reviewJournalRefs,        // E1: review artifacts, acceptance and
                             //   Implemented addenda
   corpusRunRefs,            // E2 + E3, per target profile
@@ -609,6 +609,28 @@ ride `issues/20260807-llp-0189-claim-snapshot-implementation.md`.)
 }
 ```
 
+`claimScope` is
+`{ schemaVersion: "snapback.maturity-claim-scope.v1", roots, files }`, with
+sorted unique repo-relative paths and a non-empty combined surface.
+It records the named-author-accepted evidence classification at the exact
+candidate parent; it is not authority to reuse that evidence at a later parent.
+
+Each `corpusRunRefs` locator resolves to a closed
+`snapback.maturity-own-corpus-run.v1` record naming exactly the promoted
+`capabilityIds`, one target profile, `status: "green"`, and the SHA-256 of the
+canonical `claimScope`. Profiles are drawn from codegen's shared closed
+`TARGET_PROFILE_DEFINITIONS`; the receipt has exactly one corpus record for
+every profile whose capability manifest at `candidateSourceSha` supports the
+whole promoted set, with no invented or duplicate profile.
+
+The candidate member of `claimAuditRefs` resolves to a closed
+`snapback.maturity-claim-audit.v1` record. Its capability set and `claimScope`
+exact-match the promotion receipt, and its `refCheck` member records command
+`./ref-check --verbose`, `status: "green"`, and the same exact scope. These E2
+and E4(a) bindings are evidence checks at one exact parent; they do not derive
+authority for a source-to-parent range. The independently code-derived scope
+needed to make such a range sound is deferred to the 2026-08-16 issue above.
+
 Every `…Ref`/`…Refs` member is a closed evidence locator (or a list of
 them), never a bare digest:
 
@@ -631,8 +653,8 @@ circularly. An artifact produced from the staged promotion tree — E4's
 promotion-tree audit — cannot record the promotion commit's SHA,
 because that SHA depends on the receipt's own bytes. The staged-tree
 rule: such an artifact's `sourceSha` is `candidateSourceSha`
-(= `candidateParentSha`), and the artifact is anchored by that parent
-plus its own `sha256`. The parent and the artifact's bytes do not by
+(= `candidateParentSha`), and the artifact is anchored by that parent plus its
+own `sha256`. The parent and the artifact's bytes do not by
 themselves bind the *tree* the audit claims to have covered, so the
 tree is bound whole: the receipt's `stagedTreeManifestSha256` is the
 SHA-256 of the canonical staged-tree manifest — the canonical-JSON
@@ -934,7 +956,11 @@ Spec. Per the executing ticket, this document promotes nothing itself.
   `targetProfileId × UTC-day` cell of the window without a green
   observation, or any enumerated hosted deployment identity without
   exactly one successful journal extract — or duplicate/conflicting
-  records for the same transition.
+  records for the same transition. For a promotion, A2 also validates the
+  closed `claimScope`, requires E2 evidence to bind its digest and the exact
+  supporting target-profile population, requires E4(a)'s candidate audit and
+  `ref-check` to exact-match it, and refuses unequal candidate pins before
+  trusting any of that evidence.
 - **A3 — First-promotion shape.** The first executed promotion lands as one
   commit containing both registry changes, the updated tests, the conforming
   receipt, the governing-LLP addendum, and the guide/board rows — verified
@@ -949,8 +975,8 @@ Spec. Per the executing ticket, this document promotes nothing itself.
   atomicity claim mechanical rather than aspirational: when a pushed
   range changes either registry's maturity assignment, CI identifies the
   transition commit, requires its sole parent to equal the record's
-  `candidateParentSha` (= `candidateSourceSha`; §4's receipt for
-  promotions, §6's record for demotions, or §1's introduction record) — merge
+  `candidateParentSha` and `candidateSourceSha` (§4's receipt for promotions,
+  §6's record for demotions, or §1's introduction record) — merge
   commits and stacked transitions are refused; exactly one transition per
   `parent..HEAD` range — derives the changed id set from the diff, and
   requires that same diff to contain the matching new record, both

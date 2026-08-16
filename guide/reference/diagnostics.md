@@ -19,7 +19,7 @@ reviewed-authorities-digest: sha256:0ba89a14ff198d7066eeac27e055fe3241a2fcd2101c
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,329 stable codes** from 457 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,329 stable codes** from 458 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |

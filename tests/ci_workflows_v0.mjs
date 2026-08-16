@@ -367,6 +367,34 @@ assert.match(
   /if:\s*always\(\)[\s\S]*name:\s*local-proof-gate-results-\$\{\{ github\.run_id \}\}/,
   'canonical CI must retain structured local-proof gate results on green and red runs',
 );
+assert.match(
+  localProof,
+  /Report complete-battery verdict[\s\S]*if:\s*always\(\).*github\.event_name == 'schedule'.*github\.event_name == 'workflow_dispatch'[\s\S]*drift-prone-gates\.mjs battery-report[\s\S]*--results "\$SNAPBACK_PROOF_RESULTS"/u,
+  'scheduled and on-demand GitHub proofs must report the complete-battery verdict',
+);
+assert.doesNotMatch(
+  localProof,
+  /drift-prone-gates\.mjs battery(?:\s|\\)|issues\/\*battery-|SNAPBACK_BATTERY_RUN_ID/u,
+  'the read-only GitHub checkout must not mutate or retain artifact-only ticket state',
+);
+const localProofBackstop = readFileSync(
+  join(ROOT, 'scripts', 'local-proof-backstop-runner'),
+  'utf8',
+);
+assert.match(
+  localProofBackstop,
+  /scripts\/verify-local-proof --complete[\s\S]*drift-prone-gates\.mjs battery[\s\S]*git -C "\$battery_repo" add -A -- issues[\s\S]*git -C "\$battery_repo" push origin HEAD:main/u,
+  'the local scheduled battery must run complete proof, project tickets, commit them, and push durable state',
+);
+const localProofBackstopPlist = readFileSync(
+  join(ROOT, 'scripts', 'launchd', 'com.snapback.local-proof-backstop.plist.template'),
+  'utf8',
+);
+assert.match(
+  localProofBackstopPlist,
+  /com\.snapback\.local-proof-backstop[\s\S]*<integer>21600<\/integer>/u,
+  'the durable local complete battery must retain the six-hour cadence',
+);
 assert.doesNotMatch(
   localProof,
   /install-dependencies:\s*true/,
