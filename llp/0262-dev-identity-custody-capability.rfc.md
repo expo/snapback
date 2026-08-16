@@ -1,11 +1,11 @@
 # LLP 0262: Dev identity becomes a custody capability
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Auth mode, Server, Security, Developer experience, Local server lifecycle, Demos, Packaged dev loop, CLI
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-15
-**Revised:** 2026-08-16 (r4: post-loop fix revision, UNREVIEWED — native carrier mechanism, closed exposure value set; final reviewed revision is r3)
+**Revised:** 2026-08-16 (r5: Accepted by author ruling; all four OQs ruled and folded in; revision history trimmed)
 **Related:** LLP 0009, LLP 0010, LLP 0017 (D3 amends its loopback-read default), LLP 0030 (browser-facts fence preserved), LLP 0031, LLP 0036, LLP 0039, LLP 0060, LLP 0168, LLP 0181, LLP 0213, `issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`, `issues/20260811-ios-physical-device-dev-carrier-decision-packet.md`
 
 ## Summary
@@ -162,8 +162,10 @@ feeding the same acceptance rules. Truth table (served instances):
 | exposure unset | bind-derived (today, plus D1 capability requirement) | explicit non-prod: mints, capability required | prod: never mints; sidecar presence refuses |
 | `fronted` | the **resolved profile is `prod`** — full prod semantics (no mint, no dev identity, provisioning table refuses per `NonProd`); the operator must select a profile explicitly | mints — the operator explicitly chose a dev profile behind a declared front; startup prints one exposure warning line | unchanged |
 
-The value set is closed: `fronted` is the only recognized value (OQ4 may
-add `direct`). Empty or unset means unset. Any other nonempty value
+The value set is closed: `fronted` and `direct` (an explicit not-fronted
+declaration, behaviorally identical to unset, so CI/container policies can
+require a declaration either way — author ruling 2026-08-16). Empty or
+unset means unset. Any other nonempty value
 resolves to full `fronted` semantics — the fail-closed direction, mirroring
 `resolve_profile`'s unrecognized-value rule — with one startup warning
 naming the unrecognized value; a typo can only tighten, never restore the
@@ -215,47 +217,33 @@ impersonation harvest today), CLI, Expo supervisor gated leg, guide.
 - Detecting undeclared fronts (not observable; the design stops depending
   on the distinction).
 
-## Open questions
+## Rulings (author, 2026-08-16)
 
-1. **OQ1 — the deputy residual.** A fronted credential-holding dev host
-   (tunneled Vite/Metro) stamps for strangers. Accept as a documented
-   residual owned by LLP 0168's carrier decision (this draft's position), or
-   require the dev host to refuse stamping when it detects its own
-   non-loopback exposure (detectable only for its *own* bind — the same
-   limit as the server's)?
-2. **OQ2 — `function.run`/`auth.mintSession`.** Both are admin-token-gated
-   writes already; do they additionally require the dev-identity capability
-   (defense in depth), or is the token sufficient?
-3. **OQ3 — stage-3 timing.** Gate the enforce flip on the demo/template
-   acceptance witness only, or also on one qualified release with stage-2
-   warnings live?
-4. **OQ4 — `SNAPBACK_EXPOSURE` value set.** Only `fronted`, or also
-   `direct` (explicitly not fronted) so CI/container contexts can be
-   required to declare rather than defaulted?
+The loop's four open questions were ruled at acceptance:
+
+1. **OQ1 — deputy residual: documented residual.** A fronted
+   credential-holding dev host (tunneled Vite/Metro) stamping for strangers
+   is accepted and documented as this design's residual; the authenticated
+   first-navigation carrier remains LLP 0168's decision. No dev-host
+   self-bind refusal is added by this RFC.
+2. **OQ2 — admin-plane host-ops: the token is sufficient.**
+   `function.run`/`auth.mintSession` require no second witness; the
+   capability gates app-plane `ClientAsserted` installation only, keeping
+   the operator/app plane split clean.
+3. **OQ3 — stage-3 timing: acceptance witness only.** The enforce flip is
+   gated on the demo/template acceptance suites proving every supported D2
+   topology end to end; no release-cadence coupling.
+4. **OQ4 — value set: `direct` is added.** See D4.
 
 ## Revision history
 
-- 2026-08-15 r1: initial draft (Draft → Review at super-refine loop start).
-- 2026-08-15 r2: round-1 revision — relay-side stamping (bearer never in
-  served content, LLP 0030 fence preserved); connection-grant witness; D3
-  narrowed to token/console credential; topology matrix with named deputy
-  residual; D4 truth table; D5 timing; D6 corrected chokepoints; baseline
-  wording corrected.
-- 2026-08-16 r4 (UNREVIEWED — post-loop fix revision per author ruling;
-  final reviewed revision is r3, verdicts claude READY / grok READY / codex
-  NOT READY): concrete native checkout-nonce carrier replacing the
-  underspecified gated-leg phrase (codex r3 M1); closed SNAPBACK_EXPOSURE
-  value set with fail-closed unrecognized-value handling (codex r3 M2);
-  route-specific-admission rephrase of the D3 bootstrap rule; relay re-read
-  strengthened past connection-error refresh; db-sibling shutdown unlink;
-  OQ2 non-preemption note on the gate point.
-- 2026-08-15 r3: round-2 revision — sidecar anchor corrected to the admin
-  token's real triad ladder with ready-descriptor advertisement (the DB
-  sibling does not exist for `--memory` instances, the kit default);
-  claim-exchange joins the credential-bootstrap carve-out with the
-  bootstrap-vs-inspection rule and an end-to-end redemption witness; Expo
-  row split into native (gated rendezvous leg; USB Android included as
-  shipped) vs web (bearer never in browser-fetchable bootstrap) vs refused
-  rows; network refusal body made generic with path remediation moved to
-  local logs/CLI; relay overwrite + restart re-read pinned; sidecar removed
-  on clean shutdown; D4 `fronted`+unset pinned to full prod semantics.
+- 2026-08-15 r1: initial draft; Draft → Review at super-refine loop start.
+- 2026-08-15 r2: round-1 revision (browser path redesigned to relay-side
+  stamping; D3 narrowed; topology matrix; D4 truth table).
+- 2026-08-15 r3: round-2 revision (anchor triad ladder; credential-bootstrap
+  carve-out incl. claim-exchange; Expo native/web split; generic refusal).
+  Final reviewed revision: claude READY, grok READY, codex NOT READY.
+- 2026-08-16 r4 (unreviewed, author-ruled): concrete native checkout-nonce
+  carrier; closed fail-closed `SNAPBACK_EXPOSURE` set; four tightenings.
+- 2026-08-16 r5: Accepted; OQ1–OQ4 ruled and folded in; history trimmed.
+  Full round-by-round record: `llp/reviews/0262-*.run.md`.
