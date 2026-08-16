@@ -6,7 +6,9 @@
 Live Queries, Assets, Code generation, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (entered Review for the author-directed single-family
+**Revised:** 2026-08-15 (D4 cross-references LLP 0231 D7 `ctx.db.elevated` as
+the sanctioned handler read path across Class-R visibility, keeping it distinct
+from LLP 0234 governed overrides). 2026-08-12 (entered Review for the author-directed single-family
 `llp-super-refine` loop: Codex GPT-5.6-sol xhigh only; Claude intentionally
 skipped). 2026-08-12 (mechanically renumbered from LLP 0238 to LLP 0240 after
 origin assigned LLPs 0234–0235). 2026-08-12 (author-directed acceptance after
@@ -275,6 +277,14 @@ visible, and no pushdown, retention, protected local execution, or precise
 invalidation claim is emitted. A target unable to provide even that
 conservative wake refuses the policy. An author cannot silence either lane with
 a free-form string.
+
+When a custom evaluator or an ordinary named handler must inspect rows that
+Class-R table visibility hides from the caller in order to make its
+authorization decision, the sanctioned read path is LLP 0231 D7's call-local
+`ctx.db.elevated` after a `ctx.permissions` check — not widening the backing
+table's declared visibility. The profile adds no second elevation mechanism:
+D7 governs trusted handler reads, and invocation-wide or no-principal
+authority remains LLP 0234's governed-override problem.
 
 ### D5. Asset sharing composes through the authority profile
 
