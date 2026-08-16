@@ -1,0 +1,39 @@
+# Review artifact: LLP 0268 — grok family
+
+Target: `llp/0268-broadcast-shaped-realtime.rfc.md`
+
+## Round 1 — 2026-08-16
+
+- **Reviewer:** Grok 4.6 (`~/.grok/bin/grok`, --reasoning-effort xhigh,
+  --disable-web-search), fresh non-interactive session, blind to the other
+  family's review.
+- **Revision under review (v0.1):** sha256
+  `c3aa642869535322206769a85b338ad674e3e7c3fce7f4782d1b3314b726a72f`
+  (authoring-worktree bytes, pre-commit).
+- **Verdict:** NOT READY.
+
+
+1. SEVERITY: MATERIAL — `llp/0268-broadcast-shaped-realtime.rfc.md:136` (§2.1 / §1.1 / §1.2 / §4.2) Establishment is the only ACL on a class-1 instance, but nothing binds that door to the instance, so the information-flow argument is not decisive. I opened the charter (`issues/20260815-broadcast-shaped-realtime-commission.md` lines 25–26), LLP 0170 Finding 1 (`llp/0170-authorization-obligation-feasibility.research.md` lines 66–76), LLP 0209 §3 (`llp/0209-live-graph-profile.spec.md` lines 156–177), and this RFC. Charter item (d) requires saying what a broadcast subscriber could learn that fail-closed would deny. After G0 proves a class-1 base, the result must not depend on the caller (§1.1 lines 65–66: the group check “may not alter any delivered result”), so the establishment predicate is the whole audience restriction. §1.1 (lines 70–74, 77–78) then allows `projectId` as a canonical argument *and* “a role or membership predicate” as the join check, while `BroadcastGroupKey` is the free product `G0 instance identity × G0 establishment-scope identity` (lines 136–138). Owner-recomputed keys (§1.2 property 4) stop a client from forging the key string; they do not stop host-computed identities for `{projectId: Q, groupId: P}` or a caller-derived “the caller’s org” scope attached to instance Q. Consumed property 5 (lines 100–101) only says the predicate is join/deny and “never an overlay.” §7’s G0-BCAST-SEPARATION / G0-BCAST-SCOPE do not require scope to be a function of plan+canonical args, or a proved equality from returned rows to that argument. That is exactly the witness LLP 0170 Finding 1 rejects (“an argument-addressed membership predicate without a binding from returned rows to the argument”). §4.2 (lines 281–293) lists only revoked-member deltas, hidden-row observables, and connection/grant reuse — not “admitted under scope P into instance Q.” Fail-closed re-resolution of a membership-gated query would deny that caller; this lane would deliver Q’s shared bytes. Either add a G0 input that the establishment scope is owner-computed from the same instance args (or a proved equality) and that its deny-set is the fail-closed audience for that instance, or treat unbound join checks as query-shaped. As written, §4.2’s “no new content or membership leak” (line 299) is not earned.
+
+2. SEVERITY: MATERIAL — `llp/0268-broadcast-shaped-realtime.rfc.md:197` (§2.3 / §1.1 / §4.2) Compact delta content can exceed the delivered projection the establishment check authorized. I opened DK-3 (`llp/0008-local-first-sync-and-realtime.rfc.md` lines 338–340, 357–363), `compute_live_delta` (`src/live_matcher.rs` 893–1014: ops carry the changed storage `row`), LLP 0209 §7 (`llp/0209-live-graph-profile.spec.md` lines 327–336: to-one is a “row-keyed patch of the **projected** parent field”), and this RFC. §1.1 (lines 64–66) puts projection in the “complete delivered base.” §2.3 (lines 196–197) adopts DK-3’s “whole-document `add`/`update`” as an invariant of the producer, while B2 (line 334) says to put LLP 0209 §7 node rules over group state. Those two rules disagree for any class-1 graph that is not the DK-3 `documents(table)` contract: following §2.3 sends storage columns the reconstruct path would never return. §4.2 channel 2 (lines 284, 291) only closes *hidden rows* via paired worlds; acceptance item 12 (line 357) compares two hidden-row worlds to each other, which still matches if both worlds carry the same extra columns. Name the channel and pick one rule: compact ops carry only the delivered projection, or compact deltas stay on the documents contract and everything else is shared replace.
+
+3. SEVERITY: MINOR — `llp/0268-broadcast-shaped-realtime.rfc.md:91` (§1.2 property 2) This treats “delta classification … invariant across principals, sessions, grants, and authority partitions” as a property consumed from LLP 0209 §3/G0. I opened LLP 0209 §3 (lines 156–163: class 1 is row/membership invariance, not delta classification), §7 (lines 312–350: delta eligibility), and §9 G0 (lines 409–420: “no runtime semantics change”; deltas are G3). The RFC’s own §1.3 and §6.1 correctly leave eligibility to G3. Asking G0 to certify delta-classification invariance pre-assigns a G3 fact to the G0 classifier. Keep G0-BCAST-CLASS as “the delivered/delta-relevant *base* is class 1”; do not list delta classification as a G0 product.
+
+4. SEVERITY: MINOR — `llp/0268-broadcast-shaped-realtime.rfc.md:211` (§2.3) “Today’s auth-scoped DK-3 path falls back on `Remove`” is the wrong direction. I opened `try_live_delta_fanout` (`src/local.rs` 26136–26143): if `subscription.authorization.is_some()` and any op is `LiveDeltaKind::Remove`, it `return Ok(None)` so the caller takes the obligation-backed **replace** path (comment cites LLP 0053). It does not fall back *to* a `Remove` op. Say “falls back to replace when the classified ops include `Remove`.”
+
+5. SEVERITY: MINOR — `llp/0268-broadcast-shaped-realtime.rfc.md:253` (§3) “A denial removes the subscriber under the existing fail-closed behavior” describes the ephemeral room map, not durable live. I opened `complete_room_reauthorization` (`src/ephemeral.rs` 5479–5496: denied connections are removed from `room.subscribers`) and `fail_subscription_fanout_with_retry` (`src/local.rs` 26466–26551: trusted denial raises `InvalidationDisposition::Delete` / `ResolutionKind::TerminalDelete` and enqueues the invalidation frame; it does **not** `subscriptions.remove`). Durable fail-closed keeps the subscription as the ACK/tombstone carrier. If “remove” means “drop from the broadcast fan-out set while the LiveSubscription stays for TerminalDelete,” say that; a literal remove would drop LLP 0008/0053/0200 custody that §3 otherwise keeps unchanged.
+
+6. SEVERITY: MINOR — `llp/0268-broadcast-shaped-realtime.rfc.md:307` (§5) Witnessed-obligation transfer is cited as LLP 0200 §2.3. I opened `llp/0200-live-evaluation-scheduling-and-settlement.spec.md`: §2.3 (lines 176–186) only points at “the obligation-transfer rule in §2.4”; the rule itself is §2.4 lines 250–256. Cite §2.4.
+
+7. SEVERITY: MINOR — `llp/0268-broadcast-shaped-realtime.rfc.md:331` (§6.1 B0) B0 cannot decide whether it unblocks on a recorded LLP 0209 G0 exit or only once 0268 §7’s extra inputs exist. I opened LLP 0209 §9 G0 (lines 409–420): exit is IR, identities, bounds, paired-world rows, corpus compile/refuse — not G0-BCAST-SEPARATION, G0-BCAST-SCOPE, or G0-BCAST-INVALIDATION. §0 (lines 43–45) gates implementation on “a recorded G0 exit”; B0 also says “G0 supplies §7 inputs.” After a 0209-G0 exit that lacks those inputs, an implementer can either start B1 and invent the missing properties (the fork §0 forbids) or treat B0 as still closed forever. Say which: 0209 G0 must be extended before B0, or B1 may be built after G0 exit but every admit stays query-shaped until the named inputs exist.
+
+## Round 2 (delta) — 2026-08-16
+
+- **Reviewer:** fresh Grok 4.6 xhigh session (first delta attempt died
+  before producing a verdict and was relaunched; the verdict below is from
+  the completed relaunched session); delta review of v0.2 against both
+  round-1 reviews.
+- **Revision under review (v0.2):** sha256
+  `fcb0194016e4fa223423d72d414f50737569f210bbac7fba830710e58bbeee3a`.
+- **Verdict:** READY ("the binding, projection, and grounding fixes hold; no
+  new defects in the changed prose").

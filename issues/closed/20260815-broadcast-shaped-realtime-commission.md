@@ -28,3 +28,15 @@ Ask: author an RFC that decides
 Depends on LLP 0209 G0's authority classification existing; sequence after
 G0, alongside G2/G3. Related: LLP 0209 §§3/6/7, LLP 0200 §2.4, LLP 0008,
 LLP 0170 (information flow).
+
+---
+
+**Resolved 2026-08-16.** Authored as
+`llp/0268-broadcast-shaped-realtime.rfc.md` (Draft, v0.2) via the 2026-08-16
+orchestration session, through a dual-family review loop (codex + grok, both
+NOT READY round 1 with a convergent establishment-scope/instance-binding
+MATERIAL, both READY on the v0.2 delta; artifacts in
+`llp/reviews/0268-broadcast-shaped-realtime.*`). The RFC adopts LLP 0209
+§3/G0's classification by reference and gates all implementation on G0's
+exit, preserving this ticket's sequencing constraint. Acceptance is the
+author's call.
