@@ -520,3 +520,13 @@ properties explicit and testable, and its typing/asset semantics are a better
 fit. I would not call it the easier system today: the failed managed loop and
 package/Expo integration detours are exactly the sort of papercuts a mature
 developer platform must eliminate.
+
+## 2026-08-15 — loopback-safe launcher default
+
+The historical phone-reachable run above used a LAN bind, but LAN delivery to
+a physical iOS device is an **unsupported workaround**, not a supported
+Snapback carrier. The Relay Room launcher now binds `127.0.0.1` by default.
+Opting into the workaround requires `RELAY_ROOM_BIND_HOST=0.0.0.0` and prints
+the consequence that, with dev auth, anyone on the network can assert any
+identity. The simulator, Android USB, and hosted release targets remain the
+supported paths while the physical-iOS carrier decision stays open.

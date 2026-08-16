@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Phone-reachable Snapback dev backend for Relay Room. This deliberately uses
-// client provisioning instead of the packaged managed dev loop because the
-// current wrapper cannot parse native `load`'s two JSON result documents.
+// Snapback dev backend for Relay Room. A phone-reachable bind is an explicit,
+// unsupported workaround. This launcher deliberately uses client provisioning
+// instead of the packaged managed dev loop because the current wrapper cannot
+// parse native `load`'s two JSON result documents.
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
@@ -39,9 +40,16 @@ mkdirSync(stateDir, { recursive: true });
 if (process.argv.includes('--reset') && existsSync(dbPath)) rmSync(dbPath, { force: true });
 if (existsSync(readyFile)) rmSync(readyFile, { force: true });
 
-const bindHost = process.env.RELAY_ROOM_BIND_HOST ?? '0.0.0.0';
-const publicHost = lanAddress();
+// Loopback-only by default. Set RELAY_ROOM_BIND_HOST=0.0.0.0 to reach it from a
+// phone on the LAN (same --allow-insecure-dev-auth trade-off Warble makes).
+const bindHost = process.env.RELAY_ROOM_BIND_HOST ?? '127.0.0.1';
+const publicHost = bindHost === '0.0.0.0' ? lanAddress() : bindHost;
 const origin = `http://${publicHost}:${port}`;
+
+if (bindHost !== '127.0.0.1') {
+  console.warn(`[snapback] WARNING: bind address ${bindHost} exposes insecure dev auth; anyone on the network can assert any identity.`);
+}
+
 const child = spawn(join(repoRoot, 'target', 'debug', 'snapback'), [
   '--host', bindHost,
   '--port', String(port),

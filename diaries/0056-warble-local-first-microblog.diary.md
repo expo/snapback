@@ -690,3 +690,13 @@ right that those are different things.
 local-target-only by construction), sessions-mode auth, and any iOS/Android
 release-build evidence — everything native here ran through Expo Go against a
 LAN dev server.
+
+## 2026-08-15 — loopback-safe launcher default
+
+The historical phone run above used a LAN bind, but LAN delivery to a physical
+iOS device is an **unsupported workaround**, not a supported Snapback carrier.
+The Warble launcher now binds `127.0.0.1` by default. Opting into the workaround
+requires `WARBLE_HOST=0.0.0.0` and prints the consequence that, with dev auth,
+anyone on the network can assert any identity. The simulator, Android USB, and
+hosted release targets remain the supported paths while the physical-iOS
+carrier decision stays open.

@@ -16,15 +16,22 @@ Two processes. Backend first:
 node demos/warble/scripts/dev-server.mjs          # add --reset to wipe the db
 ```
 
-It prints the origin to use (your LAN IP, so a phone can reach it). Then the app:
+It prints the loopback origin to use. Then the app:
 
 ```sh
 cd demos/warble/app
-EXPO_PUBLIC_SNAPBACK_ORIGIN=http://<lan-ip>:4420 bun run start
+EXPO_PUBLIC_SNAPBACK_ORIGIN=http://127.0.0.1:4420 bun run start
 ```
 
-Press `w` for web, or scan the QR code with Expo Go on iOS/Android. The phone
-must be on the same Wi-Fi as the Mac.
+Press `w` for web or use an admitted simulator/emulator carrier.
+
+Delivering Warble to a **physical iOS device** over the LAN is an **unsupported
+workaround.** Snapback has no accepted iOS physical-device development carrier.
+If you deliberately accept that limitation, set `WARBLE_HOST=0.0.0.0`; the
+launcher prints the LAN origin and warns that dev auth lets anyone on the
+network assert any identity. The simulator, Android USB, and hosted release
+targets are the supported paths. The open carrier decision remains in
+[`issues/20260811-ios-physical-device-dev-carrier-decision-packet.md`](../../issues/20260811-ios-physical-device-dev-carrier-decision-packet.md).
 
 ## Trying the offline path
 
@@ -74,10 +81,11 @@ The security boundary that buys: argument-keyed viewer scoping is **not**
 server-enforced. It is right for public facts like likes and wrong for private
 data, which needs the lease-backed retention path instead.
 
-Auth is `dev` mode (client-asserted identity) with a persona switcher, and the
-server is bound to the LAN so a phone can reach it. Both are demo conveniences
-and neither is a production posture — the server requires an explicit
-`SNAPBACK_PROFILE=dev` plus `--allow-insecure-dev-auth` to permit it at all.
+Auth is `dev` mode (client-asserted identity) with a persona switcher. The
+server binds loopback by default. The unsupported LAN workaround requires
+`WARBLE_HOST=0.0.0.0`; the launcher keeps the explicit `SNAPBACK_PROFILE=dev`
+pin and `--allow-insecure-dev-auth` override because both are required for that
+non-loopback bind. None of those demo conveniences is a production posture.
 
 ## Proof
 

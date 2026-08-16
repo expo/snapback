@@ -1,6 +1,6 @@
 # Two demo dev-servers default to a LAN-wide bind with insecure dev auth
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -83,3 +83,26 @@ LAN bind is never silent.
   open and is not duplicated here.
 - Authorizing any carrier, relay, or public listener; that remains the decision
   packet's open question.
+
+## Resolution
+
+Resolved 2026-08-15:
+
+- Warble and Relay Room now bind `127.0.0.1` by default, while `WARBLE_HOST`
+  and `RELAY_ROOM_BIND_HOST` retain the explicit wider-bind escape hatch.
+- Both launchers emit the same single warning line for a wider bind, naming the
+  selected bind address and that anyone on the network can assert any identity
+  under dev auth.
+- Warble retains its unconditional `SNAPBACK_PROFILE` dev pin, preserving prior
+  launcher behavior on loopback while keeping the non-loopback override usable.
+- Messaging Snapback and the competitive-checkpoint drill are unchanged.
+- Both READMEs and both LAN-phone-referencing diaries identify physical-iOS LAN
+  delivery as an unsupported workaround and point to the still-open carrier
+  decision.
+- Both launchers pass `node --check`; the dry host-resolution/warning harness
+  proves loopback defaults, working `0.0.0.0` overrides, and warnings only for
+  wider binds. Both demo acceptance suites were run: Relay Room passes, while
+  Warble's three retention checks pass and three offline-write checks remain
+  red beginning at `SNAPBACK_CLIENT_REFUSED: fetch failed`. That acceptance
+  test uses the shared server harness rather than the launcher changed here;
+  full verbatim output is recorded in `report.md`.

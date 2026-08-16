@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Warble dev backend: boot the Snapback server on the LAN, provision the app,
-// and hold it open for the Expo client.
+// Warble dev backend: boot the Snapback server, provision the app, and hold it
+// open for the Expo client.
 //
-// The LAN bind is deliberate and explicit. Snapback refuses client-asserted
-// dev auth on a plaintext non-loopback listener unless you pass
+// A LAN bind is a deliberate, unsupported workaround. Snapback refuses
+// client-asserted dev auth on a plaintext non-loopback listener unless you pass
 // --allow-insecure-dev-auth, because dev auth trusts the caller's asserted
-// identity. That is fine for a demo on your own network and is NEVER a
-// production posture — the production profile rejects the flag outright.
+// identity. It is NEVER a production posture — the production profile rejects
+// the flag outright.
 
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, existsSync } from 'node:fs';
@@ -52,12 +52,14 @@ if (RESET && existsSync(dbPath)) rmSync(dbPath, { force: true });
 if (existsSync(readyFile)) rmSync(readyFile, { force: true });
 
 const binary = process.env.SNAPBACK_SERVER_BINARY ?? join(repoRoot, 'target', 'debug', 'snapback');
-const host = lanAddress();
+// Loopback-only by default. Set WARBLE_HOST=0.0.0.0 to reach it from a phone on
+// the LAN (same --allow-insecure-dev-auth trade-off Messaging makes).
+const bindHost = process.env.WARBLE_HOST ?? '127.0.0.1';
+const host = bindHost === '0.0.0.0' ? lanAddress() : bindHost;
 
-// Default binds the LAN so a phone can reach it. Set WARBLE_HOST=127.0.0.1 for
-// a loopback-only server: web-on-localhost works, the phone cannot reach it,
-// and none of the non-loopback dev-auth gating applies.
-const bindHost = process.env.WARBLE_HOST ?? '0.0.0.0';
+if (bindHost !== '127.0.0.1') {
+  console.warn(`[snapback] WARNING: bind address ${bindHost} exposes insecure dev auth; anyone on the network can assert any identity.`);
+}
 
 const child = spawn(binary, [
   '--host', bindHost,
@@ -72,7 +74,9 @@ const child = spawn(binary, [
     ...process.env,
     // A non-loopback bind with SNAPBACK_PROFILE unset resolves to `prod`, and
     // the prod profile refuses dev auth outright — --allow-insecure-dev-auth
-    // alone is NOT enough. Both are required, deliberately.
+    // alone is NOT enough. Both are required, deliberately. Keep this pin
+    // unconditional so loopback retains the launcher's existing explicit-dev
+    // behavior rather than changing profile handling with the safer default.
     SNAPBACK_PROFILE: process.env.SNAPBACK_PROFILE ?? 'dev',
     DYLD_FRAMEWORK_PATH: join(repoRoot, 'vendor', 'ibex', 'ios', 'Frameworks'),
   },
@@ -114,7 +118,7 @@ console.log('  ┌────────────────────�
 console.log('  │  Warble backend ready');
 console.log(`  │  origin   ${origin}`);
 console.log(`  │  db       ${dbPath}`);
-console.log('  │  auth     dev (client-asserted, LAN-exposed)');
+console.log('  │  auth     dev (client-asserted)');
 console.log('  └─────────────────────────────────────────────────');
 console.log('');
 console.log(`  Point the app at it:  EXPO_PUBLIC_SNAPBACK_ORIGIN=${origin}`);
