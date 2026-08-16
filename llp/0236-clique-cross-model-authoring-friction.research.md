@@ -8,20 +8,30 @@ Offline sync, Assets, Memberships, Code generation, Runtime, Packaging,
 Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (post-snapshot routing amendment: records provisional
-later Sonnet/Kimi successor findings without upgrading cross-model confidence,
-and routes them to LLPs 0245–0249). 2026-08-12 (mechanically renumbered from LLP 0234 to LLP 0236
-after origin assigned LLPs 0234–0235). 2026-08-12 (initial Draft: synthesizes the completed Fable 5,
-Opus 5, and GPT-5.6 sol paired exploratory lanes, the in-progress Sonnet 5
-Snapback lane, the LLP 0201 P2 pilot, and the surrounding comparative diaries)
+**Revised:** 2026-08-15 (adds R7, the cross-lane group-authority
+expressiveness synthesis: the missing declarative membership/role rule, the
+sanctioned elevated-read and principal-array seams with their landed partial
+corrections, and the cross-control evidence that no evaluated backend supplies
+a declarative group answer; routed to LLP 0240). 2026-08-15 (adds the Snapback 0.1.21 Explicit/Familiar follow-up,
+separates observed-and-landed corrections from the residual product agenda,
+and treats Simplified as outside this improvement synthesis without changing
+its governing LLP status). 2026-08-12 (post-snapshot routing amendment: records
+provisional later Sonnet/Kimi successor findings without upgrading cross-model
+confidence, and routes them to LLPs 0245–0249). 2026-08-12 (mechanically
+renumbered from LLP 0234 to LLP 0236 after origin assigned LLPs 0234–0235).
+2026-08-12 (initial Draft: synthesizes the completed Fable 5, Opus 5, and
+GPT-5.6 sol paired exploratory lanes, the in-progress Sonnet 5 Snapback lane,
+the LLP 0201 P2 pilot, and the surrounding comparative diaries)
 **Related:** LLP 0016, LLP 0061, LLP 0074, LLP 0108, LLP 0115, LLP 0116,
 LLP 0118, LLP 0119, LLP 0120, LLP 0122, LLP 0123, LLP 0131, LLP 0146,
 LLP 0151, LLP 0155, LLP 0178, LLP 0189, LLP 0193, LLP 0198, LLP 0201,
 LLP 0208, LLP 0210, LLP 0218, LLP 0219, LLP 0220, LLP 0221, LLP 0229,
-LLP 0245, LLP 0246, LLP 0247, LLP 0248, LLP 0249,
+LLP 0238, LLP 0240, LLP 0241, LLP 0243, LLP 0245, LLP 0246, LLP 0247,
+LLP 0248, LLP 0249, LLP 0252, LLP 0253,
 Diary 0039, Diary 0057, Diary 0058 (both slugs), Diary 0059, Diary 0060,
 Diary 0067, Diary 0070, Diary 0071, Diary 0073, Diary 0074, Diary 0075,
-Diary 0076 (pre-publication at research time)
+Diary 0076 (pre-publication at research time), Diary 0078, Diary 0079,
+Diary 0080, Diary 0081, Diary 0082, Diary 0083, Diary 0084, Diary 0085
 
 ## Summary
 
@@ -637,11 +647,287 @@ compatibility choices. Draft LLP 0248 owns bounded batch reads, and Draft LLP
 this snapshot already left open—declaration transcription and direct
 TypeScript helper custody—are Draft LLP 0245 and LLP 0246.
 
+## Snapback 0.1.21 Explicit/Familiar follow-up — 2026-08-15
+
+### Evidence and decision boundary
+
+The 0.1.21 Clique follow-up adds one clean GPT-5.6 sol high lane for Familiar
+and one for Explicit through M3, plus Convex, InstantDB, PocketBase, and an
+aborted Supabase control. Both Snapback lanes reached green product acceptance
+and frozen choreography for every implemented milestone check
+([Familiar](../diaries/0079-clique-0121-snapback-familiar.diary.md),
+[Explicit](../diaries/0083-clique-0121-snapback-explicit.diary.md)). The earlier
+two-model Familiar/Convex pilot supplies independent replication for several
+package, codegen, and runtime seams
+([Diary 0078](../diaries/0078-clique-familiar-convex-pilot.diary.md)), but it
+does not turn the new 0.1.21 cell into an N≥3 comparison. Opus 5 and Grok 4.6
+did not produce comparable 0.1.21 application diaries because their provider
+credentials failed before application work. These findings are therefore
+directional product evidence, not a promotion, default, or competitive claim.
+LLP 0252 D7 and LLP 0201 continue to govern those decisions.
+
+Per the author direction for this revision, Simplified is a likely withdrawal
+and is outside the improvement agenda below. This Research revision neither
+invests in repairing it nor changes the status of any governing profile LLP.
+The product question here is narrower: how should Snapback improve its Explicit
+power lane and its Familiar ordinary lane without weakening the semantics both
+share?
+
+### What the new diaries change
+
+Familiar's source experience is credible. Its schema, query, mutation, and
+ephemeral vocabulary let the builder express Clique without importing
+Explicit-profile application modules, and the generated guide was sufficient
+to reach three green milestones. Explicit was also credible: declared
+references, membership records, receipt snapshots, server-derived authority,
+and ephemeral typing fit Clique naturally. Neither profile's central data
+model was the dominant source of friction.
+
+The wallclock evidence is the corrective. Familiar took 3,984 seconds from M1
+through M3; Explicit took 3,960 seconds. The 24-second difference is noise in
+these N=1 lanes, not evidence that Familiar is faster. Familiar removed source
+ceremony, but package closure, generated-name grammar, auth transitions,
+client/runtime convergence, and media workarounds consumed the savings.
+Familiar can still become the easier doorway, but only if the whole first-party
+journey becomes familiar—not merely the server declarations.
+
+The controls also move the competitive baseline. Convex, InstantDB, and
+PocketBase all made durable realtime application data comparatively ordinary
+([Convex](../diaries/0085-clique-0121-convex.diary.md),
+[InstantDB](../diaries/0084-clique-0121-instantdb.diary.md),
+[PocketBase](../diaries/0082-clique-0121-pocketbase.diary.md)). Snapback should
+not expect live data alone to differentiate it. Its leverage is the combination
+those controls did not supply as one coherent system: explicit authority,
+first-class ephemeral state, exact lifecycle truth, protected/offline
+semantics, and verification that states its nonclaims. Supabase's lane failed
+at credential preflight before it could serve as an application comparison
+([Diary 0080](../diaries/0080-clique-0121-supabase.diary.md)); that is an
+instrument/setup result, not a Supabase product result.
+
+### Observations already closed after the run
+
+Several diary complaints were valid at observation time and were then fixed on
+main. They remain regression evidence, but must not be presented as the current
+residual agenda:
+
+| Observed friction | Landed correction | Required follow-up |
+| --- | --- | --- |
+| Familiar generated-directory disagreement, dotted operation names, and Metro-incompatible generated exports | LLP 0253 now defines one `snapback/generated/` root and one centralized name grammar; the corresponding [directory](../issues/closed/20260815-familiar-codegen-generated-directory-mismatch.md) and [operation-name](../issues/closed/20260815-generated-operation-name-seams-metro-and-client-grammar.md) defects are closed | Repeat the clean external-package build without copies, overlays, symlinks, or watcher exclusions |
+| Familiar scalar query results and structured principal snapshots were rejected | The [schema expressiveness correction](../issues/closed/20260815-familiar-schema-expressiveness-refusals.md) adds exact lowering while preserving migration intent | Rerun the original one-row and receipt/member schema cases from the published package |
+| Explicit descriptors were rejected by Expo admission and a hot-loaded function generation did not remint the supervised binding | [Descriptor parity](../issues/closed/20260815-explicit-descriptor-authoring-profile-rejected-by-expo-admission.md) and [binding remint](../issues/closed/20260815-hot-reload-does-not-remint-supervised-expo-binding.md) are closed under the common profile/generation contracts | Exercise both profiles through the same generation-change acceptance case |
+| Logout could race authority clearing, and repeated short-lived authenticated clients could stall the backend | [Serialized logout](../issues/closed/20260815-logout-races-authority-clearing.md) and [headless auth churn](../issues/closed/20260815-headless-auth-churn-stalls-backend.md) are closed with lifecycle and stress coverage | Preserve them in the package-level Clique replay and long-lived provider test |
+| Familiar could not name the derived video upload intent | LLP 0253 and the [video-intent correction](../issues/closed/20260815-familiar-video-asset-intent-unaddressable.md) add a same-profile nameable path | Validate real video selection, upload, delivery, and revocation rather than fixture-field reconstruction |
+| Membership-protected resources could require duplicated or impossible handler-side authority reads | The [scoped elevated-read correction](../issues/closed/20260815-owner-visibility-filters-handler-reads-membership-authority-gap.md) supplies the bounded bootstrap/authorization path | Demonstrate the ordinary group pattern, including removal and negative cases, in both profiles |
+| The guide did not provide one end-to-end Familiar journey | The [Familiar guide gap](../issues/closed/20260815-guide-gap-familiar-authoring-profile-page.md) is closed | Refresh the page after the media and membership corrections and test retrieval with a new builder |
+
+“Closed” in this table means the implementation and local proof landed. It
+does not mean the exact external npm Clique lanes have revalidated the
+correction. Publication qualification and rerun evidence remain necessary.
+
+### Residual product agenda shared by Familiar and Explicit
+
+#### R1. Make auth and client bootstrap one first-party journey
+
+The Explicit builder had to compose an application-owned `AuthCoordinator`
+and call `adoptAuthority` because password-session creation and the supervised
+Expo bearer were adjacent rather than integrated. Familiar hid more of the
+declarations but encountered the same underlying transition and custody
+system. A builder should be able to choose the first-party password provider,
+create the generated client, and receive `currentPrincipal`, sign-in, sign-out,
+and authority-change behavior from one documented composition. Web and native
+session custody should be scaffolded separately and honestly: native defaults
+must survive a process restart in secure device storage rather than only an
+in-memory reload.
+
+This should be an endorsed composition over LLP 0238/0247 lifecycle primitives,
+not a second client protocol. Explicit applications must retain access to the
+individual transitions, structured errors, and app-owned authority adoption
+when they actually need them.
+
+#### R2. Finish semantic generation convergence
+
+LLP 0241's single-generation design is the right abstraction. The remaining
+product test is experiential: a source edit should generate, load, remint the
+binding, and update the client at a safe boundary without manual supervisor
+restart, clean-copy overlays, symlinks, or Metro watch-graph surgery. Familiar
+and Explicit must consume the same semantic generation pointer and the same
+operation-name grammar. This is mostly a qualification and distribution task
+after the landed corrections, but it is high priority because failures here
+erase every source-level Familiar gain.
+
+#### R3. Complete the media happy path
+
+Both profiles reached for data URLs or schema-field reconstruction when the app
+needed an ordinary avatar or video. A first-party happy path needs bounded
+one-to-many media collections and an atomic media command spanning selection,
+upload intent, durable application record, delivery URL, and revocation. The
+current residual is tracked in
+[finish the media happy path](../issues/20260815-finish-media-happy-path.md).
+The lower-level asset lifecycle should remain available, but “one avatar,”
+“several post images,” and “one post video” must not each require a new
+backend-specific representation trick.
+
+#### R4. Supply policy-aware protected history
+
+Clique's removed-member rule exposes a real semantic gap: the server should
+stop new delivery immediately while a device may retain already-authorized
+history. Explicit could enforce the first half but needed an application-owned
+encrypted transcript cache for the second. LLP 0243 should produce or
+explicitly decline a first-party protected-read profile with authorization
+invalidation, user-switch wipe, expiry, and view-once exclusion. This is not a
+Familiar shortcut; it is a general capability whose policy should be visible
+and configurable in Explicit and safely presettable in Familiar.
+
+#### R5. Add an ordinary presence/typing convenience over canonical ephemeral state
+
+Snapback's ephemeral primitive was consistently better aligned with typing
+than durable control rows, but each app still rebuilt memoized args, activity
+timers, idle withdrawal, unmount withdrawal, and wording. Provide a small
+generated/client convenience for “active after local activity; withdraw after
+idle or lifecycle end,” using the canonical publish/withdraw protocol and
+retaining the explicit primitive underneath. It must meet the benchmark's
+visibility and disappearance bounds without making typing durable application
+data.
+
+#### R6. Make the benchmark distinguish app, platform, and instrument truth
+
+The final status must combine product acceptance and frozen choreography;
+neither may silently stand in for the other. Preflight should reject missing
+provider credentials before the clock starts. The common replay should include
+real media selection, semantic receipt transitions, membership removal,
+protected-history behavior, and process-restart session custody. Every red must
+identify whether the application, Snapback/runtime, provider/setup, or harness
+failed. This improves the product because it prevents instrumentation defects
+from steering API design.
+
+#### R7. Make group authority declarative, and treat it as differentiation
+
+The sweep's deepest cross-cutting seam was authority expressiveness for
+group-shaped data. It recurred across the
+[Familiar](../diaries/0079-clique-0121-snapback-familiar.diary.md) and
+[Simplified](../diaries/0081-clique-0121-snapback-simplified.diary.md) lanes;
+Simplified stays outside the improvement agenda above, but its authority
+evidence concerns the shared semantic core rather than the Simplified surface,
+so it counts here. Three seams composed:
+
+1. **No declarative membership/role rule.** Computed member access is not
+   available as a declared rule, so every conversation, membership, message,
+   and receipt handler performs its own active-member or admin check. This is
+   the still-open residual.
+2. **No sanctioned cross-owner read for an authenticated server handler.**
+   Owner visibility filtered `ctx.db` reads inside explicit named functions,
+   and the Simplified lane's forced workaround migrated conversation,
+   membership, and message backing rows to public-read visibility — the
+   sweep's largest authority compromise. The landed
+   [scoped elevated-read correction](../issues/closed/20260815-owner-visibility-filters-handler-reads-membership-authority-gap.md)
+   supplies the bounded path, pending external revalidation.
+3. **Principal validators rejected inside structured arrays**, hit in both
+   the receipt/member schema case and recipient snapshots, forcing
+   server-authored string IDs instead of principal objects. The landed
+   [schema expressiveness correction](../issues/closed/20260815-familiar-schema-expressiveness-refusals.md)
+   covers the lowering, pending rerun.
+
+The controls sharpen the opportunity: no evaluated backend supplied a
+declarative answer at group scope. Convex expresses membership checks as
+function code by design
+([Convex](../diaries/0085-clique-0121-convex.diary.md)); InstantDB's builder
+judged the rule surface "not a comfortable place to express
+active-member/admin checks" and moved authority into a Node adapter
+([InstantDB](../diaries/0084-clique-0121-instantdb.diary.md)); PocketBase's
+diary concedes that "the declarative rule layer alone is not a complete
+group-messaging authorization language"
+([PocketBase](../diaries/0082-clique-0121-pocketbase.diary.md)); and the
+Supabase control aborted before its RLS could be judged. A declarative
+group-authority capability is therefore differentiation work, not parity
+work. LLP 0240's accepted application authority profile is exactly this
+design; the residual is to implement it far enough that the ordinary group
+pattern — member/admin authorization, bounded elevated reads, removal,
+negative delivery checks, and retained-history policy — composes without
+copying the same guard into every handler, which is the decisive Familiar
+test below and the same requirement in the Explicit agenda.
+
+### Familiar-specific agenda
+
+Familiar should optimize recognition and closure, not merely character count:
+
+1. Keep the ordinary core deliberately small. When an app crosses its edge,
+   expose either an exact first-class Familiar name over the canonical semantic
+   model or a stable refusal that points to the supported route. Never make
+   data encoding or an untyped Explicit escape hatch the path of least
+   resistance.
+2. Generate useful JSDoc and remediation at the call site for query delivery,
+   authority, assets, and presence. A familiar-looking function whose lifecycle
+   contract is discoverable only in a guide is not yet familiar.
+3. Make groups the decisive ordinary-pattern test: typed principal snapshots,
+   member/admin authorization, bounded elevated reads, removal, negative
+   delivery checks, and retained-history policy should compose without copying
+   the same guard into every handler.
+4. Keep codegen, client admission, Metro exports, and runtime loading under one
+   profile/name grammar. Source-level aliases are worthwhile only when the
+   generated and operational surfaces honor them end to end.
+5. Complete LLP 0252's external npm Phase 3 evaluation and stop rule. If the
+   paired rerun still shows no closure or time advantage after shared seams are
+   fixed, merge or tier the surface rather than preserving a second vocabulary
+   by inertia.
+
+### Explicit-specific agenda
+
+Explicit already succeeds as the reviewable power lane. Do not shorten its
+schema, authority, lifecycle, or proof declarations merely to compete on source
+brevity. Improve it by removing accidental integration ceremony:
+
+1. offer the same first-party Expo/password auth bootstrap while preserving
+   access to explicit authority transitions;
+2. guarantee hot generation convergence and honest authorized-lease
+   negotiation without restarts or retained-query surprises;
+3. make protected local history a declared policy rather than bespoke app
+   storage; and
+4. keep exact references, membership snapshots, ephemeral channels, artifact
+   identity, and verification receipts visible to the builder and reviewer.
+
+The desired distinction is therefore not “easy versus complicated.” Familiar
+is the narrow ordinary doorway; Explicit is the full control and audit surface.
+They should share runtime semantics, lifecycle behavior, diagnostics, and
+proof.
+
+### Recommended sequence and evaluation gates
+
+1. Publish and qualify the already-landed directory, name, lowering,
+   descriptor, binding, auth, video-intent, and membership corrections; replay
+   each original failure from a clean external consumer.
+2. Land the media collection/command happy path and one first-party
+   auth/bootstrap composition with web and native custody profiles.
+3. Land or explicitly decline protected history, implement LLP 0240's
+   declared authority profile far enough to retire per-handler membership
+   guards, then add the bounded typing/presence convenience.
+4. Expand the common Clique acceptance/choreography instrument and run the
+   paired Explicit/Familiar evaluation required by LLP 0252.
+
+The rerun should use one published release, a clean machine, provider preflight,
+at least three successful builders per profile, and a second model family. Its
+ordinary-path acceptance contract should prohibit package-source reading,
+generated-directory copies or symlinks, manual supervisor restart, data-URL
+media, and duplicated per-handler membership guards where the product now
+offers the declared authority path. It should additionally prove:
+
+- native session custody across a process restart;
+- the existing 32-client auth-churn stress case;
+- presence visible within two seconds and absent within five seconds;
+- a removed member can read authorized old history but receives no new
+  messages; and
+- run-level receipts distinguish application, platform, provider/setup, and
+  instrument outcomes.
+
+This evidence would justify a Familiar promotion decision; the present diaries
+do not. They do justify focusing future investment on Familiar plus the shared
+Snapback journey, while retaining Explicit as the power lane and spending no
+additional improvement effort on Simplified.
+
 ## Open questions
 
-1. When the exploratory sweep publishes, which findings remain convergent
-   after Sonnet, Terra, Grok, and Kimi complete, and which are artifacts of the
-   three frontier builders already finished?
+1. Which residual 0.1.21 findings replicate after Opus and Grok credentials are
+   restored? Diary 0078 gives two-model confidence in older closure seams, but
+   not in the current package's corrections or remaining effect size.
 2. Does the first-class password program remove the broker tax for an external
    npm consumer, or merely move the remaining failures from storage core to
    activation and operations?
@@ -655,6 +941,17 @@ TypeScript helper custody—are Draft LLP 0245 and LLP 0246.
 6. Which current-main closures materially change builder experience under a
    fresh pinned npm run? Only a rerun can retire an observed friction from the
    product narrative.
+7. Should the supervised client directly own the first-party password/auth
+   coordinator, or should the product generate one endorsed composition from
+   independently replaceable provider and client pieces?
+8. Does the ordinary typing convenience belong in each React arm, or can one
+   generated cross-client activity contract preserve consistent withdrawal
+   semantics for React, Expo, Swift, and headless consumers?
+9. Once LLP 0240's declared authority profile is implemented, does the
+   ordinary group pattern actually retire per-handler membership guards under
+   the external rerun, and does it hold as a competitive differentiator given
+   that no 0.1.21 control supplied a declarative group-membership
+   authorization language?
 
 ## Hand-off
 
@@ -665,4 +962,11 @@ and LLP 0155/0221 for P4/P8, LLP 0056/0100/0172 for P6, LLP 0131 for P7,
 LLP 0122/0123 for P9/P13, LLP 0080/0120 for P10, LLP 0193/0178 for P11,
 LLP 0061 for P12, and LLP 0189/0201 for P14 and publication posture. The
 post-snapshot residuals route through LLP 0245–0249 as stated above; this does
-not create a second umbrella plan.
+not create a second umbrella plan. The 0.1.21 follow-up additionally routes
+Familiar profile choices through LLP 0252/0253, client/auth lifecycle through
+LLP 0238/0247, declared group authority through LLP 0240, semantic generation
+through LLP 0241, protected history through
+LLP 0243, media through its existing asset owners and open issue, guide
+retrieval through LLP 0061, and paired measurement through LLP 0201. This
+Research document owns the synthesis and rerun questions, not those
+implementations.
