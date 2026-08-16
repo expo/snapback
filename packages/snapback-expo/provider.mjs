@@ -285,6 +285,7 @@ export function createSnapbackExpoBoot({
             app,
             binding: admittedBinding,
             platform,
+            now,
           },
           (snapshot) => {
             if (!disposed && snapshot.status !== 'ready') publish(snapshot);

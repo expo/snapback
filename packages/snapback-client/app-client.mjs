@@ -192,7 +192,7 @@ function validateAppPolicy(app) {
   return policy;
 }
 
-function validateBinding(binding, app, policy) {
+function validateBinding(binding, app, policy, now = Date.now) {
   if (
     !exactKeys(binding, BINDING_KEYS)
     || binding.format !== 'snapback.app-binding.v1'
@@ -225,7 +225,7 @@ function validateBinding(binding, app, policy) {
     && Number.isFinite(Date.parse(binding.provenance.issuedAt))
     && Number.isFinite(Date.parse(binding.provenance.expiresAt))
     && Date.parse(binding.provenance.expiresAt) > Date.parse(binding.provenance.issuedAt)
-    && Date.parse(binding.provenance.expiresAt) > Date.now();
+    && Date.parse(binding.provenance.expiresAt) > now();
   const releaseProvenance = exactKeys(
     binding.provenance,
     ['buildReceipt', 'environment', 'releaseChannel'],
@@ -331,19 +331,23 @@ function normalizePlatform(platform) {
 
 function preflight(input) {
   if (!isRecord(input)) throw new TypeError('createSnapbackAppClient requires an options object');
-  const expectedInputKeys = Object.hasOwn(input, 'storagePartition')
-    ? ['app', 'binding', 'platform', 'storagePartition']
-    : ['app', 'binding', 'platform'];
+  const expectedInputKeys = ['app', 'binding', 'platform'];
+  if (Object.hasOwn(input, 'storagePartition')) expectedInputKeys.push('storagePartition');
+  if (Object.hasOwn(input, 'now')) expectedInputKeys.push('now');
   if (!exactKeys(input, expectedInputKeys)) {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID',
-      'createSnapbackAppClient accepts only app, binding, platform, and optional storagePartition.',
+      'createSnapbackAppClient accepts only app, binding, platform, and optional storagePartition and now.',
       { actualKeys: Object.keys(input).sort() },
     );
   }
   const { app, binding } = input;
+  const now = input.now ?? Date.now;
+  if (typeof now !== 'function' || !Number.isFinite(now())) {
+    throw new TypeError('createSnapbackAppClient `now` must be a function returning a finite timestamp');
+  }
   const policy = validateAppPolicy(app);
-  validateBinding(binding, app, policy);
+  validateBinding(binding, app, policy, now);
   const platform = normalizePlatform(input.platform);
   const storagePartition = validateStoragePartition(
     input.storagePartition ?? DEFAULT_AUTH_STORAGE_PARTITION,

@@ -245,7 +245,9 @@ const platform = Object.freeze({
   databaseName: 'snapback-expo-auth-bootstrap-test',
 });
 
-let seeded = await createSnapbackAppClient({ app, binding, platform });
+let seeded = await createSnapbackAppClient({
+  app, binding, platform, now: () => Date.parse('2026-08-15T12:30:00.000Z'),
+});
 await seeded.auth.signInWithPassword({ email: 'application@example.com', password: PASSWORD });
 await seeded.dispose();
 seeded = null;

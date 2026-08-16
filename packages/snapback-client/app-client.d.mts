@@ -134,4 +134,8 @@ export function createSnapbackAppClient(input: Readonly<{
   binding: SnapbackAppBindingV1;
   platform: SnapbackAppClientPlatform;
   storagePartition?: string;
+  /** Injected clock for binding-expiry admission (epoch milliseconds);
+   * defaults to Date.now. Supervised hosts with a controlled clock (the
+   * Expo boot) pass theirs so admission and boot agree on time. */
+  now?: () => number;
 }>): Promise<SnapbackAppClient>;
