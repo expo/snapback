@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "httpStatus": 200,
+  "method": "GET",
+  "path": "/_snapback/expo/v1/bootstrap",
+  "inspectedSurfaces": [
+    "response-body",
+    "response-headers"
+  ],
+  "nonceAbsent": true,
+  "capabilityPrefixAbsent": true,
+  "capabilityFieldAbsent": true,
+  "checkoutFieldAbsent": true,
+  "format": "snapback.expo-dev-identity-witness.v1",
+  "row": "tunneled-raw-http-isolation",
+  "platform": "ios",
+  "capturedAt": "2026-08-16T21:45:32.463Z"
+}

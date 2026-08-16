@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "httpStatus": 403,
+  "corsGranted": false,
+  "requestRuntime": "node-global-fetch",
+  "claimScope": "server-origin-gate-only",
+  "format": "snapback.expo-dev-identity-witness.v1",
+  "row": "browser-origin-redemption-refusal",
+  "platform": "ios",
+  "capturedAt": "2026-08-16T21:45:32.456Z"
+}

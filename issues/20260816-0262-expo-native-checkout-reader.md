@@ -93,3 +93,26 @@ LLP 0262 D5 stage-2 enforcement cannot include the packaged Expo NATIVE row
 until this reader, own-bundle launch path, and the real simulator/emulator/USB
 witnesses land. The already-landed supervisor protocol may continue to evolve
 behind its explicit opt-in, but it does not satisfy the D2 carrier row alone.
+
+
+## Progress — 2026-08-16 (live iOS simulator row WITNESSED)
+
+The iOS simulator row is witnessed end to end on a real dev-client build
+(receipts committed under
+`demos/expo-native-checkout-reader/receipts/ios-2026-08-16T21-45-27-490Z/`):
+native launch environment -> pre-JS hook -> one-shot redeem ->
+dev-identity-capable client, plus rotation replacement, replay refusal,
+post-rotation refusal, browser-Origin redemption refusal, and tunneled
+bootstrap secret isolation — all `passed`, receipt bytes secret-free.
+
+Live-run bring-up findings landed with this note: the fixture app needed
+`@types/react` for Metro to start; the witness harness gained
+`--ios-simulator <udid>` (multi-booted-sim hosts make `booted` ambiguous);
+and `simctl openurl` on iOS 26 raises a one-time per-install OS scheme
+approval that must be accepted before the dev-client deep link works —
+recorded here for the next runner (approve once; it persists per install).
+
+Still pending, unchanged: Android emulator (no AVD on this host — explicit
+nonclaim tonight), Android physical USB (no hardware — explicit nonclaim),
+and the full Expo-web browser isolation row. The D5 stage-2 constraint for
+the packaged Expo NATIVE row remains gated on the Android rows.

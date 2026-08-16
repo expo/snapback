@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "httpStatus": 403,
+  "priorNonceWasUnspent": true,
+  "format": "snapback.expo-dev-identity-witness.v1",
+  "row": "post-rotation-refusal",
+  "platform": "ios",
+  "capturedAt": "2026-08-16T21:45:33.691Z"
+}

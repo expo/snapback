@@ -31,10 +31,11 @@ function flag(name, fallback = null) {
 
 const platform = flag('--platform');
 const androidSerial = flag('--android-serial');
+const iosSimulator = flag('--ios-simulator', 'booted');
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
   ?? join(repoRoot, 'target', 'debug', 'snapback');
 if (!['ios', 'android'].includes(platform)) {
-  throw new Error('usage: node run-witness.mjs --platform ios|android [--android-serial <serial>]');
+  throw new Error('usage: node run-witness.mjs --platform ios|android [--android-serial <serial>] [--ios-simulator <udid>]');
 }
 if (platform === 'android' && !androidSerial) {
   throw new Error('--android-serial is required for Android emulator and USB rows');
@@ -182,7 +183,7 @@ try {
     applicationReadyFile: join(runStateRoot, 'application-ready.json'),
     runtimeBinary,
     platform,
-    ...(platform === 'android' ? { androidSerial } : {}),
+    ...(platform === 'android' ? { androidSerial } : { iosSimulator }),
     nativeCheckout: true,
     expoAppScheme: devClientScheme,
     ...(platform === 'ios' ? { iosBundleIdentifier } : { androidComponent }),

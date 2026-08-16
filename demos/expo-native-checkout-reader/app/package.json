@@ -46,5 +46,8 @@
     "@expo/snapback-react": "file:../../../packages/snapback-react",
     "@expo/snapback-runtime-darwin-arm64": "file:../../../packages/snapback-runtime-darwin-arm64",
     "@expo/snapback-runtime-linux-x64": "file:../../../packages/snapback-runtime-linux-x64"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.4"
   }
 }
