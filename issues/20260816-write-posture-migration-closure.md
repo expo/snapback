@@ -90,3 +90,29 @@ all 34 registered jobs, reports zero `migration-pending` rows, and passes the
 scoped qualification battery. That receipt is analogous to G1's closure shape
 but independent from it. Do not edit or repurpose the retained G1 closure
 receipt.
+
+## Author sitting 2026-08-16: the sibling extension is designed
+
+The IR-extension dependency above is now owned by
+[LLP 0274](../llp/0274-explicit-write-authority-postures.spec.md), authored
+from a dedicated author sitting and refined through a five-round dual-family
+(Codex + Grok, xhigh, mutually blind) review loop to a converged READY on the
+same revision (artifacts under `llp/reviews/0274-*`). Rulings recorded there:
+
+- Three explicit table-locus postures extend the shared LLP 0264 IR:
+  `open-write`, `authenticated-write`, and `membership-write` (the author
+  expanded scope to resolve 0264 OQ2 for ordinary target tables in-sitting).
+- Demo bindings: campfire/chirp/messaging non-view-once → `open-write`;
+  graffiti → `authenticated-write` (append-only insert); team-chat
+  `messages`/`roomParticipants` → `membership-write`. The deliveries
+  read-marker restructure ruling stands; direct fan-out over owner-read is
+  now expressible but remains a separately governed product decision.
+- Messaging view-once restructures its `grants` JSON map into grantee-owned
+  grant rows (no map-keyed read vocabulary), per the same sitting.
+- Ordinary owner-bindable jobs migrate incrementally without waiting for the
+  sibling; the Phase 1b flip stays gated on the full corpus-closure receipt,
+  which now recognizes the three explicit postures.
+
+Closure of this ticket tracks LLP 0274's acceptance, implementation, and
+independent qualification plus the per-job migrations; the sitting converted
+the blocking design question into scheduled work.

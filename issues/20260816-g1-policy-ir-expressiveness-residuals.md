@@ -36,3 +36,21 @@ Resolution shape: each case either gains an IR form that expresses it (then
 the table narrows in a governed transition per LLP 0234 D5) or is explicitly
 ruled acceptable-as-documented. None of these blocks G2 enforcement, which
 landed with this migration.
+
+## Author sitting 2026-08-16: dispositions for cases 1 and 2
+
+Recorded in [LLP 0274](../llp/0274-explicit-write-authority-postures.spec.md)
+(the LLP 0264 sibling from the write-posture author sitting):
+
+1. **messaging view-once** — ruled: restructure the row-embedded `grants` JSON
+   map into grantee-owned grant rows. The read side then narrows with existing
+   owner/membership vocabulary (a governed 0234 D5 transition) and the write
+   residual (recipient stripping its own grant from the author's row) becomes
+   an ordinary owner-policy delete. No map-keyed IR vocabulary is added. The
+   restructure is implementation work under LLP 0274 D9.
+2. **pointing-room votes** — unchanged: remains LLP 0235's canonical Class-M
+   case; LLP 0274 explicitly keeps Class M out of scope.
+
+Case 3 (rbac app-scope) was already resolved 2026-08-16 by the LLP 0240
+rollout, as recorded above. This ticket now closes when the view-once
+restructure lands and narrows the declaration in a governed transition.
