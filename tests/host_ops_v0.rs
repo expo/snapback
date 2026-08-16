@@ -713,6 +713,16 @@ fn p6_served_ops_round_trip_through_envelopes() {
         "function.run mutation: {mutation}"
     );
     assert!(mutation["data"]["mutationCommit"].is_object());
+    assert_eq!(
+        mutation["data"]["conformance"]["readProvenance"],
+        json!("complete"),
+        "function.run mutation preserves its captured-read provenance: {mutation}"
+    );
+    assert_eq!(
+        mutation["data"]["conformance"]["writeProvenance"],
+        json!("complete"),
+        "function.run mutation preserves its captured-write provenance: {mutation}"
+    );
     assert!(mutation["artifacts"]["databaseVersion"].as_u64().unwrap() > before);
 
     // app.inspect

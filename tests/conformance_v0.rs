@@ -3,8 +3,9 @@
 //! Covers the D1 acceptance obligations that are decidable on the local
 //! target today: the per-invocation report carries class-tagged deltas with
 //! per-class provenance (a read/write swap reports both `missingReads` and
-//! `missingWrites` rather than cancelling); an action reports `unsupported`
-//! provenance rather than any conformant verdict; and under the per-app
+//! `missingWrites` rather than cancelling); a successful action reports
+//! `unsupported` provenance rather than any conformant verdict, while a
+//! throwing action reports `incomplete`; and under the per-app
 //! strict opt-in an undeclared application-table read or write is refused at
 //! the runtime seam with the named platform code before any durable effect.
 //! The `verify` coverage aggregation is D2 and is not claimed here.
@@ -37,6 +38,9 @@ globalThis.__snapbackHandlers = {
     await ctx.db.query('others').collect();
     await ctx.db.insert('notes', { title: 'swapped' });
     return { ok: true };
+  },
+  async throwingAction() {
+    throw new Error('action execution failed');
   }
 };
 "#;
@@ -131,6 +135,7 @@ fn instance(strict: bool) -> LocalSnapback {
                     return_value: None,
                 })),
             ),
+            js_function("throwingAction", FunctionKind::Action, &[], &[]),
         ],
         ..FunctionManifest::default()
     };
@@ -196,6 +201,18 @@ fn action_reports_unsupported_provenance_not_a_verdict() {
     let report = conformance(&result);
     assert_eq!(report["readProvenance"], json!("unsupported"));
     assert_eq!(report["writeProvenance"], json!("unsupported"));
+    assert_eq!(report["missingReads"], json!([]));
+    assert_eq!(report["missingWrites"], json!([]));
+}
+
+#[test]
+fn throwing_action_reports_incomplete_provenance() {
+    let mut snapback = instance(false);
+    let result = snapback.run_function("throwingAction", HandlerInput::default());
+    assert!(!result.ok, "throwing action must fail: {result:?}");
+    let report = conformance(&result);
+    assert_eq!(report["readProvenance"], json!("incomplete"));
+    assert_eq!(report["writeProvenance"], json!("incomplete"));
     assert_eq!(report["missingReads"], json!([]));
     assert_eq!(report["missingWrites"], json!([]));
 }

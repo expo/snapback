@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import {
   appendFileSync,
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -11,7 +12,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import Ajv2020 from 'ajv/dist/2020.js';
@@ -23,11 +24,14 @@ import {
   aggregateConformance,
   defaultVerifyConfig,
   defineCloudflareVerifyProfile,
+  defineRepositoryVerifyProfiles,
   defineStarterVerifyProfile,
   discoverVerifyConfig,
   loadVerifyConfig,
   probeAdmission,
   probeArtifactFreshness,
+  probeCapabilities,
+  probeServedTarget,
   runVerify,
   validateVerifyReceipt,
 } from './verify.mjs';
@@ -110,11 +114,164 @@ const artifact = (overrides = {}) => ({
 const passOptions = (overrides = {}) => ({
   artifactProbe: async () => artifact(),
   runtimeProbe: async () => ({ ok: true, receipt: { digest: 'runtime-1' }, diagnostics: [] }),
+  servedTargetProbe: async () => ({
+    ok: true,
+    claimed: false,
+    evidence: { disposition: 'not-configured', claim: false },
+    diagnostics: [],
+  }),
   now: (() => { let now = 100; return () => ++now; })(),
   ...overrides,
 });
 
 let cases = 0;
+
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-repository-verify-adapter-'));
+  const catalogFile = join(scratch, 'catalog.v1.json');
+  writeFileSync(catalogFile, `${JSON.stringify({
+    schemaVersion: 'snapback.demo-catalog.v1',
+    entries: [
+      {
+        id: 'legacy-demo',
+        directory: dirname(thisFile),
+        targets: ['local'],
+        proof: 'node legacy-demo.mjs',
+        evidence: [thisFile, fileURLToPath(new URL('./verify.mjs', import.meta.url))],
+      },
+      {
+        id: 'hosted-only',
+        directory: '.',
+        targets: ['cloudflare'],
+        proof: 'node hosted.mjs',
+        evidence: [thisFile],
+      },
+    ],
+  }, null, 2)}\n`);
+  try {
+    let invocation = null;
+    let commandOutcome = { ok: true, exit: { code: 0, signal: null, error: null }, stderr: '' };
+    const profiles = defineRepositoryVerifyProfiles({
+      catalogFile,
+      repositoryRoot: '/',
+      runCommand: async (input) => {
+        invocation = input;
+        return commandOutcome;
+      },
+    });
+    assert.equal(profiles.length, 1);
+    assert.equal(profiles[0].id, 'repository-demo:legacy-demo');
+    assert.deepEqual(profiles[0].paths.map(({ id }) => id), ['repository:legacy-demo:proof']);
+    assert.equal(profiles[0].testFiles.length, 2, 'only catalog plus executed proof evidence are bound');
+    const outcome = await profiles[0].run({ identityContext: config().context });
+    assert.equal(outcome.ok, true);
+    assert.equal(invocation.command, 'node legacy-demo.mjs');
+    assert.equal(invocation.cwd, dirname(thisFile));
+    assert.equal(outcome.conformance[0].report.readProvenance, 'unsupported');
+    assert.equal(outcome.conformance[0].report.writeProvenance, 'unsupported');
+
+    commandOutcome = {
+      ok: false,
+      exit: { code: null, signal: null, error: new Error('spawn refused') },
+      stderr: 'spawn refused',
+    };
+    const notExecuted = await profiles[0].run({ identityContext: config().context });
+    assert.equal(notExecuted.ok, false);
+    assert.deepEqual(notExecuted.conformance, [], 'a command that never executed observes no path');
+    cases += 1;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+{
+  const repositoryRoot = resolve(dirname(thisFile), '../..');
+  const catalogFile = join(repositoryRoot, 'demos/catalog.v1.json');
+  const catalog = JSON.parse(readFileSync(catalogFile, 'utf8'));
+  const expected = catalog.entries.filter(({ targets }) => targets.includes('local'));
+  const profiles = defineRepositoryVerifyProfiles({ catalogFile, repositoryRoot });
+  assert.equal(profiles.length, expected.length);
+  assert.deepEqual(
+    profiles.map(({ id }) => id),
+    expected.map(({ id }) => `repository-demo:${id}`),
+  );
+  assert.ok(profiles.every(({ paths }) => paths.length > 0));
+  assert.ok(profiles.every(({ paths }) => paths.length === 1));
+  const rbac = profiles.find(({ id }) => id === 'repository-demo:rbac');
+  assert.equal(rbac.paths.length, 1, 'RBAC runs one proof and registers one observed path');
+  cases += 1;
+}
+
+{
+  const packageRoot = dirname(thisFile);
+  const repositoryRoot = resolve(packageRoot, '../..');
+  const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
+    ?? join(repositoryRoot, 'target', 'debug', 'snapback');
+  assert.ok(
+    existsSync(runtimeBinary),
+    `native snapback binary missing at ${runtimeBinary}; run cargo build --bin snapback or set SNAPBACK_RUNTIME_BINARY`,
+  );
+  const { managedAdminToken, readReadyDescriptor, runDev, scaffoldApp } = await import('./index.mjs');
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-verify-live-target-')));
+  const projectRoot = join(scratch, 'app');
+  const backend = join(projectRoot, 'snapback');
+  const readyFile = join(projectRoot, '.snapback', 'verify.ready.json');
+  const database = join(projectRoot, '.snapback', 'verify.sqlite3');
+  let dev = null;
+  try {
+    assert.equal(scaffoldApp(projectRoot).ok, true);
+    dev = await runDev({
+      backendDirectory: backend,
+      projectRoot,
+      readyFile,
+      database,
+      runtimeBinary,
+      watch: false,
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+    });
+    assert.equal(dev.ok, true, JSON.stringify(dev));
+    const descriptor = readReadyDescriptor(readyFile);
+    const adminToken = managedAdminToken(descriptor, database);
+    const liveConfig = Object.freeze({
+      ...defaultVerifyConfig({ backendDirectory: backend }),
+      servedTarget: Object.freeze({
+        url: descriptor.serverUrl,
+        adminTokenEnv: 'SNAPBACK_TEST_ADMIN_TOKEN',
+        authorityMode: 'admin-token',
+        timeoutMs: 10_000,
+      }),
+    });
+    const fresh = await probeArtifactFreshness(liveConfig);
+    assert.equal(fresh.ok, true, JSON.stringify(fresh.diagnostics));
+    const live = await probeServedTarget(fresh, liveConfig, {
+      env: { SNAPBACK_TEST_ADMIN_TOKEN: adminToken },
+    });
+    assert.equal(live.ok, true, JSON.stringify(live.diagnostics));
+    assert.equal(live.claimed, true);
+    assert.equal(live.evidence.authorityMode, 'admin-token');
+    assert.match(live.evidence.limitation, /sessions-mode/u);
+    assert.equal(live.observation.serverUrl, descriptor.serverUrl);
+    assert.equal(live.observation.appId, fresh.identity.appId);
+    assert.equal(live.observation.schemaHash, fresh.identity.schemaHash);
+    assert.equal(live.observation.bundleHash, fresh.identity.bundleHash);
+    assert.equal(probeAdmission(fresh, live).ok, true);
+    assert.equal(probeCapabilities(fresh, [], live).ok, true);
+    assert.equal(JSON.stringify(live).includes(adminToken), false);
+
+    const receipt = await runVerify(liveConfig, {
+      runtimeProbe: async () => ({ ok: true, receipt: { digest: 'runtime-live' }, diagnostics: [] }),
+      env: { SNAPBACK_TEST_ADMIN_TOKEN: adminToken },
+    });
+    assert.equal(receipt.ok, true, JSON.stringify(receipt.diagnostics));
+    assert.equal(receipt.stages[2].evidence.admissionMode, 'authenticated-live-served-target-admission');
+    assert.equal(receipt.stages[3].evidence.resolutionMode, 'authenticated-live-served-target');
+    assert.equal(receipt.stages[2].evidence.servedTarget.authorityMode, 'admin-token');
+    cases += 1;
+  } finally {
+    await dev?.close?.();
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
 
 {
   const loaded = await loadVerifyConfig(fileURLToPath(
@@ -329,6 +486,19 @@ for (const [template, pathCount] of [
   assert.equal(receipt.ok, true);
   assert.deepEqual(receipt.stages.map(({ status }) => status), Array(5).fill('passed'));
   assert.equal(receipt.context.target.identity, 'inputs-1');
+  assert.equal(receipt.context.data.identity, 'sha256:data-1');
+  assert.equal(
+    receipt.stages[2].evidence.admissionMode,
+    'generated-artifact-local-admission',
+  );
+  assert.equal(
+    receipt.stages[3].evidence.resolutionMode,
+    'generated-capability-manifest',
+  );
+  assert.equal(
+    receipt.nonclaims.includes('generated-artifact-local-admission does not claim a live target admitted the same bytes'),
+    true,
+  );
   assert.equal(receipt.context.seed.identity, 'sha256:seed');
   assert.match(receipt.profileSet.testBytes.sha256, /^sha256:[0-9a-f]{64}$/);
   assert.equal(receipt.profileSet.testBytes.files[0].bytes, readFileSync(thisFile).byteLength);
@@ -347,6 +517,90 @@ for (const [template, pathCount] of [
     assert.equal(discoverVerifyConfig(join(scratch, 'missing')), null);
     cases += 1;
   } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+{
+  const packageRoot = dirname(thisFile);
+  const repositoryRoot = resolve(packageRoot, '../..');
+  const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
+    ?? join(repositoryRoot, 'target', 'debug', 'snapback');
+  assert.ok(
+    existsSync(runtimeBinary),
+    `native snapback binary missing at ${runtimeBinary}; run cargo build --bin snapback or set SNAPBACK_RUNTIME_BINARY`,
+  );
+  const { managedAdminToken, readReadyDescriptor, runDev, scaffoldApp } = await import('./index.mjs');
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-verify-live-sessions-target-')));
+  const projectRoot = join(scratch, 'react-sessions');
+  const backend = join(projectRoot, 'snapback');
+  const readyFile = join(projectRoot, '.snapback', 'verify.ready.json');
+  const database = join(projectRoot, '.snapback', 'verify.sqlite3');
+  let dev = null;
+  try {
+    assert.equal(scaffoldApp(projectRoot, { template: 'react' }).ok, true);
+    const schemaPath = join(backend, 'schema.mjs');
+    const devSchema = readFileSync(schemaPath, 'utf8');
+    const sessionsSchema = devSchema.replace(
+      /\n\}\);\s*$/u,
+      "\n}, { auth: { mode: 'sessions' } });\n",
+    );
+    assert.notEqual(sessionsSchema, devSchema, 'fixture schema must switch to sessions mode');
+    writeFileSync(schemaPath, sessionsSchema);
+
+    dev = await runDev({
+      backendDirectory: backend,
+      projectRoot,
+      readyFile,
+      database,
+      runtimeBinary,
+      watch: false,
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+    });
+    assert.equal(dev.ok, true, JSON.stringify(dev));
+    assert.equal(dev.managed, true);
+
+    const sessionResponse = await fetch(`${dev.serverUrl}/auth/session`, {
+      headers: { 'x-snapback-auth-client-protocol': '1' },
+    });
+    assert.equal(sessionResponse.ok, true);
+    const session = await sessionResponse.json();
+    assert.equal(session.activeMode, 'sessions', 'the live target must not be a dev-auth fixture');
+
+    const descriptor = readReadyDescriptor(readyFile);
+    const adminToken = managedAdminToken(descriptor, database);
+    const liveConfig = Object.freeze({
+      ...defaultVerifyConfig({ backendDirectory: backend }),
+      servedTarget: Object.freeze({
+        url: descriptor.serverUrl,
+        adminTokenEnv: 'SNAPBACK_TEST_ADMIN_TOKEN',
+        authorityMode: 'admin-token',
+        timeoutMs: 10_000,
+      }),
+    });
+    const fresh = await probeArtifactFreshness(liveConfig);
+    assert.equal(fresh.ok, true, JSON.stringify(fresh.diagnostics));
+    const live = await probeServedTarget(fresh, liveConfig, {
+      env: { SNAPBACK_TEST_ADMIN_TOKEN: adminToken },
+    });
+    assert.equal(live.ok, false, JSON.stringify(live));
+    assert.equal(live.claimed, false);
+    assert.equal(
+      live.diagnostics[0].code,
+      'SNAPBACK_VERIFY_SERVED_TARGET_AUTHORITY_PROFILE_UNSUPPORTED',
+    );
+    assert.equal(
+      live.diagnostics[0].details.limitation,
+      'sessions-secret-read-lease-not-supported',
+    );
+    assert.deepEqual(
+      live.diagnostics[0].details.codes,
+      ['SNAPBACK_ADMIN_SECRET_READ_REQUIRED'],
+      'the singular non-2xx ErrorResponse diagnostic must drive classification',
+    );
+    cases += 1;
+  } finally {
+    await dev?.close?.();
     rmSync(scratch, { recursive: true, force: true });
   }
 }
@@ -468,6 +722,12 @@ for (const [stageId, overrides, nextCode] of failureMatrix) {
   const receipt = await runVerify(config([]), passOptions({
     artifactProbe: async () => remoteArtifact,
     runtimeProbe: async () => { localRuntimeProbeCalls += 1; return { ok: false, diagnostics: [] }; },
+    servedTargetProbe: async () => ({
+      ok: true,
+      claimed: false,
+      evidence: { disposition: 'not-configured', claim: false },
+      diagnostics: [],
+    }),
   }));
   assert.equal(localRuntimeProbeCalls, 0);
   assert.equal(receipt.status, 'passed-without-acceptance');
@@ -597,7 +857,7 @@ for (const [stageId, overrides, nextCode] of failureMatrix) {
     conformance: [],
   }]);
   assert.equal(result.status, 'not-claimed');
-  assert.equal(result.scope, 'explicitly-registered-paths-only');
+  assert.equal(result.scope, 'registered-or-repository-adapted-paths');
   assert.equal(result.expectedPaths, 0);
   assert.equal(result.complete, false);
   cases += 1;

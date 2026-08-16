@@ -15245,7 +15245,8 @@ async fn asset_gc_sweep_host_operation_is_admin_gated_and_clock_explicit() {
 /// first, with the failing diagnostic code as each entry's outcome.
 #[tokio::test]
 async fn host_ops_inspect_projects_recent_invocations_ring() {
-    let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
+    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+    let router = app(state.clone());
     let host_op = |body: serde_json::Value| {
         auth_http_request(
             "POST",
@@ -15257,6 +15258,35 @@ async fn host_ops_inspect_projects_recent_invocations_ring() {
         )
     };
 
+    // Exercise the recording wrapper directly without a middleware-prepared
+    // authority. This is the host-op core's missing-authority refusal, not an
+    // HTTP authentication failure before the wrapper can observe it.
+    let mut missing_authority_headers = HeaderMap::new();
+    missing_authority_headers.insert(
+        HeaderName::from_static("x-snapback-admin-token"),
+        HeaderValue::from_static("auth-http-admin"),
+    );
+    let missing_authority_request = serde_json::from_value(json!({
+        "operation": "function.run",
+        "function": "missing-authority",
+    }))
+    .expect("missing-authority host-op request");
+    let Json(missing_authority) = super::host_ops_handler(
+        State(state.clone()),
+        Some(test_route_admission(&state)),
+        None,
+        None,
+        missing_authority_headers,
+        Json(missing_authority_request),
+    )
+    .await
+    .expect("recorded missing-authority refusal");
+    assert_eq!(missing_authority.ok, false);
+    assert_eq!(
+        missing_authority.diagnostics[0].code,
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+    );
+
     let load = router
         .clone()
         .oneshot(host_op(json!({ "operation": "functions.load" })))
@@ -15264,6 +15294,19 @@ async fn host_ops_inspect_projects_recent_invocations_ring() {
         .expect("recorded functions.load refusal");
     assert_eq!(load.status(), StatusCode::OK);
     assert_eq!(response_json(load).await["ok"], false);
+
+    let missing_function = router
+        .clone()
+        .oneshot(host_op(json!({ "operation": "function.run" })))
+        .await
+        .expect("recorded missing-function-id refusal");
+    assert_eq!(missing_function.status(), StatusCode::OK);
+    let missing_function = response_json(missing_function).await;
+    assert_eq!(missing_function["ok"], false);
+    assert_eq!(
+        missing_function["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_OP_INPUT_MISSING"
+    );
 
     let mut run_request =
         host_op(json!({ "operation": "function.run", "function": "missing" }));
@@ -15274,15 +15317,15 @@ async fn host_ops_inspect_projects_recent_invocations_ring() {
         crate::dev_identity::DEV_IDENTITY_CAPABILITY_HEADER,
         HeaderValue::from_static("sbdev_present-but-wrong"),
     );
-    let run = router
+    let unknown_function = router
         .clone()
         .oneshot(run_request)
         .await
-        .expect("recorded function.run refusal");
-    assert_eq!(run.status(), StatusCode::OK);
-    let run = response_json(run).await;
-    assert_eq!(run["ok"], false);
-    let run_code = run["diagnostics"][0]["code"]
+        .expect("recorded unknown-function refusal");
+    assert_eq!(unknown_function.status(), StatusCode::OK);
+    let unknown_function = response_json(unknown_function).await;
+    assert_eq!(unknown_function["ok"], false);
+    let run_code = unknown_function["diagnostics"][0]["code"]
         .as_str()
         .expect("failing function.run diagnostic code")
         .to_owned();
@@ -15297,12 +15340,17 @@ async fn host_ops_inspect_projects_recent_invocations_ring() {
     let recent = inspect["data"]["recentInvocations"]
         .as_array()
         .expect("recentInvocations array");
-    assert_eq!(recent.len(), 2, "{inspect}");
+    assert_eq!(recent.len(), 4, "{inspect}");
     assert_eq!(recent[0]["operation"], "function.run");
     assert_eq!(recent[0]["functionId"], "missing");
     assert_eq!(recent[0]["outcome"], run_code);
-    assert_eq!(recent[1]["operation"], "functions.load");
+    assert_eq!(recent[1]["operation"], "function.run");
     assert_eq!(recent[1]["outcome"], "SNAPBACK_HOST_OP_INPUT_MISSING");
+    assert_eq!(recent[2]["operation"], "functions.load");
+    assert_eq!(recent[2]["outcome"], "SNAPBACK_HOST_OP_INPUT_MISSING");
+    assert_eq!(recent[3]["operation"], "function.run");
+    assert_eq!(recent[3]["functionId"], "missing-authority");
+    assert_eq!(recent[3]["outcome"], "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
     for entry in recent {
         assert!(
             entry["startedAt"]
@@ -15313,6 +15361,522 @@ async fn host_ops_inspect_projects_recent_invocations_ring() {
         assert!(entry["diagnostics"].is_array());
         assert_ne!(entry["operation"], "app.inspect");
     }
+    for entry in recent
+        .iter()
+        .filter(|entry| entry["operation"] == "function.run")
+    {
+        assert_eq!(
+            entry["conformance"],
+            json!({
+                "missingReads": [],
+                "missingWrites": [],
+                "extraReads": [],
+                "extraWrites": [],
+                "readProvenance": "incomplete",
+                "writeProvenance": "incomplete",
+            }),
+            "every recorded function.run refusal carries the complete D1 shape: {entry}"
+        );
+    }
+}
+
+/// @ref LLP 0146#d1-declarationobservation-conformance — direct app-data
+/// query and mutation paths retain their authoritative captured dependency
+/// evidence in the same bounded diagnostic ring, while every query, mutation,
+/// and action refusal emits the unconditional six-field incomplete report.
+/// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
+/// the existing `app.inspect` projection remains the one public ring reader.
+#[tokio::test]
+async fn app_data_invocations_join_recent_invocations_ring() {
+    let state = sessions_activation_server_fixture_async().await;
+    let credential = mint_test_credential(&state, "recent-ring@example.test").await;
+    let bearer = credential["token"].as_str().expect("session bearer");
+    let recent_ring = state.recent_invocations.clone();
+    let router = app(state);
+
+    let query = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/query/listItems",
+            br#"{"args":{}}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .expect("recorded app-data query");
+    assert_eq!(query.status(), StatusCode::OK);
+
+    let mutation = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/mutation/queuedWrite",
+            br#"{"args":{"value":"recent-ring"}}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .expect("recorded app-data mutation");
+    assert_eq!(mutation.status(), StatusCode::OK);
+
+    let action = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/action/missingAction",
+            br#"{"args":{}}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .expect("recorded app-data action refusal");
+    assert_ne!(action.status(), StatusCode::OK);
+
+    let missing_query = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/query/missingQuery",
+            br#"{"args":{}}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .expect("recorded app-data query refusal");
+    assert_ne!(missing_query.status(), StatusCode::OK);
+
+    let missing_mutation = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/mutation/missingMutation",
+            br#"{"args":{}}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .expect("recorded app-data mutation refusal");
+    assert_ne!(missing_mutation.status(), StatusCode::OK);
+
+    let recent = recent_ring.snapshot();
+    assert_eq!(recent.len(), 5, "success and refusal paths enter the ring");
+    for (entry, operation, function) in [
+        (&recent[0], "mutation", "missingMutation"),
+        (&recent[1], "query", "missingQuery"),
+        (&recent[2], "action", "missingAction"),
+    ] {
+        assert_eq!(entry.operation, operation);
+        assert_eq!(entry.function_id.as_deref(), Some(function));
+        assert_eq!(
+            entry.conformance.as_ref().expect("failure conformance"),
+            &json!({
+                "missingReads": [],
+                "missingWrites": [],
+                "extraReads": [],
+                "extraWrites": [],
+                "readProvenance": "incomplete",
+                "writeProvenance": "incomplete",
+            })
+        );
+    }
+    assert_eq!(recent[3].operation, "mutation");
+    assert_eq!(recent[3].function_id.as_deref(), Some("queuedWrite"));
+    let mutation_conformance = recent[3]
+        .conformance
+        .as_ref()
+        .expect("mutation conformance");
+    assert_eq!(mutation_conformance["readProvenance"], "complete");
+    assert_eq!(mutation_conformance["writeProvenance"], "complete");
+    assert_eq!(recent[4].operation, "query");
+    assert_eq!(recent[4].function_id.as_deref(), Some("listItems"));
+    let query_conformance = recent[4].conformance.as_ref().expect("query conformance");
+    assert_eq!(query_conformance["readProvenance"], "complete");
+    assert_eq!(query_conformance["writeProvenance"], "complete");
+}
+
+/// @ref LLP 0146#d1-declarationobservation-conformance — coordinated
+/// `function.run` mutation conformance is derived in generation A's commit
+/// turn. A same-name generation B installed before envelope assembly cannot
+/// conceal A's undeclared tableB write with B's broader declaration.
+/// @ref LLP 0012#call-time-generation-binding — every fact derived from the
+/// invocation stays bound to the selected function/schema generation.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn coordinated_function_run_mutation_conformance_is_bound_to_executing_generation() {
+    const FUNCTION: &str = "generationBoundMutation";
+
+    let table = |name: &str| TableManifest {
+        name: name.to_owned(),
+        fields: vec![FieldManifest {
+            name: "value".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        }],
+        indexes: Vec::new(),
+        syncable: true,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: None,
+        history: None,
+    };
+    let manifest = |declared: &str| {
+        let mut function = FunctionDefinition::new(
+            FUNCTION,
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async generationBoundMutation(ctx, args) { return await ctx.db.insert('tableB', { value: args.value }); } };".to_owned(),
+                export: FUNCTION.to_owned(),
+            }),
+        );
+        function.write_set_summary.tables = vec![declared.to_owned()];
+        FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        }
+    };
+    let tables = vec![table("tableA"), table("tableB")];
+    let generation_a = manifest("tableA");
+    let generation_b = manifest("tableB");
+    let (state, _) = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        auth_runtime_fixture_with(PolicyAuthMode::Dev, move |snapback| {
+            snapback
+                .apply_schema(SchemaManifest {
+                    tables,
+                    ..SchemaManifest::default()
+                })
+                .expect("apply generation-binding schema");
+            let diagnostics = snapback.load_functions(generation_a);
+            assert!(
+                diagnostics.iter().all(|diagnostic| {
+                    diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+                }),
+                "generation A must load: {diagnostics:?}"
+            );
+        })
+    })
+    .await
+    .expect("construct generation-binding fixture off async workers");
+    let pause = super::install_test_coordinated_mutation_pause(FUNCTION);
+    let router = app(state.clone());
+    let request = auth_http_request(
+        "POST",
+        "/_snapback/api/host-ops",
+        serde_json::to_vec(&json!({
+            "operation": "function.run",
+            "function": FUNCTION,
+            "args": { "value": "generation-a" },
+        }))
+        .expect("serialize generation-A function.run"),
+        true,
+        Some("auth-http-admin"),
+        None,
+    );
+    let run = tokio::spawn(async move {
+        router
+            .oneshot(request)
+            .await
+            .expect("generation-A function.run response")
+    });
+
+    tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+        .await
+        .expect("generation A commits before its envelope turn");
+    let diagnostics = with_snapback(&state.snapback, move |snapback| {
+        snapback.load_functions(generation_b)
+    })
+    .await;
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "generation B must install in the post-commit/pre-envelope window: {diagnostics:?}"
+    );
+    pause.release();
+
+    let response = tokio::time::timeout(Duration::from_secs(5), run)
+        .await
+        .expect("generation-A response completes")
+        .expect("generation-A response task joins");
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = response_json(response).await;
+    assert_eq!(response["ok"], true, "{response}");
+    assert_eq!(
+        response["data"]["conformance"]["missingWrites"],
+        json!(["tableB"]),
+        "generation B must not launder generation A's undeclared write: {response}"
+    );
+    assert_eq!(
+        response["data"]["conformance"]["extraWrites"],
+        json!(["tableA"])
+    );
+    assert_eq!(
+        response["data"]["conformance"]["writeProvenance"], "complete",
+        "the fix must preserve authoritative non-raced/fresh capture"
+    );
+}
+
+/// @ref LLP 0146#d1-declarationobservation-conformance — an admitted action
+/// that throws executed only partially, so its unconditional ring report is
+/// incomplete rather than the successful action lane's unsupported verdict.
+#[tokio::test]
+async fn admitted_throwing_action_records_incomplete_provenance() {
+    let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "throwingAction",
+                FunctionKind::Action,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: "globalThis.__snapbackHandlers = { async throwingAction() { throw new Error('admitted action failed'); } };".to_owned(),
+                    export: "throwingAction".to_owned(),
+                }),
+            )],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "throwing action fixture must load: {diagnostics:?}"
+        );
+    });
+    let ring = state.recent_invocations.clone();
+    let response = app(state)
+        .oneshot(auth_http_request(
+            "POST",
+            "/action/throwingAction",
+            br#"{"args":{}}"#.to_vec(),
+            true,
+            None,
+            None,
+        ))
+        .await
+        .expect("admitted throwing action response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = response_json(response).await;
+    assert_eq!(response["ok"], false, "{response}");
+
+    let recent = ring.snapshot();
+    assert_eq!(recent.len(), 1, "exactly the action invocation is recorded");
+    assert_eq!(recent[0].operation, "action");
+    assert_eq!(recent[0].function_id.as_deref(), Some("throwingAction"));
+    assert_eq!(
+        recent[0].conformance,
+        Some(json!({
+            "missingReads": [],
+            "missingWrites": [],
+            "extraReads": [],
+            "extraWrites": [],
+            "readProvenance": "incomplete",
+            "writeProvenance": "incomplete",
+        }))
+    );
+}
+
+/// @ref LLP 0146#d1-declarationobservation-conformance — publishing a stream
+/// attempt token is not terminal success: the ring waits for the streaming
+/// worker and records a later throw as six-field incomplete evidence.
+#[tokio::test]
+async fn streaming_action_throw_after_attempt_token_records_terminal_incomplete() {
+    let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Sessions, |snapback| {
+        let mut function = FunctionDefinition::new(
+            "streamingThrow",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async streamingThrow() { throw new Error('stream terminal failure'); } };".to_owned(),
+                export: "streamingThrow".to_owned(),
+            }),
+        );
+        function.stream = true;
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "streaming throw fixture must load: {diagnostics:?}"
+        );
+    });
+    let state = state
+        .with_auth_runtime_facts(
+            settled_sessions_state(),
+            AuthProgramReadiness::new(true, true, true, true, false, false, false),
+        )
+        .expect("install streaming-action sessions fixture");
+    let credential = mint_test_credential(&state, "stream-ring@example.test").await;
+    let bearer = credential["token"].as_str().expect("session bearer");
+    let ring = state.recent_invocations.clone();
+
+    let response = app(state)
+        .oneshot(session_auth_http_request(
+            "/action/streamingThrow",
+            br#"{"args":{}}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .expect("streaming action initiation response");
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = response_json(response).await;
+    assert!(
+        response["result"]["attemptToken"].is_string(),
+        "the initiation acknowledgement must precede the throw: {response}"
+    );
+
+    let recent = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let recent = ring.snapshot();
+            if !recent.is_empty() {
+                break recent;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("streaming terminal ring record arrives");
+    assert_eq!(recent.len(), 1, "only the terminal disposition is recorded");
+    assert_eq!(recent[0].operation, "action");
+    assert_eq!(recent[0].function_id.as_deref(), Some("streamingThrow"));
+    assert_eq!(recent[0].outcome, "SNAPBACK_HANDLER_FAILED");
+    assert_eq!(
+        recent[0].conformance,
+        Some(json!({
+            "missingReads": [],
+            "missingWrites": [],
+            "extraReads": [],
+            "extraWrites": [],
+            "readProvenance": "incomplete",
+            "writeProvenance": "incomplete",
+        }))
+    );
+}
+
+/// @ref LLP 0146#d1-declarationobservation-conformance — an exact settlement
+/// replay did not execute the handler or capture dependencies for this call,
+/// so the losing same-ID ring entry must never claim complete provenance.
+/// @ref LLP 0043#milestone-2-queued-mutation-replay — the concurrent loser
+/// returns the winner's exact durable result without executing twice.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn concurrent_same_id_mutation_loser_records_incomplete_provenance() {
+    const MUTATION_ID: &str = "cm_conformance_race";
+
+    let state = sessions_activation_server_fixture_async().await;
+    let credential = mint_test_credential(&state, "conformance-race@example.test").await;
+    let bearer = credential["token"]
+        .as_str()
+        .expect("fixture session bearer")
+        .to_owned();
+    let router = app(state.clone());
+    let handshake = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/auth/session")
+                .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                .header("x-snapback-authority-descriptor-protocol", "1")
+                .body(Body::empty())
+                .expect("authority handshake request"),
+        )
+        .await
+        .expect("authority handshake response");
+    assert_eq!(handshake.status(), StatusCode::OK);
+    let authority_descriptor = response_json(handshake).await["authorityDescriptor"].clone();
+
+    let request = || {
+        let mut request = session_auth_http_request(
+            "/mutation/queuedWrite",
+            serde_json::to_vec(&json!({
+                "args": { "value": "same-id-conformance-race" },
+                "clientMutationId": MUTATION_ID,
+                "authorityDescriptor": authority_descriptor,
+            }))
+            .expect("same-id request body"),
+            &bearer,
+        );
+        request.headers_mut().insert(
+            HeaderName::from_static("x-snapback-authority-descriptor-protocol"),
+            HeaderValue::from_static("1"),
+        );
+        request
+    };
+    let first = tokio::spawn({
+        let router = router.clone();
+        let request = request();
+        async move {
+            router
+                .oneshot(request)
+                .await
+                .expect("first same-id response")
+        }
+    });
+    let second = tokio::spawn({
+        let router = router.clone();
+        let request = request();
+        async move {
+            router
+                .oneshot(request)
+                .await
+                .expect("second same-id response")
+        }
+    });
+
+    let mut responses = Vec::new();
+    for response in [first, second] {
+        let response = tokio::time::timeout(Duration::from_secs(5), response)
+            .await
+            .expect("same-id request settles")
+            .expect("same-id task joins");
+        let status = response.status();
+        responses.push((status, response_json(response).await));
+    }
+    assert!(
+        responses
+            .iter()
+            .all(|(status, _)| *status == StatusCode::OK),
+        "winner and exact replay both return the durable result: {responses:?}"
+    );
+
+    let mutation_entries = state
+        .recent_invocations
+        .snapshot()
+        .into_iter()
+        .filter(|entry| {
+            entry.operation == "mutation" && entry.function_id.as_deref() == Some("queuedWrite")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        mutation_entries.len(),
+        2,
+        "winner and replay both enter the ring"
+    );
+    let provenances = mutation_entries
+        .iter()
+        .map(|entry| {
+            let conformance = entry
+                .conformance
+                .as_ref()
+                .expect("same-id conformance report");
+            (
+                conformance["readProvenance"].as_str().unwrap(),
+                conformance["writeProvenance"].as_str().unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        provenances
+            .iter()
+            .filter(|provenance| **provenance == ("complete", "complete"))
+            .count(),
+        1,
+        "only the execution that captured dependencies is complete: {provenances:?}"
+    );
+    assert_eq!(
+        provenances
+            .iter()
+            .filter(|provenance| **provenance == ("incomplete", "incomplete"))
+            .count(),
+        1,
+        "the reconstructed loser is explicitly incomplete: {provenances:?}"
+    );
 }
 
 #[tokio::test]

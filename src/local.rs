@@ -1234,8 +1234,9 @@ pub struct FunctionRunResult {
     pub captured_writes: Vec<CapturedWriteDependency>,
     /// D1 declaration/observation conformance: class-tagged deltas between
     /// the declared and captured table sets with per-class evidence
-    /// provenance. Emitted on every runner invocation — an action reports
-    /// `unsupported` provenance rather than any conformant verdict.
+    /// provenance. Emitted on every runner invocation — a successful action
+    /// reports `unsupported` provenance rather than any conformant verdict,
+    /// while an action failure reports `incomplete`.
     // @ref LLP 0146#d1-declarationobservation-conformance — surface 1, the
     //   unconditional per-invocation report. Keep this reference out of the
     //   generated JSON Schema description.
@@ -1289,6 +1290,48 @@ pub(crate) enum StagedAction {
 pub(crate) enum StagedRecordedMutation {
     Done(Box<(SnapbackResult<MutationOutput>, Receipt)>),
     Ready(Box<StagedRecordedMutationCommit>),
+}
+
+/// Captured dependency evidence retained across the recording/settlement
+/// wrappers. A replayed settlement or pre-execution refusal deliberately
+/// carries incomplete provenance rather than manufacturing an authoritative
+/// empty capture.
+///
+/// @ref LLP 0146#d1-declarationobservation-conformance — `function.run` may
+///   report complete mutation provenance only from the exact executed commit.
+#[derive(Clone, Debug)]
+pub(crate) struct MutationDependencyCapture {
+    pub(crate) reads: Vec<CapturedReadDependency>,
+    pub(crate) writes: Vec<CapturedWriteDependency>,
+    pub(crate) read_provenance: crate::conformance::DependencyProvenance,
+    pub(crate) write_provenance: crate::conformance::DependencyProvenance,
+}
+
+impl MutationDependencyCapture {
+    fn incomplete() -> Self {
+        Self {
+            reads: Vec::new(),
+            writes: Vec::new(),
+            read_provenance: crate::conformance::DependencyProvenance::Incomplete,
+            write_provenance: crate::conformance::DependencyProvenance::Incomplete,
+        }
+    }
+
+    fn from_commit(commit: &MutationCommit) -> Self {
+        // `MutationCommit::authorization` is the execution witness: storage
+        // deliberately leaves it absent for dry-runs and exact settlement
+        // replays. Those reconstructed carriers did not capture this
+        // invocation's dependencies, even when the durable original did.
+        if commit.authorization.is_none() {
+            return Self::incomplete();
+        }
+        Self {
+            reads: commit.read_dependencies.clone(),
+            writes: commit.write_dependencies.clone(),
+            read_provenance: crate::conformance::DependencyProvenance::Complete,
+            write_provenance: crate::conformance::DependencyProvenance::Complete,
+        }
+    }
 }
 
 pub(crate) struct StagedRecordedMutationCommit {
@@ -1875,8 +1918,10 @@ pub(crate) fn action_run_result(
         writes,
         captured_reads: Vec::new(),
         captured_writes: Vec::new(),
-        // Actions construct empty captured sets by design; `unsupported`
-        // provenance is the honest verdict-free report (LLP 0146 D1).
+        // A successful action constructs no dependency capture by design;
+        // `unsupported` is therefore its honest verdict-free report. The
+        // error branch below overrides this with `incomplete`: a throw proves
+        // partial execution but supplies no complete witness (LLP 0146 D1).
         conformance: Some(crate::conformance::DeclarationConformance::without_capture(
             crate::conformance::DependencyProvenance::Unsupported,
         )),
@@ -1896,6 +1941,9 @@ pub(crate) fn action_run_result(
         Err(error) => FunctionRunResult {
             ok: false,
             diagnostic: Some(error.diagnostic),
+            conformance: Some(crate::conformance::DeclarationConformance::without_capture(
+                crate::conformance::DependencyProvenance::Incomplete,
+            )),
             ..base
         },
     }
@@ -8208,6 +8256,7 @@ impl LocalSnapback {
     /// result evaluation, witness capture, signing, and optional terminal
     /// page-set composition all complete before the HTTP response can publish.
     // @ref LLP 0094#llp-0157-finite-carrier-completeness-amendment--2026-08-04 — finite proof/witness/page-set members publish atomically.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn invoke_finite_query_prepared_generation(
         &self,
         name: &str,
@@ -8217,6 +8266,32 @@ impl LocalSnapback {
         namespace: Option<&QueryNamespace>,
         prior_proofs: &[crate::completeness::CompletenessProofV1],
     ) -> SnapbackResult<crate::manifest::FiniteQueryOutput> {
+        self.invoke_finite_query_with_dependencies_prepared_generation(
+            name,
+            input,
+            authority,
+            expected_generation,
+            namespace,
+            prior_proofs,
+        )
+        .map(|(output, _dependencies)| output)
+    }
+
+    /// Finite-query proof composition retains the same captured dependencies
+    /// as the ordinary query lane so the app-data invocation ring can report
+    /// D1 evidence without changing the public response carrier.
+    pub(crate) fn invoke_finite_query_with_dependencies_prepared_generation(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+        namespace: Option<&QueryNamespace>,
+        prior_proofs: &[crate::completeness::CompletenessProofV1],
+    ) -> SnapbackResult<(
+        crate::manifest::FiniteQueryOutput,
+        Vec<CapturedReadDependency>,
+    )> {
         if namespace.is_none() && !prior_proofs.is_empty() {
             return Err(SnapbackError::error(
                 "SNAPBACK_COMPLETENESS_PROOF_ISSUANCE_FAILED",
@@ -8239,7 +8314,8 @@ impl LocalSnapback {
             namespace,
             prior_proofs,
         )?;
-        Ok(match issued {
+        let read_dependencies = invocation.read_dependencies;
+        let output = match issued {
             Some((proof, witness, page_set_manifest)) => crate::manifest::FiniteQueryOutput {
                 output: invocation.output,
                 completeness_proof: Some(proof),
@@ -8247,7 +8323,8 @@ impl LocalSnapback {
                 page_set_manifest,
             },
             None => crate::manifest::FiniteQueryOutput::without_proof(invocation.output),
-        })
+        };
+        Ok((output, read_dependencies))
     }
 
     // -----------------------------------------------------------------
@@ -11663,6 +11740,22 @@ impl LocalSnapback {
             .0
     }
 
+    /// `function.run`'s direct/in-process sibling of the managed staged path.
+    /// Preserve the exact commit dependency capture while retaining the
+    /// ordinary mutation receipt/publication behavior.
+    pub(crate) fn invoke_mutation_with_authority_and_dependencies(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+    ) -> (SnapbackResult<MutationOutput>, MutationDependencyCapture) {
+        let (outcome, _receipt, capture) = self
+            .invoke_mutation_recording_with_authority_and_dependencies(
+                name, input, None, "local", authority,
+            );
+        (outcome, capture)
+    }
+
     /// The mutation choke point with receipt emission (LLP 0034 §3.2,
     /// ENG-22478). Every mutation — HTTP, action-hosted, cron-driven —
     /// produces a MutationReceipt with the provider-owned fields; the opaque
@@ -11796,6 +11889,32 @@ impl LocalSnapback {
         )
     }
 
+    /// Detailed sibling used by the D1 host-operation envelope. The receipt
+    /// and publication semantics remain owned by the recording path; this
+    /// carrier only stops that path from discarding the executed commit's
+    /// captured dependencies.
+    pub(crate) fn invoke_mutation_recording_with_authority_and_dependencies(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        transport: &str,
+        authority: PreparedAuthority,
+    ) -> (
+        SnapbackResult<MutationOutput>,
+        Receipt,
+        MutationDependencyCapture,
+    ) {
+        self.invoke_mutation_recording_with_authority_descriptor_and_dependencies(
+            name,
+            input,
+            client_mutation_id,
+            None,
+            transport,
+            authority,
+        )
+    }
+
     /// HTTP/Contract queued replay entry point. A live credential has already
     /// become `authority`; only then do we compare the non-authorizing
     /// descriptor. Session-mode queued work requires it, while dev-mode
@@ -11812,11 +11931,8 @@ impl LocalSnapback {
         transport: &str,
         authority: PreparedAuthority,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
-        // Managed transport/action hosts must stage outside Local themselves;
-        // this compatibility path is only allowed to create a reservation
-        // while the direct embedder owns the instance without a Local scope.
-        if crate::exec_guard::local_write_scope_active() {
-            return self.invoke_mutation_recording_with_authority_descriptor_in_scope(
+        let (outcome, receipt, _capture) = self
+            .invoke_mutation_recording_with_authority_descriptor_and_dependencies(
                 name,
                 input,
                 client_mutation_id,
@@ -11824,6 +11940,36 @@ impl LocalSnapback {
                 transport,
                 authority,
             );
+        (outcome, receipt)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn invoke_mutation_recording_with_authority_descriptor_and_dependencies(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        transport: &str,
+        authority: PreparedAuthority,
+    ) -> (
+        SnapbackResult<MutationOutput>,
+        Receipt,
+        MutationDependencyCapture,
+    ) {
+        // Managed transport/action hosts must stage outside Local themselves;
+        // this compatibility path is only allowed to create a reservation
+        // while the direct embedder owns the instance without a Local scope.
+        if crate::exec_guard::local_write_scope_active() {
+            return self
+                .invoke_mutation_recording_with_authority_descriptor_in_scope_and_dependencies(
+                    name,
+                    input,
+                    client_mutation_id,
+                    authority_descriptor,
+                    transport,
+                    authority,
+                );
         }
 
         let admission = authority.admission_lease().clone();
@@ -11843,7 +11989,7 @@ impl LocalSnapback {
         let (preflight, staged) = match staged {
             Ok(staged) => staged,
             Err(error) => {
-                return self.record_mutation_commit_after_publication_guard(
+                let (outcome, receipt) = self.record_mutation_commit_after_publication_guard(
                     MutationReceiptPublication::new(
                         name,
                         transport,
@@ -11853,23 +11999,27 @@ impl LocalSnapback {
                     ),
                     Err(error),
                 );
+                return (outcome, receipt, MutationDependencyCapture::incomplete());
             }
         };
         let committed = self.try_with_direct_authorization_write(preflight, move |snapback| {
-            snapback.commit_staged_recorded_authorization_mutation(staged)
+            snapback.commit_staged_recorded_authorization_mutation_with_dependencies(staged)
         });
         match committed {
             Ok(Ok(recorded)) => recorded,
-            Ok(Err(error)) | Err(error) => self.record_mutation_commit_after_publication_guard(
-                MutationReceiptPublication::new(
-                    name,
-                    transport,
-                    correlation,
-                    receipt_mutation_id,
-                    &admission,
-                ),
-                Err(error),
-            ),
+            Ok(Err(error)) | Err(error) => {
+                let (outcome, receipt) = self.record_mutation_commit_after_publication_guard(
+                    MutationReceiptPublication::new(
+                        name,
+                        transport,
+                        correlation,
+                        receipt_mutation_id,
+                        &admission,
+                    ),
+                    Err(error),
+                );
+                (outcome, receipt, MutationDependencyCapture::incomplete())
+            }
         }
     }
 
@@ -11877,7 +12027,7 @@ impl LocalSnapback {
     /// under a Local scope are responsible for having installed a carrier;
     /// this method never performs an in-lock reservation fallback.
     #[allow(clippy::too_many_arguments)]
-    fn invoke_mutation_recording_with_authority_descriptor_in_scope(
+    fn invoke_mutation_recording_with_authority_descriptor_in_scope_and_dependencies(
         &mut self,
         name: &str,
         input: HandlerInput,
@@ -11885,7 +12035,11 @@ impl LocalSnapback {
         authority_descriptor: Option<AuthorityDescriptor>,
         transport: &str,
         authority: PreparedAuthority,
-    ) -> (SnapbackResult<MutationOutput>, Receipt) {
+    ) -> (
+        SnapbackResult<MutationOutput>,
+        Receipt,
+        MutationDependencyCapture,
+    ) {
         let admission = authority.admission_lease().clone();
         let correlation = capped_correlation(input.correlation.clone());
         let receipt_mutation_id = client_mutation_id
@@ -11899,7 +12053,11 @@ impl LocalSnapback {
             Some(receipt_mutation_id.as_str()),
             authority,
         );
-        self.record_mutation_commit_after_publication_guard(
+        let capture = result
+            .as_ref()
+            .map(MutationDependencyCapture::from_commit)
+            .unwrap_or_else(|_| MutationDependencyCapture::incomplete());
+        let (outcome, receipt) = self.record_mutation_commit_after_publication_guard(
             MutationReceiptPublication::new(
                 name,
                 transport,
@@ -11908,7 +12066,8 @@ impl LocalSnapback {
                 &admission,
             ),
             result,
-        )
+        );
+        (outcome, receipt, capture)
     }
 
     /// HTTP queued-delivery entry point with receipt-proven piggyback ACKs.
@@ -12590,6 +12749,24 @@ impl LocalSnapback {
         Ok((result, receipt))
     }
 
+    /// Commit one staged mutation while retaining the dependency capture that
+    /// the ordinary `(result, receipt)` compatibility carrier historically
+    /// discarded.
+    pub(crate) fn commit_staged_recorded_authorization_mutation_with_dependencies(
+        &mut self,
+        staged: StagedRecordedMutation,
+    ) -> SnapbackResult<(
+        SnapbackResult<MutationOutput>,
+        Receipt,
+        MutationDependencyCapture,
+    )> {
+        let (result, receipt, _network_egress, capture) = self
+            .commit_staged_recorded_authorization_mutation_with_network_egress_and_dependencies(
+                staged,
+            )?;
+        Ok((result, receipt, capture))
+    }
+
     /// HTTP's prepared-egress carrier sibling. Keeping the carrier beside the
     /// server-only staged result avoids adding implementation metadata to the
     /// schema-generated Receipt wire type.
@@ -12604,6 +12781,22 @@ impl LocalSnapback {
         Receipt,
         crate::network_profile::MutationEgressBasis,
     )> {
+        let (result, receipt, network_egress, _capture) = self
+            .commit_staged_recorded_authorization_mutation_with_network_egress_and_dependencies(
+                staged,
+            )?;
+        Ok((result, receipt, network_egress))
+    }
+
+    pub(crate) fn commit_staged_recorded_authorization_mutation_with_network_egress_and_dependencies(
+        &mut self,
+        staged: StagedRecordedMutation,
+    ) -> SnapbackResult<(
+        SnapbackResult<MutationOutput>,
+        Receipt,
+        crate::network_profile::MutationEgressBasis,
+        MutationDependencyCapture,
+    )> {
         let staged = match staged {
             StagedRecordedMutation::Done(recorded) => {
                 let (result, receipt) = *recorded;
@@ -12611,6 +12804,7 @@ impl LocalSnapback {
                     result,
                     receipt,
                     crate::network_profile::MutationEgressBasis::ResultReady,
+                    MutationDependencyCapture::incomplete(),
                 ));
             }
             StagedRecordedMutation::Ready(staged) => staged,
@@ -12745,6 +12939,10 @@ impl LocalSnapback {
             .as_ref()
             .map(|commit| commit.network_egress.clone())
             .unwrap_or(crate::network_profile::MutationEgressBasis::ResultReady);
+        let capture = result
+            .as_ref()
+            .map(MutationDependencyCapture::from_commit)
+            .unwrap_or_else(|_| MutationDependencyCapture::incomplete());
         let mut recorded = self.record_mutation_commit_after_publication_guard(
             MutationReceiptPublication::new(
                 &name,
@@ -12759,7 +12957,7 @@ impl LocalSnapback {
         // @ref LLP 0133#re-derivation-semantics-lane-l — only the final
         // guarded, recorded settlement is authoritative; preview is evidence.
         finish_function_observation(observation, &mut recorded.0);
-        Ok((recorded.0, recorded.1, network_egress))
+        Ok((recorded.0, recorded.1, network_egress, capture))
     }
 
     // Receipt recording deliberately keeps the mutation identity, settlement
@@ -17610,9 +17808,11 @@ impl LocalSnapback {
             },
             FunctionKind::Action => {
                 let metadata = manual_action_metadata("admin", name);
-                // Actions construct empty captured sets by design; the
-                // provenance vocabulary exists exactly so this path never
-                // reports a conformant verdict from an empty capture.
+                // Successful actions construct empty captured sets by design;
+                // the provenance vocabulary exists exactly so this path never
+                // reports a conformant verdict from an empty capture. A throw
+                // is instead incomplete because execution started but did not
+                // yield a complete dependency witness.
                 let conformance = report(
                     &[],
                     &[],
@@ -17631,7 +17831,13 @@ impl LocalSnapback {
                         ok: false,
                         elapsed_ms: elapsed_ms(started),
                         diagnostic: Some(error.diagnostic),
-                        conformance,
+                        conformance: report(
+                            &[],
+                            &[],
+                            DependencyProvenance::Incomplete,
+                            DependencyProvenance::Incomplete,
+                            self.db.schema(),
+                        ),
                         ..base
                     },
                 }
@@ -27002,12 +27208,13 @@ impl ReadLane {
             authority,
             expected_generation,
         )
-        .map(|(output, _facts)| output)
+        .map(|(invocation, _facts, _conformance)| invocation.output)
     }
 
     /// Invoke against one immutable read-manifest snapshot and derive the
-    /// caller-visible generation facts from that same snapshot. Returning the
-    /// pair keeps `/query` entirely off the global writer mutex.
+    /// caller-visible generation facts and D1 conformance from that same
+    /// snapshot. Returning the triple keeps `/query` entirely off the global
+    /// writer mutex without later pairing captured reads with newer declarations.
     ///
     /// @ref LLP 0012#call-time-generation-binding — successful sessions facts
     /// are server-derived from the exact pair selected for the invocation.
@@ -27019,7 +27226,11 @@ impl ReadLane {
         input: HandlerInput,
         authority: PreparedAuthority,
         expected_generation: Option<&ArtifactGeneration>,
-    ) -> SnapbackResult<(QueryOutput, Option<FunctionInvocationFacts>)> {
+    ) -> SnapbackResult<(
+        QueryInvocation,
+        Option<FunctionInvocationFacts>,
+        crate::conformance::DeclarationConformance,
+    )> {
         let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
         let manifests = self.manifests();
         let facts_mode = authority.active_mode();
@@ -27086,7 +27297,7 @@ impl ReadLane {
                     )
                 },
             )?;
-            Ok(invocation.output)
+            Ok(invocation)
         })();
         if let Some(target) = vector_quarantine.take()
             && pool.quarantine_vector_generation(&target).is_err()
@@ -27094,11 +27305,24 @@ impl ReadLane {
             result = Err(crate::vector::diagnostics::index_corrupt());
         }
         finish_function_observation(span, &mut result);
-        let output = result?;
+        let invocation = result?;
         facts_authority.validate_admission("query generation facts")?;
         let facts =
             invocation_facts_from_manifests(facts_mode, &manifests.schema, &manifests.functions)?;
-        Ok((output, facts))
+        let (reads, writes) = plan_io(function);
+        // @ref LLP 0146#d1-declarationobservation-conformance — compare the
+        // captured dependencies with the declarations from the exact immutable
+        // manifest snapshot that executed, never the subsequently active one.
+        let conformance = crate::conformance::conformance_report(
+            &reads,
+            &writes,
+            &invocation.read_dependencies,
+            &[],
+            crate::conformance::DependencyProvenance::Complete,
+            crate::conformance::DependencyProvenance::Complete,
+            &manifests.schema,
+        );
+        Ok((invocation, facts, conformance))
     }
 
     pub(crate) fn execute_detached_ibex_mutation(

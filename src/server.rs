@@ -11712,6 +11712,108 @@ fn stale_prepared_authority(authority: &PreparedAuthority, epoch_now_ms: u64) ->
 #[cfg(test)]
 const TEST_FINITE_AUTHORITY_PAUSE_HEADER: &str = "x-snapback-test-finite-authority-pause";
 
+/// Deterministic A/B reload seam for the coordinated `function.run` mutation
+/// regression. The pause is after the commit turn has returned and before the
+/// envelope turn reacquires Local — exactly the window in which a later
+/// generation used to replace the declarations consulted for conformance.
+#[cfg(test)]
+#[derive(Clone)]
+struct TestCoordinatedMutationPauseEntry {
+    function: String,
+    reached: Arc<tokio::sync::Notify>,
+    release: Arc<tokio::sync::Notify>,
+}
+
+#[cfg(test)]
+struct TestCoordinatedMutationPause {
+    function: String,
+    reached: Arc<tokio::sync::Notify>,
+    release: Arc<tokio::sync::Notify>,
+}
+
+#[cfg(test)]
+static TEST_COORDINATED_MUTATION_PAUSE: OnceLock<
+    StdMutex<Option<TestCoordinatedMutationPauseEntry>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+fn test_coordinated_mutation_pause() -> &'static StdMutex<Option<TestCoordinatedMutationPauseEntry>>
+{
+    TEST_COORDINATED_MUTATION_PAUSE.get_or_init(|| StdMutex::new(None))
+}
+
+#[cfg(test)]
+fn install_test_coordinated_mutation_pause(function: &str) -> TestCoordinatedMutationPause {
+    let reached = Arc::new(tokio::sync::Notify::new());
+    let release = Arc::new(tokio::sync::Notify::new());
+    let entry = TestCoordinatedMutationPauseEntry {
+        function: function.to_owned(),
+        reached: reached.clone(),
+        release: release.clone(),
+    };
+    let mut slot = test_coordinated_mutation_pause()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert!(
+        slot.is_none(),
+        "coordinated mutation pause is already armed"
+    );
+    *slot = Some(entry);
+    TestCoordinatedMutationPause {
+        function: function.to_owned(),
+        reached,
+        release,
+    }
+}
+
+#[cfg(test)]
+impl TestCoordinatedMutationPause {
+    async fn wait_until_reached(&self) {
+        self.reached.notified().await;
+    }
+
+    fn release(&self) {
+        self.release.notify_one();
+    }
+}
+
+#[cfg(test)]
+impl Drop for TestCoordinatedMutationPause {
+    fn drop(&mut self) {
+        self.release.notify_one();
+        let mut slot = test_coordinated_mutation_pause()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if slot
+            .as_ref()
+            .is_some_and(|entry| entry.function == self.function)
+        {
+            *slot = None;
+        }
+    }
+}
+
+#[cfg(test)]
+async fn pause_test_coordinated_mutation_after_commit(function: &str) {
+    let entry = {
+        let mut slot = test_coordinated_mutation_pause()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if slot
+            .as_ref()
+            .is_some_and(|entry| entry.function == function)
+        {
+            slot.take()
+        } else {
+            None
+        }
+    };
+    if let Some(entry) = entry {
+        entry.reached.notify_one();
+        entry.release.notified().await;
+    }
+}
+
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TestFiniteAuthorityPausePoint {
@@ -21839,16 +21941,29 @@ async fn host_ops_handler(
                 vec![refusal.0.diagnostic.clone()],
             ),
         };
-        // D1 conformance rides the function.run envelope; the ring copies it
-        // verbatim so `app.inspect` can surface recent declaration drift
-        // (LLP 0146 D1 surface 1 — scoped to host-op invocations).
-        let conformance = match &result {
+        // D1 conformance rides a successful/dispatched function.run envelope;
+        // the ring copies it verbatim so `app.inspect` can surface recent
+        // declaration drift. Pre-dispatch host-op refusals have no function
+        // capture to copy, but the unconditional D1 contract still requires
+        // the six-field incomplete report at this recording chokepoint.
+        // @ref LLP 0146#d1-declarationobservation-conformance — surface 1 is
+        //   unconditional for every recorded function invocation.
+        let envelope_conformance = match &result {
             Ok(Json(envelope)) => envelope
                 .data
                 .get("conformance")
                 .filter(|value| !value.is_null())
                 .cloned(),
             Err(_) => None,
+        };
+        let conformance = if operation == "function.run" {
+            Some(envelope_conformance.unwrap_or_else(|| {
+                json!(crate::conformance::DeclarationConformance::without_capture(
+                    crate::conformance::DependencyProvenance::Incomplete,
+                ))
+            }))
+        } else {
+            envelope_conformance
         };
         ring.record(crate::host_ops::RecentInvocationEntry {
             operation: operation.clone(),
@@ -22638,7 +22753,8 @@ async fn host_ops_handler_inner(
             let stage_function = function.clone();
             let stage_input = input.clone();
             let stage_authority = authority.clone();
-            let outcome = match with_snapback_staged_authorization_write(
+            let conformance_function = function.clone();
+            let (outcome, conformance) = match with_snapback_staged_authorization_write(
                 &state,
                 runtime.live_fanout_coalescer.clone(),
                 move |snapback| {
@@ -22653,17 +22769,49 @@ async fn host_ops_handler_inner(
                     )
                 },
                 move |snapback, staged| {
-                    snapback.commit_staged_recorded_authorization_mutation(staged)
+                    let (outcome, receipt, capture) = snapback
+                        .commit_staged_recorded_authorization_mutation_with_dependencies(staged)?;
+                    // @ref LLP 0146#d1-declarationobservation-conformance — bind
+                    //   the exact commit capture to the declarations/schema in
+                    //   this executing generation before the writer turn ends.
+                    //   A later functions.load may replace the active manifest,
+                    //   but it cannot retroactively change this report.
+                    let conformance = snapback
+                        .conformance_for_invocation(
+                            &conformance_function,
+                            &capture.reads,
+                            &capture.writes,
+                            capture.read_provenance,
+                            capture.write_provenance,
+                        )
+                        .unwrap_or_else(|| {
+                            crate::conformance::DeclarationConformance::without_capture(
+                                crate::conformance::DependencyProvenance::Incomplete,
+                            )
+                        });
+                    Ok((outcome, receipt, conformance))
                 },
             )
             .await
             {
-                Ok(Ok((outcome, _receipt))) => outcome,
-                Ok(Err(error)) | Err(error) => Err(error),
+                Ok(Ok((outcome, _receipt, conformance))) => (outcome, conformance),
+                Ok(Err(error)) | Err(error) => (
+                    Err(error),
+                    crate::conformance::DeclarationConformance::without_capture(
+                        crate::conformance::DependencyProvenance::Incomplete,
+                    ),
+                ),
             };
+            #[cfg(test)]
+            pause_test_coordinated_mutation_after_commit(&function).await;
             let mut result = with_snapback(&state, move |snapback| {
                 crate::host_ops::coordinated_function_run_mutation_result(
-                    snapback, &request, server_url, profile, outcome,
+                    snapback,
+                    &request,
+                    server_url,
+                    profile,
+                    outcome,
+                    conformance,
                 )
             })
             .await;
@@ -25855,7 +26003,17 @@ async fn invoke_query(
     input: Result<Json<FiniteQueryRequest>, JsonRejection>,
 ) -> Response {
     let network_profiles = runtime.network_profiles.clone();
-    let result: Result<Json<FunctionResponse<FiniteQueryOutput>>, ApiError> = async move {
+    let ring = runtime.recent_invocations.clone();
+    let ring_name = name.clone();
+    let started_at = crate::host_ops::iso8601_utc_ms(now_millis());
+    let started = Instant::now();
+    let result: Result<
+        (
+            Json<FunctionResponse<FiniteQueryOutput>>,
+            Option<crate::conformance::DeclarationConformance>,
+        ),
+        ApiError,
+    > = async move {
         let attribution = authority.function_attribution();
         let Json(request) = input
             .map_err(ApiError::from_json_rejection)
@@ -25896,19 +26054,27 @@ async fn invoke_query(
             .map_err(ApiError::from)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
         }
-        let (output, facts) = if proof_requested {
+        let (output, facts, conformance) = if proof_requested {
             with_snapback(&state, move |snapback| {
-                let output = snapback.invoke_finite_query_prepared_generation(
-                    &name,
-                    input,
-                    authority.clone(),
-                    expected_generation.as_ref(),
-                    completeness_namespace.as_ref(),
-                    &prior_completeness_proofs,
-                )?;
+                let (output, read_dependencies) = snapback
+                    .invoke_finite_query_with_dependencies_prepared_generation(
+                        &name,
+                        input,
+                        authority.clone(),
+                        expected_generation.as_ref(),
+                        completeness_namespace.as_ref(),
+                        &prior_completeness_proofs,
+                    )?;
                 authority.validate_admission("finite query generation facts")?;
                 let facts = snapback.function_invocation_facts(authority.active_mode())?;
-                Ok((output, facts))
+                let conformance = snapback.conformance_for_invocation(
+                    &name,
+                    &read_dependencies,
+                    &[],
+                    crate::conformance::DependencyProvenance::Complete,
+                    crate::conformance::DependencyProvenance::Complete,
+                );
+                Ok((output, facts, conformance))
             })
             .await
         } else if read.available() {
@@ -25921,7 +26087,13 @@ async fn invoke_query(
                 )
             })
             .await
-            .map(|(output, facts)| (FiniteQueryOutput::without_proof(output), facts))
+            .map(|(invocation, facts, conformance)| {
+                (
+                    FiniteQueryOutput::without_proof(invocation.output),
+                    facts,
+                    Some(conformance),
+                )
+            })
         } else {
             with_snapback(&state, move |snapback| {
                 let invocation = snapback.invoke_query_with_dependencies_prepared_generation(
@@ -25932,19 +26104,60 @@ async fn invoke_query(
                 )?;
                 authority.validate_admission("query generation facts")?;
                 let facts = snapback.function_invocation_facts(authority.active_mode())?;
-                Ok((FiniteQueryOutput::without_proof(invocation.output), facts))
+                let conformance = snapback.conformance_for_invocation(
+                    &name,
+                    &invocation.read_dependencies,
+                    &[],
+                    crate::conformance::DependencyProvenance::Complete,
+                    crate::conformance::DependencyProvenance::Complete,
+                );
+                Ok((
+                    FiniteQueryOutput::without_proof(invocation.output),
+                    facts,
+                    conformance,
+                ))
             })
             .await
         }
         .map_err(ApiError::from)
         .map_err(|error| error.with_attribution(attribution.clone()))?;
-        Ok(Json(FunctionResponse::with_facts(
-            output,
-            attribution,
-            facts,
-        )))
+        Ok((
+            Json(FunctionResponse::with_facts(output, attribution, facts)),
+            conformance,
+        ))
     }
     .await;
+    // @ref LLP 0146#d1-declarationobservation-conformance — app-data query
+    //   invocations join the same bounded recent-invocation ring as host ops,
+    //   retaining authoritative captured-read evidence on success.
+    let result = match result {
+        Ok((response, conformance)) => {
+            record_app_data_invocation(
+                &ring,
+                "query",
+                &ring_name,
+                true,
+                None,
+                conformance.clone(),
+                &started_at,
+                started,
+            );
+            Ok(response)
+        }
+        Err(error) => {
+            record_app_data_invocation(
+                &ring,
+                "query",
+                &ring_name,
+                false,
+                Some(error.0.diagnostic.clone()),
+                None,
+                &started_at,
+                started,
+            );
+            Err(error)
+        }
+    };
     // The async invocation future (and therefore PreparedAuthority) is gone
     // before result-readiness is stamped or any timer begins.
     let response = result.into_response();
@@ -25953,6 +26166,45 @@ async fn invoke_query(
         Instant::now(),
     );
     release_network_profiled_response(response, prepared).await
+}
+
+#[allow(clippy::too_many_arguments)]
+fn record_app_data_invocation(
+    ring: &crate::host_ops::RecentInvocationRing,
+    operation: &str,
+    function: &str,
+    ok: bool,
+    diagnostic: Option<Diagnostic>,
+    conformance: Option<crate::conformance::DeclarationConformance>,
+    started_at: &str,
+    started: Instant,
+) {
+    let outcome = if ok {
+        "ok".to_owned()
+    } else {
+        diagnostic
+            .as_ref()
+            .map(|diagnostic| diagnostic.code.clone())
+            .unwrap_or_else(|| "error".to_owned())
+    };
+    // @ref LLP 0146#d1-declarationobservation-conformance — failure and
+    //   pre-execution refusal are evidence states, not reasons to omit D1.
+    //   Every app-data ring entry therefore carries all six fields; a path
+    //   without a capture reports empty deltas under incomplete provenance.
+    let conformance = conformance.unwrap_or_else(|| {
+        crate::conformance::DeclarationConformance::without_capture(
+            crate::conformance::DependencyProvenance::Incomplete,
+        )
+    });
+    ring.record(crate::host_ops::RecentInvocationEntry {
+        operation: operation.to_owned(),
+        function_id: Some(function.to_owned()),
+        outcome,
+        started_at: started_at.to_owned(),
+        duration_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+        diagnostics: diagnostic.into_iter().collect(),
+        conformance: Some(json!(conformance)),
+    });
 }
 
 /// Replay-tuple identities for credential families that do not carry LLP
@@ -26673,6 +26925,9 @@ async fn invoke_mutation(
     input: Result<Json<MutationRequest>, JsonRejection>,
 ) -> Response {
     let network_profiles = runtime.network_profiles.clone();
+    let ring = runtime.recent_invocations.clone();
+    let started_at = crate::host_ops::iso8601_utc_ms(now_millis());
+    let started = Instant::now();
     let mut network_basis = crate::network_profile::MutationEgressBasis::ResultReady;
     let mut trace_client_mutation_id = None;
     // @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work — the
@@ -26682,7 +26937,13 @@ async fn invoke_mutation(
         Instant,
         std::sync::Arc<std::sync::Mutex<crate::local::LiveSettlementStats>>,
     )> = None;
-    let result: Result<Json<MutationResponse>, ApiError> = async {
+    let result: Result<
+        (
+            Json<MutationResponse>,
+            Option<crate::conformance::DeclarationConformance>,
+        ),
+        ApiError,
+    > = async {
         let attribution = authority.function_attribution();
         let Json(request) = input
             .map_err(ApiError::from_json_rejection)
@@ -26732,6 +26993,7 @@ async fn invoke_mutation(
         let stage_settlement = request.settlement.clone();
         let stage_media_command = request.media_command.clone();
         let stage_authority = authority.clone();
+        let conformance_name = name.clone();
         let facts_mode = authority.active_mode();
         let facts_authority = authority.clone();
         let (
@@ -26741,6 +27003,7 @@ async fn invoke_mutation(
             committed_network_basis,
             facts,
             commit_ack,
+            conformance,
         ) = with_snapback_staged_authorization_write(
             &state,
             runtime.live_fanout_coalescer.clone(),
@@ -26766,8 +27029,8 @@ async fn invoke_mutation(
             },
             move |snapback, (response_authority_descriptor, staged)| {
                 snapback
-                    .commit_staged_recorded_authorization_mutation_with_network_egress(staged)
-                    .and_then(|(result, receipt, network_basis)| {
+                    .commit_staged_recorded_authorization_mutation_with_network_egress_and_dependencies(staged)
+                    .and_then(|(result, receipt, network_basis, capture)| {
                         let facts = if result.is_ok() {
                             facts_authority.validate_admission("mutation generation facts")?;
                             snapback.function_invocation_facts(facts_mode)?
@@ -26779,6 +27042,17 @@ async fn invoke_mutation(
                         let commit_ack = snapback
                             .take_last_commit_ack_at()
                             .map(|at| (at, snapback.live_settlement_stats_cell()));
+                        // @ref LLP 0146#d1-declarationobservation-conformance —
+                        //   mutation settlement retains the exact executed
+                        //   commit capture for both the response-adjacent ring
+                        //   and the later brokered observation artifact.
+                        let conformance = snapback.conformance_for_invocation(
+                            &conformance_name,
+                            &capture.reads,
+                            &capture.writes,
+                            capture.read_provenance,
+                            capture.write_provenance,
+                        );
                         Ok((
                             result,
                             receipt,
@@ -26786,6 +27060,7 @@ async fn invoke_mutation(
                             network_basis,
                             facts,
                             commit_ack,
+                            conformance,
                         ))
                     })
             },
@@ -26809,17 +27084,48 @@ async fn invoke_mutation(
             // (never through the FunctionResponse flatten) so the served bytes
             // stay inside the closed generated mutation.output schema.
             // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 4.
-            Ok(output) => Ok(Json(MutationResponse::from_output(
-                output,
-                receipt,
-                attribution,
-                response_authority_descriptor,
-                facts,
-            ))),
+            Ok(output) => Ok((
+                Json(MutationResponse::from_output(
+                    output,
+                    receipt,
+                    attribution,
+                    response_authority_descriptor,
+                    facts,
+                )),
+                conformance,
+            )),
             Err(error) => Err(ApiError::with_receipt(error, receipt).with_attribution(attribution)),
         }
     }
     .await;
+    let result = match result {
+        Ok((response, conformance)) => {
+            record_app_data_invocation(
+                &ring,
+                "mutation",
+                &name,
+                true,
+                None,
+                conformance,
+                &started_at,
+                started,
+            );
+            Ok(response)
+        }
+        Err(error) => {
+            record_app_data_invocation(
+                &ring,
+                "mutation",
+                &name,
+                false,
+                Some(error.0.diagnostic.clone()),
+                None,
+                &started_at,
+                started,
+            );
+            Err(error)
+        }
+    };
     // The invocation lease is deliberately released before egress waiting.
     drop(authority);
     let response = result.into_response();
@@ -27134,6 +27440,76 @@ async fn invoke_action(
     Path(name): Path<String>,
     input: Result<Json<FunctionCallRequest>, JsonRejection>,
 ) -> Result<Json<FunctionResponse<crate::local::FunctionRunResult>>, ApiError> {
+    let ring = runtime.recent_invocations.clone();
+    let ring_name = name.clone();
+    let started_at = crate::host_ops::iso8601_utc_ms(now_millis());
+    let started = Instant::now();
+    let streaming_terminal_recording = Arc::new(AtomicBool::new(false));
+    let result = invoke_action_inner(
+        State(runtime),
+        State(state),
+        headers,
+        Extension(authority),
+        Extension(route),
+        effect_link,
+        Path(name),
+        input,
+        StreamingActionInvocationRecord {
+            ring: ring.clone(),
+            function: ring_name.clone(),
+            started_at: started_at.clone(),
+            started,
+            deferred: streaming_terminal_recording.clone(),
+        },
+    )
+    .await;
+    if !streaming_terminal_recording.load(Ordering::Acquire) {
+        match &result {
+            Ok(response) => record_app_data_invocation(
+                &ring,
+                "action",
+                &ring_name,
+                response.0.output.ok,
+                response.0.output.diagnostic.clone(),
+                response.0.output.conformance.clone(),
+                &started_at,
+                started,
+            ),
+            Err(error) => record_app_data_invocation(
+                &ring,
+                "action",
+                &ring_name,
+                false,
+                Some(error.0.diagnostic.clone()),
+                None,
+                &started_at,
+                started,
+            ),
+        }
+    }
+    result
+}
+
+struct StreamingActionInvocationRecord {
+    ring: crate::host_ops::RecentInvocationRing,
+    function: String,
+    started_at: String,
+    started: Instant,
+    deferred: Arc<AtomicBool>,
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn invoke_action_inner(
+    State(runtime): State<AppState>,
+    State(state): State<SharedSnapback>,
+    headers: HeaderMap,
+    Extension(authority): Extension<PreparedAuthority>,
+    Extension(route): Extension<RouteSpec>,
+    effect_link: Option<Extension<ResolvedCapabilityLink>>,
+    Path(name): Path<String>,
+    input: Result<Json<FunctionCallRequest>, JsonRejection>,
+    streaming_record: StreamingActionInvocationRecord,
+) -> Result<Json<FunctionResponse<crate::local::FunctionRunResult>>, ApiError> {
     let attribution = authority.function_attribution();
     let Json(request) = input
         .map_err(ApiError::from_json_rejection)
@@ -27220,13 +27596,49 @@ async fn invoke_action(
                     .await
             });
             match receiver.await {
-                Ok(attempt_token) => crate::local::action_run_result(
-                    &name,
-                    reads,
-                    writes,
-                    0,
-                    Ok(json!({ "attemptToken": attempt_token })),
-                ),
+                Ok(attempt_token) => {
+                    // The attempt token is only an initiation acknowledgement,
+                    // not the action's terminal result. Defer the bounded-ring
+                    // entry to the worker result so throw/timeout/fence-loss
+                    // cannot remain recorded as optimistic `unsupported`.
+                    streaming_record.deferred.store(true, Ordering::Release);
+                    let terminal_reads = reads.clone();
+                    let terminal_writes = writes.clone();
+                    tokio::spawn(async move {
+                        let terminal = task.await.unwrap_or_else(|error| {
+                            crate::local::action_run_result(
+                                &streaming_record.function,
+                                terminal_reads,
+                                terminal_writes,
+                                0,
+                                Err(SnapbackError::error(
+                                    "SNAPBACK_ACTION_THREAD_FAILED",
+                                    "runtime",
+                                    format!(
+                                        "streaming action task terminated after initialization: {error}"
+                                    ),
+                                )),
+                            )
+                        });
+                        record_app_data_invocation(
+                            &streaming_record.ring,
+                            "action",
+                            &streaming_record.function,
+                            terminal.ok,
+                            terminal.diagnostic.clone(),
+                            terminal.conformance.clone(),
+                            &streaming_record.started_at,
+                            streaming_record.started,
+                        );
+                    });
+                    crate::local::action_run_result(
+                        &name,
+                        reads,
+                        writes,
+                        0,
+                        Ok(json!({ "attemptToken": attempt_token })),
+                    )
+                }
                 Err(_) => task.await.unwrap_or_else(|error| {
                     crate::local::action_run_result(
                         &name,

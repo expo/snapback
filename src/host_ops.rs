@@ -114,8 +114,8 @@ pub const PINNED_UNBUILT_HOST_OPS: [&str; 3] =
 ///   the SC-1a non-deferrable minimum pins 128 entries, evicted oldest-first.
 pub const RECENT_INVOCATIONS_CAPACITY: usize = 128;
 
-/// One recorded host operation (a function run or a schema/function artifact
-/// load) surfaced by `app.inspect` as `data.recentInvocations`.
+/// One recorded function invocation or artifact-load operation surfaced by
+/// `app.inspect` as `data.recentInvocations`.
 #[derive(Clone, Debug, Serialize)]
 pub struct RecentInvocationEntry {
     pub operation: String,
@@ -129,11 +129,11 @@ pub struct RecentInvocationEntry {
     #[serde(rename = "durationMs")]
     pub duration_ms: u64,
     pub diagnostics: Vec<Diagnostic>,
-    /// D1 declaration/observation conformance for `function.run` entries,
-    /// copied verbatim from the operation's envelope. The ring records host
-    /// operations only, so this surface is scoped to host-op invocations —
-    /// the app-data plane is not wired into the ring yet (LLP 0146 D1
-    /// surface 1 names that scoping as an admissible v0).
+    /// D1 declaration/observation conformance for function invocations,
+    /// copied from the host-op envelope or computed from the app-data path's
+    /// exact captured dependencies.
+    // @ref LLP 0146#d1-declarationobservation-conformance — the bounded ring
+    //   covers both host-operation and app-data-plane invocations.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub conformance: Option<serde_json::Value>,
 }
@@ -1089,21 +1089,14 @@ pub(crate) fn coordinated_function_run_mutation_result(
     server_url: Option<String>,
     profile: crate::contract_types::ServerProfile,
     outcome: Result<crate::manifest::MutationOutput, SnapbackError>,
+    conformance: crate::conformance::DeclarationConformance,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
     let authority = authority_dev_user(request.user_id.as_deref());
-    // The coordinated (staged) mutation seam also settles without handing the
-    // captured dependency sets back — per-class provenance `incomplete`, so
-    // the deltas are data, never a conformant verdict (LLP 0146 D1).
-    let conformance = request.function.as_deref().and_then(|function| {
-        snapback.conformance_for_invocation(
-            function,
-            &[],
-            &[],
-            crate::conformance::DependencyProvenance::Incomplete,
-            crate::conformance::DependencyProvenance::Incomplete,
-        )
-    });
+    // @ref LLP 0146#d1-declarationobservation-conformance — the coordinated
+    //   settlement seam receives the report already derived in the executing
+    //   commit turn. This envelope turn must never rejoin generation-A capture
+    //   with whichever same-name declaration is active now.
     match outcome {
         Ok(output) => host_ops_result(
             snapback,
@@ -2131,22 +2124,24 @@ fn run_function(
             }
         }
         FunctionKind::Mutation => {
-            match snapback.invoke_mutation_with_authority(&name, input, prepared_authority) {
+            let (outcome, capture) = snapback.invoke_mutation_with_authority_and_dependencies(
+                &name,
+                input,
+                prepared_authority,
+            );
+            match outcome {
                 Ok(output) => {
                     let commit = serde_json::to_value(&output)
                         .unwrap_or_else(|_| Value::Object(Default::default()));
-                    // The recording mutation path settles before this seam and
-                    // does not hand its captured dependency sets back, so the
-                    // honest per-class provenance here is `incomplete` — the
-                    // deltas are data, never a conformant verdict (LLP 0146
-                    // D1). The authoritative mutation report lives on the
-                    // admin runner's FunctionRunResult.
+                    // @ref LLP 0146#d1-declarationobservation-conformance —
+                    //   direct host-op execution retains the same exact commit
+                    //   capture as the managed server path.
                     let conformance = snapback.conformance_for_invocation(
                         &name,
-                        &[],
-                        &[],
-                        crate::conformance::DependencyProvenance::Incomplete,
-                        crate::conformance::DependencyProvenance::Incomplete,
+                        &capture.reads,
+                        &capture.writes,
+                        capture.read_provenance,
+                        capture.write_provenance,
                     );
                     envelope(
                         snapback,
@@ -2159,10 +2154,10 @@ fn run_function(
                 Err(error) => {
                     let conformance = snapback.conformance_for_invocation(
                         &name,
-                        &[],
-                        &[],
-                        crate::conformance::DependencyProvenance::Incomplete,
-                        crate::conformance::DependencyProvenance::Incomplete,
+                        &capture.reads,
+                        &capture.writes,
+                        capture.read_provenance,
+                        capture.write_provenance,
                     );
                     envelope(
                         snapback,

@@ -7,7 +7,27 @@ verification, Diagnostics, Schema and storage, Live queries, Developer
 experience
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-10 (D2 Cloudflare adapter implementation: the
+**Revised:** 2026-08-16 (D1–D3 residue implementation record: the mutation
+recording/settlement family now retains its exact commit dependency capture,
+so successful `function.run` mutation envelopes report complete read/write
+provenance; app-data query, mutation, and action invocations enter the bounded
+recent-invocation ring, including unconditional incomplete reports for
+failure/refusal and non-executing replay paths. D2 adds a repository
+demo-catalog adapter that registers one path per proof command with honest
+`unsupported` provenance until those suites emit D1 observations, plus
+optional admin-token-authenticated `app.inspect` of a live served target for
+admission identity, capability resolution, and capability-target/server-profile/
+startup/data receipt binding. Sessions-mode targets that additionally require
+an `AdminInspect` secret-read lease are an explicit unsupported live-probe
+profile, not part of that claim. The 2026-08-16 completeness follow-up makes
+the ring-recording chokepoints total: every recorded `function.run` refusal
+materializes the six-field incomplete report, an admitted action throw is
+incomplete rather than unsupported, and the live probe reads both singular
+HTTP `diagnostic` and host-operation `diagnostics[]` carriers. D3's 2026-08-15 author
+ruling selects a separately authenticated **BROKERED** observation artifact
+for row-count magnitudes and D1 verdicts; no public app-data projection was
+added, and that brokered artifact remains the tranche's only implementation
+item. Nothing here claims LLP 0115 CV-14 custody or changes D4–D7.) 2026-08-10 (D2 Cloudflare adapter implementation: the
 package-owned `defineCloudflareVerifyProfile` executes a bounded remote runner,
 requires `snapback.cloudflare-acceptance.v1`, binds its app/schema/bundle facts
 to the regenerated artifact, and carries observed target/data identities into
@@ -462,9 +482,11 @@ extraWrites:   declaredWrites \ capturedWrites-here   (data, not a verdict)
 readProvenance / writeProvenance: complete | incomplete | unsupported
 ```
 
-`incomplete` and `unsupported` are not decoration. Action results carry
-empty captured sets by construction (`src/local.rs:1705-1740`), failure
-paths may lack a complete dependency witness, and the local matcher itself
+`incomplete` and `unsupported` are not decoration. Successful action results
+carry empty captured sets by construction (`src/local.rs:1705-1740`) and are
+therefore honestly `unsupported`; an action that throws executed partially and
+is `incomplete`, as are refusal paths with no complete dependency witness. The
+local matcher itself
 distinguishes "captured reads summarise the handler" from "they do not"
 (`src/live_matcher.rs:229-233`). A conformance surface that reports
 `conformant` from an empty capture would manufacture exactly the false
@@ -481,11 +503,12 @@ Three surfaces, in increasing strictness:
    surface that fell silent there would recreate the false confidence it is
    meant to remove. There is no collapsed `missing`/`extra`/`provenance`
    triple; naming one would reintroduce the union this split exists to
-   prevent. Attach to `FunctionRunResult`
-   and to the `app.inspect` recent-invocation ring. Note the ring today
-   records *host operations* only (`src/host_ops.rs:63-64`), so the
-   app-data plane must be wired into it — or the surface scoped to host-op
-   invocations and said so.
+   prevent. Attach to `FunctionRunResult` and to the `app.inspect`
+   recent-invocation ring. The 2026-08-16 residue tranche wires app-data query,
+   mutation, and action invocations into that bounded ring and retains the
+   executed commit capture through mutation recording/settlement, so successful
+   `function.run` mutations report complete provenance rather than the former
+   compatibility seam's `incomplete` fallback.
 2. **Coverage (v0, inside D2).** `verify` aggregates across every acceptance
    path and only then reports **over-declaration**, which is the only scope
    at which that judgement is sound. Under-declaration is a failure;
@@ -518,9 +541,10 @@ dependency read.
 `missingReads` with `readProvenance: complete`, fails `verify` coverage, and
 is refused with the named code under strict mode; a handler that swaps a
 read and a write against its declaration reports both `missingReads` and
-`missingWrites` rather than cancelling to empty; an action reports
+`missingWrites` rather than cancelling to empty; a successful action reports
 `readProvenance`/`writeProvenance` of `unsupported` rather than any
-conformant verdict; a conditionally-read declared table produces no
+conformant verdict, while a throwing or refused action reports `incomplete`;
+a conditionally-read declared table produces no
 over-declaration warning until aggregate coverage shows no path witnesses
 it; and the coverage report names which of the success, failure, action,
 relational, search, snapshot-bundle, and per-target paths yielded
@@ -583,6 +607,23 @@ environment setting; expiration fails with
 a bounded receipt-producing remote profile and binds its admitted artifact
 hashes plus observed target/data identities. Its unit proof does not substitute
 for a credentialed run against the deployment being claimed.
+
+**Implemented residue (2026-08-16).** `servedTarget` optionally names a live
+HTTP target plus the environment variable carrying its admin credential.
+Verify's live claim is scoped to the admin-token authority profile it actually
+sends. It performs authenticated `app.inspect`, binds the observed app/schema/
+bundle, capability target profile, server-policy profile, startup identity,
+and database version, and resolves required capabilities from the live
+capability manifest. A sessions-mode target requiring the additional
+`AdminInspect` secret-read lease is refused as the named
+`sessions-secret-read-lease-not-supported` limitation; verify does not claim
+that target live. With no served target it retains the generated-only nonclaim.
+The repository demo-catalog adapter registers one acceptance path per executed
+catalog proof command and digest-binds only the catalog plus its designated
+proof evidence. Additional inventory files are neither bound nor separately
+observed as if their own commands ran. Because these suites do not yet emit D1
+captures, the one executed path reports `unsupported` provenance and partial
+coverage rather than inventing an authoritative verdict.
 
 Two boundaries. Application test execution stays in the CLI orchestrator,
 not inside the server, in v0. And `verify` proves "platform-ready under the
@@ -651,6 +692,13 @@ expiry; an unknown cursor, or a structurally valid future/external cursor whose
 declared expiry has passed, degrades to a named full digest. This is the
 commissioned v0 fallback, not a claim that OQ10's longer-term custody policy is
 settled.
+
+**Author ruling (2026-08-15).** The unavailable row-count magnitudes and D1
+recent-invocation verdicts are supplied to `snapback-app introspect` by a
+separately authenticated **BROKERED** observation artifact, not by extending
+the public app-data inspection contract and not by granting the app CLI
+ambient admin authority. The carrier remains unimplemented in this tranche;
+the 2026-08-16 D1 ring work is its observation source, not the broker itself.
 
 Contents: artifact identities, schema summary, operation signatures with
 argument and result contracts (LLP 0131), capability gaps, row-count
@@ -1262,6 +1310,12 @@ on the D1 tranche's accumulated author questions
   unenforced ride-through; OQ14's broader question — what constitutes
   an authoritative capture on Cloudflare — stays open.
 
+**Ruled 2026-08-15 — author observation-carrier decision.** D3's redacted
+row-count magnitudes and recent D1 verdicts use a separately authenticated
+**BROKERED** observation artifact consumed by `snapback-app introspect`.
+They do not extend the public app-data inspection contract. Implementation of
+that artifact remains open in the D1–D3 tranche ticket.
+
 1. **D1 strict-mode default.** Opt-in per app is proposed. Does a
    newly generated app opt in by default, making the *legacy* case the
    opt-out? That would make declarations enforced ceilings for all new
@@ -1358,11 +1412,17 @@ implementation (author decision sitting #2, see §Open questions and
 `issues/20260803-0146-d1-d3-tranche.md`) — the remaining decisions stay
 unratified. The D1 report and strict-mode surfaces landed that day on the local
 target; the D2/D3 v0 surfaces landed in the 2026-08-04 worktree record (see the
-dated records in the Revised header). D1 surface 2 is implemented over
-explicitly registered paths, while automatic suite discovery remains a named
-GAP. D3's public dynamic projection honestly reports unavailable row-count and
-D1 observations and uses the recorded coarse OQ10 fallback. D1, D2, and D3 are
-the intended first tranche and are the smallest of the seven; D5 and D6 are
+dated records in the Revised header). The 2026-08-16 residue record completes
+mutation-envelope capture, adds app-data invocations to the diagnostic ring,
+registers the repository demo catalog through a legacy-suite adapter, and lets
+D2 bind admission/capabilities to an admin-token-authenticated live served
+target. Sessions targets requiring an `AdminInspect` secret-read lease remain
+a declared unsupported live-probe authority profile. Legacy
+suite conformance stays honestly partial until those suites emit D1 evidence.
+D3's public dynamic projection still reports unavailable row-count and D1
+observations and uses the recorded coarse OQ10 fallback; the author-ruled
+brokered observation artifact is the tranche's remaining implementation item.
+D1, D2, and D3 are the intended first tranche and are the smallest of the seven; D5 and D6 are
 substantial subsystems and should be re-scoped after Wave 1 lands, when the
 conformance and verification surfaces will have made some of their
 motivating failure classes observable rather than hypothesized.

@@ -57,7 +57,7 @@
     },
     "next": { "type": "array", "items": { "$ref": "#/$defs/next" } },
     "recommendedNext": { "$ref": "#/$defs/next" },
-    "nonclaims": { "type": "array", "minItems": 4, "items": { "type": "string", "minLength": 1 } }
+    "nonclaims": { "type": "array", "minItems": 3, "items": { "type": "string", "minLength": 1 } }
   },
   "allOf": [
     {
@@ -237,7 +237,7 @@
       "properties": {
         "status": { "enum": ["passed", "partial", "failed", "not-claimed", "blocked"] },
         "disposition": { "type": "string", "minLength": 1 },
-        "scope": { "const": "explicitly-registered-paths-only" },
+        "scope": { "const": "registered-or-repository-adapted-paths" },
         "limitationReason": { "type": "string", "minLength": 1 },
         "complete": { "type": "boolean" },
         "expectedPaths": { "type": "integer", "minimum": 0 },
@@ -272,9 +272,10 @@
     "admissionEvidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["admissionMode", "conformance"],
+      "required": ["admissionMode", "servedTarget", "conformance"],
       "properties": {
         "admissionMode": { "type": ["string", "null"] },
+        "servedTarget": true,
         "conformance": { "$ref": "#/$defs/conformanceAggregate" }
       }
     },

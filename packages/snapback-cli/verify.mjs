@@ -180,6 +180,36 @@ function normalizeContext(value = {}) {
   });
 }
 
+function normalizeServedTarget(value) {
+  if (value === undefined || value === null) return null;
+  assert(plainObject(value), 'servedTarget must be an object');
+  assert(typeof value.url === 'string' && value.url.length > 0, 'servedTarget.url must be a non-empty string');
+  let parsed;
+  try {
+    parsed = new URL(value.url);
+  } catch (error) {
+    throw verifyError(
+      'SNAPBACK_VERIFY_CONFIG_INVALID',
+      'servedTarget.url must be an absolute http or https URL',
+      foreignCauseDetails(error),
+    );
+  }
+  assert(parsed.protocol === 'http:' || parsed.protocol === 'https:', 'servedTarget.url must use http or https');
+  assert(parsed.username === '' && parsed.password === '', 'servedTarget.url must not embed credentials');
+  assert(parsed.search === '' && parsed.hash === '', 'servedTarget.url must not include a query or fragment');
+  const url = parsed.href.replace(/\/$/u, '');
+  const adminTokenEnv = value.adminTokenEnv ?? 'SNAPBACK_ADMIN_TOKEN';
+  assert(typeof adminTokenEnv === 'string' && adminTokenEnv.length > 0, 'servedTarget.adminTokenEnv must be a non-empty string');
+  const authorityMode = value.authorityMode ?? 'admin-token';
+  assert(
+    authorityMode === 'admin-token',
+    'servedTarget.authorityMode supports only admin-token; sessions-secret-read-lease probing is not implemented',
+  );
+  const timeoutMs = value.timeoutMs ?? 10_000;
+  assert(Number.isSafeInteger(timeoutMs) && timeoutMs > 0, 'servedTarget.timeoutMs must be a positive integer');
+  return Object.freeze({ url, adminTokenEnv, authorityMode, timeoutMs });
+}
+
 function normalizePath(path, profileId, index) {
   assert(plainObject(path), `profiles[${profileId}].paths[${index}] must be an object`);
   assert(typeof path.id === 'string' && path.id.length > 0, `profiles[${profileId}].paths[${index}].id must be a non-empty string`);
@@ -393,6 +423,142 @@ export function defineStarterVerifyProfile({
       });
     },
   });
+}
+
+async function runRepositoryAcceptanceCommand({ command, cwd, timeoutMs }) {
+  const child = spawn(command, {
+    cwd,
+    env: { ...process.env, SNAPBACK_VERIFY_PROFILE: 'repository-acceptance-adapter' },
+    shell: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  let overflow = false;
+  let killTimeout = null;
+  const append = (current, chunk) => {
+    const next = `${current}${chunk.toString('utf8')}`;
+    if (Buffer.byteLength(next) <= STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES) return next;
+    overflow = true;
+    child.kill('SIGTERM');
+    return next.slice(-STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES);
+  };
+  child.stdout.on('data', (chunk) => { stdout = append(stdout, chunk); });
+  child.stderr.on('data', (chunk) => { stderr = append(stderr, chunk); });
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    child.kill('SIGTERM');
+    killTimeout = setTimeout(() => child.kill('SIGKILL'), 5_000);
+  }, timeoutMs);
+  const exit = await new Promise((resolveExit) => {
+    child.once('error', (error) => resolveExit({ code: null, signal: null, error }));
+    child.once('close', (code, signal) => resolveExit({ code, signal, error: null }));
+  });
+  clearTimeout(timer);
+  if (killTimeout !== null) clearTimeout(killTimeout);
+  return Object.freeze({
+    ok: !overflow && !timedOut && exit.error === null && exit.code === 0,
+    overflow,
+    timedOut,
+    exit,
+    stdout,
+    stderr,
+  });
+}
+
+// @ref LLP 0146#d1-declarationobservation-conformance — the repository demo
+// catalog is the existing acceptance-path inventory. This adapter registers
+// those legacy paths without asking every demo to grow a bespoke verify config;
+// because legacy suites do not emit D1 reports, their provenance is explicitly
+// unsupported until the suite adopts the app-data ring observation carrier.
+export function defineRepositoryVerifyProfiles({
+  catalogFile,
+  repositoryRoot = process.cwd(),
+  include = null,
+  timeoutMs = DEFAULT_VERIFY_PROFILE_TIMEOUT_MS,
+  runCommand = runRepositoryAcceptanceCommand,
+} = {}) {
+  assert(typeof catalogFile === 'string' || catalogFile instanceof URL, 'repository catalogFile must be a path or file URL');
+  assert(Number.isSafeInteger(timeoutMs) && timeoutMs > 0, 'repository adapter timeoutMs must be a positive integer');
+  assert(typeof runCommand === 'function', 'repository adapter runCommand must be a function');
+  const root = realpathSync(resolve(repositoryRoot));
+  const catalogPath = realpathSync(catalogFile instanceof URL ? fileURLToPath(catalogFile) : resolve(catalogFile));
+  const catalog = readJson(catalogPath, 'SNAPBACK_VERIFY_REPOSITORY_CATALOG_INVALID');
+  assert(catalog.schemaVersion === 'snapback.demo-catalog.v1', 'repository adapter requires snapback.demo-catalog.v1');
+  assert(Array.isArray(catalog.entries), 'repository demo catalog entries must be an array');
+  const selected = include === null ? null : new Set(normalizedStringArray(include, 'repository adapter include'));
+  return Object.freeze(catalog.entries
+    .filter((entry) => entry?.targets?.includes('local'))
+    .filter((entry) => selected === null || selected.has(entry.id))
+    .map((entry, index) => {
+      assert(typeof entry.id === 'string' && entry.id.length > 0, `repository catalog entries[${index}].id must be a non-empty string`);
+      assert(typeof entry.directory === 'string' && entry.directory.length > 0, `repository catalog ${entry.id}.directory must be a non-empty string`);
+      assert(typeof entry.proof === 'string' && entry.proof.length > 0, `repository catalog ${entry.id}.proof must be a non-empty string`);
+      assert(Array.isArray(entry.evidence) && entry.evidence.length > 0, `repository catalog ${entry.id}.evidence must be non-empty`);
+      const demoDirectory = realpathSync(resolve(root, entry.directory));
+      // Catalog commands are historical contracts: some spell a repository-
+      // relative script path, while package-script commands are documented
+      // from the demo directory. The directory field resolves that legacy
+      // split without rewriting the canonical command.
+      const proofCwd = entry.directory === '.' || entry.proof.includes(`${entry.directory}/`)
+        ? root
+        : demoDirectory;
+      const evidenceFiles = entry.evidence.map((file) => realpathSync(resolve(root, file)));
+      // One catalog proof command is one executed acceptance path. The
+      // first evidence file is the catalog-designated proof evidence. Other
+      // inventory files are neither digest-bound nor promoted into observed
+      // D1 paths unless their own commands are registered and executed.
+      const paths = Object.freeze([Object.freeze({
+        id: `repository:${entry.id}:proof`,
+        kind: entry.id === 'public-dashboard' ? 'snapshot-bundle' : 'success',
+        targetProfileId: 'local-dev-sqlite-ibex',
+        functionId: null,
+      })]);
+      return Object.freeze({
+        id: `repository-demo:${entry.id}`,
+        title: `repository demo acceptance: ${entry.id}`,
+        testFiles: Object.freeze([catalogPath, evidenceFiles[0]]),
+        requiredCapabilities: Object.freeze([]),
+        paths,
+        timeoutMs,
+        async run(context) {
+          const outcome = await runCommand({
+            command: entry.proof,
+            cwd: proofCwd,
+            timeoutMs,
+            entry: Object.freeze({ ...entry }),
+          });
+          const ok = outcome?.ok === true;
+          const executed = outcome?.exit?.error == null && (
+            Number.isInteger(outcome?.exit?.code)
+            || typeof outcome?.exit?.signal === 'string'
+            || outcome?.timedOut === true
+            || outcome?.overflow === true
+          );
+          return Object.freeze({
+            ok,
+            context: context.identityContext,
+            conformance: Object.freeze(executed ? unsupportedConformance(paths) : []),
+            diagnostics: ok ? Object.freeze([]) : Object.freeze([diagnostic(
+              outcome?.overflow
+                ? 'SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_OUTPUT_LIMIT'
+                : outcome?.timedOut
+                  ? 'SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_TIMEOUT'
+                  : 'SNAPBACK_VERIFY_REPOSITORY_ACCEPTANCE_FAILED',
+              `repository acceptance ${entry.id} did not pass`,
+              {
+                profileId: `repository-demo:${entry.id}`,
+                command: entry.proof,
+                exitCode: outcome?.exit?.code ?? null,
+                signal: outcome?.exit?.signal ?? null,
+                stderr: String(outcome?.stderr ?? '').slice(-16_384),
+              },
+            )]),
+          });
+        },
+      });
+    }));
 }
 
 function redactSecret(value, secret) {
@@ -658,6 +824,7 @@ export async function loadVerifyConfig(path, { backendDirectory = null } = {}) {
     generatedDirectory: value.generatedDirectory === undefined
       ? null
       : resolve(configDirectory, value.generatedDirectory),
+    servedTarget: normalizeServedTarget(value.servedTarget),
     context: normalizeContext(value.context),
     profiles: Object.freeze(profiles),
   });
@@ -674,6 +841,7 @@ export function defaultVerifyConfig({ backendDirectory = 'snapback' } = {}) {
     configPath: null,
     backendDirectory: resolve(backendDirectory),
     generatedDirectory: null,
+    servedTarget: null,
     context: normalizeContext(),
     profiles: Object.freeze([]),
   });
@@ -768,7 +936,170 @@ export async function probeArtifactFreshness(config) {
   };
 }
 
-export function probeAdmission(artifact) {
+// @ref LLP 0146#d2-snapback-verify--the-done-oracle — admission and
+// capability resolution use the authenticated state of the live served
+// target when configured; regenerated local artifacts remain the comparison
+// source, never the claimed serving authority.
+export async function probeServedTarget(artifact, config, options = {}) {
+  if (!config.servedTarget) {
+    return {
+      ok: true,
+      claimed: false,
+      diagnostics: [],
+      evidence: {
+        disposition: 'not-configured',
+        claim: false,
+        nonclaim: 'no live served target was configured for admission/capability resolution',
+      },
+    };
+  }
+  const token = (options.env ?? process.env)[config.servedTarget.adminTokenEnv] ?? '';
+  if (token.length === 0) {
+    return {
+      ok: false,
+      claimed: false,
+      diagnostics: [diagnostic(
+        'SNAPBACK_VERIFY_SERVED_TARGET_AUTHORITY_MISSING',
+        `live target inspection requires ${config.servedTarget.adminTokenEnv}`,
+        { environment: config.servedTarget.adminTokenEnv },
+      )],
+    };
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.servedTarget.timeoutMs);
+  let envelope;
+  try {
+    const response = await (options.fetch ?? fetch)(
+      `${config.servedTarget.url}/_snapback/api/host-ops`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-snapback-admin-token': token,
+        },
+        body: JSON.stringify({
+          schemaVersion: 'snapback.v0',
+          requestId: `verify-live-${Date.now()}`,
+          operation: 'app.inspect',
+        }),
+        signal: controller.signal,
+      },
+    );
+    envelope = await response.json();
+  } catch (error) {
+    return {
+      ok: false,
+      claimed: false,
+      diagnostics: [diagnostic(
+        error?.name === 'AbortError'
+          ? 'SNAPBACK_VERIFY_SERVED_TARGET_TIMEOUT'
+          : 'SNAPBACK_VERIFY_SERVED_TARGET_UNAVAILABLE',
+        error?.name === 'AbortError'
+          ? `live target inspection exceeded ${config.servedTarget.timeoutMs}ms`
+          : 'live target inspection did not return a JSON host-operation envelope',
+        foreignCauseDetails(error, { url: config.servedTarget.url }),
+      )],
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (envelope?.ok !== true || envelope?.operation !== 'app.inspect') {
+    // A hostOpsResult uses diagnostics[], while a real non-2xx HTTP refusal
+    // uses LLP 0094's ErrorResponse with singular diagnostic. Probe both
+    // carriers before classifying the served authority profile.
+    const codes = [...new Set([
+      envelope?.diagnostic?.code,
+      ...(Array.isArray(envelope?.diagnostics)
+        ? envelope.diagnostics.map(({ code }) => code)
+        : []),
+    ].filter((code) => typeof code === 'string' && code.length > 0))];
+    const sessionsLeaseRequired = codes.includes('SNAPBACK_ADMIN_SECRET_READ_REQUIRED');
+    return {
+      ok: false,
+      claimed: false,
+      diagnostics: [diagnostic(
+        sessionsLeaseRequired
+          ? 'SNAPBACK_VERIFY_SERVED_TARGET_AUTHORITY_PROFILE_UNSUPPORTED'
+          : 'SNAPBACK_VERIFY_SERVED_TARGET_REFUSED',
+        sessionsLeaseRequired
+          ? 'live sessions-mode app.inspect requires an AdminInspect secret-read lease; verify live probing currently supports admin-token targets only'
+          : 'live target refused authenticated app.inspect',
+        {
+          url: config.servedTarget.url,
+          authorityMode: config.servedTarget.authorityMode ?? 'admin-token',
+          limitation: sessionsLeaseRequired
+            ? 'sessions-secret-read-lease-not-supported'
+            : null,
+          codes,
+        },
+      )],
+    };
+  }
+  const runtimeState = envelope.data?.runtimeState;
+  const capabilityManifest = runtimeState?.capabilityManifest;
+  const supportedCapabilities = capabilityManifest?.supportedCapabilities;
+  const observation = {
+    serverUrl: config.servedTarget.url,
+    startupNonce: envelope.data?.operationalReadiness?.startupNonce ?? null,
+    targetProfileId: capabilityManifest?.targetProfileId
+      ?? runtimeState?.targetProfileId
+      ?? envelope.target?.targetProfile
+      ?? null,
+    serverProfileTarget: envelope.target?.targetProfile ?? null,
+    appId: envelope.target?.appId ?? runtimeState?.functions?.appId ?? null,
+    schemaHash: envelope.artifacts?.schemaHash ?? runtimeState?.schema?.schemaHash ?? null,
+    bundleHash: envelope.artifacts?.bundleHash ?? runtimeState?.functions?.bundleHash ?? null,
+    databaseVersion: envelope.artifacts?.databaseVersion ?? runtimeState?.storage?.version ?? null,
+    supportedCapabilities: Array.isArray(supportedCapabilities)
+      ? [...new Set(supportedCapabilities)].sort()
+      : null,
+  };
+  const complete = typeof observation.startupNonce === 'string'
+    && observation.startupNonce.length > 0
+    && typeof observation.targetProfileId === 'string'
+    && typeof observation.serverProfileTarget === 'string'
+    && typeof observation.appId === 'string'
+    && typeof observation.schemaHash === 'string'
+    && typeof observation.bundleHash === 'string'
+    && Number.isSafeInteger(observation.databaseVersion)
+    && Array.isArray(observation.supportedCapabilities);
+  if (!complete) {
+    return {
+      ok: false,
+      claimed: false,
+      diagnostics: [diagnostic(
+        'SNAPBACK_VERIFY_SERVED_TARGET_INVALID',
+        'live app.inspect omitted admission or capability facts required by verify',
+        { observation },
+      )],
+    };
+  }
+  const targetIdentity = `sha256:${createHash('sha256').update(stableJson({
+    serverUrl: observation.serverUrl,
+    startupNonce: observation.startupNonce,
+    targetProfileId: observation.targetProfileId,
+    serverProfileTarget: observation.serverProfileTarget,
+    appId: observation.appId,
+  })).digest('hex')}`;
+  return {
+    ok: true,
+    claimed: true,
+    observation: Object.freeze(observation),
+    targetIdentity,
+    dataIdentity: `version:${observation.databaseVersion}`,
+    diagnostics: [],
+    evidence: Object.freeze({
+      disposition: 'authenticated-live-app-inspect',
+      claim: true,
+      authorityMode: 'admin-token',
+      limitation: 'sessions-mode targets requiring an AdminInspect secret-read lease are not claimed live',
+      observation: Object.freeze(observation),
+      targetIdentity,
+    }),
+  };
+}
+
+export function probeAdmission(artifact, servedTarget = null) {
   if (!artifact?.ok) return { ok: false, blocked: true, diagnostics: [] };
   const { artifactIndex, schema, functions, capability } = artifact.manifests;
   const identity = artifact.identity;
@@ -783,16 +1114,41 @@ export function probeAdmission(artifact) {
   if (artifactIndex.artifactKind !== 'artifactIndex' || schema.artifactKind !== 'schemaManifest' || functions.artifactKind !== 'functionManifest' || capability.artifactKind !== 'capabilityManifest') {
     mismatches.push({ manifest: 'artifact-set', key: 'artifactKind', expected: 'closed known kinds', observed: 'invalid' });
   }
+  if (servedTarget?.claimed) {
+    const observed = servedTarget.observation;
+    for (const key of ['appId', 'schemaHash', 'bundleHash']) {
+      if (observed[key] !== identity[key]) {
+        mismatches.push({
+          manifest: 'live-served-target',
+          key,
+          expected: identity[key],
+          observed: observed[key] ?? null,
+        });
+      }
+    }
+    const generatedTarget = capability.targetProfileId ?? null;
+    if (observed.targetProfileId !== generatedTarget) {
+      mismatches.push({
+        manifest: 'live-served-target',
+        key: 'targetProfileId',
+        expected: generatedTarget,
+        observed: observed.targetProfileId,
+      });
+    }
+  }
+  const mode = servedTarget?.claimed
+    ? 'authenticated-live-served-target-admission'
+    : 'generated-artifact-local-admission';
   return mismatches.length === 0
-    ? { ok: true, mode: 'generated-artifact-local-admission', diagnostics: [] }
+    ? { ok: true, mode, diagnostics: [] }
     : {
       ok: false,
-      mode: 'generated-artifact-local-admission',
+      mode,
       diagnostics: [diagnostic('SNAPBACK_VERIFY_ADMISSION_IDENTITY_MISMATCH', 'schema/function artifact admission identities disagree', { mismatches })],
     };
 }
 
-export function probeCapabilities(artifact, profiles) {
+export function probeCapabilities(artifact, profiles, servedTarget = null) {
   if (!artifact?.ok) return { ok: false, blocked: true, diagnostics: [], required: [], supported: [], missing: [] };
   const required = new Set(artifact.manifests.schema.requiredCapabilities ?? []);
   for (const fn of artifact.manifests.functions.functions ?? []) {
@@ -801,11 +1157,18 @@ export function probeCapabilities(artifact, profiles) {
   for (const profile of profiles) {
     for (const capability of profile.requiredCapabilities) required.add(capability);
   }
-  const supported = new Set(artifact.manifests.capability.supportedCapabilities ?? []);
+  const supported = new Set(servedTarget?.claimed
+    ? servedTarget.observation.supportedCapabilities
+    : artifact.manifests.capability.supportedCapabilities ?? []);
   const missing = [...required].filter((capability) => !supported.has(capability)).sort();
   return {
     ok: missing.length === 0,
-    targetProfileId: artifact.manifests.capability.targetProfileId ?? null,
+    targetProfileId: servedTarget?.claimed
+      ? servedTarget.observation.targetProfileId
+      : artifact.manifests.capability.targetProfileId ?? null,
+    resolutionMode: servedTarget?.claimed
+      ? 'authenticated-live-served-target'
+      : 'generated-capability-manifest',
     required: [...required].sort(),
     supported: [...supported].sort(),
     missing,
@@ -869,8 +1232,8 @@ export function aggregateConformance(profiles, results) {
     return Object.freeze({
       status: 'not-claimed',
       disposition: 'no-registered-acceptance-paths',
-      scope: 'explicitly-registered-paths-only',
-      limitationReason: 'repository acceptance suites have no universal D1 path-evidence registry in v0',
+      scope: 'registered-or-repository-adapted-paths',
+      limitationReason: 'no configured or repository-adapted acceptance paths were selected',
       complete: false,
       expectedPaths: 0,
       observedPaths: 0,
@@ -976,8 +1339,8 @@ export function aggregateConformance(profiles, results) {
   return Object.freeze({
     status: ok ? (complete ? 'passed' : 'partial') : 'failed',
     disposition: 'registered-path-aggregate-v0',
-    scope: 'explicitly-registered-paths-only',
-    limitationReason: 'repository acceptance suites have no universal D1 path-evidence registry in v0',
+    scope: 'registered-or-repository-adapted-paths',
+    limitationReason: 'repository-adapted legacy suites remain partial until they emit D1 capture evidence',
     complete,
     expectedPaths: evidence.length,
     observedPaths: observed.length,
@@ -1152,11 +1515,25 @@ export async function runVerify(config, options = {}) {
           },
         }
     : { ok: false, blocked: true, diagnostics: [] };
-  const admission = artifact.ok && runtime.ok
-    ? await safeProbe(options.admissionProbe ?? probeAdmission, artifact, config)
+  const servedTarget = artifact.ok && runtime.ok
+    ? await safeProbe(
+      options.servedTargetProbe ?? probeServedTarget,
+      artifact,
+      config,
+      options,
+    )
+    : { ok: false, blocked: true, claimed: false, diagnostics: [] };
+  const admission = artifact.ok && runtime.ok && servedTarget.ok
+    ? await safeProbe(options.admissionProbe ?? probeAdmission, artifact, servedTarget, config)
     : { ok: false, blocked: true, diagnostics: [] };
   const capabilities = artifact.ok && admission.ok
-    ? await safeProbe(options.capabilityProbe ?? probeCapabilities, artifact, config.profiles, config)
+    ? await safeProbe(
+      options.capabilityProbe ?? probeCapabilities,
+      artifact,
+      config.profiles,
+      servedTarget,
+      config,
+    )
     : { ok: false, blocked: true, diagnostics: [], required: [], supported: [], missing: [] };
   // Profile execution is the observation source for D1 coverage, whose
   // judgement precedes capability and acceptance verdicts in the receipt.
@@ -1165,9 +1542,14 @@ export async function runVerify(config, options = {}) {
   const canRunProfiles = artifact.ok && runtime.ok && admission.ok;
   const identityContext = normalizeContext({
     ...config.context,
-    target: config.context.target.identity === null && artifact.identity?.inputsHash
-      ? { ...config.context.target, identity: artifact.identity.inputsHash }
+    target: servedTarget.claimed
+      ? { kind: 'live-served-target', identity: servedTarget.targetIdentity }
+      : config.context.target.identity === null && artifact.identity?.inputsHash
+        ? { ...config.context.target, identity: artifact.identity.inputsHash }
       : config.context.target,
+    data: servedTarget.claimed
+      ? { kind: 'served-database-version', identity: servedTarget.dataIdentity }
+      : config.context.data,
     seed: config.context.seed.identity === null && artifact.seedIdentity
       ? artifact.seedIdentity
       : config.context.seed,
@@ -1183,7 +1565,7 @@ export async function runVerify(config, options = {}) {
     } catch (error) {
       conformance = Object.freeze({
         status: 'failed', disposition: 'invalid-profile-conformance', complete: false,
-        scope: 'explicitly-registered-paths-only',
+        scope: 'registered-or-repository-adapted-paths',
         limitationReason: 'one or more acceptance profiles returned malformed conformance evidence',
         expectedPaths: registeredPathCount,
         observedPaths: 0, authoritativePaths: 0, partialPaths: 0,
@@ -1206,8 +1588,8 @@ export async function runVerify(config, options = {}) {
   } else {
     conformance = Object.freeze({
       status: 'blocked', disposition: 'upstream-stage-failed', complete: false,
-      scope: 'explicitly-registered-paths-only',
-      limitationReason: 'repository acceptance suites have no universal D1 path-evidence registry in v0',
+      scope: 'registered-or-repository-adapted-paths',
+      limitationReason: 'repository-adapted legacy suites remain partial until they emit D1 capture evidence',
       expectedPaths: registeredPathCount, observedPaths: 0,
       pathEvidence: [], underDeclarations: [], overDeclarations: [], diagnostics: [],
     });
@@ -1218,6 +1600,7 @@ export async function runVerify(config, options = {}) {
     diagnostics: [...(admission.diagnostics ?? []), ...(conformance.diagnostics ?? [])],
     evidence: {
       admissionMode: admission.mode ?? null,
+      servedTarget: servedTarget.evidence ?? null,
       conformance,
     },
   };
@@ -1248,6 +1631,7 @@ export async function runVerify(config, options = {}) {
         required: capabilities.required,
         supported: capabilities.supported,
         missing: capabilities.missing,
+        resolutionMode: capabilities.resolutionMode ?? null,
       },
     }),
     stage('acceptance-profiles', acceptance),
@@ -1283,7 +1667,9 @@ export async function runVerify(config, options = {}) {
     nonclaims: Object.freeze([
       'a passing receipt proves readiness under the registered contract, not product completion',
       'no registered acceptance paths means D1 aggregate coverage is not claimed',
-      'generated-artifact-local-admission does not claim a live target admitted the same bytes',
+      ...(!servedTarget.claimed
+        ? ['generated-artifact-local-admission does not claim a live target admitted the same bytes']
+        : []),
       ...(!targetUsesLocalPackagedRuntime(artifact)
         ? ['the local packaged runtime readiness probe was skipped and makes no claim about the non-local target runtime']
         : []),

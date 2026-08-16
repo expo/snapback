@@ -323,7 +323,7 @@
           "type": "null"
         }
       ],
-      "description": "D1 declaration/observation conformance: class-tagged deltas between\nthe declared and captured table sets with per-class evidence\nprovenance. Emitted on every runner invocation — an action reports\n`unsupported` provenance rather than any conformant verdict."
+      "description": "D1 declaration/observation conformance: class-tagged deltas between\nthe declared and captured table sets with per-class evidence\nprovenance. Emitted on every runner invocation — a successful action\nreports `unsupported` provenance rather than any conformant verdict,\nwhile an action failure reports `incomplete`."
     },
     "diagnostic": {
       "anyOf": [

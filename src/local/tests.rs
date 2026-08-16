@@ -3,21 +3,19 @@ use super::{
     AuthorizationInvalidationAckInput, AuthorizationInvalidationManualRetryInput,
     BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
     BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
-    DetachedMutationRead, DiagnosticBoundary, EnsureAppMode,
-    FAIL_NEXT_ADDITIONAL_JOB_ADMISSION, FAIL_NEXT_LIVE_SCOPE_REGISTRATION,
-    FAIL_NEXT_SCOPE_RETIREMENT_AUTH, FinalizePhaseAOutcomeV1, FinalizePreflightV1,
-    INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission, LiveResumeInput,
-    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
-    MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation,
-    PendingLiveFanout, PendingLiveLane, PendingLiveScheduler, PendingLiveWork, PublicInspect,
-    QueryInvocation, RetryEpisodeKey, RetryReservationKind, SEARCH_ANALYZER, SEARCH_CAPABILITY,
-    SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1, SearchQueryPlanV1, SearchTextFieldV1,
-    SearchVisibilityV1, SnapbackError, SnapbackResult, StagedMutationExecution, StagedNestedMutation,
-    StagedRecordedMutation,
-    bounded_projection_result_contract,
-    enforce_snapshot_batch_cursor_budget, next_secret_read_reset_generation, now_millis,
-    order_field_bounds_from_functions, prepare_media_command_invocation,
-    query_invocation_estimated_bytes,
+    DetachedMutationRead, DiagnosticBoundary, EnsureAppMode, FAIL_NEXT_ADDITIONAL_JOB_ADMISSION,
+    FAIL_NEXT_LIVE_SCOPE_REGISTRATION, FAIL_NEXT_SCOPE_RETIREMENT_AUTH, FinalizePhaseAOutcomeV1,
+    FinalizePreflightV1, INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission,
+    LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
+    MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION,
+    MaintenanceOperation, MutationDependencyCapture, PendingLiveFanout, PendingLiveLane,
+    PendingLiveScheduler, PendingLiveWork, PublicInspect, QueryInvocation, RetryEpisodeKey,
+    RetryReservationKind, SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1,
+    SearchIndexManifestV1, SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1, SnapbackError,
+    SnapbackResult, StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
+    bounded_projection_result_contract, enforce_snapshot_batch_cursor_budget,
+    next_secret_read_reset_generation, now_millis, order_field_bounds_from_functions,
+    prepare_media_command_invocation, query_invocation_estimated_bytes,
     refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
     settlement_id_map, snapshot_batch_max_boundary, snapshot_batch_max_plaintext_len,
     telemetry_correlation, validate_bounded_children_node_schema_references,
@@ -58,7 +56,9 @@ use crate::runtime::{
     MediaProjectionInvocationScopeV1, StagedMediaProjectionProofV1,
 };
 use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
-use crate::storage::{BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead};
+use crate::storage::{
+    BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead, MutationCommit,
+};
 use crate::vector::{
     VECTOR_CAPABILITY, VECTOR_DISTANCE_PROFILE_ID, VECTOR_ORDERING_PROFILE_ID,
     VECTOR_RESULT_PROJECTION, VectorFieldClassV1, VectorIndexManifestV1, VectorMaintenanceLimitsV1,
@@ -93,6 +93,160 @@ fn raw_schema_apply_cannot_bypass_governed_complete_pair_activation() {
     assert_eq!(
         error.diagnostic.code,
         "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_REMOTE_CUSTODY_UNAVAILABLE"
+    );
+}
+
+#[test]
+fn replayed_mutation_commit_never_claims_dependency_capture() {
+    let replay = MutationCommit {
+        output: MutationOutput {
+            version: 7,
+            changed_count: 1,
+            result: json!({"replayed": true}),
+            ctx_ledger: None,
+            settlement_mint_observations: Vec::new(),
+            settlement_time_observation: None,
+            settlement_sequence_allocations: Vec::new(),
+        },
+        changes: Vec::new(),
+        read_dependencies: Vec::new(),
+        write_dependencies: Vec::new(),
+        job_enqueues: Vec::new(),
+        job_changes: Vec::new(),
+        asset_changes: Vec::new(),
+        sequence_allocations: Vec::new(),
+        authorization: None,
+        authority_transitions: Vec::new(),
+        network_egress: Default::default(),
+    };
+
+    let capture = MutationDependencyCapture::from_commit(&replay);
+    assert!(capture.reads.is_empty());
+    assert!(capture.writes.is_empty());
+    assert!(matches!(
+        capture.read_provenance,
+        crate::conformance::DependencyProvenance::Incomplete
+    ));
+    assert!(matches!(
+        capture.write_provenance,
+        crate::conformance::DependencyProvenance::Incomplete
+    ));
+}
+
+// @ref LLP 0146#d1-declarationobservation-conformance — conformance must use
+// the declarations/schema from the immutable read-manifest snapshot that
+// executed, even if a same-name function generation reloads before handoff.
+// @ref LLP 0012#call-time-generation-binding — the selected function
+// generation remains the authority for every fact derived from its execution.
+#[test]
+fn read_lane_conformance_is_bound_to_the_executing_generation() {
+    let directory = tempfile::tempdir().expect("conformance generation fixture directory");
+    let database_path = directory.path().join("conformance-generation.sqlite3");
+    let mut snapback = LocalSnapback::open(&database_path).expect("file-backed fixture");
+    let table = |name: &str| TableManifest {
+        name: name.to_owned(),
+        fields: Vec::new(),
+        indexes: Vec::new(),
+        syncable: true,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: None,
+        history: None,
+    };
+    snapback
+        .apply_schema(SchemaManifest {
+            tables: vec![table("tableA"), table("tableB")],
+            ..SchemaManifest::default()
+        })
+        .expect("apply two-table fixture schema");
+    let manifest = |declared: &str| {
+        let mut function = FunctionDefinition::new(
+            "generationBoundQuery",
+            FunctionKind::Query,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async generationBoundQuery(ctx) { return await ctx.db.query('tableB').collect(); } };".to_owned(),
+                export: "generationBoundQuery".to_owned(),
+            }),
+        );
+        function.read_set_summary.tables = vec![declared.to_owned()];
+        FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        }
+    };
+    let diagnostics = snapback.load_functions(manifest("tableA"));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "generation A must load: {diagnostics:?}"
+    );
+    let lane = snapback.read_lane();
+    assert!(lane.available(), "file-backed fixture has a read lane");
+
+    let (captured_tx, captured_rx) = std::sync::mpsc::channel();
+    let (resume_tx, resume_rx) = std::sync::mpsc::channel();
+    let query = std::thread::spawn(move || {
+        BEFORE_QUERY_RESULT_HANDOFF_HOOK.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                captured_tx.send(()).expect("signal captured dependencies");
+                resume_rx.recv().expect("resume generation-A handoff");
+            }));
+        });
+        let input = HandlerInput::default();
+        let authority = InvocationGate::prepare_admitted_dev_input(
+            InvocationSource::LocalQuery,
+            ServerProfile::Dev,
+            &input,
+            lane.admission.admit_dev().expect("admit read-lane query"),
+        )
+        .expect("prepare read-lane query authority");
+        lane.invoke_query_prepared_generation_with_facts(
+            "generationBoundQuery",
+            input,
+            authority,
+            None,
+        )
+        .expect("generation-A query succeeds")
+    });
+
+    captured_rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("generation A captures tableB before reload");
+    let diagnostics = snapback.load_functions(manifest("tableB"));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "generation B must load while A is at handoff: {diagnostics:?}"
+    );
+    resume_tx.send(()).expect("release generation-A handoff");
+    let (invocation, _facts, conformance) = query.join().expect("query thread joins");
+
+    assert_eq!(conformance.missing_reads, vec!["tableB".to_owned()]);
+    assert_eq!(conformance.extra_reads, vec!["tableA".to_owned()]);
+    assert_eq!(
+        conformance.read_provenance,
+        crate::conformance::DependencyProvenance::Complete
+    );
+    let current_generation = snapback
+        .conformance_for_invocation(
+            "generationBoundQuery",
+            &invocation.read_dependencies,
+            &[],
+            crate::conformance::DependencyProvenance::Complete,
+            crate::conformance::DependencyProvenance::Complete,
+        )
+        .expect("generation B still defines the same function name");
+    assert!(
+        current_generation.missing_reads.is_empty(),
+        "the former later-turn lookup would conceal generation A's under-declaration"
     );
 }
 
