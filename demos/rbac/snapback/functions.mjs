@@ -1,64 +1,43 @@
 import { appMembers } from './schema.mjs';
 import {
   asc,
+  arg,
   defineJsMutation,
   defineLiveQuery,
+  eq,
+  membershipResource,
+  results,
   v,
 } from '../../_kit/define.mjs';
 
-// memberOf() is declaration-bound. For scope:'app' the builder supplies the
-// host-owned singleton resource; there is no caller-provided resource string.
 export const listAnnouncements = defineLiveQuery({
   auth: 'authenticated',
   table: 'announcements',
-  args: {},
-  membership: [appMembers.memberOf()],
+  args: { appId: v.id('applications') },
+  filter: [eq('appId', arg('appId'))],
   order: [asc('_createdAt')],
 });
 
-export const joinApp = defineJsMutation({
+// Resource creation is the one specialized operation outside the common
+// profile facade: bootstrap atomically creates the resource and its owner.
+export const createApp = defineJsMutation({
   auth: 'authenticated',
   authorityCreating: true,
-  args: {},
+  args: { name: v.string() },
   source: 'handlers.mjs',
-  exportName: 'joinApp',
-  writes: ['appMembers'],
-});
-
-export const inviteApp = defineJsMutation({
-  auth: 'authenticated',
-  authorityCreating: true,
-  args: { userId: v.principal() },
-  source: 'handlers.mjs',
-  exportName: 'inviteApp',
-  writes: ['appMembers'],
-});
-
-export const acceptInvite = defineJsMutation({
-  auth: 'authenticated',
-  authorityCreating: true,
-  args: {},
-  source: 'handlers.mjs',
-  exportName: 'acceptInvite',
-  writes: ['appMembers'],
-});
-
-export const leaveApp = defineJsMutation({
-  auth: 'authenticated',
-  authorityCreating: true,
-  args: {},
-  source: 'handlers.mjs',
-  exportName: 'leaveApp',
-  writes: ['appMembers'],
+  exportName: 'createApp',
+  writes: ['applications', 'appMembers'],
+  result: results.value(v.id('applications')),
 });
 
 export const postAnnouncement = defineJsMutation({
   auth: 'authenticated',
-  args: { message: v.string() },
+  args: { appId: v.id('applications'), message: v.string() },
   source: 'handlers.mjs',
   exportName: 'postAnnouncement',
-  reads: ['appMembers'],
+  membership: [appMembers.hasRole(membershipResource.arg('appId'), 'member')],
   writes: ['announcements'],
+  result: results.value(v.id('announcements')),
 });
 
 // Deliberately hostile acceptance fixture. The central write seam, not handler
@@ -66,8 +45,9 @@ export const postAnnouncement = defineJsMutation({
 export const rawJoin = defineJsMutation({
   auth: 'authenticated',
   authorityCreating: true,
-  args: {},
+  args: { appId: v.id('applications') },
   source: 'handlers.mjs',
   exportName: 'rawJoin',
   writes: ['appMembers'],
+  result: results.value(v.id('appMembers')),
 });

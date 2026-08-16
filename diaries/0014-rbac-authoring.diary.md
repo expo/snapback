@@ -110,3 +110,48 @@ React/Convex helper that first queries a membership document, Snapback avoids
 shipping the authority row to the client or trusting a handler-side equality
 check. The remaining other-target helpers still need an id; this change is
 deliberately the self-service subset, not a general private-roster resolver.
+
+## 2026-08-16 — One generated roster replaces the demo's dual authority shape
+
+I migrated RBAC from an app-singleton membership plus separately protected
+application data to one resource-scoped `appMembers` relation. `createApp`
+still uses the specialized atomic bootstrap, but invitation, acceptance,
+leave, role change, owner transfer, removal, roster pagination, and caller role
+now come directly from `authorityProfile()`. The `applications` and
+`announcements` tables reference that same profile through membership
+visibility, so the row that answers a transition also answers read admission
+and live invalidation.
+
+What felt especially good was deleting the hand-written invite/accept/leave
+handlers. The generated operation set is conditional on the transition matrix,
+which made absence useful: an operation that the schema cannot prove simply
+does not appear in the API. Owner transfer also stopped looking like two risky
+role updates; one mutation returns two receipts and the storage seam protects
+the exactly-one-owner final state. The authorization review made every
+generated operation's profile generation and principal dependence visible,
+which was much easier to audit than a convention hidden in handler source.
+
+The hardest part was reconciling roster privacy with useful pagination. The
+page must expose only `roster.visible`, keep the continuation opaque and bound
+to one profile/scope, and capture both the caller admission and range read.
+Another surprise was that a required incidental display field prevents a
+generic `invite` operation: codegen cannot safely invent its value. Making
+such product metadata optional, or moving it to an ordinary profile table, is
+the honest workaround. The first rollout also found stale authoring fixtures
+that predated the every-table-policy rule; those fixtures now declare their
+visibility rather than bypassing G1.
+
+Compared with Convex, the resulting component API is similarly terse through
+ordinary query/mutation hooks, but Snapback additionally derives the server
+transition and invalidation facts from the schema instead of relying on a
+shared application helper. Compared with Supabase, the membership policy plays
+the role of RLS plus transition triggers, while the generated owner-transfer
+receipt and live dependency are first-class rather than separate SQL and
+client conventions. Snapback asks for a more explicit finite transition
+matrix, but this migration removed more handwritten authority code than it
+added.
+
+Membership-visible search and asset sharing remain intentionally refused, and
+the demo does not work around either with a mirrored roster. That keeps this
+entry scoped to rollout steps 2–3; the later Clique rebuild must wait for those
+independent qualifications.

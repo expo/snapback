@@ -2,14 +2,36 @@
   "entries": [
     {
       "normalizedPolicyBody": {
-        "audienceDeclarationClosure": [],
-        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "audienceDeclarationClosure": [
+          {
+            "id": "appAccess",
+            "membershipTable": "appMembers",
+            "policyResourceField": "appId",
+            "principalField": "userId",
+            "resourceField": "appId",
+            "resourceTable": "applications",
+            "roleField": "role",
+            "roles": [
+              "admin",
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:d432c37b361f2a773b01007e8c99a272415cf772385e2d06edee871bb01121e7",
         "policy": {
-          "kind": "public-read"
+          "declaration": "appAccess",
+          "kind": "membership",
+          "resourceField": "appId",
+          "roles": [
+            "admin",
+            "member",
+            "owner"
+          ]
         }
       },
-      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
-      "provenanceHeadId": "announcements-g1-20260816-v1",
+      "policyDigest": "sha256:e0e30bd0923ce25128a03ce8a3cbb7b00588b451f5c6821526ef6a578faaeda3",
+      "provenanceHeadId": "announcements-authority-profile-narrowing-20260816-v1",
       "tableId": "announcements"
     },
     {
@@ -24,8 +46,42 @@
       "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
       "provenanceHeadId": "appMembers-g1-20260816-v1",
       "tableId": "appMembers"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "appAccess",
+            "membershipTable": "appMembers",
+            "policyResourceField": "_id",
+            "principalField": "userId",
+            "resourceField": "appId",
+            "resourceTable": "applications",
+            "roleField": "role",
+            "roles": [
+              "admin",
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:c029a377a71b5d1e82ba10d8372a951771fe67cdf47f05528acadd140d8a2839",
+        "policy": {
+          "declaration": "appAccess",
+          "kind": "membership",
+          "resourceField": "_id",
+          "roles": [
+            "admin",
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "policyDigest": "sha256:e79187c83e734cc284ed0b2916b0848cac0b2f006dd60cb810d1e21e48782641",
+      "provenanceHeadId": "applications-authority-profile-20260816-v1",
+      "tableId": "applications"
     }
   ],
-  "exactSetDigest": "sha256:a278426cdcb63625d724d0a7629f6049b95e6dfb26769d60d68ff66c7c1ff004",
+  "exactSetDigest": "sha256:63288a0b84a2373e6f04a254773b40e0a16e816dd14efd06911cb10d7b5f8c87",
   "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
 }

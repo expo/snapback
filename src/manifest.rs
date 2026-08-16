@@ -2468,7 +2468,77 @@ pub struct AuthorityProfileRosterV1 {
     pub visible_fields: Vec<String>,
 }
 
-/// The closed rollout-1 authority profile projection. Canonical membership
+/// One generated rollout-2 operation. The operation vocabulary is closed by
+/// codegen; transition ops name the LLP 0056 planner rows (or the dedicated
+/// transfer planner) that remain the server-side authority boundary.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AuthorityProfileOperationNameV1 {
+    #[serde(rename = "list")]
+    List,
+    #[serde(rename = "myRole")]
+    MyRole,
+    #[serde(rename = "invite")]
+    Invite,
+    #[serde(rename = "join")]
+    Join,
+    #[serde(rename = "leave")]
+    Leave,
+    #[serde(rename = "changeRole")]
+    ChangeRole,
+    #[serde(rename = "transferOwner")]
+    TransferOwner,
+    #[serde(rename = "remove")]
+    Remove,
+}
+
+impl AuthorityProfileOperationNameV1 {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::List => "list",
+            Self::MyRole => "myRole",
+            Self::Invite => "invite",
+            Self::Join => "join",
+            Self::Leave => "leave",
+            Self::ChangeRole => "changeRole",
+            Self::TransferOwner => "transferOwner",
+            Self::Remove => "remove",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AuthorityProfileHookV1 {
+    #[serde(rename = "useSnapbackQuery")]
+    Query,
+    #[serde(rename = "useSnapbackMutation")]
+    Mutation,
+    #[serde(rename = "useSnapbackOutbox.mutationStatus")]
+    OutboxMutationStatus,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AuthorityProfileTransitionOpV1 {
+    #[serde(rename = "insert")]
+    Insert,
+    #[serde(rename = "setRole")]
+    SetRole,
+    #[serde(rename = "remove")]
+    Remove,
+    #[serde(rename = "transferOwner")]
+    TransferOwner,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityProfileOperationV1 {
+    pub name: AuthorityProfileOperationNameV1,
+    pub kind: FunctionKind,
+    pub auth_requirement: AuthRequirement,
+    pub hooks: Vec<AuthorityProfileHookV1>,
+    pub transition_ops: Vec<AuthorityProfileTransitionOpV1>,
+}
+
+/// The closed rollout-2 authority profile projection. Canonical membership
 /// remains in [`TableManifest::membership`] and table policy remains in
 /// [`TableManifest::visibility`]; reference fields below make that ownership
 /// explicit while carrying the profile-only lattice, identity, and
@@ -2497,6 +2567,7 @@ pub struct AuthorityProfileV1 {
     pub permitted_composition_classes: Vec<String>,
     pub not_yet_qualified_composition_classes: Vec<String>,
     pub roster: AuthorityProfileRosterV1,
+    pub operations: Vec<AuthorityProfileOperationV1>,
 }
 
 #[cfg(test)]
@@ -2573,7 +2644,23 @@ mod authority_profile_manifest_tests {
                 "membership-visible-search.v1",
                 "authority-profile-asset-sharing.v1"
             ],
-            "roster": { "visibleFields": ["userId", "role"] }
+            "roster": { "visibleFields": ["userId", "role"] },
+            "operations": [
+                {
+                    "name": "list",
+                    "kind": "LiveQuery",
+                    "authRequirement": "authenticated",
+                    "hooks": ["useSnapbackQuery"],
+                    "transitionOps": []
+                },
+                {
+                    "name": "transferOwner",
+                    "kind": "Mutation",
+                    "authRequirement": "authenticated",
+                    "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                    "transitionOps": ["transferOwner"]
+                }
+            ]
         })
     }
 
@@ -2594,9 +2681,23 @@ mod authority_profile_manifest_tests {
         authored
             .as_object_mut()
             .expect("profile object")
-            .insert("rosterOperation".to_owned(), json!("list"));
+            .insert("rosterHook".to_owned(), json!("useAuthorityRoster"));
         serde_json::from_value::<AuthorityProfileV1>(authored)
-            .expect_err("rollout 1 must not admit roster operations or hooks");
+            .expect_err("rollout 2 admits only the pinned operations and hook projection");
+    }
+
+    #[test]
+    fn authority_profile_v1_refuses_unknown_operation_and_hook_vocabulary() {
+        for (field, value) in [
+            ("name", json!("promoteOwner")),
+            ("hooks", json!(["useAuthorityMutation"])),
+            ("transitionOps", json!(["replaceRoster"])),
+        ] {
+            let mut authored = profile_json();
+            authored["operations"][1][field] = value;
+            serde_json::from_value::<AuthorityProfileV1>(authored)
+                .expect_err("rollout 2 operation vocabulary stays closed");
+        }
     }
 }
 

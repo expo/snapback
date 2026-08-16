@@ -1,9 +1,10 @@
 {
   "heads": {
-    "announcements": "announcements-g1-20260816-v1",
-    "appMembers": "appMembers-g1-20260816-v1"
+    "announcements": "announcements-authority-profile-narrowing-20260816-v1",
+    "appMembers": "appMembers-g1-20260816-v1",
+    "applications": "applications-authority-profile-20260816-v1"
   },
-  "ledgerDigest": "sha256:87807821aeb5658797e71287476d54b7aae1b1a4aab45b0316b5721dbb995377",
+  "ledgerDigest": "sha256:7e3bbe4b55a3b4be44379039a1b185be6faa273d6fca577bc7173c4dcf7f0658",
   "nodes": [
     {
       "admissionKind": "g1-migration",
@@ -51,6 +52,102 @@
       },
       "successorPolicyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
       "tableId": "appMembers"
+    },
+    {
+      "admissionKind": "new-restricted",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "applications-authority-profile-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "appAccess",
+            "membershipTable": "appMembers",
+            "policyResourceField": "_id",
+            "principalField": "userId",
+            "resourceField": "appId",
+            "resourceTable": "applications",
+            "roleField": "role",
+            "roles": [
+              "admin",
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:c029a377a71b5d1e82ba10d8372a951771fe67cdf47f05528acadd140d8a2839",
+        "policy": {
+          "declaration": "appAccess",
+          "kind": "membership",
+          "resourceField": "_id",
+          "roles": [
+            "admin",
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "successorPolicyDigest": "sha256:e79187c83e734cc284ed0b2916b0848cac0b2f006dd60cb810d1e21e48782641",
+      "tableId": "applications"
+    },
+    {
+      "admissionKind": "narrowing",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "announcements-authority-profile-narrowing-20260816-v1",
+      "predecessorHeadDigest": "sha256:c8fdea98b818fddad8a3a0eabb318f40997a074106e8ed70ae2aba190ec8dc62",
+      "predecessorHeadId": "announcements-g1-20260816-v1",
+      "predecessorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "predecessorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "appAccess",
+            "membershipTable": "appMembers",
+            "policyResourceField": "appId",
+            "principalField": "userId",
+            "resourceField": "appId",
+            "resourceTable": "applications",
+            "roleField": "role",
+            "roles": [
+              "admin",
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:d432c37b361f2a773b01007e8c99a272415cf772385e2d06edee871bb01121e7",
+        "policy": {
+          "declaration": "appAccess",
+          "kind": "membership",
+          "resourceField": "appId",
+          "roles": [
+            "admin",
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "successorPolicyDigest": "sha256:e0e30bd0923ce25128a03ce8a3cbb7b00588b451f5c6821526ef6a578faaeda3",
+      "tableId": "announcements"
     }
   ],
   "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"

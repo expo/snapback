@@ -25,6 +25,13 @@ keeps them from disappearing into the migration report:
    `resourceField: '_id'` self-resource visibility; evaluate whether an
    app-singleton resource row or a scope-level membership form closes this.
 
+   **Resolved 2026-08-16:** LLP 0240 rollout steps 2–3 migrated RBAC to one
+   `applications` resource row and one resource-scoped `appMembers` authority
+   profile. `applications` uses the D7 `_id` form and `announcements` uses its
+   `appId`; both now consume the same generated roster fact. The governed
+   transition ledger records the narrowing, and no app-scope public-read
+   residual remains for this demo.
+
 Resolution shape: each case either gains an IR form that expresses it (then
 the table narrows in a governed transition per LLP 0234 D5) or is explicitly
 ruled acceptable-as-documented. None of these blocks G2 enforcement, which

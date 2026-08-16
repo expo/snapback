@@ -21,10 +21,17 @@ use crate::manifest::{
 };
 use crate::storage::{
     BufferedMembershipCommand, BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead,
-    LocalDatabase, MembershipWriter, MutationCommit, SEQUENCE_MAX_SAFE_INTEGER,
+    KeysetAfter, LocalDatabase, MembershipWriter, MutationCommit, SEQUENCE_MAX_SAFE_INTEGER,
     SequenceAllocationFact, validate_sequence_allocation_fact,
 };
 use crate::warm_vm::WarmVmPool;
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use chacha20poly1305::{
+    XChaCha20Poly1305, XNonce,
+    aead::{Aead, KeyInit, Payload},
+};
+use hkdf::Hkdf;
+use hmac::Mac as _;
 use libc::{c_char, c_int, c_void, size_t};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -3206,7 +3213,9 @@ impl<'a> IbexHostContext<'a> {
                 | "media.handoff"
                 | "runtime.log"
                 | "permissions.allowsRole"
-                | "permissions.requireRole" => {}
+                | "permissions.requireRole"
+                | "authorityProfile.list"
+                | "authorityProfile.myRole" => {}
                 "runtime.now" => {
                     return Err(protected_host_input_error(
                         "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
@@ -4418,6 +4427,335 @@ impl<'a> IbexHostContext<'a> {
                     )
                     .with_details(json!({ "error": error.to_string() }))
                 })
+            }
+            // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface
+            // — generated transitions resolve private subjects in the host,
+            // capture that lookup, then buffer exactly one LLP 0056 command.
+            // The storage planner re-evaluates the closed transition matrix
+            // inside the authoritative commit transaction.
+            "authorityProfile.transition" => {
+                self.ensure_writable("authority profile transition")?;
+                self.ensure_buffered_write_capacity()?;
+                if !self.membership_commands.is_empty() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED",
+                        "runtime",
+                        "v1 permits one generated authority transition per mutation",
+                    ));
+                }
+                let declaration = required_string(&args, "declaration")?;
+                let operation = required_string(&args, "operation")?;
+                let resource = required_string(&args, "resource")?;
+                let (table, membership, operation_admitted) = {
+                    let schema = self.db().schema();
+                    let Some((table, membership)) =
+                        crate::membership_rules::find_declaration(schema, &declaration)
+                    else {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
+                            "runtime",
+                            "generated authority transition names an unknown declaration",
+                        ));
+                    };
+                    let admitted = table.authority_profile.as_ref().is_some_and(|profile| {
+                        profile.id == declaration
+                            && profile.operations.iter().any(|candidate| {
+                                candidate.name.as_str() == operation
+                                    && candidate.kind == FunctionKind::Mutation
+                            })
+                    });
+                    (table.clone(), membership.clone(), admitted)
+                };
+                if !operation_admitted {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTHORITY_OPERATION_UNAVAILABLE",
+                        "auth",
+                        "authority profile does not declare this transition operation",
+                    ));
+                }
+                self.ensure_membership_authority_creating(&table)?;
+                let caller = self
+                    .input
+                    .auth
+                    .user_id
+                    .clone()
+                    .ok_or_else(crate::membership_rules::role_denial)?;
+                let resolve = |context: &mut Self, principal: &str| {
+                    let outcome = crate::membership_rules::authority_membership_subject(
+                        context.db(),
+                        &declaration,
+                        principal,
+                        Some(&resource),
+                    )?;
+                    outcome.finish(|dependency| context.push_read_dependency(dependency))
+                };
+                let writer = self.membership_writer.clone();
+                let table_name = table.name.clone();
+                let (command, receipts) = match operation.as_str() {
+                    "invite" => {
+                        let principal = required_string(&args, "principal")?;
+                        let role = required_string(&args, "role")?;
+                        if !membership
+                            .pending_roles
+                            .as_ref()
+                            .is_some_and(|roles| roles.contains(&role))
+                        {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_AUTHORITY_ROLE_INVALID",
+                                "auth",
+                                "invite role must be a declared pending authority status",
+                            ));
+                        }
+                        let mut values = Map::new();
+                        values.insert(
+                            membership.principal.clone(),
+                            Value::String(principal.clone()),
+                        );
+                        values.insert(
+                            membership
+                                .resource
+                                .clone()
+                                .expect("qualified profile resource"),
+                            Value::String(resource.clone()),
+                        );
+                        values.insert(membership.role.clone(), Value::String(role.clone()));
+                        (
+                            BufferedMembershipCommand::insert(writer, table_name, values),
+                            vec![authority_transition_receipt_value(
+                                &declaration,
+                                &principal,
+                                &resource,
+                                None,
+                                Some((&role, "invited")),
+                            )],
+                        )
+                    }
+                    "join" => {
+                        let invitation = required_string(&args, "invitation")?;
+                        let current = resolve(self, &caller)?;
+                        if current.role != invitation
+                            || current.status
+                                != crate::storage::AuthorityMembershipStatusV1::Invited
+                        {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_AUTHORITY_INVITATION_INVALID",
+                                "auth",
+                                "invitation does not match the caller's pending authority status",
+                            ));
+                        }
+                        let join_role = authority_profile_join_role(&membership)?;
+                        (
+                            BufferedMembershipCommand::set_self_role(
+                                writer,
+                                table_name,
+                                Some(resource.clone()),
+                                join_role.clone(),
+                            ),
+                            vec![authority_transition_receipt_value(
+                                &declaration,
+                                &caller,
+                                &resource,
+                                Some((&current.role, "invited")),
+                                Some((&join_role, "active")),
+                            )],
+                        )
+                    }
+                    "leave" => {
+                        let current = resolve(self, &caller)?;
+                        (
+                            BufferedMembershipCommand::remove_self(
+                                writer,
+                                table_name,
+                                Some(resource.clone()),
+                            ),
+                            vec![authority_transition_receipt_value(
+                                &declaration,
+                                &caller,
+                                &resource,
+                                Some((&current.role, authority_status_name(&current.status))),
+                                None,
+                            )],
+                        )
+                    }
+                    "changeRole" => {
+                        let principal = required_string(&args, "principal")?;
+                        let role = required_string(&args, "role")?;
+                        if role == "owner" || !membership.roles.contains(&role) {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_AUTHORITY_ROLE_INVALID",
+                                "auth",
+                                "changeRole accepts only declared non-owner active roles",
+                            ));
+                        }
+                        let current = resolve(self, &principal)?;
+                        (
+                            BufferedMembershipCommand::set_role(
+                                writer,
+                                table_name,
+                                current.member_id,
+                                role.clone(),
+                            ),
+                            vec![authority_transition_receipt_value(
+                                &declaration,
+                                &principal,
+                                &resource,
+                                Some((&current.role, authority_status_name(&current.status))),
+                                Some((&role, "active")),
+                            )],
+                        )
+                    }
+                    "transferOwner" => {
+                        let principal = required_string(&args, "principal")?;
+                        let current_owner = resolve(self, &caller)?;
+                        let target = resolve(self, &principal)?;
+                        (
+                            BufferedMembershipCommand::transfer_owner(
+                                writer,
+                                table_name,
+                                Some(resource.clone()),
+                                principal.clone(),
+                            ),
+                            vec![
+                                authority_transition_receipt_value(
+                                    &declaration,
+                                    &principal,
+                                    &resource,
+                                    Some((&target.role, authority_status_name(&target.status))),
+                                    Some(("owner", "active")),
+                                ),
+                                authority_transition_receipt_value(
+                                    &declaration,
+                                    &caller,
+                                    &resource,
+                                    Some((
+                                        &current_owner.role,
+                                        authority_status_name(&current_owner.status),
+                                    )),
+                                    Some(("admin", "active")),
+                                ),
+                            ],
+                        )
+                    }
+                    "remove" => {
+                        let principal = required_string(&args, "principal")?;
+                        let current = resolve(self, &principal)?;
+                        (
+                            BufferedMembershipCommand::remove(
+                                writer,
+                                table_name,
+                                current.member_id,
+                            ),
+                            vec![authority_transition_receipt_value(
+                                &declaration,
+                                &principal,
+                                &resource,
+                                Some((&current.role, authority_status_name(&current.status))),
+                                None,
+                            )],
+                        )
+                    }
+                    _ => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_AUTHORITY_OPERATION_UNAVAILABLE",
+                            "auth",
+                            "authority profile operation is not a transition",
+                        ));
+                    }
+                };
+                self.membership_commands.push(command);
+                Ok(Value::Array(receipts))
+            }
+            // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface
+            // — generated roster reads cross one declaration-bound host seam.
+            // The host proves profile admission, performs the private bounded
+            // read, and registers both positive and negative dependencies
+            // before releasing any roster bytes.
+            "authorityProfile.list" => {
+                self.ensure_db_read_available(true, op)?;
+                let declaration = required_string(&args, "declaration")?;
+                let resource = required_string(&args, "resource")?;
+                let limit = args
+                    .get("limit")
+                    .and_then(Value::as_u64)
+                    .and_then(|value| usize::try_from(value).ok())
+                    .ok_or_else(authority_roster_page_invalid)?;
+                let (app_id, target_profile, profile_generation) = {
+                    let schema = self.db().schema();
+                    let profile_generation = schema
+                        .tables
+                        .iter()
+                        .filter_map(|table| table.authority_profile.as_ref())
+                        .find(|profile| profile.id == declaration)
+                        .map(|profile| profile.generation.clone())
+                        .ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_AUTHORITY_PROFILE_REQUIRED",
+                                "auth",
+                                "authority roster cursor requires a declared authority profile",
+                            )
+                        })?;
+                    (
+                        schema.app_id.clone(),
+                        schema.target_profile.clone().unwrap_or_default(),
+                        profile_generation,
+                    )
+                };
+                let after = authority_roster_cursor_decode(
+                    args.get("after"),
+                    &app_id,
+                    &target_profile,
+                    &declaration,
+                    &profile_generation,
+                    &resource,
+                )?;
+                let outcome = crate::membership_rules::authority_roster_list(
+                    self.db(),
+                    &declaration,
+                    self.input.auth.user_id.as_deref(),
+                    Some(&resource),
+                    crate::membership_rules::AuthorityRosterPageRequestV1 { limit, after },
+                )?;
+                match outcome.finish(|dependency| self.push_read_dependency(dependency)) {
+                    Ok(page) => Ok(json!({
+                        "rows": page.rows,
+                        "after": page.next.map(|next| authority_roster_cursor_encode(
+                            &app_id,
+                            &target_profile,
+                            &declaration,
+                            &profile_generation,
+                            &resource,
+                            &next,
+                        )).transpose()?,
+                    })),
+                    Err(denial) if denial.diagnostic.code == "SNAPBACK_AUTH_PERMISSION_DENIED" => {
+                        Ok(json!({ "rows": [], "after": null }))
+                    }
+                    Err(error) => Err(error),
+                }
+            }
+            "authorityProfile.myRole" => {
+                self.ensure_db_read_available(true, op)?;
+                let declaration = required_string(&args, "declaration")?;
+                let resource = required_string(&args, "resource")?;
+                let outcome = crate::membership_rules::authority_my_role(
+                    self.db(),
+                    &declaration,
+                    self.input.auth.user_id.as_deref(),
+                    Some(&resource),
+                )?;
+                match outcome.finish(|dependency| self.push_read_dependency(dependency)) {
+                    Ok(role) => serde_json::to_value(role).map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID",
+                            "runtime",
+                            "authority role projection could not be serialized",
+                        )
+                    }),
+                    Err(denial) if denial.diagnostic.code == "SNAPBACK_AUTH_PERMISSION_DENIED" => {
+                        Ok(Value::Null)
+                    }
+                    Err(error) => Err(error),
+                }
             }
             // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
             // — declaration-bound role evaluation uses the shared authority IR.
@@ -6641,6 +6979,261 @@ fn ctx_bootstrap_source() -> &'static str {
     // handler harness core, shared byte-for-byte with the workerd/V8 leg and
     // the LLP 0040 deploy template.
     include_str!("../packages/snapback-harness/ctx-bootstrap.js")
+}
+
+const AUTHORITY_ROSTER_CURSOR_PREFIX: &str = "sbar1";
+const AUTHORITY_ROSTER_CURSOR_PURPOSE: &[u8] = b"snapback:authority-roster-cursor:xchacha20:v1";
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AuthorityRosterCursorV1 {
+    app_id: String,
+    target_profile: String,
+    declaration: String,
+    profile_generation: String,
+    resource: String,
+    after: KeysetAfter,
+}
+
+fn authority_roster_page_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTHORITY_ROSTER_PAGE_INVALID",
+        "auth",
+        "authority roster page limit must be a positive bounded integer",
+    )
+}
+
+fn authority_roster_cursor_invalid() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID",
+        "auth",
+        "authority roster cursor is invalid for this profile and scope",
+    )
+}
+
+fn authority_roster_cursor_root() -> SnapbackResult<&'static [u8; 32]> {
+    static ROOT: OnceLock<Option<[u8; 32]>> = OnceLock::new();
+    ROOT.get_or_init(|| {
+        let mut root = [0_u8; 32];
+        getrandom::fill(&mut root).ok().map(|()| root)
+    })
+    .as_ref()
+    .ok_or_else(authority_roster_cursor_invalid)
+}
+
+fn authority_roster_cursor_aad(
+    app_id: &str,
+    target_profile: &str,
+    declaration: &str,
+    profile_generation: &str,
+    resource: &str,
+) -> Vec<u8> {
+    let mut out = AUTHORITY_ROSTER_CURSOR_PURPOSE.to_vec();
+    for value in [
+        app_id,
+        target_profile,
+        declaration,
+        profile_generation,
+        resource,
+    ] {
+        out.extend_from_slice(&(value.len() as u32).to_be_bytes());
+        out.extend_from_slice(value.as_bytes());
+    }
+    out
+}
+
+fn authority_roster_cursor_keys(root: &[u8; 32]) -> SnapbackResult<([u8; 32], [u8; 32])> {
+    let hkdf = Hkdf::<Sha256>::new(Some(AUTHORITY_ROSTER_CURSOR_PURPOSE), root);
+    let mut encryption = [0_u8; 32];
+    let mut nonce = [0_u8; 32];
+    hkdf.expand(b"encryption", &mut encryption)
+        .map_err(|_| authority_roster_cursor_invalid())?;
+    hkdf.expand(b"deterministic-nonce", &mut nonce)
+        .map_err(|_| authority_roster_cursor_invalid())?;
+    Ok((encryption, nonce))
+}
+
+fn authority_roster_cursor_encode(
+    app_id: &str,
+    target_profile: &str,
+    declaration: &str,
+    profile_generation: &str,
+    resource: &str,
+    after: &KeysetAfter,
+) -> SnapbackResult<String> {
+    let plaintext = serde_json::to_vec(&AuthorityRosterCursorV1 {
+        app_id: app_id.to_owned(),
+        target_profile: target_profile.to_owned(),
+        declaration: declaration.to_owned(),
+        profile_generation: profile_generation.to_owned(),
+        resource: resource.to_owned(),
+        after: after.clone(),
+    })
+    .map_err(|_| authority_roster_cursor_invalid())?;
+    let root = authority_roster_cursor_root()?;
+    let (encryption_key, nonce_key) = authority_roster_cursor_keys(root)?;
+    // A deterministic nonce keeps a stable live-query result for the same
+    // exact boundary. It is keyed by the process-private cursor root and
+    // therefore repeats only with the same key and plaintext.
+    let mut nonce_mac = <hmac::Hmac<Sha256> as hmac::Mac>::new_from_slice(&nonce_key)
+        .map_err(|_| authority_roster_cursor_invalid())?;
+    nonce_mac.update(&plaintext);
+    let digest = nonce_mac.finalize().into_bytes();
+    let mut nonce = [0_u8; 24];
+    nonce.copy_from_slice(&digest[..24]);
+    let cipher = XChaCha20Poly1305::new((&encryption_key).into());
+    let ciphertext = cipher
+        .encrypt(
+            XNonce::from_slice(&nonce),
+            Payload {
+                msg: &plaintext,
+                aad: &authority_roster_cursor_aad(
+                    app_id,
+                    target_profile,
+                    declaration,
+                    profile_generation,
+                    resource,
+                ),
+            },
+        )
+        .map_err(|_| authority_roster_cursor_invalid())?;
+    let mut payload = nonce.to_vec();
+    payload.extend_from_slice(&ciphertext);
+    let wire = format!(
+        "{AUTHORITY_ROSTER_CURSOR_PREFIX}.{}",
+        URL_SAFE_NO_PAD.encode(payload)
+    );
+    if wire.len() > 2_048 {
+        return Err(authority_roster_cursor_invalid());
+    }
+    Ok(wire)
+}
+
+fn authority_roster_cursor_decode(
+    value: Option<&Value>,
+    app_id: &str,
+    target_profile: &str,
+    declaration: &str,
+    profile_generation: &str,
+    resource: &str,
+) -> SnapbackResult<Option<KeysetAfter>> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let wire = value
+        .as_str()
+        .filter(|wire| wire.len() <= 2_048)
+        .ok_or_else(authority_roster_cursor_invalid)?;
+    let (prefix, payload) = wire
+        .split_once('.')
+        .ok_or_else(authority_roster_cursor_invalid)?;
+    if prefix != AUTHORITY_ROSTER_CURSOR_PREFIX {
+        return Err(authority_roster_cursor_invalid());
+    }
+    let payload = URL_SAFE_NO_PAD
+        .decode(payload)
+        .map_err(|_| authority_roster_cursor_invalid())?;
+    if payload.len() < 24 + 16 {
+        return Err(authority_roster_cursor_invalid());
+    }
+    let (nonce, ciphertext) = payload.split_at(24);
+    let root = authority_roster_cursor_root()?;
+    let (encryption_key, _) = authority_roster_cursor_keys(root)?;
+    let cipher = XChaCha20Poly1305::new((&encryption_key).into());
+    let bytes = cipher
+        .decrypt(
+            XNonce::from_slice(nonce),
+            Payload {
+                msg: ciphertext,
+                aad: &authority_roster_cursor_aad(
+                    app_id,
+                    target_profile,
+                    declaration,
+                    profile_generation,
+                    resource,
+                ),
+            },
+        )
+        .map_err(|_| authority_roster_cursor_invalid())?;
+    let cursor: AuthorityRosterCursorV1 =
+        serde_json::from_slice(&bytes).map_err(|_| authority_roster_cursor_invalid())?;
+    if cursor.app_id != app_id
+        || cursor.target_profile != target_profile
+        || cursor.declaration != declaration
+        || cursor.profile_generation != profile_generation
+        || cursor.resource != resource
+    {
+        return Err(authority_roster_cursor_invalid());
+    }
+    Ok(Some(cursor.after))
+}
+
+fn authority_status_name(status: &crate::storage::AuthorityMembershipStatusV1) -> &'static str {
+    match status {
+        crate::storage::AuthorityMembershipStatusV1::Active => "active",
+        crate::storage::AuthorityMembershipStatusV1::Invited => "invited",
+    }
+}
+
+fn authority_transition_receipt_value(
+    declaration: &str,
+    subject: &str,
+    resource: &str,
+    predecessor: Option<(&str, &str)>,
+    successor: Option<(&str, &str)>,
+) -> Value {
+    let state = |value: Option<(&str, &str)>| match value {
+        Some((role, status)) => json!({ "role": role, "status": status }),
+        None => Value::Null,
+    };
+    json!({
+        "declaration": declaration,
+        "predecessor": state(predecessor),
+        "successor": state(successor),
+        "subject": subject,
+        "scope": resource,
+        "invalidationDisposition": "global-authorization-epoch-advanced",
+    })
+}
+
+fn authority_profile_join_role(
+    membership: &crate::manifest::MembershipManifest,
+) -> SnapbackResult<String> {
+    let pending = membership
+        .pending_roles
+        .as_ref()
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let destinations = membership
+        .transitions
+        .iter()
+        .filter(|transition| {
+            transition.op == crate::manifest::MembershipOp::SetRole
+                && transition.target == crate::manifest::MembershipTarget::Own
+                && transition.by.iter().any(|caller| caller == "self")
+                && transition
+                    .from
+                    .as_ref()
+                    .is_some_and(|from| from.iter().any(|role| pending.contains(role)))
+        })
+        .flat_map(|transition| transition.to.iter().flatten())
+        .filter(|role| role.as_str() != "owner" && membership.roles.contains(role))
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if destinations.len() != 1 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTHORITY_OPERATION_UNAVAILABLE",
+            "auth",
+            "join requires exactly one declared pending-to-active self transition",
+        ));
+    }
+    Ok(destinations
+        .into_iter()
+        .next()
+        .expect("one join destination"))
 }
 
 fn required_string(args: &Value, key: &str) -> SnapbackResult<String> {
@@ -9641,7 +10234,8 @@ globalThis.__snapbackHandlers = {
 #[cfg(test)]
 mod membership_bridge_tests {
     use super::{
-        HandlerErrorExposure, IbexHostContext, run_ibex_handler_with_context,
+        BufferedMembershipCommand, CapturedReadDependency, CtxAnswerLedger, HandlerErrorExposure,
+        IbexHostContext, URL_SAFE_NO_PAD, run_ibex_handler_with_context,
         run_ibex_handler_with_context_until_with_exposure, with_host_call_trace,
     };
     use crate::auth::admission::AdmissionLease;
@@ -9874,11 +10468,11 @@ mod membership_bridge_tests {
         }
     }
 
-    fn input() -> HandlerInput {
+    fn input_for(principal: &str) -> HandlerInput {
         HandlerInput {
             auth: AuthInput {
-                principal: Some("alice".to_owned()),
-                user_id: Some("alice".to_owned()),
+                principal: Some(principal.to_owned()),
+                user_id: Some(principal.to_owned()),
                 session_id: None,
                 ..AuthInput::default()
             },
@@ -9886,8 +10480,12 @@ mod membership_bridge_tests {
         }
     }
 
-    fn context<'a>(db: &'a LocalDatabase) -> IbexHostContext<'a> {
-        let input = input();
+    fn input() -> HandlerInput {
+        input_for("alice")
+    }
+
+    fn context_for<'a>(db: &'a LocalDatabase, principal: &str) -> IbexHostContext<'a> {
+        let input = input_for(principal);
         let authority = ResolvedAppAuthority::dev_from_auth(&input.auth);
         IbexHostContext::new_with_projection(
             DbRead::Live(db),
@@ -9899,6 +10497,10 @@ mod membership_bridge_tests {
             true,
         )
         .expect("membership bridge context")
+    }
+
+    fn context<'a>(db: &'a LocalDatabase) -> IbexHostContext<'a> {
+        context_for(db, "alice")
     }
 
     fn service_context<'a>(
@@ -9941,6 +10543,251 @@ mod membership_bridge_tests {
         db
     }
 
+    fn authority_ready_db() -> LocalDatabase {
+        let mut schema = schema();
+        let table = schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "event_members")
+            .expect("event membership table");
+        table.membership = Some(MembershipManifest {
+            id: Some("event_members".to_owned()),
+            principal: "userId".to_owned(),
+            resource: Some("eventId".to_owned()),
+            role: "role".to_owned(),
+            roles: vec!["owner".to_owned(), "admin".to_owned(), "member".to_owned()],
+            pending_roles: Some(vec!["invited".to_owned()]),
+            bootstrap_role: Some("owner".to_owned()),
+            last_holder: Some(MembershipLastHolder {
+                protect: "owner".to_owned(),
+            }),
+            expiry: None,
+            incidental: None,
+            provenance: Some(MembershipProvenance::Full),
+            transitions: vec![
+                MembershipTransition {
+                    op: MembershipOp::Insert,
+                    by: vec!["owner".to_owned()],
+                    target: MembershipTarget::Other,
+                    from: None,
+                    to: Some(vec!["invited".to_owned()]),
+                    fields: None,
+                },
+                MembershipTransition {
+                    op: MembershipOp::SetRole,
+                    by: vec!["self".to_owned()],
+                    target: MembershipTarget::Own,
+                    from: Some(vec!["invited".to_owned()]),
+                    to: Some(vec!["member".to_owned()]),
+                    fields: None,
+                },
+                MembershipTransition {
+                    op: MembershipOp::Remove,
+                    by: vec!["self".to_owned()],
+                    target: MembershipTarget::Own,
+                    from: Some(vec![
+                        "admin".to_owned(),
+                        "member".to_owned(),
+                        "invited".to_owned(),
+                    ]),
+                    to: None,
+                    fields: None,
+                },
+                MembershipTransition {
+                    op: MembershipOp::SetRole,
+                    by: vec!["owner".to_owned()],
+                    target: MembershipTarget::Other,
+                    from: Some(vec!["admin".to_owned(), "member".to_owned()]),
+                    to: Some(vec!["admin".to_owned(), "member".to_owned()]),
+                    fields: None,
+                },
+                MembershipTransition {
+                    op: MembershipOp::Remove,
+                    by: vec!["owner".to_owned()],
+                    target: MembershipTarget::Other,
+                    from: Some(vec![
+                        "admin".to_owned(),
+                        "member".to_owned(),
+                        "invited".to_owned(),
+                    ]),
+                    to: None,
+                    fields: None,
+                },
+            ],
+            scope: MembershipScope::Resource,
+            resource_table: Some("events".to_owned()),
+            principal_addressed_writes: None,
+        });
+        table.authority_profile = Some(
+            serde_json::from_value(json!({
+                "version": 1,
+                "id": "event_members",
+                "generation": "sha256:runtime-authority-profile-test",
+                "membership": {
+                    "declaration": "event_members",
+                    "manifestPath": "tables.event_members.membership",
+                    "predicateIdentity": "snapback.membership-predicate.v1"
+                },
+                "tablePolicy": {
+                    "identity": "snapback.table-visibility.v1",
+                    "membershipDeclaration": "event_members"
+                },
+                "scopeRelation": {
+                    "table": "event_members",
+                    "resourceField": "eventId",
+                    "resourceTable": "events",
+                    "principalKey": "userId"
+                },
+                "statusPredicates": {
+                    "active": "membership.roles",
+                    "invited": "membership.pendingRoles"
+                },
+                "roleLattice": [
+                    { "role": "owner", "implies": ["admin", "member", "owner"] },
+                    { "role": "admin", "implies": ["admin", "member"] },
+                    { "role": "member", "implies": ["member"] }
+                ],
+                "ownerBootstrapInvariant": {
+                    "role": "owner",
+                    "bootstrapRole": "owner",
+                    "protectedLastHolderRole": "owner"
+                },
+                "transitionPreconditions": {
+                    "source": "membership.transitions",
+                    "ownerMutation": "transfer-owner-only"
+                },
+                "authorizationEventFields": ["eventId", "userId", "role"],
+                "subjectDerivation": {
+                    "strategy": "membership-principal-resource-v1",
+                    "principalField": "userId",
+                    "scopeField": "eventId",
+                    "coarseGlobalWakeUniverse": [
+                        "membership-relation-insert-update-delete",
+                        "protected-resource-row-insert-update-delete",
+                        "effective-principal-or-auth-context-change",
+                        "authority-profile-generation-activation"
+                    ]
+                },
+                "requiredIndexes": [
+                    {
+                        "name": "_membership_pk",
+                        "fields": ["userId", "eventId"],
+                        "unique": true,
+                        "lookup": "principal-in-scope-point"
+                    },
+                    {
+                        "name": "_membership_reverse",
+                        "fields": ["eventId", "role", "userId"],
+                        "unique": false,
+                        "lookup": "protected-holders-and-scope-invalidation-range"
+                    }
+                ],
+                "permittedCompositionClasses": [
+                    "table-visibility.membership.v1",
+                    "authority-roster-projection.v1",
+                    "authority-roster-transitions.v1"
+                ],
+                "notYetQualifiedCompositionClasses": [
+                    "membership-visible-search.v1",
+                    "authority-profile-asset-sharing.v1"
+                ],
+                "roster": { "visibleFields": ["userId", "role"] },
+                "operations": [
+                    {
+                        "name": "list", "kind": "LiveQuery",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackQuery"], "transitionOps": []
+                    },
+                    {
+                        "name": "myRole", "kind": "LiveQuery",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackQuery"], "transitionOps": []
+                    },
+                    {
+                        "name": "invite", "kind": "Mutation",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "transitionOps": ["insert"]
+                    },
+                    {
+                        "name": "join", "kind": "Mutation",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "transitionOps": ["setRole"]
+                    },
+                    {
+                        "name": "leave", "kind": "Mutation",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "transitionOps": ["remove"]
+                    },
+                    {
+                        "name": "changeRole", "kind": "Mutation",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "transitionOps": ["setRole"]
+                    },
+                    {
+                        "name": "transferOwner", "kind": "Mutation",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "transitionOps": ["transferOwner"]
+                    },
+                    {
+                        "name": "remove", "kind": "Mutation",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "transitionOps": ["remove"]
+                    }
+                ]
+            }))
+            .expect("authority profile fixture"),
+        );
+
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        db.schema_seed()
+            .apply_schema(schema)
+            .expect("authority profile schema");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "events".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("event-a")),
+                            ("title".to_owned(), json!("Authority test")),
+                        ])],
+                    ),
+                    (
+                        "event_members".to_owned(),
+                        vec![
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("member-alice")),
+                                ("eventId".to_owned(), json!("event-a")),
+                                ("userId".to_owned(), json!("alice")),
+                                ("role".to_owned(), json!("owner")),
+                            ]),
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("member-bob")),
+                                ("eventId".to_owned(), json!("event-a")),
+                                ("userId".to_owned(), json!("bob")),
+                                ("role".to_owned(), json!("admin")),
+                            ]),
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("member-carol")),
+                                ("eventId".to_owned(), json!("event-a")),
+                                ("userId".to_owned(), json!("carol")),
+                                ("role".to_owned(), json!("invited")),
+                            ]),
+                        ],
+                    ),
+                ]),
+            })
+            .expect("authority roster seed");
+        db
+    }
+
     fn commit_app_membership_command(db: &mut LocalDatabase, operation: serde_json::Value) {
         let mut ctx = context(db);
         ctx.handle_host_call("membership.write", operation)
@@ -9978,6 +10825,62 @@ mod membership_bridge_tests {
                 || Ok(()),
             )
             .expect("app-membership command commits");
+    }
+
+    fn authority_transition_parts(
+        mut ctx: IbexHostContext<'_>,
+        result: Value,
+    ) -> (
+        Vec<BufferedMembershipCommand>,
+        Vec<CapturedReadDependency>,
+        CtxAnswerLedger,
+        Value,
+    ) {
+        let ctx_ledger = ctx.take_ctx_ledger().expect("authority ctx ledger");
+        let commands = std::mem::take(&mut ctx.membership_commands);
+        let read_dependencies = std::mem::take(&mut ctx.reads);
+        drop(ctx);
+        (commands, read_dependencies, ctx_ledger, result)
+    }
+
+    fn authority_transition_payload(
+        db: &mut LocalDatabase,
+        parts: (
+            Vec<BufferedMembershipCommand>,
+            Vec<CapturedReadDependency>,
+            CtxAnswerLedger,
+            Value,
+        ),
+    ) -> BufferedCommitPayload {
+        let (commands, read_dependencies, ctx_ledger, result) = parts;
+        let membership_plans = db
+            .membership_plans()
+            .authorize_membership_commands(commands)
+            .expect("authority transition is authorized against the captured snapshot");
+        BufferedCommitPayload {
+            job_enqueues: Vec::new(),
+            job_producer: None,
+            writes: Vec::new(),
+            sequence_allocations: Vec::new(),
+            asset_admissions: Vec::new(),
+            asset_grant_ops: Vec::new(),
+            media_projection_proof: None,
+            expected_media_projection_binding: None,
+            membership_plans,
+            read_dependencies,
+            result,
+            ctx_ledger,
+        }
+    }
+
+    fn authority_role(db: &LocalDatabase, principal: &str) -> Option<String> {
+        db.query_reads_read()
+            .scan_table("event_members", 10, 0)
+            .expect("authority rows")
+            .rows
+            .into_iter()
+            .find(|row| row["userId"] == principal)
+            .and_then(|row| row["role"].as_str().map(str::to_owned))
     }
 
     fn ready_file_db(path: &Path) -> LocalDatabase {
@@ -10628,6 +11531,237 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_AUTHORITY_TRANSFER_OWNER_UNSUPPORTED"
         );
         assert_eq!(error.diagnostic.details["declaration"], "event_members");
+    }
+
+    // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — the
+    // generated page and caller-role operations reveal only the declared
+    // roster projection, bind cursors to one profile scope, and register the
+    // private membership reads in the invocation dependency set.
+    #[test]
+    fn authority_profile_roster_operations_are_bounded_and_scope_bound() {
+        let db = authority_ready_db();
+        let mut first = context(&db);
+        let first_page = first
+            .handle_host_call(
+                "authorityProfile.list",
+                json!({
+                    "declaration": "event_members",
+                    "resource": "event-a",
+                    "limit": 1,
+                    "after": null
+                }),
+            )
+            .expect("first roster page");
+        assert_eq!(first_page["rows"].as_array().expect("roster rows").len(), 1);
+        assert!(first_page["rows"][0].get("_id").is_none());
+        let after = first_page["after"]
+            .as_str()
+            .expect("bounded first page has a cursor")
+            .to_owned();
+        let encoded = after.split_once('.').expect("cursor prefix").1;
+        let encrypted = base64::Engine::decode(&URL_SAFE_NO_PAD, encoded).expect("cursor envelope");
+        assert!(
+            !String::from_utf8_lossy(&encrypted).contains("alice"),
+            "the private membership boundary is encrypted"
+        );
+        let mut tampered = after.as_bytes().to_vec();
+        let tamper_at = tampered.len() / 2;
+        tampered[tamper_at] = if tampered[tamper_at] == b'A' {
+            b'B'
+        } else {
+            b'A'
+        };
+        let tampered = String::from_utf8(tampered).expect("ASCII cursor");
+        assert!(
+            !first.reads.is_empty(),
+            "the private roster read is captured"
+        );
+        drop(first);
+
+        let mut second = context(&db);
+        let second_page = second
+            .handle_host_call(
+                "authorityProfile.list",
+                json!({
+                    "declaration": "event_members",
+                    "resource": "event-a",
+                    "limit": 1,
+                    "after": after.clone()
+                }),
+            )
+            .expect("second roster page");
+        assert_eq!(
+            second_page["rows"].as_array().expect("roster rows").len(),
+            1
+        );
+
+        let mut wrong_scope = context(&db);
+        let error = wrong_scope
+            .handle_host_call(
+                "authorityProfile.list",
+                json!({
+                    "declaration": "event_members",
+                    "resource": "event-b",
+                    "limit": 1,
+                    "after": first_page["after"]
+                }),
+            )
+            .expect_err("a cursor cannot cross authority scopes");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID"
+        );
+
+        let mut modified = context(&db);
+        let error = modified
+            .handle_host_call(
+                "authorityProfile.list",
+                json!({
+                    "declaration": "event_members",
+                    "resource": "event-a",
+                    "limit": 1,
+                    "after": tampered
+                }),
+            )
+            .expect_err("a modified cursor cannot choose a private boundary");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID"
+        );
+
+        let mut role = context(&db);
+        assert_eq!(
+            role.handle_host_call(
+                "authorityProfile.myRole",
+                json!({ "declaration": "event_members", "resource": "event-a" }),
+            )
+            .expect("caller role"),
+            json!({ "role": "owner", "status": "active" })
+        );
+    }
+
+    // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — the
+    // host resolves private subjects but the LLP 0056 planner remains the
+    // sole transition evaluator; transfer is a two-seat atomic commit and a
+    // captured predecessor changing before commit refuses the whole result.
+    #[test]
+    fn authority_profile_transition_operation_enforces_and_revalidates_in_transaction() {
+        let mut db = authority_ready_db();
+
+        let mut invalid_role = context(&db);
+        let error = invalid_role
+            .handle_host_call(
+                "authorityProfile.transition",
+                json!({
+                    "declaration": "event_members",
+                    "operation": "changeRole",
+                    "resource": "event-a",
+                    "principal": "bob",
+                    "role": "owner"
+                }),
+            )
+            .expect_err("ordinary role changes cannot create owners");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORITY_ROLE_INVALID");
+
+        let mut leave = context(&db);
+        leave
+            .handle_host_call(
+                "authorityProfile.transition",
+                json!({
+                    "declaration": "event_members",
+                    "operation": "leave",
+                    "resource": "event-a"
+                }),
+            )
+            .expect("the generated operation buffers one closed command");
+        let commands = std::mem::take(&mut leave.membership_commands);
+        drop(leave);
+        let error = db
+            .membership_plans()
+            .authorize_membership_commands(commands)
+            .expect_err("the current owner cannot leave through an ordinary transition");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_OWNER_MUTATION_REQUIRES_TRANSFER"
+        );
+
+        let mut transfer = context(&db);
+        let receipts = transfer
+            .handle_host_call(
+                "authorityProfile.transition",
+                json!({
+                    "declaration": "event_members",
+                    "operation": "transferOwner",
+                    "resource": "event-a",
+                    "principal": "bob"
+                }),
+            )
+            .expect("generated transfer operation");
+        assert_eq!(receipts.as_array().expect("transition receipts").len(), 2);
+        let parts = authority_transition_parts(transfer, receipts.clone());
+        let payload = authority_transition_payload(&mut db, parts);
+        let commit = db
+            .mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &input(),
+                payload,
+                None,
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("owner transfer commits atomically");
+        assert_eq!(commit.authority_transitions.len(), 2);
+        assert_eq!(authority_role(&db, "alice").as_deref(), Some("admin"));
+        assert_eq!(authority_role(&db, "bob").as_deref(), Some("owner"));
+
+        let mut stale_db = authority_ready_db();
+        let mut stale = context(&stale_db);
+        let stale_receipts = stale
+            .handle_host_call(
+                "authorityProfile.transition",
+                json!({
+                    "declaration": "event_members",
+                    "operation": "transferOwner",
+                    "resource": "event-a",
+                    "principal": "bob"
+                }),
+            )
+            .expect("transfer previews against the original predecessor");
+        let stale_parts = authority_transition_parts(stale, stale_receipts);
+        let stale_payload = authority_transition_payload(&mut stale_db, stale_parts);
+        let demote = stale_db
+            .membership_plans()
+            .plan_membership_set_role(
+                &MembershipWriter::User {
+                    effective_principal: "alice".to_owned(),
+                },
+                "event_members",
+                "member-bob",
+                "member",
+            )
+            .expect("owner may change the target's non-owner role");
+        stale_db
+            .membership_plans()
+            .commit_membership_plan(
+                &MembershipWriter::User {
+                    effective_principal: "alice".to_owned(),
+                },
+                demote,
+            )
+            .expect("concurrent role change commits first");
+        let error = stale_db
+            .mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &input(),
+                stale_payload,
+                None,
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect_err("stale target predecessor invalidates the whole transfer");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+        assert_eq!(authority_role(&stale_db, "alice").as_deref(), Some("owner"));
+        assert_eq!(authority_role(&stale_db, "bob").as_deref(), Some("member"));
     }
 
     #[test]

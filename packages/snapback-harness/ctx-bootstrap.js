@@ -1264,6 +1264,46 @@
             }
           })
         : Object.create(null);
+      // Profile roster reads are host-private because they bypass ordinary
+      // membership-table visibility only after profile admission and capture.
+      // Application handlers receive no generic membership-table read; codegen
+      // emits calls to this declaration-bound bridge for list/myRole refs.
+      // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface
+      ctx.authorityProfile = (typeof Proxy === "function")
+        ? new Proxy(Object.create(null), {
+            get: function(_target, declaration) {
+              if (typeof declaration !== "string") { return undefined; }
+              return {
+                list: function(resource, page) {
+                  page = page || {};
+                  return host("authorityProfile.list", {
+                    declaration: declaration,
+                    resource: resource,
+                    limit: page.limit === undefined ? 100 : page.limit,
+                    after: page.after === undefined ? null : page.after
+                  });
+                },
+                myRole: function(resource) {
+                  return host("authorityProfile.myRole", {
+                    declaration: declaration,
+                    resource: resource
+                  });
+                },
+                transition: function(operation, values) {
+                  values = values || {};
+                  return host("authorityProfile.transition", {
+                    declaration: declaration,
+                    operation: operation,
+                    resource: values.resource,
+                    principal: values.principal === undefined ? null : values.principal,
+                    role: values.role === undefined ? null : values.role,
+                    invitation: values.invitation === undefined ? null : values.invitation
+                  });
+                }
+              };
+            }
+          })
+        : Object.create(null);
       // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
       // declaration-bound helpers are generated sugar over one host op. The
       // declaration id is resolved to its table by Rust and the writer carrier

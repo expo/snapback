@@ -1,35 +1,62 @@
 {
   "appId": "rbac",
   "authMode": "sessions",
-  "authorityProfiles": [],
+  "authorityProfiles": [
+    {
+      "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+      "id": "appAccess",
+      "roleLattice": [
+        {
+          "implies": [
+            "admin",
+            "member"
+          ],
+          "role": "admin"
+        },
+        {
+          "implies": [
+            "member"
+          ],
+          "role": "member"
+        },
+        {
+          "implies": [
+            "admin",
+            "member",
+            "owner"
+          ],
+          "role": "owner"
+        }
+      ]
+    }
+  ],
   "authorizationTables": [
     {
       "definition": {
+        "bootstrapRole": "owner",
+        "id": "appAccess",
+        "lastHolder": {
+          "protect": "owner"
+        },
         "pendingRoles": [
           "invited"
         ],
         "principal": "userId",
         "provenance": "full",
+        "resource": "appId",
+        "resourceTable": "applications",
         "role": "role",
         "roles": [
-          "member",
-          "admin"
+          "owner",
+          "admin",
+          "member"
         ],
-        "scope": "app",
+        "scope": "resource",
         "transitions": [
           {
             "by": [
-              "none"
-            ],
-            "op": "insert",
-            "target": "self",
-            "to": [
-              "member"
-            ]
-          },
-          {
-            "by": [
-              "member"
+              "owner",
+              "admin"
             ],
             "op": "insert",
             "target": "other",
@@ -56,21 +83,60 @@
             ],
             "from": [
               "invited",
+              "admin",
               "member"
             ],
             "op": "remove",
             "target": "self"
+          },
+          {
+            "by": [
+              "owner"
+            ],
+            "from": [
+              "admin",
+              "member"
+            ],
+            "op": "setRole",
+            "target": "other",
+            "to": [
+              "admin",
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "owner"
+            ],
+            "from": [
+              "invited",
+              "admin",
+              "member"
+            ],
+            "op": "remove",
+            "target": "other"
+          },
+          {
+            "by": [
+              "admin"
+            ],
+            "from": [
+              "invited",
+              "member"
+            ],
+            "op": "remove",
+            "target": "other"
           }
         ]
       },
-      "id": "appMembers",
+      "id": "appAccess",
       "kind": "membership",
       "table": "appMembers"
     }
   ],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:bb717852d06a8c7ee32510419c953381dbed9477b1494eed7fa2ca812182b702",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:af48afbec0f6808296d396fe3b3aaa9d3da1fc14d08a53cb19e7f02a9f104772",
   "operations": [
     {
       "authRequirement": {
@@ -78,234 +144,681 @@
         "value": "authenticated"
       },
       "authorityIndependent": false,
-      "authorityProfileIdentities": [],
-      "authorizationDependence": [],
-      "authorizationPredicates": "opaque",
-      "effectCeiling": {
-        "authorizationInputs": [],
-        "basis": "declared",
-        "hostOperations": [],
-        "reads": [],
-        "version": "EffectCeilingV1",
-        "writes": [
-          {
-            "operations": [
-              "declared"
-            ],
-            "table": "appMembers"
-          }
-        ]
-      },
-      "effectiveTablePolicies": [],
-      "elevatedDatabase": {
-        "available": true,
-        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
-        "uses": []
-      },
-      "fieldBoundary": null,
-      "handlerForm": "module",
-      "kind": "Mutation",
-      "maskedFieldUses": [],
-      "name": "acceptInvite",
-      "readSetSummary": {
-        "authScopeField": null,
-        "mode": "handlerDeclared",
-        "primaryTable": null,
-        "tables": []
-      },
-      "runtimeClass": "javascript-handler",
-      "standardPattern": null,
-      "uncomposedReadSurfaces": [],
-      "writeSetSummary": {
-        "mode": "handlerDeclared",
-        "primaryTable": "appMembers",
-        "tables": [
-          "appMembers"
-        ]
-      }
-    },
-    {
-      "authRequirement": {
-        "origin": "explicit",
-        "value": "authenticated"
-      },
-      "authorityIndependent": false,
-      "authorityProfileIdentities": [],
-      "authorizationDependence": [],
-      "authorizationPredicates": "opaque",
-      "effectCeiling": {
-        "authorizationInputs": [],
-        "basis": "declared",
-        "hostOperations": [],
-        "reads": [],
-        "version": "EffectCeilingV1",
-        "writes": [
-          {
-            "operations": [
-              "declared"
-            ],
-            "table": "appMembers"
-          }
-        ]
-      },
-      "effectiveTablePolicies": [],
-      "elevatedDatabase": {
-        "available": true,
-        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
-        "uses": []
-      },
-      "fieldBoundary": null,
-      "handlerForm": "module",
-      "kind": "Mutation",
-      "maskedFieldUses": [],
-      "name": "inviteApp",
-      "readSetSummary": {
-        "authScopeField": null,
-        "mode": "handlerDeclared",
-        "primaryTable": null,
-        "tables": []
-      },
-      "runtimeClass": "javascript-handler",
-      "standardPattern": null,
-      "uncomposedReadSurfaces": [],
-      "writeSetSummary": {
-        "mode": "handlerDeclared",
-        "primaryTable": "appMembers",
-        "tables": [
-          "appMembers"
-        ]
-      }
-    },
-    {
-      "authRequirement": {
-        "origin": "explicit",
-        "value": "authenticated"
-      },
-      "authorityIndependent": false,
-      "authorityProfileIdentities": [],
-      "authorizationDependence": [],
-      "authorizationPredicates": "opaque",
-      "effectCeiling": {
-        "authorizationInputs": [],
-        "basis": "declared",
-        "hostOperations": [],
-        "reads": [],
-        "version": "EffectCeilingV1",
-        "writes": [
-          {
-            "operations": [
-              "declared"
-            ],
-            "table": "appMembers"
-          }
-        ]
-      },
-      "effectiveTablePolicies": [],
-      "elevatedDatabase": {
-        "available": true,
-        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
-        "uses": []
-      },
-      "fieldBoundary": null,
-      "handlerForm": "module",
-      "kind": "Mutation",
-      "maskedFieldUses": [],
-      "name": "joinApp",
-      "readSetSummary": {
-        "authScopeField": null,
-        "mode": "handlerDeclared",
-        "primaryTable": null,
-        "tables": []
-      },
-      "runtimeClass": "javascript-handler",
-      "standardPattern": null,
-      "uncomposedReadSurfaces": [],
-      "writeSetSummary": {
-        "mode": "handlerDeclared",
-        "primaryTable": "appMembers",
-        "tables": [
-          "appMembers"
-        ]
-      }
-    },
-    {
-      "authRequirement": {
-        "origin": "explicit",
-        "value": "authenticated"
-      },
-      "authorityIndependent": false,
-      "authorityProfileIdentities": [],
-      "authorizationDependence": [],
-      "authorizationPredicates": "opaque",
-      "effectCeiling": {
-        "authorizationInputs": [],
-        "basis": "declared",
-        "hostOperations": [],
-        "reads": [],
-        "version": "EffectCeilingV1",
-        "writes": [
-          {
-            "operations": [
-              "declared"
-            ],
-            "table": "appMembers"
-          }
-        ]
-      },
-      "effectiveTablePolicies": [],
-      "elevatedDatabase": {
-        "available": true,
-        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
-        "uses": []
-      },
-      "fieldBoundary": null,
-      "handlerForm": "module",
-      "kind": "Mutation",
-      "maskedFieldUses": [],
-      "name": "leaveApp",
-      "readSetSummary": {
-        "authScopeField": null,
-        "mode": "handlerDeclared",
-        "primaryTable": null,
-        "tables": []
-      },
-      "runtimeClass": "javascript-handler",
-      "standardPattern": null,
-      "uncomposedReadSurfaces": [],
-      "writeSetSummary": {
-        "mode": "handlerDeclared",
-        "primaryTable": "appMembers",
-        "tables": [
-          "appMembers"
-        ]
-      }
-    },
-    {
-      "authRequirement": {
-        "origin": "explicit",
-        "value": "authenticated"
-      },
-      "authorityIndependent": false,
-      "authorityProfileIdentities": [],
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
       "authorizationDependence": [
         "userId"
       ],
-      "authorizationPredicates": [
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "appMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
         {
-          "declaration": "appMembers",
-          "kind": "membership",
-          "resource": {
-            "arg": {
-              "path": "__snapbackApp",
-              "resourceTable": null
-            }
+          "composition": "ordinary-default",
+          "origin": "declared",
+          "policy": {
+            "field": "userId",
+            "kind": "owner"
           },
-          "roles": null,
-          "table": "announcements"
+          "surface": "handler.ctx.db",
+          "table": "appMembers"
         }
       ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "appAccess.changeRole",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "appMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "declared",
+          "policy": {
+            "field": "userId",
+            "kind": "owner"
+          },
+          "surface": "handler.ctx.db",
+          "table": "appMembers"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "appAccess.invite",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "appMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "declared",
+          "policy": {
+            "field": "userId",
+            "kind": "owner"
+          },
+          "surface": "handler.ctx.db",
+          "table": "appMembers"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "appAccess.join",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "appMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "declared",
+          "policy": {
+            "field": "userId",
+            "kind": "owner"
+          },
+          "surface": "handler.ctx.db",
+          "table": "appMembers"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "appAccess.leave",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "appMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "declared",
+          "policy": {
+            "field": "userId",
+            "kind": "owner"
+          },
+          "surface": "handler.ctx.db",
+          "table": "appMembers"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "appAccess.list",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "appMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "declared",
+          "policy": {
+            "field": "userId",
+            "kind": "owner"
+          },
+          "surface": "handler.ctx.db",
+          "table": "appMembers"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "appAccess.myRole",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "appMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "declared",
+          "policy": {
+            "field": "userId",
+            "kind": "owner"
+          },
+          "surface": "handler.ctx.db",
+          "table": "appMembers"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "appAccess.remove",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "appMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "declared",
+          "policy": {
+            "field": "userId",
+            "kind": "owner"
+          },
+          "surface": "handler.ctx.db",
+          "table": "appMembers"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "appAccess.transferOwner",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "applications"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "createApp",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "applications",
+        "tables": [
+          "appMembers",
+          "applications"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [],
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "membershipPredicate"
         ],
         "basis": "static",
@@ -324,7 +837,14 @@
           "composition": "schema-rederived",
           "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "declaration": "appAccess",
+            "kind": "membership",
+            "resourceField": "appId",
+            "roles": [
+              "admin",
+              "member",
+              "owner"
+            ]
           },
           "surface": "host-plan.single-table",
           "table": "announcements"
@@ -364,7 +884,12 @@
         "value": "authenticated"
       },
       "authorityIndependent": false,
-      "authorityProfileIdentities": [],
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
       "authorizationDependence": [],
       "authorizationPredicates": "opaque",
       "effectCeiling": {
@@ -434,7 +959,12 @@
         "value": "authenticated"
       },
       "authorityIndependent": false,
-      "authorityProfileIdentities": [],
+      "authorityProfileIdentities": [
+        {
+          "generation": "sha256:3499830ed61b171ef228d41598aaf2da17deb96f12a19e0c2b38129398f99ded",
+          "id": "appAccess"
+        }
+      ],
       "authorizationDependence": [],
       "authorizationPredicates": "opaque",
       "effectCeiling": {
@@ -494,7 +1024,14 @@
     {
       "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "declaration": "appAccess",
+        "kind": "membership",
+        "resourceField": "appId",
+        "roles": [
+          "admin",
+          "member",
+          "owner"
+        ]
       },
       "table": "announcements"
     },
@@ -505,9 +1042,75 @@
         "kind": "owner"
       },
       "table": "appMembers"
+    },
+    {
+      "origin": "declared",
+      "policy": {
+        "declaration": "appAccess",
+        "kind": "membership",
+        "resourceField": "_id",
+        "roles": [
+          "admin",
+          "member",
+          "owner"
+        ]
+      },
+      "table": "applications"
     }
   ],
   "tablePolicyTransitions": [
+    {
+      "admissionKind": "narrowing",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "announcements-authority-profile-narrowing-20260816-v1",
+      "predecessorHeadDigest": "sha256:c8fdea98b818fddad8a3a0eabb318f40997a074106e8ed70ae2aba190ec8dc62",
+      "predecessorHeadId": "announcements-g1-20260816-v1",
+      "predecessorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "predecessorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "quarantineVerdict": null,
+      "recomputedClassification": "narrowing",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "appAccess",
+            "membershipTable": "appMembers",
+            "policyResourceField": "appId",
+            "principalField": "userId",
+            "resourceField": "appId",
+            "resourceTable": "applications",
+            "roleField": "role",
+            "roles": [
+              "admin",
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:d432c37b361f2a773b01007e8c99a272415cf772385e2d06edee871bb01121e7",
+        "policy": {
+          "declaration": "appAccess",
+          "kind": "membership",
+          "resourceField": "appId",
+          "roles": [
+            "admin",
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "successorPolicyDigest": "sha256:e0e30bd0923ce25128a03ce8a3cbb7b00588b451f5c6821526ef6a578faaeda3",
+      "tableId": "announcements"
+    },
     {
       "admissionKind": "g1-migration",
       "approvalClosureDigest": null,
@@ -556,6 +1159,52 @@
       },
       "successorPolicyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
       "tableId": "appMembers"
+    },
+    {
+      "admissionKind": "new-restricted",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "applications-authority-profile-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "appAccess",
+            "membershipTable": "appMembers",
+            "policyResourceField": "_id",
+            "principalField": "userId",
+            "resourceField": "appId",
+            "resourceTable": "applications",
+            "roleField": "role",
+            "roles": [
+              "admin",
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:c029a377a71b5d1e82ba10d8372a951771fe67cdf47f05528acadd140d8a2839",
+        "policy": {
+          "declaration": "appAccess",
+          "kind": "membership",
+          "resourceField": "_id",
+          "roles": [
+            "admin",
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "successorPolicyDigest": "sha256:e79187c83e734cc284ed0b2916b0848cac0b2f006dd60cb810d1e21e48782641",
+      "tableId": "applications"
     }
   ],
   "visibilityOverrides": [],

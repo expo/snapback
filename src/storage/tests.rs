@@ -13332,7 +13332,23 @@ mod membership_write_tests {
                 ],
                 "permittedCompositionClasses": ["table-visibility.membership.v1"],
                 "notYetQualifiedCompositionClasses": [],
-                "roster": { "visibleFields": ["userId", "role", "notifyPrefs"] }
+                "roster": { "visibleFields": ["userId", "role", "notifyPrefs"] },
+                "operations": [
+                    {
+                        "name": "list",
+                        "kind": "LiveQuery",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackQuery"],
+                        "transitionOps": []
+                    },
+                    {
+                        "name": "transferOwner",
+                        "kind": "Mutation",
+                        "authRequirement": "authenticated",
+                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "transitionOps": ["transferOwner"]
+                    }
+                ]
             }))
             .expect("authority profile fixture"),
         );

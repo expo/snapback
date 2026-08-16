@@ -9,8 +9,8 @@ examples: [demos/rbac, demos/shindig, packages/snapback-codegen/rbac-authoring.t
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:97ba8713efaf5213c8c01268a709db104f16f61aa95b4f1e7fc00096fcc838e3
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:25bdca3cfd5d6843c705816a3e529fe5bb7cfa6cb279772af41580c6f53b1eaa
 ---
 
 # Scoped roles and memberships
@@ -30,15 +30,13 @@ semi-join deltas, or support hosted targets.
 
 ## Privacy posture and reachable operations
 
-Membership backing rows are fully private in v1: application code cannot list
-them, ask whether one exists, or obtain their row ids, and `insert` returns
-`null`. That posture deliberately forecloses administrator-driven
-id-addressed `setRole`, `remove`, and `patch` in ordinary app handlers. The
-methods exist for trusted migration/import contexts that already possess a
-row id; the private app surface does not mint one. Do not source-dive for an
-escape hatch—the absence is the security contract. The one other-targeted
-write an app can reach is the explicit `principalAddressedWrites` removal
-opt-in below, which addresses a principal, never a row.
+Membership backing rows are private to ordinary handlers and synchronization:
+application code cannot query them, ask whether one exists, or obtain their
+row ids, and `insert` returns `null`. A qualified `authorityProfile()` adds a
+different, narrow surface: active members may use its generated bounded roster
+projection and principal-addressed transition operations. The host reveals
+only `roster.visible` fields and returns typed transition receipts, never a
+membership row id or generic table access.
 
 | Operation under the private v1 posture | Reachable app path |
 | --- | --- |
@@ -48,38 +46,51 @@ opt-in below, which addresses a principal, never a row.
 | remove another principal (kick) | `removePrincipal(resource, principal)` — requires the explicit `principalAddressedWrites` opt-in (below) |
 | administrator changes/patches another existing seat | foreclosed: requires a private row id |
 | read/list/sync the roster or test another seat's existence | foreclosed: use `memberOf`/`hasRole` semi-joins, `requireRole`, or the caller's own `_snapback.myMemberships` |
+| profile-backed invite/change/remove | generated `api.<profile>.invite`, `changeRole`, or `remove`, when the transition matrix admits it |
+| profile-backed owner change | generated `transferOwner`; atomic promotion plus caller demotion |
+| profile-backed roster read | generated paginated `list` and caller-only `myRole`; no generic roster read |
 
-For invitations, keep the pending invitation in an ordinary app-data table
-whose privacy policy fits the product. The invitee consumes that record and
-performs a declaration-authorized self `insert` into the final membership
-role. Alternatively, use a membership `pendingRole` only when the invitee can
-finish through a self-addressed transition, as the app-wide example below
-does. Do not imply that the inviter can promote the private row later: it
-cannot obtain that row's id.
+Without an authority profile, invitations still need an app-data invitation
+plus self-addressed membership transition. With a profile, generated `invite`
+creates only a declared pending role and `join` resolves only the authenticated
+caller's pending row inside the host.
 
-## Declare an app-wide role set
+## Declare one roster for an application resource
 
-An app-scoped declaration omits the resource axis. This demo supports open
-self-join plus member-issued invitations that only the invited principal can
-accept or decline:
+The RBAC demo uses one application row as the resource scope. Its membership
+table is simultaneously the product roster and the authority relation:
 
 ```js source=demos/rbac/snapback/schema.mjs
 export const appMembers = defineTable({
+  appId: v.id('applications'),
   userId: v.principal(),
   role: v.string(),
 }).visibility({ kind: 'owner', field: 'userId' }).membership({
+  id: 'appAccess',
   principal: 'userId',
+  resource: 'appId',
   role: 'role',
-  roles: ['member', 'admin'],
+  roles: ['owner', 'admin', 'member'],
   pendingRoles: ['invited'],
-  scope: 'app',
+  bootstrapRole: 'owner',
+  lastHolder: { protect: 'owner' },
   provenance: 'full',
   transitions: [
-    { op: 'insert', by: ['none'], target: 'self', to: ['member'] },
-    { op: 'insert', by: ['member'], target: 'other', to: ['invited'] },
+    { op: 'insert', by: ['owner', 'admin'], target: 'other', to: ['invited'] },
     { op: 'setRole', by: ['self'], target: 'self', from: ['invited'], to: ['member'] },
-    { op: 'remove', by: ['self'], target: 'self', from: ['invited', 'member'] },
+    { op: 'remove', by: ['self'], target: 'self', from: ['invited', 'admin', 'member'] },
+    { op: 'setRole', by: ['owner'], target: 'other', from: ['admin', 'member'], to: ['admin', 'member'] },
+    { op: 'remove', by: ['owner'], target: 'other', from: ['invited', 'admin', 'member'] },
+    { op: 'remove', by: ['admin'], target: 'other', from: ['invited', 'member'] },
   ],
+}).authorityProfile({
+  name: 'appAccess',
+  hierarchy: {
+    owner: ['admin', 'member'],
+    admin: ['member'],
+    member: [],
+  },
+  roster: { visible: ['userId', 'role'] },
 });
 ```
 
@@ -112,7 +123,7 @@ export const eventMembers = defineTable({
   incidental: ['joinedAt'],
   provenance: 'full',
   transitions: [],
-});
+}).visibility({ kind: 'owner', field: 'userId' });
 ```
 
 Codegen derives `resourceTable` from that validator and carries the nominal
@@ -134,7 +145,7 @@ export const roomMembers = defineTable({
   roomId: v.id('rooms'),
   userId: v.principal(),
   role: v.string(),
-  displayName: v.string(),
+  displayName: v.optional(v.string()),
 }).membership({
   id: 'roomAccess',
   principal: 'userId',
@@ -145,7 +156,13 @@ export const roomMembers = defineTable({
   bootstrapRole: 'owner',
   lastHolder: { protect: 'owner' },
   provenance: 'full',
-  transitions: [],
+  transitions: [
+    { op: 'insert', by: ['owner'], target: 'other', to: ['invited'] },
+    { op: 'setRole', by: ['self'], target: 'self', from: ['invited'], to: ['member'] },
+    { op: 'remove', by: ['self'], target: 'self', from: ['admin', 'member', 'invited'] },
+    { op: 'setRole', by: ['owner'], target: 'other', from: ['admin', 'member'], to: ['admin', 'member'] },
+    { op: 'remove', by: ['owner'], target: 'other', from: ['admin', 'member', 'invited'] },
+  ],
 }).authorityProfile({
   name: 'roomAccess',
   hierarchy: {
@@ -154,7 +171,7 @@ export const roomMembers = defineTable({
     member: [],
   },
   roster: { visible: ['userId', 'role', 'displayName'] },
-});
+}).visibility({ kind: 'owner', field: 'userId' });
 ```
 
 Chain the profile after `membership()`. Its `name` must equal the explicitly
@@ -184,22 +201,62 @@ incomparable visibility edit still requires LLP 0234's remotely-prior,
 content-bound approval and exact-set ratchet—generation rotation records the
 change but does not approve it.
 
-<!-- since: 0.1.23 -->
+<!-- since: 0.1.24 unreleased -->
 
-The qualified local, app-table-owned profile now composes with ordinary table
-visibility, named handler admission, and two generated read references:
-`api.roomAccess.list` and `api.roomAccess.myRole`. The first returns at most 100
-rows projected to exactly `roster.visible`; the second returns zero or one
-caller row and includes the role. Both take `{ scopeId }`, return `[]` to an
-unauthorized caller, and capture the negative membership lookup so joining,
-removal, or a role change wakes the live result. The initial list is bounded,
-not paginated; applications needing more than 100 visible seats still need a
-separately designed bounded page surface.
+> **Unreleased.** The generated transition and paginated-roster surface is
+> newer than the newest published closure, 0.1.23.
 
-The membership table remains private under the operations table above. The
-profile does not yet create invitation, role-change, owner-transfer, or client
-hook surfaces. Composition with membership-visible search or asset sharing
-fails generation with
+The qualified local, app-table-owned profile composes with ordinary table
+visibility, named handler admission, and these generated references:
+
+| Reference | Present when | Arguments |
+| --- | --- | --- |
+| `api.roomAccess.list` | always | `{ scopeId, limit?, after? }` |
+| `api.roomAccess.myRole` | always | `{ scopeId }` |
+| `api.roomAccess.invite` | an other-target pending-role insert exists | `{ scopeId, principal, role }` |
+| `api.roomAccess.join` | one unambiguous pending-to-active self transition exists | `{ scopeId, invitation }` |
+| `api.roomAccess.leave` | a non-owner self remove exists | `{ scopeId }` |
+| `api.roomAccess.changeRole` | a non-owner other-target role transition exists | `{ scopeId, principal, role }` |
+| `api.roomAccess.transferOwner` | always | `{ scopeId, principal }` |
+| `api.roomAccess.remove` | a non-owner other-target remove exists | `{ scopeId, principal }` |
+
+Unsupported transition operations are absent from the generated API. `list`
+returns one page record whose `rows` contain exactly `roster.visible` and whose
+`after` is an opaque, profile/scope-bound continuation or `null`; each page is
+at most 100 rows. `myRole` returns zero or one `{ role, status }` row. Both are
+live queries, blank to an unauthorized caller, and capture negative membership
+lookups so joining, removal, or a role change wakes delivery.
+
+Every mutation rechecks the transition matrix inside the authoritative
+transaction and returns one or two receipts with predecessor, successor,
+subject, scope, and invalidation disposition. `transferOwner` is the only
+operation that can change owner state: it promotes one active non-owner and
+demotes the current owner to `admin` atomically. Last-owner protection also
+runs at the final commit boundary.
+
+Use the generated references through the ordinary client and React lifecycle:
+
+```tsx fragment reason="component and profile names vary by application"
+const roster = useSnapbackQuery(api.roomAccess.list, {
+  scopeId: roomId,
+  limit: 50,
+});
+const invite = useSnapbackMutation(api.roomAccess.invite);
+const transferOwner = useSnapbackMutation(api.roomAccess.transferOwner, {
+  queue: false,
+});
+
+await invite({ scopeId: roomId, principal: userId, role: 'invited' });
+await transferOwner({ scopeId: roomId, principal: nextOwnerId });
+```
+
+Queue-capable mutations expose `useSnapbackOutbox().mutationStatus` through
+the same LLP 0238 lifecycle as other generated mutations. Owner transfer may
+be made connectivity-required, as above, when the UI must observe settlement
+before handing off owner-only controls.
+
+Composition with membership-visible search or asset sharing still fails
+generation with
 `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS`; hosted targets fail
 with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET`.
 
@@ -243,14 +300,16 @@ Use helpers on the exported membership table, never a global role string.
 `memberOf()` admits any non-pending role; `hasRole(resource, ...roles)` admits
 only the named roles, including a pending role when explicitly named.
 
-For app scope, omit the resource. Snapback binds the host-owned app singleton:
+When table visibility already references the profile, an ordinary query needs
+only its resource filter; codegen composes the membership semi-join from the
+same profile IR:
 
 ```js source=demos/rbac/snapback/functions.mjs
 export const listAnnouncements = defineLiveQuery({
   auth: 'authenticated',
   table: 'announcements',
-  args: {},
-  membership: [appMembers.memberOf()],
+  args: { appId: v.id('applications') },
+  filter: [eq('appId', arg('appId'))],
   order: [asc('_createdAt')],
 });
 ```
@@ -320,24 +379,28 @@ all protected reads still use the membership declaration.
 
 ## Check a role inside a transaction
 
-Query and mutation handlers receive declaration-qualified permission helpers.
-App scope uses `null` as the imperative resource value:
+For a direct resource argument, prefer named handler admission. Codegen emits
+the terminal role prelude from the profile's closed lattice before app code:
 
-```js source=demos/rbac/snapback/handlers.mjs
-  async postAnnouncement(ctx, args) {
-    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');
-    return await ctx.db.insert('announcements', {
-      authorId: ctx.auth.userId,
-      message: args.message,
-    });
-  },
+```js source=demos/rbac/snapback/functions.mjs
+export const postAnnouncement = defineJsMutation({
+  auth: 'authenticated',
+  args: { appId: v.id('applications'), message: v.string() },
+  source: 'handlers.mjs',
+  exportName: 'postAnnouncement',
+  membership: [appMembers.hasRole(membershipResource.arg('appId'), 'member')],
+  writes: ['announcements'],
+  result: results.value(v.id('announcements')),
+});
 ```
 
 A failed check is always `SNAPBACK_AUTH_PERMISSION_DENIED` with invariant
 public details `{ kind: 'role' }`. It reveals neither whether the resource nor
 membership exists. The denial is host-owned and remains terminal even if app
-JavaScript catches the thrown error. Actions have no transactional read set,
-so `ctx.permissions` is deliberately unavailable there.
+JavaScript catches the thrown error. Multi-hop cases may still call
+`ctx.permissions.<declaration>.requireRole(resource, ...roles)` inside a query
+or mutation transaction. Actions have no transactional read set, so
+`ctx.permissions` is deliberately unavailable there.
 
 ## Choose between filtering and denying
 
@@ -367,38 +430,31 @@ Only mutation handlers receive `ctx.membership`. Its `insert`, id-addressed
 `setSelfRole`/`removeSelf`/`patchSelf` methods submit a host-owned command
 evaluated against the declaration:
 
-```js source=demos/rbac/snapback/handlers.mjs
-  async joinApp(ctx) {
-    await ctx.membership.appMembers.insert({
-      userId: ctx.auth.userId,
-      role: 'member',
-    });
-    return null;
-  },
+```js fragment reason="base membership declaration and product fields vary by application"
+await ctx.membership.roomMembers.insert({
+  roomId: args.roomId,
+  userId: ctx.auth.userId,
+  role: 'member',
+});
 ```
 
 App code does not need the private roster row id for its own transitions. App
 scope omits the resource argument; resource scope passes its branded resource
 id:
 
-```js source=demos/rbac/snapback/handlers.mjs
-  async acceptInvite(ctx) {
-    await ctx.membership.appMembers.setSelfRole('member');
-    return null;
-  },
-
-  async leaveApp(ctx) {
-    await ctx.membership.appMembers.removeSelf();
-    return null;
-  },
+```js fragment reason="base membership declaration and resource names vary by application"
+await ctx.membership.roomMembers.setSelfRole(args.roomId, 'member');
+await ctx.membership.roomMembers.removeSelf(args.roomId);
 ```
 
 The host resolves only the effective principal's row, returns no id, and then
 runs the same declared transition matrix. A missing own row is
 `SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND`; no helper reveals whether anyone else has
-a row. The id-addressed forms are not an administrator authoring path for the
-private v1 roster; only a trusted migration/import context outside the normal
-app surface can already hold such an id.
+a row. The base id-addressed forms are not an administrator authoring path for
+the private v1 roster; only a trusted migration/import context can already hold
+such an id. For a profiled roster, use the generated principal-addressed
+`changeRole` and `remove` references described above—the host resolves the row
+privately and the same transition planner remains authoritative.
 
 Generic `ctx.db` and HostPlan writes to a membership table fail with
 `SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED`; handler convention is not the security
@@ -563,9 +619,9 @@ coordinator transition.
   separate per-user app-data feed only when the product needs pending or
   denormalized rows that are not the protected resource itself.
 - **Do not design administrator promotion/removal around private membership
-  row ids.** V1 intentionally does not make those ids reachable; use app-data
-  invitations plus a self transition, or choose a product flow that does not
-  require administrator mutation of an existing private seat.
+  row ids.** A qualified profile generates principal-addressed `changeRole`
+  and `remove` only when its transition matrix permits them; otherwise use
+  app-data invitations plus a self transition.
 - **Do not create an app-data roster-id mirror just to leave or accept.** Use
   the declaration's self-addressed write methods.
 - **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use
@@ -580,6 +636,6 @@ coordinator transition.
   offline.** Neither has the transactional/lease proof required by v1.
 - **Do not mirror a profiled membership into a second product roster.** The
   app-owned membership table is both product roster and authority relation.
-- **Do not infer generated transition mutations, hooks, search sharing, or
-  asset sharing from `authorityProfile()`.** The current generated surface is
-  the bounded `list`/`myRole` pair plus handler/table admission described above.
+- **Do not infer search or asset sharing from `authorityProfile()`.** Generated
+  roster/role operations and their ordinary client hooks are qualified, but
+  membership-visible search and assets remain explicit generation refusals.

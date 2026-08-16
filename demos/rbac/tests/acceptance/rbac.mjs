@@ -34,9 +34,9 @@ const stopServer = () => {
   return serverStopPromise;
 };
 
-const namespaceFor = (clientStoreId) => Object.freeze({
+const namespaceFor = (clientStoreId, appId) => Object.freeze({
   clientStoreId,
-  queryKey: 'listAnnouncements:{}',
+  queryKey: `listAnnouncements:${JSON.stringify({ appId })}`,
   queryInstanceId: 1,
 });
 
@@ -229,8 +229,14 @@ try {
   const bob = await mintSession(schema.appId, 'bob@rbac.test', 'rbac-bob');
   const eve = await mintSession(schema.appId, 'eve@rbac.test', 'rbac-eve');
 
-  await alice.client.mutate('joinApp', { args: {} });
-  await alice.client.mutate('postAnnouncement', { args: { message: 'members only' } });
+  const createdApp = await alice.client.mutate('createApp', {
+    args: { name: 'RBAC acceptance' },
+  });
+  const appId = createdApp.result;
+  assert.equal(typeof appId, 'string', 'atomic bootstrap returns the application id');
+  await alice.client.mutate('postAnnouncement', {
+    args: { appId, message: 'members only' },
+  });
 
   const subscribe = async (
     session,
@@ -243,8 +249,9 @@ try {
       settlementDeadlineMs: OPERATION_TIMEOUT_MS,
       create: async (adopt) => {
         await session.client.connectionGrant(connectionId);
-        const authorizationNamespace = namespaceFor(clientStoreId);
+        const authorizationNamespace = namespaceFor(clientStoreId, appId);
         const subscription = await session.client.subscribeLive('listAnnouncements', {
+          args: { appId },
           connectionId,
           authorizationNamespace,
         });
@@ -298,7 +305,7 @@ try {
   assert.deepEqual(eveLive.rows, [], 'an unrelated non-member live subscription starts empty');
 
   await alice.client.mutate('postAnnouncement', {
-    args: { message: 'still members only' },
+    args: { appId, message: 'still members only' },
   });
   await waitForMessages(
     aliceLive,
@@ -319,8 +326,8 @@ try {
   ]);
 
   const [aliceRows, bobRows] = await Promise.all([
-    alice.client.query('listAnnouncements', { args: {} }),
-    bob.client.query('listAnnouncements', { args: {} }),
+    alice.client.query('listAnnouncements', { args: { appId } }),
+    bob.client.query('listAnnouncements', { args: { appId } }),
   ]);
   assert.deepEqual(
     aliceRows.rows.map(({ message }) => message),
@@ -329,7 +336,7 @@ try {
   assert.deepEqual(bobRows.rows, [], 'a non-member cannot see existing rows');
 
   await assert.rejects(
-    () => bob.client.mutate('postAnnouncement', { args: { message: 'not yet' } }),
+    () => bob.client.mutate('postAnnouncement', { args: { appId, message: 'not yet' } }),
     (error) => error?.diagnostic?.code === 'SNAPBACK_AUTH_PERMISSION_DENIED',
     'ctx.permissions must deny a non-member with the invariant role diagnostic',
   );
@@ -337,8 +344,14 @@ try {
   const bobInvalidationsBeforeJoin = bobLive.authorizationInvalidations;
   const bobUserId = bob.credential?.session?.userId;
   assert.equal(typeof bobUserId, 'string', 'Bob exchange returns the authenticated user id');
-  await alice.client.mutate('inviteApp', { args: { userId: bobUserId } });
-  await bob.client.mutate('acceptInvite', { args: {} });
+  const invite = await alice.client.mutate('appAccess.invite', {
+    args: { scopeId: appId, principal: bobUserId, role: 'invited' },
+  });
+  assert.deepEqual(invite.result[0].successor, { role: 'invited', status: 'invited' });
+  const joined = await bob.client.mutate('appAccess.join', {
+    args: { scopeId: appId, invitation: 'invited' },
+  });
+  assert.deepEqual(joined.result[0].successor, { role: 'member', status: 'active' });
   // The committed self-accept response is the exact boundary after which Bob may
   // become visible; every frame drained before it was checked as empty.
   bobLive.forbidVisibleRows = false;
@@ -354,7 +367,9 @@ try {
   await drainLive(eveLive);
   assert.deepEqual(eveLive.rows, [], 'Bob membership invalidation crossed into Eve live state');
 
-  await bob.client.mutate('postAnnouncement', { args: { message: 'hello from bob' } });
+  await bob.client.mutate('postAnnouncement', {
+    args: { appId, message: 'hello from bob' },
+  });
   await Promise.all([
     waitForMessages(
       aliceLive,
@@ -373,13 +388,14 @@ try {
     'member-only fanout crossed into Eve live state',
   );
   assert.deepEqual(
-    (await bob.client.query('listAnnouncements', { args: {} })).rows
+    (await bob.client.query('listAnnouncements', { args: { appId } })).rows
       .map(({ message }) => message),
     ['members only', 'still members only', 'hello from bob'],
   );
 
   const bobInvalidationsBeforeLeave = bobLive.authorizationInvalidations;
-  await bob.client.mutate('leaveApp', { args: {} });
+  const leave = await bob.client.mutate('appAccess.leave', { args: { scopeId: appId } });
+  assert.equal(leave.result[0].successor, null);
   bobLive.forbidVisibleRows = true;
   await waitForMessages(bobLive, [], 'Bob self-leave did not revoke his live rows');
   assert(
@@ -387,18 +403,18 @@ try {
     'Bob self-leave must arrive as an authorization invalidation',
   );
   await assert.rejects(
-    () => bob.client.mutate('postAnnouncement', { args: { message: 'after leaving' } }),
+    () => bob.client.mutate('postAnnouncement', { args: { appId, message: 'after leaving' } }),
     (error) => error?.diagnostic?.code === 'SNAPBACK_AUTH_PERMISSION_DENIED',
     'a self-leave must revoke subsequent role checks',
   );
 
   await assert.rejects(
-    () => eve.client.mutate('rawJoin', { args: {} }),
+    () => eve.client.mutate('rawJoin', { args: { appId } }),
     (error) => error?.diagnostic?.code === 'SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED',
     'raw ctx.db membership writes must remain closed below the handler',
   );
   assert.deepEqual(
-    (await eve.client.query('listAnnouncements', { args: {} })).rows,
+    (await eve.client.query('listAnnouncements', { args: { appId } })).rows,
     [],
     'a refused raw write grants no authority',
   );

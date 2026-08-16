@@ -2328,7 +2328,10 @@ impl EgressFamily {
             // generated profile admission is a captured local database read,
             // not a derived-fork egress effect.
             | "permissions.allowsRole"
-            | "permissions.requireRole" => None,
+            | "permissions.requireRole"
+            | "authorityProfile.list"
+            | "authorityProfile.myRole"
+            | "authorityProfile.transition" => None,
             _ => Some(Self::UnclassifiedHostOperation),
         }
     }

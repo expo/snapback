@@ -6,7 +6,11 @@
 Live Queries, Assets, Code generation, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-15 (records the shipped local handler-admission and
+**Revised:** 2026-08-16 (rollout steps 2–3: generated roster pagination,
+conditional invite/join/leave/change-role/remove operations, atomic owner
+transfer, ordinary client/React reference lifecycle, and same-IR table
+visibility are qualified locally; membership-visible search, assets, hosted
+profiles, and the external Clique rerun remain refused). 2026-08-15 (records the shipped local handler-admission and
 bounded `list`/`myRole` slice: Explicit and Familiar handlers declare the
 canonical membership predicate, generated reads use a captured non-terminal
 evaluation, mutations use its terminal twin, and removal blanks live delivery;
@@ -253,17 +257,17 @@ unauthorized caller cannot distinguish an absent scope/member from one hidden
 by roster visibility; detailed existence, role, and transition traces stay on
 authenticated developer/admin inspection.
 
-The first qualified generated surface is deliberately smaller than the full
-operation sketch above. Local app-owned profiles emit live references named
-`api.<profile>.list` and `api.<profile>.myRole`, both with one `{ scopeId }`
-argument. `list` projects only `roster.visible` and takes at most 100 rows from
-the resource-leading membership index; `myRole` returns a zero-or-one row
-projection for the server-derived caller and includes the role. Both first
-perform the same captured active-role predicate and return `[]` when it fails,
-so removal and role changes reauthorize live delivery without a roster oracle.
-This is a bounded initial roster projection, not the D3 pagination or generated
-transition/hook completion. Those remaining operations stay absent rather than
-pretending to exist.
+As of the 2026-08-16 rollout-2 qualification, local app-owned profiles emit
+the complete applicable subset of the sketch above. `list` accepts a bounded
+`{ scopeId, limit?, after? }` page request, projects only `roster.visible`, and
+returns an opaque continuation bound to the profile and scope; `myRole`
+returns the server-derived caller's role/status. Both are live references and
+capture positive and negative membership dependencies. Mutation references
+are present only where `membership.transitions` proves the corresponding
+operation; `transferOwner` is always the dedicated two-seat planner rather
+than an ordinary transition row. Every reference uses the normal generated
+client and LLP 0238 hook lifecycle. An unsupported operation remains absent,
+not a runtime no-op.
 
 ### D4. Custom function-mediated authority has an honest declaration
 
@@ -420,13 +424,15 @@ protected retention. Accepting this RFC neither accepts nor blocks either one.
 1. **Facade lowering (implemented locally).** Project the existing LLP 0056 membership manifest and
    LLP 0231 policy IR into the profile identity; add no second evaluator and no
    offline retention.
-2. **Roster and role facade (first slice implemented locally).** Generate the
-   bounded `list`/`myRole` reads and common named-handler admission in Explicit
-   and Familiar. Pagination, transition operations/hooks, and the external
-   Clique rerun remain before this rollout step is complete.
-3. **Policy composition.** Feed table visibility, strict/coarse custom
-   authorization, and search from the canonical IR; prove invalidation and
-   no-warning behavior.
+2. **Roster and role facade (implemented locally 2026-08-16).** Generate
+   paginated `list`/`myRole`, the transition-applicable mutation subset,
+   dedicated atomic `transferOwner`, common named-handler admission, and
+   ordinary generated client/React lifecycle in Explicit and Familiar.
+3. **Policy composition (table visibility implemented locally 2026-08-16).**
+   Profile-backed table membership policies close role hierarchy and
+   invalidation from the same authority IR. Strict/coarse custom-policy inputs
+   remain under D4. Membership-visible search remains refused until its own
+   later qualification; it was not silently pulled into this rollout step.
 4. **Asset composition.** Enable it only after LLP 0239’s binding capability
    independently qualifies.
 5. **Published-package rerun.** Rebuild Clique’s roster,
@@ -435,6 +441,23 @@ protected retention. Accepting this RFC neither accepts nor blocks either one.
 
 Capabilities advertise independently per phase and target. Unsupported arms
 refuse at generation rather than silently degrading authority.
+
+### 2026-08-16 rollout record — steps 2 and 3
+
+The local profile manifest now pins every generated operation's kind,
+authentication requirement, legal React lifecycle, and backing transition
+vocabulary. The server admits that frozen surface, resolves private subjects
+without returning row ids, and hands one command to LLP 0056 inside the
+authoritative transaction. Owner creation/removal stays outside ordinary
+transitions; transfer promotes the target and demotes the caller atomically,
+with last-owner and stale-predecessor checks at commit.
+
+The RBAC demo now has one resource-scoped `appMembers` relation as both product
+roster and authority. Its `applications` and `announcements` policies consume
+that profile's same membership fact, so role writes drive visibility and live
+invalidation without a mirrored app-wide roster. This closes rollout step 3's
+table-visibility class only. Steps 4–5 remain: asset composition is gated on
+LLP 0239's independent qualification, and Clique has not been rebuilt.
 
 ## Acceptance
 

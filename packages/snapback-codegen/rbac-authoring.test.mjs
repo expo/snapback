@@ -38,12 +38,12 @@ export const eventMembers = defineTable({
   incidental: ['joinedAt'],
   provenance: 'full',
   transitions: [],
-});
+}).visibility({ kind: 'owner', field: 'userId' });
 
 export default defineSchema({
-  events: defineTable({ title: v.string() }),
-  organizations: defineTable({ name: v.string() }),
-  eventNotes: defineTable({ eventId: v.id('events'), body: v.string() }),
+  events: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  organizations: defineTable({ name: v.string() }).visibility({ kind: 'public-read' }),
+  eventNotes: defineTable({ eventId: v.id('events'), body: v.string() }).visibility({ kind: 'public-read' }),
   eventMembers,
 }, { auth: { mode: 'sessions' } });
 `;
@@ -82,12 +82,12 @@ export const eventMembers = defineTable({
   provenance: 'full',
   transitions: ${JSON.stringify(transitions)},
   scope: '${appScope ? 'app' : 'resource'}',
-});
+}).visibility({ kind: 'owner', field: 'userId' });
 
 export default defineSchema({
-  events: defineTable({ title: v.string() }),
-  organizations: defineTable({ name: v.string() }),
-  eventNotes: defineTable({ eventId: v.id('events'), body: v.string() }),
+  events: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  organizations: defineTable({ name: v.string() }).visibility({ kind: 'public-read' }),
+  eventNotes: defineTable({ eventId: v.id('events'), body: v.string() }).visibility({ kind: 'public-read' }),
   eventMembers,
 }, { auth: { mode: 'sessions' } });
 `;
@@ -139,7 +139,7 @@ const eventMembersSnake = defineTable({
   resource: 'eventId',
   role: 'role',
   roles: ['member'],
-});
+}).visibility({ kind: 'owner', field: 'userId' });
 
 const eventMembersCamel = defineTable({
   eventId: v.id('events'),
@@ -151,10 +151,10 @@ const eventMembersCamel = defineTable({
   resource: 'eventId',
   role: 'role',
   roles: ['member'],
-});
+}).visibility({ kind: 'owner', field: 'userId' });
 
 export default defineSchema({
-  events: defineTable({ title: v.string() }),
+  events: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
   eventMembersSnake,
   eventMembersCamel,
 }, { auth: { mode: 'sessions' } });
@@ -173,10 +173,10 @@ const eventMembers = defineTable({
   resource: 'eventId',
   role: 'role',
   roles: ['host', 'guest'],
-});
+}).visibility({ kind: 'owner', field: 'userId' });
 
 export default defineSchema({
-  events: defineTable({ title: v.string() }),
+  events: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
   eventMembers,
 }, { auth: { mode: 'sessions' } });
 `;
@@ -252,21 +252,28 @@ export const roomMembers = defineTable({
   roomId: v.id('rooms'),
   principalId: v.principal(),
   role: v.string(),
-  displayName: v.string(),
+  displayName: v.optional(v.string()),
 }).membership({
   id: 'roomAccess',
   principal: 'principalId',
   resource: 'roomId',
   role: 'role',
   roles: ['owner', 'admin', 'member'],
+  pendingRoles: ['invited'],
   bootstrapRole: 'owner',
   lastHolder: { protect: 'owner' },
-  transitions: [],
+  transitions: [
+    { op: 'insert', by: ['owner'], target: 'other', to: ['invited'] },
+    { op: 'setRole', by: ['self'], target: 'self', from: ['invited'], to: ['member'] },
+    { op: 'remove', by: ['self'], target: 'self', from: ['admin', 'member', 'invited'] },
+    { op: 'setRole', by: ['owner'], target: 'other', from: ['admin', 'member'], to: ['admin', 'member'] },
+    { op: 'remove', by: ['owner'], target: 'other', from: ['admin', 'member', 'invited'] },
+  ],
 }).authorityProfile({
   name: 'roomAccess',
   hierarchy: { owner: ['admin', 'member'], admin: ['member'], member: [] },
   roster: { visible: ['principalId', 'role', 'displayName'] },
-});
+}).visibility({ kind: 'owner', field: 'principalId' });
 
 export default defineSchema({
   rooms: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
@@ -304,6 +311,14 @@ export const send = mutation({
   return { authoredFunctions, dir, result };
 }
 
+const authorityTransitions = [
+  { op: 'insert', by: ['owner'], target: 'other', to: ['invited'] },
+  { op: 'setRole', by: ['self'], target: 'self', from: ['invited'], to: ['member'] },
+  { op: 'remove', by: ['self'], target: 'self', from: ['admin', 'member', 'invited'] },
+  { op: 'setRole', by: ['owner'], target: 'other', from: ['admin', 'member'], to: ['admin', 'member'] },
+  { op: 'remove', by: ['owner'], target: 'other', from: ['admin', 'member', 'invited'] },
+];
+
 const authorityProfileSchema = ({
   bootstrapRole = 'owner',
   consumerVisibility = true,
@@ -324,7 +339,7 @@ const authorityProfileSchema = ({
   roleField = 'role',
   roles = ['owner', 'admin', 'member'],
   roster = "{ visible: ['userId', 'role', 'displayName'] }",
-  transitions = [],
+  transitions = authorityTransitions,
   unsupportedComposition = null,
 } = {}) => {
   const profile = `.authorityProfile({
@@ -359,8 +374,10 @@ const authorityProfileSchema = ({
         },
       })`
     : '';
-  const visibility = unsupportedComposition === 'search' || !consumerVisibility
-    ? ''
+  const visibility = unsupportedComposition === 'search'
+    ? `.visibility({ kind: 'public-read' })`
+    : !consumerVisibility
+      ? `.visibility({ kind: 'public-read' })`
     : `.visibility({
         kind: 'membership',
         declaration: 'eventMembers',
@@ -377,10 +394,11 @@ const eventMembersBase = defineTable({
   eventId: ${resourceValidator},
   userId: ${principalValidator},
   ${roleField}: v.string(),
-  displayName: v.string(),
+  displayName: v.optional(v.string()),
 })${indexName === null ? '' : `.index(${JSON.stringify(indexName)}, ['userId'])`};
 
-export const eventMembers = eventMembersBase${profileBeforeMembership ? `${profile}${membership}` : `${membership}${profile}`};
+export const eventMembers = eventMembersBase${profileBeforeMembership ? `${profile}${membership}` : `${membership}${profile}`}
+  .visibility({ kind: 'owner', field: 'userId' });
 ${duplicateProfile ? `eventMembers${profile};` : ''}
 ${legacyAuthority ? 'eventMembers.permissionBackingDeclared = true;' : ''}
 ${membershipMutation}
@@ -712,9 +730,9 @@ ctx.membership.eventMembers.patch(memberId, { role: 'host' });
     ], { cwd: dir, stdio: 'pipe' });
   }
 
-  // LLP 0240 rollout 1: the authority-profile facade closes hierarchy sugar
-  // into the existing membership/table-policy IR, projects one generation
-  // identity, and refuses every D1 ambiguity with a repair-bearing source span.
+  // LLP 0240 rollout 2: the authority-profile facade closes hierarchy sugar
+  // into the existing membership/table-policy IR and derives both roster
+  // reads and transition operations from one generation identity.
   {
     const sourceWithPublicWitness = `${authorityProfileFunctions}
 export const publicEvents = defineLiveQuery({
@@ -789,6 +807,7 @@ export const publicEvents = defineLiveQuery({
       'table-visibility.membership.v1',
       'function-admission.membership.v1',
       'authority-roster-projection.v1',
+      'authority-roster-transitions.v1',
     ]);
     assert.deepEqual(profile.notYetQualifiedCompositionClasses, [
       'membership-visible-search.v1',
@@ -799,6 +818,33 @@ export const publicEvents = defineLiveQuery({
       'protected-resource-row-insert-update-delete',
       'effective-principal-or-auth-context-change',
       'authority-profile-generation-activation',
+    ]);
+    assert.deepEqual(profile.operations, [
+      {
+        name: 'list',
+        kind: 'LiveQuery',
+        authRequirement: 'authenticated',
+        hooks: ['useSnapbackQuery'],
+        transitionOps: [],
+      },
+      {
+        name: 'myRole',
+        kind: 'LiveQuery',
+        authRequirement: 'authenticated',
+        hooks: ['useSnapbackQuery'],
+        transitionOps: [],
+      },
+      ...['invite', 'join', 'leave', 'changeRole', 'transferOwner', 'remove'].map((name) => ({
+        name,
+        kind: 'Mutation',
+        authRequirement: 'authenticated',
+        hooks: ['useSnapbackMutation', 'useSnapbackOutbox.mutationStatus'],
+        transitionOps: [name === 'transferOwner' ? 'transferOwner' : (
+          ['invite'].includes(name) ? 'insert' : (
+            ['join', 'changeRole'].includes(name) ? 'setRole' : 'remove'
+          )
+        )],
+      })),
     ]);
     assert.deepEqual(tables.eventNotes.visibility.roles, ['admin', 'member', 'owner']);
 
@@ -817,12 +863,24 @@ export const publicEvents = defineLiveQuery({
       'addNote',
       'eventMembers.list',
       'eventMembers.myRole',
+      'eventMembers.invite',
+      'eventMembers.join',
+      'eventMembers.leave',
+      'eventMembers.changeRole',
+      'eventMembers.transferOwner',
+      'eventMembers.remove',
     ]) {
       assert(functionsByName[name], `${name} was not generated`);
       assert.deepEqual(functionsByName[name].authorityProfileDependence, [{
         id: 'eventMembers',
         generation: profile.generation,
       }]);
+    }
+    for (const operation of profile.operations) {
+      assert.deepEqual(
+        functionsByName[`eventMembers.${operation.name}`].authorizationDependence,
+        ['userId'],
+      );
     }
     assert.deepEqual(functionsByName.memberSummary.readSetSummary.tables, [
       'eventNotes',
@@ -842,14 +900,20 @@ export const publicEvents = defineLiveQuery({
       /\.requireRole\(args\["eventId"\], "admin", "member", "owner"\)/u,
     );
     assert.equal(functionsByName['eventMembers.list'].kind, 'LiveQuery');
-    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /_membership_reverse/u);
-    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /\.take\(100\)/u);
-    assert.doesNotMatch(functionsByName['eventMembers.list'].runtime.IbexModule.source, /\["_id"\]/u);
-    assert.match(functionsByName['eventMembers.myRole'].runtime.IbexModule.source, /_membership_pk/u);
+    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /authorityProfile\["eventMembers"\]\.list/u);
+    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /limit: args\.limit/u);
+    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /after: args\.after/u);
+    assert.match(functionsByName['eventMembers.myRole'].runtime.IbexModule.source, /authorityProfile\["eventMembers"\]\.myRole/u);
+    assert.match(functionsByName['eventMembers.invite'].runtime.IbexModule.source, /\.transition\("invite"/u);
+    assert.match(functionsByName['eventMembers.transferOwner'].runtime.IbexModule.source, /\.transition\("transferOwner"/u);
+    assert.equal(functionsByName['eventMembers.invite'].kind, 'Mutation');
+    assert.equal(functionsByName['eventMembers.transferOwner'].authorityCreating, true);
     const explicitApi = readFileSync(join(baseline.dir, 'generated', 'api.mjs'), 'utf8');
     const explicitApiTypes = readFileSync(join(baseline.dir, 'generated', 'api.d.ts'), 'utf8');
-    assert.match(explicitApi, /references\["eventMembers"\] = \{ list:/u);
-    assert.match(explicitApiTypes, /readonly "eventMembers": Readonly<\{ list:/u);
+    assert.match(explicitApi, /references\["eventMembers"\] = \{ "list":/u);
+    assert.match(explicitApi, /"changeRole": references\["eventMembers\.changeRole"\]/u);
+    assert.match(explicitApiTypes, /readonly "eventMembers": Readonly<\{ "list":/u);
+    assert.match(explicitApiTypes, /"transferOwner": GeneratedApi\["eventMembers\.transferOwner"\]/u);
     assert.equal(
       Object.hasOwn(functionsByName.publicEvents, 'authorityProfileDependence'),
       false,
@@ -880,6 +944,21 @@ export const publicEvents = defineLiveQuery({
     const transitionFunctionsByName = Object.fromEntries(
       transitionFunctions.functions.map((operation) => [operation.name, operation]),
     );
+    assert.deepEqual(
+      transitionSchema.tables
+        .find(({ name }) => name === 'eventMembers')
+        .authorityProfile.operations
+        .map(({ name }) => name),
+      ['list', 'myRole', 'changeRole', 'transferOwner'],
+      'operations unsupported by the transition matrix must be absent',
+    );
+    for (const unsupported of ['invite', 'join', 'leave', 'remove']) {
+      assert.equal(
+        transitionFunctionsByName[`eventMembers.${unsupported}`],
+        undefined,
+        `${unsupported} must not degrade into a runtime no-op`,
+      );
+    }
     assert.notEqual(
       transitionFunctionsByName.eventById.implementationHash,
       functionsByName.eventById.implementationHash,
@@ -966,6 +1045,15 @@ export const publicEvents = defineLiveQuery({
     [
       'ambiguous owner',
       { bootstrapRole: 'admin' },
+      'SNAPBACK_AUTHORITY_PROFILE_AMBIGUOUS_OWNER',
+    ],
+    [
+      'missing transfer demotion role',
+      {
+        roles: ['owner', 'member'],
+        hierarchy: "{ owner: ['member'], member: [] }",
+        transitions: [],
+      },
       'SNAPBACK_AUTHORITY_PROFILE_AMBIGUOUS_OWNER',
     ],
     [
@@ -1146,12 +1234,12 @@ export const eventMembers = defineTable({
   provenance: 'full',
   principalAddressedWrites: ${option},
   transitions: ${transitions},
-});
+}).visibility({ kind: 'owner', field: 'userId' });
 
 export default defineSchema({
-  events: defineTable({ title: v.string() }),
-  organizations: defineTable({ name: v.string() }),
-  eventNotes: defineTable({ eventId: v.id('events'), body: v.string() }),
+  events: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  organizations: defineTable({ name: v.string() }).visibility({ kind: 'public-read' }),
+  eventNotes: defineTable({ eventId: v.id('events'), body: v.string() }).visibility({ kind: 'public-read' }),
   eventMembers,
 }, { auth: { mode: 'sessions' } });
 `;
