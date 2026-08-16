@@ -1,0 +1,291 @@
+{
+  "artifactKind": "contractDataManifest",
+  "authoredSourceHash": "sha256:c36ef77b058e429bdbfbccb32002b40c90013b4336bb305f16228aceb62e292f",
+  "bundleHash": "sha256:856bcac9e24fc9e2",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "80397cb71b3ff2c622178f3cf4af6733fdae357b4918a2c92f7e62e6af915c81",
+  "manifestVersion": 2,
+  "mutations": {
+    "createProfile": {
+      "argOrder": [
+        "displayName"
+      ],
+      "args": {
+        "displayName": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:eb3707f2b2419926531b033edd13f1b41bb788869e2cb6968337a94ef24b2fe7",
+      "implementationHash": "sha256:37b4492a8aa39929eadd267f6a4b26667026c7b50053af28f0b438b104f83373",
+      "invalidates": [
+        "profiles"
+      ],
+      "name": "createProfile",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "id",
+          "table": "profiles"
+        }
+      },
+      "resultHash": "sha256:88fa60c693a9ef16cd6d909d9b3c02536cce9b594fe1cc8fcb98bcfc662132f6",
+      "serverRunnable": true,
+      "writes": [
+        "profiles"
+      ]
+    },
+    "returnStoredProfile": {
+      "argOrder": [
+        "displayName"
+      ],
+      "args": {
+        "displayName": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:eb3707f2b2419926531b033edd13f1b41bb788869e2cb6968337a94ef24b2fe7",
+      "implementationHash": "sha256:c5b690471b4d3d0a97ccd5bb0dae96e2f1c734ee621be76334944c638f01ddcc",
+      "invalidates": [
+        "profiles"
+      ],
+      "name": "returnStoredProfile",
+      "optimistic": false,
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "profiles"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "displayName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "image",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "classMTreatment": "class-m.none.v1",
+                    "classificationProfile": "detected-content-type.v1",
+                    "delivery": "primary",
+                    "kind": "mediaRef.v1",
+                    "kinds": [
+                      "image"
+                    ],
+                    "optional": true,
+                    "policyGeneration": "profile-image.v1",
+                    "retentionClass": "media-reference.v1",
+                    "sourceField": "image",
+                    "sourceFieldGeneration": "sha256:81082f909aa3205703b52dff1369c21f792edc2e023e24ce43b7cb215b92f3aa",
+                    "sourceTable": "profiles",
+                    "uploadIntent": "profileImageUpload",
+                    "variants": [
+                      "primary"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "document",
+        "table": "profiles"
+      },
+      "resultHash": "sha256:cd029117290cbe423fefb7931e81c4057f5d802dc0391cc9af35f81f15c2c7a2",
+      "serverRunnable": true,
+      "writes": [
+        "profiles"
+      ]
+    },
+    "setProfileImage": {
+      "argOrder": [
+        "profileId",
+        "image"
+      ],
+      "args": {
+        "image": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "profileId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:a6932930cba5f7409ced0d790ee2a9e6e451c83d05b0e5a5fe2502a1b5a87db3",
+      "implementationHash": "sha256:34321f7fb801f460c04feea1e6c4c8c58070e55b4ede996cc9850392b6b25529",
+      "invalidates": [
+        "profiles"
+      ],
+      "name": "setProfileImage",
+      "optimistic": false,
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "profiles"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "displayName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "image",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "classMTreatment": "class-m.none.v1",
+                    "classificationProfile": "detected-content-type.v1",
+                    "delivery": "primary",
+                    "kind": "mediaRef.v1",
+                    "kinds": [
+                      "image"
+                    ],
+                    "optional": true,
+                    "policyGeneration": "profile-image.v1",
+                    "retentionClass": "media-reference.v1",
+                    "sourceField": "image",
+                    "sourceFieldGeneration": "sha256:81082f909aa3205703b52dff1369c21f792edc2e023e24ce43b7cb215b92f3aa",
+                    "sourceTable": "profiles",
+                    "uploadIntent": "profileImageUpload",
+                    "variants": [
+                      "primary"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "document",
+        "table": "profiles"
+      },
+      "resultHash": "sha256:cd029117290cbe423fefb7931e81c4057f5d802dc0391cc9af35f81f15c2c7a2",
+      "serverRunnable": true,
+      "writes": [
+        "profiles"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {},
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:db484a3a107567b8",
+  "schemaVersion": "snapback.v0"
+}

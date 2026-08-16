@@ -3357,7 +3357,16 @@ impl<'a> IbexHostContext<'a> {
                         )?,
                     }
                 } else {
-                    let output = self.db().query(&plan, &self.input)?;
+                    let mut output = self.db().query(&plan, &self.input)?;
+                    // Storage returns the public same-snapshot projection, but
+                    // the handler boundary below must tag that value with
+                    // invocation-local provenance. Restore the physical cell
+                    // first so `tag_media_document` performs exactly one
+                    // projection, matching the buffered-overlay branch.
+                    // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+                    for row in &mut output.rows {
+                        self.deproject_media_document(&plan.table, row)?;
+                    }
                     self.capture_query_read(&plan, &output)?;
                     output
                 };

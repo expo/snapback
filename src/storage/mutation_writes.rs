@@ -895,12 +895,8 @@ impl<'a> MutationWritesKernel<'a> {
         identity: &ClientMutationIdentity,
         media_command: &crate::manifest::ResolvedMediaCommandV1,
     ) -> SnapbackResult<MutationCommit> {
-        self.db.dry_run_media_command_buffered_payload(
-            input,
-            payload,
-            identity,
-            media_command,
-        )
+        self.db
+            .dry_run_media_command_buffered_payload(input, payload, identity, media_command)
     }
 
     pub(crate) fn commit_buffered_host_writes_guarded<G, Check, BeforeCommit>(

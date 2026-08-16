@@ -1,0 +1,70 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"displayName\": string }",
+        "effects": {
+          "invalidates": [
+            "profiles"
+          ],
+          "writes": [
+            "profiles"
+          ]
+        },
+        "name": "createProfile",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      },
+      {
+        "argumentsType": "{ \"displayName\": string }",
+        "effects": {
+          "invalidates": [
+            "profiles"
+          ],
+          "writes": [
+            "profiles"
+          ]
+        },
+        "name": "returnStoredProfile",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "Record<string, unknown>"
+      },
+      {
+        "argumentsType": "{ \"image\": string; \"profileId\": string }",
+        "effects": {
+          "invalidates": [
+            "profiles"
+          ],
+          "writes": [
+            "profiles"
+          ]
+        },
+        "name": "setProfileImage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "Record<string, unknown>"
+      }
+    ],
+    "queries": []
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "80397cb71b3ff2c622178f3cf4af6733fdae357b4918a2c92f7e62e6af915c81",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

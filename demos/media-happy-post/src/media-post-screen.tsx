@@ -131,6 +131,7 @@ function TaskProgress({ snapshot }: Readonly<{ snapshot: MediaCommandTaskSnapsho
 }
 
 function PostMedia({ postId }: Readonly<{ postId: Id<'posts'> }>) {
+  const [gridWidth, setGridWidth] = useState<number | null>(null);
   const collection = useSnapbackQuery(api.postMediaList, { parentId: postId });
   const children = collection.status === 'ready' || collection.status === 'refreshing'
     ? collection.data[0]?.children ?? []
@@ -138,6 +139,7 @@ function PostMedia({ postId }: Readonly<{ postId: Id<'posts'> }>) {
   // @ref LLP 0239#d5-one-media-projection-handles-empty-image-video-denial-and-refresh — one
   // collection store keeps delivery state keyed by durable child itemId.
   const media = useSnapbackMediaCollection(children, { widthPx: 960 });
+
 
   if (collection.status === 'pending') {
     return <ActivityIndicator color="#9d5039" style={styles.mediaPending} />;
@@ -148,13 +150,20 @@ function PostMedia({ postId }: Readonly<{ postId: Id<'posts'> }>) {
   if (media.length === 0) return null;
 
   return (
-    <View style={styles.mediaGrid}>
+    <View
+      style={styles.mediaGrid}
+      onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}
+    >
       {media.map((item) => {
         const state = item.state;
+        // Explicit pixel tiles: aspectRatio + percent width collapses to
+        // content height on this RN/Yoga version, which blanks a bare Image.
+        const side = gridWidth === null ? 160 : Math.floor((gridWidth - 7) / 2);
+        const tileSize = { width: side, height: side };
         const kind = state.status === 'empty' ? null : state.media.kind;
         if (state.status === 'denied' || state.status === 'unavailable') {
           return (
-            <View key={item.itemId} style={[styles.mediaTile, styles.mediaUnavailable]}>
+            <View key={item.itemId} style={[styles.mediaTile, tileSize, styles.mediaUnavailable]}>
               <Text style={styles.unavailableTitle}>{state.status.toUpperCase()}</Text>
               <Text style={styles.unavailableCopy}>Only this attachment is unavailable.</Text>
             </View>
@@ -167,13 +176,13 @@ function PostMedia({ postId }: Readonly<{ postId: Id<'posts'> }>) {
               key={item.itemId}
               resizeMode="cover"
               source={{ uri: state.url }}
-              style={styles.mediaTile}
+              style={[styles.mediaTile, tileSize]}
             />
           );
         }
         if (kind === 'video') {
           return (
-            <View key={item.itemId} style={[styles.mediaTile, styles.videoTile]}>
+            <View key={item.itemId} style={[styles.mediaTile, tileSize, styles.videoTile]}>
               <Text style={styles.videoTileMark}>▶</Text>
               <Text style={styles.videoTileTitle}>VIDEO</Text>
               <Text style={styles.videoTileCopy}>
@@ -185,7 +194,7 @@ function PostMedia({ postId }: Readonly<{ postId: Id<'posts'> }>) {
           );
         }
         return (
-          <View key={item.itemId} style={[styles.mediaTile, styles.mediaLoading]}>
+          <View key={item.itemId} style={[styles.mediaTile, tileSize, styles.mediaLoading]}>
             <ActivityIndicator color="#fff" />
             <Text style={styles.mediaLoadingText}>{state.status}</Text>
           </View>
@@ -249,6 +258,9 @@ export default function MediaPostScreen({ persona, onSignOut }: Readonly<{
       allowsMultipleSelection: false,
       mediaTypes: ['images'],
       quality: 0.9,
+      // iPhone libraries are HEIC-first; compatible mode transcodes to JPEG.
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     if (result.canceled || !result.assets[0]) return;
     const command = changeAvatar({ profileId: profile._id, avatar: result.assets[0] });
@@ -279,6 +291,8 @@ export default function MediaPostScreen({ persona, onSignOut }: Readonly<{
       mediaTypes: ['images', 'videos'],
       selectionLimit: 4,
       quality: 0.88,
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     if (!result.canceled) setSelection(result.assets.slice(0, 4));
   };
@@ -433,7 +447,7 @@ const styles = StyleSheet.create({
   postTime: { color: '#938a7e', fontSize: 9, marginLeft: 'auto' },
   postBody: { color: '#292621', fontFamily: Platform.select({ ios: 'Georgia', default: 'serif' }), fontSize: 20, lineHeight: 28 },
   mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  mediaTile: { aspectRatio: 1, backgroundColor: '#d8d0c4', borderRadius: 11, overflow: 'hidden', width: '48.5%' },
+  mediaTile: { backgroundColor: '#d8d0c4', borderRadius: 11, overflow: 'hidden' },
   videoTile: { alignItems: 'center', backgroundColor: '#344557', justifyContent: 'center', padding: 10 },
   videoTileMark: { color: '#fff', fontSize: 25 },
   videoTileTitle: { color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginTop: 6 },

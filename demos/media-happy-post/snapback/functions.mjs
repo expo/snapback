@@ -16,7 +16,8 @@ import {
 export const profileImageUpload = defineAssetUpload({
   auth: 'authenticated',
   accept: { mediaTypes: ['image/jpeg', 'image/png'], maxBytes: 8_000_000 },
-  delivery: { kind: 'private-strict' },
+  // private-signed: device renderers fetch via signed URLs (no bearer on <Image>).
+  delivery: { kind: 'private-signed' },
   access: { read: 'via-references' },
   image: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
@@ -25,10 +26,13 @@ export const profileImageUpload = defineAssetUpload({
 export const sharedMediaUpload = defineAssetUpload({
   auth: 'authenticated',
   accept: {
-    mediaTypes: ['image/jpeg', 'image/png', 'video/mp4'],
-    maxBytes: 20_000_000,
+    // video/quicktime: iOS pickers deliver .mov even in compatible mode; the
+    // strip walker supports the qt brand.
+    mediaTypes: ['image/jpeg', 'image/png', 'video/mp4', 'video/quicktime'],
+    maxBytes: 60_000_000,
   },
-  delivery: { kind: 'private-strict' },
+  // private-signed: device renderers fetch via signed URLs (no bearer on <Image>).
+  delivery: { kind: 'private-signed' },
   access: { read: 'via-references' },
   image: { location: 'strip' },
   video: { location: 'strip' },

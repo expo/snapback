@@ -16,6 +16,10 @@ import {
   SnapbackClient,
 } from '@expo/snapback-client';
 import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '@expo/snapback-contract';
+import {
   bindSnapbackAppLifecycle,
   createExpoAssetSourceAdapter,
   createSnapbackReactProvider,
@@ -98,7 +102,22 @@ export default function App() {
 
   const signIn = useCallback(async (persona: MediaPostPersona) => {
     setBoot({ phase: 'signing-in', persona });
-    const client = new SnapbackClient(origin);
+    // Password sessions require AuthCoordinator custody; memory custody is
+    // deliberate for this test-persona demo (a real app would use the
+    // first-party SecureStore adapter).
+    const coordinator = new AuthCoordinator({
+      appId: 'media-happy-post',
+      storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
+    const client = new SnapbackClient(origin, {
+      authCoordinator: coordinator,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      authorizedLeaseProtocol: 1,
+      clientStoreId: `media-post-${persona.id}`,
+    });
     try {
       await client.authPasswordSignIn({ email: persona.email, password: persona.password });
       const binding = await client.prepareReactBinding({ generatedManifest: app });

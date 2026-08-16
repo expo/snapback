@@ -11814,6 +11814,124 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(details["candidateFields"][0]["expected"], "string");
 }
 
+/// A buffered JavaScript mutation must be able to read an already-projected
+/// media row through `ctx.db.query`, preserve its host-private provenance, and
+/// return that same row through commit-egress materialization.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+#[tokio::test]
+async fn served_http_buffered_mutation_reprojects_stored_media_result() {
+    let mut asset_id = None;
+    let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
+        let schema: SchemaManifest = serde_json::from_str(include_str!(
+            "../../tests/acceptance/fixtures/media-reprojection/snapback/generated/schema.manifest.json"
+        ))
+        .expect("parse media re-projection schema");
+        snapback
+            .apply_schema(schema)
+            .expect("load media re-projection schema");
+        let functions: FunctionManifest = serde_json::from_str(include_str!(
+            "../../tests/acceptance/fixtures/media-reprojection/snapback/generated/functions.manifest.json"
+        ))
+        .expect("parse media re-projection functions");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            !diagnostics.iter().any(|diagnostic| matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "media re-projection fixture loads: {diagnostics:?}",
+        );
+        let png = include_bytes!("../../brand/favicon-16.png");
+        let uploaded = snapback
+            .asset_host_op(
+                "asset.put",
+                Some(&json!({
+                    "upload": "profileImageUpload",
+                    "bytesBase64": base64::engine::general_purpose::STANDARD.encode(png),
+                    "fileName": "stored-profile.png",
+                    "contentType": "image/png",
+                })),
+                Some("media-reprojection-user"),
+                ServerProfile::Test,
+            )
+            .expect("finalize media re-projection asset");
+        asset_id = Some(
+            uploaded["task"]["assetId"]
+                .as_str()
+                .expect("uploaded profile asset id")
+                .to_owned(),
+        );
+    });
+    let asset_id = asset_id.expect("profile asset captured");
+    let router = app(state);
+    let request = |mutation: &str, attempt: &str, args: Value| {
+        Request::builder()
+            .method("POST")
+            .uri(format!("/mutation/{mutation}"))
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                serde_json::to_vec(&json!({
+                    "args": args,
+                    "auth": { "user_id": "media-reprojection-user" },
+                    "clientMutationId": attempt,
+                    "wireVersion": "snapback.v1",
+                }))
+                .expect("serialize media re-projection request"),
+            ))
+            .expect("media re-projection request")
+    };
+
+    let created = router
+        .clone()
+        .oneshot(request(
+            "createProfile",
+            "media-reprojection-create",
+            json!({ "displayName": "Ada" }),
+        ))
+        .await
+        .expect("create profile response");
+    let created_status = created.status();
+    let created = response_json(created).await;
+    assert_eq!(created_status, StatusCode::OK, "{created}");
+    let profile_id = created["result"]
+        .as_str()
+        .expect("created profile id")
+        .to_owned();
+
+    let attached = router
+        .clone()
+        .oneshot(request(
+            "setProfileImage",
+            "media-reprojection-attach",
+            json!({ "profileId": profile_id, "image": asset_id }),
+        ))
+        .await
+        .expect("attach profile image response");
+    let attached_status = attached.status();
+    let attached = response_json(attached).await;
+    assert_eq!(attached_status, StatusCode::OK, "{attached}");
+    assert_eq!(attached["result"]["_id"], profile_id);
+    assert_eq!(attached["result"]["image"]["assetId"], asset_id);
+    assert_eq!(attached["result"]["image"]["kind"], "image");
+
+    let returned = router
+        .oneshot(request(
+            "returnStoredProfile",
+            "media-reprojection-return",
+            json!({ "displayName": "Ada Lovelace" }),
+        ))
+        .await
+        .expect("stored profile mutation response");
+    let returned_status = returned.status();
+    let returned = response_json(returned).await;
+    assert_eq!(returned_status, StatusCode::OK, "{returned}");
+    assert_eq!(returned["result"]["_id"], profile_id);
+    assert_eq!(returned["result"]["displayName"], "Ada Lovelace");
+    assert_eq!(returned["result"]["image"]["assetId"], asset_id);
+    assert_eq!(returned["result"]["image"]["kind"], "image");
+}
+
 /// The served mutation route must carry the command's one replay-stable
 /// attempt through the buffered-Ibex authorization preview as well as commit.
 /// @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit

@@ -232,12 +232,18 @@ fn migration_scan_initial_state(
             })
             .collect(),
         logical_digest: header.map(|header| {
-            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_DOMAIN, header)
-                .checkpoint()
+            crate::rqs_contract::ContentDigestStream::new(
+                crate::rqs_contract::CONTENT_DIGEST_DOMAIN,
+                header,
+            )
+            .checkpoint()
         }),
         system_digest: header.map(|header| {
-            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN, header)
-                .checkpoint()
+            crate::rqs_contract::ContentDigestStream::new(
+                crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN,
+                header,
+            )
+            .checkpoint()
         }),
     })
 }

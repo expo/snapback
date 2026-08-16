@@ -5,8 +5,8 @@
     "": {
       "name": "snapback-media-happy-post-demo",
       "dependencies": {
-        "@expo/snapback-client": "file:.snapback/local-source-packages/client.332a94db82198a202cc325a550037750934c03abfe1c6d5aa807a9a9f65279e4.tgz",
-        "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.da69d3ca52ea7f4bc556aa3e6467293e95f53764a5072fd680a2c3165f33c920.tgz",
+        "@expo/snapback-client": "file:.snapback/local-source-packages/client.b613dd50517daa665c9be4422d7dbc0c11a8b36bbba4e5b1111dd53af503835a.tgz",
+        "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.68aa8cbe2a586a1de3d76815c204eee19d6f38081af33f51964d386b52b224dd.tgz",
         "@expo/snapback-react": "file:.snapback/local-source-packages/react.225f1d5ad2b31b80fc997216944b8dc73037b9d01efcf570c97d57ff28c63e9d.tgz",
         "expo": "~57.0.7",
         "expo-crypto": "~57.0.1",
@@ -22,9 +22,9 @@
     },
   },
   "overrides": {
-    "@expo/snapback-client": "file:.snapback/local-source-packages/client.332a94db82198a202cc325a550037750934c03abfe1c6d5aa807a9a9f65279e4.tgz",
+    "@expo/snapback-client": "file:.snapback/local-source-packages/client.b613dd50517daa665c9be4422d7dbc0c11a8b36bbba4e5b1111dd53af503835a.tgz",
     "@expo/snapback-contract": "file:.snapback/local-source-packages/contract.aed22903b52a14bcc879a33b7f1999eb6479b527dbf278433d5b94120fc23666.tgz",
-    "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.da69d3ca52ea7f4bc556aa3e6467293e95f53764a5072fd680a2c3165f33c920.tgz",
+    "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.68aa8cbe2a586a1de3d76815c204eee19d6f38081af33f51964d386b52b224dd.tgz",
     "@expo/snapback-react": "file:.snapback/local-source-packages/react.225f1d5ad2b31b80fc997216944b8dc73037b9d01efcf570c97d57ff28c63e9d.tgz",
   },
   "packages": {
@@ -214,11 +214,11 @@
 
     "@expo/sdk-runtime-versions": ["@expo/sdk-runtime-versions@1.0.0", "", {}, "sha512-Doz2bfiPndXYFPMRwPyGa1k5QaKDVpY806UJj570epIiMzWaYyCtobasyfC++qfIXVb5Ocy7r3tP9d62hAQ7IQ=="],
 
-    "@expo/snapback-client": ["@expo/snapback-client@.snapback/local-source-packages/client.332a94db82198a202cc325a550037750934c03abfe1c6d5aa807a9a9f65279e4.tgz", { "dependencies": { "@expo/snapback-contract": "0.1.0" } }, "sha512-W0HxZBj+4y5+I08RPsNJB1+U6LXAoaJDdONrwcD0jkCNb9s5RDviUaKKyjfZQDBY7VU74Rd2eoAOQ/c4n/Dzag=="],
+    "@expo/snapback-client": ["@expo/snapback-client@.snapback/local-source-packages/client.b613dd50517daa665c9be4422d7dbc0c11a8b36bbba4e5b1111dd53af503835a.tgz", {"dependencies":{"@expo/snapback-contract":"0.1.0"}}, "sha512-pnBWV8aMahOiNJ97F0WrstSotK3/8+w5UDZO/FchzyPmed+v8gY0FmyE55x+64mz2SjkqY7o0psF0tigmA2Nyw=="],
 
     "@expo/snapback-contract": ["@expo/snapback-contract@.snapback/local-source-packages/contract.aed22903b52a14bcc879a33b7f1999eb6479b527dbf278433d5b94120fc23666.tgz", {}, "sha512-cDZwra+4kFneHmMectuoBAITGZDgxmiaj7qt9j5UbvNzxJgbmAMsvyAuJc1MwKPCURWAOBorb5Gys8gj7FNu9Q=="],
 
-    "@expo/snapback-expo": ["@expo/snapback-expo@.snapback/local-source-packages/expo.da69d3ca52ea7f4bc556aa3e6467293e95f53764a5072fd680a2c3165f33c920.tgz", { "dependencies": { "@expo/snapback-client": "0.1.0", "@expo/snapback-react": "0.1.0" }, "peerDependencies": { "expo": ">=57.0.0 <58.0.0", "expo-file-system": ">=57.0.0 <58.0.0", "react": ">=19.0.0 <20.0.0", "react-dom": ">=19.0.0 <20.0.0", "react-native": ">=0.86.0 <0.87.0", "react-native-web": ">=0.21.0 <0.22.0" }, "optionalPeers": ["expo", "react-dom", "react-native", "react-native-web"] }, "sha512-jUW9SZ6fNNLxSmH5z5Xbqhy02hork5kjdUzOxPfaFZfH2xT5z2ancGbfn5Se44a32FlAI1hBJyoGMcG1a2eAyg=="],
+    "@expo/snapback-expo": ["@expo/snapback-expo@.snapback/local-source-packages/expo.68aa8cbe2a586a1de3d76815c204eee19d6f38081af33f51964d386b52b224dd.tgz", {"dependencies":{"@expo/snapback-client":"0.1.0","@expo/snapback-react":"0.1.0"},"peerDependencies":{"expo":">=57.0.0 <58.0.0","expo-file-system":">=57.0.0 <58.0.0","react":">=19.0.0 <20.0.0","react-dom":">=19.0.0 <20.0.0","react-native":">=0.86.0 <0.87.0","react-native-web":">=0.21.0 <0.22.0"},"optionalPeers":["expo","react-dom","react-native","react-native-web"]}, "sha512-hykrxdxL07UbPij0O8Uf7re9IOaMTqZfCmMNyZMozifDk2ECjdJKOonuM8Ub1jMWmKvsoy/Rna396aTP44d5ZA=="],
 
     "@expo/snapback-react": ["@expo/snapback-react@.snapback/local-source-packages/react.225f1d5ad2b31b80fc997216944b8dc73037b9d01efcf570c97d57ff28c63e9d.tgz", { "peerDependencies": { "@expo/snapback-client": ">=0.1.0 <0.2.0", "react": ">=18.0.0 <20.0.0" } }, "sha512-0tQLjPNaYN+vIDcRTAW0pcKIJ/FLQ9RSAoRvG8YU1uBh0caVF3z2EOXyysqa8lW5IR/jEDZrVrM5w2iZc++CHQ=="],
 

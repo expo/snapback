@@ -1,0 +1,74 @@
+{
+  "appId": "media-reprojection-fixture",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "authoredSourceHash": "sha256:c36ef77b058e429bdbfbccb32002b40c90013b4336bb305f16228aceb62e292f",
+  "authoringProfile": "snapback-explicit-v1",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "80397cb71b3ff2c622178f3cf4af6733fdae357b4918a2c92f7e62e6af915c81",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "assets.media-ref-projection.v1"
+  ],
+  "schemaHash": "sha256:db484a3a107567b8",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "assetSharing": {
+        "field": "ownerId",
+        "kind": "owner"
+      },
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "displayName",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "media": {
+                "classificationProfile": "detected-content-type.v1",
+                "delivery": "primary",
+                "intent": "profileImageUpload",
+                "kinds": [
+                  "image"
+                ],
+                "policy": "profile-image.v1",
+                "retentionClass": "media-reference.v1",
+                "targetCapability": "assets.media-ref-projection.v1",
+                "variants": [
+                  "primary"
+                ]
+              },
+              "upload": "profileImageUpload"
+            }
+          },
+          "name": "image",
+          "optional": true
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "ownerId"
+          ],
+          "name": "by_owner"
+        }
+      ],
+      "name": "profiles",
+      "syncable": true,
+      "visibility": {
+        "field": "ownerId",
+        "kind": "owner"
+      }
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

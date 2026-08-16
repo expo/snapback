@@ -1,3 +1,4 @@
 .dev/
 .snapback/local-source-packages/
 node_modules/
+.dev.snapback.restore.lock

@@ -1,0 +1,580 @@
+{
+  "definition": {
+    "application": {
+      "assetUploadIntents": [
+        {
+          "accept": {
+            "maxBytes": 8000000,
+            "mediaTypes": [
+              "image/jpeg",
+              "image/png"
+            ]
+          },
+          "access": {
+            "read": "via-references"
+          },
+          "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+          "authRequirement": "authenticated",
+          "callbacks": null,
+          "delivery": {
+            "kind": "private-strict"
+          },
+          "grants": false,
+          "image": {
+            "location": "strip"
+          },
+          "intentPolicyHash": "sha256:1284d31908ce03328605be76d9dfdc65bce6980dcedd5d7b3f39ea6df7d8958a",
+          "name": "profileImageUpload",
+          "reads": [],
+          "video": null
+        }
+      ],
+      "authorityProfile": null,
+      "memberships": [],
+      "migrations": null,
+      "retention": {
+        "operations": [
+          {
+            "operationName": "createProfile",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "returnStoredProfile",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "setProfileImage",
+            "retainable": false,
+            "retentionClass": null
+          }
+        ],
+        "schema": null
+      },
+      "routes": null,
+      "schema": {
+        "api": null,
+        "assets": null,
+        "auth": null,
+        "authProgram": null,
+        "ephemeralCollections": [],
+        "portabilityFlags": [],
+        "pushSeam": null,
+        "requiredCapabilities": [
+          "assets.media-ref-projection.v1"
+        ],
+        "strictDeclarations": false,
+        "tables": [
+          {
+            "assetSharing": {
+              "field": "ownerId",
+              "kind": "owner"
+            },
+            "fields": [
+              {
+                "field_type": "Principal",
+                "name": "ownerId",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "displayName",
+                "optional": false
+              },
+              {
+                "field_type": {
+                  "AssetRef": {
+                    "media": {
+                      "classificationProfile": "detected-content-type.v1",
+                      "delivery": "primary",
+                      "intent": "profileImageUpload",
+                      "kinds": [
+                        "image"
+                      ],
+                      "policy": "profile-image.v1",
+                      "retentionClass": "media-reference.v1",
+                      "targetCapability": "assets.media-ref-projection.v1",
+                      "variants": [
+                        "primary"
+                      ]
+                    },
+                    "upload": "profileImageUpload"
+                  }
+                },
+                "name": "image",
+                "optional": true
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "ownerId"
+                ],
+                "name": "by_owner"
+              }
+            ],
+            "name": "profiles",
+            "syncable": true,
+            "visibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
+          }
+        ],
+        "version": "snapback.v0"
+      }
+    },
+    "operations": [
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "displayName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "profiles"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "createProfile",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "kind": "id",
+            "table": "profiles"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "profiles",
+          "tables": [
+            "profiles"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "displayName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "assets.media-ref-projection.v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "profiles"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "profiles"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "returnStoredProfile",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": "profiles",
+          "tables": [
+            "profiles"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "profiles"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "ownerId",
+                "required": true,
+                "value": {
+                  "kind": "principal"
+                }
+              },
+              {
+                "name": "displayName",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "image",
+                "required": true,
+                "value": {
+                  "kind": "union",
+                  "variants": [
+                    {
+                      "kind": "null"
+                    },
+                    {
+                      "classMTreatment": "class-m.none.v1",
+                      "classificationProfile": "detected-content-type.v1",
+                      "delivery": "primary",
+                      "kind": "mediaRef.v1",
+                      "kinds": [
+                        "image"
+                      ],
+                      "optional": true,
+                      "policyGeneration": "profile-image.v1",
+                      "retentionClass": "media-reference.v1",
+                      "sourceField": "image",
+                      "sourceFieldGeneration": "sha256:81082f909aa3205703b52dff1369c21f792edc2e023e24ce43b7cb215b92f3aa",
+                      "sourceTable": "profiles",
+                      "uploadIntent": "profileImageUpload",
+                      "variants": [
+                        "primary"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "document",
+          "table": "profiles"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "profiles",
+          "tables": [
+            "profiles"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "profileId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "profiles"
+              }
+            },
+            {
+              "name": "image",
+              "required": true,
+              "value": {
+                "kind": "assetRef"
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "authenticated",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "assets.media-ref-projection.v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "profiles"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "profiles"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "setProfileImage",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": "profiles",
+          "tables": [
+            "profiles"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "profiles"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "ownerId",
+                "required": true,
+                "value": {
+                  "kind": "principal"
+                }
+              },
+              {
+                "name": "displayName",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "image",
+                "required": true,
+                "value": {
+                  "kind": "union",
+                  "variants": [
+                    {
+                      "kind": "null"
+                    },
+                    {
+                      "classMTreatment": "class-m.none.v1",
+                      "classificationProfile": "detected-content-type.v1",
+                      "delivery": "primary",
+                      "kind": "mediaRef.v1",
+                      "kinds": [
+                        "image"
+                      ],
+                      "optional": true,
+                      "policyGeneration": "profile-image.v1",
+                      "retentionClass": "media-reference.v1",
+                      "sourceField": "image",
+                      "sourceFieldGeneration": "sha256:81082f909aa3205703b52dff1369c21f792edc2e023e24ce43b7cb215b92f3aa",
+                      "sourceTable": "profiles",
+                      "uploadIntent": "profileImageUpload",
+                      "variants": [
+                        "primary"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "document",
+          "table": "profiles"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "profiles",
+          "tables": [
+            "profiles"
+          ]
+        }
+      }
+    ]
+  },
+  "excludedFields": [
+    "behavior",
+    "graphRecords",
+    "authoringProfile",
+    "appId"
+  ],
+  "normalizedContractId": "sha256:2e0ce228bf06450eb4b820da6cde0503f19add272e25d53c6eb00bd925bf2f25",
+  "normalizedSchemaId": "sha256:2e1fb28c4c4a2aef9291b58a997d3d027753e5908a0f10191df339c6d9f86e8e",
+  "schemaVersion": "snapback.normalized-application-definition.v1"
+}

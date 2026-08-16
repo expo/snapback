@@ -197,3 +197,23 @@ Remaining before close (definition of done):
    slices (blocked on the umbrella first-publish gate,
    issues/20260814-umbrella-first-publish-gate.md, as of this record) and
    the as-built rollout/evidence note in LLP 0239.
+
+## Device-pass record (orchestrator + author, 2026-08-16)
+
+Physical-device Expo acceptance COMPLETE for the image path: iPhone (Expo
+Go, SDK 57) against `demos/media-happy-post` over loopback snapback +
+Tailscale-terminated TLS. Proven end to end on hardware: multi-select
+picker → `createPost` media command → 4-item upload with per-item progress
+→ one atomic parent/collection commit (stable ids, input order) → signed
+issuance → authorized render; typed per-item refusal + residue for a
+corrupt source and for a failed video beside ready siblings. Evidence:
+Diary 0087 (2026-08-16 entry), the demo's tests/ probes, and the two
+product fixes the pass forced (`fix(assets)` preview identity; Phase F
+double projection).
+
+Still open before close: the device VIDEO leg
+(issues/20260816-video-strip-walker-iphone-mov-box.md — walker fix + a
+fixture from the author's device), the media-bearing retained-row staleness
+(issues/20260816-media-livequery-retained-row-staleness.md), and the
+published-package rerun (unchanged, gated on the umbrella first-publish
+ceremony).

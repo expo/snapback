@@ -4612,6 +4612,7 @@ impl LocalDatabase {
         touched_tables.extend(
             read_dependencies
                 .iter()
+                .filter(|dependency| !is_media_projection_dependency(dependency))
                 .filter_map(|dependency| dependency.table.clone()),
         );
         touched_tables.extend(writes.iter().map(|write| write.table().to_owned()));
@@ -11436,11 +11437,7 @@ fn validate_captured_read_set(
                 }
             }
             CapturedReadKind::Auth => {}
-            CapturedReadKind::Permission
-                if dependency.table.as_deref() == Some(crate::assets::ASSET_RECORDS_TABLE)
-                    && dependency.field.as_deref()
-                        == Some(MEDIA_PROJECTION_DEPENDENCY_FIELD_V1) =>
-            {
+            CapturedReadKind::Permission if is_media_projection_dependency(dependency) => {
                 // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
                 // — system asset/rendition facts observed while projecting a
                 // handler read participate in the ordinary OCC gate. The
@@ -11486,6 +11483,15 @@ fn dependency_id(dependency: &CapturedReadDependency) -> SnapbackResult<&str> {
             "captured dependency is missing a row id",
         )
     })
+}
+
+/// Keep the private asset-fact dependency on its dedicated direct accessor;
+/// it is not an application table touch and must never enter `schema_table`.
+/// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
+fn is_media_projection_dependency(dependency: &CapturedReadDependency) -> bool {
+    dependency.kind == CapturedReadKind::Permission
+        && dependency.table.as_deref() == Some(crate::assets::ASSET_RECORDS_TABLE)
+        && dependency.field.as_deref() == Some(MEDIA_PROJECTION_DEPENDENCY_FIELD_V1)
 }
 
 fn captured_conflict(
@@ -17099,12 +17105,9 @@ fn validate_staged_media_projection_dependencies(
 ) -> SnapbackResult<()> {
     for occurrence in proof.borrow_occurrences() {
         let bound = read_dependencies.iter().any(|dependency| {
-            dependency.kind == CapturedReadKind::Permission
-                && dependency.table.as_deref() == Some(crate::assets::ASSET_RECORDS_TABLE)
+            is_media_projection_dependency(dependency)
                 && dependency.id.as_deref() == Some(occurrence.asset_id.as_str())
                 && dependency.version == Some(occurrence.snapshot_version)
-                && dependency.field.as_deref()
-                    == Some(MEDIA_PROJECTION_DEPENDENCY_FIELD_V1)
                 && dependency.value.as_ref().and_then(Value::as_str)
                     == Some(occurrence.related_fact_digest.as_str())
         });

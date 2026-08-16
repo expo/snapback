@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/media-reprojection-fixture/returnStoredProfile.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "displayName": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "displayName"
+  ],
+  "title": "media-reprojection-fixture:returnStoredProfile arguments",
+  "type": "object"
+}
