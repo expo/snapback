@@ -49,3 +49,25 @@ What fought me: sessions deployment identity made the M2→M3 schema evolution u
 Documentation and workarounds: packaged CLI source was decisive for the sessions startup-carrier and automatic-successor behavior, while the served scoped-role guide clarified why generic membership rows and handler reads are not equivalent to a declared authority profile. `recipientSet` remains server-derived `v.json()` because structured interiors reject principal validators and an already-stored JSON field cannot be retyped. M3 replay now preflights the exact frozen DM/group/message/member identities, avoiding unnecessary password-session churn. No second cache, outbox, presence transport, or policy bypass was added.
 
 The boundary is failed, not green. The final frozen run passed live DM delivery and the optional quoted-reply check, and structurally skipped four optional checks the harness declares unimplemented. Its required typing check failed: visibility repeatedly arrived 45–126 ms beyond the 2-second ceiling, although expiry was consistently about 1.3–1.85 seconds after the last keystroke. One earlier raw run passed all 3 implemented checks, but it lacked suite-status input and was structurally non-green; I did not combine runs or claim that as green. I tried stable declarative values, immediate imperative publish, unique connection IDs, a 1 ms ephemeral dispatch setting, disabling local live coalescing, clean backend restarts, and a focus warm-up. None produced repeatable compliant timing, so the final receipt and capability failure remain honest.
+
+## Addendum — 2026-08-15: the M3 typing red was a measurement artifact, not delivery latency
+
+The failed typing boundary was root-caused and closed the same day
+(`issues/closed/20260815-ephemeral-typing-first-visibility-misses-2s.md`,
+landed in 3ec6b1782). Instrumenting every hop of the ephemeral publish →
+fan-out → client-apply path showed first delivery is already eager: the
+eight-sample two-client regression in
+`demos/_kit/tests/regression-multiplexed-lanes.mjs` measured at most 1 ms per
+segment and 1.68 ms from caller publish start to overlay apply. The
+2,045–2,126 ms readings came from the frozen choreography's observation
+boundary: it starts its clock, awaits the full ~45-character
+`pressSequentially(..., { delay: 25 })` action, and only then begins waiting
+for the already-visible indicator, so its reported `visibleMs` includes the
+synthetic typing action and browser input/render overhead. That is why none
+of the seven mitigations above could move the floor.
+[LLP 0013 §First-delivery latency budget](../llp/0013-ephemeral-realtime-state.rfc.md#first-delivery-latency-budget)
+now publishes a 1,000 ms accept-to-overlay-apply regression ceiling with
+per-segment allocations and an observation-honesty rule that excludes
+synthetic action duration. Correcting the frozen choreography's boundary and
+rerunning this lane is tracked in
+`issues/20260815-clique-choreography-typing-observation-boundary.md`.
