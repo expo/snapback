@@ -95,12 +95,32 @@ try {
 
   const store = createMemoryRqsResumeStore();
   store.durability = () => ({ implementation: 'diagnostic-test', durable: true });
-  const queuedClient = new SnapbackClient('http://queued.invalid', { rqsStore: store });
+  const queuedClient = new SnapbackClient('http://queued.invalid', {
+    rqsStore: store,
+    __offlineMutationReplayCapability: true,
+  });
   globalThis.fetch = async () => { throw new TypeError('offline'); };
   const queued = await queuedClient.mutate('queuedMutation', { args: { value: 1 } });
   assert.equal(queued.status, 'queued', 'queued dispatch remains a resolved union');
   assert.equal(queued.queued, true);
   await queuedClient.closeAuth();
+
+  const incapableStore = createMemoryRqsResumeStore();
+  incapableStore.durability = () => ({ implementation: 'diagnostic-test', durable: true });
+  const incapableClient = new SnapbackClient('http://queued.invalid', {
+    rqsStore: incapableStore,
+    __offlineMutationReplayCapability: false,
+  });
+  let incapableDispatches = 0;
+  globalThis.fetch = async () => { incapableDispatches += 1; throw new Error('must not dispatch'); };
+  await assert.rejects(
+    () => incapableClient.mutate('queuedMutation', { args: { value: 1 }, queue: true }),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED'
+      && error?.diagnostic?.details?.capability === 'offline_mutation_replay',
+  );
+  assert.equal(incapableDispatches, 0, 'capability-absent queueing refuses before transport');
+  assert.deepEqual(await incapableStore.outboxRecords(), []);
+  await incapableClient.closeAuth();
 } finally {
   globalThis.fetch = originalFetch;
   console.warn = originalWarn;
@@ -108,4 +128,4 @@ try {
   else process.env.NODE_ENV = originalNodeEnv;
 }
 
-console.log('diagnostic-error.test.mjs: query/run/mutation guard parity, action compatibility, and deprecation passed');
+console.log('diagnostic-error.test.mjs: query/run/mutation guard parity, queue capability, action compatibility, and deprecation passed');

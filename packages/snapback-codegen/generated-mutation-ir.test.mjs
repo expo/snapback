@@ -22,7 +22,7 @@ export default defineSchema({
 `);
   writeFileSync(join(root, 'functions.mjs'), `
 import {
-  add, arg, authUserId, bindingRef, defineMutation, eqv, field, get, guard, insert, lit,
+  add, arg, authKind, authUserId, bindingRef, defineMutation, eqv, field, get, guard, insert, lit,
   patch, returnBinding, runtimeId, v,
 } from ${JSON.stringify(defineUrl)};
 export const createCard = defineMutation({
@@ -47,11 +47,18 @@ export const dynamicMint = defineMutation({
   args: {},
   plan: patch('cards', runtimeId(), { title: lit('server') }),
 });
-export const authoritativeValue = defineMutation({
+export const capturedPrincipalValue = defineMutation({
   args: { title: v.string(), position: v.integer() },
   plan: insert('cards', {
     title: arg('title'), locked: lit(false), revision: lit(0),
     position: arg('position'), owner: authUserId(),
+  }),
+});
+export const authoritativeValue = defineMutation({
+  args: { title: v.string(), position: v.integer() },
+  plan: insert('cards', {
+    title: arg('title'), locked: lit(false), revision: lit(0),
+    position: arg('position'), owner: authKind(),
   }),
 });
 `);
@@ -94,6 +101,10 @@ export const authoritativeValue = defineMutation({
     api.api.dynamicMint.mutationIr.capabilityCode,
     'SNAPBACK_GENERATED_IR_POINT_ID_SERVER_ONLY',
   );
+  // @ref LLP 0255#s72-capability-lattice-and-composition — an owner create's
+  // authenticated principal is a captured prediction input; generation keeps
+  // the exact capability even when an individual call cannot capture it.
+  assert.equal(api.api.capturedPrincipalValue.mutationIr.capabilityClass, 'local-executable');
   assert.equal(api.api.authoritativeValue.mutationIr.capabilityClass, 'server-only');
   assert.equal(
     api.api.authoritativeValue.mutationIr.capabilityCode,
