@@ -55,3 +55,10 @@ owner-policy rows with an explicit owner field now refuse at runtime with
 `demos/media-happy-post` hit this live and was adapted (drop the authored
 ownerId from inserts); other demos with the same authored pattern will hit
 it on their next boot — relevant to any demo boot sweep.
+
+## Scope note 2 (2026-08-16, per snapback-ca)
+
+issues/20260815-codegen-pretest-media-ref-capability-unsupported's remaining
+pretest reds are exact-base visibility diagnostics from the same
+ownership/visibility waves (the capability itself is declared at base), so
+that ticket's remainder folds into this sweep's scope.
